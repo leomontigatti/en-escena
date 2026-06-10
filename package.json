@@ -1,0 +1,57 @@
+{
+  "name": "en-escena",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "react-router build",
+    "dev": "react-router dev",
+    "start": "node --env-file=.env node_modules/@react-router/serve/bin.js ./build/server/index.js",
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "test": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "sandcastle": "npx tsx .sandcastle/main.mts"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.16",
+    "@react-router/fs-routes": "^7.11.0",
+    "@react-router/node": "^7.11.0",
+    "@react-router/serve": "^7.11.0",
+    "better-auth": "^1.6.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "isbot": "^5.1.27",
+    "lucide-react": "^0.525.0",
+    "postgres": "^3.4.7",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router": "^7.11.0",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.7.0",
+    "@react-router/dev": "^7.11.0",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^20.19.11",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.31.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0",
+    "prettier": "^3.4.2",
+    "tailwindcss": "^4.1.11",
+    "tsx": "^4.22.4",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.1",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "*": "prettier --write"
+  }
+}

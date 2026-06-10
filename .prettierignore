@@ -1,0 +1,7 @@
+node_modules
+build
+.react-router
+.firecrawl
+.sandcastle
+package-lock.json
+docs/agents/vendor
