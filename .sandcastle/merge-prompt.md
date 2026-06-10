@@ -15,7 +15,16 @@ After all branches are merged, make a single commit summarizing the merge.
 
 # CLOSE ISSUES
 
-For each branch that was merged, close its issue using the following command:
+For each issue whose branch was merged:
+
+1. Fetch the issue body with `gh issue view <ID> --json body`.
+2. Check off every acceptance criterion that the merged code satisfies by
+   changing that criterion's Markdown checkbox from `- [ ]` to `- [x]`.
+3. Do not check off a criterion unless the merged code and validation output
+   demonstrate that it is complete.
+4. Preserve all other issue body content.
+5. Update the issue body with `gh issue edit <ID> --body-file <file>`.
+6. Close the issue using the following command:
 
 `gh issue close <ID> --comment "Completed by Sandcastle"`
 
