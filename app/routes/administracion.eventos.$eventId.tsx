@@ -31,6 +31,8 @@ import {
 } from "@/lib/event-management.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
+import type { Route } from "./+types/administracion.eventos.$eventId";
+
 type EventRow = typeof eventsTable.$inferSelect;
 
 type FieldErrors = NonNullable<
@@ -45,13 +47,6 @@ type ActionData = {
   fieldErrors: FieldErrors;
   values: EventFormValues | null;
 };
-
-type LoaderArgs = {
-  request: Request;
-  params: { eventId?: string };
-};
-
-type ActionArgs = LoaderArgs;
 
 type AdministracionEventoDetalleRouteProps = {
   loaderData: {
@@ -71,7 +66,7 @@ export const meta = () => [
   { title: "Editar Evento | Panel de administración | En Escena" },
 ];
 
-export async function loader({ request, params }: LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);
   const eventContext = await loadAdminEventContext(request);
   const event = await loadEvent(params.eventId);
@@ -85,7 +80,7 @@ export async function loader({ request, params }: LoaderArgs) {
   };
 }
 
-export async function action({ request, params }: ActionArgs) {
+export async function action({ request, params }: Route.ActionArgs) {
   await requireAdminPanelUser(request);
 
   const eventId = params.eventId;
@@ -97,65 +92,46 @@ export async function action({ request, params }: ActionArgs) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent === "update") {
-    return updateEventAction(eventId, formData);
+  switch (intent) {
+    case "update":
+      return updateEventAction(eventId, formData);
+
+    case "activate":
+      return redirectOrError(eventId, activateEvent(eventId));
+
+    case "deactivate":
+      if (formData.get("confirmDeactivation") !== eventId) {
+        return actionError("Confirmá la desactivación del Evento.");
+      }
+
+      return redirectOrError(eventId, deactivateEvent(eventId));
+
+    case "delete":
+      if (formData.get("confirmDeletion") !== eventId) {
+        return actionError("Confirmá el borrado del Evento.");
+      }
+
+      return redirectAfterDeletion(await deleteEvent(eventId));
+
+    case "set-program-visibility":
+      return updateVisibility(eventId, {
+        programVisible: formData.get("value") === "true",
+      });
+
+    case "set-results-visibility":
+      return updateVisibility(eventId, {
+        resultsVisible: formData.get("value") === "true",
+      });
+
+    default:
+      return actionError("No pudimos procesar esa acción.");
   }
-
-  if (intent === "activate") {
-    const result = await activateEvent(eventId);
-
-    return redirectOrError(eventId, result);
-  }
-
-  if (intent === "deactivate") {
-    if (formData.get("confirmDeactivation") !== eventId) {
-      return actionError("Confirmá la desactivación del Evento.");
-    }
-
-    const result = await deactivateEvent(eventId);
-
-    return redirectOrError(eventId, result);
-  }
-
-  if (intent === "delete") {
-    if (formData.get("confirmDeletion") !== eventId) {
-      return actionError("Confirmá el borrado del Evento.");
-    }
-
-    const result = await deleteEvent(eventId);
-
-    if (!result.ok) {
-      return actionError(result.error);
-    }
-
-    throw redirect("/administracion/eventos");
-  }
-
-  if (intent === "set-program-visibility") {
-    const result = await setEventVisibility(eventId, {
-      programVisible: formData.get("value") === "true",
-    });
-
-    return redirectOrError(eventId, result);
-  }
-
-  if (intent === "set-results-visibility") {
-    const result = await setEventVisibility(eventId, {
-      resultsVisible: formData.get("value") === "true",
-    });
-
-    return redirectOrError(eventId, result);
-  }
-
-  return actionError("No pudimos procesar esa acción.");
 }
 
 export function AdministracionEventoDetalleRouteView({
   loaderData,
-  actionData: providedActionData,
+  actionData,
 }: AdministracionEventoDetalleRouteProps) {
-  const actionData = providedActionData;
-
   return (
     <AdminShell
       email={loaderData.email}
@@ -552,15 +528,37 @@ async function updateEventAction(eventId: string, formData: FormData) {
     };
   }
 
-  throw redirect(`/administracion/eventos/${eventId}?guardado=1`);
+  throw redirect(savedEventPath(eventId));
 }
 
-function redirectOrError(eventId: string, result: EventMutationResult) {
+function updateVisibility(
+  eventId: string,
+  visibility: Parameters<typeof setEventVisibility>[1],
+) {
+  return redirectOrError(eventId, setEventVisibility(eventId, visibility));
+}
+
+function redirectAfterDeletion(
+  result: Awaited<ReturnType<typeof deleteEvent>>,
+) {
   if (!result.ok) {
     return actionError(result.error);
   }
 
-  throw redirect(`/administracion/eventos/${eventId}?guardado=1`);
+  throw redirect("/administracion/eventos");
+}
+
+async function redirectOrError(
+  eventId: string,
+  resultPromise: Promise<EventMutationResult>,
+) {
+  const result = await resultPromise;
+
+  if (!result.ok) {
+    return actionError(result.error);
+  }
+
+  throw redirect(savedEventPath(eventId));
 }
 
 function actionError(message: string): ActionData {
@@ -570,6 +568,10 @@ function actionError(message: string): ActionData {
     fieldErrors: {},
     values: null,
   };
+}
+
+function savedEventPath(eventId: string) {
+  return `/administracion/eventos/${eventId}?guardado=1`;
 }
 
 async function loadEvent(eventId: string | undefined) {
