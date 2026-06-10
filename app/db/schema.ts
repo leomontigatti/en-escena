@@ -20,6 +20,13 @@ export const userRole = pgEnum("en_escena_user_role", [
   "judge",
 ]);
 
+export const groupType = pgEnum("en_escena_group_type", [
+  "solo",
+  "duo",
+  "trio",
+  "grupal",
+]);
+
 export const user = createTable("user", {
   id: varchar("id", { length: 255 })
     .primaryKey()
@@ -361,5 +368,76 @@ export const experienceLevels = createTable(
       table.eventId,
       table.name,
     ),
+  ],
+);
+
+export const categories = createTable(
+  "category",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    minAge: integer("min_age").notNull(),
+    maxAge: integer("max_age").notNull(),
+    groupTypes: groupType("group_types").array().notNull(),
+    groupTypeKey: text("group_type_key").notNull(),
+    experienceLevelKey: text("experience_level_key").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("category_event_id_idx").on(table.eventId),
+    index("category_event_age_range_idx").on(
+      table.eventId,
+      table.minAge,
+      table.maxAge,
+    ),
+  ],
+);
+
+export const categoryModalities = createTable(
+  "category_modality",
+  {
+    categoryId: varchar("category_id", { length: 255 })
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    modalityId: varchar("modality_id", { length: 255 })
+      .notNull()
+      .references(() => modalities.id),
+  },
+  (table) => [
+    uniqueIndex("category_modality_unique").on(
+      table.categoryId,
+      table.modalityId,
+    ),
+    index("category_modality_modality_id_idx").on(table.modalityId),
+  ],
+);
+
+export const categoryExperienceLevels = createTable(
+  "category_experience_level",
+  {
+    categoryId: varchar("category_id", { length: 255 })
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    experienceLevelId: varchar("experience_level_id", { length: 255 })
+      .notNull()
+      .references(() => experienceLevels.id),
+  },
+  (table) => [
+    uniqueIndex("category_experience_level_unique").on(
+      table.categoryId,
+      table.experienceLevelId,
+    ),
+    index("category_experience_level_level_id_idx").on(table.experienceLevelId),
   ],
 );

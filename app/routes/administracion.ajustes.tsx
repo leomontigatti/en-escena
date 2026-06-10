@@ -3,14 +3,22 @@ import { redirect, useActionData } from "react-router";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
-import type { experienceLevels, modalities, submodalities } from "@/db/schema";
+import type {
+  categories,
+  experienceLevels,
+  modalities,
+  submodalities,
+} from "@/db/schema";
 import {
+  createCategory,
   createExperienceLevel,
   createModality,
   createSubmodality,
+  deleteCategory,
   deleteExperienceLevel,
   deleteModality,
   deleteSubmodality,
+  updateCategory,
   listEventCatalogs,
   updateExperienceLevel,
   updateModality,
@@ -27,6 +35,10 @@ import type { Route } from "./+types/administracion.ajustes";
 type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;
 type ExperienceLevelRow = typeof experienceLevels.$inferSelect;
+type CategoryRow = typeof categories.$inferSelect & {
+  modalityIds: string[];
+  experienceLevelIds: string[];
+};
 
 type ActionData = {
   status: "error";
@@ -42,6 +54,7 @@ type AdministracionAjustesRouteProps = {
     modalities: ModalityRow[];
     submodalities: SubmodalityRow[];
     experienceLevels: ExperienceLevelRow[];
+    categories: CategoryRow[];
   };
   actionData?: ActionData;
 };
@@ -50,8 +63,20 @@ type CatalogActionInput = {
   eventId: string;
   id: string;
   intent: string;
+  minAge: number;
+  maxAge: number;
+  groupTypes: string[];
+  modalityIds: string[];
   modalityId: string;
   name: string;
+  experienceLevelIds: string[];
+};
+
+const groupTypeLabels: Record<string, string> = {
+  solo: "Solo",
+  duo: "Dúo",
+  trio: "Trío",
+  grupal: "Grupal",
 };
 
 export const meta = () => [{ title: "Ajustes de administración | En Escena" }];
@@ -66,7 +91,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const catalogs = eventContext.selectedEventId
     ? await listEventCatalogs(eventContext.selectedEventId)
-    : { modalities: [], submodalities: [], experienceLevels: [] };
+    : {
+        categories: [],
+        modalities: [],
+        submodalities: [],
+        experienceLevels: [],
+      };
 
   return {
     email: user.email,
@@ -118,8 +148,8 @@ export function AdministracionAjustesRouteView({
             </h2>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Configurá Modalidades, Submodalidades y Niveles de experiencia para
-            el Evento de trabajo seleccionado.
+            Configurá Categorías, Modalidades, Submodalidades y Niveles de
+            experiencia para el Evento de trabajo seleccionado.
           </p>
         </section>
 
@@ -130,7 +160,70 @@ export function AdministracionAjustesRouteView({
         ) : null}
 
         {loaderData.selectedEventId ? (
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="grid gap-6 xl:grid-cols-2">
+            <CatalogSection title="Categorías">
+              <CategoryForm
+                intent="create-category"
+                modalities={loaderData.modalities}
+                experienceLevels={loaderData.experienceLevels}
+                buttonLabel="Crear Categoría"
+                fieldErrors={providedActionData?.fieldErrors}
+              />
+              {loaderData.categories.length > 0 ? (
+                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+                  {loaderData.categories.map((category) => (
+                    <li key={category.id} className="space-y-3 p-4">
+                      <div className="space-y-1 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-950">
+                          {category.name}
+                        </p>
+                        <p>
+                          {category.minAge} a {category.maxAge} años
+                        </p>
+                        <p>{formatGroupTypes(category.groupTypes)}</p>
+                        <p>
+                          {formatNames(
+                            loaderData.modalities,
+                            category.modalityIds,
+                          )}
+                        </p>
+                        <p>
+                          {category.experienceLevelIds.length > 0
+                            ? formatNames(
+                                loaderData.experienceLevels,
+                                category.experienceLevelIds,
+                              )
+                            : "Sin Niveles de experiencia"}
+                        </p>
+                      </div>
+                      <CategoryForm
+                        id={category.id}
+                        intent="update-category"
+                        modalities={loaderData.modalities}
+                        experienceLevels={loaderData.experienceLevels}
+                        name={category.name}
+                        minAge={category.minAge}
+                        maxAge={category.maxAge}
+                        groupTypes={category.groupTypes}
+                        modalityIds={category.modalityIds}
+                        experienceLevelIds={category.experienceLevelIds}
+                        buttonLabel="Guardar"
+                      />
+                      <CatalogDeleteForm
+                        id={category.id}
+                        intent="delete-category"
+                        buttonLabel="Borrar Categoría"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyCatalogState>
+                  Todavía no hay Categorías para este Evento.
+                </EmptyCatalogState>
+              )}
+            </CatalogSection>
+
             <CatalogSection title="Modalidades">
               <CatalogCreateForm
                 intent="create-modality"
@@ -406,6 +499,169 @@ function SubmodalityForm({
   );
 }
 
+function CategoryForm({
+  buttonLabel,
+  experienceLevelIds = [],
+  experienceLevels,
+  fieldErrors = {},
+  groupTypes = [],
+  id,
+  intent,
+  maxAge,
+  minAge,
+  modalities,
+  modalityIds = [],
+  name,
+}: {
+  buttonLabel: string;
+  experienceLevelIds?: string[];
+  experienceLevels: ExperienceLevelRow[];
+  fieldErrors?: Record<string, string>;
+  groupTypes?: string[];
+  id?: string;
+  intent: string;
+  maxAge?: number;
+  minAge?: number;
+  modalities: ModalityRow[];
+  modalityIds?: string[];
+  name?: string;
+}) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-slate-200 bg-white p-4"
+    >
+      <input type="hidden" name="intent" value={intent} />
+      {id ? <input type="hidden" name="id" value={id} /> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Nombre de la Categoría
+          <input
+            name="name"
+            defaultValue={name}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.name ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.name}
+          </p>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800">
+          Edad mínima
+          <input
+            name="minAge"
+            type="number"
+            min="0"
+            defaultValue={minAge}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        <label className="block text-sm font-medium text-slate-800">
+          Edad máxima
+          <input
+            name="maxAge"
+            type="number"
+            min="0"
+            defaultValue={maxAge}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.ageRange ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.ageRange}
+          </p>
+        ) : null}
+
+        <CheckboxGroup
+          title="Tipos de grupo"
+          name="groupTypes"
+          selectedValues={groupTypes}
+          options={Object.entries(groupTypeLabels).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          error={fieldErrors.groupTypes}
+        />
+        <CheckboxGroup
+          title="Modalidades"
+          name="modalityIds"
+          selectedValues={modalityIds}
+          options={modalities.map((modality) => ({
+            value: modality.id,
+            label: modality.name,
+          }))}
+          error={fieldErrors.modalityIds}
+        />
+        <CheckboxGroup
+          title="Niveles de experiencia opcionales"
+          name="experienceLevelIds"
+          selectedValues={experienceLevelIds}
+          options={experienceLevels.map((level) => ({
+            value: level.id,
+            label: level.name,
+          }))}
+          error={fieldErrors.experienceLevelIds}
+          className="sm:col-span-2"
+        />
+      </div>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function CheckboxGroup({
+  className = "",
+  error,
+  name,
+  options,
+  selectedValues,
+  title,
+}: {
+  className?: string;
+  error?: string;
+  name: string;
+  options: Array<{ value: string; label: string }>;
+  selectedValues: string[];
+  title: string;
+}) {
+  return (
+    <fieldset className={className}>
+      <legend className="text-sm font-medium text-slate-800">{title}</legend>
+      <div className="mt-2 space-y-2 rounded-md border border-slate-200 p-3">
+        {options.length > 0 ? (
+          options.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-center gap-2 text-sm text-slate-700"
+            >
+              <input
+                type="checkbox"
+                name={name}
+                value={option.value}
+                defaultChecked={selectedValues.includes(option.value)}
+                className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-100"
+              />
+              {option.label}
+            </label>
+          ))
+        ) : (
+          <p className="text-sm text-slate-500">Sin opciones disponibles.</p>
+        )}
+      </div>
+      {error ? (
+        <p className="mt-2 text-xs font-medium text-red-700">{error}</p>
+      ) : null}
+    </fieldset>
+  );
+}
+
 function CatalogDeleteForm({
   buttonLabel,
   id,
@@ -445,8 +701,13 @@ function readCatalogActionInput(
     eventId,
     id: String(formData.get("id") ?? ""),
     intent: String(formData.get("intent") ?? ""),
+    minAge: Number(formData.get("minAge")),
+    maxAge: Number(formData.get("maxAge")),
+    groupTypes: formData.getAll("groupTypes").map(String),
+    modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
+    experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
   };
 }
 
@@ -463,6 +724,26 @@ function actionError(
 
 async function runCatalogIntent(input: CatalogActionInput) {
   switch (input.intent) {
+    case "create-category":
+      return createCategory(input.eventId, {
+        name: input.name,
+        minAge: input.minAge,
+        maxAge: input.maxAge,
+        groupTypes: input.groupTypes,
+        modalityIds: input.modalityIds,
+        experienceLevelIds: input.experienceLevelIds,
+      });
+    case "update-category":
+      return updateCategory(input.id, {
+        name: input.name,
+        minAge: input.minAge,
+        maxAge: input.maxAge,
+        groupTypes: input.groupTypes,
+        modalityIds: input.modalityIds,
+        experienceLevelIds: input.experienceLevelIds,
+      });
+    case "delete-category":
+      return deleteCategory(input.id);
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
     case "update-modality":
@@ -495,4 +776,21 @@ async function runCatalogIntent(input: CatalogActionInput) {
         fieldErrors: {},
       };
   }
+}
+
+function formatGroupTypes(groupTypes: string[]) {
+  return groupTypes
+    .map((groupType) => groupTypeLabels[groupType] ?? groupType)
+    .join(", ");
+}
+
+function formatNames(
+  records: Array<{ id: string; name: string }>,
+  selectedIds: string[],
+) {
+  const names = selectedIds
+    .map((id) => records.find((record) => record.id === id)?.name)
+    .filter(Boolean);
+
+  return names.length > 0 ? names.join(", ") : "Sin opciones";
 }
