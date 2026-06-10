@@ -41,6 +41,7 @@ Before committing, run the validation commands in this order:
 2. `npm run typecheck`
 3. `npm run test`
 4. `npm run test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+5. `npm run build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 

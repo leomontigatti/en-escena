@@ -10,6 +10,12 @@ Here are the open issues in the repo:
 
 The list above has already been filtered to issues ready for work.
 
+Some issues can still be planning/container issues rather than implementation
+tasks. Treat an issue as **not executable** when it is a PRD, parent epic,
+tracking issue, or issue-breakdown container. Common signals include a title
+starting with `PRD:` or a body organized around problem/solution/user stories
+instead of acceptance criteria for a single implementation slice.
+
 # TASK
 
 Analyze the open issues and build a dependency graph. For each issue, determine whether it **blocks** or **is blocked by** any other open issue.
@@ -32,6 +38,10 @@ Output your plan as a JSON object wrapped in `<plan>` tags:
 {"issues": [{"id": "42", "title": "Fix auth bug", "branch": "sandcastle/issue-42"}]}
 </plan>
 
-Include only unblocked issues. If every issue is blocked, include the single highest-priority candidate (the one with the fewest or weakest dependencies).
+Include only unblocked executable issues. Do not include PRDs, parent epics, or
+tracking/container issues in the plan even if they are unblocked.
+
+If every executable issue is blocked, include the single highest-priority
+executable candidate (the one with the fewest or weakest dependencies).
 
 Always emit the `<plan>` tags, even when there is nothing to do. If there are no issues to work on at all, output `<plan>{"issues": []}</plan>` so the run can exit cleanly.
