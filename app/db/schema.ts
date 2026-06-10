@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   pgEnum,
   pgTableCreator,
   text,
@@ -240,33 +241,46 @@ export const internalUserInvitations = createTable(
 
 export const internalInvitationTokens = internalUserInvitations;
 
-export const events = createTable("event", {
-  id: varchar("id", { length: 255 })
-    .primaryKey()
-    .notNull()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  active: boolean("active").notNull().default(false),
-  registrationStartsAt: timestamp("registration_starts_at", {
-    mode: "date",
-    withTimezone: true,
-  }).notNull(),
-  registrationEndsAt: timestamp("registration_ends_at", {
-    mode: "date",
-    withTimezone: true,
-  }).notNull(),
-  startsAt: timestamp("starts_at", {
-    mode: "date",
-    withTimezone: true,
-  }).notNull(),
-  endsAt: timestamp("ends_at", {
-    mode: "date",
-    withTimezone: true,
-  }).notNull(),
-  createdAt: timestamp("created_at", {
-    mode: "date",
-    withTimezone: true,
-  })
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
+export const events = createTable(
+  "event",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(false),
+    programVisible: boolean("program_visible").notNull().default(false),
+    resultsVisible: boolean("results_visible").notNull().default(false),
+    requiredDepositPercentage: integer("required_deposit_percentage")
+      .notNull()
+      .default(30),
+    registrationStartsAt: timestamp("registration_starts_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    registrationEndsAt: timestamp("registration_ends_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    startsAt: timestamp("starts_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    endsAt: timestamp("ends_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("event_single_active_unique")
+      .on(table.active)
+      .where(sql`${table.active} = true`),
+  ],
+);
