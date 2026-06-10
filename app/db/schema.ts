@@ -498,3 +498,32 @@ export const scheduleBlockModalities = createTable(
     ),
   ],
 );
+
+export const scheduleEntries = createTable(
+  "schedule_entry",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    scheduleBlockId: varchar("schedule_block_id", { length: 255 })
+      .notNull()
+      .references(() => scheduleBlocks.id, { onDelete: "cascade" }),
+    groupTypes: groupType("group_types").array().notNull(),
+    groupTypeKey: text("group_type_key").notNull(),
+    capacity: integer("capacity").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("schedule_entry_block_id_idx").on(table.scheduleBlockId),
+    uniqueIndex("schedule_entry_block_group_types_unique").on(
+      table.scheduleBlockId,
+      table.groupTypeKey,
+    ),
+  ],
+);

@@ -7,6 +7,7 @@ import {
   categoryModalities,
   experienceLevels,
   modalities,
+  scheduleEntries,
   scheduleBlockModalities,
   scheduleBlocks,
   submodalities,
@@ -22,6 +23,7 @@ const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
 
 type CatalogRecord =
   | typeof modalities.$inferSelect
+  | typeof scheduleEntries.$inferSelect
   | typeof scheduleBlocks.$inferSelect
   | typeof submodalities.$inferSelect
   | typeof experienceLevels.$inferSelect
@@ -43,6 +45,7 @@ type CatalogFailure = {
     | "invalid-experience-level"
     | "invalid-group-type"
     | "invalid-modality"
+    | "invalid-schedule-entry"
     | "schedule-block-has-dependencies";
   error: string;
   fieldErrors?: Record<string, string>;
@@ -91,13 +94,48 @@ export type ScheduleBlockInput = CatalogNameInput & {
   modalityIds: string[];
 };
 
+export type ScheduleEntryInput = {
+  groupTypes: string[];
+  capacity: number;
+};
+
 type ScheduleBlockDependencies = {
   hasDependencies?: (scheduleBlockId: string) => Promise<boolean> | boolean;
+};
+
+type ScheduleEntryDependencies = {
+  hasDependencies?: (scheduleEntryId: string) => Promise<boolean> | boolean;
 };
 
 export type ScheduleBlockListItem = typeof scheduleBlocks.$inferSelect & {
   modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
   modalityIds: string[];
+  scheduleEntries: ScheduleEntryListItem[];
+};
+
+export type ScheduleEntryListItem = typeof scheduleEntries.$inferSelect;
+
+export type CompatibleScheduleEntryResolution =
+  | {
+      status: "none";
+      error: string;
+      options: [];
+    }
+  | {
+      status: "auto";
+      scheduleEntry: CompatibleScheduleEntry;
+      options: [CompatibleScheduleEntry];
+    }
+  | {
+      status: "multiple";
+      options: CompatibleScheduleEntry[];
+    };
+
+export type CompatibleScheduleEntry = typeof scheduleEntries.$inferSelect & {
+  scheduleBlock: Pick<
+    typeof scheduleBlocks.$inferSelect,
+    "id" | "name" | "scheduledDate" | "startTime"
+  >;
 };
 
 const catalogCopy = {
@@ -563,6 +601,15 @@ export async function listScheduleBlocks(
     .orderBy(asc(modalities.name));
 
   const modalitiesByBlockId = groupScheduleBlockModalities(acceptedModalities);
+  const entriesByBlockId = groupScheduleEntries(
+    await db.query.scheduleEntries.findMany({
+      where: inArray(scheduleEntries.scheduleBlockId, blockIds),
+      orderBy: [
+        asc(scheduleEntries.groupTypeKey),
+        asc(scheduleEntries.capacity),
+      ],
+    }),
+  );
 
   return blocks.map((block) => {
     const blockModalities = modalitiesByBlockId.get(block.id) ?? [];
@@ -570,6 +617,7 @@ export async function listScheduleBlocks(
       ...block,
       modalities: blockModalities,
       modalityIds: blockModalities.map((modality) => modality.id),
+      scheduleEntries: entriesByBlockId.get(block.id) ?? [],
     };
   });
 }
@@ -698,6 +746,15 @@ export async function deleteScheduleBlock(
     };
   }
 
+  if (await scheduleBlockHasScheduleEntries(scheduleBlockId)) {
+    return {
+      ok: false,
+      code: "schedule-block-has-dependencies",
+      error:
+        "No se puede borrar el Bloque horario porque tiene Cronogramas relacionados.",
+    };
+  }
+
   await db.delete(scheduleBlocks).where(eq(scheduleBlocks.id, scheduleBlockId));
 
   return { ok: true };
@@ -707,6 +764,205 @@ export async function scheduleBlockHasOperationalDependencies(
   _scheduleBlockId: string,
 ) {
   return false;
+}
+
+export async function createScheduleEntry(
+  scheduleBlockId: string,
+  input: ScheduleEntryInput,
+): Promise<CatalogMutationResult> {
+  const validation = await validateScheduleEntryInput(scheduleBlockId, input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .insert(scheduleEntries)
+    .values({
+      scheduleBlockId,
+      groupTypes: validation.groupTypes,
+      groupTypeKey: validation.groupTypeKey,
+      capacity: input.capacity,
+    })
+    .returning();
+
+  return created(record);
+}
+
+export async function updateScheduleEntry(
+  scheduleEntryId: string,
+  input: ScheduleEntryInput,
+  dependencies: ScheduleEntryDependencies = {},
+): Promise<CatalogMutationResult> {
+  const existing = await db.query.scheduleEntries.findFirst({
+    where: eq(scheduleEntries.id, scheduleEntryId),
+  });
+
+  if (!existing) {
+    return scheduleEntryNotFound();
+  }
+
+  const validation = await validateScheduleEntryInput(
+    existing.scheduleBlockId,
+    input,
+    scheduleEntryId,
+  );
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const hasDependencies =
+    dependencies.hasDependencies ?? scheduleEntryHasOperationalDependencies;
+
+  if (
+    (await hasDependencies(scheduleEntryId)) &&
+    hasStructuralScheduleEntryChanges(existing, {
+      groupTypeKey: validation.groupTypeKey,
+      capacity: input.capacity,
+    })
+  ) {
+    return {
+      ok: false,
+      code: "invalid-schedule-entry",
+      error:
+        "No se pueden editar Tipos de grupo ni cupo porque el Cronograma tiene dependencias.",
+    };
+  }
+
+  const [record] = await db
+    .update(scheduleEntries)
+    .set({
+      groupTypes: validation.groupTypes,
+      groupTypeKey: validation.groupTypeKey,
+      capacity: input.capacity,
+    })
+    .where(eq(scheduleEntries.id, scheduleEntryId))
+    .returning();
+
+  return created(record);
+}
+
+export async function deleteScheduleEntry(
+  scheduleEntryId: string,
+  dependencies: ScheduleEntryDependencies = {},
+): Promise<CatalogDeleteResult> {
+  const scheduleEntry = await db.query.scheduleEntries.findFirst({
+    where: eq(scheduleEntries.id, scheduleEntryId),
+  });
+
+  if (!scheduleEntry) {
+    return scheduleEntryNotFound();
+  }
+
+  const hasDependencies =
+    dependencies.hasDependencies ?? scheduleEntryHasOperationalDependencies;
+
+  if (await hasDependencies(scheduleEntryId)) {
+    return {
+      ok: false,
+      code: "invalid-schedule-entry",
+      error: "No se puede borrar el Cronograma porque tiene dependencias.",
+    };
+  }
+
+  await db
+    .delete(scheduleEntries)
+    .where(eq(scheduleEntries.id, scheduleEntryId));
+
+  return { ok: true };
+}
+
+export async function scheduleEntryHasOperationalDependencies(
+  _scheduleEntryId: string,
+) {
+  return false;
+}
+
+export async function resolveCompatibleScheduleEntries(input: {
+  eventId: string;
+  modalityId: string;
+  groupType: string;
+}): Promise<CompatibleScheduleEntryResolution> {
+  if (!isGroupType(input.groupType)) {
+    return {
+      status: "none",
+      error: "Elegí un Tipo de grupo válido.",
+      options: [],
+    };
+  }
+
+  const options = await db
+    .select({
+      id: scheduleEntries.id,
+      scheduleBlockId: scheduleEntries.scheduleBlockId,
+      groupTypes: scheduleEntries.groupTypes,
+      groupTypeKey: scheduleEntries.groupTypeKey,
+      capacity: scheduleEntries.capacity,
+      createdAt: scheduleEntries.createdAt,
+      blockId: scheduleBlocks.id,
+      blockName: scheduleBlocks.name,
+      blockDate: scheduleBlocks.scheduledDate,
+      blockTime: scheduleBlocks.startTime,
+    })
+    .from(scheduleEntries)
+    .innerJoin(
+      scheduleBlocks,
+      eq(scheduleEntries.scheduleBlockId, scheduleBlocks.id),
+    )
+    .innerJoin(
+      scheduleBlockModalities,
+      eq(scheduleBlocks.id, scheduleBlockModalities.scheduleBlockId),
+    )
+    .where(
+      and(
+        eq(scheduleBlocks.eventId, input.eventId),
+        eq(scheduleBlockModalities.modalityId, input.modalityId),
+        sql`${scheduleEntries.groupTypes} @> ARRAY[${input.groupType}]::en_escena_group_type[]`,
+      ),
+    )
+    .orderBy(
+      asc(scheduleBlocks.scheduledDate),
+      asc(scheduleBlocks.startTime),
+      asc(scheduleEntries.groupTypeKey),
+    );
+
+  const compatibleOptions = options.map((option) => ({
+    id: option.id,
+    scheduleBlockId: option.scheduleBlockId,
+    groupTypes: option.groupTypes,
+    groupTypeKey: option.groupTypeKey,
+    capacity: option.capacity,
+    createdAt: option.createdAt,
+    scheduleBlock: {
+      id: option.blockId,
+      name: option.blockName,
+      scheduledDate: option.blockDate,
+      startTime: option.blockTime,
+    },
+  }));
+
+  if (compatibleOptions.length === 0) {
+    return {
+      status: "none",
+      error:
+        "No hay Cronogramas compatibles para la Modalidad y el Tipo de grupo seleccionados.",
+      options: [],
+    };
+  }
+
+  if (compatibleOptions.length === 1) {
+    return {
+      status: "auto",
+      scheduleEntry: compatibleOptions[0],
+      options: [compatibleOptions[0]],
+    };
+  }
+
+  return {
+    status: "multiple",
+    options: compatibleOptions,
+  };
 }
 
 async function validateSubmodalityInput(
@@ -845,6 +1101,77 @@ async function validateScheduleBlockInput(
   }
 
   return { ok: true };
+}
+
+async function validateScheduleEntryInput(
+  scheduleBlockId: string,
+  input: ScheduleEntryInput,
+  exceptId?: string,
+): Promise<
+  { ok: true; groupTypes: GroupType[]; groupTypeKey: string } | CatalogFailure
+> {
+  const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+    where: eq(scheduleBlocks.id, scheduleBlockId),
+  });
+
+  if (!scheduleBlock) {
+    return scheduleEntryNotFound();
+  }
+
+  const fieldErrors: Record<string, string> = {};
+  const groupTypes = uniqueValues(input.groupTypes)
+    .filter(isGroupType)
+    .sort((a, b) => groupTypeOrder.indexOf(a) - groupTypeOrder.indexOf(b));
+
+  if (groupTypes.length === 0) {
+    fieldErrors.groupTypes = "Elegí al menos un Tipo de grupo.";
+  }
+
+  if (!Number.isInteger(input.capacity) || input.capacity <= 0) {
+    fieldErrors.capacity = "Ingresá un cupo mayor a cero.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      code: "invalid-schedule-entry",
+      error: "Revisá los datos del Cronograma.",
+      fieldErrors,
+    };
+  }
+
+  const groupTypeKey = groupTypes.join("|");
+
+  if (
+    await findDuplicateScheduleEntry(scheduleBlockId, groupTypeKey, exceptId)
+  ) {
+    return {
+      ok: false,
+      code: "invalid-schedule-entry",
+      error:
+        "Ya existe un Cronograma para esa combinación de Tipos de grupo en este Bloque horario.",
+      fieldErrors: {
+        groupTypes: "Revisá los Tipos de grupo del Cronograma.",
+      },
+    };
+  }
+
+  const reservedCapacity = await getReservedScheduleEntryCapacity(
+    scheduleBlockId,
+    exceptId,
+  );
+
+  if (reservedCapacity + input.capacity > scheduleBlock.totalCapacity) {
+    return {
+      ok: false,
+      code: "invalid-schedule-entry",
+      error:
+        "La suma de cupos de Cronogramas no puede superar el cupo total del Bloque horario.",
+      fieldErrors: { capacity: "Ajustá el cupo del Cronograma." },
+    };
+  }
+
+  return { ok: true, groupTypes, groupTypeKey };
 }
 
 async function validateCategoryInput(
@@ -1084,6 +1411,51 @@ async function findDuplicateName(input: {
     .then(([record]) => record);
 }
 
+async function findDuplicateScheduleEntry(
+  scheduleBlockId: string,
+  groupTypeKey: string,
+  exceptId?: string,
+) {
+  const idFilter = exceptId ? ne(scheduleEntries.id, exceptId) : undefined;
+
+  return db
+    .select({ id: scheduleEntries.id })
+    .from(scheduleEntries)
+    .where(
+      and(
+        eq(scheduleEntries.scheduleBlockId, scheduleBlockId),
+        eq(scheduleEntries.groupTypeKey, groupTypeKey),
+        idFilter,
+      ),
+    )
+    .limit(1)
+    .then(([record]) => record);
+}
+
+async function getReservedScheduleEntryCapacity(
+  scheduleBlockId: string,
+  exceptId?: string,
+) {
+  const idFilter = exceptId ? ne(scheduleEntries.id, exceptId) : undefined;
+  const [result] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${scheduleEntries.capacity}), 0)::int`,
+    })
+    .from(scheduleEntries)
+    .where(and(eq(scheduleEntries.scheduleBlockId, scheduleBlockId), idFilter));
+
+  return result?.total ?? 0;
+}
+
+async function scheduleBlockHasScheduleEntries(scheduleBlockId: string) {
+  const scheduleEntry = await db.query.scheduleEntries.findFirst({
+    columns: { id: true },
+    where: eq(scheduleEntries.scheduleBlockId, scheduleBlockId),
+  });
+
+  return Boolean(scheduleEntry);
+}
+
 async function modalityHasConfigurationDependencies(
   modalityId: string,
 ): Promise<CatalogDeleteResult> {
@@ -1201,6 +1573,14 @@ function categoryNotFound(): CatalogFailure {
   };
 }
 
+function scheduleEntryNotFound(): CatalogFailure {
+  return {
+    ok: false,
+    code: "catalog-not-found",
+    error: "No encontramos ese Cronograma.",
+  };
+}
+
 function getTable(kind: CatalogKind) {
   switch (kind) {
     case "modality":
@@ -1286,6 +1666,16 @@ function hasStructuralScheduleBlockChanges(
   );
 }
 
+function hasStructuralScheduleEntryChanges(
+  existing: typeof scheduleEntries.$inferSelect,
+  input: { groupTypeKey: string; capacity: number },
+) {
+  return (
+    existing.groupTypeKey !== input.groupTypeKey ||
+    existing.capacity !== input.capacity
+  );
+}
+
 function getScheduleBlockModalityValues(
   scheduleBlockId: string,
   modalityIds: string[],
@@ -1319,6 +1709,19 @@ function groupScheduleBlockModalities(
   }
 
   return modalitiesByBlockId;
+}
+
+function groupScheduleEntries(entries: ScheduleEntryListItem[]) {
+  const entriesByBlockId = new Map<string, ScheduleEntryListItem[]>();
+
+  for (const entry of entries) {
+    const blockEntries = entriesByBlockId.get(entry.scheduleBlockId) ?? [];
+
+    blockEntries.push(entry);
+    entriesByBlockId.set(entry.scheduleBlockId, blockEntries);
+  }
+
+  return entriesByBlockId;
 }
 
 function isValidDate(value: string) {

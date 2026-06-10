@@ -9,6 +9,7 @@ import {
   categories,
   experienceLevels,
   modalities,
+  scheduleEntries,
   scheduleBlocks,
   submodalities,
   user,
@@ -340,6 +341,123 @@ describe("administracion/ajustes route", () => {
     await expect(
       db.query.scheduleBlocks.findFirst({
         where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("creates, edits and deletes Cronogramas inside Bloques horarios through the admin action", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    await createModality(event.id, { name: "Jazz" });
+    const [modality] = await db.query.modalities.findMany({
+      where: eq(modalities.eventId, event.id),
+    });
+    const scheduleBlockRequest = await createSignedInRequest({
+      email: "admin.crea.bloque.cronograma@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-block",
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: "12",
+        modalityIds: [modality?.id ?? ""],
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(scheduleBlockRequest.request)),
+      302,
+    );
+
+    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    });
+    const createScheduleEntryRequest = await createSignedInRequest({
+      email: "admin.crea.cronograma@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-entry",
+        scheduleBlockId: scheduleBlock?.id ?? "",
+        groupTypes: ["solo", "duo"],
+        capacity: "8",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createScheduleEntryRequest.request)),
+      302,
+    );
+
+    const scheduleEntry = await db.query.scheduleEntries.findFirst({
+      where: eq(scheduleEntries.scheduleBlockId, scheduleBlock?.id ?? ""),
+    });
+    expect(scheduleEntry).toMatchObject({
+      groupTypeKey: "solo|duo",
+      capacity: 8,
+    });
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.lista.cronogramas@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const markup = renderRoute(data);
+
+    expect(markup).toContain("Cronogramas");
+    expect(markup).toContain("Solo, Dúo");
+    expect(markup).toContain("8 cupos");
+    expect(markup).toContain('name="intent" value="create-schedule-entry"');
+
+    const editScheduleEntryRequest = await createSignedInRequest({
+      email: "admin.edita.cronograma@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "update-schedule-entry",
+        id: scheduleEntry?.id ?? "",
+        groupTypes: ["trio"],
+        capacity: "4",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editScheduleEntryRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.scheduleEntries.findFirst({
+        where: eq(scheduleEntries.id, scheduleEntry?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({
+      groupTypeKey: "trio",
+      capacity: 4,
+    });
+
+    const deleteScheduleEntryRequest = await createSignedInRequest({
+      email: "admin.borra.cronograma@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "delete-schedule-entry",
+        id: scheduleEntry?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(deleteScheduleEntryRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.scheduleEntries.findFirst({
+        where: eq(scheduleEntries.id, scheduleEntry?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
   });

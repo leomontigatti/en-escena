@@ -39,22 +39,8 @@ async function resetTestSchema(databaseUrl: string) {
   const testClient = postgres(databaseUrl, { max: 1 });
 
   try {
-    const existingTables = await testClient<{ tablename: string }[]>`
-      select tablename
-      from pg_tables
-      where schemaname = 'public'
-        and tablename like 'en\\_escena\\_%' escape '\\'
-    `;
-
-    if (existingTables.length === 0) {
-      return;
-    }
-
-    await testClient.unsafe(
-      `drop table ${existingTables
-        .map((table) => quoteIdentifier(table.tablename))
-        .join(", ")} cascade`,
-    );
+    await testClient.unsafe("drop schema if exists public cascade");
+    await testClient.unsafe("create schema public");
   } finally {
     await testClient.end();
   }
