@@ -205,6 +205,39 @@ export const academyRegistrationTokens = createTable(
   ],
 );
 
+export const internalUserInvitations = createTable(
+  "internal_user_invitation",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    email: text("email").notNull(),
+    role: userRole("role").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    consumedAt: timestamp("consumed_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("internal_user_invitation_token_hash_unique").on(
+      table.tokenHash,
+    ),
+    index("internal_user_invitation_email_idx").on(table.email),
+  ],
+);
+
 export const events = createTable("event", {
   id: varchar("id", { length: 255 })
     .primaryKey()
