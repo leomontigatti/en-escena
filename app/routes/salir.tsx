@@ -2,16 +2,13 @@ import { redirect } from "react-router";
 
 import { auth } from "@/lib/auth.server";
 
+import type { Route } from "./+types/salir";
+
 export async function loader() {
   throw redirect("/ingresar");
 }
 
-export async function action({
-  request,
-}: {
-  request: Request;
-  [key: string]: unknown;
-}) {
+export async function action({ request }: Route.ActionArgs) {
   if (request.method !== "POST") {
     throw redirect("/ingresar");
   }
