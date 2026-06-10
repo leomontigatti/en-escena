@@ -1,4 +1,4 @@
-type SendEmailInput = {
+export type SendEmailInput = {
   to: string;
   subject: string;
   text: string;

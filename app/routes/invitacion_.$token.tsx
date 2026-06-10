@@ -8,13 +8,13 @@ import {
 import { z } from "zod";
 
 import {
-  acceptInternalInvitation,
-  getInternalInvitationStatus,
-} from "@/lib/internal-invitation.server";
+  completeInternalUserInvitation,
+  getInternalInvitationTokenStatus,
+} from "@/lib/internal-user-invitation.server";
 
 import type { Route } from "./+types/invitacion_.$token";
 
-const acceptInvitationSchema = z
+const completeInvitationSchema = z
   .object({
     password: z
       .string()
@@ -27,7 +27,7 @@ const acceptInvitationSchema = z
   });
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Invitación interna | En Escena" },
+  { title: "Completar invitación | En Escena" },
 ];
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -37,7 +37,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     return { tokenStatus: "invalid" as const };
   }
 
-  return { tokenStatus: await getInternalInvitationStatus(token) };
+  return { tokenStatus: await getInternalInvitationTokenStatus(token) };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -48,7 +48,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const parsed = acceptInvitationSchema.safeParse({
+  const parsed = completeInvitationSchema.safeParse({
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
   });
@@ -56,11 +56,12 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (!parsed.success) {
     return {
       status: "error" as const,
-      message: parsed.error.issues[0]?.message ?? "Revisá la nueva contraseña.",
+      message:
+        parsed.error.issues[0]?.message ?? "Revisá los datos del formulario.",
     };
   }
 
-  const result = await acceptInternalInvitation({
+  const result = await completeInternalUserInvitation({
     token,
     password: parsed.data.password,
     request,
@@ -73,7 +74,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   throw redirect("/portal", { headers: result.headers });
 }
 
-export default function InvitacionRoute() {
+export default function CompletarInvitacionRoute() {
   const { tokenStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
@@ -86,7 +87,7 @@ export default function InvitacionRoute() {
             No pudimos abrir esta invitación
           </h1>
           <p className="mt-4 text-sm leading-6 text-stone-600">
-            El enlace ya fue usado o expiró. Pedí a administración una nueva
+            El enlace ya fue usado o expiró. Pedile a administración una nueva
             invitación.
           </p>
           <Link
@@ -103,13 +104,15 @@ export default function InvitacionRoute() {
   return (
     <main className="grid min-h-screen place-items-center bg-stone-100 px-6 py-12">
       <section className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-amber-700">Invitación interna</p>
+        <p className="text-sm font-medium text-amber-700">
+          Invitación habilitada
+        </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
           Definí tu contraseña
         </h1>
         <p className="mt-4 text-sm leading-6 text-stone-600">
-          Este enlace confirma tu correo y habilita el permiso interno asignado
-          por administración.
+          El permiso interno ya fue definido por administración. Completá tu
+          acceso con una contraseña propia.
         </p>
 
         <Form method="post" className="mt-8 space-y-5">
@@ -151,7 +154,7 @@ export default function InvitacionRoute() {
             type="submit"
             className="w-full rounded-xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
           >
-            Crear acceso
+            Completar invitación
           </button>
         </Form>
       </section>

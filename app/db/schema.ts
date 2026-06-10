@@ -205,7 +205,7 @@ export const academyRegistrationTokens = createTable(
   ],
 );
 
-export const internalInvitationTokens = createTable(
+export const internalUserInvitations = createTable(
   "internal_user_invitation",
   {
     id: varchar("id", { length: 255 })
@@ -231,10 +231,14 @@ export const internalInvitationTokens = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex("internal_invitation_token_hash_unique").on(table.tokenHash),
-    index("internal_invitation_token_email_idx").on(table.email),
+    uniqueIndex("internal_user_invitation_token_hash_unique").on(
+      table.tokenHash,
+    ),
+    index("internal_user_invitation_email_idx").on(table.email),
   ],
 );
+
+export const internalInvitationTokens = internalUserInvitations;
 
 export const events = createTable("event", {
   id: varchar("id", { length: 255 })
