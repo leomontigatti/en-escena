@@ -7,7 +7,7 @@ import {
   hashRegistrationToken,
   normalizeEmail,
 } from "@/lib/academy-registration-token.server";
-import { auth } from "@/lib/auth.server";
+import { signUpAcademyUser } from "@/lib/academy-registration-auth.server";
 import { sendEmail } from "@/lib/email.server";
 
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -99,25 +99,20 @@ export async function completeAcademyRegistration(input: {
     return { ok: false as const, error: "El enlace no es válido o expiró." };
   }
 
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: registrationToken.email,
-      name: registrationToken.email,
-      password: input.password,
-      rememberMe: true,
-    },
-    headers: input.request.headers,
-    returnHeaders: true,
+  const signUpResult = await signUpAcademyUser({
+    email: registrationToken.email,
+    password: input.password,
+    request: input.request,
   });
 
   await db.transaction(async (tx) => {
     await tx
       .update(user)
       .set({ emailVerified: true })
-      .where(eq(user.id, signUpResult.response.user.id));
+      .where(eq(user.id, signUpResult.userId));
 
     await tx.insert(academies).values({
-      userId: signUpResult.response.user.id,
+      userId: signUpResult.userId,
       name: input.academyName.trim(),
       contactName: input.contactName.trim(),
       phone: input.phone.trim(),
