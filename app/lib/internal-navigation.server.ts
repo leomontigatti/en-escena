@@ -38,13 +38,17 @@ export async function getLandingPathForUserId(userId: string) {
 }
 
 export async function requireAdminPanelUser(request: Request) {
-  return await requireInternalUser(request, ["admin"]);
+  return await requirePanelUser(request, "admin");
 }
 
 export async function requireAuditorPanelUser(request: Request) {
-  return await requireInternalUser(request, ["auditor"]);
+  return await requirePanelUser(request, "auditor");
 }
 
 export async function requireJudgePanelUser(request: Request) {
-  return await requireInternalUser(request, ["judge"]);
+  return await requirePanelUser(request, "judge");
+}
+
+async function requirePanelUser(request: Request, role: InternalUserRole) {
+  return await requireInternalUser(request, [role]);
 }

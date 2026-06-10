@@ -111,28 +111,12 @@ async function createSignedInRequest(input: {
   email: string;
   role: "academy" | InternalUserRole;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-      rememberMe: true,
-    },
-    returnHeaders: true,
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
+  const credentialUser = await createCredentialUser(input);
 
   if (input.role === "academy") {
     await db.insert(academies).values({
-      id: `academy_${input.role}`,
-      userId: signUpResult.response.user.id,
+      id: `academy_${credentialUser.userId}`,
+      userId: credentialUser.userId,
       name: "Academia de Prueba",
       contactName: "Contacto",
       phone: "11 1234-5678",
@@ -142,7 +126,7 @@ async function createSignedInRequest(input: {
   return {
     request: new Request("http://localhost/protected", {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createRequestCookie(credentialUser.headers),
       },
     }),
   };
@@ -169,6 +153,11 @@ async function createCredentialUser(input: {
       role: input.role,
     })
     .where(eq(user.id, signUpResult.response.user.id));
+
+  return {
+    headers: signUpResult.headers,
+    userId: signUpResult.response.user.id,
+  };
 }
 
 function createSignInRequest(input: { email: string; password: string }) {
