@@ -184,6 +184,44 @@ export const academies = createTable(
   (table) => [uniqueIndex("academy_user_id_unique").on(table.userId)],
 );
 
+export const dancers = createTable(
+  "dancer",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    birthDate: text("birth_date").notNull(),
+    documentType: text("document_type"),
+    documentNumber: text("document_number"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("dancer_academy_id_idx").on(table.academyId),
+    index("dancer_academy_name_idx").on(
+      table.academyId,
+      table.lastName,
+      table.firstName,
+    ),
+  ],
+);
+
 export const academyRegistrationTokens = createTable(
   "academy_registration_token",
   {

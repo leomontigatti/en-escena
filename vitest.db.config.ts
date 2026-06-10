@@ -30,6 +30,7 @@ export default mergeConfig(
       },
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
+      maxConcurrency: 1,
       maxWorkers: 1,
       minWorkers: 1,
       poolOptions: {
@@ -38,6 +39,9 @@ export default mergeConfig(
         },
       },
       setupFiles: ["./tests/db/setup.ts"],
+      sequence: {
+        concurrent: false,
+      },
       hookTimeout: 30_000,
       testTimeout: 30_000,
     },

@@ -66,8 +66,19 @@ await ensureDatabaseExists(testDatabaseUrl);
 await resetTestSchema(testDatabaseUrl);
 
 const result = spawnSync(
-  "drizzle-kit",
-  ["push", "--config=drizzle.config.ts", "--force"],
+  "./node_modules/.bin/drizzle-kit",
+  [
+    "push",
+    "--schema",
+    "./app/db/schema.ts",
+    "--url",
+    testDatabaseUrl,
+    "--dialect",
+    "postgresql",
+    "--tablesFilter",
+    "en_escena_*",
+    "--force",
+  ],
   {
     env: {
       ...process.env,
