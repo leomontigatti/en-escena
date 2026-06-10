@@ -28,6 +28,12 @@ export const groupType = pgEnum("en_escena_group_type", [
   "grupal",
 ]);
 
+export const documentType = pgEnum("en_escena_document_type", [
+  "dni",
+  "passport",
+  "other",
+]);
+
 export const user = createTable("user", {
   id: varchar("id", { length: 255 })
     .primaryKey()
@@ -211,6 +217,43 @@ export const academyRegistrationTokens = createTable(
   (table) => [
     uniqueIndex("academy_registration_token_hash_unique").on(table.tokenHash),
     index("academy_registration_token_email_idx").on(table.email),
+  ],
+);
+
+export const professors = createTable(
+  "professor",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    documentType: documentType("document_type"),
+    documentNumber: text("document_number"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("professor_academy_id_idx").on(table.academyId),
+    uniqueIndex("professor_academy_document_unique")
+      .on(table.academyId, table.documentType, table.documentNumber)
+      .where(
+        sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
+      ),
   ],
 );
 

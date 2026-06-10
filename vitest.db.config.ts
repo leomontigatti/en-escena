@@ -30,12 +30,18 @@ export default mergeConfig(
       },
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
+      maxConcurrency: 1,
       maxWorkers: 1,
       minWorkers: 1,
+      pool: "forks",
       poolOptions: {
-        threads: {
-          singleThread: true,
+        forks: {
+          singleFork: true,
         },
+      },
+      sequence: {
+        concurrent: false,
+        shuffle: false,
       },
       setupFiles: ["./tests/db/setup.ts"],
       hookTimeout: 30_000,
