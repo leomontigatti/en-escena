@@ -3,12 +3,16 @@ import { z } from "zod";
 
 import { requireAdminUser } from "@/lib/internal-access.server";
 import { requestInternalUserInvitation } from "@/lib/internal-user-invitation.server";
+import {
+  INTERNAL_USER_ROLES,
+  type InternalUserRole,
+} from "@/lib/internal-user-roles";
 
 import type { Route } from "./+types/admin.usuarios.invitaciones";
 
 const inviteInternalUserSchema = z.object({
   email: z.email("Ingresá un correo electrónico válido."),
-  role: z.enum(["admin", "auditor", "judge"], {
+  role: z.enum(INTERNAL_USER_ROLES, {
     error: "Elegí un permiso interno válido.",
   }),
 });
@@ -17,7 +21,12 @@ const roleLabels = {
   admin: "Administración",
   auditor: "Auditoría",
   judge: "Juzgamiento",
-};
+} satisfies Record<InternalUserRole, string>;
+
+const roleOptions = INTERNAL_USER_ROLES.map((role) => ({
+  label: roleLabels[role],
+  value: role,
+}));
 
 export const meta: Route.MetaFunction = () => [
   { title: "Invitar usuario interno | En Escena" },
@@ -96,9 +105,9 @@ export default function AdminUserInvitationsRoute() {
               required
               className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-950 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-100"
             >
-              {Object.entries(roleLabels).map(([role, label]) => (
-                <option key={role} value={role}>
-                  {label}
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

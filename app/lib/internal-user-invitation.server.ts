@@ -9,12 +9,29 @@ import {
   normalizeEmail,
 } from "@/lib/academy-registration-token.server";
 import { sendEmail, type SendEmailInput } from "@/lib/email.server";
+import {
+  INTERNAL_USER_ROLES,
+  type InternalUserRole,
+} from "@/lib/internal-user-roles";
 
 const INTERNAL_INVITATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-const INTERNAL_USER_ROLES = ["admin", "auditor", "judge"] as const;
+const INVALID_INVITATION_ERROR = "El enlace no es válido o expiró.";
+const ACADEMY_USER_INVITATION_ERROR =
+  "Esta invitación no puede activar un usuario de academia.";
 
-export type InternalUserRole = (typeof INTERNAL_USER_ROLES)[number];
 export type InternalInvitationTokenStatus = "valid" | "invalid";
+
+type RequestInternalUserInvitationInput = {
+  email: string;
+  role: InternalUserRole;
+  requestUrl: string;
+};
+
+type CompleteInternalUserInvitationInput = {
+  token: string;
+  password: string;
+  request: Request;
+};
 
 type InternalUserInvitationDependencies = {
   sendEmail?: (input: SendEmailInput) => Promise<void> | void;
@@ -33,11 +50,7 @@ type CredentialUserCreator = (input: {
 }) => Promise<CredentialUser>;
 
 export async function requestInternalUserInvitation(
-  input: {
-    email: string;
-    role: InternalUserRole;
-    requestUrl: string;
-  },
+  input: RequestInternalUserInvitationInput,
   dependencies: InternalUserInvitationDependencies = {},
 ) {
   const email = normalizeEmail(input.email);
@@ -78,45 +91,30 @@ export async function requestInternalUserInvitation(
 function assertInternalUserRole(
   role: string,
 ): asserts role is InternalUserRole {
-  if (!INTERNAL_USER_ROLES.some((internalRole) => internalRole === role)) {
+  if (!INTERNAL_USER_ROLES.includes(role as InternalUserRole)) {
     throw new Error("La invitación interna no puede asignar academia.");
   }
 }
 
 export async function getInternalInvitationTokenStatus(token: string) {
-  const invitation = await db.query.internalUserInvitations.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(internalUserInvitations.tokenHash, hashRegistrationToken(token)),
-      isNull(internalUserInvitations.consumedAt),
-      gt(internalUserInvitations.expiresAt, new Date()),
-    ),
+  const invitation = await findUsableInternalInvitation(token, new Date(), {
+    id: true,
   });
 
   return invitation ? "valid" : "invalid";
 }
 
 export async function completeInternalUserInvitation(
-  input: {
-    token: string;
-    password: string;
-    request: Request;
-  },
+  input: CompleteInternalUserInvitationInput,
   dependencies: {
     createCredentialUser?: CredentialUserCreator;
   } = {},
 ) {
   const now = new Date();
-  const invitation = await db.query.internalUserInvitations.findFirst({
-    where: and(
-      eq(internalUserInvitations.tokenHash, hashRegistrationToken(input.token)),
-      isNull(internalUserInvitations.consumedAt),
-      gt(internalUserInvitations.expiresAt, now),
-    ),
-  });
+  const invitation = await findUsableInternalInvitation(input.token, now);
 
   if (!invitation) {
-    return { ok: false as const, error: "El enlace no es válido o expiró." };
+    return { ok: false as const, error: INVALID_INVITATION_ERROR };
   }
 
   const existingUser = await db.query.user.findFirst({
@@ -127,7 +125,7 @@ export async function completeInternalUserInvitation(
   if (existingUser?.role === "academy") {
     return {
       ok: false as const,
-      error: "Esta invitación no puede activar un usuario de academia.",
+      error: ACADEMY_USER_INVITATION_ERROR,
     };
   }
 
@@ -156,6 +154,21 @@ export async function completeInternalUserInvitation(
   });
 
   return { ok: true as const, headers: credentialUser.headers };
+}
+
+function findUsableInternalInvitation(
+  token: string,
+  now: Date,
+  columns?: { id: true },
+) {
+  return db.query.internalUserInvitations.findFirst({
+    columns,
+    where: and(
+      eq(internalUserInvitations.tokenHash, hashRegistrationToken(token)),
+      isNull(internalUserInvitations.consumedAt),
+      gt(internalUserInvitations.expiresAt, now),
+    ),
+  });
 }
 
 async function createBetterAuthCredentialUser(input: {
