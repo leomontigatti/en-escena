@@ -73,6 +73,14 @@ function renderPortal(email: string) {
       contactName: "Contacto",
       phone: "11 1234-5678",
     },
+    eventContext: {
+      queryParamName: "evento",
+      events: [],
+      selectedEvent: null,
+      hasEvents: false,
+      isReadOnly: true,
+      isRegistrationOpen: false,
+    },
   };
   return renderPrivateRoute(<PortalRouteView loaderData={loaderData} />);
 }
