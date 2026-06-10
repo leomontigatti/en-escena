@@ -68,30 +68,30 @@ export type ScheduleBlockListItem = typeof scheduleBlocks.$inferSelect & {
 
 const catalogCopy = {
   modality: {
-    label: "Modalidad",
     invalidError: "Revisá los datos de la Modalidad.",
+    notFoundError: "No encontramos esa Modalidad.",
     requiredNameError: "Ingresá el nombre de la Modalidad.",
     duplicateError: "Ya existe una Modalidad con ese nombre en este Evento.",
     duplicateFieldError: "Usá un nombre distinto para la Modalidad.",
   },
   submodality: {
-    label: "Submodalidad",
     invalidError: "Revisá los datos de la Submodalidad.",
+    notFoundError: "No encontramos esa Submodalidad.",
     requiredNameError: "Ingresá el nombre de la Submodalidad.",
     duplicateError: "Ya existe una Submodalidad con ese nombre en este Evento.",
     duplicateFieldError: "Usá un nombre distinto para la Submodalidad.",
   },
   "experience-level": {
-    label: "Nivel de experiencia",
     invalidError: "Revisá los datos del Nivel de experiencia.",
+    notFoundError: "No encontramos esa Nivel de experiencia.",
     requiredNameError: "Ingresá el nombre del Nivel de experiencia.",
     duplicateError:
       "Ya existe un Nivel de experiencia con ese nombre en este Evento.",
     duplicateFieldError: "Usá un nombre distinto para el Nivel de experiencia.",
   },
   "schedule-block": {
-    label: "Bloque horario",
     invalidError: "Revisá los datos del Bloque horario.",
+    notFoundError: "No encontramos ese Bloque horario.",
     requiredNameError: "Ingresá el nombre del Bloque horario.",
     duplicateError:
       "Ya existe un Bloque horario con ese nombre en este Evento.",
@@ -100,8 +100,8 @@ const catalogCopy = {
 } satisfies Record<
   CatalogKind,
   {
-    label: string;
     invalidError: string;
+    notFoundError: string;
     requiredNameError: string;
     duplicateError: string;
     duplicateFieldError: string;
@@ -392,14 +392,10 @@ export async function listScheduleBlocks(
     .where(inArray(scheduleBlockModalities.scheduleBlockId, blockIds))
     .orderBy(asc(modalities.name));
 
-  return blocks.map((block) => {
-    const blockModalities = acceptedModalities
-      .filter((modality) => modality.blockId === block.id)
-      .map((modality) => ({
-        id: modality.modalityId,
-        name: modality.modalityName,
-      }));
+  const modalitiesByBlockId = groupScheduleBlockModalities(acceptedModalities);
 
+  return blocks.map((block) => {
+    const blockModalities = modalitiesByBlockId.get(block.id) ?? [];
     return {
       ...block,
       modalities: blockModalities,
@@ -438,12 +434,9 @@ export async function createScheduleBlock(
       };
     }
 
-    await tx.insert(scheduleBlockModalities).values(
-      uniqueIds(input.modalityIds).map((modalityId) => ({
-        scheduleBlockId: record.id,
-        modalityId,
-      })),
-    );
+    await tx
+      .insert(scheduleBlockModalities)
+      .values(getScheduleBlockModalityValues(record.id, input.modalityIds));
 
     return created(record);
   });
@@ -502,12 +495,11 @@ export async function updateScheduleBlock(
     await tx
       .delete(scheduleBlockModalities)
       .where(eq(scheduleBlockModalities.scheduleBlockId, scheduleBlockId));
-    await tx.insert(scheduleBlockModalities).values(
-      uniqueIds(input.modalityIds).map((modalityId) => ({
-        scheduleBlockId,
-        modalityId,
-      })),
-    );
+    await tx
+      .insert(scheduleBlockModalities)
+      .values(
+        getScheduleBlockModalityValues(scheduleBlockId, input.modalityIds),
+      );
 
     return created(record);
   });
@@ -590,9 +582,10 @@ async function validateScheduleBlockInput(
   options: { exceptId?: string } = {},
 ): Promise<{ ok: true } | CatalogFailure> {
   const fieldErrors: Record<string, string> = {};
+  const copy = catalogCopy["schedule-block"];
 
   if (input.name.trim().length === 0) {
-    fieldErrors.name = "Ingresá el nombre del Bloque horario.";
+    fieldErrors.name = copy.requiredNameError;
   }
 
   if (!isValidDate(input.scheduledDate)) {
@@ -635,16 +628,14 @@ async function validateScheduleBlockInput(
   });
 
   if (duplicate) {
-    fieldErrors.name = "Usá un nombre distinto para el Bloque horario.";
+    fieldErrors.name = copy.duplicateFieldError;
   }
 
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
       code: duplicate ? "duplicate-name" : "invalid-catalog",
-      error: duplicate
-        ? "Ya existe un Bloque horario con ese nombre en este Evento."
-        : "Revisá los datos del Bloque horario.",
+      error: duplicate ? copy.duplicateError : copy.invalidError,
       fieldErrors,
     };
   }
@@ -731,14 +722,11 @@ function created(record: CatalogRecord | undefined): CatalogMutationResult {
   return { ok: true, record };
 }
 
-function catalogNotFound(kind: CatalogKind | "schedule-block"): CatalogFailure {
+function catalogNotFound(kind: CatalogKind): CatalogFailure {
   return {
     ok: false,
     code: "catalog-not-found",
-    error:
-      kind === "schedule-block"
-        ? "No encontramos ese Bloque horario."
-        : `No encontramos esa ${catalogCopy[kind].label}.`,
+    error: catalogCopy[kind].notFoundError,
   };
 }
 
@@ -794,6 +782,41 @@ function uniqueIds(ids: string[]) {
 
 function sortedIds(ids: string[]) {
   return uniqueIds(ids).sort((first, second) => first.localeCompare(second));
+}
+
+function getScheduleBlockModalityValues(
+  scheduleBlockId: string,
+  modalityIds: string[],
+) {
+  return uniqueIds(modalityIds).map((modalityId) => ({
+    scheduleBlockId,
+    modalityId,
+  }));
+}
+
+function groupScheduleBlockModalities(
+  acceptedModalities: Array<{
+    blockId: string;
+    modalityId: string;
+    modalityName: string;
+  }>,
+) {
+  const modalitiesByBlockId = new Map<
+    string,
+    Array<Pick<typeof modalities.$inferSelect, "id" | "name">>
+  >();
+
+  for (const modality of acceptedModalities) {
+    const blockModalities = modalitiesByBlockId.get(modality.blockId) ?? [];
+
+    blockModalities.push({
+      id: modality.modalityId,
+      name: modality.modalityName,
+    });
+    modalitiesByBlockId.set(modality.blockId, blockModalities);
+  }
+
+  return modalitiesByBlockId;
 }
 
 function isValidDate(value: string) {

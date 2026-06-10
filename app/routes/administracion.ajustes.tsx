@@ -14,6 +14,7 @@ import {
   deleteScheduleBlock,
   deleteSubmodality,
   listEventCatalogs,
+  type ScheduleBlockInput,
   type ScheduleBlockListItem,
   updateExperienceLevel,
   updateModality,
@@ -704,21 +705,9 @@ async function runCatalogIntent(input: CatalogActionInput) {
     case "delete-experience-level":
       return deleteExperienceLevel(input.id);
     case "create-schedule-block":
-      return createScheduleBlock(input.eventId, {
-        name: input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: input.startTime,
-        totalCapacity: input.totalCapacity,
-        modalityIds: input.modalityIds,
-      });
+      return createScheduleBlock(input.eventId, getScheduleBlockInput(input));
     case "update-schedule-block":
-      return updateScheduleBlock(input.id, {
-        name: input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: input.startTime,
-        totalCapacity: input.totalCapacity,
-        modalityIds: input.modalityIds,
-      });
+      return updateScheduleBlock(input.id, getScheduleBlockInput(input));
     case "delete-schedule-block":
       return deleteScheduleBlock(input.id);
     default:
@@ -729,6 +718,16 @@ async function runCatalogIntent(input: CatalogActionInput) {
         fieldErrors: {},
       };
   }
+}
+
+function getScheduleBlockInput(input: CatalogActionInput): ScheduleBlockInput {
+  return {
+    name: input.name,
+    scheduledDate: input.scheduledDate,
+    startTime: input.startTime,
+    totalCapacity: input.totalCapacity,
+    modalityIds: input.modalityIds,
+  };
 }
 
 function formatDate(value: string) {
