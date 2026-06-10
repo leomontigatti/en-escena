@@ -79,6 +79,13 @@ const groupTypeLabels: Record<string, string> = {
   grupal: "Grupal",
 };
 
+const groupTypeOptions = Object.entries(groupTypeLabels).map(
+  ([value, label]) => ({
+    value,
+    label,
+  }),
+);
+
 export const meta = () => [{ title: "Ajustes de administración | En Escena" }];
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -173,29 +180,11 @@ export function AdministracionAjustesRouteView({
                 <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
                   {loaderData.categories.map((category) => (
                     <li key={category.id} className="space-y-3 p-4">
-                      <div className="space-y-1 text-sm text-slate-700">
-                        <p className="font-semibold text-slate-950">
-                          {category.name}
-                        </p>
-                        <p>
-                          {category.minAge} a {category.maxAge} años
-                        </p>
-                        <p>{formatGroupTypes(category.groupTypes)}</p>
-                        <p>
-                          {formatNames(
-                            loaderData.modalities,
-                            category.modalityIds,
-                          )}
-                        </p>
-                        <p>
-                          {category.experienceLevelIds.length > 0
-                            ? formatNames(
-                                loaderData.experienceLevels,
-                                category.experienceLevelIds,
-                              )
-                            : "Sin Niveles de experiencia"}
-                        </p>
-                      </div>
+                      <CategorySummary
+                        category={category}
+                        modalities={loaderData.modalities}
+                        experienceLevels={loaderData.experienceLevels}
+                      />
                       <CategoryForm
                         id={category.id}
                         intent="update-category"
@@ -499,6 +488,33 @@ function SubmodalityForm({
   );
 }
 
+function CategorySummary({
+  category,
+  experienceLevels,
+  modalities,
+}: {
+  category: CategoryRow;
+  experienceLevels: ExperienceLevelRow[];
+  modalities: ModalityRow[];
+}) {
+  const experienceLevelNames =
+    category.experienceLevelIds.length > 0
+      ? formatNames(experienceLevels, category.experienceLevelIds)
+      : "Sin Niveles de experiencia";
+
+  return (
+    <div className="space-y-1 text-sm text-slate-700">
+      <p className="font-semibold text-slate-950">{category.name}</p>
+      <p>
+        {category.minAge} a {category.maxAge} años
+      </p>
+      <p>{formatGroupTypes(category.groupTypes)}</p>
+      <p>{formatNames(modalities, category.modalityIds)}</p>
+      <p>{experienceLevelNames}</p>
+    </div>
+  );
+}
+
 function CategoryForm({
   buttonLabel,
   experienceLevelIds = [],
@@ -578,10 +594,7 @@ function CategoryForm({
           title="Tipos de grupo"
           name="groupTypes"
           selectedValues={groupTypes}
-          options={Object.entries(groupTypeLabels).map(([value, label]) => ({
-            value,
-            label,
-          }))}
+          options={groupTypeOptions}
           error={fieldErrors.groupTypes}
         />
         <CheckboxGroup

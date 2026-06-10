@@ -70,6 +70,12 @@ type ValidCategoryInput = {
   experienceLevelKey: string;
 };
 
+type CategoryRelationRow = {
+  categoryId: string;
+};
+
+type CatalogTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 const catalogCopy = {
   modality: {
     label: "Modalidad",
@@ -154,18 +160,23 @@ export async function listEventCatalogs(eventId: string) {
       .where(eq(categories.eventId, eventId)),
   ]);
 
+  const modalityIdsByCategory = groupRelationIdsByCategory(
+    eventCategoryModalities,
+    (relation) => relation.modalityId,
+  );
+  const experienceLevelIdsByCategory = groupRelationIdsByCategory(
+    eventCategoryExperienceLevels,
+    (relation) => relation.experienceLevelId,
+  );
+
   return {
     modalities: eventModalities,
     submodalities: eventSubmodalities,
     experienceLevels: eventExperienceLevels,
     categories: eventCategories.map((category) => ({
       ...category,
-      modalityIds: eventCategoryModalities
-        .filter((relation) => relation.categoryId === category.id)
-        .map((relation) => relation.modalityId),
-      experienceLevelIds: eventCategoryExperienceLevels
-        .filter((relation) => relation.categoryId === category.id)
-        .map((relation) => relation.experienceLevelId),
+      modalityIds: modalityIdsByCategory.get(category.id) ?? [],
+      experienceLevelIds: experienceLevelIdsByCategory.get(category.id) ?? [],
     })),
   };
 }
@@ -415,12 +426,7 @@ export async function createCategory(
       .insert(categories)
       .values({
         eventId,
-        name: validation.input.name,
-        minAge: validation.input.minAge,
-        maxAge: validation.input.maxAge,
-        groupTypes: validation.input.groupTypes,
-        groupTypeKey: validation.input.groupTypeKey,
-        experienceLevelKey: validation.input.experienceLevelKey,
+        ...categoryValues(validation.input),
       })
       .returning();
     const category = inserted[0];
@@ -462,14 +468,7 @@ export async function updateCategory(
   const [record] = await db.transaction(async (tx) => {
     const updated = await tx
       .update(categories)
-      .set({
-        name: validation.input.name,
-        minAge: validation.input.minAge,
-        maxAge: validation.input.maxAge,
-        groupTypes: validation.input.groupTypes,
-        groupTypeKey: validation.input.groupTypeKey,
-        experienceLevelKey: validation.input.experienceLevelKey,
-      })
+      .set(categoryValues(validation.input))
       .where(eq(categories.id, categoryId))
       .returning();
 
@@ -846,7 +845,7 @@ async function experienceLevelHasCategoryDependencies(
 }
 
 async function replaceCategoryRelations(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: CatalogTransaction,
   categoryId: string,
   input: ValidCategoryInput,
 ) {
@@ -919,4 +918,31 @@ function uniqueValues(values: string[]) {
 
 function isGroupType(value: string): value is GroupType {
   return ["solo", "duo", "trio", "grupal"].includes(value);
+}
+
+function categoryValues(input: ValidCategoryInput) {
+  return {
+    name: input.name,
+    minAge: input.minAge,
+    maxAge: input.maxAge,
+    groupTypes: input.groupTypes,
+    groupTypeKey: input.groupTypeKey,
+    experienceLevelKey: input.experienceLevelKey,
+  };
+}
+
+function groupRelationIdsByCategory<TRelation extends CategoryRelationRow>(
+  relations: TRelation[],
+  getId: (relation: TRelation) => string,
+) {
+  const idsByCategory = new Map<string, string[]>();
+
+  for (const relation of relations) {
+    const ids = idsByCategory.get(relation.categoryId) ?? [];
+
+    ids.push(getId(relation));
+    idsByCategory.set(relation.categoryId, ids);
+  }
+
+  return idsByCategory;
 }
