@@ -49,4 +49,34 @@ describe("access UI validation", () => {
       message: "Cerraste sesión.",
     });
   });
+
+  test.each([
+    [
+      "continuar",
+      {
+        variant: "info",
+        message: "Ingresá para continuar.",
+      },
+    ],
+    [
+      "expirada",
+      {
+        variant: "error",
+        message: "Tu sesión expiró. Volvé a ingresar.",
+      },
+    ],
+  ] as const)("returns the %s login notice", (reason, notice) => {
+    expect(getLoginNotice(new URLSearchParams({ motivo: reason }))).toEqual(
+      notice,
+    );
+  });
+
+  test("keeps the recovery success login notice", () => {
+    expect(getLoginNotice(new URLSearchParams({ recuperacion: "ok" }))).toEqual(
+      {
+        variant: "success",
+        message: "Tu contraseña fue actualizada. Ya podés ingresar.",
+      },
+    );
+  });
 });

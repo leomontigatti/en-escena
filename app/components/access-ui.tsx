@@ -130,8 +130,16 @@ export function AccessField({
 
 type AccessNoticeProps = {
   children: ReactNode;
-  variant: "error" | "success";
+  variant: AccessNoticeVariant;
 };
+
+type AccessNoticeVariant = "error" | "info" | "success";
+
+const accessNoticeClassNames = {
+  error: "bg-red-50 text-red-800",
+  info: "bg-sky-50 text-sky-800",
+  success: "bg-emerald-50 text-emerald-800",
+} satisfies Record<AccessNoticeVariant, string>;
 
 export function AccessNotice({ children, variant }: AccessNoticeProps) {
   return (
@@ -139,9 +147,7 @@ export function AccessNotice({ children, variant }: AccessNoticeProps) {
       aria-live="polite"
       className={clsx(
         "rounded-lg px-4 py-3 text-sm leading-6",
-        variant === "success"
-          ? "bg-emerald-50 text-emerald-800"
-          : "bg-red-50 text-red-800",
+        accessNoticeClassNames[variant],
       )}
     >
       {children}
