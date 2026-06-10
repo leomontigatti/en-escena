@@ -1,6 +1,6 @@
 import { desc } from "drizzle-orm";
 import { CalendarPlus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { redirect, useActionData } from "react-router";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
@@ -50,6 +50,9 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
   timeStyle: "short",
   timeZone: "America/Argentina/Buenos_Aires",
 });
+const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = "30";
+const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
+const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Eventos | Panel de administración | En Escena" },
@@ -188,58 +191,66 @@ function EventTable({
         </thead>
         <tbody className="divide-y divide-slate-200">
           {events.map((event) => (
-            <tr
+            <EventTableRow
               key={event.id}
-              id={event.id}
-              className={
-                event.id === selectedEventId ? "bg-teal-50" : "bg-white"
-              }
-            >
-              <td className="px-4 py-3 align-top">
-                <div className="font-medium text-slate-950">{event.name}</div>
-                {event.id === selectedEventId ? (
-                  <div className="mt-1 text-xs font-medium text-teal-800">
-                    Evento creado
-                  </div>
-                ) : null}
-              </td>
-              <td className="space-y-2 px-4 py-3 align-top">
-                <StatusBadge tone={event.active ? "success" : "neutral"}>
-                  {event.active ? "Activo" : "Inactivo"}
-                </StatusBadge>
-                <StatusBadge tone={getTemporalState(event).tone}>
-                  {getTemporalState(event).label}
-                </StatusBadge>
-              </td>
-              <td className="px-4 py-3 align-top text-slate-700">
-                <DateRange
-                  startsAt={event.registrationStartsAt}
-                  endsAt={event.registrationEndsAt}
-                />
-              </td>
-              <td className="px-4 py-3 align-top text-slate-700">
-                <DateRange startsAt={event.startsAt} endsAt={event.endsAt} />
-              </td>
-              <td className="px-4 py-3 align-top font-medium text-slate-950">
-                {event.requiredDepositPercentage}%
-              </td>
-              <td className="space-y-2 px-4 py-3 align-top">
-                <StatusBadge tone={event.programVisible ? "info" : "neutral"}>
-                  {event.programVisible
-                    ? "Programa visible"
-                    : "Programa oculto"}
-                </StatusBadge>
-                <StatusBadge tone={event.resultsVisible ? "info" : "neutral"}>
-                  {event.resultsVisible
-                    ? "Resultados visibles"
-                    : "Resultados ocultos"}
-                </StatusBadge>
-              </td>
-            </tr>
+              event={event}
+              isSelected={event.id === selectedEventId}
+            />
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function EventTableRow({
+  event,
+  isSelected,
+}: {
+  event: EventRow;
+  isSelected: boolean;
+}) {
+  const temporalState = getTemporalState(event);
+
+  return (
+    <tr id={event.id} className={isSelected ? "bg-teal-50" : "bg-white"}>
+      <td className="px-4 py-3 align-top">
+        <div className="font-medium text-slate-950">{event.name}</div>
+        {isSelected ? (
+          <div className="mt-1 text-xs font-medium text-teal-800">
+            Evento creado
+          </div>
+        ) : null}
+      </td>
+      <td className="space-y-2 px-4 py-3 align-top">
+        <StatusBadge tone={event.active ? "success" : "neutral"}>
+          {event.active ? "Activo" : "Inactivo"}
+        </StatusBadge>
+        <StatusBadge tone={temporalState.tone}>
+          {temporalState.label}
+        </StatusBadge>
+      </td>
+      <td className="px-4 py-3 align-top text-slate-700">
+        <DateRange
+          startsAt={event.registrationStartsAt}
+          endsAt={event.registrationEndsAt}
+        />
+      </td>
+      <td className="px-4 py-3 align-top text-slate-700">
+        <DateRange startsAt={event.startsAt} endsAt={event.endsAt} />
+      </td>
+      <td className="px-4 py-3 align-top font-medium text-slate-950">
+        {event.requiredDepositPercentage}%
+      </td>
+      <td className="space-y-2 px-4 py-3 align-top">
+        <StatusBadge tone={event.programVisible ? "info" : "neutral"}>
+          {event.programVisible ? "Programa visible" : "Programa oculto"}
+        </StatusBadge>
+        <StatusBadge tone={event.resultsVisible ? "info" : "neutral"}>
+          {event.resultsVisible ? "Resultados visibles" : "Resultados ocultos"}
+        </StatusBadge>
+      </td>
+    </tr>
   );
 }
 
@@ -263,13 +274,10 @@ function CreateEventPanel({ actionData }: { actionData?: ActionData }) {
     defaultValues.registrationStartsAt,
   );
   const [startsAt, setStartsAt] = useState(defaultValues.startsAt);
-  const showRegistrationStartWarning = useMemo(() => {
-    if (!registrationStartsAt || !startsAt) {
-      return false;
-    }
-
-    return registrationStartsAt > startsAt;
-  }, [registrationStartsAt, startsAt]);
+  const showRegistrationStartWarning =
+    registrationStartsAt !== "" &&
+    startsAt !== "" &&
+    registrationStartsAt > startsAt;
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -330,8 +338,8 @@ function CreateEventPanel({ actionData }: { actionData?: ActionData }) {
           label="Seña requerida (%)"
           name="requiredDepositPercentage"
           type="number"
-          min="0"
-          max="100"
+          min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
+          max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
           step="1"
           defaultValue={defaultValues.requiredDepositPercentage}
           error={actionData?.fieldErrors.requiredDepositPercentage}
@@ -451,7 +459,8 @@ function readEventFormValues(formData: FormData): EventFormValues {
     startsAt: String(formData.get("startsAt") ?? ""),
     endsAt: String(formData.get("endsAt") ?? ""),
     requiredDepositPercentage: String(
-      formData.get("requiredDepositPercentage") ?? "30",
+      formData.get("requiredDepositPercentage") ??
+        DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
     ),
   };
 }
@@ -493,14 +502,20 @@ function parseEventFormValues(
   if (
     values.requiredDepositPercentage.trim().length === 0 ||
     !Number.isInteger(requiredDepositPercentage) ||
-    requiredDepositPercentage < 0 ||
-    requiredDepositPercentage > 100
+    requiredDepositPercentage < MIN_REQUIRED_DEPOSIT_PERCENTAGE ||
+    requiredDepositPercentage > MAX_REQUIRED_DEPOSIT_PERCENTAGE
   ) {
     fieldErrors.requiredDepositPercentage =
       "La seña requerida debe ser un entero entre 0 y 100.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  if (
+    Object.keys(fieldErrors).length > 0 ||
+    !registrationStartsAt ||
+    !registrationEndsAt ||
+    !startsAt ||
+    !endsAt
+  ) {
     return { ok: false, fieldErrors };
   }
 
@@ -508,10 +523,10 @@ function parseEventFormValues(
     ok: true,
     input: {
       name: values.name,
-      registrationStartsAt: registrationStartsAt as Date,
-      registrationEndsAt: registrationEndsAt as Date,
-      startsAt: startsAt as Date,
-      endsAt: endsAt as Date,
+      registrationStartsAt,
+      registrationEndsAt,
+      startsAt,
+      endsAt,
       requiredDepositPercentage,
     },
   };
@@ -538,6 +553,6 @@ function defaultEventFormValues(): EventFormValues {
     registrationEndsAt: "",
     startsAt: "",
     endsAt: "",
-    requiredDepositPercentage: "30",
+    requiredDepositPercentage: DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
   };
 }
