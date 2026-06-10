@@ -35,9 +35,35 @@ async function ensureDatabaseExists(databaseUrl: string) {
   }
 }
 
+async function resetTestSchema(databaseUrl: string) {
+  const testClient = postgres(databaseUrl, { max: 1 });
+
+  try {
+    const existingTables = await testClient<{ tablename: string }[]>`
+      select tablename
+      from pg_tables
+      where schemaname = 'public'
+        and tablename like 'en\\_escena\\_%' escape '\\'
+    `;
+
+    if (existingTables.length === 0) {
+      return;
+    }
+
+    await testClient.unsafe(
+      `drop table ${existingTables
+        .map((table) => quoteIdentifier(table.tablename))
+        .join(", ")} cascade`,
+    );
+  } finally {
+    await testClient.end();
+  }
+}
+
 const testDatabaseUrl = getTestDatabaseUrl();
 
 await ensureDatabaseExists(testDatabaseUrl);
+await resetTestSchema(testDatabaseUrl);
 
 const result = spawnSync(
   "drizzle-kit",

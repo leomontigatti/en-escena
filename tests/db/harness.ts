@@ -9,6 +9,8 @@ const tableNames = [
   "en_escena_academy_registration_token",
   "en_escena_event",
   "en_escena_internal_user_invitation",
+  "en_escena_schedule_block",
+  "en_escena_schedule_block_modality",
   "en_escena_session",
   "en_escena_user",
   "en_escena_verification",

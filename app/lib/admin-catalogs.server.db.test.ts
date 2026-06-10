@@ -4,14 +4,18 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { submodalities } from "@/db/schema";
 import {
+  createScheduleBlock,
   createExperienceLevel,
   createModality,
   createSubmodality,
+  deleteScheduleBlock,
   deleteModality,
   deleteSubmodality,
+  updateScheduleBlock,
   updateExperienceLevel,
   updateModality,
   updateSubmodality,
+  listEventCatalogs,
 } from "@/lib/admin-catalogs.server";
 import { createEvent } from "@/lib/event-management.server";
 
@@ -71,7 +75,7 @@ describe("admin event catalogs", () => {
     await expect(deleteModality(modality.id)).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar la Modalidad porque tiene Submodalidades relacionadas.",
+        "No se puede borrar la Modalidad porque tiene configuración relacionada.",
     });
 
     await expect(deleteSubmodality(submodality.id)).resolves.toEqual({
@@ -164,6 +168,130 @@ describe("admin event catalogs", () => {
     });
     expect(savedSubmodality).toMatchObject({ name: "Hip hop" });
   });
+
+  test("manages Bloques horarios with Evento-scoped Modalidades, cupo validation and dependency guardrails", async () => {
+    const firstEvent = await createSavedEvent("Regional 2026");
+    const secondEvent = await createSavedEvent("Final 2026");
+    const jazz = await expectCreated(
+      createModality(firstEvent.id, { name: "Jazz" }),
+    );
+    const urbanas = await expectCreated(
+      createModality(firstEvent.id, { name: "Danzas urbanas" }),
+    );
+    const otherEventModality = await expectCreated(
+      createModality(secondEvent.id, { name: "Jazz" }),
+    );
+
+    await expect(
+      createScheduleBlock(firstEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 0,
+        modalityIds: [jazz.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: { totalCapacity: "Ingresá un cupo total mayor a cero." },
+    });
+    await expect(
+      createScheduleBlock(firstEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: {
+        modalityIds: "Elegí al menos una Modalidad aceptada.",
+      },
+    });
+    await expect(
+      createScheduleBlock(firstEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [otherEventModality.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: {
+        modalityIds: "Elegí Modalidades del Evento de trabajo.",
+      },
+    });
+
+    const block = await expectScheduleBlockCreated(
+      createScheduleBlock(firstEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id, urbanas.id],
+      }),
+    );
+    await expectScheduleBlockCreated(
+      createScheduleBlock(secondEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-06-02",
+        startTime: "11:00",
+        totalCapacity: 10,
+        modalityIds: [otherEventModality.id],
+      }),
+    );
+
+    await expect(listEventCatalogs(firstEvent.id)).resolves.toMatchObject({
+      scheduleBlocks: [
+        {
+          eventId: firstEvent.id,
+          name: "Sábado mañana",
+          modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
+        },
+      ],
+    });
+
+    await expect(
+      updateScheduleBlock(
+        block.id,
+        {
+          name: "Sábado temprano",
+          scheduledDate: "2026-05-02",
+          startTime: "09:00",
+          totalCapacity: 20,
+          modalityIds: [jazz.id, urbanas.id],
+        },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { name: "Sábado temprano" },
+    });
+    await expect(
+      updateScheduleBlock(
+        block.id,
+        {
+          name: "Sábado temprano",
+          scheduledDate: "2026-05-02",
+          startTime: "10:00",
+          totalCapacity: 20,
+          modalityIds: [jazz.id, urbanas.id],
+        },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar fecha, hora, cupo total ni Modalidades aceptadas porque el Bloque horario tiene dependencias.",
+    });
+    await expect(
+      deleteScheduleBlock(block.id, { hasDependencies: async () => true }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "No se puede borrar el Bloque horario porque tiene dependencias.",
+    });
+  });
 });
 
 async function createSavedEvent(name: string) {
@@ -192,6 +320,21 @@ async function expectCreated(
 
   if (!result.ok || !result.record) {
     throw new Error("Expected catalog creation to succeed.");
+  }
+
+  return result.record;
+}
+
+async function expectScheduleBlockCreated(
+  resultPromise: Promise<{
+    ok: boolean;
+    record?: { id: string; name: string };
+  }>,
+) {
+  const result = await resultPromise;
+
+  if (!result.ok || !result.record) {
+    throw new Error("Expected schedule block creation to succeed.");
   }
 
   return result.record;
