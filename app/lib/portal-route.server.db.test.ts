@@ -6,6 +6,9 @@ import { academies, user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import { loader as portalLoader } from "@/routes/portal";
+import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
+import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
+import { loader as profesoresLoader } from "@/routes/portal.profesores";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
@@ -104,6 +107,51 @@ describe("portal loader Evento consultado", () => {
   });
 });
 
+describe("portal people list loaders", () => {
+  test.each([
+    ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
+    [
+      "Coreografías",
+      coreografiasLoader,
+      "http://localhost/portal/coreografias",
+    ],
+    ["Profesores", profesoresLoader, "http://localhost/portal/profesores"],
+  ])(
+    "allows an Academia user to access %s",
+    async (_name, routeLoader, url) => {
+      const loaderData = await routeLoader({
+        request: await createAcademyRequest(url),
+      });
+
+      expect(loaderData.academy).toMatchObject({
+        name: "Academia de Prueba",
+      });
+      expect(loaderData.email).toBe("academia@example.com");
+    },
+  );
+
+  test.each([
+    ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
+    [
+      "Coreografías",
+      coreografiasLoader,
+      "http://localhost/portal/coreografias",
+    ],
+    ["Profesores", profesoresLoader, "http://localhost/portal/profesores"],
+  ])("blocks internal users from %s", async (_name, routeLoader, url) => {
+    const response = await expectThrownResponse(
+      routeLoader({
+        request: await createInternalRequest(url),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.text()).resolves.toBe(
+      "Los usuarios internos no pueden acceder al portal.",
+    );
+  });
+});
+
 async function loadPortal(requestUrl: string) {
   return await portalLoader({
     request: await createAcademyRequest(requestUrl),
@@ -144,6 +192,45 @@ async function createAcademyRequest(requestUrl: string) {
       cookie: createRequestCookie(signUpResult.headers),
     },
   });
+}
+
+async function createInternalRequest(requestUrl: string) {
+  const signUpResult = await auth.api.signUpEmail({
+    body: {
+      email: "admin@example.com",
+      name: "admin@example.com",
+      password: "password-segura",
+    },
+    returnHeaders: true,
+  });
+
+  await db
+    .update(user)
+    .set({
+      emailVerified: true,
+      role: "admin",
+    })
+    .where(eq(user.id, signUpResult.response.user.id));
+
+  return new Request(requestUrl, {
+    headers: {
+      cookie: createRequestCookie(signUpResult.headers),
+    },
+  });
+}
+
+async function expectThrownResponse(promise: Promise<unknown>) {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
+
+    throw error;
+  }
+
+  throw new Error("Expected a Response to be thrown.");
 }
 
 async function createSavedEvent(
