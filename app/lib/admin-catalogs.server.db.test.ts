@@ -4,11 +4,15 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { submodalities } from "@/db/schema";
 import {
+  createCategory,
   createExperienceLevel,
   createModality,
   createSubmodality,
+  deleteCategory,
+  deleteExperienceLevel,
   deleteModality,
   deleteSubmodality,
+  updateCategory,
   updateExperienceLevel,
   updateModality,
   updateSubmodality,
@@ -163,6 +167,116 @@ describe("admin event catalogs", () => {
       where: eq(submodalities.id, submodality.id),
     });
     expect(savedSubmodality).toMatchObject({ name: "Hip hop" });
+  });
+
+  test("manages Categorías with event-scoped uniqueness, optional levels and overlap validation", async () => {
+    const firstEvent = await createSavedEvent("Regional 2026");
+    const secondEvent = await createSavedEvent("Final 2026");
+    const firstModality = await expectCreated(
+      createModality(firstEvent.id, { name: "Jazz" }),
+    );
+    const secondModality = await expectCreated(
+      createModality(secondEvent.id, { name: "Jazz" }),
+    );
+    const firstLevel = await expectCreated(
+      createExperienceLevel(firstEvent.id, { name: "Inicial" }),
+    );
+    const secondLevel = await expectCreated(
+      createExperienceLevel(secondEvent.id, { name: "Inicial" }),
+    );
+
+    const category = await expectCreated(
+      createCategory(firstEvent.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [firstModality.id],
+        experienceLevelIds: [],
+      }),
+    );
+    await expect(
+      createCategory(secondEvent.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["duo", "solo"],
+        modalityIds: [secondModality.id],
+        experienceLevelIds: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      createCategory(firstEvent.id, {
+        name: " Infantil ",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["duo", "solo"],
+        modalityIds: [firstModality.id],
+        experienceLevelIds: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Ya existe una Categoría equivalente en este Evento.",
+      fieldErrors: { name: "Revisá la combinación de la Categoría." },
+    });
+    await expect(
+      createCategory(firstEvent.id, {
+        name: "Pre juvenil",
+        minAge: 10,
+        maxAge: 14,
+        groupTypes: ["solo"],
+        modalityIds: [firstModality.id],
+        experienceLevelIds: [firstLevel.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "La Categoría se solapa con otra Categoría para la misma Modalidad y Tipo de grupo.",
+      fieldErrors: { ageRange: "Ajustá las edades o la aplicabilidad." },
+    });
+    await expect(
+      createCategory(firstEvent.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [firstModality.id],
+        experienceLevelIds: [secondLevel.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Elegí Niveles de experiencia del Evento de trabajo.",
+      fieldErrors: {
+        experienceLevelIds:
+          "Elegí Niveles de experiencia del Evento de trabajo.",
+      },
+    });
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil A",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [firstModality.id],
+        experienceLevelIds: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { name: "Infantil A" },
+    });
+    await expect(deleteExperienceLevel(firstLevel.id)).resolves.toEqual({
+      ok: true,
+    });
+    await expect(deleteModality(firstModality.id)).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se puede borrar la Modalidad porque tiene Categorías relacionadas.",
+    });
+    await expect(deleteCategory(category.id)).resolves.toEqual({ ok: true });
+    await expect(deleteModality(firstModality.id)).resolves.toEqual({
+      ok: true,
+    });
   });
 });
 

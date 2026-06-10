@@ -5,8 +5,17 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { experienceLevels, modalities, submodalities, user } from "@/db/schema";
-import { createModality } from "@/lib/admin-catalogs.server";
+import {
+  categories,
+  experienceLevels,
+  modalities,
+  submodalities,
+  user,
+} from "@/db/schema";
+import {
+  createExperienceLevel,
+  createModality,
+} from "@/lib/admin-catalogs.server";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import {
@@ -54,11 +63,13 @@ describe("administracion/ajustes route", () => {
     expect(data.selectedEventId).toBe(event.id);
     expect(markup).toContain("Ajustes de administración");
     expect(markup).toContain("Todavía no hay Modalidades para este Evento.");
+    expect(markup).toContain("Todavía no hay Categorías para este Evento.");
     expect(markup).toContain("Todavía no hay Submodalidades para este Evento.");
     expect(markup).toContain(
       "Todavía no hay Niveles de experiencia para este Evento.",
     );
     expect(markup).toContain('name="intent" value="create-modality"');
+    expect(markup).toContain('name="intent" value="create-category"');
     expect(markup).toContain('name="intent" value="create-submodality"');
     expect(markup).toContain('name="intent" value="create-experience-level"');
   });
@@ -105,6 +116,26 @@ describe("administracion/ajustes route", () => {
     );
     await expectThrownResponse(action(routeArgs(levelRequest.request)), 302);
 
+    const level = await db.query.experienceLevels.findFirst({
+      where: eq(experienceLevels.name, "Inicial"),
+    });
+    const categoryRequest = await createSignedInRequest({
+      email: "admin.crea.categoria@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-category",
+        name: "Infantil",
+        minAge: "8",
+        maxAge: "12",
+        groupTypes: ["solo", "duo"],
+        modalityIds: [modality?.id ?? ""],
+        experienceLevelIds: [level?.id ?? ""],
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(categoryRequest.request)), 302);
+
     const data = await loader(
       routeArgs(
         (
@@ -119,12 +150,12 @@ describe("administracion/ajustes route", () => {
     const markup = renderRoute(data);
 
     expect(markup).toContain("Jazz");
+    expect(markup).toContain("Infantil");
+    expect(markup).toContain("8 a 12 años");
+    expect(markup).toContain("Solo, Dúo");
     expect(markup).toContain("Jazz funk");
     expect(markup).toContain("Inicial");
 
-    const level = await db.query.experienceLevels.findFirst({
-      where: eq(experienceLevels.name, "Inicial"),
-    });
     const editLevelRequest = await createSignedInRequest({
       email: "admin.edita.nivel@example.com",
       role: "admin",
@@ -145,6 +176,35 @@ describe("administracion/ajustes route", () => {
         where: eq(experienceLevels.id, level?.id ?? ""),
       }),
     ).resolves.toMatchObject({ name: "Principiante" });
+
+    const category = await db.query.categories.findFirst({
+      where: eq(categories.name, "Infantil"),
+    });
+    const editCategoryRequest = await createSignedInRequest({
+      email: "admin.edita.categoria@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "update-category",
+        id: category?.id ?? "",
+        name: "Infantil A",
+        minAge: "8",
+        maxAge: "12",
+        groupTypes: ["solo", "duo"],
+        modalityIds: [modality?.id ?? ""],
+        experienceLevelIds: [level?.id ?? ""],
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editCategoryRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, category?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({ name: "Infantil A" });
 
     const submodality = await db.query.submodalities.findFirst({
       where: eq(submodalities.name, "Jazz funk"),
@@ -172,7 +232,8 @@ describe("administracion/ajustes route", () => {
 
   test("returns Spanish validation errors from catalog actions", async () => {
     const event = await createSavedEvent("Regional 2026");
-    await createModality(event.id, { name: "Jazz" });
+    const modality = await createModality(event.id, { name: "Jazz" });
+    await createExperienceLevel(event.id, { name: "Inicial" });
     const duplicateRequest = await createSignedInRequest({
       email: "admin.duplicado@example.com",
       role: "admin",
@@ -184,6 +245,31 @@ describe("administracion/ajustes route", () => {
       status: "error",
       message: "Ya existe una Modalidad con ese nombre en este Evento.",
       fieldErrors: { name: "Usá un nombre distinto para la Modalidad." },
+    });
+
+    const invalidCategoryRequest = await createSignedInRequest({
+      email: "admin.categoria.invalida@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-category",
+        name: "Infantil",
+        minAge: "12",
+        maxAge: "8",
+        groupTypes: ["solo"],
+        modalityIds:
+          modality.ok && modality.record ? [modality.record.id] : [""],
+      }),
+    });
+
+    await expect(
+      action(routeArgs(invalidCategoryRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Revisá las edades de la Categoría.",
+      fieldErrors: {
+        ageRange: "La edad máxima debe ser mayor o igual a la mínima.",
+      },
     });
   });
 });
@@ -252,10 +338,17 @@ async function createSignedInRequest(input: {
   };
 }
 
-function formData(input: Record<string, string>) {
+function formData(input: Record<string, string | string[]>) {
   const form = new FormData();
 
   for (const [key, value] of Object.entries(input)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        form.append(key, item);
+      }
+      continue;
+    }
+
     form.set(key, value);
   }
 

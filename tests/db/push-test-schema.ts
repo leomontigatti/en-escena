@@ -35,9 +35,21 @@ async function ensureDatabaseExists(databaseUrl: string) {
   }
 }
 
+async function dropObsoleteTestTables(databaseUrl: string) {
+  const testClient = postgres(databaseUrl, { max: 1 });
+
+  try {
+    await testClient`drop table if exists en_escena_schedule_block_modality cascade`;
+    await testClient`drop table if exists en_escena_schedule_block cascade`;
+  } finally {
+    await testClient.end();
+  }
+}
+
 const testDatabaseUrl = getTestDatabaseUrl();
 
 await ensureDatabaseExists(testDatabaseUrl);
+await dropObsoleteTestTables(testDatabaseUrl);
 
 const result = spawnSync(
   "drizzle-kit",

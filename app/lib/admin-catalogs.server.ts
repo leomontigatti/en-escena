@@ -1,14 +1,24 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { experienceLevels, modalities, submodalities } from "@/db/schema";
+import {
+  categories,
+  categoryExperienceLevels,
+  categoryModalities,
+  experienceLevels,
+  modalities,
+  submodalities,
+} from "@/db/schema";
 
 type CatalogKind = "modality" | "submodality" | "experience-level";
+type GroupType = "solo" | "duo" | "trio" | "grupal";
+const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
 
 type CatalogRecord =
   | typeof modalities.$inferSelect
   | typeof submodalities.$inferSelect
-  | typeof experienceLevels.$inferSelect;
+  | typeof experienceLevels.$inferSelect
+  | typeof categories.$inferSelect;
 
 type CatalogSuccess = {
   ok: true;
@@ -21,7 +31,10 @@ type CatalogFailure = {
     | "catalog-has-dependencies"
     | "catalog-not-found"
     | "duplicate-name"
+    | "duplicate-category"
     | "invalid-catalog"
+    | "invalid-experience-level"
+    | "invalid-group-type"
     | "invalid-modality";
   error: string;
   fieldErrors?: Record<string, string>;
@@ -37,6 +50,31 @@ type CatalogNameInput = {
 type SubmodalityInput = CatalogNameInput & {
   modalityId: string;
 };
+
+type CategoryInput = CatalogNameInput & {
+  minAge: number;
+  maxAge: number;
+  groupTypes: string[];
+  modalityIds: string[];
+  experienceLevelIds: string[];
+};
+
+type ValidCategoryInput = {
+  name: string;
+  minAge: number;
+  maxAge: number;
+  groupTypes: GroupType[];
+  modalityIds: string[];
+  experienceLevelIds: string[];
+  groupTypeKey: string;
+  experienceLevelKey: string;
+};
+
+type CategoryRelationRow = {
+  categoryId: string;
+};
+
+type CatalogTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const catalogCopy = {
   modality: {
@@ -73,26 +111,73 @@ const catalogCopy = {
 >;
 
 export async function listEventCatalogs(eventId: string) {
-  const [eventModalities, eventSubmodalities, eventExperienceLevels] =
-    await Promise.all([
-      db.query.modalities.findMany({
-        where: eq(modalities.eventId, eventId),
-        orderBy: [asc(modalities.name)],
-      }),
-      db.query.submodalities.findMany({
-        where: eq(submodalities.eventId, eventId),
-        orderBy: [asc(submodalities.name)],
-      }),
-      db.query.experienceLevels.findMany({
-        where: eq(experienceLevels.eventId, eventId),
-        orderBy: [asc(experienceLevels.name)],
-      }),
-    ]);
+  const [
+    eventModalities,
+    eventSubmodalities,
+    eventExperienceLevels,
+    eventCategories,
+    eventCategoryModalities,
+    eventCategoryExperienceLevels,
+  ] = await Promise.all([
+    db.query.modalities.findMany({
+      where: eq(modalities.eventId, eventId),
+      orderBy: [asc(modalities.name)],
+    }),
+    db.query.submodalities.findMany({
+      where: eq(submodalities.eventId, eventId),
+      orderBy: [asc(submodalities.name)],
+    }),
+    db.query.experienceLevels.findMany({
+      where: eq(experienceLevels.eventId, eventId),
+      orderBy: [asc(experienceLevels.name)],
+    }),
+    db.query.categories.findMany({
+      where: eq(categories.eventId, eventId),
+      orderBy: [
+        asc(categories.minAge),
+        asc(categories.maxAge),
+        asc(categories.name),
+      ],
+    }),
+    db
+      .select({
+        categoryId: categoryModalities.categoryId,
+        modalityId: categoryModalities.modalityId,
+      })
+      .from(categoryModalities)
+      .innerJoin(categories, eq(categories.id, categoryModalities.categoryId))
+      .where(eq(categories.eventId, eventId)),
+    db
+      .select({
+        categoryId: categoryExperienceLevels.categoryId,
+        experienceLevelId: categoryExperienceLevels.experienceLevelId,
+      })
+      .from(categoryExperienceLevels)
+      .innerJoin(
+        categories,
+        eq(categories.id, categoryExperienceLevels.categoryId),
+      )
+      .where(eq(categories.eventId, eventId)),
+  ]);
+
+  const modalityIdsByCategory = groupRelationIdsByCategory(
+    eventCategoryModalities,
+    (relation) => relation.modalityId,
+  );
+  const experienceLevelIdsByCategory = groupRelationIdsByCategory(
+    eventCategoryExperienceLevels,
+    (relation) => relation.experienceLevelId,
+  );
 
   return {
     modalities: eventModalities,
     submodalities: eventSubmodalities,
     experienceLevels: eventExperienceLevels,
+    categories: eventCategories.map((category) => ({
+      ...category,
+      modalityIds: modalityIdsByCategory.get(category.id) ?? [],
+      experienceLevelIds: experienceLevelIdsByCategory.get(category.id) ?? [],
+    })),
   };
 }
 
@@ -161,13 +246,11 @@ export async function deleteModality(
     return catalogNotFound("modality");
   }
 
-  if (await modalityHasConfigurationDependencies(modalityId)) {
-    return {
-      ok: false,
-      code: "catalog-has-dependencies",
-      error:
-        "No se puede borrar la Modalidad porque tiene Submodalidades relacionadas.",
-    };
+  const dependencyCheck =
+    await modalityHasConfigurationDependencies(modalityId);
+
+  if (!dependencyCheck.ok) {
+    return dependencyCheck;
   }
 
   await db.delete(modalities).where(eq(modalities.id, modalityId));
@@ -312,9 +395,103 @@ export async function deleteExperienceLevel(
     return catalogNotFound("experience-level");
   }
 
+  if (await experienceLevelHasCategoryDependencies(experienceLevelId)) {
+    return {
+      ok: false,
+      code: "catalog-has-dependencies",
+      error:
+        "No se puede borrar el Nivel de experiencia porque tiene Categorías relacionadas.",
+    };
+  }
+
   await db
     .delete(experienceLevels)
     .where(eq(experienceLevels.id, experienceLevelId));
+
+  return { ok: true };
+}
+
+export async function createCategory(
+  eventId: string,
+  input: CategoryInput,
+): Promise<CatalogMutationResult> {
+  const validation = await validateCategoryInput(eventId, input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(categories)
+      .values({
+        eventId,
+        ...categoryValues(validation.input),
+      })
+      .returning();
+    const category = inserted[0];
+
+    if (!category) {
+      return inserted;
+    }
+
+    await replaceCategoryRelations(tx, category.id, validation.input);
+
+    return inserted;
+  });
+
+  return created(record);
+}
+
+export async function updateCategory(
+  categoryId: string,
+  input: CategoryInput,
+): Promise<CatalogMutationResult> {
+  const category = await db.query.categories.findFirst({
+    where: eq(categories.id, categoryId),
+  });
+
+  if (!category) {
+    return categoryNotFound();
+  }
+
+  const validation = await validateCategoryInput(
+    category.eventId,
+    input,
+    categoryId,
+  );
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(categories)
+      .set(categoryValues(validation.input))
+      .where(eq(categories.id, categoryId))
+      .returning();
+
+    await replaceCategoryRelations(tx, categoryId, validation.input);
+
+    return updated;
+  });
+
+  return created(record);
+}
+
+export async function deleteCategory(
+  categoryId: string,
+): Promise<CatalogDeleteResult> {
+  const category = await db.query.categories.findFirst({
+    where: eq(categories.id, categoryId),
+  });
+
+  if (!category) {
+    return categoryNotFound();
+  }
+
+  await db.delete(categories).where(eq(categories.id, categoryId));
 
   return { ok: true };
 }
@@ -385,6 +562,220 @@ async function validateCatalogName(input: {
   return { ok: true };
 }
 
+async function validateCategoryInput(
+  eventId: string,
+  input: CategoryInput,
+  exceptId?: string,
+): Promise<{ ok: true; input: ValidCategoryInput } | CatalogFailure> {
+  const name = input.name.trim();
+
+  if (name.length === 0) {
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error: "Revisá los datos de la Categoría.",
+      fieldErrors: { name: "Ingresá el nombre de la Categoría." },
+    };
+  }
+
+  if (!Number.isInteger(input.minAge) || !Number.isInteger(input.maxAge)) {
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error: "Revisá las edades de la Categoría.",
+      fieldErrors: { ageRange: "Ingresá edades válidas." },
+    };
+  }
+
+  if (input.minAge < 0 || input.maxAge < input.minAge) {
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error: "Revisá las edades de la Categoría.",
+      fieldErrors: {
+        ageRange: "La edad máxima debe ser mayor o igual a la mínima.",
+      },
+    };
+  }
+
+  const groupTypes = uniqueValues(input.groupTypes)
+    .filter(isGroupType)
+    .sort((a, b) => groupTypeOrder.indexOf(a) - groupTypeOrder.indexOf(b));
+
+  if (groupTypes.length === 0) {
+    return {
+      ok: false,
+      code: "invalid-group-type",
+      error: "Elegí al menos un Tipo de grupo.",
+      fieldErrors: { groupTypes: "Elegí al menos un Tipo de grupo." },
+    };
+  }
+
+  const modalityIds = uniqueValues(input.modalityIds);
+
+  if (modalityIds.length === 0) {
+    return {
+      ok: false,
+      code: "invalid-modality",
+      error: "Elegí al menos una Modalidad.",
+      fieldErrors: { modalityIds: "Elegí al menos una Modalidad." },
+    };
+  }
+
+  const validModalities = await db
+    .select({ id: modalities.id })
+    .from(modalities)
+    .where(
+      and(eq(modalities.eventId, eventId), inArray(modalities.id, modalityIds)),
+    );
+
+  if (validModalities.length !== modalityIds.length) {
+    return {
+      ok: false,
+      code: "invalid-modality",
+      error: "Elegí Modalidades del Evento de trabajo.",
+      fieldErrors: {
+        modalityIds: "Elegí Modalidades del Evento de trabajo.",
+      },
+    };
+  }
+
+  const experienceLevelIds = uniqueValues(input.experienceLevelIds).sort();
+
+  if (experienceLevelIds.length > 0) {
+    const validExperienceLevels = await db
+      .select({ id: experienceLevels.id })
+      .from(experienceLevels)
+      .where(
+        and(
+          eq(experienceLevels.eventId, eventId),
+          inArray(experienceLevels.id, experienceLevelIds),
+        ),
+      );
+
+    if (validExperienceLevels.length !== experienceLevelIds.length) {
+      return {
+        ok: false,
+        code: "invalid-experience-level",
+        error: "Elegí Niveles de experiencia del Evento de trabajo.",
+        fieldErrors: {
+          experienceLevelIds:
+            "Elegí Niveles de experiencia del Evento de trabajo.",
+        },
+      };
+    }
+  }
+
+  const validInput = {
+    name,
+    minAge: input.minAge,
+    maxAge: input.maxAge,
+    groupTypes,
+    modalityIds: modalityIds.sort(),
+    experienceLevelIds,
+    groupTypeKey: groupTypes.join("|"),
+    experienceLevelKey: experienceLevelIds.join("|"),
+  };
+
+  if (await findDuplicateCategory(eventId, validInput, exceptId)) {
+    return {
+      ok: false,
+      code: "duplicate-category",
+      error: "Ya existe una Categoría equivalente en este Evento.",
+      fieldErrors: { name: "Revisá la combinación de la Categoría." },
+    };
+  }
+
+  if (await findOverlappingCategory(eventId, validInput, exceptId)) {
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error:
+        "La Categoría se solapa con otra Categoría para la misma Modalidad y Tipo de grupo.",
+      fieldErrors: { ageRange: "Ajustá las edades o la aplicabilidad." },
+    };
+  }
+
+  return { ok: true, input: validInput };
+}
+
+async function findDuplicateCategory(
+  eventId: string,
+  input: ValidCategoryInput,
+  exceptId?: string,
+) {
+  const idFilter = exceptId ? ne(categories.id, exceptId) : undefined;
+
+  return db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        eq(categories.eventId, eventId),
+        sql`lower(${categories.name}) = ${input.name.toLowerCase()}`,
+        eq(categories.minAge, input.minAge),
+        eq(categories.maxAge, input.maxAge),
+        eq(categories.groupTypeKey, input.groupTypeKey),
+        eq(categories.experienceLevelKey, input.experienceLevelKey),
+        idFilter,
+      ),
+    )
+    .limit(1)
+    .then(([record]) => record);
+}
+
+async function findOverlappingCategory(
+  eventId: string,
+  input: ValidCategoryInput,
+  exceptId?: string,
+) {
+  const idFilter = exceptId ? ne(categories.id, exceptId) : undefined;
+  const possibleOverlaps = await db
+    .select({
+      id: categories.id,
+      groupTypes: categories.groupTypes,
+    })
+    .from(categories)
+    .where(
+      and(
+        eq(categories.eventId, eventId),
+        sql`${categories.minAge} <= ${input.maxAge}`,
+        sql`${categories.maxAge} >= ${input.minAge}`,
+        idFilter,
+      ),
+    );
+
+  if (possibleOverlaps.length === 0) {
+    return false;
+  }
+
+  const relationRows = await db
+    .select({
+      categoryId: categoryModalities.categoryId,
+      modalityId: categoryModalities.modalityId,
+    })
+    .from(categoryModalities)
+    .where(
+      inArray(
+        categoryModalities.categoryId,
+        possibleOverlaps.map((category) => category.id),
+      ),
+    );
+
+  return possibleOverlaps.some((category) => {
+    const hasSharedGroupType = category.groupTypes.some((groupType) =>
+      input.groupTypes.includes(groupType),
+    );
+    const hasSharedModality = relationRows.some(
+      (relation) =>
+        relation.categoryId === category.id &&
+        input.modalityIds.includes(relation.modalityId),
+    );
+
+    return hasSharedGroupType && hasSharedModality;
+  });
+}
+
 async function findDuplicateName(input: {
   eventId: string;
   name: string;
@@ -408,13 +799,78 @@ async function findDuplicateName(input: {
     .then(([record]) => record);
 }
 
-async function modalityHasConfigurationDependencies(modalityId: string) {
+async function modalityHasConfigurationDependencies(
+  modalityId: string,
+): Promise<CatalogDeleteResult> {
   const submodality = await db.query.submodalities.findFirst({
     columns: { id: true },
     where: eq(submodalities.modalityId, modalityId),
   });
 
-  return Boolean(submodality);
+  if (submodality) {
+    return {
+      ok: false,
+      code: "catalog-has-dependencies",
+      error:
+        "No se puede borrar la Modalidad porque tiene Submodalidades relacionadas.",
+    };
+  }
+
+  const categoryRelation = await db.query.categoryModalities.findFirst({
+    columns: { categoryId: true },
+    where: eq(categoryModalities.modalityId, modalityId),
+  });
+
+  if (categoryRelation) {
+    return {
+      ok: false,
+      code: "catalog-has-dependencies",
+      error:
+        "No se puede borrar la Modalidad porque tiene Categorías relacionadas.",
+    };
+  }
+
+  return { ok: true };
+}
+
+async function experienceLevelHasCategoryDependencies(
+  experienceLevelId: string,
+) {
+  const categoryRelation = await db.query.categoryExperienceLevels.findFirst({
+    columns: { categoryId: true },
+    where: eq(categoryExperienceLevels.experienceLevelId, experienceLevelId),
+  });
+
+  return Boolean(categoryRelation);
+}
+
+async function replaceCategoryRelations(
+  tx: CatalogTransaction,
+  categoryId: string,
+  input: ValidCategoryInput,
+) {
+  await tx
+    .delete(categoryModalities)
+    .where(eq(categoryModalities.categoryId, categoryId));
+  await tx
+    .delete(categoryExperienceLevels)
+    .where(eq(categoryExperienceLevels.categoryId, categoryId));
+
+  await tx.insert(categoryModalities).values(
+    input.modalityIds.map((modalityId) => ({
+      categoryId,
+      modalityId,
+    })),
+  );
+
+  if (input.experienceLevelIds.length > 0) {
+    await tx.insert(categoryExperienceLevels).values(
+      input.experienceLevelIds.map((experienceLevelId) => ({
+        categoryId,
+        experienceLevelId,
+      })),
+    );
+  }
 }
 
 function created(record: CatalogRecord | undefined): CatalogMutationResult {
@@ -437,6 +893,14 @@ function catalogNotFound(kind: CatalogKind): CatalogFailure {
   };
 }
 
+function categoryNotFound(): CatalogFailure {
+  return {
+    ok: false,
+    code: "catalog-not-found",
+    error: "No encontramos esa Categoría.",
+  };
+}
+
 function getTable(kind: CatalogKind) {
   switch (kind) {
     case "modality":
@@ -446,4 +910,39 @@ function getTable(kind: CatalogKind) {
     case "experience-level":
       return experienceLevels;
   }
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function isGroupType(value: string): value is GroupType {
+  return ["solo", "duo", "trio", "grupal"].includes(value);
+}
+
+function categoryValues(input: ValidCategoryInput) {
+  return {
+    name: input.name,
+    minAge: input.minAge,
+    maxAge: input.maxAge,
+    groupTypes: input.groupTypes,
+    groupTypeKey: input.groupTypeKey,
+    experienceLevelKey: input.experienceLevelKey,
+  };
+}
+
+function groupRelationIdsByCategory<TRelation extends CategoryRelationRow>(
+  relations: TRelation[],
+  getId: (relation: TRelation) => string,
+) {
+  const idsByCategory = new Map<string, string[]>();
+
+  for (const relation of relations) {
+    const ids = idsByCategory.get(relation.categoryId) ?? [];
+
+    ids.push(getId(relation));
+    idsByCategory.set(relation.categoryId, ids);
+  }
+
+  return idsByCategory;
 }
