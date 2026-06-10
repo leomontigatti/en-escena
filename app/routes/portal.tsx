@@ -8,6 +8,8 @@ import { requireAcademyUser } from "@/lib/internal-access.server";
 
 import type { Route } from "./+types/portal";
 
+type PortalRouteProps = Pick<Route.ComponentProps, "loaderData">;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Portal de academias | En Escena" },
 ];
@@ -21,7 +23,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export default function PortalRoute({ loaderData }: Route.ComponentProps) {
+export function PortalRouteView({ loaderData }: PortalRouteProps) {
   return (
     <AccessPage width="xl">
       <PrivateAccessHeader email={loaderData.email} />
@@ -61,3 +63,5 @@ export default function PortalRoute({ loaderData }: Route.ComponentProps) {
     </AccessPage>
   );
 }
+
+export default PortalRouteView;

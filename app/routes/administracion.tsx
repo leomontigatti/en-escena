@@ -9,6 +9,8 @@ import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
 
+type AdministracionRouteProps = Pick<Route.ComponentProps, "loaderData">;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de administración | En Escena" },
 ];
@@ -19,9 +21,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { email: user.email };
 }
 
-export default function AdministracionRoute({
+export function AdministracionRouteView({
   loaderData,
-}: Route.ComponentProps) {
+}: AdministracionRouteProps) {
   return (
     <AccessPage width="xl">
       <PrivateAccessHeader email={loaderData.email} />
@@ -64,3 +66,5 @@ export default function AdministracionRoute({
     </AccessPage>
   );
 }
+
+export default AdministracionRouteView;

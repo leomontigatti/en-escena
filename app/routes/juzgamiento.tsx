@@ -7,6 +7,8 @@ import { requireJudgePanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/juzgamiento";
 
+type JuzgamientoRouteProps = Pick<Route.ComponentProps, "loaderData">;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de juzgamiento | En Escena" },
 ];
@@ -17,7 +19,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { email: user.email };
 }
 
-export default function JuzgamientoRoute({ loaderData }: Route.ComponentProps) {
+export function JuzgamientoRouteView({ loaderData }: JuzgamientoRouteProps) {
   return (
     <AccessPage width="xl">
       <PrivateAccessHeader email={loaderData.email} />
@@ -43,3 +45,5 @@ export default function JuzgamientoRoute({ loaderData }: Route.ComponentProps) {
     </AccessPage>
   );
 }
+
+export default JuzgamientoRouteView;

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { ComponentType } from "react";
-import { createRoutesStub } from "react-router";
+import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/internal-access.server", () => ({
@@ -13,14 +13,10 @@ vi.mock("@/lib/internal-navigation.server", () => ({
   requireJudgePanelUser: vi.fn(),
 }));
 
-import AdministracionRoute from "@/routes/administracion";
-import AuditoriaRoute from "@/routes/auditoria";
-import JuzgamientoRoute from "@/routes/juzgamiento";
-import PortalRoute from "@/routes/portal";
-
-type PanelRouteComponent = ComponentType<{
-  loaderData: { email: string };
-}>;
+import { AdministracionRouteView } from "@/routes/administracion";
+import { AuditoriaRouteView } from "@/routes/auditoria";
+import { JuzgamientoRouteView } from "@/routes/juzgamiento";
+import { PortalRouteView } from "@/routes/portal";
 
 describe("private route headers", () => {
   test.each([
@@ -31,25 +27,24 @@ describe("private route headers", () => {
     ],
     [
       "panel de administración",
-      renderPanel(
-        AdministracionRoute as unknown as PanelRouteComponent,
-        "admin@example.com",
+      renderPrivateRoute(
+        <AdministracionRouteView loaderData={{ email: "admin@example.com" }} />,
       ),
       "admin@example.com",
     ],
     [
       "auditoría",
-      renderPanel(
-        AuditoriaRoute as unknown as PanelRouteComponent,
-        "auditoria@example.com",
+      renderPrivateRoute(
+        <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
       ),
       "auditoria@example.com",
     ],
     [
       "juzgamiento",
-      renderPanel(
-        JuzgamientoRoute as unknown as PanelRouteComponent,
-        "juzgamiento@example.com",
+      renderPrivateRoute(
+        <JuzgamientoRouteView
+          loaderData={{ email: "juzgamiento@example.com" }}
+        />,
       ),
       "juzgamiento@example.com",
     ],
@@ -73,36 +68,11 @@ function renderPortal(email: string) {
       phone: "11 1234-5678",
     },
   };
-  const Stub = createRoutesStub([
-    {
-      path: "/",
-      Component: PortalRoute,
-      loader: () => loaderData,
-    },
-  ]);
-
-  return renderToStaticMarkup(
-    <Stub
-      initialEntries={["/"]}
-      hydrationData={{ loaderData: { "0": loaderData } }}
-    />,
-  );
+  return renderPrivateRoute(<PortalRouteView loaderData={loaderData} />);
 }
 
-function renderPanel(RouteComponent: PanelRouteComponent, email: string) {
-  const loaderData = { email };
-  const Stub = createRoutesStub([
-    {
-      path: "/",
-      Component: RouteComponent,
-      loader: () => loaderData,
-    },
-  ]);
-
+function renderPrivateRoute(route: ReactElement) {
   return renderToStaticMarkup(
-    <Stub
-      initialEntries={["/"]}
-      hydrationData={{ loaderData: { "0": loaderData } }}
-    />,
+    <MemoryRouter initialEntries={["/"]}>{route}</MemoryRouter>,
   );
 }
