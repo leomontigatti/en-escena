@@ -19,7 +19,7 @@ const adrRequirements = [
   "Evento consultado",
 ];
 
-const documentPairGlossaryRequirements = [
+const glossaryEntryRequirements = [
   {
     term: "Profesor",
     requirements: [
@@ -47,7 +47,10 @@ const documentPairGlossaryRequirements = [
   },
   {
     term: "Portal de academias",
-    requirements: ["carga rápida desde las listas", "profesores", "bailarines"],
+    requirements: [
+      "secciones operativas para profesores, bailarines y coreografías",
+      "carga rápida desde las listas",
+    ],
   },
 ];
 
@@ -87,10 +90,10 @@ describe("domain documentation", () => {
   test("documents the academy people document pair rule", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
 
-    for (const entryRequirement of documentPairGlossaryRequirements) {
-      const entry = getGlossaryEntry(glossary, entryRequirement.term);
+    for (const { requirements, term } of glossaryEntryRequirements) {
+      const entry = getGlossaryEntry(glossary, term);
 
-      for (const requirement of entryRequirement.requirements) {
+      for (const requirement of requirements) {
         expect(entry).toContain(requirement);
       }
     }
