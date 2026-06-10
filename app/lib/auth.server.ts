@@ -14,7 +14,7 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      void sendEmail({
+      await sendEmail({
         to: user.email,
         subject: "Recuperá tu acceso a En Escena",
         text: `Usá este enlace para definir una nueva contraseña: ${url}`,
