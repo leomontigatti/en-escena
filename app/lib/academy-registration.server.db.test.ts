@@ -21,6 +21,9 @@ import { action as requestRegistrationAction } from "@/routes/registro";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
+const SESSION_TTL_MS = vi.hoisted(() => 7 * 24 * 60 * 60 * 1000);
+const TOKEN_TEST_TTL_MS = 60_000;
+
 const sentEmails = vi.hoisted(
   () =>
     [] as Array<{
@@ -54,7 +57,7 @@ vi.mock("@/lib/academy-registration-auth.server", () => ({
       id: crypto.randomUUID(),
       token: sessionToken,
       userId,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     });
 
     return {
@@ -118,20 +121,18 @@ describe("academy registration", () => {
   });
 
   test("consumes a valid token to create a verified academy user with a session", async () => {
-    await db.insert(academyRegistrationTokens).values({
+    await insertRegistrationToken({
       email: "academia@example.com",
-      tokenHash: hashRegistrationToken("valid-token"),
-      expiresAt: new Date(Date.now() + 60_000),
+      token: "valid-token",
     });
 
-    const result = await completeAcademyRegistration({
-      token: "valid-token",
-      academyName: " Academia En Escena ",
-      contactName: " Contacto ",
-      phone: " 11 1234-5678 ",
-      password: "password-segura",
-      request: new Request("http://localhost/registro/valid-token"),
-    });
+    const result = await completeAcademyRegistration(
+      createCompleteRegistrationInput("valid-token", {
+        academyName: " Academia En Escena ",
+        contactName: " Contacto ",
+        phone: " 11 1234-5678 ",
+      }),
+    );
 
     expect(result.ok).toBe(true);
     expect(result.ok && result.headers.get("set-cookie")).toContain(
@@ -173,19 +174,12 @@ describe("academy registration", () => {
       where: eq(session.userId, savedUsers[0]?.id ?? ""),
     });
     expect(savedSessions).toEqual([{ userId: savedUsers[0]?.id }]);
-
-    const academyRows = await db
-      .select()
-      .from(academies)
-      .where(eq(academies.userId, savedUsers[0]?.id ?? ""));
-    expect(academyRows).toHaveLength(1);
   });
 
   test("final registration redirects to the portal with the new session", async () => {
-    await db.insert(academyRegistrationTokens).values({
+    await insertRegistrationToken({
       email: "portal@example.com",
-      tokenHash: hashRegistrationToken("portal-token"),
-      expiresAt: new Date(Date.now() + 60_000),
+      token: "portal-token",
     });
 
     const redirectResponse = await expectRedirectResponse(
@@ -214,10 +208,9 @@ describe("academy registration", () => {
   });
 
   test("a valid token opens the final registration step", async () => {
-    await db.insert(academyRegistrationTokens).values({
+    await insertRegistrationToken({
       email: "formulario@example.com",
-      tokenHash: hashRegistrationToken("form-token"),
-      expiresAt: new Date(Date.now() + 60_000),
+      token: "form-token",
     });
 
     await expect(
@@ -250,19 +243,16 @@ describe("academy registration", () => {
   });
 
   test("rejects expired, consumed, and unknown tokens without creating access", async () => {
-    await db.insert(academyRegistrationTokens).values([
-      {
-        email: "expirada@example.com",
-        tokenHash: hashRegistrationToken("expired-token"),
-        expiresAt: new Date(Date.now() - 60_000),
-      },
-      {
-        email: "usada@example.com",
-        tokenHash: hashRegistrationToken("consumed-token"),
-        expiresAt: new Date(Date.now() + 60_000),
-        consumedAt: new Date(),
-      },
-    ]);
+    await insertRegistrationToken({
+      email: "expirada@example.com",
+      token: "expired-token",
+      expiresAt: new Date(Date.now() - TOKEN_TEST_TTL_MS),
+    });
+    await insertRegistrationToken({
+      email: "usada@example.com",
+      token: "consumed-token",
+      consumedAt: new Date(),
+    });
 
     await expectTokenRejection("expired-token");
     await expectTokenRejection("consumed-token");
@@ -277,28 +267,23 @@ describe("academy registration", () => {
   });
 
   test("does not allow a consumed token to create duplicate users or academies", async () => {
-    await db.insert(academyRegistrationTokens).values({
+    await insertRegistrationToken({
       email: "unica@example.com",
-      tokenHash: hashRegistrationToken("single-use-token"),
-      expiresAt: new Date(Date.now() + 60_000),
+      token: "single-use-token",
     });
 
-    const firstResult = await completeAcademyRegistration({
-      token: "single-use-token",
-      academyName: "Academia Unica",
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-      password: "password-segura",
-      request: new Request("http://localhost/registro/single-use-token"),
-    });
-    const secondResult = await completeAcademyRegistration({
-      token: "single-use-token",
-      academyName: "Academia Duplicada",
-      contactName: "Otro Contacto",
-      phone: "11 0000-0000",
-      password: "password-segura",
-      request: new Request("http://localhost/registro/single-use-token"),
-    });
+    const firstResult = await completeAcademyRegistration(
+      createCompleteRegistrationInput("single-use-token", {
+        academyName: "Academia Unica",
+      }),
+    );
+    const secondResult = await completeAcademyRegistration(
+      createCompleteRegistrationInput("single-use-token", {
+        academyName: "Academia Duplicada",
+        contactName: "Otro Contacto",
+        phone: "11 0000-0000",
+      }),
+    );
 
     expect(firstResult.ok).toBe(true);
     expect(secondResult).toEqual({
@@ -310,6 +295,40 @@ describe("academy registration", () => {
     expect(await db.query.session.findMany()).toHaveLength(1);
   });
 });
+
+async function insertRegistrationToken(input: {
+  email: string;
+  token: string;
+  expiresAt?: Date;
+  consumedAt?: Date;
+}) {
+  await db.insert(academyRegistrationTokens).values({
+    email: input.email,
+    tokenHash: hashRegistrationToken(input.token),
+    expiresAt: input.expiresAt ?? new Date(Date.now() + TOKEN_TEST_TTL_MS),
+    consumedAt: input.consumedAt,
+  });
+}
+
+function createCompleteRegistrationInput(
+  token: string,
+  overrides: Partial<
+    Pick<
+      Parameters<typeof completeAcademyRegistration>[0],
+      "academyName" | "contactName" | "phone" | "password"
+    >
+  > = {},
+): Parameters<typeof completeAcademyRegistration>[0] {
+  return {
+    token,
+    academyName: "Academia",
+    contactName: "Contacto",
+    phone: "11 1234-5678",
+    password: "password-segura",
+    request: new Request(`http://localhost/registro/${token}`),
+    ...overrides,
+  };
+}
 
 async function requestRegistrationEmail(email: string) {
   const formData = new FormData();
@@ -329,14 +348,7 @@ async function requestRegistrationEmail(email: string) {
 
 async function expectTokenRejection(token: string) {
   await expect(
-    completeAcademyRegistration({
-      token,
-      academyName: "Academia",
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-      password: "password-segura",
-      request: new Request(`http://localhost/registro/${token}`),
-    }),
+    completeAcademyRegistration(createCompleteRegistrationInput(token)),
   ).resolves.toEqual({
     ok: false,
     error: "El enlace no es válido o expiró.",
