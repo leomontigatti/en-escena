@@ -10,7 +10,7 @@ import {
   accessButtonClassName,
 } from "@/components/access-ui";
 import { auth } from "@/lib/auth.server";
-import { getFieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 import { getLandingPathForUserId } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/ingresar";
@@ -20,6 +20,7 @@ const signInSchema = z.object({
   password: z.string().min(1, "Ingresá tu contraseña."),
 });
 const signInFields = ["email", "password"] as const;
+type SignInField = (typeof signInFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
@@ -62,7 +63,7 @@ export async function action({ request }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: "No pudimos ingresar con esos datos.",
-      fieldErrors: {},
+      fieldErrors: getEmptyFieldErrors<SignInField>(),
     };
   }
 }

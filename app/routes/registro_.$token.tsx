@@ -1,10 +1,4 @@
-import {
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useLoaderData,
-} from "react-router";
+import { Form, redirect, useActionData, useLoaderData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -12,15 +6,14 @@ import {
   AccessHeader,
   AccessNotice,
   AccessPage,
+  AccessSecondaryLink,
   accessButtonClassName,
-  accessSecondaryLinkClassName,
 } from "@/components/access-ui";
 import {
   completeAcademyRegistration,
   getRegistrationTokenStatus,
 } from "@/lib/academy-registration.server";
-import { getFieldErrors } from "@/lib/form-validation";
-import type { FieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 
 import type { Route } from "./+types/registro_.$token";
 
@@ -45,6 +38,7 @@ const completeRegistrationFields = [
   "password",
   "confirmPassword",
 ] as const;
+type CompleteRegistrationField = (typeof completeRegistrationFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Completar registro | En Escena" },
@@ -67,9 +61,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: "El enlace no es válido.",
-      fieldErrors: {} as FieldErrors<
-        (typeof completeRegistrationFields)[number]
-      >,
+      fieldErrors: getEmptyFieldErrors<CompleteRegistrationField>(),
     };
   }
 
@@ -103,9 +95,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: result.error,
-      fieldErrors: {} as FieldErrors<
-        (typeof completeRegistrationFields)[number]
-      >,
+      fieldErrors: getEmptyFieldErrors<CompleteRegistrationField>(),
     };
   }
 
@@ -125,12 +115,9 @@ export default function CompletarRegistroRoute() {
           tone="danger"
           description="El enlace ya fue usado o expiró. Podés pedir uno nuevo para completar el registro de la academia."
         />
-        <Link
-          to="/registro"
-          className={`${accessSecondaryLinkClassName} mt-8 w-full`}
-        >
+        <AccessSecondaryLink to="/registro" className="mt-8 w-full">
           Pedir nuevo enlace
-        </Link>
+        </AccessSecondaryLink>
       </AccessPage>
     );
   }

@@ -7,28 +7,33 @@ export type FieldErrors<FieldName extends string> = Partial<
 export function getFieldErrors<FieldName extends string>(
   error: z.ZodError,
   fieldNames: readonly FieldName[],
-) {
-  const fieldNameSet = new Set<string>(fieldNames);
+): FieldErrors<FieldName> {
+  const fieldNameSet = new Set<FieldName>(fieldNames);
   const fieldErrors: FieldErrors<FieldName> = {};
 
   for (const issue of error.issues) {
     const fieldName = issue.path[0];
 
     if (
-      typeof fieldName === "string" &&
-      fieldNameSet.has(fieldName) &&
-      !fieldErrors[fieldName as FieldName]
+      isFieldName(fieldName, fieldNameSet) &&
+      fieldErrors[fieldName] === undefined
     ) {
-      fieldErrors[fieldName as FieldName] = issue.message;
+      fieldErrors[fieldName] = issue.message;
     }
   }
 
   return fieldErrors;
 }
 
-export function getFirstFieldError<FieldName extends string>(
-  fieldErrors: FieldErrors<FieldName>,
-  fallback: string,
-) {
-  return Object.values(fieldErrors)[0] ?? fallback;
+export function getEmptyFieldErrors<
+  FieldName extends string,
+>(): FieldErrors<FieldName> {
+  return {};
+}
+
+function isFieldName<FieldName extends string>(
+  value: unknown,
+  fieldNameSet: ReadonlySet<FieldName>,
+): value is FieldName {
+  return typeof value === "string" && fieldNameSet.has(value as FieldName);
 }

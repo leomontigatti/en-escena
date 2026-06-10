@@ -10,8 +10,7 @@ import {
   accessButtonClassName,
 } from "@/components/access-ui";
 import { requestAcademyRegistrationEmail } from "@/lib/academy-registration.server";
-import { getFieldErrors } from "@/lib/form-validation";
-import type { FieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 
 import type { Route } from "./+types/registro";
 
@@ -19,6 +18,7 @@ const requestRegistrationSchema = z.object({
   email: z.email("Ingresá un correo electrónico válido."),
 });
 const registrationFields = ["email"] as const;
+type RegistrationField = (typeof registrationFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Registro de academia | En Escena" },
@@ -47,7 +47,7 @@ export async function action({ request }: Route.ActionArgs) {
     status: "success" as const,
     message:
       "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
-    fieldErrors: {} as FieldErrors<(typeof registrationFields)[number]>,
+    fieldErrors: getEmptyFieldErrors<RegistrationField>(),
   };
 }
 

@@ -1,10 +1,4 @@
-import {
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useLoaderData,
-} from "react-router";
+import { Form, redirect, useActionData, useLoaderData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -12,12 +6,11 @@ import {
   AccessHeader,
   AccessNotice,
   AccessPage,
+  AccessSecondaryLink,
   accessButtonClassName,
-  accessSecondaryLinkClassName,
 } from "@/components/access-ui";
 import { resetAccessPassword } from "@/lib/access-recovery.server";
-import { getFieldErrors } from "@/lib/form-validation";
-import type { FieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 
 import type { Route } from "./+types/recuperar-acceso.nueva";
 
@@ -34,6 +27,7 @@ const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 const resetPasswordFields = ["password", "confirmPassword"] as const;
+type ResetPasswordField = (typeof resetPasswordFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Nueva contraseña | En Escena" },
@@ -77,7 +71,7 @@ export async function action({ request }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: result.error,
-      fieldErrors: {} as FieldErrors<(typeof resetPasswordFields)[number]>,
+      fieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
     };
   }
 
@@ -97,12 +91,9 @@ export default function NuevaContrasenaRoute() {
           tone="danger"
           description="El enlace ya fue usado o expiró. Pedí uno nuevo para definir otra contraseña."
         />
-        <Link
-          to="/recuperar-acceso"
-          className={`${accessSecondaryLinkClassName} mt-8 w-full`}
-        >
+        <AccessSecondaryLink to="/recuperar-acceso" className="mt-8 w-full">
           Pedir nuevo enlace
-        </Link>
+        </AccessSecondaryLink>
       </AccessPage>
     );
   }

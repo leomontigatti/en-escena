@@ -10,8 +10,7 @@ import {
   accessButtonClassName,
 } from "@/components/access-ui";
 import { requestAccessRecoveryEmail } from "@/lib/access-recovery.server";
-import { getFieldErrors } from "@/lib/form-validation";
-import type { FieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 
 import type { Route } from "./+types/recuperar-acceso";
 
@@ -19,6 +18,7 @@ const requestRecoverySchema = z.object({
   email: z.email("Ingresá un correo electrónico válido."),
 });
 const recoveryFields = ["email"] as const;
+type RecoveryField = (typeof recoveryFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Recuperar acceso | En Escena" },
@@ -46,7 +46,7 @@ export async function action({ request }: Route.ActionArgs) {
   return {
     status: "success" as const,
     message: result.message,
-    fieldErrors: {} as FieldErrors<(typeof recoveryFields)[number]>,
+    fieldErrors: getEmptyFieldErrors<RecoveryField>(),
   };
 }
 

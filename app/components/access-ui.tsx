@@ -156,3 +156,17 @@ export function AccessTextLink({ className, ...props }: AccessTextLinkProps) {
     <Link {...props} className={clsx(accessTextLinkClassName, className)} />
   );
 }
+
+type AccessSecondaryLinkProps = ComponentProps<typeof Link>;
+
+export function AccessSecondaryLink({
+  className,
+  ...props
+}: AccessSecondaryLinkProps) {
+  return (
+    <Link
+      {...props}
+      className={clsx(accessSecondaryLinkClassName, className)}
+    />
+  );
+}

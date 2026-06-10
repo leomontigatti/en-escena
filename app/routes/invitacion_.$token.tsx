@@ -1,10 +1,4 @@
-import {
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useLoaderData,
-} from "react-router";
+import { Form, redirect, useActionData, useLoaderData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -12,11 +6,10 @@ import {
   AccessHeader,
   AccessNotice,
   AccessPage,
+  AccessSecondaryLink,
   accessButtonClassName,
-  accessSecondaryLinkClassName,
 } from "@/components/access-ui";
-import { getFieldErrors } from "@/lib/form-validation";
-import type { FieldErrors } from "@/lib/form-validation";
+import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 import { getLandingPathForUserId } from "@/lib/internal-navigation.server";
 import {
   completeInternalUserInvitation,
@@ -37,6 +30,7 @@ const completeInvitationSchema = z
     path: ["confirmPassword"],
   });
 const completeInvitationFields = ["password", "confirmPassword"] as const;
+type CompleteInvitationField = (typeof completeInvitationFields)[number];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Completar invitación | En Escena" },
@@ -59,7 +53,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: "El enlace no es válido.",
-      fieldErrors: {} as FieldErrors<(typeof completeInvitationFields)[number]>,
+      fieldErrors: getEmptyFieldErrors<CompleteInvitationField>(),
     };
   }
 
@@ -87,7 +81,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: result.error,
-      fieldErrors: {} as FieldErrors<(typeof completeInvitationFields)[number]>,
+      fieldErrors: getEmptyFieldErrors<CompleteInvitationField>(),
     };
   }
 
@@ -109,12 +103,9 @@ export default function CompletarInvitacionRoute() {
           tone="danger"
           description="El enlace ya fue usado o expiró. Pedile a administración una nueva invitación."
         />
-        <Link
-          to="/ingresar"
-          className={`${accessSecondaryLinkClassName} mt-8 w-full`}
-        >
+        <AccessSecondaryLink to="/ingresar" className="mt-8 w-full">
           Ir a ingresar
-        </Link>
+        </AccessSecondaryLink>
       </AccessPage>
     );
   }

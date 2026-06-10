@@ -1,9 +1,7 @@
-import { Link } from "react-router";
-
 import {
   AccessHeader,
   AccessPage,
-  accessSecondaryLinkClassName,
+  AccessSecondaryLink,
 } from "@/components/access-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 
@@ -59,9 +57,9 @@ export default function PortalRoute({ loaderData }: Route.ComponentProps) {
         </div>
       </dl>
 
-      <Link to="/" className={`${accessSecondaryLinkClassName} mt-8`}>
+      <AccessSecondaryLink to="/" className="mt-8">
         Volver al inicio
-      </Link>
+      </AccessSecondaryLink>
     </AccessPage>
   );
 }
