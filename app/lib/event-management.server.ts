@@ -15,6 +15,8 @@ const ACTIVE_EVENT_DELETION_ERROR =
   "No se puede borrar un Evento activo. Desactivalo primero.";
 const DEPENDENT_EVENT_DELETION_ERROR =
   "No se puede borrar un Evento con dependencias operativas.";
+const DEPENDENT_EVENT_EDIT_ERROR =
+  "No se pueden editar fechas ni seña con dependencias operativas.";
 
 type EventMutationSuccess = {
   ok: true;
@@ -122,6 +124,61 @@ export async function activateEvent(
 
     throw error;
   }
+}
+
+export async function updateEvent(
+  eventId: string,
+  input: CreateEventInput,
+  dependencies: EventDependencies = {},
+): Promise<EventMutationResult> {
+  const fieldErrors = validateEventInput(input);
+
+  if (fieldErrors) {
+    return {
+      ok: false,
+      code: "invalid-event",
+      error: INVALID_EVENT_ERROR,
+      fieldErrors,
+    };
+  }
+
+  const event = await db.query.events.findFirst({
+    where: eq(events.id, eventId),
+  });
+
+  if (!event) {
+    return eventNotFound();
+  }
+
+  const hasOperationalDependencies =
+    dependencies.hasOperationalDependencies ?? eventHasOperationalDependencies;
+
+  if (
+    (await hasOperationalDependencies(eventId)) &&
+    hasStructuralEventChanges(event, input)
+  ) {
+    return eventHasDependenciesForEdit();
+  }
+
+  const [updatedEvent] = await db
+    .update(events)
+    .set({
+      name: input.name.trim(),
+      registrationStartsAt: input.registrationStartsAt,
+      registrationEndsAt: input.registrationEndsAt,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      requiredDepositPercentage:
+        input.requiredDepositPercentage ?? DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
+    })
+    .where(eq(events.id, eventId))
+    .returning();
+
+  if (!updatedEvent) {
+    return eventNotFound();
+  }
+
+  return { ok: true, event: updatedEvent };
 }
 
 export async function deactivateEvent(
@@ -262,6 +319,14 @@ function eventHasDependencies(): EventMutationFailure {
   };
 }
 
+function eventHasDependenciesForEdit(): EventMutationFailure {
+  return {
+    ok: false,
+    code: "event-has-operational-dependencies",
+    error: DEPENDENT_EVENT_EDIT_ERROR,
+  };
+}
+
 function eventNotFound(): EventMutationFailure {
   return {
     ok: false,
@@ -294,4 +359,21 @@ function getDatabaseError(error: unknown) {
   }
 
   return error;
+}
+
+function hasStructuralEventChanges(
+  event: typeof events.$inferSelect,
+  input: CreateEventInput,
+) {
+  const requiredDepositPercentage =
+    input.requiredDepositPercentage ?? DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE;
+
+  return (
+    event.requiredDepositPercentage !== requiredDepositPercentage ||
+    event.registrationStartsAt.getTime() !==
+      input.registrationStartsAt.getTime() ||
+    event.registrationEndsAt.getTime() !== input.registrationEndsAt.getTime() ||
+    event.startsAt.getTime() !== input.startsAt.getTime() ||
+    event.endsAt.getTime() !== input.endsAt.getTime()
+  );
 }

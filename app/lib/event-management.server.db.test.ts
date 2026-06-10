@@ -8,6 +8,7 @@ import {
   deactivateEvent,
   deleteEvent,
   setEventVisibility,
+  updateEvent,
 } from "@/lib/event-management.server";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
@@ -106,6 +107,51 @@ describe("event management", () => {
     );
 
     expect(result).toMatchObject({ ok: true });
+  });
+
+  test("updates Evento names with dependencies but blocks structural changes", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    await expect(
+      updateEvent(
+        event.id,
+        eventInput({
+          name: "Regional corregido",
+          requiredDepositPercentage: event.requiredDepositPercentage,
+          registrationStartsAt: event.registrationStartsAt,
+          registrationEndsAt: event.registrationEndsAt,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+        }),
+        {
+          hasOperationalDependencies: async () => true,
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      event: { name: "Regional corregido" },
+    });
+
+    await expect(
+      updateEvent(
+        event.id,
+        eventInput({
+          name: "Regional corregido",
+          requiredDepositPercentage: 45,
+          registrationStartsAt: event.registrationStartsAt,
+          registrationEndsAt: event.registrationEndsAt,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+        }),
+        {
+          hasOperationalDependencies: async () => true,
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-has-operational-dependencies",
+      error: "No se pueden editar fechas ni seña con dependencias operativas.",
+    });
   });
 
   test("activates only when no other Evento is active", async () => {

@@ -84,6 +84,8 @@ describe("administracion/eventos route", () => {
     expect(markup).toContain("30%");
     expect(markup).toContain("Programa visible");
     expect(markup).toContain("Resultados ocultos");
+    expect(markup).toContain(`/administracion/eventos/${finalEvent.id}`);
+    expect(markup).toContain("Editar");
     expect(markup).toContain("Final 2027");
     expect(markup).toContain("No iniciado");
     expect(markup).toContain("45%");

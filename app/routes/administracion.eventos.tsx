@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import { CalendarPlus } from "lucide-react";
 import { useState } from "react";
-import { redirect, useActionData } from "react-router";
+import { Link, redirect, useActionData } from "react-router";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
@@ -187,6 +187,9 @@ function EventTable({
             <th scope="col" className="px-4 py-3">
               Visibilidad
             </th>
+            <th scope="col" className="px-4 py-3">
+              Acciones
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
@@ -249,6 +252,14 @@ function EventTableRow({
         <StatusBadge tone={event.resultsVisible ? "info" : "neutral"}>
           {event.resultsVisible ? "Resultados visibles" : "Resultados ocultos"}
         </StatusBadge>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <Link
+          to={`/administracion/eventos/${event.id}`}
+          className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        >
+          Editar
+        </Link>
       </td>
     </tr>
   );
