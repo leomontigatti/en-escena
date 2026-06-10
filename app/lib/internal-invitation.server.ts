@@ -9,12 +9,12 @@ import {
 } from "@/lib/academy-registration-token.server";
 import { auth } from "@/lib/auth.server";
 import { sendEmail as sendAppEmail } from "@/lib/email.server";
+import {
+  isInternalInvitationRole,
+  type InternalInvitationRole,
+} from "@/lib/internal-invitation.shared";
 
 const INTERNAL_INVITATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-
-export const internalInvitationRoles = ["admin", "auditor", "judge"] as const;
-
-export type InternalInvitationRole = (typeof internalInvitationRoles)[number];
 
 type CreateInternalInvitationDependencies = {
   createToken: () => string;
@@ -26,10 +26,12 @@ const defaultCreateInternalInvitationDependencies = {
   sendEmail: sendAppEmail,
 } satisfies CreateInternalInvitationDependencies;
 
-export function isInternalInvitationRole(
-  role: string,
-): role is InternalInvitationRole {
-  return internalInvitationRoles.some((allowedRole) => allowedRole === role);
+function activeInternalInvitationWhere(token: string, now: Date) {
+  return and(
+    eq(internalInvitationTokens.tokenHash, hashRegistrationToken(token)),
+    isNull(internalInvitationTokens.consumedAt),
+    gt(internalInvitationTokens.expiresAt, now),
+  );
 }
 
 export async function createInternalInvitation(
@@ -103,11 +105,7 @@ export async function createInternalInvitation(
 export async function getInternalInvitationStatus(token: string) {
   const invitation = await db.query.internalInvitationTokens.findFirst({
     columns: { id: true },
-    where: and(
-      eq(internalInvitationTokens.tokenHash, hashRegistrationToken(token)),
-      isNull(internalInvitationTokens.consumedAt),
-      gt(internalInvitationTokens.expiresAt, new Date()),
-    ),
+    where: activeInternalInvitationWhere(token, new Date()),
   });
 
   return invitation ? "valid" : "invalid";
@@ -120,14 +118,7 @@ export async function acceptInternalInvitation(input: {
 }) {
   const now = new Date();
   const invitation = await db.query.internalInvitationTokens.findFirst({
-    where: and(
-      eq(
-        internalInvitationTokens.tokenHash,
-        hashRegistrationToken(input.token),
-      ),
-      isNull(internalInvitationTokens.consumedAt),
-      gt(internalInvitationTokens.expiresAt, now),
-    ),
+    where: activeInternalInvitationWhere(input.token, now),
   });
 
   if (!invitation || !isInternalInvitationRole(invitation.role)) {

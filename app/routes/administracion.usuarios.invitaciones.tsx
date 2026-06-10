@@ -6,9 +6,11 @@ import { db } from "@/db";
 import { user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import {
-  createInternalInvitation,
+  internalInvitationRoleLabels,
+  internalInvitationRoles,
   isInternalInvitationRole,
-} from "@/lib/internal-invitation.server";
+} from "@/lib/internal-invitation.shared";
+import { createInternalInvitation } from "@/lib/internal-invitation.server";
 
 import type { Route } from "./+types/administracion.usuarios.invitaciones";
 
@@ -119,9 +121,11 @@ export default function InvitacionesInternasRoute() {
               required
               className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-950 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-100"
             >
-              <option value="admin">Administración</option>
-              <option value="auditor">Auditoría</option>
-              <option value="judge">Juzgamiento</option>
+              {internalInvitationRoles.map((role) => (
+                <option key={role} value={role}>
+                  {internalInvitationRoleLabels[role]}
+                </option>
+              ))}
             </select>
           </label>
 

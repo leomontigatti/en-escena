@@ -29,6 +29,21 @@ export const meta: Route.MetaFunction = () => [
   { title: "Recuperar acceso | En Escena" },
 ];
 
+function StatusMessage({
+  message,
+  status,
+}: {
+  message: string;
+  status: "error" | "success";
+}) {
+  const className =
+    status === "success"
+      ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+      : "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800";
+
+  return <p className={className}>{message}</p>;
+}
+
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -135,17 +150,7 @@ export default function RecuperarAccesoRoute() {
               />
             </label>
 
-            {actionData ? (
-              <p
-                className={
-                  actionData.status === "success"
-                    ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-                    : "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800"
-                }
-              >
-                {actionData.message}
-              </p>
-            ) : null}
+            {actionData ? <StatusMessage {...actionData} /> : null}
 
             <button
               type="submit"
@@ -198,17 +203,7 @@ export default function RecuperarAccesoRoute() {
             </p>
           ) : null}
 
-          {actionData ? (
-            <p
-              className={
-                actionData.status === "success"
-                  ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-                  : "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800"
-              }
-            >
-              {actionData.message}
-            </p>
-          ) : null}
+          {actionData ? <StatusMessage {...actionData} /> : null}
 
           <button
             type="submit"
