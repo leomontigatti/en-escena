@@ -19,6 +19,51 @@ const adrRequirements = [
   "Evento consultado",
 ];
 
+const documentPairGlossaryRequirements = [
+  {
+    term: "Profesor",
+    requirements: [
+      "Tipo de documento y número de documento se tratan como un par",
+      "ambos pueden quedar vacíos",
+      "Si uno está completo y el otro vacío, la ficha es inválida y no se guarda",
+    ],
+  },
+  {
+    term: "Bailarín",
+    requirements: [
+      "Tipo de documento y número de documento se tratan como un par",
+      "ambos pueden quedar vacíos",
+      "Si uno está completo y el otro vacío, la ficha es inválida y no se guarda",
+      "Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia",
+    ],
+  },
+  {
+    term: "Estado de verificación de bailarín",
+    requirements: [
+      "si el par de documento está vacío es incompleto",
+      "Un par de documento parcial no es un estado guardado",
+      "es un error de validación del formulario",
+    ],
+  },
+  {
+    term: "Portal de academias",
+    requirements: ["carga rápida desde las listas", "profesores", "bailarines"],
+  },
+];
+
+function getGlossaryEntry(glossary: string, term: string) {
+  const startMarker = `**${term}**:`;
+  const start = glossary.indexOf(startMarker);
+
+  if (start === -1) {
+    throw new Error(`Missing glossary term: ${term}`);
+  }
+
+  const nextEntry = glossary.indexOf("\n**", start + startMarker.length);
+
+  return glossary.slice(start, nextEntry === -1 ? undefined : nextEntry);
+}
+
 describe("domain documentation", () => {
   test("keeps selectable event contexts in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -36,6 +81,18 @@ describe("domain documentation", () => {
 
     for (const requirement of adrRequirements) {
       expect(adr).toContain(requirement);
+    }
+  });
+
+  test("documents the academy people document pair rule", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const entryRequirement of documentPairGlossaryRequirements) {
+      const entry = getGlossaryEntry(glossary, entryRequirement.term);
+
+      for (const requirement of entryRequirement.requirements) {
+        expect(entry).toContain(requirement);
+      }
     }
   });
 });
