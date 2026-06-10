@@ -9,6 +9,11 @@ const requestRecoverySchema = z.object({
   email: z.email("Ingresá un correo electrónico válido."),
 });
 
+const recoveryMessageClassNameByStatus = {
+  error: "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800",
+  success: "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800",
+} as const;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Recuperar acceso | En Escena" },
 ];
@@ -65,13 +70,7 @@ export default function RecuperarAccesoRoute() {
           </label>
 
           {actionData ? (
-            <p
-              className={
-                actionData.status === "success"
-                  ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-                  : "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800"
-              }
-            >
+            <p className={recoveryMessageClassNameByStatus[actionData.status]}>
               {actionData.message}
             </p>
           ) : null}

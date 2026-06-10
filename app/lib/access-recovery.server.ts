@@ -8,16 +8,16 @@ export async function requestAccessRecoveryEmail(input: {
   email: string;
   requestUrl: string;
 }) {
-  const requestOrigin = new URL(input.requestUrl).origin;
-  const redirectTo = new URL(
+  const recoveryPageUrl = new URL(
     "/recuperar-acceso/nueva",
     input.requestUrl,
   ).toString();
+  const requestOrigin = new URL(input.requestUrl).origin;
 
   await auth.api.requestPasswordReset({
     body: {
       email: normalizeEmail(input.email),
-      redirectTo,
+      redirectTo: recoveryPageUrl,
     },
     headers: new Headers({
       origin: requestOrigin,
