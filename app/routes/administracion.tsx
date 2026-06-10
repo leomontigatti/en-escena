@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 
+import { AccessHeader, AccessPage } from "@/components/access-ui";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
@@ -18,42 +19,47 @@ export default function AdministracionRoute({
   loaderData,
 }: Route.ComponentProps) {
   return (
-    <main className="min-h-screen bg-stone-100 px-6 py-12">
-      <section className="mx-auto max-w-4xl rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-amber-700">
-          Panel de administración
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
-          Administración interna
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-stone-600">
-          Acceso activo para {loaderData.email}. Desde acá se van a operar el
-          evento, sus excepciones y la configuración interna.
-        </p>
+    <AccessPage width="xl">
+      <AccessHeader
+        eyebrow="Panel de administración"
+        title="Administración interna"
+        description={
+          <>
+            Acceso activo para{" "}
+            <span className="break-words font-medium text-slate-800">
+              {loaderData.email}
+            </span>
+            . Este panel concentrará la operación del evento, sus excepciones y
+            los ajustes de administración.
+          </>
+        }
+      />
 
-        <nav className="mt-8 grid gap-4 sm:grid-cols-2">
-          <Link
-            to="/administracion/usuarios/invitaciones"
-            className="rounded-2xl border border-stone-200 bg-stone-50 p-5 transition hover:border-amber-300 hover:bg-amber-50"
-          >
-            <span className="text-sm font-semibold text-stone-950">
-              Invitar usuarios internos
-            </span>
-            <span className="mt-2 block text-sm leading-6 text-stone-600">
-              Habilitá administración, auditoría o juzgamiento por correo.
-            </span>
-          </Link>
-          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-            <span className="text-sm font-semibold text-stone-950">
-              Operación del evento
-            </span>
-            <span className="mt-2 block text-sm leading-6 text-stone-600">
-              Las vistas de coreografías, pagos y ajustes se van a construir en
-              las próximas iteraciones.
-            </span>
-          </div>
-        </nav>
-      </section>
-    </main>
+      <nav
+        className="mt-8 grid gap-4 sm:grid-cols-2"
+        aria-label="Administración"
+      >
+        <Link
+          to="/administracion/usuarios/invitaciones"
+          className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        >
+          <span className="text-sm font-semibold text-slate-950">
+            Invitar usuarios internos
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-slate-600">
+            Habilitá administración, auditoría o juzgamiento por correo.
+          </span>
+        </Link>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+          <span className="text-sm font-semibold text-slate-950">
+            Operación del evento
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-slate-600">
+            Las listas operativas, financieras y de participación se van a sumar
+            en próximas iteraciones.
+          </span>
+        </div>
+      </nav>
+    </AccessPage>
   );
 }
