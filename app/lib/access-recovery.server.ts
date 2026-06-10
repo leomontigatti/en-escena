@@ -1,36 +1,52 @@
+import { normalizeEmail } from "@/lib/academy-registration-token.server";
 import { auth } from "@/lib/auth.server";
+
+const RECOVERY_REQUEST_MESSAGE =
+  "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.";
 
 export async function requestAccessRecoveryEmail(input: {
   email: string;
   requestUrl: string;
 }) {
-  const resetUrl = new URL("/recuperar-acceso", input.requestUrl);
+  const recoveryPageUrl = new URL(
+    "/recuperar-acceso/nueva",
+    input.requestUrl,
+  ).toString();
+  const requestOrigin = new URL(input.requestUrl).origin;
 
   await auth.api.requestPasswordReset({
     body: {
-      email: input.email,
-      redirectTo: resetUrl.toString(),
+      email: normalizeEmail(input.email),
+      redirectTo: recoveryPageUrl,
     },
+    headers: new Headers({
+      origin: requestOrigin,
+    }),
   });
+
+  return { message: RECOVERY_REQUEST_MESSAGE };
 }
 
 export async function resetAccessPassword(input: {
   token: string;
-  password: string;
+  newPassword: string;
+  request: Request;
 }) {
   try {
     await auth.api.resetPassword({
       body: {
         token: input.token,
-        newPassword: input.password,
+        newPassword: input.newPassword,
       },
+      headers: input.request.headers,
     });
 
     return { ok: true as const };
   } catch {
     return {
       ok: false as const,
-      error: "El enlace no es válido o expiró.",
+      error:
+        "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
     };
   }
 }

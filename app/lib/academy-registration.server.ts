@@ -28,7 +28,7 @@ export async function requestAcademyRegistrationEmail(input: {
     await sendEmail({
       to: email,
       subject: "Ya tenés acceso a En Escena",
-      text: "Ese correo ya tiene un usuario en En Escena. Ingresá desde /ingresar o usá la recuperación de acceso si no recordás tu contraseña.",
+      text: "Ese correo ya tiene un usuario en En Escena. Ingresá desde /ingresar o usá /recuperar-acceso si no recordás tu contraseña.",
     });
     return;
   }

@@ -45,7 +45,8 @@ describe("access recovery", () => {
 
     const result = await resetAccessPassword({
       token: rawToken ?? "",
-      password: "new-password",
+      newPassword: "new-password",
+      request: new Request("http://localhost:3000/recuperar-acceso/nueva"),
     });
 
     expect(result).toEqual({ ok: true });

@@ -1,4 +1,10 @@
-import { Form, Link, redirect, useActionData } from "react-router";
+import {
+  Form,
+  Link,
+  redirect,
+  useActionData,
+  useSearchParams,
+} from "react-router";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth.server";
@@ -54,6 +60,8 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function IngresarRoute() {
   const actionData = useActionData<typeof action>();
+  const [searchParams] = useSearchParams();
+  const recoveryCompleted = searchParams.get("recuperacion") === "ok";
 
   return (
     <main className="grid min-h-screen place-items-center bg-stone-100 px-6 py-12">
@@ -97,6 +105,12 @@ export default function IngresarRoute() {
             </p>
           ) : null}
 
+          {recoveryCompleted ? (
+            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              Tu contraseña fue actualizada. Ya podés ingresar.
+            </p>
+          ) : null}
+
           <button
             type="submit"
             className="w-full rounded-xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
@@ -106,6 +120,7 @@ export default function IngresarRoute() {
         </Form>
 
         <p className="mt-6 text-center text-sm text-stone-600">
+          ¿No recordás tu contraseña?{" "}
           <Link className="font-medium text-amber-700" to="/recuperar-acceso">
             Recuperar acceso
           </Link>
