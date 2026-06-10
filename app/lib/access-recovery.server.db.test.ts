@@ -12,6 +12,18 @@ import { action as resetPasswordAction } from "@/routes/recuperar-acceso.nueva";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
+const OLD_PASSWORD = "old-password";
+const NEW_PASSWORD = "new-password";
+const RESET_PASSWORD_PATH = "/recuperar-acceso/nueva";
+const RESET_PASSWORD_ACTION_URL = `http://localhost${RESET_PASSWORD_PATH}`;
+const RECOVERY_REQUEST_URL = "http://localhost:3000/recuperar-acceso";
+const RESET_PASSWORD_REQUEST_URL = new URL(
+  RESET_PASSWORD_PATH,
+  RECOVERY_REQUEST_URL,
+).toString();
+const EXPIRED_RESET_TOKEN_MESSAGE =
+  "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.";
+
 installDatabaseTestHooks();
 
 describe("access recovery", () => {
@@ -20,7 +32,7 @@ describe("access recovery", () => {
       body: {
         email: "usuario@example.com",
         name: "Usuario",
-        password: "old-password",
+        password: OLD_PASSWORD,
       },
     });
 
@@ -31,23 +43,15 @@ describe("access recovery", () => {
 
     await requestAccessRecoveryEmail({
       email: "usuario@example.com",
-      requestUrl: "http://localhost:3000/recuperar-acceso",
+      requestUrl: RECOVERY_REQUEST_URL,
     });
 
-    const resetToken = await db.query.verification.findFirst({
-      where: eq(verification.value, signUpResult.user.id),
-    });
-
-    expect(resetToken?.identifier).toMatch(/^reset-password:/);
-
-    const rawToken = resetToken?.identifier.replace("reset-password:", "");
-
-    expect(rawToken).toBeTruthy();
+    const rawToken = await findResetTokenForUser(signUpResult.user.id);
 
     const result = await resetAccessPassword({
-      token: rawToken ?? "",
-      newPassword: "new-password",
-      request: new Request("http://localhost:3000/recuperar-acceso/nueva"),
+      token: rawToken,
+      newPassword: NEW_PASSWORD,
+      request: new Request(RESET_PASSWORD_REQUEST_URL),
     });
 
     expect(result).toEqual({ ok: true });
@@ -56,7 +60,7 @@ describe("access recovery", () => {
       auth.api.signInEmail({
         body: {
           email: "usuario@example.com",
-          password: "new-password",
+          password: NEW_PASSWORD,
         },
       }),
     ).resolves.toMatchObject({
@@ -84,31 +88,23 @@ describe("access recovery", () => {
     await auth.api.signInEmail({
       body: {
         email: "revocar-sesiones@example.com",
-        password: "old-password",
+        password: OLD_PASSWORD,
       },
       returnHeaders: true,
     });
 
-    expect(
-      await db.query.session.findMany({
-        where: eq(session.userId, userId),
-      }),
-    ).toHaveLength(2);
+    await expect(findSessionsByUserId(userId)).resolves.toHaveLength(2);
 
     const response = await expectThrownResponse(
       submitResetPasswordAction({
         token: rawToken,
-        password: "new-password",
+        password: NEW_PASSWORD,
       }),
     );
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/ingresar?recuperacion=ok");
-    expect(
-      await db.query.session.findMany({
-        where: eq(session.userId, userId),
-      }),
-    ).toEqual([]);
+    await expect(findSessionsByUserId(userId)).resolves.toEqual([]);
     await expect(
       auth.api.getSession({
         headers: new Headers({ cookie: sessionCookie }),
@@ -118,7 +114,7 @@ describe("access recovery", () => {
       auth.api.signInEmail({
         body: {
           email: "revocar-sesiones@example.com",
-          password: "new-password",
+          password: NEW_PASSWORD,
         },
       }),
     ).resolves.toMatchObject({
@@ -138,23 +134,18 @@ describe("access recovery", () => {
 
     const result = await submitResetPasswordAction({
       token: rawToken,
-      password: "new-password",
+      password: NEW_PASSWORD,
     });
 
     expect(result).toEqual({
       status: "error",
-      message:
-        "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
+      message: EXPIRED_RESET_TOKEN_MESSAGE,
       fieldErrors: {
         password: undefined,
         confirmPassword: undefined,
       },
     });
-    expect(
-      await db.query.session.findMany({
-        where: eq(session.userId, userId),
-      }),
-    ).toHaveLength(1);
+    await expect(findSessionsByUserId(userId)).resolves.toHaveLength(1);
   });
 });
 
@@ -163,7 +154,7 @@ async function createRecoverySessionState(email: string) {
     body: {
       email,
       name: email,
-      password: "old-password",
+      password: OLD_PASSWORD,
     },
     returnHeaders: true,
   });
@@ -175,23 +166,34 @@ async function createRecoverySessionState(email: string) {
 
   await requestAccessRecoveryEmail({
     email,
-    requestUrl: "http://localhost:3000/recuperar-acceso",
+    requestUrl: RECOVERY_REQUEST_URL,
   });
 
-  const resetToken = await db.query.verification.findFirst({
-    where: eq(verification.value, signUpResult.response.user.id),
-  });
-  const rawToken = resetToken?.identifier.replace("reset-password:", "");
-
-  if (!rawToken) {
-    throw new Error("Expected reset token to exist.");
-  }
+  const rawToken = await findResetTokenForUser(signUpResult.response.user.id);
 
   return {
     rawToken,
     sessionCookie: createRequestCookie(signUpResult.headers),
     userId: signUpResult.response.user.id,
   };
+}
+
+async function findResetTokenForUser(userId: string) {
+  const resetToken = await db.query.verification.findFirst({
+    where: eq(verification.value, userId),
+  });
+
+  if (!resetToken?.identifier.startsWith("reset-password:")) {
+    throw new Error("Expected reset token to exist.");
+  }
+
+  return resetToken.identifier.replace("reset-password:", "");
+}
+
+function findSessionsByUserId(userId: string) {
+  return db.query.session.findMany({
+    where: eq(session.userId, userId),
+  });
 }
 
 function submitResetPasswordAction(input: { token: string; password: string }) {
@@ -201,9 +203,9 @@ function submitResetPasswordAction(input: { token: string; password: string }) {
   formData.set("confirmPassword", input.password);
 
   return resetPasswordAction({
-    url: new URL("http://localhost/recuperar-acceso/nueva"),
-    pattern: "/recuperar-acceso/nueva",
-    request: new Request("http://localhost/recuperar-acceso/nueva", {
+    url: new URL(RESET_PASSWORD_ACTION_URL),
+    pattern: RESET_PASSWORD_PATH,
+    request: new Request(RESET_PASSWORD_ACTION_URL, {
       method: "POST",
       body: formData,
     }),
@@ -216,8 +218,11 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
   try {
     await resultPromise;
   } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    return error as Response;
+    if (error instanceof Response) {
+      return error;
+    }
+
+    throw error;
   }
 
   throw new Error("Expected a response to be thrown.");
