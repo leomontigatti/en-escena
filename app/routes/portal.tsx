@@ -25,7 +25,7 @@ export default function PortalRoute({ loaderData }: Route.ComponentProps) {
           Portal de academias
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
-          {loaderData.academy?.name ?? "Academia"}
+          {loaderData.academy.name}
         </h1>
         <p className="mt-4 text-sm leading-6 text-stone-600">
           Acceso activo para {loaderData.email}. Desde acá se van a cargar

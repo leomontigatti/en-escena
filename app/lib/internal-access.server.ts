@@ -6,6 +6,7 @@ import { academies, user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import {
   INTERNAL_USER_ROLES,
+  isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/internal-user-roles";
 
@@ -69,11 +70,14 @@ export async function requireInternalUser(
 ) {
   const appUser = await requireSignedInUser(request);
 
-  if (!allowedRoles.includes(appUser.role as InternalUserRole)) {
+  if (
+    !isInternalUserRole(appUser.role) ||
+    !allowedRoles.includes(appUser.role)
+  ) {
     throwForbidden();
   }
 
-  return appUser as AppUser & { role: InternalUserRole };
+  return appUser;
 }
 
 export async function requireAdminUser(request: Request) {

@@ -10,6 +10,7 @@ import {
   requireInternalUser,
   requireSignedInUser,
 } from "@/lib/internal-access.server";
+import type { InternalUserRole } from "@/lib/internal-user-roles";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
@@ -27,7 +28,6 @@ describe("internal access authorization", () => {
 
   test("requires a signed-in user stored in the app domain", async () => {
     const { request, userId } = await createSignedInRequest({
-      userId: "signed_user",
       email: "firmado@example.com",
       role: "auditor",
     });
@@ -41,7 +41,6 @@ describe("internal access authorization", () => {
 
   test("returns the academy owned by an academy user", async () => {
     const { request, userId } = await createSignedInRequest({
-      userId: "academy_user",
       email: "academia@example.com",
       role: "academy",
     });
@@ -70,7 +69,6 @@ describe("internal access authorization", () => {
 
   test("rejects internal users from academy-owned context", async () => {
     const { request } = await createSignedInRequest({
-      userId: "admin_user",
       email: "admin@example.com",
       role: "admin",
     });
@@ -85,7 +83,6 @@ describe("internal access authorization", () => {
 
   test("allows only requested internal roles", async () => {
     const { request: judgeRequest, userId } = await createSignedInRequest({
-      userId: "judge_user",
       email: "judge@example.com",
       role: "judge",
     });
@@ -106,7 +103,6 @@ describe("internal access authorization", () => {
 
   test("rejects academy users from internal context", async () => {
     const { request } = await createSignedInRequest({
-      userId: "academy_user",
       email: "academia@example.com",
       role: "academy",
     });
@@ -118,9 +114,8 @@ describe("internal access authorization", () => {
 });
 
 async function createSignedInRequest(input: {
-  userId: string;
   email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
+  role: "academy" | InternalUserRole;
 }) {
   const signUpResult = await auth.api.signUpEmail({
     body: {
