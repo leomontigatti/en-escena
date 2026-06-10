@@ -31,12 +31,7 @@ export async function getLandingPathForSignedInUser(request: Request) {
 }
 
 export async function getLandingPathForUserId(userId: string) {
-  const appUser = await db.query.user.findFirst({
-    columns: { role: true },
-    where: eq(user.id, userId),
-  });
-
-  return appUser ? landingPaths[appUser.role] : "/ingresar";
+  return (await findLandingPathForUserId(userId)) ?? "/ingresar";
 }
 
 export async function redirectSignedInUserFromPublicRoute(request: Request) {
@@ -48,16 +43,22 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
     return null;
   }
 
-  const appUser = await db.query.user.findFirst({
-    columns: { role: true },
-    where: eq(user.id, session.user.id),
-  });
+  const landingPath = await findLandingPathForUserId(session.user.id);
 
-  if (!appUser) {
+  if (!landingPath) {
     return null;
   }
 
-  throw redirect(landingPaths[appUser.role]);
+  throw redirect(landingPath);
+}
+
+async function findLandingPathForUserId(userId: string) {
+  const appUser = await db.query.user.findFirst({
+    columns: { role: true },
+    where: eq(user.id, userId),
+  });
+
+  return appUser ? landingPaths[appUser.role] : null;
 }
 
 export async function requireAdminPanelUser(request: Request) {

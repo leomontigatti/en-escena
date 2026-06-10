@@ -13,6 +13,7 @@ import {
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { getSafeRedirectTo } from "@/lib/access-redirects.server";
+import type { LoginRedirectReason } from "@/lib/access-redirects.server";
 import { normalizeEmail } from "@/lib/academy-registration-token.server";
 import { auth } from "@/lib/auth.server";
 import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
@@ -33,6 +34,22 @@ type LoginNotice = {
   variant: "error" | "info" | "success";
   message: string;
 };
+
+const loginNotices = {
+  continuar: {
+    variant: "info",
+    message: "Ingresá para continuar.",
+  },
+  expirada: {
+    variant: "error",
+    message: "Tu sesión expiró. Volvé a ingresar.",
+  },
+} satisfies Record<LoginRedirectReason, LoginNotice>;
+
+const recoverySuccessNotice = {
+  variant: "success",
+  message: "Tu contraseña fue actualizada. Ya podés ingresar.",
+} satisfies LoginNotice;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
@@ -103,28 +120,21 @@ export function getLoginNotice(
 ): LoginNotice | null {
   const reason = searchParams.get("motivo");
 
-  if (reason === "continuar") {
-    return {
-      variant: "info",
-      message: "Ingresá para continuar.",
-    };
-  }
-
-  if (reason === "expirada") {
-    return {
-      variant: "error",
-      message: "Tu sesión expiró. Volvé a ingresar.",
-    };
+  if (isLoginRedirectReason(reason)) {
+    return loginNotices[reason];
   }
 
   if (searchParams.get("recuperacion") === "ok") {
-    return {
-      variant: "success",
-      message: "Tu contraseña fue actualizada. Ya podés ingresar.",
-    };
+    return recoverySuccessNotice;
   }
 
   return null;
+}
+
+function isLoginRedirectReason(
+  reason: string | null,
+): reason is LoginRedirectReason {
+  return reason === "continuar" || reason === "expirada";
 }
 
 function genericLoginError() {

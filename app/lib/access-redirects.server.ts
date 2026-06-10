@@ -3,6 +3,11 @@ import { redirect } from "react-router";
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
+const ACCESS_SESSION_COOKIE_NAME = "better-auth.session_token";
+
+export type LoginRedirectReason =
+  | typeof CONTINUE_REASON
+  | typeof EXPIRED_REASON;
 
 export function redirectToLoginForRequest(request: Request): never {
   throw redirect(
@@ -33,7 +38,7 @@ export function isSafeInternalRedirect(value: string | null) {
   }
 }
 
-function buildLoginRedirectUrl(request: Request, reason: string) {
+function buildLoginRedirectUrl(request: Request, reason: LoginRedirectReason) {
   const loginUrl = new URL(LOGIN_PATH, request.url);
   loginUrl.searchParams.set("redirectTo", getRequestPath(request));
   loginUrl.searchParams.set("motivo", reason);
@@ -51,5 +56,7 @@ function hasAccessSessionCookie(request: Request) {
   return request.headers
     .get("cookie")
     ?.split(";")
-    .some((cookie) => cookie.trim().startsWith("better-auth.session_token="));
+    .some((cookie) =>
+      cookie.trim().startsWith(`${ACCESS_SESSION_COOKIE_NAME}=`),
+    );
 }
