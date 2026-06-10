@@ -22,6 +22,11 @@ Triage labels use the default mattpocock/skills vocabulary. See `docs/agents/tri
 
 This repo uses a single-context domain documentation layout. See `docs/agents/domain.md`.
 
+### Local operation and auth
+
+Local database, Better Auth and email-log operation are documented in
+`docs/local-auth.md`.
+
 ### Vendored reference skills
 
 Selected Vercel Labs agent skills are vendored under `docs/agents/vendor/vercel-labs/agent-skills/`.
