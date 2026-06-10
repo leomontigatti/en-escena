@@ -4,7 +4,11 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { session, user } from "@/db/schema";
 import { signUpAcademyUser } from "@/lib/academy-registration-auth.server";
-import { auth } from "@/lib/auth.server";
+import {
+  ACCESS_SESSION_EXPIRES_IN_SECONDS,
+  ACCESS_SESSION_UPDATE_AGE_SECONDS,
+  auth,
+} from "@/lib/auth.server";
 import {
   completeInternalUserInvitation,
   requestInternalUserInvitation,
@@ -13,8 +17,8 @@ import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
-const ACCESS_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const ACCESS_SESSION_UPDATE_AGE_MS = 30 * 60 * 1000;
+const ACCESS_SESSION_TTL_MS = ACCESS_SESSION_EXPIRES_IN_SECONDS * 1000;
+const ACCESS_SESSION_UPDATE_AGE_MS = ACCESS_SESSION_UPDATE_AGE_SECONDS * 1000;
 
 installDatabaseTestHooks();
 
@@ -31,12 +35,11 @@ describe("access session policy", () => {
       returnHeaders: true,
     });
 
-    const createdSession = await db.query.session.findFirst({
-      where: eq(session.userId, signUpResult.response.user.id),
-    });
+    const createdSession = await findSessionByUserId(
+      signUpResult.response.user.id,
+    );
 
-    expect(createdSession).toBeDefined();
-    expectSessionExpiresInPolicyWindow(createdSession?.expiresAt, beforeSignUp);
+    expectSessionExpiresInPolicyWindow(createdSession.expiresAt, beforeSignUp);
   });
 
   test("refreshes access sessions only after 30 minutes of activity age", async () => {
@@ -84,37 +87,22 @@ describe("access session policy", () => {
   });
 
   test("login-created sessions use the base policy without limiting simultaneous sessions", async () => {
-    const { userId } = await createVerifiedCredentialUser("login@example.com");
+    const loginEmail = "login@example.com";
+    const { userId } = await createVerifiedCredentialUser(loginEmail);
 
     await db.delete(session).where(eq(session.userId, userId));
 
     const firstLoginStartedAt = Date.now();
     const firstLoginResponse = await expectThrownResponse(
-      signInAction({
-        url: new URL("http://localhost/ingresar"),
-        pattern: "/ingresar",
-        request: createSignInRequest("login@example.com"),
-        params: {},
-        context: {},
-      }),
+      submitSignInAction(loginEmail),
     );
     const secondLoginStartedAt = Date.now();
     const secondLoginResponse = await expectThrownResponse(
-      signInAction({
-        url: new URL("http://localhost/ingresar"),
-        pattern: "/ingresar",
-        request: createSignInRequest("login@example.com"),
-        params: {},
-        context: {},
-      }),
+      submitSignInAction(loginEmail),
     );
 
-    expect(firstLoginResponse.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
-    expect(secondLoginResponse.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
+    expectResponseToSetSessionCookie(firstLoginResponse);
+    expectResponseToSetSessionCookie(secondLoginResponse);
 
     const loginSessions = await db.query.session.findMany({
       where: eq(session.userId, userId),
@@ -143,9 +131,7 @@ describe("access session policy", () => {
 
     const registrationSession = await findSessionByUserId(result.userId);
 
-    expect(result.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
+    expectHeadersToSetSessionCookie(result.headers);
     expectSessionExpiresInPolicyWindow(
       registrationSession.expiresAt,
       registrationStartedAt,
@@ -185,9 +171,7 @@ describe("access session policy", () => {
 
     const invitationSession = await findSessionByUserId(result.userId);
 
-    expect(result.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
+    expectHeadersToSetSessionCookie(result.headers);
     expectSessionExpiresInPolicyWindow(
       invitationSession.expiresAt,
       invitationStartedAt,
@@ -250,6 +234,16 @@ function createSignInRequest(email: string) {
   });
 }
 
+function submitSignInAction(email: string) {
+  return signInAction({
+    url: new URL("http://localhost/ingresar"),
+    pattern: "/ingresar",
+    request: createSignInRequest(email),
+    params: {},
+    context: {},
+  });
+}
+
 function extractInvitationToken(text: string) {
   const match = text.match(/\/invitacion\/([A-Za-z0-9_-]+)/);
 
@@ -282,6 +276,14 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a response to be thrown.");
+}
+
+function expectResponseToSetSessionCookie(response: Response) {
+  expectHeadersToSetSessionCookie(response.headers);
+}
+
+function expectHeadersToSetSessionCookie(headers: Headers) {
+  expect(headers.get("set-cookie")).toContain("better-auth.session_token");
 }
 
 async function findSessionByUserId(userId: string) {

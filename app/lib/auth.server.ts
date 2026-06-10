@@ -5,14 +5,17 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { sendEmail } from "@/lib/email.server";
 
+export const ACCESS_SESSION_EXPIRES_IN_SECONDS = 8 * 60 * 60;
+export const ACCESS_SESSION_UPDATE_AGE_SECONDS = 30 * 60;
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
   }),
   session: {
-    expiresIn: 8 * 60 * 60,
-    updateAge: 30 * 60,
+    expiresIn: ACCESS_SESSION_EXPIRES_IN_SECONDS,
+    updateAge: ACCESS_SESSION_UPDATE_AGE_SECONDS,
   },
   emailAndPassword: {
     enabled: true,
