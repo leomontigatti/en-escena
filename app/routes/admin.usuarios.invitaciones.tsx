@@ -134,7 +134,7 @@ export default function AdminUserInvitationsRoute() {
         </Form>
 
         <Link
-          to="/portal"
+          to="/administracion"
           className="mt-8 inline-flex rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
         >
           Volver al panel

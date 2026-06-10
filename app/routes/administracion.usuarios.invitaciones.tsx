@@ -1,4 +1,4 @@
-import { Form, useActionData } from "react-router";
+import { Form, Link, useActionData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -124,6 +124,13 @@ export default function InvitacionesInternasRoute() {
             Enviar invitación
           </button>
         </Form>
+
+        <Link
+          to="/administracion"
+          className="mt-8 inline-flex rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+        >
+          Volver al panel
+        </Link>
       </section>
     </main>
   );

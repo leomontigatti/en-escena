@@ -8,6 +8,7 @@ import {
 import { z } from "zod";
 
 import { auth } from "@/lib/auth.server";
+import { getLandingPathForUserId } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/ingresar";
 
@@ -45,7 +46,9 @@ export async function action({ request }: Route.ActionArgs) {
       returnHeaders: true,
     });
 
-    throw redirect("/portal", { headers: result.headers });
+    throw redirect(await getLandingPathForUserId(result.response.user.id), {
+      headers: result.headers,
+    });
   } catch (error) {
     if (error instanceof Response) {
       throw error;

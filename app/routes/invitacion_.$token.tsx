@@ -11,6 +11,7 @@ import {
   completeInternalUserInvitation,
   getInternalInvitationTokenStatus,
 } from "@/lib/internal-user-invitation.server";
+import { getLandingPathForUserId } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/invitacion_.$token";
 
@@ -71,7 +72,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { status: "error" as const, message: result.error };
   }
 
-  throw redirect("/portal", { headers: result.headers });
+  throw redirect(await getLandingPathForUserId(result.userId), {
+    headers: result.headers,
+  });
 }
 
 export default function CompletarInvitacionRoute() {

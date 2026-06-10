@@ -153,7 +153,11 @@ export async function completeInternalUserInvitation(
       .where(eq(internalUserInvitations.id, invitation.id));
   });
 
-  return { ok: true as const, headers: credentialUser.headers };
+  return {
+    ok: true as const,
+    headers: credentialUser.headers,
+    userId: credentialUser.userId,
+  };
 }
 
 function findUsableInternalInvitation(
