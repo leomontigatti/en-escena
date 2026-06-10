@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -237,15 +236,7 @@ async function createSavedEvent(name: string) {
     throw new Error(result.error);
   }
 
-  const savedEvent = await db.query.events.findFirst({
-    where: eq(events.id, result.event.id),
-  });
-
-  if (!savedEvent) {
-    throw new Error("Event was not saved.");
-  }
-
-  return savedEvent;
+  return result.event;
 }
 
 function eventInput(

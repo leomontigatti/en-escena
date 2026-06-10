@@ -3,6 +3,11 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 
+const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = 30;
+const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
+const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
+const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
+
 const ACTIVE_EVENT_EXISTS_ERROR =
   "Hay otro Evento activo. Desactivá el Evento activo antes de activar este.";
 const INVALID_EVENT_ERROR = "Revisá los datos del Evento.";
@@ -30,6 +35,8 @@ type EventMutationFailure = {
 };
 
 export type EventMutationResult = EventMutationSuccess | EventMutationFailure;
+
+type DeleteEventResult = { ok: true } | EventMutationFailure;
 
 export type CreateEventInput = {
   name: string;
@@ -66,7 +73,8 @@ export async function createEvent(
       registrationEndsAt: input.registrationEndsAt,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
-      requiredDepositPercentage: input.requiredDepositPercentage ?? 30,
+      requiredDepositPercentage:
+        input.requiredDepositPercentage ?? DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
     })
     .returning();
 
@@ -85,19 +93,14 @@ export async function activateEvent(
   eventId: string,
 ): Promise<EventMutationResult> {
   try {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx): Promise<EventMutationResult> => {
       const activeEvent = await tx.query.events.findFirst({
         columns: { id: true },
         where: and(eq(events.active, true), ne(events.id, eventId)),
       });
 
       if (activeEvent) {
-        return {
-          ok: false as const,
-          code: "active-event-exists" as const,
-          error: ACTIVE_EVENT_EXISTS_ERROR,
-          activeEventId: activeEvent.id,
-        };
+        return activeEventExists(activeEvent.id);
       }
 
       const [event] = await tx
@@ -110,15 +113,11 @@ export async function activateEvent(
         return eventNotFound();
       }
 
-      return { ok: true as const, event };
+      return { ok: true, event };
     });
   } catch (error) {
     if (isActiveUniqueConstraintViolation(error)) {
-      return {
-        ok: false,
-        code: "active-event-exists",
-        error: ACTIVE_EVENT_EXISTS_ERROR,
-      };
+      return activeEventExists();
     }
 
     throw error;
@@ -164,7 +163,7 @@ export async function setEventVisibility(
 export async function deleteEvent(
   eventId: string,
   dependencies: EventDependencies = {},
-) {
+): Promise<DeleteEventResult> {
   const event = await db.query.events.findFirst({
     where: eq(events.id, eventId),
   });
@@ -174,27 +173,19 @@ export async function deleteEvent(
   }
 
   if (event.active) {
-    return {
-      ok: false as const,
-      code: "event-is-active" as const,
-      error: ACTIVE_EVENT_DELETION_ERROR,
-    };
+    return eventIsActive();
   }
 
   const hasOperationalDependencies =
     dependencies.hasOperationalDependencies ?? eventHasOperationalDependencies;
 
   if (await hasOperationalDependencies(eventId)) {
-    return {
-      ok: false as const,
-      code: "event-has-operational-dependencies" as const,
-      error: DEPENDENT_EVENT_DELETION_ERROR,
-    };
+    return eventHasDependencies();
   }
 
   await db.delete(events).where(eq(events.id, eventId));
 
-  return { ok: true as const };
+  return { ok: true };
 }
 
 export async function eventHasOperationalDependencies(_eventId: string) {
@@ -203,7 +194,8 @@ export async function eventHasOperationalDependencies(_eventId: string) {
 
 function validateEventInput(input: CreateEventInput) {
   const fieldErrors: EventMutationFailure["fieldErrors"] = {};
-  const requiredDepositPercentage = input.requiredDepositPercentage ?? 30;
+  const requiredDepositPercentage =
+    input.requiredDepositPercentage ?? DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE;
 
   if (input.name.trim().length === 0) {
     fieldErrors.name = "Ingresá el nombre del Evento.";
@@ -211,8 +203,8 @@ function validateEventInput(input: CreateEventInput) {
 
   if (
     !Number.isInteger(requiredDepositPercentage) ||
-    requiredDepositPercentage < 0 ||
-    requiredDepositPercentage > 100
+    requiredDepositPercentage < MIN_REQUIRED_DEPOSIT_PERCENTAGE ||
+    requiredDepositPercentage > MAX_REQUIRED_DEPOSIT_PERCENTAGE
   ) {
     fieldErrors.requiredDepositPercentage =
       "La seña requerida debe ser un entero entre 0 y 100.";
@@ -240,6 +232,36 @@ function validateEventInput(input: CreateEventInput) {
   return undefined;
 }
 
+function activeEventExists(activeEventId?: string): EventMutationFailure {
+  const failure: EventMutationFailure = {
+    ok: false,
+    code: "active-event-exists",
+    error: ACTIVE_EVENT_EXISTS_ERROR,
+  };
+
+  if (activeEventId) {
+    failure.activeEventId = activeEventId;
+  }
+
+  return failure;
+}
+
+function eventIsActive(): EventMutationFailure {
+  return {
+    ok: false,
+    code: "event-is-active",
+    error: ACTIVE_EVENT_DELETION_ERROR,
+  };
+}
+
+function eventHasDependencies(): EventMutationFailure {
+  return {
+    ok: false,
+    code: "event-has-operational-dependencies",
+    error: DEPENDENT_EVENT_DELETION_ERROR,
+  };
+}
+
 function eventNotFound(): EventMutationFailure {
   return {
     ok: false,
@@ -249,13 +271,7 @@ function eventNotFound(): EventMutationFailure {
 }
 
 function isActiveUniqueConstraintViolation(error: unknown) {
-  const databaseError =
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    error.cause
-      ? error.cause
-      : error;
+  const databaseError = getDatabaseError(error);
 
   return (
     typeof databaseError === "object" &&
@@ -263,6 +279,19 @@ function isActiveUniqueConstraintViolation(error: unknown) {
     "code" in databaseError &&
     databaseError.code === "23505" &&
     "constraint_name" in databaseError &&
-    databaseError.constraint_name === "event_single_active_unique"
+    databaseError.constraint_name === ACTIVE_EVENT_UNIQUE_CONSTRAINT
   );
+}
+
+function getDatabaseError(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "cause" in error &&
+    error.cause
+  ) {
+    return error.cause;
+  }
+
+  return error;
 }
