@@ -10,6 +10,10 @@ Important command rule: do not run `npx tsc` for validation in this repo. Use `n
 
 All code changes should follow [docs/agents/coding-standards.md](docs/agents/coding-standards.md). Treat it as repo-wide guidance, not Sandcastle-only guidance.
 
+### Style guide
+
+Frontend and UI changes should follow [docs/agents/style-guide.md](docs/agents/style-guide.md), including the En Escena color tokens, spacing, typography, shadcn/ui conventions, and Spanish UI tone.
+
 ### Issue tracker
 
 Issues are tracked in GitHub Issues for `leomontigatti/en-escena` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
