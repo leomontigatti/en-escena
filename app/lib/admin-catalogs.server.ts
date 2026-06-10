@@ -38,6 +38,40 @@ type SubmodalityInput = CatalogNameInput & {
   modalityId: string;
 };
 
+const catalogCopy = {
+  modality: {
+    label: "Modalidad",
+    invalidError: "Revisá los datos de la Modalidad.",
+    requiredNameError: "Ingresá el nombre de la Modalidad.",
+    duplicateError: "Ya existe una Modalidad con ese nombre en este Evento.",
+    duplicateFieldError: "Usá un nombre distinto para la Modalidad.",
+  },
+  submodality: {
+    label: "Submodalidad",
+    invalidError: "Revisá los datos de la Submodalidad.",
+    requiredNameError: "Ingresá el nombre de la Submodalidad.",
+    duplicateError: "Ya existe una Submodalidad con ese nombre en este Evento.",
+    duplicateFieldError: "Usá un nombre distinto para la Submodalidad.",
+  },
+  "experience-level": {
+    label: "Nivel de experiencia",
+    invalidError: "Revisá los datos del Nivel de experiencia.",
+    requiredNameError: "Ingresá el nombre del Nivel de experiencia.",
+    duplicateError:
+      "Ya existe un Nivel de experiencia con ese nombre en este Evento.",
+    duplicateFieldError: "Usá un nombre distinto para el Nivel de experiencia.",
+  },
+} satisfies Record<
+  CatalogKind,
+  {
+    label: string;
+    invalidError: string;
+    requiredNameError: string;
+    duplicateError: string;
+    duplicateFieldError: string;
+  }
+>;
+
 export async function listEventCatalogs(eventId: string) {
   const [eventModalities, eventSubmodalities, eventExperienceLevels] =
     await Promise.all([
@@ -93,7 +127,7 @@ export async function updateModality(
   });
 
   if (!modality) {
-    return catalogNotFound("Modalidad");
+    return catalogNotFound("modality");
   }
 
   const validation = await validateCatalogName({
@@ -124,7 +158,7 @@ export async function deleteModality(
   });
 
   if (!modality) {
-    return catalogNotFound("Modalidad");
+    return catalogNotFound("modality");
   }
 
   if (await modalityHasConfigurationDependencies(modalityId)) {
@@ -172,7 +206,7 @@ export async function updateSubmodality(
   });
 
   if (!submodality) {
-    return catalogNotFound("Submodalidad");
+    return catalogNotFound("submodality");
   }
 
   const validation = await validateSubmodalityInput(
@@ -205,7 +239,7 @@ export async function deleteSubmodality(
   });
 
   if (!submodality) {
-    return catalogNotFound("Submodalidad");
+    return catalogNotFound("submodality");
   }
 
   await db.delete(submodalities).where(eq(submodalities.id, submodalityId));
@@ -244,7 +278,7 @@ export async function updateExperienceLevel(
   });
 
   if (!experienceLevel) {
-    return catalogNotFound("Nivel de experiencia");
+    return catalogNotFound("experience-level");
   }
 
   const validation = await validateCatalogName({
@@ -275,7 +309,7 @@ export async function deleteExperienceLevel(
   });
 
   if (!experienceLevel) {
-    return catalogNotFound("Nivel de experiencia");
+    return catalogNotFound("experience-level");
   }
 
   await db
@@ -332,8 +366,8 @@ async function validateCatalogName(input: {
     return {
       ok: false,
       code: "invalid-catalog",
-      error: invalidCatalogError(input.kind),
-      fieldErrors: { name: requiredNameError(input.kind) },
+      error: catalogCopy[input.kind].invalidError,
+      fieldErrors: { name: catalogCopy[input.kind].requiredNameError },
     };
   }
 
@@ -343,8 +377,8 @@ async function validateCatalogName(input: {
     return {
       ok: false,
       code: "duplicate-name",
-      error: duplicateNameError(input.kind),
-      fieldErrors: { name: duplicateNameFieldError(input.kind) },
+      error: catalogCopy[input.kind].duplicateError,
+      fieldErrors: { name: catalogCopy[input.kind].duplicateFieldError },
     };
   }
 
@@ -358,18 +392,17 @@ async function findDuplicateName(input: {
   exceptId?: string;
 }) {
   const normalizedName = input.name.trim().toLowerCase();
-  const idFilter = input.exceptId
-    ? ne(getTable(input.kind).id, input.exceptId)
-    : undefined;
+  const table = getTable(input.kind);
+  const idFilter = input.exceptId ? ne(table.id, input.exceptId) : undefined;
   const filters = [
-    eq(getTable(input.kind).eventId, input.eventId),
-    sql`lower(${getTable(input.kind).name}) = ${normalizedName}`,
+    eq(table.eventId, input.eventId),
+    sql`lower(${table.name}) = ${normalizedName}`,
     idFilter,
   ].filter(Boolean);
 
   return db
-    .select({ id: getTable(input.kind).id })
-    .from(getTable(input.kind))
+    .select({ id: table.id })
+    .from(table)
     .where(and(...filters))
     .limit(1)
     .then(([record]) => record);
@@ -396,70 +429,21 @@ function created(record: CatalogRecord | undefined): CatalogMutationResult {
   return { ok: true, record };
 }
 
-function catalogNotFound(label: string): CatalogFailure {
+function catalogNotFound(kind: CatalogKind): CatalogFailure {
   return {
     ok: false,
     code: "catalog-not-found",
-    error: `No encontramos esa ${label}.`,
+    error: `No encontramos esa ${catalogCopy[kind].label}.`,
   };
 }
 
 function getTable(kind: CatalogKind) {
-  if (kind === "modality") {
-    return modalities;
+  switch (kind) {
+    case "modality":
+      return modalities;
+    case "submodality":
+      return submodalities;
+    case "experience-level":
+      return experienceLevels;
   }
-
-  if (kind === "submodality") {
-    return submodalities;
-  }
-
-  return experienceLevels;
-}
-
-function invalidCatalogError(kind: CatalogKind) {
-  if (kind === "modality") {
-    return "Revisá los datos de la Modalidad.";
-  }
-
-  if (kind === "submodality") {
-    return "Revisá los datos de la Submodalidad.";
-  }
-
-  return "Revisá los datos del Nivel de experiencia.";
-}
-
-function requiredNameError(kind: CatalogKind) {
-  if (kind === "modality") {
-    return "Ingresá el nombre de la Modalidad.";
-  }
-
-  if (kind === "submodality") {
-    return "Ingresá el nombre de la Submodalidad.";
-  }
-
-  return "Ingresá el nombre del Nivel de experiencia.";
-}
-
-function duplicateNameError(kind: CatalogKind) {
-  if (kind === "modality") {
-    return "Ya existe una Modalidad con ese nombre en este Evento.";
-  }
-
-  if (kind === "submodality") {
-    return "Ya existe una Submodalidad con ese nombre en este Evento.";
-  }
-
-  return "Ya existe un Nivel de experiencia con ese nombre en este Evento.";
-}
-
-function duplicateNameFieldError(kind: CatalogKind) {
-  if (kind === "modality") {
-    return "Usá un nombre distinto para la Modalidad.";
-  }
-
-  if (kind === "submodality") {
-    return "Usá un nombre distinto para la Submodalidad.";
-  }
-
-  return "Usá un nombre distinto para el Nivel de experiencia.";
 }

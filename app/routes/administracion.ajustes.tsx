@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react";
 import { redirect, useActionData } from "react-router";
+import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
 import type { experienceLevels, modalities, submodalities } from "@/db/schema";
@@ -20,6 +21,8 @@ import {
   type AdminEventContext,
 } from "@/lib/admin-event-context.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
+
+import type { Route } from "./+types/administracion.ajustes";
 
 type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;
@@ -43,9 +46,17 @@ type AdministracionAjustesRouteProps = {
   actionData?: ActionData;
 };
 
+type CatalogActionInput = {
+  eventId: string;
+  id: string;
+  intent: string;
+  modalityId: string;
+  name: string;
+};
+
 export const meta = () => [{ title: "Ajustes de administración | En Escena" }];
 
-export async function loader({ request }: { request: Request }) {
+export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);
   const eventContext = await loadAdminEventContext(request);
 
@@ -65,40 +76,23 @@ export async function loader({ request }: { request: Request }) {
   };
 }
 
-export async function action({ request }: { request: Request }) {
+export async function action({ request }: Route.ActionArgs) {
   await requireAdminPanelUser(request);
 
   const eventContext = await loadAdminEventContext(request);
   const eventId = eventContext.selectedEventId;
 
   if (!eventId) {
-    return {
-      status: "error" as const,
-      message: "Elegí un Evento de trabajo antes de guardar ajustes.",
-      fieldErrors: {},
-    };
+    return actionError("Elegí un Evento de trabajo antes de guardar ajustes.");
   }
 
   const formData = await request.formData();
-  const intent = String(formData.get("intent") ?? "");
-  const id = String(formData.get("id") ?? "");
-  const name = String(formData.get("name") ?? "");
-  const modalityId = String(formData.get("modalityId") ?? "");
-
-  const result = await runCatalogIntent({
-    eventId,
-    id,
-    intent,
-    modalityId,
-    name,
-  });
+  const result = await runCatalogIntent(
+    readCatalogActionInput(eventId, formData),
+  );
 
   if (!result.ok) {
-    return {
-      status: "error" as const,
-      message: result.error,
-      fieldErrors: result.fieldErrors ?? {},
-    };
+    return actionError(result.error, result.fieldErrors);
   }
 
   throw redirect(`/administracion/ajustes?evento=${eventId}&guardado=1`);
@@ -262,7 +256,7 @@ function CatalogSection({
   children,
   title,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   title: string;
 }) {
   return (
@@ -435,7 +429,7 @@ function CatalogDeleteForm({
   );
 }
 
-function EmptyCatalogState({ children }: { children: React.ReactNode }) {
+function EmptyCatalogState({ children }: { children: ReactNode }) {
   return (
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
       {children}
@@ -443,13 +437,31 @@ function EmptyCatalogState({ children }: { children: React.ReactNode }) {
   );
 }
 
-async function runCatalogIntent(input: {
-  eventId: string;
-  id: string;
-  intent: string;
-  modalityId: string;
-  name: string;
-}) {
+function readCatalogActionInput(
+  eventId: string,
+  formData: FormData,
+): CatalogActionInput {
+  return {
+    eventId,
+    id: String(formData.get("id") ?? ""),
+    intent: String(formData.get("intent") ?? ""),
+    modalityId: String(formData.get("modalityId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+  };
+}
+
+function actionError(
+  message: string,
+  fieldErrors: Record<string, string> = {},
+): ActionData {
+  return {
+    status: "error",
+    message,
+    fieldErrors,
+  };
+}
+
+async function runCatalogIntent(input: CatalogActionInput) {
   switch (input.intent) {
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
