@@ -1,4 +1,8 @@
-import { AccessHeader, AccessPage } from "@/components/access-ui";
+import {
+  AccessHeader,
+  AccessPage,
+  PrivateAccessHeader,
+} from "@/components/access-ui";
 import { requireJudgePanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/juzgamiento";
@@ -16,16 +20,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function JuzgamientoRoute({ loaderData }: Route.ComponentProps) {
   return (
     <AccessPage width="xl">
+      <PrivateAccessHeader email={loaderData.email} />
       <AccessHeader
         eyebrow="Juzgamiento"
         title="Panel de evaluación"
         description={
           <>
-            Acceso activo para{" "}
-            <span className="break-words font-medium text-slate-800">
-              {loaderData.email}
-            </span>
-            . Las presentaciones asignadas y la carga de puntajes y devoluciones
+            Las presentaciones asignadas y la carga de puntajes y devoluciones
             se van a construir en próximas iteraciones.
           </>
         }

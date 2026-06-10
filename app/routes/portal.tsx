@@ -2,6 +2,7 @@ import {
   AccessHeader,
   AccessPage,
   AccessSecondaryLink,
+  PrivateAccessHeader,
 } from "@/components/access-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 
@@ -23,16 +24,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function PortalRoute({ loaderData }: Route.ComponentProps) {
   return (
     <AccessPage width="xl">
+      <PrivateAccessHeader email={loaderData.email} />
       <AccessHeader
         eyebrow="Portal de academias"
         title={loaderData.academy.name}
         description={
           <>
-            Acceso activo para{" "}
-            <span className="break-words font-medium text-slate-800">
-              {loaderData.email}
-            </span>
-            . Desde acá se van a gestionar profesores, bailarines y coreografías
+            Desde acá se van a gestionar profesores, bailarines y coreografías
             de la academia.
           </>
         }

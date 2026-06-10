@@ -1,4 +1,8 @@
-import { AccessHeader, AccessPage } from "@/components/access-ui";
+import {
+  AccessHeader,
+  AccessPage,
+  PrivateAccessHeader,
+} from "@/components/access-ui";
 import { requireAuditorPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/auditoria";
@@ -16,17 +20,14 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function AuditoriaRoute({ loaderData }: Route.ComponentProps) {
   return (
     <AccessPage width="xl">
+      <PrivateAccessHeader email={loaderData.email} />
       <AccessHeader
         eyebrow="Auditoría"
         title="Consulta interna"
         description={
           <>
-            Acceso activo para{" "}
-            <span className="break-words font-medium text-slate-800">
-              {loaderData.email}
-            </span>
-            . Este espacio será de solo lectura para revisar el sistema sin
-            crear, editar, publicar ni corregir datos.
+            Este espacio será de solo lectura para revisar el sistema sin crear,
+            editar, publicar ni corregir datos.
           </>
         }
       />

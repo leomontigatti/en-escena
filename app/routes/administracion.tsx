@@ -1,6 +1,10 @@
 import { Link } from "react-router";
 
-import { AccessHeader, AccessPage } from "@/components/access-ui";
+import {
+  AccessHeader,
+  AccessPage,
+  PrivateAccessHeader,
+} from "@/components/access-ui";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
@@ -20,16 +24,13 @@ export default function AdministracionRoute({
 }: Route.ComponentProps) {
   return (
     <AccessPage width="xl">
+      <PrivateAccessHeader email={loaderData.email} />
       <AccessHeader
         eyebrow="Panel de administración"
         title="Administración interna"
         description={
           <>
-            Acceso activo para{" "}
-            <span className="break-words font-medium text-slate-800">
-              {loaderData.email}
-            </span>
-            . Este panel concentrará la operación del evento, sus excepciones y
+            Este panel concentrará la operación del evento, sus excepciones y
             los ajustes de administración.
           </>
         }

@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { LogOut } from "lucide-react";
 import { Link } from "react-router";
 import { clsx } from "clsx";
 
@@ -77,6 +78,35 @@ export function AccessHeader({
         {description}
       </p>
     </header>
+  );
+}
+
+type PrivateAccessHeaderProps = {
+  email: string;
+};
+
+export function PrivateAccessHeader({ email }: PrivateAccessHeaderProps) {
+  return (
+    <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-semibold text-slate-950">En Escena</p>
+        <p className="mt-1 text-sm leading-5 text-slate-600">
+          Sesión activa para{" "}
+          <span className="break-words font-medium text-slate-800">
+            {email}
+          </span>
+        </p>
+      </div>
+      <form action="/salir" method="post">
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        >
+          <LogOut aria-hidden="true" className="size-4" />
+          <span>Salir</span>
+        </button>
+      </form>
+    </div>
   );
 }
 
