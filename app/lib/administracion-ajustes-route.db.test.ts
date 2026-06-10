@@ -9,6 +9,7 @@ import {
   categories,
   experienceLevels,
   modalities,
+  prices,
   scheduleBlocks,
   submodalities,
   user,
@@ -72,11 +73,13 @@ describe("administracion/ajustes route", () => {
     expect(markup).toContain(
       "Todavía no hay Bloques horarios para este Evento.",
     );
+    expect(markup).toContain("Todavía no hay Precios para este Evento.");
     expect(markup).toContain('name="intent" value="create-modality"');
     expect(markup).toContain('name="intent" value="create-category"');
     expect(markup).toContain('name="intent" value="create-submodality"');
     expect(markup).toContain('name="intent" value="create-experience-level"');
     expect(markup).toContain('name="intent" value="create-schedule-block"');
+    expect(markup).toContain('name="intent" value="create-price"');
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -344,6 +347,125 @@ describe("administracion/ajustes route", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("creates, edits and deletes Precios through the admin action", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    await createModality(event.id, { name: "Jazz" });
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.eventId, event.id),
+    });
+    const blockRequest = await createSignedInRequest({
+      email: "admin.precio.bloque@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-block",
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: "24",
+        modalityIds: [modality?.id ?? ""],
+      }),
+    });
+    await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
+
+    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    });
+    const createPriceRequest = await createSignedInRequest({
+      email: "admin.crea.precio@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "Solo sábado",
+        groupType: "solo",
+        amount: "15000",
+        scheduleBlockId: scheduleBlock?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createPriceRequest.request)),
+      302,
+    );
+
+    const price = await db.query.prices.findFirst({
+      where: eq(prices.name, "Solo sábado"),
+    });
+    expect(price).toMatchObject({
+      eventId: event.id,
+      groupType: "solo",
+      amount: 15000,
+      scheduleBlockId: scheduleBlock?.id,
+    });
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.lista.precios@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const markup = renderRoute(data);
+
+    expect(markup).toContain("Solo sábado");
+    expect(markup).toContain("Solo");
+    expect(markup).toContain("$15000");
+    expect(markup).toContain("Sábado mañana");
+
+    const editPriceRequest = await createSignedInRequest({
+      email: "admin.edita.precio@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "update-price",
+        id: price?.id ?? "",
+        name: "Solo general",
+        groupType: "solo",
+        amount: "12000",
+        scheduleBlockId: "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editPriceRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.prices.findFirst({
+        where: eq(prices.id, price?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({
+      name: "Solo general",
+      amount: 12000,
+      scheduleBlockId: null,
+    });
+
+    const deletePriceRequest = await createSignedInRequest({
+      email: "admin.borra.precio@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "delete-price",
+        id: price?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(deletePriceRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.prices.findFirst({
+        where: eq(prices.id, price?.id ?? ""),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   test("returns Spanish validation errors from catalog actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await createModality(event.id, { name: "Jazz" });
@@ -383,6 +505,47 @@ describe("administracion/ajustes route", () => {
       message: "Revisá las edades de la Categoría.",
       fieldErrors: {
         ageRange: "La edad máxima debe ser mayor o igual a la mínima.",
+      },
+    });
+
+    const createPriceRequest = await createSignedInRequest({
+      email: "admin.precio.base@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "Solo general",
+        groupType: "solo",
+        amount: "12000",
+        scheduleBlockId: "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createPriceRequest.request)),
+      302,
+    );
+
+    const duplicatePriceRequest = await createSignedInRequest({
+      email: "admin.precio.duplicado@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "Solo general alternativo",
+        groupType: "solo",
+        amount: "13000",
+        scheduleBlockId: "",
+      }),
+    });
+
+    await expect(
+      action(routeArgs(duplicatePriceRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Ya existe un Precio general para ese Tipo de grupo.",
+      fieldErrors: {
+        groupType: "Revisá el Tipo de grupo del Precio.",
       },
     });
   });

@@ -13,19 +13,24 @@ import {
   createCategory,
   createExperienceLevel,
   createModality,
+  createPrice,
   createScheduleBlock,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
+  deletePrice,
   deleteScheduleBlock,
   deleteSubmodality,
   updateCategory,
   listEventCatalogs,
+  type PriceInput,
+  type PriceListItem,
   type ScheduleBlockInput,
   type ScheduleBlockListItem,
   updateExperienceLevel,
   updateModality,
+  updatePrice,
   updateScheduleBlock,
   updateSubmodality,
 } from "@/lib/admin-catalogs.server";
@@ -61,6 +66,7 @@ type AdministracionAjustesRouteProps = {
     experienceLevels: ExperienceLevelRow[];
     categories: CategoryRow[];
     scheduleBlocks: ScheduleBlockListItem[];
+    prices: PriceListItem[];
   };
   actionData?: ActionData;
 };
@@ -72,13 +78,16 @@ type CatalogActionInput = {
   minAge: number;
   maxAge: number;
   groupTypes: string[];
+  groupType: string;
   modalityIds: string[];
   modalityId: string;
   name: string;
   experienceLevelIds: string[];
   scheduledDate: string;
+  scheduleBlockId: string | null;
   startTime: string;
   totalCapacity: number;
+  amount: number;
 };
 
 const groupTypeLabels: Record<string, string> = {
@@ -113,6 +122,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         submodalities: [],
         experienceLevels: [],
         scheduleBlocks: [],
+        prices: [],
       };
 
   return {
@@ -290,6 +300,43 @@ export function AdministracionAjustesRouteView({
               ) : (
                 <EmptyCatalogState>
                   Todavía no hay Bloques horarios para este Evento.
+                </EmptyCatalogState>
+              )}
+            </CatalogSection>
+
+            <CatalogSection title="Precios">
+              <PriceForm
+                intent="create-price"
+                scheduleBlocks={loaderData.scheduleBlocks}
+                buttonLabel="Crear Precio"
+                fieldErrors={providedActionData?.fieldErrors}
+              />
+              {loaderData.prices.length > 0 ? (
+                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+                  {loaderData.prices.map((price) => (
+                    <li key={price.id} className="space-y-3 p-4">
+                      <PriceSummary price={price} />
+                      <PriceForm
+                        id={price.id}
+                        intent="update-price"
+                        scheduleBlocks={loaderData.scheduleBlocks}
+                        name={price.name}
+                        groupType={price.groupType}
+                        amount={price.amount}
+                        scheduleBlockId={price.scheduleBlockId}
+                        buttonLabel="Guardar"
+                      />
+                      <CatalogDeleteForm
+                        id={price.id}
+                        intent="delete-price"
+                        buttonLabel="Borrar Precio"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyCatalogState>
+                  Todavía no hay Precios para este Evento.
                 </EmptyCatalogState>
               )}
             </CatalogSection>
@@ -694,6 +741,133 @@ function ScheduleBlockSummary({
   );
 }
 
+function PriceForm({
+  amount,
+  buttonLabel,
+  fieldErrors = {},
+  groupType,
+  id,
+  intent,
+  name,
+  scheduleBlockId,
+  scheduleBlocks,
+}: {
+  amount?: number;
+  buttonLabel: string;
+  fieldErrors?: Record<string, string>;
+  groupType?: string;
+  id?: string;
+  intent: string;
+  name?: string;
+  scheduleBlockId?: string | null;
+  scheduleBlocks: ScheduleBlockListItem[];
+}) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-slate-200 bg-white p-4"
+    >
+      <input type="hidden" name="intent" value={intent} />
+      {id ? <input type="hidden" name="id" value={id} /> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Nombre del Precio
+          <input
+            name="name"
+            defaultValue={name}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.name ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.name}
+          </p>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800">
+          Tipo de grupo
+          <select
+            name="groupType"
+            defaultValue={groupType ?? ""}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          >
+            <option value="">Elegí un Tipo</option>
+            {groupTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-sm font-medium text-slate-800">
+          Monto
+          <input
+            type="number"
+            min="1"
+            step="1"
+            name="amount"
+            defaultValue={amount}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.groupType ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.groupType}
+          </p>
+        ) : null}
+        {fieldErrors.amount ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.amount}
+          </p>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Bloque horario opcional
+          <select
+            name="scheduleBlockId"
+            defaultValue={scheduleBlockId ?? ""}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          >
+            <option value="">Precio general</option>
+            {scheduleBlocks.map((scheduleBlock) => (
+              <option key={scheduleBlock.id} value={scheduleBlock.id}>
+                {scheduleBlock.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {fieldErrors.scheduleBlockId ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.scheduleBlockId}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function PriceSummary({ price }: { price: PriceListItem }) {
+  return (
+    <div className="space-y-1 text-sm text-slate-700">
+      <p className="font-semibold text-slate-950">{price.name}</p>
+      <p>
+        {groupTypeLabels[price.groupType]} · ${price.amount}
+      </p>
+      <p className="text-xs font-medium text-slate-500">
+        {price.scheduleBlock
+          ? price.scheduleBlock.name
+          : "Precio general del Evento"}
+      </p>
+    </div>
+  );
+}
+
 function CategorySummary({
   category,
   experienceLevels,
@@ -923,16 +1097,19 @@ function readCatalogActionInput(
     minAge: Number(formData.get("minAge")),
     maxAge: Number(formData.get("maxAge")),
     groupTypes: formData.getAll("groupTypes").map(String),
+    groupType: String(formData.get("groupType") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
+    scheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
     startTime: String(formData.get("startTime") ?? ""),
     totalCapacity: Number.parseInt(
       String(formData.get("totalCapacity") ?? ""),
       10,
     ),
+    amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
   };
 }
 
@@ -975,6 +1152,12 @@ async function runCatalogIntent(input: CatalogActionInput) {
       return updateScheduleBlock(input.id, getScheduleBlockInput(input));
     case "delete-schedule-block":
       return deleteScheduleBlock(input.id);
+    case "create-price":
+      return createPrice(input.eventId, getPriceInput(input));
+    case "update-price":
+      return updatePrice(input.id, getPriceInput(input));
+    case "delete-price":
+      return deletePrice(input.id);
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
     case "update-modality":
@@ -1016,6 +1199,15 @@ function getScheduleBlockInput(input: CatalogActionInput): ScheduleBlockInput {
     startTime: input.startTime,
     totalCapacity: input.totalCapacity,
     modalityIds: input.modalityIds,
+  };
+}
+
+function getPriceInput(input: CatalogActionInput): PriceInput {
+  return {
+    name: input.name,
+    groupType: input.groupType,
+    amount: input.amount,
+    scheduleBlockId: input.scheduleBlockId,
   };
 }
 
