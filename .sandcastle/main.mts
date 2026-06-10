@@ -163,7 +163,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
             agent: createCodexAgent(),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
-              TARGET_BRANCH,
+              BASE_BRANCH: TARGET_BRANCH,
               BRANCH: issue.branch,
             },
           });
