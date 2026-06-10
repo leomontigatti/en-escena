@@ -85,6 +85,13 @@ type CategoryRelationRow = {
   categoryId: string;
 };
 
+type CompatibleScheduleEntryRow = typeof scheduleEntries.$inferSelect & {
+  blockId: string;
+  blockName: string;
+  blockDate: string;
+  blockTime: string;
+};
+
 type CatalogTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type ScheduleBlockInput = CatalogNameInput & {
@@ -586,30 +593,31 @@ export async function listScheduleBlocks(
   }
 
   const blockIds = blocks.map((block) => block.id);
-  const acceptedModalities = await db
-    .select({
-      blockId: scheduleBlockModalities.scheduleBlockId,
-      modalityId: modalities.id,
-      modalityName: modalities.name,
-    })
-    .from(scheduleBlockModalities)
-    .innerJoin(
-      modalities,
-      eq(scheduleBlockModalities.modalityId, modalities.id),
-    )
-    .where(inArray(scheduleBlockModalities.scheduleBlockId, blockIds))
-    .orderBy(asc(modalities.name));
-
-  const modalitiesByBlockId = groupScheduleBlockModalities(acceptedModalities);
-  const entriesByBlockId = groupScheduleEntries(
-    await db.query.scheduleEntries.findMany({
+  const [acceptedModalities, blockScheduleEntries] = await Promise.all([
+    db
+      .select({
+        blockId: scheduleBlockModalities.scheduleBlockId,
+        modalityId: modalities.id,
+        modalityName: modalities.name,
+      })
+      .from(scheduleBlockModalities)
+      .innerJoin(
+        modalities,
+        eq(scheduleBlockModalities.modalityId, modalities.id),
+      )
+      .where(inArray(scheduleBlockModalities.scheduleBlockId, blockIds))
+      .orderBy(asc(modalities.name)),
+    db.query.scheduleEntries.findMany({
       where: inArray(scheduleEntries.scheduleBlockId, blockIds),
       orderBy: [
         asc(scheduleEntries.groupTypeKey),
         asc(scheduleEntries.capacity),
       ],
     }),
-  );
+  ]);
+
+  const modalitiesByBlockId = groupScheduleBlockModalities(acceptedModalities);
+  const entriesByBlockId = groupScheduleEntries(blockScheduleEntries);
 
   return blocks.map((block) => {
     const blockModalities = modalitiesByBlockId.get(block.id) ?? [];
@@ -892,55 +900,11 @@ export async function resolveCompatibleScheduleEntries(input: {
     };
   }
 
-  const options = await db
-    .select({
-      id: scheduleEntries.id,
-      scheduleBlockId: scheduleEntries.scheduleBlockId,
-      groupTypes: scheduleEntries.groupTypes,
-      groupTypeKey: scheduleEntries.groupTypeKey,
-      capacity: scheduleEntries.capacity,
-      createdAt: scheduleEntries.createdAt,
-      blockId: scheduleBlocks.id,
-      blockName: scheduleBlocks.name,
-      blockDate: scheduleBlocks.scheduledDate,
-      blockTime: scheduleBlocks.startTime,
-    })
-    .from(scheduleEntries)
-    .innerJoin(
-      scheduleBlocks,
-      eq(scheduleEntries.scheduleBlockId, scheduleBlocks.id),
-    )
-    .innerJoin(
-      scheduleBlockModalities,
-      eq(scheduleBlocks.id, scheduleBlockModalities.scheduleBlockId),
-    )
-    .where(
-      and(
-        eq(scheduleBlocks.eventId, input.eventId),
-        eq(scheduleBlockModalities.modalityId, input.modalityId),
-        sql`${scheduleEntries.groupTypes} @> ARRAY[${input.groupType}]::en_escena_group_type[]`,
-      ),
-    )
-    .orderBy(
-      asc(scheduleBlocks.scheduledDate),
-      asc(scheduleBlocks.startTime),
-      asc(scheduleEntries.groupTypeKey),
-    );
-
-  const compatibleOptions = options.map((option) => ({
-    id: option.id,
-    scheduleBlockId: option.scheduleBlockId,
-    groupTypes: option.groupTypes,
-    groupTypeKey: option.groupTypeKey,
-    capacity: option.capacity,
-    createdAt: option.createdAt,
-    scheduleBlock: {
-      id: option.blockId,
-      name: option.blockName,
-      scheduledDate: option.blockDate,
-      startTime: option.blockTime,
-    },
-  }));
+  const compatibleOptions = await findCompatibleScheduleEntries({
+    eventId: input.eventId,
+    modalityId: input.modalityId,
+    groupType: input.groupType,
+  });
 
   if (compatibleOptions.length === 0) {
     return {
@@ -1409,6 +1373,68 @@ async function findDuplicateName(input: {
     .where(and(...filters))
     .limit(1)
     .then(([record]) => record);
+}
+
+async function findCompatibleScheduleEntries(input: {
+  eventId: string;
+  modalityId: string;
+  groupType: GroupType;
+}): Promise<CompatibleScheduleEntry[]> {
+  const rows = await db
+    .select({
+      id: scheduleEntries.id,
+      scheduleBlockId: scheduleEntries.scheduleBlockId,
+      groupTypes: scheduleEntries.groupTypes,
+      groupTypeKey: scheduleEntries.groupTypeKey,
+      capacity: scheduleEntries.capacity,
+      createdAt: scheduleEntries.createdAt,
+      blockId: scheduleBlocks.id,
+      blockName: scheduleBlocks.name,
+      blockDate: scheduleBlocks.scheduledDate,
+      blockTime: scheduleBlocks.startTime,
+    })
+    .from(scheduleEntries)
+    .innerJoin(
+      scheduleBlocks,
+      eq(scheduleEntries.scheduleBlockId, scheduleBlocks.id),
+    )
+    .innerJoin(
+      scheduleBlockModalities,
+      eq(scheduleBlocks.id, scheduleBlockModalities.scheduleBlockId),
+    )
+    .where(
+      and(
+        eq(scheduleBlocks.eventId, input.eventId),
+        eq(scheduleBlockModalities.modalityId, input.modalityId),
+        sql`${scheduleEntries.groupTypes} @> ARRAY[${input.groupType}]::en_escena_group_type[]`,
+      ),
+    )
+    .orderBy(
+      asc(scheduleBlocks.scheduledDate),
+      asc(scheduleBlocks.startTime),
+      asc(scheduleEntries.groupTypeKey),
+    );
+
+  return rows.map(toCompatibleScheduleEntry);
+}
+
+function toCompatibleScheduleEntry(
+  row: CompatibleScheduleEntryRow,
+): CompatibleScheduleEntry {
+  return {
+    id: row.id,
+    scheduleBlockId: row.scheduleBlockId,
+    groupTypes: row.groupTypes,
+    groupTypeKey: row.groupTypeKey,
+    capacity: row.capacity,
+    createdAt: row.createdAt,
+    scheduleBlock: {
+      id: row.blockId,
+      name: row.blockName,
+      scheduledDate: row.blockDate,
+      startTime: row.blockTime,
+    },
+  };
 }
 
 async function findDuplicateScheduleEntry(

@@ -274,49 +274,10 @@ export function AdministracionAjustesRouteView({
                   {loaderData.scheduleBlocks.map((scheduleBlock) => (
                     <li key={scheduleBlock.id} className="space-y-3 p-4">
                       <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <h4 className="text-sm font-semibold text-slate-950">
-                          Cronogramas
-                        </h4>
-                        <ScheduleEntryForm
-                          intent="create-schedule-entry"
-                          scheduleBlockId={scheduleBlock.id}
-                          buttonLabel="Crear Cronograma"
-                          fieldErrors={providedActionData?.fieldErrors}
-                        />
-                        {scheduleBlock.scheduleEntries.length > 0 ? (
-                          <ul className="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                            {scheduleBlock.scheduleEntries.map(
-                              (scheduleEntry) => (
-                                <li
-                                  key={scheduleEntry.id}
-                                  className="space-y-3 p-3"
-                                >
-                                  <ScheduleEntrySummary
-                                    scheduleEntry={scheduleEntry}
-                                  />
-                                  <ScheduleEntryForm
-                                    id={scheduleEntry.id}
-                                    intent="update-schedule-entry"
-                                    groupTypes={scheduleEntry.groupTypes}
-                                    capacity={scheduleEntry.capacity}
-                                    buttonLabel="Guardar"
-                                  />
-                                  <CatalogDeleteForm
-                                    id={scheduleEntry.id}
-                                    intent="delete-schedule-entry"
-                                    buttonLabel="Borrar Cronograma"
-                                  />
-                                </li>
-                              ),
-                            )}
-                          </ul>
-                        ) : (
-                          <p className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-sm text-slate-600">
-                            Todavía no hay Cronogramas para este Bloque horario.
-                          </p>
-                        )}
-                      </div>
+                      <ScheduleEntriesPanel
+                        scheduleBlock={scheduleBlock}
+                        fieldErrors={providedActionData?.fieldErrors}
+                      />
                       <ScheduleBlockForm
                         id={scheduleBlock.id}
                         intent="update-schedule-block"
@@ -754,6 +715,51 @@ function ScheduleEntrySummary({
         {formatGroupTypes(scheduleEntry.groupTypes)}
       </p>
       <p>{scheduleEntry.capacity} cupos</p>
+    </div>
+  );
+}
+
+function ScheduleEntriesPanel({
+  fieldErrors,
+  scheduleBlock,
+}: {
+  fieldErrors?: Record<string, string>;
+  scheduleBlock: ScheduleBlockListItem;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <h4 className="text-sm font-semibold text-slate-950">Cronogramas</h4>
+      <ScheduleEntryForm
+        intent="create-schedule-entry"
+        scheduleBlockId={scheduleBlock.id}
+        buttonLabel="Crear Cronograma"
+        fieldErrors={fieldErrors}
+      />
+      {scheduleBlock.scheduleEntries.length > 0 ? (
+        <ul className="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          {scheduleBlock.scheduleEntries.map((scheduleEntry) => (
+            <li key={scheduleEntry.id} className="space-y-3 p-3">
+              <ScheduleEntrySummary scheduleEntry={scheduleEntry} />
+              <ScheduleEntryForm
+                id={scheduleEntry.id}
+                intent="update-schedule-entry"
+                groupTypes={scheduleEntry.groupTypes}
+                capacity={scheduleEntry.capacity}
+                buttonLabel="Guardar"
+              />
+              <CatalogDeleteForm
+                id={scheduleEntry.id}
+                intent="delete-schedule-entry"
+                buttonLabel="Borrar Cronograma"
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-sm text-slate-600">
+          Todavía no hay Cronogramas para este Bloque horario.
+        </p>
+      )}
     </div>
   );
 }
