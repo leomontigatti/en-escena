@@ -21,6 +21,10 @@ const signInSchema = z.object({
 });
 const signInFields = ["email", "password"] as const;
 type SignInField = (typeof signInFields)[number];
+type LoginNotice = {
+  variant: "success";
+  message: string;
+};
 
 export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
@@ -67,10 +71,30 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
+export function getLoginNotice(
+  searchParams: URLSearchParams,
+): LoginNotice | null {
+  if (searchParams.get("sesion") === "cerrada") {
+    return {
+      variant: "success",
+      message: "Cerraste sesión.",
+    };
+  }
+
+  if (searchParams.get("recuperacion") === "ok") {
+    return {
+      variant: "success",
+      message: "Tu contraseña fue actualizada. Ya podés ingresar.",
+    };
+  }
+
+  return null;
+}
+
 export default function IngresarRoute() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
-  const recoveryCompleted = searchParams.get("recuperacion") === "ok";
+  const loginNotice = getLoginNotice(searchParams);
 
   return (
     <AccessPage>
@@ -111,9 +135,9 @@ export default function IngresarRoute() {
           <AccessNotice variant="error">{actionData.message}</AccessNotice>
         ) : null}
 
-        {recoveryCompleted ? (
-          <AccessNotice variant="success">
-            Tu contraseña fue actualizada. Ya podés ingresar.
+        {loginNotice ? (
+          <AccessNotice variant={loginNotice.variant}>
+            {loginNotice.message}
           </AccessNotice>
         ) : null}
 

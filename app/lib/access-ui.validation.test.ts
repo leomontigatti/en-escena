@@ -14,7 +14,7 @@ vi.mock("@/lib/internal-navigation.server", () => ({
   getLandingPathForUserId: vi.fn(),
 }));
 
-import { action as loginAction } from "@/routes/ingresar";
+import { action as loginAction, getLoginNotice } from "@/routes/ingresar";
 
 describe("access UI validation", () => {
   test("returns field errors for invalid login submissions", async () => {
@@ -40,6 +40,13 @@ describe("access UI validation", () => {
         email: "Ingresá un correo electrónico válido.",
         password: "Ingresá tu contraseña.",
       },
+    });
+  });
+
+  test("returns the logout completion notice for login", () => {
+    expect(getLoginNotice(new URLSearchParams("sesion=cerrada"))).toEqual({
+      variant: "success",
+      message: "Cerraste sesión.",
     });
   });
 });
