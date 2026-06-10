@@ -1,13 +1,14 @@
 import { Form, Link, useActionData } from "react-router";
 import { z } from "zod";
 
+import { AdminShell } from "@/components/admin-shell";
 import {
   internalInvitationRoleLabels,
   internalInvitationRoles,
   isInternalInvitationRole,
 } from "@/lib/internal-invitation.shared";
 import { createInternalInvitation } from "@/lib/internal-invitation.server";
-import { requireAdminUser } from "@/lib/internal-access.server";
+import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion.usuarios.invitaciones";
 
@@ -23,13 +24,13 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireAdminUser(request);
+  const appUser = await requireAdminPanelUser(request);
 
-  return null;
+  return { email: appUser.email };
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const appUser = await requireAdminUser(request);
+  const appUser = await requireAdminPanelUser(request);
   const formData = await request.formData();
   const parsed = invitationSchema.safeParse({
     email: formData.get("email"),
@@ -61,41 +62,51 @@ export async function action({ request }: Route.ActionArgs) {
   };
 }
 
-export default function InvitacionesInternasRoute() {
+type InvitacionesInternasRouteProps = {
+  loaderData: {
+    email: string;
+  };
+};
+
+export function InvitacionesInternasRouteView({
+  loaderData,
+}: InvitacionesInternasRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <main className="min-h-screen bg-stone-100 px-6 py-12">
-      <section className="mx-auto max-w-xl rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-amber-700">Administración</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
-          Invitar usuario interno
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-stone-600">
+    <AdminShell
+      email={loaderData.email}
+      events={[]}
+      selectedEventId={null}
+      title="Invitar usuario interno"
+      showEventSelector={false}
+    >
+      <section className="max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm leading-6 text-slate-600">
           La persona invitada recibirá un enlace para confirmar su correo y
           definir su contraseña.
         </p>
 
         <Form method="post" className="mt-8 space-y-5">
           <label className="block">
-            <span className="text-sm font-medium text-stone-800">Correo</span>
+            <span className="text-sm font-medium text-slate-800">Correo</span>
             <input
               name="email"
               type="email"
               required
               autoComplete="email"
-              className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-950 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-100"
+              className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-stone-800">
+            <span className="text-sm font-medium text-slate-800">
               Permiso principal
             </span>
             <select
               name="role"
               required
-              className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-950 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-100"
+              className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
             >
               {internalInvitationRoles.map((role) => (
                 <option key={role} value={role}>
@@ -109,8 +120,8 @@ export default function InvitacionesInternasRoute() {
             <p
               className={
                 actionData.status === "success"
-                  ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-                  : "rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800"
+                  ? "rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+                  : "rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800"
               }
             >
               {actionData.message}
@@ -119,7 +130,7 @@ export default function InvitacionesInternasRoute() {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
           >
             Enviar invitación
           </button>
@@ -127,11 +138,13 @@ export default function InvitacionesInternasRoute() {
 
         <Link
           to="/administracion"
-          className="mt-8 inline-flex rounded-xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+          className="mt-8 inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
         >
           Volver al panel
         </Link>
       </section>
-    </main>
+    </AdminShell>
   );
 }
+
+export default InvitacionesInternasRouteView;

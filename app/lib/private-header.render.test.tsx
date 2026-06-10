@@ -28,7 +28,13 @@ describe("private route headers", () => {
     [
       "panel de administración",
       renderPrivateRoute(
-        <AdministracionRouteView loaderData={{ email: "admin@example.com" }} />,
+        <AdministracionRouteView
+          loaderData={{
+            email: "admin@example.com",
+            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+            selectedEventId: "evento_2026",
+          }}
+        />,
       ),
       "admin@example.com",
     ],
