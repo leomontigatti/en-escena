@@ -77,6 +77,18 @@ export function AdministracionRouteView({
             Habilitá administración, auditoría o juzgamiento por correo.
           </span>
         </Link>
+        <Link
+          to="/administracion/ajustes"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        >
+          <span className="text-sm font-semibold text-slate-950">
+            Ajustes de administración
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-slate-600">
+            Configurá Modalidades, Submodalidades y Niveles de experiencia por
+            Evento de trabajo.
+          </span>
+        </Link>
         <div className="rounded-lg border border-slate-200 bg-white p-5">
           <span className="text-sm font-semibold text-slate-950">
             Operación del evento

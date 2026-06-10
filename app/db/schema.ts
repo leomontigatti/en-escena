@@ -284,3 +284,82 @@ export const events = createTable(
       .where(sql`${table.active} = true`),
   ],
 );
+
+export const modalities = createTable(
+  "modality",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("modality_event_id_idx").on(table.eventId),
+    uniqueIndex("modality_event_name_unique").on(table.eventId, table.name),
+  ],
+);
+
+export const submodalities = createTable(
+  "submodality",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    modalityId: varchar("modality_id", { length: 255 })
+      .notNull()
+      .references(() => modalities.id),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("submodality_event_id_idx").on(table.eventId),
+    index("submodality_modality_id_idx").on(table.modalityId),
+    uniqueIndex("submodality_event_name_unique").on(table.eventId, table.name),
+  ],
+);
+
+export const experienceLevels = createTable(
+  "experience_level",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("experience_level_event_id_idx").on(table.eventId),
+    uniqueIndex("experience_level_event_name_unique").on(
+      table.eventId,
+      table.name,
+    ),
+  ],
+);

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays, MailPlus, LogOut } from "lucide-react";
+import { CalendarDays, MailPlus, LogOut, Settings } from "lucide-react";
 import { Link } from "react-router";
 import { clsx } from "clsx";
 
@@ -19,6 +19,11 @@ const navigationItems = [
     label: "Eventos",
     to: "/administracion/eventos",
     icon: CalendarDays,
+  },
+  {
+    label: "Ajustes",
+    to: "/administracion/ajustes",
+    icon: Settings,
   },
   {
     label: "Invitaciones",
