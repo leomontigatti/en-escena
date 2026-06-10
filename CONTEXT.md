@@ -76,6 +76,10 @@ _Evitar_: Academia, profesor, cuenta de academia
 Flujo por el que un usuario existente recupera su acceso mediante un enlace enviado a su correo electrónico verificado para definir una nueva contraseña. No crea una academia ni cambia los permisos del usuario.
 _Evitar_: Registro público de academia, invitación de usuario
 
+**Sesión de acceso**:
+Período autenticado de un usuario dentro del sistema. Está limitada por inactividad a 8 horas para todos los permisos y se cierra manualmente con la acción de salir, que afecta solo a la sesión actual.
+_Evitar_: Registro, invitación, recuperación de acceso
+
 **Administrador**:
 Usuario con permisos de operación sobre el evento y sus excepciones. Puede crear, editar y borrar entidades operativas del evento y ejecutar acciones administrativas sobre coreografías, presentaciones, puntajes, resultados, ajustes y financieros. El primer administrador se crea fuera del registro público y fuera de una pantalla pública; a partir de ese acceso inicial, puede invitar otros usuarios internos por correo electrónico y asignar permisos de administración, auditoría o juzgamiento, pero no crea academias, profesores ni bailarines, que pertenecen exclusivamente al portal de academias.
 _Evitar_: Auditor, usuario de academia

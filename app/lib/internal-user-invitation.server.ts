@@ -190,7 +190,6 @@ async function createBetterAuthCredentialUser(input: {
       body: {
         email: input.email,
         password: input.password,
-        rememberMe: true,
       },
       headers: input.request.headers,
       returnHeaders: true,
@@ -207,7 +206,6 @@ async function createBetterAuthCredentialUser(input: {
       email: input.email,
       name: input.email,
       password: input.password,
-      rememberMe: true,
     },
     headers: input.request.headers,
     returnHeaders: true,

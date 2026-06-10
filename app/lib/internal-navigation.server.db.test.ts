@@ -141,7 +141,6 @@ async function createCredentialUser(input: {
       email: input.email,
       name: input.email,
       password: "password-segura",
-      rememberMe: true,
     },
     returnHeaders: true,
   });

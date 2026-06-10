@@ -10,7 +10,6 @@ export async function signUpAcademyUser(input: {
       email: input.email,
       name: input.email,
       password: input.password,
-      rememberMe: true,
     },
     headers: input.request.headers,
     returnHeaders: true,

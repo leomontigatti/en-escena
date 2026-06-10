@@ -130,7 +130,6 @@ export async function acceptInternalInvitation(input: {
       email: invitation.email,
       name: invitation.email,
       password: input.password,
-      rememberMe: true,
     },
     headers: input.request.headers,
     returnHeaders: true,

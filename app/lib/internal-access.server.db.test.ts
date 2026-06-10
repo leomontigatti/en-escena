@@ -122,7 +122,6 @@ async function createSignedInRequest(input: {
       email: input.email,
       name: input.email,
       password: "password-segura",
-      rememberMe: true,
     },
     returnHeaders: true,
   });

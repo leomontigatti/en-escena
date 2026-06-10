@@ -46,7 +46,6 @@ export async function action({ request }: Route.ActionArgs) {
       body: {
         email: parsed.data.email,
         password: parsed.data.password,
-        rememberMe: true,
       },
       headers: request.headers,
       returnHeaders: true,
