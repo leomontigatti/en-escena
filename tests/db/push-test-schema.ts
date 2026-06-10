@@ -41,7 +41,7 @@ await ensureDatabaseExists(testDatabaseUrl);
 
 const result = spawnSync(
   "drizzle-kit",
-  ["push", "--config=drizzle.config.ts"],
+  ["push", "--config=drizzle.config.ts", "--force"],
   {
     env: {
       ...process.env,

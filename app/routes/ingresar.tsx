@@ -106,6 +106,12 @@ export default function IngresarRoute() {
         </Form>
 
         <p className="mt-6 text-center text-sm text-stone-600">
+          <Link className="font-medium text-amber-700" to="/recuperar-acceso">
+            Recuperar acceso
+          </Link>
+        </p>
+
+        <p className="mt-3 text-center text-sm text-stone-600">
           ¿Tu academia todavía no está registrada?{" "}
           <Link className="font-medium text-amber-700" to="/registro">
             Pedir enlace
