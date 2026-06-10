@@ -8,10 +8,12 @@
     "start": "node --env-file=.env node_modules/@react-router/serve/bin.js ./build/server/index.js",
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest",
+    "test:db": "npm run db:test:push && vitest --config vitest.db.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
     "db:push": "drizzle-kit push",
+    "db:test:push": "tsx tests/db/push-test-schema.ts",
     "db:studio": "drizzle-kit studio",
     "sandcastle": "npx tsx .sandcastle/main.mts"
   },

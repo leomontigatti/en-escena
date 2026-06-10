@@ -15,7 +15,8 @@ Recommended validation order after code changes:
 1. `npm run format:check`
 2. `npm run typecheck`
 3. `npm test`
-4. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
+4. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+5. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 
@@ -47,7 +48,10 @@ Principles:
 - Focus tests on runtime behavior: ordering, relationships after mutation, constraints, conflict handling, and domain edge cases.
 - Add one failing test at a time, make it pass, then continue.
 
-Current repo note: we have Drizzle configured for PostgreSQL, but no committed test database harness yet. Until one exists, either add the smallest suitable harness for the feature or explicitly report that DB tests could not be run.
+The repo has a PostgreSQL test harness under `tests/db/`. Use
+`npm run test:db` for database-backed behavior. The script creates the configured
+test database when needed, pushes the Drizzle schema, and runs `*.db.test.ts`
+with serial file execution.
 
 ## Frontend State TDD
 

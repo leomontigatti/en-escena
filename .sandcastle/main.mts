@@ -24,7 +24,10 @@
 
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
 
 import { runWithRetry } from "./run-with-retry.mjs";
@@ -54,12 +57,19 @@ const issueSchema = z.object({
 // Maximum number of plan→execute→merge cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
+const CODEX_MODEL = "gpt-5.5";
+const CODEX_EFFORT = "medium";
 const READY_FOR_AGENT_LABEL = "ready-for-agent";
+const DEFAULT_SANDBOX_DOCKER_NETWORK = "en-escena_default";
+const DEFAULT_SANDBOX_TEST_DATABASE_URL =
+  "postgres://postgres:postgres@postgres:5432/en-escena-test";
 
 // Hooks run inside the sandbox before the agent starts each iteration.
 // npm install ensures the sandbox always has fresh dependencies.
 const hooks = {
-  sandbox: { onSandboxReady: [{ command: "npm install" }] },
+  sandbox: {
+    onSandboxReady: [{ command: "npm install" }],
+  },
 };
 
 // Copy node_modules from the host into the worktree before each sandbox
@@ -68,6 +78,8 @@ const hooks = {
 const copyToWorktree = ["node_modules"];
 
 assertGitHeadExists();
+assertCodexChatGptAuthWorks();
+assertGitHubTokenWorks();
 
 const TARGET_BRANCH = getCurrentBranch();
 const requestedIssueId = parseIssueArg(process.argv.slice(2));
@@ -124,7 +136,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
     issues.map(async (issue) => {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
-        sandbox: docker(),
+        sandbox: createDockerSandbox(),
         hooks,
         copyToWorktree,
       });
@@ -134,7 +146,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
         const implement = await sandbox.run({
           name: "implementer",
           maxIterations: 100,
-          agent: sandcastle.codex("gpt-5.4-mini"),
+          agent: createCodexAgent(),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
             TASK_ID: issue.id,
@@ -148,7 +160,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
           const review = await sandbox.run({
             name: "reviewer",
             maxIterations: 1,
-            agent: sandcastle.codex("gpt-5.4-mini"),
+            agent: createCodexAgent(),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
               TARGET_BRANCH,
@@ -217,10 +229,10 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // -------------------------------------------------------------------------
   await sandcastle.run({
     hooks,
-    sandbox: docker(),
+    sandbox: createDockerSandbox(),
     name: "merger",
     maxIterations: 1,
-    agent: sandcastle.codex("gpt-5.4-mini"),
+    agent: createCodexAgent(),
     promptFile: "./.sandcastle/merge-prompt.md",
     promptArgs: {
       // A markdown list of branch names, one per line.
@@ -265,16 +277,44 @@ function usageMessage(): string {
   return "Usage: npm run sandcastle [-- --issue <number>] or npm run sandcastle [-- <number>]";
 }
 
+function createCodexAgent(): ReturnType<typeof sandcastle.codex> {
+  return sandcastle.codex(CODEX_MODEL, { effort: CODEX_EFFORT });
+}
+
+function createDockerSandbox(): ReturnType<typeof docker> {
+  const env = readSandcastleEnv();
+  const ghToken = getGitHubToken();
+  const codexAuthJsonPath = getCodexAuthJsonPath();
+  const network = getSandboxDockerNetwork(env);
+  const testDatabaseUrl = getSandboxTestDatabaseUrl(env);
+
+  return docker({
+    ...(network ? { network } : {}),
+    mounts: [
+      {
+        hostPath: codexAuthJsonPath,
+        sandboxPath: "/home/agent/.codex/auth.json",
+        readonly: true,
+      },
+    ],
+    env: {
+      DATABASE_URL: testDatabaseUrl,
+      GH_TOKEN: ghToken,
+      TEST_DATABASE_URL: testDatabaseUrl,
+    },
+  });
+}
+
 async function planNextIssues(): Promise<readonly PlannedIssue[]> {
   const plan = await runWithRetry({
     hooks,
-    sandbox: docker(),
+    sandbox: createDockerSandbox(),
     name: "planner",
     // One iteration is enough: the planner just needs to read and reason,
     // not write code. (Structured output requires maxIterations: 1.)
     maxIterations: 1,
     // Use the same Codex model across planning, implementation, and review.
-    agent: sandcastle.codex("gpt-5.4-mini"),
+    agent: createCodexAgent(),
     promptFile: "./.sandcastle/plan-prompt.md",
     // Extract and validate the <plan> JSON into a typed object. Retry output
     // extraction failures so a malformed JSON block does not abort the run.
@@ -294,7 +334,10 @@ function getRequestedIssue(issueId: string): PlannedIssue {
       "--json",
       "number,title,state,labels",
     ],
-    { encoding: "utf8" },
+    {
+      encoding: "utf8",
+      env: getGitHubCliEnv(),
+    },
   );
   const issue = issueSchema.parse(JSON.parse(issueJson));
 
@@ -342,4 +385,131 @@ function getCurrentBranch(): string {
   }
 
   return branch;
+}
+
+function assertGitHubTokenWorks(): void {
+  try {
+    execFileSync(
+      "gh",
+      ["issue", "list", "--state", "open", "--limit", "1", "--json", "number"],
+      {
+        encoding: "utf8",
+        env: getGitHubCliEnv(),
+        stdio: "pipe",
+      },
+    );
+  } catch {
+    throw new Error(
+      [
+        "GitHub rejected GH_TOKEN from .sandcastle/.env.",
+        "Create a fine-grained token for leomontigatti/en-escena with Issues read/write and Metadata read, then update GH_TOKEN.",
+      ].join("\n"),
+    );
+  }
+}
+
+function getGitHubCliEnv(): NodeJS.ProcessEnv {
+  const token = getGitHubToken();
+
+  return {
+    ...process.env,
+    GH_TOKEN: token,
+  };
+}
+
+function getGitHubToken(): string {
+  const env = readSandcastleEnv();
+  const token = env.GH_TOKEN || process.env.GH_TOKEN;
+
+  if (!token) {
+    throw new Error("Sandcastle needs GH_TOKEN in .sandcastle/.env.");
+  }
+
+  return token;
+}
+
+function assertCodexChatGptAuthWorks(): void {
+  const authJsonPath = getCodexAuthJsonPath();
+  if (!existsSync(authJsonPath)) {
+    throw new Error(
+      [
+        `Codex ChatGPT auth file was not found at ${authJsonPath}.`,
+        "Run `codex login` on the host with your ChatGPT account, then rerun Sandcastle.",
+      ].join("\n"),
+    );
+  }
+
+  const status = spawnSync("codex", ["login", "status"], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const output = [status.stdout, status.stderr].join("\n");
+
+  if (status.status !== 0 || !/Logged in using ChatGPT/i.test(output)) {
+    throw new Error(
+      [
+        "Host Codex CLI is not logged in with ChatGPT subscription auth.",
+        "Run `codex login` on the host with your ChatGPT account, then rerun Sandcastle.",
+      ].join("\n"),
+    );
+  }
+}
+
+function getCodexAuthJsonPath(): string {
+  const env = readSandcastleEnv();
+  return env.CODEX_AUTH_JSON || process.env.CODEX_AUTH_JSON || defaultCodexAuthJsonPath();
+}
+
+function defaultCodexAuthJsonPath(): string {
+  return join(homedir(), ".codex", "auth.json");
+}
+
+function getSandboxDockerNetwork(env: Record<string, string>): string | undefined {
+  const network =
+    env.SANDCASTLE_DOCKER_NETWORK ||
+    process.env.SANDCASTLE_DOCKER_NETWORK ||
+    DEFAULT_SANDBOX_DOCKER_NETWORK;
+
+  return network || undefined;
+}
+
+function getSandboxTestDatabaseUrl(env: Record<string, string>): string {
+  return (
+    env.SANDCASTLE_TEST_DATABASE_URL ||
+    process.env.SANDCASTLE_TEST_DATABASE_URL ||
+    DEFAULT_SANDBOX_TEST_DATABASE_URL
+  );
+}
+
+function readSandcastleEnv(): Record<string, string> {
+  const envPath = join(process.cwd(), ".sandcastle", ".env");
+  if (!existsSync(envPath)) return {};
+
+  const env: Record<string, string> = {};
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) continue;
+
+    const key = trimmed.slice(0, equalsIndex).trim();
+    const rawValue = trimmed.slice(equalsIndex + 1).trim();
+    env[key] = stripEnvQuotes(rawValue);
+  }
+
+  return env;
+}
+
+function stripEnvQuotes(value: string): string {
+  const first = value[0];
+  const last = value[value.length - 1];
+  if (
+    value.length >= 2 &&
+    ((first === '"' && last === '"') || (first === "'" && last === "'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
 }
