@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -439,5 +440,61 @@ export const categoryExperienceLevels = createTable(
       table.experienceLevelId,
     ),
     index("category_experience_level_level_id_idx").on(table.experienceLevelId),
+  ],
+);
+
+export const scheduleBlocks = createTable(
+  "schedule_block",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    scheduledDate: text("scheduled_date").notNull(),
+    startTime: text("start_time").notNull(),
+    totalCapacity: integer("total_capacity").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("schedule_block_event_id_idx").on(table.eventId),
+    uniqueIndex("schedule_block_event_name_unique").on(
+      table.eventId,
+      table.name,
+    ),
+  ],
+);
+
+export const scheduleBlockModalities = createTable(
+  "schedule_block_modality",
+  {
+    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).notNull(),
+    modalityId: varchar("modality_id", { length: 255 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.scheduleBlockId],
+      foreignColumns: [scheduleBlocks.id],
+      name: "schedule_block_modality_block_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.modalityId],
+      foreignColumns: [modalities.id],
+      name: "schedule_block_modality_modality_fk",
+    }),
+    index("schedule_block_modality_block_id_idx").on(table.scheduleBlockId),
+    index("schedule_block_modality_modality_id_idx").on(table.modalityId),
+    uniqueIndex("schedule_block_modality_unique").on(
+      table.scheduleBlockId,
+      table.modalityId,
+    ),
   ],
 );

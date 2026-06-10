@@ -9,6 +9,7 @@ import {
   categories,
   experienceLevels,
   modalities,
+  scheduleBlocks,
   submodalities,
   user,
 } from "@/db/schema";
@@ -68,10 +69,14 @@ describe("administracion/ajustes route", () => {
     expect(markup).toContain(
       "Todavía no hay Niveles de experiencia para este Evento.",
     );
+    expect(markup).toContain(
+      "Todavía no hay Bloques horarios para este Evento.",
+    );
     expect(markup).toContain('name="intent" value="create-modality"');
     expect(markup).toContain('name="intent" value="create-category"');
     expect(markup).toContain('name="intent" value="create-submodality"');
     expect(markup).toContain('name="intent" value="create-experience-level"');
+    expect(markup).toContain('name="intent" value="create-schedule-block"');
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -226,6 +231,115 @@ describe("administracion/ajustes route", () => {
     await expect(
       db.query.submodalities.findFirst({
         where: eq(submodalities.id, submodality?.id ?? ""),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("creates, edits and deletes Bloques horarios through the admin action", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    await createModality(event.id, { name: "Jazz" });
+    await createModality(event.id, { name: "Danzas urbanas" });
+    const eventModalities = await db.query.modalities.findMany({
+      where: eq(modalities.eventId, event.id),
+    });
+    const scheduleBlockRequest = await createSignedInRequest({
+      email: "admin.crea.bloque@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-block",
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: "24",
+        modalityIds: eventModalities.map((modality) => modality.id),
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(scheduleBlockRequest.request)),
+      302,
+    );
+
+    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    });
+    expect(scheduleBlock).toMatchObject({
+      eventId: event.id,
+      scheduledDate: "2026-05-02",
+      startTime: "09:00",
+      totalCapacity: 24,
+    });
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.lista.bloques@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const markup = renderRoute(data);
+
+    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("02/05/2026");
+    expect(markup).toContain("09:00");
+    expect(markup).toContain("24 cupos");
+    expect(markup).toContain("Jazz");
+    expect(markup).toContain("Danzas urbanas");
+
+    const urbanas = eventModalities.find(
+      (modality) => modality.name === "Danzas urbanas",
+    );
+    const editScheduleBlockRequest = await createSignedInRequest({
+      email: "admin.edita.bloque@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "update-schedule-block",
+        id: scheduleBlock?.id ?? "",
+        name: "Sábado tarde",
+        scheduledDate: "2026-05-02",
+        startTime: "14:30",
+        totalCapacity: "18",
+        modalityIds: [urbanas?.id ?? ""],
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editScheduleBlockRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.scheduleBlocks.findFirst({
+        where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({
+      name: "Sábado tarde",
+      startTime: "14:30",
+      totalCapacity: 18,
+    });
+
+    const deleteScheduleBlockRequest = await createSignedInRequest({
+      email: "admin.borra.bloque@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      body: formData({
+        intent: "delete-schedule-block",
+        id: scheduleBlock?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(deleteScheduleBlockRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.scheduleBlocks.findFirst({
+        where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
   });

@@ -35,12 +35,26 @@ async function ensureDatabaseExists(databaseUrl: string) {
   }
 }
 
-async function dropObsoleteTestTables(databaseUrl: string) {
+async function resetTestSchema(databaseUrl: string) {
   const testClient = postgres(databaseUrl, { max: 1 });
 
   try {
-    await testClient`drop table if exists en_escena_schedule_block_modality cascade`;
-    await testClient`drop table if exists en_escena_schedule_block cascade`;
+    const existingTables = await testClient<{ tablename: string }[]>`
+      select tablename
+      from pg_tables
+      where schemaname = 'public'
+        and tablename like 'en\\_escena\\_%' escape '\\'
+    `;
+
+    if (existingTables.length === 0) {
+      return;
+    }
+
+    await testClient.unsafe(
+      `drop table ${existingTables
+        .map((table) => quoteIdentifier(table.tablename))
+        .join(", ")} cascade`,
+    );
   } finally {
     await testClient.end();
   }
@@ -49,7 +63,7 @@ async function dropObsoleteTestTables(databaseUrl: string) {
 const testDatabaseUrl = getTestDatabaseUrl();
 
 await ensureDatabaseExists(testDatabaseUrl);
-await dropObsoleteTestTables(testDatabaseUrl);
+await resetTestSchema(testDatabaseUrl);
 
 const result = spawnSync(
   "drizzle-kit",

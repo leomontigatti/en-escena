@@ -13,15 +13,20 @@ import {
   createCategory,
   createExperienceLevel,
   createModality,
+  createScheduleBlock,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
+  deleteScheduleBlock,
   deleteSubmodality,
   updateCategory,
   listEventCatalogs,
+  type ScheduleBlockInput,
+  type ScheduleBlockListItem,
   updateExperienceLevel,
   updateModality,
+  updateScheduleBlock,
   updateSubmodality,
 } from "@/lib/admin-catalogs.server";
 import {
@@ -55,6 +60,7 @@ type AdministracionAjustesRouteProps = {
     submodalities: SubmodalityRow[];
     experienceLevels: ExperienceLevelRow[];
     categories: CategoryRow[];
+    scheduleBlocks: ScheduleBlockListItem[];
   };
   actionData?: ActionData;
 };
@@ -70,6 +76,9 @@ type CatalogActionInput = {
   modalityId: string;
   name: string;
   experienceLevelIds: string[];
+  scheduledDate: string;
+  startTime: string;
+  totalCapacity: number;
 };
 
 const groupTypeLabels: Record<string, string> = {
@@ -103,6 +112,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         modalities: [],
         submodalities: [],
         experienceLevels: [],
+        scheduleBlocks: [],
       };
 
   return {
@@ -155,8 +165,9 @@ export function AdministracionAjustesRouteView({
             </h2>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Configurá Categorías, Modalidades, Submodalidades y Niveles de
-            experiencia para el Evento de trabajo seleccionado.
+            Configurá Categorías, Modalidades, Submodalidades, Niveles de
+            experiencia y Bloques horarios para el Evento de trabajo
+            seleccionado.
           </p>
         </section>
 
@@ -241,6 +252,44 @@ export function AdministracionAjustesRouteView({
               ) : (
                 <EmptyCatalogState>
                   Todavía no hay Modalidades para este Evento.
+                </EmptyCatalogState>
+              )}
+            </CatalogSection>
+
+            <CatalogSection title="Bloques horarios">
+              <ScheduleBlockForm
+                intent="create-schedule-block"
+                modalities={loaderData.modalities}
+                buttonLabel="Crear Bloque"
+                fieldErrors={providedActionData?.fieldErrors}
+              />
+              {loaderData.scheduleBlocks.length > 0 ? (
+                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+                  {loaderData.scheduleBlocks.map((scheduleBlock) => (
+                    <li key={scheduleBlock.id} className="space-y-3 p-4">
+                      <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
+                      <ScheduleBlockForm
+                        id={scheduleBlock.id}
+                        intent="update-schedule-block"
+                        modalities={loaderData.modalities}
+                        name={scheduleBlock.name}
+                        scheduledDate={scheduleBlock.scheduledDate}
+                        startTime={scheduleBlock.startTime}
+                        totalCapacity={scheduleBlock.totalCapacity}
+                        modalityIds={scheduleBlock.modalityIds}
+                        buttonLabel="Guardar"
+                      />
+                      <CatalogDeleteForm
+                        id={scheduleBlock.id}
+                        intent="delete-schedule-block"
+                        buttonLabel="Borrar Bloque"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyCatalogState>
+                  Todavía no hay Bloques horarios para este Evento.
                 </EmptyCatalogState>
               )}
             </CatalogSection>
@@ -488,6 +537,163 @@ function SubmodalityForm({
   );
 }
 
+function ScheduleBlockForm({
+  buttonLabel,
+  fieldErrors = {},
+  id,
+  intent,
+  modalities,
+  modalityIds = [],
+  name,
+  scheduledDate,
+  startTime,
+  totalCapacity,
+}: {
+  buttonLabel: string;
+  fieldErrors?: Record<string, string>;
+  id?: string;
+  intent: string;
+  modalities: ModalityRow[];
+  modalityIds?: string[];
+  name?: string;
+  scheduledDate?: string;
+  startTime?: string;
+  totalCapacity?: number;
+}) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-slate-200 bg-white p-4"
+    >
+      <input type="hidden" name="intent" value={intent} />
+      {id ? <input type="hidden" name="id" value={id} /> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Nombre del Bloque horario
+          <input
+            name="name"
+            defaultValue={name}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.name ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.name}
+          </p>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800">
+          Fecha
+          <input
+            type="date"
+            name="scheduledDate"
+            defaultValue={scheduledDate}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        <label className="block text-sm font-medium text-slate-800">
+          Hora
+          <input
+            type="time"
+            name="startTime"
+            defaultValue={startTime}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.scheduledDate ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.scheduledDate}
+          </p>
+        ) : null}
+        {fieldErrors.startTime ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.startTime}
+          </p>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Cupo total
+          <input
+            type="number"
+            min="1"
+            step="1"
+            name="totalCapacity"
+            defaultValue={totalCapacity}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.totalCapacity ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.totalCapacity}
+          </p>
+        ) : null}
+      </div>
+
+      <fieldset className="mt-3 space-y-2">
+        <legend className="text-sm font-medium text-slate-800">
+          Modalidades aceptadas
+        </legend>
+        {modalities.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {modalities.map((modality) => (
+              <label
+                key={modality.id}
+                className="flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800"
+              >
+                <input
+                  type="checkbox"
+                  name="modalityIds"
+                  value={modality.id}
+                  defaultChecked={modalityIds.includes(modality.id)}
+                  className="size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-100"
+                />
+                {modality.name}
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm leading-6 text-slate-600">
+            Creá una Modalidad antes de agregar Bloques horarios.
+          </p>
+        )}
+        {fieldErrors.modalityIds ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.modalityIds}
+          </p>
+        ) : null}
+      </fieldset>
+
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function ScheduleBlockSummary({
+  scheduleBlock,
+}: {
+  scheduleBlock: ScheduleBlockListItem;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-semibold text-slate-950">
+        {scheduleBlock.name}
+      </p>
+      <p className="text-sm text-slate-600">
+        {formatDate(scheduleBlock.scheduledDate)} · {scheduleBlock.startTime} ·{" "}
+        {scheduleBlock.totalCapacity} cupos
+      </p>
+      <p className="text-xs font-medium text-slate-500">
+        {scheduleBlock.modalities.map((modality) => modality.name).join(", ")}
+      </p>
+    </div>
+  );
+}
+
 function CategorySummary({
   category,
   experienceLevels,
@@ -721,6 +927,12 @@ function readCatalogActionInput(
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
+    scheduledDate: String(formData.get("scheduledDate") ?? ""),
+    startTime: String(formData.get("startTime") ?? ""),
+    totalCapacity: Number.parseInt(
+      String(formData.get("totalCapacity") ?? ""),
+      10,
+    ),
   };
 }
 
@@ -757,6 +969,12 @@ async function runCatalogIntent(input: CatalogActionInput) {
       });
     case "delete-category":
       return deleteCategory(input.id);
+    case "create-schedule-block":
+      return createScheduleBlock(input.eventId, getScheduleBlockInput(input));
+    case "update-schedule-block":
+      return updateScheduleBlock(input.id, getScheduleBlockInput(input));
+    case "delete-schedule-block":
+      return deleteScheduleBlock(input.id);
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
     case "update-modality":
@@ -789,6 +1007,26 @@ async function runCatalogIntent(input: CatalogActionInput) {
         fieldErrors: {},
       };
   }
+}
+
+function getScheduleBlockInput(input: CatalogActionInput): ScheduleBlockInput {
+  return {
+    name: input.name,
+    scheduledDate: input.scheduledDate,
+    startTime: input.startTime,
+    totalCapacity: input.totalCapacity,
+    modalityIds: input.modalityIds,
+  };
+}
+
+function formatDate(value: string) {
+  const [year, month, day] = value.split("-");
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 }
 
 function formatGroupTypes(groupTypes: string[]) {
