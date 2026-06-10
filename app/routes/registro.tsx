@@ -11,6 +11,7 @@ import {
 } from "@/components/access-ui";
 import { requestAcademyRegistrationEmail } from "@/lib/academy-registration.server";
 import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
+import { redirectSignedInUserFromPublicRoute } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/registro";
 
@@ -23,6 +24,12 @@ type RegistrationField = (typeof registrationFields)[number];
 export const meta: Route.MetaFunction = () => [
   { title: "Registro de academia | En Escena" },
 ];
+
+export async function loader({ request }: Route.LoaderArgs) {
+  await redirectSignedInUserFromPublicRoute(request);
+
+  return null;
+}
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();

@@ -17,13 +17,50 @@ import { installDatabaseTestHooks } from "../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("internal access authorization", () => {
-  test("redirects missing sessions to login", async () => {
+  test("redirects missing sessions to login with a safe destination", async () => {
     const response = await expectThrownResponse(
-      requireSignedInUser(new Request("http://localhost/portal")),
+      requireSignedInUser(
+        new Request("http://localhost/portal/coreografias?estado=pendiente"),
+      ),
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/ingresar");
+    expect(response.headers.get("location")).toBe(
+      "/ingresar?redirectTo=%2Fportal%2Fcoreografias%3Festado%3Dpendiente&motivo=continuar",
+    );
+  });
+
+  test("uses the expired-session notice when a stale session cookie is present", async () => {
+    const response = await expectThrownResponse(
+      requireSignedInUser(
+        new Request("http://localhost/administracion", {
+          headers: {
+            cookie: "better-auth.session_token=sesion-invalida",
+          },
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/ingresar?redirectTo=%2Fadministracion&motivo=expirada",
+    );
+  });
+
+  test("redirects private actions to login with the action path as destination", async () => {
+    const response = await expectThrownResponse(
+      requireSignedInUser(
+        new Request("http://localhost/administracion/usuarios/invitaciones", {
+          method: "POST",
+          body: new URLSearchParams({ email: "nuevo@example.com" }),
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Finvitaciones&motivo=continuar",
+    );
   });
 
   test("requires a signed-in user stored in the app domain", async () => {

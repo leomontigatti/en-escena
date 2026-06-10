@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
+import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { auth } from "@/lib/auth.server";
 import {
   requireInternalUser,
   requireSignedInUser,
@@ -35,6 +37,27 @@ export async function getLandingPathForUserId(userId: string) {
   });
 
   return appUser ? landingPaths[appUser.role] : "/ingresar";
+}
+
+export async function redirectSignedInUserFromPublicRoute(request: Request) {
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session) {
+    return null;
+  }
+
+  const appUser = await db.query.user.findFirst({
+    columns: { role: true },
+    where: eq(user.id, session.user.id),
+  });
+
+  if (!appUser) {
+    return null;
+  }
+
+  throw redirect(landingPaths[appUser.role]);
 }
 
 export async function requireAdminPanelUser(request: Request) {

@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { redirectToLoginForRequest } from "@/lib/access-redirects.server";
 import { auth } from "@/lib/auth.server";
 import {
   INTERNAL_USER_ROLES,
@@ -24,7 +24,7 @@ export async function requireSignedInUser(request: Request) {
   });
 
   if (!session) {
-    throw redirect("/ingresar");
+    redirectToLoginForRequest(request);
   }
 
   const appUser = await db.query.user.findFirst({
@@ -33,7 +33,7 @@ export async function requireSignedInUser(request: Request) {
   });
 
   if (!appUser) {
-    throw redirect("/ingresar");
+    redirectToLoginForRequest(request);
   }
 
   return appUser satisfies AppUser;

@@ -14,7 +14,7 @@ vi.mock("@/lib/internal-navigation.server", () => ({
   getLandingPathForUserId: vi.fn(),
 }));
 
-import { action as loginAction } from "@/routes/ingresar";
+import { action as loginAction, getLoginNotice } from "@/routes/ingresar";
 
 describe("access UI validation", () => {
   test("returns field errors for invalid login submissions", async () => {
@@ -41,5 +41,35 @@ describe("access UI validation", () => {
         password: "Ingresá tu contraseña.",
       },
     });
+  });
+
+  test.each([
+    [
+      "continuar",
+      {
+        variant: "info",
+        message: "Ingresá para continuar.",
+      },
+    ],
+    [
+      "expirada",
+      {
+        variant: "error",
+        message: "Tu sesión expiró. Volvé a ingresar.",
+      },
+    ],
+  ] as const)("returns the %s login notice", (reason, notice) => {
+    expect(getLoginNotice(new URLSearchParams({ motivo: reason }))).toEqual(
+      notice,
+    );
+  });
+
+  test("keeps the recovery success login notice", () => {
+    expect(getLoginNotice(new URLSearchParams({ recuperacion: "ok" }))).toEqual(
+      {
+        variant: "success",
+        message: "Tu contraseña fue actualizada. Ya podés ingresar.",
+      },
+    );
   });
 });
