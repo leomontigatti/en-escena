@@ -3,15 +3,11 @@ import { CalendarDays, MailPlus, LogOut } from "lucide-react";
 import { Link } from "react-router";
 import { clsx } from "clsx";
 
-export type AdminShellEvent = {
-  id: string;
-  name: string;
-  active: boolean;
-};
+import type { AdminEventOption } from "@/lib/admin-event-context.shared";
 
 type AdminShellProps = {
   email: string;
-  events: AdminShellEvent[];
+  events: AdminEventOption[];
   selectedEventId: string | null;
   title: string;
   children: ReactNode;
@@ -41,10 +37,9 @@ export function AdminShell({
 }: AdminShellProps) {
   const selectedEvent =
     events.find((event) => event.id === selectedEventId) ?? null;
-  const hasEventContext = Boolean(selectedEvent);
-  const showMissingActiveEvent = showEventSelector && !hasEventContext;
+  const showMissingActiveEvent = showEventSelector && !selectedEvent;
   const showLimitedOperation =
-    showEventSelector && selectedEvent ? !selectedEvent.active : false;
+    showEventSelector && selectedEvent !== null && !selectedEvent.active;
 
   return (
     <>

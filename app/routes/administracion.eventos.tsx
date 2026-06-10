@@ -1,5 +1,8 @@
 import { AdminShell } from "@/components/admin-shell";
-import { loadAdminEventContext } from "@/lib/admin-event-context.server";
+import {
+  loadAdminEventContext,
+  type AdminEventContext,
+} from "@/lib/admin-event-context.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion.eventos";
@@ -7,7 +10,7 @@ import type { Route } from "./+types/administracion.eventos";
 type AdministracionEventosRouteProps = {
   loaderData: {
     email: string;
-    events: Awaited<ReturnType<typeof loadAdminEventContext>>["events"];
+    events: AdminEventContext["events"];
   };
 };
 

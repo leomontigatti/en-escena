@@ -2,15 +2,15 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import type { AdminShellEvent } from "@/components/admin-shell";
+import type { AdminEventOption } from "@/lib/admin-event-context.shared";
 
 type ResolveAdminEventContextInput = {
   requestUrl: string;
-  events: AdminShellEvent[];
+  events: AdminEventOption[];
 };
 
-type AdminEventContext = {
-  events: AdminShellEvent[];
+export type AdminEventContext = {
+  events: AdminEventOption[];
   selectedEventId: string | null;
   redirectTo: string | null;
 };
@@ -44,22 +44,22 @@ export function resolveAdminEventContext({
   const requestedEventId = url.searchParams.get("evento");
   const requestedEvent = events.find((event) => event.id === requestedEventId);
   const activeEvent = events.find((event) => event.active);
-  const selectedEventId = requestedEvent?.id ?? activeEvent?.id ?? null;
 
-  if (requestedEvent?.id === selectedEventId) {
-    return { selectedEventId, redirectTo: null };
+  if (requestedEvent) {
+    return { selectedEventId: requestedEvent.id, redirectTo: null };
   }
 
-  if (!selectedEventId) {
+  if (!activeEvent) {
     if (requestedEventId) {
       url.searchParams.delete("evento");
 
-      return { selectedEventId, redirectTo: toPathAndSearch(url) };
+      return { selectedEventId: null, redirectTo: toPathAndSearch(url) };
     }
 
-    return { selectedEventId, redirectTo: null };
+    return { selectedEventId: null, redirectTo: null };
   }
 
+  const selectedEventId = activeEvent.id;
   url.searchParams.set("evento", selectedEventId);
 
   return { selectedEventId, redirectTo: toPathAndSearch(url) };

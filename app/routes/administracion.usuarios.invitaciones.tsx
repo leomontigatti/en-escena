@@ -19,6 +19,11 @@ const invitationSchema = z.object({
   }),
 });
 
+const actionStatusClasses = {
+  error: "rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800",
+  success: "rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800",
+} as const;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Invitar usuario interno | En Escena" },
 ];
@@ -117,13 +122,7 @@ export function InvitacionesInternasRouteView({
           </label>
 
           {actionData ? (
-            <p
-              className={
-                actionData.status === "success"
-                  ? "rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-                  : "rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800"
-              }
-            >
+            <p className={actionStatusClasses[actionData.status]}>
               {actionData.message}
             </p>
           ) : null}
