@@ -1,5 +1,5 @@
 import { AccessSecondaryLink } from "@/components/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
+import { PortalEmptyListSection, PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 
 type PortalBailarinesRouteProps = {
@@ -30,23 +30,12 @@ export function PortalBailarinesRouteView({
         <>Gestioná los bailarines de la academia antes de armar coreografías.</>
       }
     >
-      <section className="mt-8" aria-labelledby="bailarines-title">
-        <div>
-          <p
-            id="bailarines-title"
-            className="text-sm font-semibold text-slate-950"
-          >
-            Bailarines
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Esta lista muestra solo los bailarines cargados por tu academia.
-          </p>
-        </div>
-        <PortalEmptyList
-          title="Todavía no cargaste bailarines"
-          description="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
-        />
-      </section>
+      <PortalEmptyListSection
+        title="Bailarines"
+        description="Esta lista muestra solo los bailarines cargados por tu academia."
+        emptyTitle="Todavía no cargaste bailarines"
+        emptyDescription="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
+      />
 
       <AccessSecondaryLink to="/portal" className="mt-8">
         Volver al inicio

@@ -1,5 +1,5 @@
 import { AccessSecondaryLink } from "@/components/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
+import { PortalEmptyListSection, PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 
 type PortalProfesoresRouteProps = {
@@ -33,23 +33,12 @@ export function PortalProfesoresRouteView({
         </>
       }
     >
-      <section className="mt-8" aria-labelledby="profesores-title">
-        <div>
-          <p
-            id="profesores-title"
-            className="text-sm font-semibold text-slate-950"
-          >
-            Profesores
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Esta lista muestra solo los profesores cargados por tu academia.
-          </p>
-        </div>
-        <PortalEmptyList
-          title="Todavía no cargaste profesores"
-          description="Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías."
-        />
-      </section>
+      <PortalEmptyListSection
+        title="Profesores"
+        description="Esta lista muestra solo los profesores cargados por tu academia."
+        emptyTitle="Todavía no cargaste profesores"
+        emptyDescription="Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías."
+      />
 
       <AccessSecondaryLink to="/portal" className="mt-8">
         Volver al inicio

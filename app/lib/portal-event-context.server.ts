@@ -2,7 +2,7 @@ import { db } from "@/db";
 import type {
   PortalEventContext,
   PortalEventSummary,
-} from "@/components/portal-ui";
+} from "@/lib/portal-event-context";
 
 const portalEventQueryParamName = "evento";
 

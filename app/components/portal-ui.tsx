@@ -7,31 +7,13 @@ import {
   AccessPage,
   PrivateAccessHeader,
 } from "@/components/access-ui";
+import type { PortalEventContext } from "@/lib/portal-event-context";
 
 type PortalShellProps = {
   email: string;
   academyName: string;
   description: ReactNode;
   children: ReactNode;
-};
-
-export type PortalEventSummary = {
-  id: string;
-  name: string;
-  active: boolean;
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
-  startsAt: Date;
-  endsAt: Date;
-};
-
-export type PortalEventContext = {
-  queryParamName: string;
-  events: PortalEventSummary[];
-  selectedEvent: PortalEventSummary | null;
-  hasEvents: boolean;
-  isReadOnly: boolean;
-  isRegistrationOpen: boolean;
 };
 
 const portalNavigationItems = [
@@ -102,6 +84,34 @@ export function PortalEmptyList({ title, description }: PortalEmptyListProps) {
   );
 }
 
+type PortalEmptyListSectionProps = {
+  title: string;
+  description: string;
+  emptyTitle: string;
+  emptyDescription: string;
+};
+
+export function PortalEmptyListSection({
+  title,
+  description,
+  emptyTitle,
+  emptyDescription,
+}: PortalEmptyListSectionProps) {
+  const titleId = `${title.toLowerCase()}-title`;
+
+  return (
+    <section className="mt-8" aria-labelledby={titleId}>
+      <div>
+        <p id={titleId} className="text-sm font-semibold text-slate-950">
+          {title}
+        </p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+      </div>
+      <PortalEmptyList title={emptyTitle} description={emptyDescription} />
+    </section>
+  );
+}
+
 export function PortalCoreographiesSection({
   eventContext,
 }: {
@@ -112,6 +122,10 @@ export function PortalCoreographiesSection({
     selectedEvent !== null &&
     !eventContext.isReadOnly &&
     eventContext.isRegistrationOpen;
+  const eventStatus = getPortalEventStatus(eventContext.isReadOnly);
+  const creationAvailabilityMessage = getCoreographyCreationMessage(
+    canCreateCoreographies,
+  );
 
   return (
     <section className="mt-8" aria-labelledby="coreografias-title">
@@ -143,20 +157,10 @@ export function PortalCoreographiesSection({
                   No hay coreografías registradas para este evento.
                 </p>
               </div>
-              <span
-                className={
-                  eventContext.isReadOnly
-                    ? "inline-flex w-fit rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
-                    : "inline-flex w-fit rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800"
-                }
-              >
-                {eventContext.isReadOnly ? "Solo lectura" : "Contexto editable"}
-              </span>
+              <span className={eventStatus.className}>{eventStatus.label}</span>
             </div>
             <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-              {canCreateCoreographies
-                ? "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta."
-                : "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta."}
+              {creationAvailabilityMessage}
             </p>
           </>
         ) : (
@@ -174,6 +178,30 @@ export function PortalCoreographiesSection({
       </div>
     </section>
   );
+}
+
+function getPortalEventStatus(isReadOnly: boolean) {
+  if (isReadOnly) {
+    return {
+      label: "Solo lectura",
+      className:
+        "inline-flex w-fit rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800",
+    };
+  }
+
+  return {
+    label: "Contexto editable",
+    className:
+      "inline-flex w-fit rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800",
+  };
+}
+
+function getCoreographyCreationMessage(canCreateCoreographies: boolean) {
+  if (canCreateCoreographies) {
+    return "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.";
+  }
+
+  return "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta.";
 }
 
 function PortalEventSelector({

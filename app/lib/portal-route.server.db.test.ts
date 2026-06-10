@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import { loader as portalLoader } from "@/routes/portal";
 import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
+import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
 import { loader as profesoresLoader } from "@/routes/portal.profesores";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
@@ -109,6 +110,11 @@ describe("portal loader Evento consultado", () => {
 describe("portal people list loaders", () => {
   test.each([
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
+    [
+      "Coreografías",
+      coreografiasLoader,
+      "http://localhost/portal/coreografias",
+    ],
     ["Profesores", profesoresLoader, "http://localhost/portal/profesores"],
   ])(
     "allows an Academia user to access %s",
@@ -126,6 +132,11 @@ describe("portal people list loaders", () => {
 
   test.each([
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
+    [
+      "Coreografías",
+      coreografiasLoader,
+      "http://localhost/portal/coreografias",
+    ],
     ["Profesores", profesoresLoader, "http://localhost/portal/profesores"],
   ])("blocks internal users from %s", async (_name, routeLoader, url) => {
     const response = await expectThrownResponse(
