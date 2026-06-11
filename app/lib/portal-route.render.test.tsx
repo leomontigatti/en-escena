@@ -298,13 +298,73 @@ describe("portal route view", () => {
 
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Solo lectura");
+    expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toContain("Categoría pendiente");
     expect(markup).toContain("Pendiente: Categoría, Profesores");
+    expect(markup).toContain("Pendientes operativos: Categoría, Profesores");
     expect(markup).toContain("Edad al inicio del Evento: 14");
     expect(markup).toContain("Archivado");
     expect(markup).toContain("Volver a Coreografías");
+  });
+
+  test("shows editable Profesores on active Coreografía detail and keeps archived linked options visible", () => {
+    const markup = renderCoreografiaDetalle({
+      loaderData: coreografiaDetalleLoaderData({
+        availableProfessors: [
+          {
+            id: "prof_1",
+            firstName: "Luz",
+            lastName: "Activa",
+            active: true,
+          },
+          {
+            id: "prof_2",
+            firstName: "Mora",
+            lastName: "Archivada",
+            active: false,
+          },
+        ],
+        eventContext: {
+          queryParamName: "evento",
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: false,
+        },
+        choreography: choreographyDetailRow({
+          operationalStatus: {
+            code: "complete",
+            pendingItems: [],
+          },
+          professors: [
+            {
+              id: "prof_2",
+              firstName: "Mora",
+              lastName: "Archivada",
+              active: false,
+            },
+          ],
+        }),
+        successMessage: "Profesores actualizados correctamente.",
+      }),
+    });
+
+    expect(markup).toContain("Contexto editable");
+    expect(markup).toContain("Editable");
+    expect(markup).toContain("Profesores actualizados correctamente.");
+    expect(markup).toContain("Guardar Profesores");
+    expect(markup).toContain("Disponible para nuevas asignaciones.");
+    expect(markup).toContain(
+      "Archivado pero conservado por vínculo existente.",
+    );
+    expect(markup).toContain("Estado operativo al día.");
+    expect(markup).toContain('value="update-choreography-professors"');
   });
 
   test("shows the Bailarines empty list surface", () => {
@@ -876,7 +936,9 @@ function coreografiaDetalleLoaderData(
 ) {
   return {
     ...coreografiasLoaderData(),
+    availableProfessors: [],
     choreography: choreographyDetailRow(),
+    successMessage: null,
     ...overrides,
   };
 }
