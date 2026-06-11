@@ -33,6 +33,8 @@ import {
   AdministracionAjustesLayoutView,
   type AdministracionAjustesLoaderData,
   AdministracionAjustesModalidadesRouteView,
+  AdministracionAjustesPrecioDetalleRouteView,
+  AdministracionAjustesPrecioNuevaRouteView,
   AdministracionAjustesPreciosRouteView,
   loader,
 } from "@/routes/administracion.ajustes";
@@ -157,6 +159,7 @@ describe("administracion/ajustes route", () => {
 
     const indexMarkup = renderIndexRoute(data);
     const modalidadesMarkup = renderModalidadesRoute(data);
+    const precioNuevoMarkup = renderPrecioNuevoRoute(data);
 
     expect(indexMarkup).toContain(
       "Elegí un Evento de trabajo para configurar Ajustes",
@@ -164,8 +167,14 @@ describe("administracion/ajustes route", () => {
     expect(modalidadesMarkup).toContain(
       "Elegí un Evento de trabajo para configurar Ajustes",
     );
+    expect(precioNuevoMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
     expect(modalidadesMarkup).not.toContain(
       'name="intent" value="create-modality"',
+    );
+    expect(precioNuevoMarkup).not.toContain(
+      'name="intent" value="create-price"',
     );
   });
 
@@ -454,7 +463,83 @@ describe("administracion/ajustes route", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("creates, edits and deletes Precios through the admin action", async () => {
+  test("renders the Precios list with alcance and dedicated route actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    await createModality(event.id, { name: "Jazz" });
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.eventId, event.id),
+    });
+    await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 24,
+        modalityIds: [modality?.id ?? ""],
+      }),
+    );
+    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    });
+
+    const createBasePriceRequest = await createSignedInRequest({
+      email: "admin.precio.base.lista@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/precios/nuevo?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "Solo general",
+        groupType: "solo",
+        amount: "12000",
+        scheduleBlockId: "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createBasePriceRequest.request)),
+      302,
+    );
+
+    const createBlockPriceRequest = await createSignedInRequest({
+      email: "admin.precio.bloque.lista@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/precios/nuevo?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "Solo sábado",
+        groupType: "solo",
+        amount: "15000",
+        scheduleBlockId: scheduleBlock?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createBlockPriceRequest.request)),
+      302,
+    );
+
+    const selectedRequest = await createSignedInRequest({
+      email: "admin.lista.precios@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(selectedRequest.request));
+    const markup = renderPreciosRoute(data);
+
+    expect(markup).toContain("Solo general");
+    expect(markup).toContain("Solo sábado");
+    expect(markup).toContain("Precio base");
+    expect(markup).toContain("Precio por Bloque horario");
+    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("Crear Precio");
+    expect(markup).toContain(
+      `/administracion/ajustes/precios/nuevo?evento=${event.id}`,
+    );
+    expect(markup).not.toContain('name="intent" value="create-price"');
+    expect(markup).not.toContain("Borrar Precio");
+  });
+
+  test("creates, edits and deletes Precios through dedicated create and detail routes", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });
     const modality = await db.query.modalities.findFirst({
@@ -481,7 +566,7 @@ describe("administracion/ajustes route", () => {
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios/nuevo?evento=${event.id}`,
       body: formData({
         intent: "create-price",
         name: "Solo sábado",
@@ -491,9 +576,14 @@ describe("administracion/ajustes route", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const createResponse = await expectThrownResponse(
       action(routeArgs(createPriceRequest.request)),
       302,
+    );
+    expect(createResponse.headers.get("location")).toMatch(
+      new RegExp(
+        `/administracion/ajustes/precios/[^?]+\\?evento=${event.id}&guardado=1`,
+      ),
     );
 
     const price = await db.query.prices.findFirst({
@@ -506,28 +596,48 @@ describe("administracion/ajustes route", () => {
       scheduleBlockId: scheduleBlock?.id,
     });
 
-    const data = await loader(
+    const createData = await loader(
       routeArgs(
         (
           await createSignedInRequest({
-            email: "admin.lista.precios@example.com",
+            email: "admin.form.precios@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/precios/nuevo?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderPreciosRoute(data);
+    const createMarkup = renderPrecioNuevoRoute(createData);
 
-    expect(markup).toContain("Solo sábado");
-    expect(markup).toContain("Solo");
-    expect(markup).toContain("$15000");
-    expect(markup).toContain("Sábado mañana");
+    expect(createMarkup).toContain(
+      "El Precio base aplica cuando no existe un Precio específico para el Bloque horario.",
+    );
+    expect(createMarkup).toContain('name="intent" value="create-price"');
+
+    const detailData = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.detalle.precio@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes/precios/${price?.id}?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const detailMarkup = renderPrecioDetalleRoute(detailData, price?.id ?? "");
+
+    expect(detailMarkup).toContain("Solo sábado");
+    expect(detailMarkup).toContain("Precio por Bloque horario");
+    expect(detailMarkup).toContain("Sábado mañana");
+    expect(detailMarkup).toContain('name="intent" value="update-price"');
+    expect(detailMarkup).toContain('name="intent" value="delete-price"');
+    expect(detailMarkup).toContain('name="confirmDeletion"');
 
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios/${price?.id}?evento=${event.id}`,
       body: formData({
         intent: "update-price",
         id: price?.id ?? "",
@@ -552,19 +662,40 @@ describe("administracion/ajustes route", () => {
       scheduleBlockId: null,
     });
 
-    const deletePriceRequest = await createSignedInRequest({
-      email: "admin.borra.precio@example.com",
+    const blockedDeletePriceRequest = await createSignedInRequest({
+      email: "admin.borra.precio.bloqueado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios/${price?.id}?evento=${event.id}`,
       body: formData({
         intent: "delete-price",
         id: price?.id ?? "",
       }),
     });
 
-    await expectThrownResponse(
+    await expect(
+      action(routeArgs(blockedDeletePriceRequest.request)),
+    ).resolves.toMatchObject({
+      status: "error",
+      message: "Confirmá el borrado del Precio.",
+    });
+
+    const deletePriceRequest = await createSignedInRequest({
+      email: "admin.borra.precio@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/precios/${price?.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-price",
+        id: price?.id ?? "",
+        confirmDeletion: price?.id ?? "",
+      }),
+    });
+
+    const deleteResponse = await expectThrownResponse(
       action(routeArgs(deletePriceRequest.request)),
       302,
+    );
+    expect(deleteResponse.headers.get("location")).toBe(
+      `/administracion/ajustes/precios?evento=${event.id}&guardado=1`,
     );
     await expect(
       db.query.prices.findFirst({
@@ -864,6 +995,28 @@ function renderPreciosRoute(loaderData: AdministracionAjustesLoaderData) {
     loaderData,
     "/administracion/ajustes/precios",
     createElement(AdministracionAjustesPreciosRouteView, { loaderData }),
+  );
+}
+
+function renderPrecioNuevoRoute(loaderData: AdministracionAjustesLoaderData) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/precios/nuevo",
+    createElement(AdministracionAjustesPrecioNuevaRouteView, { loaderData }),
+  );
+}
+
+function renderPrecioDetalleRoute(
+  loaderData: AdministracionAjustesLoaderData,
+  priceId: string,
+) {
+  return renderRoute(
+    loaderData,
+    `/administracion/ajustes/precios/${priceId}`,
+    createElement(AdministracionAjustesPrecioDetalleRouteView, {
+      loaderData,
+      priceId,
+    }),
   );
 }
 

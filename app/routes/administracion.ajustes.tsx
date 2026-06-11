@@ -1,5 +1,11 @@
 import { Settings } from "lucide-react";
-import { NavLink, Outlet, redirect, useOutletContext } from "react-router";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  redirect,
+  useOutletContext,
+} from "react-router";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
@@ -181,19 +187,34 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const result = await runCatalogIntent(
-    readCatalogActionInput(eventId, formData),
-  );
+  const input = readCatalogActionInput(eventId, formData);
+
+  if (
+    input.intent === "delete-price" &&
+    formData.get("confirmDeletion") !== input.id
+  ) {
+    return actionError("Confirmá el borrado del Precio.");
+  }
+
+  const result = await runCatalogIntent(input);
 
   if (!result.ok) {
     return actionError(result.error, result.fieldErrors);
   }
 
-  const redirectUrl = new URL(request.url);
-  redirectUrl.searchParams.set("evento", eventId);
-  redirectUrl.searchParams.set("guardado", "1");
-
-  throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
+  throw redirect(
+    buildCatalogRedirectUrl(
+      request.url,
+      eventId,
+      input,
+      "record" in result &&
+        result.record &&
+        typeof result.record === "object" &&
+        "id" in result.record
+        ? String(result.record.id)
+        : undefined,
+    ),
+  );
 }
 
 export function useAdministracionAjustesLoaderData() {
@@ -511,52 +532,119 @@ export function AdministracionAjustesBloquesHorariosRouteView({
 
 export function AdministracionAjustesPreciosRouteView({
   loaderData,
-  actionData: providedActionData,
-}: AdministracionAjustesSectionProps) {
+}: {
+  loaderData: AdministracionAjustesLoaderData;
+}) {
   return (
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
-      actionData={providedActionData}
       title="Precios"
-      description="Definí Precios base y Precios por Bloque horario para cada Tipo de grupo."
+      description="Revisá el alcance y el importe de cada Precio del Evento de trabajo."
     >
       <CatalogSection title="Precios">
-        <PriceForm
-          intent="create-price"
-          scheduleBlocks={loaderData.scheduleBlocks}
-          buttonLabel="Crear Precio"
-          fieldErrors={providedActionData?.fieldErrors}
-        />
         {loaderData.prices.length > 0 ? (
-          <ul className={catalogListClassName}>
-            {loaderData.prices.map((price) => (
-              <li key={price.id} className="space-y-3 p-4">
-                <PriceSummary price={price} />
-                <PriceForm
-                  id={price.id}
-                  intent="update-price"
-                  scheduleBlocks={loaderData.scheduleBlocks}
-                  name={price.name}
-                  groupType={price.groupType}
-                  amount={price.amount}
-                  scheduleBlockId={price.scheduleBlockId}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={price.id}
-                  intent="delete-price"
-                  buttonLabel="Borrar Precio"
-                />
-              </li>
-            ))}
-          </ul>
+          <PriceListTable
+            prices={loaderData.prices}
+            selectedEventId={loaderData.selectedEventId}
+          />
         ) : (
           <EmptyCatalogState>
             Todavía no hay Precios para este Evento.
           </EmptyCatalogState>
         )}
+        <div className="mt-4">
+          <Link
+            to={buildPriceCreatePath(loaderData.selectedEventId)}
+            className="inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          >
+            Crear Precio
+          </Link>
+        </div>
       </CatalogSection>
     </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesPrecioNuevaRouteView({
+  loaderData,
+  actionData,
+}: AdministracionAjustesSectionProps) {
+  return (
+    <AdministracionAjustesDetailLayout
+      loaderData={loaderData}
+      actionData={actionData}
+      sectionLabel="Precios"
+      sectionHref={buildSettingsPath("precios", loaderData.selectedEventId)}
+      title="Nuevo Precio"
+      description="Configurá nombre, Tipo de grupo, importe y si el Precio aplica como base o para un Bloque horario específico."
+    >
+      <CatalogSection title="Datos del Precio">
+        <PriceForm
+          intent="create-price"
+          scheduleBlocks={loaderData.scheduleBlocks}
+          buttonLabel="Crear Precio"
+          fieldErrors={actionData?.fieldErrors}
+          helperText="El Precio base aplica cuando no existe un Precio específico para el Bloque horario."
+        />
+      </CatalogSection>
+    </AdministracionAjustesDetailLayout>
+  );
+}
+
+export function AdministracionAjustesPrecioDetalleRouteView({
+  loaderData,
+  actionData,
+  priceId,
+}: AdministracionAjustesSectionProps & { priceId: string }) {
+  const price = loaderData.prices.find((item) => item.id === priceId);
+
+  if (!price) {
+    return (
+      <AdministracionAjustesDetailLayout
+        loaderData={loaderData}
+        actionData={actionData}
+        sectionLabel="Precios"
+        sectionHref={buildSettingsPath("precios", loaderData.selectedEventId)}
+        title="Precio no encontrado"
+        description="No encontramos ese Precio dentro del Evento de trabajo seleccionado."
+      >
+        <EmptyCatalogState>
+          No encontramos ese Precio. Volvé a la lista para elegir otro registro.
+        </EmptyCatalogState>
+      </AdministracionAjustesDetailLayout>
+    );
+  }
+
+  return (
+    <AdministracionAjustesDetailLayout
+      loaderData={loaderData}
+      actionData={actionData}
+      sectionLabel="Precios"
+      sectionHref={buildSettingsPath("precios", loaderData.selectedEventId)}
+      title={price.name}
+      description="Editá el alcance y el importe del Precio. El borrado solo está disponible desde esta pantalla."
+    >
+      <CatalogSection title="Resumen">
+        <PriceSummaryCard price={price} />
+      </CatalogSection>
+      <CatalogSection title="Editar Precio">
+        <PriceForm
+          id={price.id}
+          intent="update-price"
+          scheduleBlocks={loaderData.scheduleBlocks}
+          name={price.name}
+          groupType={price.groupType}
+          amount={price.amount}
+          scheduleBlockId={price.scheduleBlockId}
+          buttonLabel="Guardar"
+          fieldErrors={actionData?.fieldErrors}
+          helperText="El Precio base aplica cuando no existe un Precio específico para el Bloque horario."
+        />
+      </CatalogSection>
+      <CatalogSection title="Eliminar Precio">
+        <PriceDeleteForm priceId={price.id} />
+      </CatalogSection>
+    </AdministracionAjustesDetailLayout>
   );
 }
 
@@ -654,6 +742,46 @@ function AdministracionAjustesSectionLayout({
   );
 }
 
+function AdministracionAjustesDetailLayout({
+  actionData,
+  children,
+  description,
+  loaderData,
+  sectionHref,
+  sectionLabel,
+  title,
+}: {
+  actionData?: ActionData;
+  children: ReactNode;
+  description: string;
+  loaderData: AdministracionAjustesLoaderData;
+  sectionHref: string;
+  sectionLabel: string;
+  title: string;
+}) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        items={[
+          {
+            label: "Ajustes",
+            to: buildSettingsPath(null, loaderData.selectedEventId),
+          },
+          { label: sectionLabel, to: sectionHref },
+          { label: title },
+        ]}
+      />
+      <AjustesSectionHeader title={title} description={description} />
+      <ActionErrorBanner actionData={actionData} />
+      {children}
+    </div>
+  );
+}
+
 function AjustesSectionNavigation({
   selectedEventId,
 }: {
@@ -699,26 +827,43 @@ function buildSettingsNavLinkClass(isCurrent: boolean) {
 
 function AjustesBreadcrumbs({
   currentLabel,
+  items,
   selectedEventId,
 }: {
-  currentLabel: string;
-  selectedEventId: string | null;
+  currentLabel?: string;
+  items?: Array<{ label: string; to?: string }>;
+  selectedEventId?: string | null;
 }) {
+  const trail = items ?? [
+    {
+      label: "Ajustes",
+      to: buildSettingsPath(null, selectedEventId ?? null),
+    },
+    { label: currentLabel ?? "" },
+  ];
+
   return (
     <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
       <ol className="flex flex-wrap items-center gap-2">
-        <li>
-          <NavLink
-            to={buildSettingsPath(null, selectedEventId)}
-            className="font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
-          >
-            Ajustes
-          </NavLink>
-        </li>
-        <li aria-hidden="true" className="text-slate-400">
-          /
-        </li>
-        <li className="font-medium text-slate-950">{currentLabel}</li>
+        {trail.map((item, index) => (
+          <li key={`${item.label}-${index}`} className="contents">
+            {index > 0 ? (
+              <span aria-hidden="true" className="text-slate-400">
+                /
+              </span>
+            ) : null}
+            {item.to ? (
+              <NavLink
+                to={item.to}
+                className="font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+              >
+                {item.label}
+              </NavLink>
+            ) : (
+              <span className="font-medium text-slate-950">{item.label}</span>
+            )}
+          </li>
+        ))}
       </ol>
     </nav>
   );
@@ -1113,6 +1258,7 @@ function PriceForm({
   buttonLabel,
   fieldErrors = {},
   groupType,
+  helperText,
   id,
   intent,
   name,
@@ -1123,6 +1269,7 @@ function PriceForm({
   buttonLabel: string;
   fieldErrors?: Record<string, string>;
   groupType?: string;
+  helperText?: string;
   id?: string;
   intent: string;
   name?: string;
@@ -1136,6 +1283,11 @@ function PriceForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
+      {helperText ? (
+        <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-600">
+          {helperText}
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
           Nombre del Precio
@@ -1342,6 +1494,8 @@ function ScheduleEntryForm({
 }
 
 function PriceSummary({ price }: { price: PriceListItem }) {
+  const scope = getPriceScope(price);
+
   return (
     <div className="space-y-1 text-sm text-slate-700">
       <p className="font-semibold text-slate-950">{price.name}</p>
@@ -1349,11 +1503,142 @@ function PriceSummary({ price }: { price: PriceListItem }) {
         {groupTypeLabels[price.groupType]} · ${price.amount}
       </p>
       <p className="text-xs font-medium text-slate-500">
-        {price.scheduleBlock
-          ? price.scheduleBlock.name
-          : "Precio general del Evento"}
+        {scope.label}
+        {scope.detail ? ` · ${scope.detail}` : ""}
       </p>
     </div>
+  );
+}
+
+function PriceSummaryCard({ price }: { price: PriceListItem }) {
+  const scope = getPriceScope(price);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <PriceDetailItem label="Nombre" value={price.name} />
+        <PriceDetailItem
+          label="Tipo de grupo"
+          value={groupTypeLabels[price.groupType] ?? price.groupType}
+        />
+        <PriceDetailItem label="Alcance" value={scope.label} />
+        <PriceDetailItem label="Importe" value={`$${price.amount}`} />
+        <PriceDetailItem
+          label="Bloque horario"
+          value={scope.detail ?? "Sin Bloque horario específico"}
+        />
+      </dl>
+    </div>
+  );
+}
+
+function PriceDetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="text-sm text-slate-800">{value}</dd>
+    </div>
+  );
+}
+
+function PriceListTable({
+  prices,
+  selectedEventId,
+}: {
+  prices: PriceListItem[];
+  selectedEventId: string | null;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-600">
+          <tr>
+            <th scope="col" className="px-4 py-3">
+              Nombre
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Tipo de grupo
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Alcance
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Importe
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {prices.map((price) => {
+            const scope = getPriceScope(price);
+
+            return (
+              <tr key={price.id} className="bg-white">
+                <td className="px-4 py-3 align-top font-medium text-slate-950">
+                  {price.name}
+                </td>
+                <td className="px-4 py-3 align-top text-slate-700">
+                  {groupTypeLabels[price.groupType] ?? price.groupType}
+                </td>
+                <td className="px-4 py-3 align-top text-slate-700">
+                  <p>{scope.label}</p>
+                  {scope.detail ? (
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {scope.detail}
+                    </p>
+                  ) : null}
+                </td>
+                <td className="px-4 py-3 align-top text-slate-700">
+                  ${price.amount}
+                </td>
+                <td className="px-4 py-3 align-top">
+                  <Link
+                    to={buildPriceDetailPath(price.id, selectedEventId)}
+                    className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                  >
+                    Ver detalle
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PriceDeleteForm({ priceId }: { priceId: string }) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <input type="hidden" name="intent" value="delete-price" />
+      <input type="hidden" name="id" value={priceId} />
+      <p className="text-sm leading-6 text-red-900">
+        Esta acción elimina el Precio si no tiene dependencias asociadas.
+      </p>
+      <label className="mt-3 flex items-start gap-2 text-sm text-red-900">
+        <input
+          type="checkbox"
+          name="confirmDeletion"
+          value={priceId}
+          className="mt-1 size-4 rounded border-red-300 text-red-700 focus:ring-red-100"
+        />
+        Confirmo que quiero borrar este Precio.
+      </label>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
+      >
+        Borrar Precio
+      </button>
+    </form>
   );
 }
 
@@ -1716,6 +2001,62 @@ function getScheduleEntryInput(input: CatalogActionInput): ScheduleEntryInput {
     groupTypes: input.groupTypes,
     capacity: input.capacity,
   };
+}
+
+function buildCatalogRedirectUrl(
+  requestUrl: string,
+  eventId: string,
+  input: CatalogActionInput,
+  recordId?: string,
+) {
+  const url = new URL(requestUrl);
+
+  if (input.intent === "create-price") {
+    url.pathname = recordId
+      ? `/administracion/ajustes/precios/${recordId}`
+      : "/administracion/ajustes/precios";
+  } else if (input.intent === "delete-price") {
+    url.pathname = "/administracion/ajustes/precios";
+  }
+
+  url.searchParams.set("evento", eventId);
+  url.searchParams.set("guardado", "1");
+
+  return `${url.pathname}${url.search}`;
+}
+
+function buildPriceCreatePath(selectedEventId: string | null) {
+  return appendEventQuery(
+    "/administracion/ajustes/precios/nuevo",
+    selectedEventId,
+  );
+}
+
+function buildPriceDetailPath(priceId: string, selectedEventId: string | null) {
+  return appendEventQuery(
+    `/administracion/ajustes/precios/${priceId}`,
+    selectedEventId,
+  );
+}
+
+function appendEventQuery(pathname: string, selectedEventId: string | null) {
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
+function getPriceScope(price: PriceListItem) {
+  return price.scheduleBlock
+    ? {
+        label: "Precio por Bloque horario",
+        detail: price.scheduleBlock.name,
+      }
+    : {
+        label: "Precio base",
+        detail: null,
+      };
 }
 
 function formatDate(value: string) {
