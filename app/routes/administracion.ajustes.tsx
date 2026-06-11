@@ -98,6 +98,16 @@ type AdministracionAjustesSectionLayoutProps =
     children: ReactNode;
   };
 
+type BreadcrumbItem = {
+  label: string;
+  to?: string;
+};
+
+type PriceScope = {
+  label: string;
+  detail: string | null;
+};
+
 type AjustesSectionKey =
   | "categorias"
   | "modalidades"
@@ -138,6 +148,9 @@ const groupTypeOptions = Object.entries(groupTypeLabels).map(
     label,
   }),
 );
+
+const PRICE_BASE_HELPER_TEXT =
+  "El Precio base aplica cuando no existe un Precio específico para el Bloque horario.";
 
 export const meta = () => [{ title: "Ajustes de administración | En Escena" }];
 
@@ -202,18 +215,10 @@ export async function action({ request }: Route.ActionArgs) {
     return actionError(result.error, result.fieldErrors);
   }
 
+  const recordId = getCatalogResultRecordId(result);
+
   throw redirect(
-    buildCatalogRedirectUrl(
-      request.url,
-      eventId,
-      input,
-      "record" in result &&
-        result.record &&
-        typeof result.record === "object" &&
-        "id" in result.record
-        ? String(result.record.id)
-        : undefined,
-    ),
+    buildCatalogRedirectPath(request.url, eventId, input.intent, recordId),
   );
 }
 
@@ -584,7 +589,7 @@ export function AdministracionAjustesPrecioNuevaRouteView({
           scheduleBlocks={loaderData.scheduleBlocks}
           buttonLabel="Crear Precio"
           fieldErrors={actionData?.fieldErrors}
-          helperText="El Precio base aplica cuando no existe un Precio específico para el Bloque horario."
+          helperText={PRICE_BASE_HELPER_TEXT}
         />
       </CatalogSection>
     </AdministracionAjustesDetailLayout>
@@ -638,7 +643,7 @@ export function AdministracionAjustesPrecioDetalleRouteView({
           scheduleBlockId={price.scheduleBlockId}
           buttonLabel="Guardar"
           fieldErrors={actionData?.fieldErrors}
-          helperText="El Precio base aplica cuando no existe un Precio específico para el Bloque horario."
+          helperText={PRICE_BASE_HELPER_TEXT}
         />
       </CatalogSection>
       <CatalogSection title="Eliminar Precio">
@@ -831,7 +836,7 @@ function AjustesBreadcrumbs({
   selectedEventId,
 }: {
   currentLabel?: string;
-  items?: Array<{ label: string; to?: string }>;
+  items?: BreadcrumbItem[];
   selectedEventId?: string | null;
 }) {
   const trail = items ?? [
@@ -1493,23 +1498,6 @@ function ScheduleEntryForm({
   );
 }
 
-function PriceSummary({ price }: { price: PriceListItem }) {
-  const scope = getPriceScope(price);
-
-  return (
-    <div className="space-y-1 text-sm text-slate-700">
-      <p className="font-semibold text-slate-950">{price.name}</p>
-      <p>
-        {groupTypeLabels[price.groupType]} · ${price.amount}
-      </p>
-      <p className="text-xs font-medium text-slate-500">
-        {scope.label}
-        {scope.detail ? ` · ${scope.detail}` : ""}
-      </p>
-    </div>
-  );
-}
-
 function PriceSummaryCard({ price }: { price: PriceListItem }) {
   const scope = getPriceScope(price);
 
@@ -2003,26 +1991,47 @@ function getScheduleEntryInput(input: CatalogActionInput): ScheduleEntryInput {
   };
 }
 
-function buildCatalogRedirectUrl(
+function getCatalogResultRecordId(
+  result: Awaited<ReturnType<typeof runCatalogIntent>>,
+) {
+  if (
+    !("record" in result) ||
+    !result.record ||
+    typeof result.record !== "object"
+  ) {
+    return undefined;
+  }
+
+  return "id" in result.record ? String(result.record.id) : undefined;
+}
+
+function buildCatalogRedirectPath(
   requestUrl: string,
   eventId: string,
-  input: CatalogActionInput,
+  intent: CatalogActionInput["intent"],
   recordId?: string,
 ) {
   const url = new URL(requestUrl);
 
-  if (input.intent === "create-price") {
-    url.pathname = recordId
-      ? `/administracion/ajustes/precios/${recordId}`
-      : "/administracion/ajustes/precios";
-  } else if (input.intent === "delete-price") {
-    url.pathname = "/administracion/ajustes/precios";
+  switch (intent) {
+    case "create-price":
+      url.pathname = recordId
+        ? buildPriceDetailPath(recordId, null)
+        : buildPriceListPath(null);
+      break;
+    case "delete-price":
+      url.pathname = buildPriceListPath(null);
+      break;
   }
 
   url.searchParams.set("evento", eventId);
   url.searchParams.set("guardado", "1");
 
   return `${url.pathname}${url.search}`;
+}
+
+function buildPriceListPath(selectedEventId: string | null) {
+  return appendEventQuery("/administracion/ajustes/precios", selectedEventId);
 }
 
 function buildPriceCreatePath(selectedEventId: string | null) {
@@ -2047,16 +2056,18 @@ function appendEventQuery(pathname: string, selectedEventId: string | null) {
   return `${pathname}?evento=${selectedEventId}`;
 }
 
-function getPriceScope(price: PriceListItem) {
-  return price.scheduleBlock
-    ? {
-        label: "Precio por Bloque horario",
-        detail: price.scheduleBlock.name,
-      }
-    : {
-        label: "Precio base",
-        detail: null,
-      };
+function getPriceScope(price: PriceListItem): PriceScope {
+  if (price.scheduleBlock) {
+    return {
+      label: "Precio por Bloque horario",
+      detail: price.scheduleBlock.name,
+    };
+  }
+
+  return {
+    label: "Precio base",
+    detail: null,
+  };
 }
 
 function formatDate(value: string) {
