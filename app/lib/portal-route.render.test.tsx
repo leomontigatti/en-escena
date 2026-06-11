@@ -95,6 +95,7 @@ describe("portal route view", () => {
     const markup = renderBailarines();
 
     expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Cargar Bailarín");
     expect(markup).toContain("Todavía no cargaste bailarines");
     expect(markup).toContain(
       "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías.",
@@ -103,6 +104,65 @@ describe("portal route view", () => {
     expect(markup).toContain('href="/portal/profesores"');
     expect(markup).toContain('href="/portal/coreografias"');
     expect(markup).toContain('aria-current="page"');
+  });
+
+  test("shows ordered Bailarines with date, document and incomplete verification state", () => {
+    const markup = renderBailarines({
+      dancers: [
+        dancerListItem({
+          firstName: "Ana",
+          lastName: "Alvarez",
+          birthDate: "2014-02-01",
+        }),
+        dancerListItem({
+          firstName: "Juan Manuel",
+          lastName: "Cruz de la Torre",
+          birthDate: "2015-04-03",
+        }),
+      ],
+    });
+
+    expect(markup).toContain("Alvarez, Ana");
+    expect(markup).toContain("01/02/2014");
+    expect(markup).toContain("Cruz de la Torre, Juan Manuel");
+    expect(markup).toContain("03/04/2015");
+    expect(markup).toContain("Sin documento");
+    expect(markup).toContain("Incompleto");
+    expect(markup.indexOf("Alvarez, Ana")).toBeLessThan(
+      markup.indexOf("Cruz de la Torre, Juan Manuel"),
+    );
+  });
+
+  test("keeps the Bailarín modal open with errors and previous values", () => {
+    const markup = renderBailarines({
+      actionData: {
+        status: "error",
+        error: "Revisá los datos del Bailarín.",
+        fieldErrors: {
+          firstName: "Ingresá el nombre.",
+          birthDate: "La fecha de nacimiento no puede ser futura.",
+        },
+        values: {
+          firstName: "",
+          lastName: "López",
+          birthDate: "2999-01-01",
+        },
+      },
+    });
+
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain("Revisá los datos del Bailarín.");
+    expect(markup).toContain("Ingresá el nombre.");
+    expect(markup).toContain("La fecha de nacimiento no puede ser futura.");
+    expect(markup).toContain('name="lastName" value="López"');
+    expect(markup).toContain('name="birthDate" value="2999-01-01"');
+  });
+
+  test("shows a success banner after creating a Bailarín", () => {
+    const markup = renderBailarines({ created: true });
+
+    expect(markup).toContain("El Bailarín se creó correctamente.");
+    expect(markup).not.toContain('role="dialog"');
   });
 
   test("shows the Profesores empty list surface", () => {
@@ -144,10 +204,25 @@ function renderPortal(input: {
   );
 }
 
-function renderBailarines() {
+function renderBailarines(
+  input: Partial<
+    Pick<
+      Parameters<typeof PortalBailarinesRouteView>[0],
+      "actionData" | "created"
+    >
+  > & {
+    dancers?: Parameters<
+      typeof PortalBailarinesRouteView
+    >[0]["loaderData"]["dancers"];
+  } = {},
+) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/bailarines"]}>
-      <PortalBailarinesRouteView loaderData={academyLoaderData()} />
+      <PortalBailarinesRouteView
+        actionData={input.actionData}
+        created={input.created}
+        loaderData={academyLoaderData({ dancers: input.dancers ?? [] })}
+      />
     </MemoryRouter>,
   );
 }
@@ -160,7 +235,13 @@ function renderProfesores() {
   );
 }
 
-function academyLoaderData() {
+function academyLoaderData({
+  dancers = [],
+}: {
+  dancers?: Parameters<
+    typeof PortalBailarinesRouteView
+  >[0]["loaderData"]["dancers"];
+} = {}) {
   return {
     email: "portal@example.com",
     academy: {
@@ -170,6 +251,26 @@ function academyLoaderData() {
       contactName: "Contacto",
       phone: "11 1234-5678",
     },
+    dancers,
+  };
+}
+
+function dancerListItem(
+  overrides: Partial<
+    Parameters<
+      typeof PortalBailarinesRouteView
+    >[0]["loaderData"]["dancers"][number]
+  > = {},
+) {
+  return {
+    id: "dancer_1",
+    firstName: "Bailarina",
+    lastName: "Prueba",
+    birthDate: "2015-01-01",
+    documentType: null,
+    documentNumber: null,
+    verificationStatus: "incomplete" as const,
+    ...overrides,
   };
 }
 

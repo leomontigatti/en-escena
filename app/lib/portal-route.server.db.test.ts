@@ -1,12 +1,15 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import { academies, dancers, user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import { loader as portalLoader } from "@/routes/portal";
-import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
+import {
+  action as bailarinesAction,
+  loader as bailarinesLoader,
+} from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
 import { loader as profesoresLoader } from "@/routes/portal.profesores";
 
@@ -14,7 +17,7 @@ import { installDatabaseTestHooks } from "../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("portal loader Evento consultado", () => {
+describe.sequential("portal loader Evento consultado", () => {
   test("defaults to the active Evento and exposes every Evento for the selector", async () => {
     const historicalEvent = await createSavedEvent({
       name: "Regional 2025",
@@ -107,7 +110,7 @@ describe("portal loader Evento consultado", () => {
   });
 });
 
-describe("portal people list loaders", () => {
+describe.sequential("portal people list loaders", () => {
   test.each([
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
     [
@@ -152,6 +155,121 @@ describe("portal people list loaders", () => {
   });
 });
 
+describe.sequential("portal Bailarines route", () => {
+  test("creates normalized Bailarines for the signed-in Academia and lists only that Academia ordered by apellido and nombre", async () => {
+    const ownerSession = await createAcademySession({
+      email: "bailarines.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const otherAcademy = await createAcademyRecord({
+      email: "bailarines.other@example.com",
+      academyName: "Academia Ajena",
+    });
+
+    await expectThrownResponse(
+      bailarinesAction({
+        request: createPortalPostRequest(
+          "http://localhost/portal/bailarines",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "  juan manuel ",
+            lastName: " cruz de la torre ",
+            birthDate: "2015-04-03",
+          }),
+        ),
+      }),
+    );
+    await expectThrownResponse(
+      bailarinesAction({
+        request: createPortalPostRequest(
+          "http://localhost/portal/bailarines",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "ana",
+            lastName: "ALVAREZ",
+            birthDate: "2014-02-01",
+          }),
+        ),
+      }),
+    );
+    await db.insert(dancers).values({
+      academyId: otherAcademy.id,
+      firstName: "Otra",
+      lastName: "Academia",
+      birthDate: "2013-01-01",
+    });
+
+    const ownerLoaderData = await bailarinesLoader({
+      request: new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: ownerSession.cookie },
+      }),
+    });
+
+    expect(ownerLoaderData.dancers).toMatchObject([
+      {
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+      {
+        firstName: "Juan Manuel",
+        lastName: "Cruz de la Torre",
+        birthDate: "2015-04-03",
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+    ]);
+    expect(ownerLoaderData.dancers).toHaveLength(2);
+
+    await expect(
+      db.query.dancers.findFirst({
+        where: and(
+          eq(dancers.academyId, ownerSession.academyId),
+          eq(dancers.firstName, "Juan Manuel"),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "Juan Manuel",
+      lastName: "Cruz de la Torre",
+      birthDate: "2015-04-03",
+    });
+  });
+
+  test("rejects future Bailarín birth dates without creating a record", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.future@example.com",
+      academyName: "Academia Futuro",
+    });
+
+    const result = await bailarinesAction({
+      request: createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        session.cookie,
+        dancerFormData({
+          firstName: "Martina",
+          lastName: "López",
+          birthDate: "2999-01-01",
+        }),
+      ),
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        birthDate: "La fecha de nacimiento no puede ser futura.",
+      },
+      values: {
+        firstName: "Martina",
+        lastName: "López",
+        birthDate: "2999-01-01",
+      },
+    });
+    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
+  });
+});
+
 async function loadPortal(requestUrl: string) {
   return await portalLoader({
     request: await createAcademyRequest(requestUrl),
@@ -163,10 +281,29 @@ async function loadPortal(requestUrl: string) {
 }
 
 async function createAcademyRequest(requestUrl: string) {
+  const session = await createAcademySession({
+    email: "academia@example.com",
+    academyName: "Academia de Prueba",
+  });
+
+  return new Request(requestUrl, {
+    headers: {
+      cookie: session.cookie,
+    },
+  });
+}
+
+async function createAcademySession({
+  academyName,
+  email,
+}: {
+  academyName: string;
+  email: string;
+}) {
   const signUpResult = await auth.api.signUpEmail({
     body: {
-      email: "academia@example.com",
-      name: "academia@example.com",
+      email,
+      name: email,
       password: "password-segura",
     },
     returnHeaders: true,
@@ -180,18 +317,75 @@ async function createAcademyRequest(requestUrl: string) {
     })
     .where(eq(user.id, signUpResult.response.user.id));
 
-  await db.insert(academies).values({
-    userId: signUpResult.response.user.id,
-    name: "Academia de Prueba",
-    contactName: "Contacto",
-    phone: "11 1234-5678",
-  });
+  const [academy] = await db
+    .insert(academies)
+    .values({
+      userId: signUpResult.response.user.id,
+      name: academyName,
+      contactName: "Contacto",
+      phone: "11 1234-5678",
+    })
+    .returning();
 
+  return {
+    academyId: academy.id,
+    cookie: createRequestCookie(signUpResult.headers),
+  };
+}
+
+function createPortalPostRequest(
+  requestUrl: string,
+  cookie: string,
+  body: FormData,
+) {
   return new Request(requestUrl, {
-    headers: {
-      cookie: createRequestCookie(signUpResult.headers),
-    },
+    method: "POST",
+    headers: { cookie },
+    body,
   });
+}
+
+function dancerFormData(input: {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+}) {
+  const formData = new FormData();
+  formData.set("firstName", input.firstName);
+  formData.set("lastName", input.lastName);
+  formData.set("birthDate", input.birthDate);
+
+  return formData;
+}
+
+async function createAcademyRecord({
+  academyName,
+  email,
+}: {
+  academyName: string;
+  email: string;
+}) {
+  const [record] = await db
+    .insert(user)
+    .values({
+      email,
+      name: email,
+      emailVerified: true,
+      role: "academy",
+    })
+    .returning();
+
+  const [academy] = await db
+    .insert(academies)
+    .values({
+      userId: record.id,
+      name: academyName,
+      contactName: "Contacto",
+      phone: "11 1234-5678",
+    })
+    .returning();
+
+  return academy;
 }
 
 async function createInternalRequest(requestUrl: string) {
