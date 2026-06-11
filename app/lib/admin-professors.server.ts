@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -10,10 +10,10 @@ import {
 } from "@/db/schema";
 import {
   adminProfessorPageSize,
-  type AdminProfessorParticipationFilter,
   type AdminProfessorParticipationStatus,
-  type AdminProfessorStatusFilter,
   type AdministrativeProfessorListFilters,
+  readAdminProfessorParticipationFilter,
+  readAdminProfessorStatusFilter,
 } from "@/lib/admin-professors.shared";
 
 export type AdministrativeProfessorListItem = {
@@ -57,9 +57,12 @@ export function readAdministrativeProfessorFilters(
   options: { hasSelectedEvent: boolean },
 ): AdministrativeProfessorListFilters {
   return {
-    participation: readParticipationFilter(searchParams, options),
+    participation: readAdminProfessorParticipationFilter({
+      value: searchParams.get("participando"),
+      hasSelectedEvent: options.hasSelectedEvent,
+    }),
     query: searchParams.get("q")?.trim() ?? "",
-    status: readStatusFilter(searchParams),
+    status: readAdminProfessorStatusFilter(searchParams.get("estado")),
     page: readPage(searchParams),
   };
 }
@@ -211,7 +214,7 @@ function buildAdministrativeProfessorWhere(input: {
   selectedEventId: string | null;
   filters: AdministrativeProfessorListFilters;
 }) {
-  const conditions = [];
+  const conditions: SQL[] = [];
   const participationSql = buildParticipationSql(input.selectedEventId);
 
   if (input.filters.status === "active") {
@@ -230,23 +233,24 @@ function buildAdministrativeProfessorWhere(input: {
 
   if (input.filters.query.length > 0) {
     const search = `%${escapeForLike(input.filters.query)}%`;
-
-    conditions.push(
-      or(
-        ilike(professors.firstName, search),
-        ilike(professors.lastName, search),
-        ilike(
-          sql`${professors.firstName} || ' ' || ${professors.lastName}`,
-          search,
-        ),
-        ilike(
-          sql`${professors.lastName} || ' ' || ${professors.firstName}`,
-          search,
-        ),
-        ilike(professors.documentNumber, search),
-        ilike(academies.name, search),
+    const searchCondition = or(
+      ilike(professors.firstName, search),
+      ilike(professors.lastName, search),
+      ilike(
+        sql`${professors.firstName} || ' ' || ${professors.lastName}`,
+        search,
       ),
+      ilike(
+        sql`${professors.lastName} || ' ' || ${professors.firstName}`,
+        search,
+      ),
+      ilike(professors.documentNumber, search),
+      ilike(academies.name, search),
     );
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -276,43 +280,6 @@ function toParticipationStatus(
   }
 
   return isParticipating ? "participating" : "not-participating";
-}
-
-function readParticipationFilter(
-  searchParams: URLSearchParams,
-  options: { hasSelectedEvent: boolean },
-): AdminProfessorParticipationFilter {
-  const value = searchParams.get("participando");
-
-  if (value === "si") {
-    return "yes";
-  }
-
-  if (value === "no") {
-    return "no";
-  }
-
-  if (value === "todos") {
-    return "all";
-  }
-
-  return options.hasSelectedEvent ? "yes" : "all";
-}
-
-function readStatusFilter(
-  searchParams: URLSearchParams,
-): AdminProfessorStatusFilter {
-  const value = searchParams.get("estado");
-
-  if (value === "archivados") {
-    return "archived";
-  }
-
-  if (value === "todos") {
-    return "all";
-  }
-
-  return "active";
 }
 
 function readPage(searchParams: URLSearchParams) {

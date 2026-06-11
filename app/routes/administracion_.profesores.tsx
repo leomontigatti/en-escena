@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/table";
 import {
   adminProfessorPageSize,
+  getAdminProfessorParticipationLabel,
   type AdminProfessorParticipationStatus,
+  toAdminProfessorParticipationSearchValue,
+  toAdminProfessorStatusSearchValue,
 } from "@/lib/admin-professors.shared";
 import { loadAdminEventContext } from "@/lib/admin-event-context.server";
 import {
@@ -85,9 +88,7 @@ export function AdministracionProfesoresRouteView({
           </div>
           <p className="text-sm text-slate-600">
             {formatResultCount(loaderData.totalCount)}
-            {loaderData.totalCount > adminProfessorPageSize
-              ? ` · Página ${loaderData.filters.page} de ${loaderData.totalPages}`
-              : ""}
+            {renderPageSummary(loaderData)}
           </p>
         </div>
 
@@ -137,7 +138,7 @@ function ProfessorFilters({ loaderData }: { loaderData: LoaderData }) {
         Participando
         <select
           name="participando"
-          defaultValue={toParticipationSearchValue(
+          defaultValue={toAdminProfessorParticipationSearchValue(
             loaderData.filters.participation,
           )}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
@@ -151,7 +152,9 @@ function ProfessorFilters({ loaderData }: { loaderData: LoaderData }) {
         Estado
         <select
           name="estado"
-          defaultValue={toStatusSearchValue(loaderData.filters.status)}
+          defaultValue={toAdminProfessorStatusSearchValue(
+            loaderData.filters.status,
+          )}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
         >
           <option value="activos">Activos</option>
@@ -265,15 +268,14 @@ function ParticipationBadge({
 }: {
   participationStatus: AdminProfessorParticipationStatus;
 }) {
-  if (participationStatus === "participating") {
-    return <Badge variant="outline">Participando</Badge>;
-  }
+  const variant =
+    participationStatus === "participating" ? "outline" : "secondary";
 
-  if (participationStatus === "not-participating") {
-    return <Badge variant="secondary">No participando</Badge>;
-  }
-
-  return <Badge variant="secondary">Sin evento</Badge>;
+  return (
+    <Badge variant={variant}>
+      {getAdminProfessorParticipationLabel(participationStatus)}
+    </Badge>
+  );
 }
 
 function buildProfessorDetailHref(loaderData: LoaderData, professorId: string) {
@@ -307,9 +309,12 @@ function buildSearchParams(loaderData: LoaderData) {
 
   searchParams.set(
     "participando",
-    toParticipationSearchValue(loaderData.filters.participation),
+    toAdminProfessorParticipationSearchValue(loaderData.filters.participation),
   );
-  searchParams.set("estado", toStatusSearchValue(loaderData.filters.status));
+  searchParams.set(
+    "estado",
+    toAdminProfessorStatusSearchValue(loaderData.filters.status),
+  );
 
   if (loaderData.filters.page > 1) {
     searchParams.set("page", String(loaderData.filters.page));
@@ -318,32 +323,14 @@ function buildSearchParams(loaderData: LoaderData) {
   return searchParams;
 }
 
-function toParticipationSearchValue(
-  value: LoaderData["filters"]["participation"],
-) {
-  if (value === "no") {
-    return "no";
-  }
-
-  if (value === "all") {
-    return "todos";
-  }
-
-  return "si";
-}
-
-function toStatusSearchValue(value: LoaderData["filters"]["status"]) {
-  if (value === "archived") {
-    return "archivados";
-  }
-
-  if (value === "all") {
-    return "todos";
-  }
-
-  return "activos";
-}
-
 function formatResultCount(count: number) {
   return count === 1 ? "1 resultado" : `${count} resultados`;
+}
+
+function renderPageSummary(loaderData: LoaderData) {
+  if (loaderData.totalCount <= adminProfessorPageSize) {
+    return "";
+  }
+
+  return ` · Página ${loaderData.filters.page} de ${loaderData.totalPages}`;
 }

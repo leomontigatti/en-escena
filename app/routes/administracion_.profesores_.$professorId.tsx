@@ -4,7 +4,13 @@ import { Link, redirect } from "react-router";
 
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
-import { type AdminProfessorParticipationStatus } from "@/lib/admin-professors.shared";
+import {
+  adminProfessorNotFoundMessage,
+  formatAdminProfessorDocument,
+  getAdminProfessorParticipationLabel,
+  getAdminProfessorParticipationSummary,
+  type AdminProfessorParticipationStatus,
+} from "@/lib/admin-professors.shared";
 import { loadAdminEventContext } from "@/lib/admin-event-context.server";
 import { findAdministrativeProfessor } from "@/lib/admin-professors.server";
 import { requireInternalUser } from "@/lib/internal-access.server";
@@ -38,7 +44,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const professorId = params.professorId;
 
   if (!professorId) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
+    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
   }
 
   const professor = await findAdministrativeProfessor({
@@ -47,7 +53,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   });
 
   if (!professor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
+    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
   }
 
   return {
@@ -106,7 +112,7 @@ export function AdministracionProfesorDetalleRouteView({
               {loaderData.professor.lastName}
             </DetailRow>
             <DetailRow label="Documento">
-              {formatProfessorDocument(loaderData.professor)}
+              {formatAdminProfessorDocument(loaderData.professor)}
             </DetailRow>
           </ReadOnlyCard>
 
@@ -128,7 +134,7 @@ export function AdministracionProfesorDetalleRouteView({
 
         <ReadOnlyCard title="Participación">
           <DetailRow label="Evento de trabajo">
-            {renderParticipationSummary(
+            {getAdminProfessorParticipationSummary(
               loaderData.professor.participationStatus,
             )}
           </DetailRow>
@@ -197,47 +203,14 @@ function ParticipationBadge({
 }: {
   participationStatus: AdminProfessorParticipationStatus;
 }) {
-  if (participationStatus === "participating") {
-    return <Badge variant="outline">Participando</Badge>;
-  }
+  const variant =
+    participationStatus === "participating" ? "outline" : "secondary";
 
-  if (participationStatus === "not-participating") {
-    return <Badge variant="secondary">No participando</Badge>;
-  }
-
-  return <Badge variant="secondary">Sin evento</Badge>;
-}
-
-function renderParticipationSummary(
-  participationStatus: AdminProfessorParticipationStatus,
-) {
-  if (participationStatus === "participating") {
-    return "Participando en el Evento de trabajo.";
-  }
-
-  if (participationStatus === "not-participating") {
-    return "No participa en el Evento de trabajo.";
-  }
-
-  return "Sin evento de trabajo seleccionado.";
-}
-
-function formatProfessorDocument(
-  professor: Pick<LoaderData["professor"], "documentType" | "documentNumber">,
-) {
-  if (!professor.documentType || !professor.documentNumber) {
-    return "Sin documento cargado";
-  }
-
-  if (professor.documentType === "dni") {
-    return `DNI ${professor.documentNumber}`;
-  }
-
-  if (professor.documentType === "passport") {
-    return `Pasaporte ${professor.documentNumber}`;
-  }
-
-  return `Otro ${professor.documentNumber}`;
+  return (
+    <Badge variant={variant}>
+      {getAdminProfessorParticipationLabel(participationStatus)}
+    </Badge>
+  );
 }
 
 function buildBackToListHref(requestUrl: string) {
