@@ -15,28 +15,11 @@ import {
   scheduleEntries,
   submodalities,
 } from "@/db/schema";
-
-export type ChoreographyOperationalPendingItem =
-  | "music"
-  | "category"
-  | "experienceLevel"
-  | "professors";
-
-export type ChoreographyOperationalStatus = {
-  code: "complete" | "incomplete";
-  pendingItems: ChoreographyOperationalPendingItem[];
-};
-
-export type ChoreographyListItem = {
-  id: string;
-  name: string;
-  modalityName: string;
-  submodalityName: string | null;
-  groupType: "solo" | "duo" | "trio" | "grupal";
-  categoryName: string | null;
-  experienceLevelName: string | null;
-  operationalStatus: ChoreographyOperationalStatus;
-};
+import type {
+  ChoreographyListItem,
+  ChoreographyOperationalPendingItem,
+  ChoreographyOperationalStatus,
+} from "@/lib/portal-choreographies";
 
 export type ChoreographyDetail = ChoreographyListItem & {
   scheduleBlockName: string;
@@ -201,14 +184,17 @@ async function hydrateChoreographyRows(
   }
 
   const choreographyIds = rows.map((row) => row.id);
-  const categoryIds = rows
-    .map((row) => row.categoryId)
-    .filter((value): value is string => value !== null);
-  const [professorCounts, categoryLevelRows] = await Promise.all([
+  const categoryIds = [
+    ...new Set(
+      rows
+        .map((row) => row.categoryId)
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+  const [choreographiesWithProfessors, categoryLevelRows] = await Promise.all([
     db
       .select({
         choreographyId: choreographyProfessors.choreographyId,
-        professorId: choreographyProfessors.professorId,
       })
       .from(choreographyProfessors)
       .where(inArray(choreographyProfessors.choreographyId, choreographyIds)),
@@ -222,14 +208,9 @@ async function hydrateChoreographyRows(
       : Promise.resolve([]),
   ]);
 
-  const professorCountByChoreographyId = new Map<string, number>();
-  for (const row of professorCounts) {
-    professorCountByChoreographyId.set(
-      row.choreographyId,
-      (professorCountByChoreographyId.get(row.choreographyId) ?? 0) + 1,
-    );
-  }
-
+  const choreographyIdsWithProfessors = new Set(
+    choreographiesWithProfessors.map((row) => row.choreographyId),
+  );
   const categoryIdsWithLevels = new Set(
     categoryLevelRows.map((row) => row.categoryId),
   );
@@ -246,7 +227,7 @@ async function hydrateChoreographyRows(
       categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
-      professorCount: professorCountByChoreographyId.get(row.id) ?? 0,
+      hasProfessors: choreographyIdsWithProfessors.has(row.id),
       requiresExperienceLevel:
         row.categoryId !== null && categoryIdsWithLevels.has(row.categoryId),
     }),
@@ -257,7 +238,7 @@ function deriveOperationalStatus(input: {
   categoryId: string | null;
   experienceLevelId: string | null;
   hasMusic: boolean;
-  professorCount: number;
+  hasProfessors: boolean;
   requiresExperienceLevel: boolean;
 }): ChoreographyOperationalStatus {
   const pendingItems: ChoreographyOperationalPendingItem[] = [];
@@ -278,7 +259,7 @@ function deriveOperationalStatus(input: {
     pendingItems.push("experienceLevel");
   }
 
-  if (input.professorCount === 0) {
+  if (!input.hasProfessors) {
     pendingItems.push("professors");
   }
 
@@ -286,34 +267,4 @@ function deriveOperationalStatus(input: {
     code: pendingItems.length === 0 ? "complete" : "incomplete",
     pendingItems,
   };
-}
-
-export function formatGroupTypeLabel(
-  groupType: ChoreographyListItem["groupType"],
-) {
-  switch (groupType) {
-    case "solo":
-      return "Solo";
-    case "duo":
-      return "Dúo";
-    case "trio":
-      return "Trío";
-    case "grupal":
-      return "Grupal";
-  }
-}
-
-export function formatOperationalPendingItemLabel(
-  pendingItem: ChoreographyOperationalPendingItem,
-) {
-  switch (pendingItem) {
-    case "music":
-      return "Música";
-    case "category":
-      return "Categoría";
-    case "experienceLevel":
-      return "Nivel de experiencia";
-    case "professors":
-      return "Profesores";
-  }
 }

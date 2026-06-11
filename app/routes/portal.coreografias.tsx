@@ -4,11 +4,18 @@ import { clsx } from "clsx";
 import { AccessSecondaryLink } from "@/components/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
+import {
+  formatOperationalStatusLabel,
+  type ChoreographyListItem,
+} from "@/lib/portal-choreographies";
 import { getPortalEventContext } from "@/lib/portal-event-context.server";
 
 type PortalCoreografiasRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
+
+type PortalCoreografiasLoaderData = PortalCoreografiasRouteProps["loaderData"];
+type PortalEventContext = PortalCoreografiasLoaderData["eventContext"];
 
 export const meta = () => [
   { title: "Coreografías | Portal de academias | En Escena" },
@@ -197,27 +204,9 @@ function OperationalStatusBadge({
 
   return (
     <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-      Pendiente:{" "}
-      {choreography.operationalStatus.pendingItems
-        .map(formatOperationalPendingItemLabel)
-        .join(", ")}
+      {formatOperationalStatusLabel(choreography.operationalStatus)}
     </span>
   );
-}
-
-function formatOperationalPendingItemLabel(
-  pendingItem: PortalCoreografiasRouteProps["loaderData"]["choreographies"][number]["operationalStatus"]["pendingItems"][number],
-) {
-  switch (pendingItem) {
-    case "music":
-      return "Música";
-    case "category":
-      return "Categoría";
-    case "experienceLevel":
-      return "Nivel de experiencia";
-    case "professors":
-      return "Profesores";
-  }
 }
 
 type CreationState = {
@@ -231,9 +220,7 @@ const creationToneClassNames: Record<CreationState["tone"], string> = {
   info: "bg-slate-50 text-slate-700",
 };
 
-function getCreationState(
-  eventContext: Awaited<ReturnType<typeof loader>>["eventContext"],
-): CreationState {
+function getCreationState(eventContext: PortalEventContext): CreationState {
   if (!eventContext.hasActiveEvent) {
     return {
       tone: "blocked",
@@ -288,7 +275,7 @@ function getEventStatus(isReadOnly: boolean) {
 function PortalEventSelector({
   eventContext,
 }: {
-  eventContext: Awaited<ReturnType<typeof loader>>["eventContext"];
+  eventContext: PortalEventContext;
 }) {
   if (!eventContext.hasEvents) {
     return null;
