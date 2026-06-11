@@ -7,6 +7,7 @@ vi.mock("@/lib/internal-access.server", () => ({
 }));
 
 import { PortalRouteView } from "@/routes/portal";
+import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
@@ -181,11 +182,13 @@ describe("portal route view", () => {
     const markup = renderBailarines({
       dancers: [
         dancerListItem({
+          id: "dancer_ana",
           firstName: "Ana",
           lastName: "Alvarez",
           birthDate: "2014-02-01",
         }),
         dancerListItem({
+          id: "dancer_juan",
           firstName: "Juan Manuel",
           lastName: "Cruz de la Torre",
           birthDate: "2015-04-03",
@@ -199,6 +202,7 @@ describe("portal route view", () => {
     expect(markup).toContain("03/04/2015");
     expect(markup).toContain("Sin documento");
     expect(markup).toContain("Incompleto");
+    expect(markup).toContain('href="/portal/bailarines/dancer_ana"');
     expect(markup.indexOf("Alvarez, Ana")).toBeLessThan(
       markup.indexOf("Cruz de la Torre, Juan Manuel"),
     );
@@ -234,6 +238,60 @@ describe("portal route view", () => {
 
     expect(markup).toContain("El Bailarín se creó correctamente.");
     expect(markup).not.toContain('role="dialog"');
+  });
+
+  test("shows the Bailarín edit alert, fields and success banner", () => {
+    const markup = renderBailarinDetalle({
+      loaderData: {
+        ...academyLoaderData(),
+        dancer: dancerDetailRow({
+          id: "dancer_edit_1",
+          firstName: "Ana",
+          lastName: "Alvarez",
+          birthDate: "2014-02-01",
+        }),
+        saved: true,
+      },
+    });
+
+    expect(markup).toContain(
+      "Faltan datos para poder validar la identificación.",
+    );
+    expect(markup).toContain("Nombre");
+    expect(markup).toContain("Apellido");
+    expect(markup).toContain("Fecha de nacimiento");
+    expect(markup).toContain("Tipo de documento");
+    expect(markup).toContain("Número de documento");
+    expect(markup).toContain("DNI");
+    expect(markup).toContain("Pasaporte");
+    expect(markup).toContain("Otro");
+    expect(markup).toContain("El Bailarín se guardó correctamente.");
+  });
+
+  test("shows Bailarín edit field errors while preserving submitted values", () => {
+    const markup = renderBailarinDetalle({
+      actionData: {
+        ok: false,
+        error: "Revisá los datos del Bailarín.",
+        fieldErrors: {
+          documentType: "Seleccioná el tipo de documento.",
+          documentNumber: "Ingresá el número de documento.",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Alvarez",
+          birthDate: "2014-02-01",
+          documentType: "",
+          documentNumber: "",
+        },
+      },
+    });
+
+    expect(markup).toContain("Revisá los datos del Bailarín.");
+    expect(markup).toContain("Seleccioná el tipo de documento.");
+    expect(markup).toContain("Ingresá el número de documento.");
+    expect(markup).toContain('name="firstName" value="Ana"');
+    expect(markup).toContain('name="birthDate" value="2014-02-01"');
   });
 
   test("shows the Profesores empty list surface", () => {
@@ -361,6 +419,21 @@ function renderBailarines(
   );
 }
 
+type BailarinDetalleViewProps = Parameters<
+  typeof PortalBailarinDetalleRouteView
+>[0];
+
+function renderBailarinDetalle(input: Partial<BailarinDetalleViewProps>) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/portal/bailarines/dancer_edit_1"]}>
+      <PortalBailarinDetalleRouteView
+        loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
+        actionData={input.actionData}
+      />
+    </MemoryRouter>,
+  );
+}
+
 type ProfesoresViewProps = Parameters<typeof PortalProfesoresRouteView>[0];
 
 function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
@@ -400,6 +473,14 @@ function academyLoaderData({
   };
 }
 
+function bailarinDetalleLoaderData() {
+  return {
+    ...academyLoaderData(),
+    dancer: dancerDetailRow(),
+    saved: false,
+  };
+}
+
 function dancerListItem(
   overrides: Partial<
     Parameters<
@@ -433,6 +514,23 @@ function professorListItem(
     isIncomplete: true,
     ...overrides,
   } satisfies ProfesoresViewProps["loaderData"]["professors"][number];
+}
+
+function dancerDetailRow(
+  overrides: Partial<BailarinDetalleViewProps["loaderData"]["dancer"]> = {},
+) {
+  return {
+    id: "dancer_1",
+    academyId: "academy_1",
+    firstName: "Bailarina",
+    lastName: "Prueba",
+    birthDate: "2015-01-01",
+    documentType: null,
+    documentNumber: null,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  } satisfies BailarinDetalleViewProps["loaderData"]["dancer"];
 }
 
 function eventSummary(

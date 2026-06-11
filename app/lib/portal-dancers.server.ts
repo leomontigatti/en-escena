@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
@@ -19,6 +19,13 @@ export type CreateDancerInput = {
   birthDate: string;
 };
 
+export type DancerDocumentType = "dni" | "passport" | "other";
+
+export type UpdateDancerInput = CreateDancerInput & {
+  documentType: string;
+  documentNumber: string;
+};
+
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
   | {
@@ -26,6 +33,17 @@ export type CreateDancerResult =
       error: string;
       fieldErrors: Partial<Record<keyof CreateDancerInput, string>>;
       values: CreateDancerInput;
+    };
+
+export type UpdateDancerField = keyof UpdateDancerInput;
+
+export type UpdateDancerResult =
+  | { ok: true; dancer: typeof dancers.$inferSelect }
+  | {
+      ok: false;
+      error: string;
+      fieldErrors: Partial<Record<UpdateDancerField, string>>;
+      values: UpdateDancerInput;
     };
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
@@ -84,6 +102,43 @@ export async function findDancerForAcademy(
   });
 }
 
+export async function updateDancerForAcademy(
+  academyId: string,
+  dancerId: string,
+  input: UpdateDancerInput,
+): Promise<UpdateDancerResult> {
+  const dancer = await findDancerForAcademy(academyId, dancerId);
+
+  if (!dancer) {
+    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+  }
+
+  const validation = await validateUpdateDancerInput(
+    academyId,
+    dancerId,
+    input,
+  );
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [updatedDancer] = await db
+    .update(dancers)
+    .set({
+      firstName: validation.input.firstName,
+      lastName: validation.input.lastName,
+      birthDate: validation.input.birthDate,
+      documentType: validation.input.documentType,
+      documentNumber: validation.input.documentNumber,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
+    .returning();
+
+  return { ok: true, dancer: updatedDancer };
+}
+
 function validateCreateDancerInput(
   input: CreateDancerInput,
 ):
@@ -131,6 +186,101 @@ function validateCreateDancerInput(
   };
 }
 
+async function validateUpdateDancerInput(
+  academyId: string,
+  dancerId: string,
+  input: UpdateDancerInput,
+): Promise<
+  | {
+      ok: true;
+      input: {
+        firstName: string;
+        lastName: string;
+        birthDate: string;
+        documentType: DancerDocumentType | null;
+        documentNumber: string | null;
+      };
+    }
+  | Extract<UpdateDancerResult, { ok: false }>
+> {
+  const values = {
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+    documentType: input.documentType.trim(),
+    documentNumber: input.documentNumber,
+  } satisfies UpdateDancerInput;
+  const fieldErrors: Partial<Record<UpdateDancerField, string>> = {};
+
+  if (!values.firstName) {
+    fieldErrors.firstName = "Ingresá el nombre.";
+  }
+
+  if (!values.lastName) {
+    fieldErrors.lastName = "Ingresá el apellido.";
+  }
+
+  if (!values.birthDate) {
+    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
+  } else if (!isDateOnly(values.birthDate)) {
+    fieldErrors.birthDate = "Usá una fecha válida.";
+  } else if (isFutureDateOnly(values.birthDate)) {
+    fieldErrors.birthDate = "La fecha de nacimiento no puede ser futura.";
+  }
+
+  const document = normalizeDancerDocumentPair({
+    documentType: values.documentType,
+    documentNumber: values.documentNumber,
+  });
+  let normalizedDocument: {
+    documentType: DancerDocumentType | null;
+    documentNumber: string | null;
+  } | null = null;
+
+  if (!document.ok) {
+    Object.assign(fieldErrors, document.fieldErrors);
+  } else {
+    normalizedDocument = {
+      documentType: document.documentType,
+      documentNumber: document.documentNumber,
+    };
+
+    if (
+      normalizedDocument.documentType !== null &&
+      normalizedDocument.documentNumber !== null &&
+      (await hasDuplicateDancerDocument({
+        academyId,
+        dancerId,
+        documentType: normalizedDocument.documentType,
+        documentNumber: normalizedDocument.documentNumber,
+      }))
+    ) {
+      fieldErrors.documentNumber =
+        "Ya existe un Bailarín con ese documento en tu academia.";
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  return {
+    ok: true,
+    input: {
+      firstName: toSpanishTitleCase(values.firstName),
+      lastName: toSpanishTitleCase(values.lastName),
+      birthDate: values.birthDate,
+      documentType: normalizedDocument?.documentType ?? null,
+      documentNumber: normalizedDocument?.documentNumber ?? null,
+    },
+  };
+}
+
 export function toSpanishTitleCase(value: string) {
   return value
     .trim()
@@ -146,6 +296,115 @@ export function toSpanishTitleCase(value: string) {
       return lower.charAt(0).toLocaleUpperCase("es-AR") + lower.slice(1);
     })
     .join(" ");
+}
+
+function normalizeDancerDocumentPair(input: {
+  documentType: string;
+  documentNumber: string;
+}):
+  | {
+      ok: true;
+      documentType: DancerDocumentType | null;
+      documentNumber: string | null;
+    }
+  | {
+      ok: false;
+      fieldErrors: Partial<
+        Record<
+          Extract<UpdateDancerField, "documentNumber" | "documentType">,
+          string
+        >
+      >;
+    } {
+  const documentType = input.documentType.trim();
+  const rawDocumentNumber = input.documentNumber;
+  const hasDocumentType = documentType.length > 0;
+  const hasDocumentNumber = rawDocumentNumber.trim().length > 0;
+
+  if (!hasDocumentType && !hasDocumentNumber) {
+    return {
+      ok: true,
+      documentType: null,
+      documentNumber: null,
+    };
+  }
+
+  if (hasDocumentType && !hasDocumentNumber) {
+    return {
+      ok: false,
+      fieldErrors: {
+        documentNumber: "Ingresá el número de documento.",
+      },
+    };
+  }
+
+  if (!hasDocumentType && hasDocumentNumber) {
+    return {
+      ok: false,
+      fieldErrors: {
+        documentType: "Seleccioná el tipo de documento.",
+      },
+    };
+  }
+
+  if (!isDancerDocumentType(documentType)) {
+    return {
+      ok: false,
+      fieldErrors: {
+        documentType: "Seleccioná un tipo de documento válido.",
+      },
+    };
+  }
+
+  if (documentType === "dni") {
+    const normalizedDni = rawDocumentNumber.replace(/[.\s-]+/g, "");
+
+    if (!/^\d+$/.test(normalizedDni)) {
+      return {
+        ok: false,
+        fieldErrors: {
+          documentNumber: "Ingresá un DNI válido usando solo números.",
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      documentType,
+      documentNumber: normalizedDni,
+    };
+  }
+
+  return {
+    ok: true,
+    documentType,
+    documentNumber: rawDocumentNumber.trim().replace(/\s+/g, " "),
+  };
+}
+
+async function hasDuplicateDancerDocument(input: {
+  academyId: string;
+  dancerId: string;
+  documentType: DancerDocumentType;
+  documentNumber: string;
+}) {
+  const duplicate = await db.query.dancers.findFirst({
+    where: and(
+      eq(dancers.academyId, input.academyId),
+      ne(dancers.id, input.dancerId),
+      eq(dancers.documentType, input.documentType),
+      eq(dancers.documentNumber, input.documentNumber),
+    ),
+    columns: {
+      id: true,
+    },
+  });
+
+  return duplicate !== undefined;
+}
+
+function isDancerDocumentType(value: string): value is DancerDocumentType {
+  return value === "dni" || value === "passport" || value === "other";
 }
 
 function isDateOnly(value: string) {

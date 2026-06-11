@@ -203,7 +203,7 @@ export const dancers = createTable(
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     birthDate: text("birth_date").notNull(),
-    documentType: text("document_type"),
+    documentType: documentType("document_type"),
     documentNumber: text("document_number"),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -225,6 +225,11 @@ export const dancers = createTable(
       table.lastName,
       table.firstName,
     ),
+    uniqueIndex("dancer_academy_document_unique")
+      .on(table.academyId, table.documentType, table.documentNumber)
+      .where(
+        sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
+      ),
   ],
 );
 

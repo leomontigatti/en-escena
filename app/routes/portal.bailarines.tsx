@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { redirect, useActionData, useSearchParams } from "react-router";
+import { Link, redirect, useActionData, useSearchParams } from "react-router";
 
 import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
@@ -193,7 +193,12 @@ function DancersTable({ dancers }: { dancers: DancerListItem[] }) {
           {dancers.map((dancer) => (
             <tr key={dancer.id} className="hover:bg-slate-50">
               <td className="px-4 py-3 font-medium text-slate-950">
-                {dancer.lastName}, {dancer.firstName}
+                <Link
+                  to={`/portal/bailarines/${dancer.id}`}
+                  className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                >
+                  {dancer.lastName}, {dancer.firstName}
+                </Link>
               </td>
               <td className="px-4 py-3 text-slate-700">
                 {formatDateOnly(dancer.birthDate)}
@@ -373,7 +378,19 @@ function formatDocument(dancer: DancerListItem) {
     return "Sin documento";
   }
 
-  return `${dancer.documentType} ${dancer.documentNumber}`;
+  return `${formatDocumentType(dancer.documentType)} ${dancer.documentNumber}`;
+}
+
+function formatDocumentType(value: DancerListItem["documentType"]) {
+  if (value === "dni") {
+    return "DNI";
+  }
+
+  if (value === "passport") {
+    return "Pasaporte";
+  }
+
+  return "Otro";
 }
 
 function readFormString(formData: FormData, key: string) {

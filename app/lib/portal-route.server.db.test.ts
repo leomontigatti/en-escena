@@ -18,6 +18,10 @@ import {
   action as bailarinesAction,
   loader as bailarinesLoader,
 } from "@/routes/portal.bailarines";
+import {
+  action as bailarinesDetalleAction,
+  loader as bailarinesDetalleLoader,
+} from "@/routes/portal.bailarines.$dancerId";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
 import {
   action as profesoresAction,
@@ -361,6 +365,251 @@ describe.sequential("portal Bailarines route", () => {
     });
     await expect(db.query.dancers.findMany()).resolves.toEqual([]);
   });
+
+  test("updates a Bailarín in place and normalizes DNI documents", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.edit@example.com",
+      academyName: "Academia Edición",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    const response = await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          dancerEditFormData({
+            firstName: "  ana maría ",
+            lastName: " de la CRUZ ",
+            birthDate: "2014-05-06",
+            documentType: "dni",
+            documentNumber: "12.345 678-9",
+          }),
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/portal/bailarines/${dancer.id}?guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "Ana María",
+      lastName: "De la Cruz",
+      birthDate: "2014-05-06",
+      documentType: "dni",
+      documentNumber: "123456789",
+    });
+  });
+
+  test("keeps submitted values and field errors when the document pair is partial", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.partial@example.com",
+      academyName: "Academia Parcial",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    const result = await bailarinesDetalleAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Alvarez",
+          birthDate: "2014-02-01",
+          documentType: "",
+          documentNumber: "ABC 123",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors: {
+        documentType: "Seleccioná el tipo de documento.",
+      },
+      values: {
+        documentType: "",
+        documentNumber: "ABC 123",
+      },
+    });
+  });
+
+  test("rejects duplicate complete documents only within the same Academia", async () => {
+    const ownerSession = await createAcademySession({
+      email: "bailarines.duplicate.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const otherSession = await createAcademySession({
+      email: "bailarines.duplicate.other@example.com",
+      academyName: "Academia Ajena",
+    });
+    const [ownerExisting] = await db
+      .insert(dancers)
+      .values({
+        academyId: ownerSession.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+        documentType: "passport",
+        documentNumber: "AB 123",
+      })
+      .returning();
+    const [ownerEditable] = await db
+      .insert(dancers)
+      .values({
+        academyId: ownerSession.academyId,
+        firstName: "Beatriz",
+        lastName: "Suarez",
+        birthDate: "2013-03-02",
+      })
+      .returning();
+    const [otherEditable] = await db
+      .insert(dancers)
+      .values({
+        academyId: otherSession.academyId,
+        firstName: "Clara",
+        lastName: "Paz",
+        birthDate: "2012-04-01",
+      })
+      .returning();
+
+    const duplicateResult = await bailarinesDetalleAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${ownerEditable.id}`,
+        ownerSession.cookie,
+        dancerEditFormData({
+          firstName: "Beatriz",
+          lastName: "Suarez",
+          birthDate: "2013-03-02",
+          documentType: "passport",
+          documentNumber: "  AB   123 ",
+        }),
+      ),
+      params: { dancerId: ownerEditable.id },
+    });
+
+    expect(duplicateResult).toMatchObject({
+      ok: false,
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín con ese documento en tu academia.",
+      },
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, ownerEditable.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: null,
+      documentNumber: null,
+    });
+
+    const crossAcademyResponse = await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${otherEditable.id}`,
+          otherSession.cookie,
+          dancerEditFormData({
+            firstName: "Clara",
+            lastName: "Paz",
+            birthDate: "2012-04-01",
+            documentType: "passport",
+            documentNumber: "AB 123",
+          }),
+        ),
+        params: { dancerId: otherEditable.id },
+      }),
+      302,
+    );
+
+    expect(crossAcademyResponse.headers.get("location")).toBe(
+      `/portal/bailarines/${otherEditable.id}?guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, otherEditable.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: "passport",
+      documentNumber: "AB 123",
+    });
+    expect(ownerExisting.id).not.toBe(otherEditable.id);
+  });
+
+  test("returns not found when another Academia loads or updates a Bailarín", async () => {
+    const ownerSession = await createAcademySession({
+      email: "bailarines.owner.scope@example.com",
+      academyName: "Academia Dueña",
+    });
+    const otherSession = await createAcademySession({
+      email: "bailarines.other.scope@example.com",
+      academyName: "Academia Ajena",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: ownerSession.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    await expectThrownResponse(
+      bailarinesDetalleLoader({
+        request: new Request(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          {
+            headers: { cookie: otherSession.cookie },
+          },
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      404,
+    );
+
+    await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          otherSession.cookie,
+          dancerEditFormData({
+            firstName: "Ana",
+            lastName: "Alvarez",
+            birthDate: "2014-02-01",
+            documentType: "",
+            documentNumber: "",
+          }),
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      404,
+    );
+  });
 });
 
 describe("portal Profesores management", () => {
@@ -514,6 +763,20 @@ function dancerFormData(input: {
   formData.set("firstName", input.firstName);
   formData.set("lastName", input.lastName);
   formData.set("birthDate", input.birthDate);
+
+  return formData;
+}
+
+function dancerEditFormData(input: {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  documentType: string;
+  documentNumber: string;
+}) {
+  const formData = dancerFormData(input);
+  formData.set("documentType", input.documentType);
+  formData.set("documentNumber", input.documentNumber);
 
   return formData;
 }
