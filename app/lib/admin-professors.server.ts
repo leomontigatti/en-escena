@@ -3,18 +3,27 @@ import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
+  administrativeAuditEntries,
   choreographies,
   choreographyProfessors,
   professors,
   user,
 } from "@/db/schema";
 import {
+  adminProfessorCorrectionReasonMessage,
   adminProfessorPageSize,
+  type AdministrativeProfessorAuditAction,
   type AdminProfessorParticipationStatus,
   type AdministrativeProfessorListFilters,
   readAdminProfessorParticipationFilter,
   readAdminProfessorStatusFilter,
 } from "@/lib/admin-professors.shared";
+import {
+  findDuplicateProfessorDocument,
+  type ProfessorEditableSnapshot,
+  normalizeProfessorDocumentPair,
+  normalizeProfessorNames,
+} from "@/lib/professor-records.server";
 
 export type AdministrativeProfessorListItem = {
   id: string;
@@ -49,8 +58,41 @@ export type AdministrativeProfessorDetail = {
     phone: string;
   };
   participationStatus: AdminProfessorParticipationStatus;
+  participatedInAnyEvent: boolean;
+  correctionReasonRequired: boolean;
   choreographyNames: string[];
 };
+
+export type AdministrativeProfessorUpdateInput = {
+  firstName: string;
+  lastName: string;
+  documentType: string;
+  documentNumber: string;
+  correctionReason: string;
+};
+
+export type AdministrativeProfessorFieldErrors = Partial<
+  Record<
+    | "firstName"
+    | "lastName"
+    | "documentType"
+    | "documentNumber"
+    | "correctionReason",
+    string
+  >
+>;
+
+export type AdministrativeProfessorMutationResult =
+  | {
+      ok: true;
+      professor: ProfessorEditableSnapshot;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: AdministrativeProfessorFieldErrors;
+      values: AdministrativeProfessorUpdateInput;
+    };
 
 export function readAdministrativeProfessorFilters(
   searchParams: URLSearchParams,
@@ -152,6 +194,7 @@ export async function findAdministrativeProfessor(input: {
       academyPhone: academies.phone,
       academyEmail: user.email,
       isParticipating: participationSql,
+      hasParticipatedInAnyEvent: buildAnyEventParticipationSql(),
     })
     .from(professors)
     .innerJoin(academies, eq(academies.id, professors.academyId))
@@ -204,9 +247,184 @@ export async function findAdministrativeProfessor(input: {
       input.selectedEventId,
       row.isParticipating,
     ),
+    participatedInAnyEvent: row.hasParticipatedInAnyEvent,
+    correctionReasonRequired: isCorrectionReasonRequired({
+      selectedEventId: input.selectedEventId,
+      isParticipating: row.isParticipating,
+      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+    }),
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
+  };
+}
+
+export async function updateAdministrativeProfessor(input: {
+  adminUserId: string;
+  professorId: string;
+  selectedEventId: string | null;
+  values: AdministrativeProfessorUpdateInput;
+}): Promise<AdministrativeProfessorMutationResult> {
+  const existingProfessor = await findAdministrativeProfessorForMutation({
+    professorId: input.professorId,
+    selectedEventId: input.selectedEventId,
+  });
+
+  if (!existingProfessor) {
+    throw new Response("No encontramos ese Profesor.", { status: 404 });
+  }
+
+  const fieldErrors: AdministrativeProfessorFieldErrors = {};
+  const normalizedReason = input.values.correctionReason.trim();
+  const values = {
+    ...input.values,
+    correctionReason: input.values.correctionReason,
+  };
+  const normalizedNames = normalizeProfessorNames(input.values);
+
+  Object.assign(fieldErrors, normalizedNames.fieldErrors);
+
+  const normalizedDocument = normalizeProfessorDocumentPair(
+    input.values.documentType,
+    input.values.documentNumber,
+  );
+
+  if (!normalizedDocument.ok) {
+    Object.assign(fieldErrors, normalizedDocument.fieldErrors);
+  }
+
+  if (
+    (existingProfessor.correctionReasonRequired &&
+      !isCorrectionReasonLengthValid(normalizedReason)) ||
+    (!existingProfessor.correctionReasonRequired &&
+      normalizedReason.length > 0 &&
+      !isCorrectionReasonLengthValid(normalizedReason))
+  ) {
+    fieldErrors.correctionReason = adminProfessorCorrectionReasonMessage;
+  }
+
+  if (Object.keys(fieldErrors).length > 0 || !normalizedDocument.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  if (
+    normalizedDocument.documentType !== null &&
+    normalizedDocument.documentNumber !== null
+  ) {
+    const duplicateProfessor = await findDuplicateProfessorDocument({
+      academyId: existingProfessor.academyId,
+      professorId: existingProfessor.id,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+    });
+
+    if (duplicateProfessor) {
+      return {
+        ok: false,
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          documentNumber:
+            "Ya existe un Profesor con ese documento en la academia.",
+        },
+        values,
+      };
+    }
+  }
+
+  const beforeValues = toProfessorSnapshot(existingProfessor);
+  const [updatedProfessor] = await db
+    .update(professors)
+    .set({
+      firstName: normalizedNames.firstName,
+      lastName: normalizedNames.lastName,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+      updatedAt: new Date(),
+    })
+    .where(eq(professors.id, existingProfessor.id))
+    .returning();
+  const afterValues = toProfessorSnapshot(updatedProfessor);
+
+  await insertAdministrativeProfessorAuditEntry({
+    action: "update",
+    adminUserId: input.adminUserId,
+    afterValues,
+    beforeValues,
+    eventId: input.selectedEventId,
+    professorId: existingProfessor.id,
+    reason: normalizedReason.length > 0 ? normalizedReason : null,
+  });
+
+  return {
+    ok: true,
+    professor: afterValues,
+  };
+}
+
+export async function setAdministrativeProfessorActiveState(input: {
+  action: "archive" | "reactivate";
+  adminUserId: string;
+  professorId: string;
+  selectedEventId: string | null;
+  correctionReason: string;
+}) {
+  const existingProfessor = await findAdministrativeProfessorForMutation({
+    professorId: input.professorId,
+    selectedEventId: input.selectedEventId,
+  });
+
+  if (!existingProfessor) {
+    throw new Response("No encontramos ese Profesor.", { status: 404 });
+  }
+
+  const reason = input.correctionReason.trim();
+
+  if (
+    (existingProfessor.correctionReasonRequired &&
+      !isCorrectionReasonLengthValid(reason)) ||
+    (!existingProfessor.correctionReasonRequired &&
+      reason.length > 0 &&
+      !isCorrectionReasonLengthValid(reason))
+  ) {
+    return {
+      ok: false as const,
+      message: "Revisá los campos marcados.",
+      fieldErrors: {
+        correctionReason: adminProfessorCorrectionReasonMessage,
+      },
+    };
+  }
+
+  const nextActive = input.action === "reactivate";
+  const beforeValues = toProfessorSnapshot(existingProfessor);
+  const [updatedProfessor] = await db
+    .update(professors)
+    .set({
+      active: nextActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(professors.id, existingProfessor.id))
+    .returning();
+  const afterValues = toProfessorSnapshot(updatedProfessor);
+
+  await insertAdministrativeProfessorAuditEntry({
+    action: input.action,
+    adminUserId: input.adminUserId,
+    afterValues,
+    beforeValues,
+    eventId: input.selectedEventId,
+    professorId: existingProfessor.id,
+    reason: reason.length > 0 ? reason : null,
+  });
+
+  return {
+    ok: true as const,
+    professor: afterValues,
   };
 }
 
@@ -271,6 +489,16 @@ function buildParticipationSql(selectedEventId: string | null) {
   )`;
 }
 
+function buildAnyEventParticipationSql() {
+  return sql<boolean>`exists (
+    select 1
+    from ${choreographyProfessors}
+    inner join ${choreographies}
+      on ${choreographies.id} = ${choreographyProfessors.choreographyId}
+    where ${choreographyProfessors.professorId} = ${professors.id}
+  )`;
+}
+
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
@@ -280,6 +508,97 @@ function toParticipationStatus(
   }
 
   return isParticipating ? "participating" : "not-participating";
+}
+
+async function findAdministrativeProfessorForMutation(input: {
+  professorId: string;
+  selectedEventId: string | null;
+}) {
+  const participationSql = buildParticipationSql(input.selectedEventId);
+  const anyEventParticipationSql = buildAnyEventParticipationSql();
+
+  return await db
+    .select({
+      id: professors.id,
+      academyId: professors.academyId,
+      firstName: professors.firstName,
+      lastName: professors.lastName,
+      active: professors.active,
+      documentType: professors.documentType,
+      documentNumber: professors.documentNumber,
+      isParticipating: participationSql,
+      hasParticipatedInAnyEvent: anyEventParticipationSql,
+    })
+    .from(professors)
+    .where(eq(professors.id, input.professorId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
+    .then((row) => {
+      if (!row) {
+        return null;
+      }
+
+      return {
+        ...row,
+        correctionReasonRequired: isCorrectionReasonRequired({
+          selectedEventId: input.selectedEventId,
+          isParticipating: row.isParticipating,
+          hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+        }),
+      };
+    });
+}
+
+function isCorrectionReasonRequired(input: {
+  selectedEventId: string | null;
+  isParticipating: boolean;
+  hasParticipatedInAnyEvent: boolean;
+}) {
+  if (input.selectedEventId !== null) {
+    return input.isParticipating || input.hasParticipatedInAnyEvent;
+  }
+
+  return input.hasParticipatedInAnyEvent;
+}
+
+function isCorrectionReasonLengthValid(reason: string) {
+  return reason.length >= 10 && reason.length <= 500;
+}
+
+function toProfessorSnapshot(
+  professor: Pick<
+    typeof professors.$inferSelect,
+    "firstName" | "lastName" | "documentType" | "documentNumber" | "active"
+  >,
+): ProfessorEditableSnapshot {
+  return {
+    firstName: professor.firstName,
+    lastName: professor.lastName,
+    documentType: professor.documentType,
+    documentNumber: professor.documentNumber,
+    active: professor.active,
+  };
+}
+
+async function insertAdministrativeProfessorAuditEntry(input: {
+  action: AdministrativeProfessorAuditAction;
+  adminUserId: string;
+  afterValues: ProfessorEditableSnapshot;
+  beforeValues: ProfessorEditableSnapshot;
+  eventId: string | null;
+  professorId: string;
+  reason: string | null;
+}) {
+  await db.insert(administrativeAuditEntries).values({
+    entityType: "professor",
+    entityId: input.professorId,
+    eventId: input.eventId,
+    adminUserId: input.adminUserId,
+    action: input.action,
+    reason: input.reason,
+    beforeValues: input.beforeValues,
+    afterValues: input.afterValues,
+  });
 }
 
 function readPage(searchParams: URLSearchParams) {

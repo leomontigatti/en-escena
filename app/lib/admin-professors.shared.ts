@@ -1,5 +1,10 @@
 export const adminProfessorPageSize = 50;
 export const adminProfessorNotFoundMessage = "No encontramos ese Profesor.";
+export const adminProfessorSavedSearchParam = "guardado";
+export const adminProfessorSavedSuccessMessage =
+  "Profesor actualizado correctamente.";
+export const adminProfessorCorrectionReasonMessage =
+  "Ingresá un motivo de corrección para guardar este cambio.";
 
 export type AdminProfessorParticipationFilter = "yes" | "no" | "all";
 export type AdminProfessorStatusFilter = "active" | "archived" | "all";
@@ -7,6 +12,10 @@ export type AdminProfessorParticipationStatus =
   | "participating"
   | "not-participating"
   | "no-event";
+export type AdministrativeProfessorAuditAction =
+  | "update"
+  | "archive"
+  | "reactivate";
 
 export type AdministrativeProfessorListFilters = {
   participation: AdminProfessorParticipationFilter;

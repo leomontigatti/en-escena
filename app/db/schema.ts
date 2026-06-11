@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTableCreator,
   text,
@@ -37,6 +38,16 @@ export const documentType = pgEnum("en_escena_document_type", [
 export const choreographyCategoryCalculationMode = pgEnum(
   "en_escena_choreography_category_calculation_mode",
   ["oldest", "group_tolerance", "group_average"],
+);
+
+export const administrativeAuditEntityType = pgEnum(
+  "en_escena_administrative_audit_entity_type",
+  ["professor", "dancer"],
+);
+
+export const administrativeAuditAction = pgEnum(
+  "en_escena_administrative_audit_action",
+  ["update", "archive", "reactivate"],
 );
 
 export const user = createTable("user", {
@@ -383,6 +394,46 @@ export const events = createTable(
     uniqueIndex("event_single_active_unique")
       .on(table.active)
       .where(sql`${table.active} = true`),
+  ],
+);
+
+export const administrativeAuditEntries = createTable(
+  "administrative_audit_entry",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    entityType: administrativeAuditEntityType("entity_type").notNull(),
+    entityId: varchar("entity_id", { length: 255 }).notNull(),
+    eventId: varchar("event_id", { length: 255 }).references(() => events.id, {
+      onDelete: "set null",
+    }),
+    adminUserId: varchar("admin_user_id", { length: 255 })
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    action: administrativeAuditAction("action").notNull(),
+    reason: text("reason"),
+    beforeValues: jsonb("before_values")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    afterValues: jsonb("after_values")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("administrative_audit_entry_entity_idx").on(
+      table.entityType,
+      table.entityId,
+    ),
+    index("administrative_audit_entry_event_idx").on(table.eventId),
+    index("administrative_audit_entry_admin_user_idx").on(table.adminUserId),
   ],
 );
 

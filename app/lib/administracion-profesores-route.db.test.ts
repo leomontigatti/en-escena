@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   academies,
+  administrativeAuditEntries,
   choreographyProfessors,
   choreographies,
   professors,
@@ -25,6 +26,7 @@ import {
 } from "@/routes/administracion_.profesores";
 import {
   AdministracionProfesorDetalleRouteView,
+  action as detailAction,
   loader as detailLoader,
 } from "@/routes/administracion_.profesores_.$professorId";
 
@@ -274,6 +276,431 @@ describe("administracion/profesores route", () => {
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Archivar Profesor");
   });
+
+  test("shows explicit edit controls only for admin users", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.controles.academia@example.com",
+      academyName: "Academia Controles",
+      contactName: "Carla Controles",
+      phone: "6666-6666",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Iris",
+      lastName: "Control",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.controles@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
+    });
+    const { request: adminEditRequest } = await createSignedInRequest({
+      email: "admin.edicion@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+    const { request: auditorRequest } = await createSignedInRequest({
+      email: "auditor.controles@example.com",
+      role: "auditor",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
+    });
+
+    const adminMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(adminRequest, professor.id)),
+      professor.id,
+    );
+    const adminEditMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(adminEditRequest, professor.id)),
+      professor.id,
+    );
+    const auditorMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(auditorRequest, professor.id)),
+      professor.id,
+    );
+
+    expect(adminMarkup).toContain("Editar");
+    expect(adminMarkup).not.toContain("Guardar cambios");
+    expect(adminEditMarkup).toContain("Guardar cambios");
+    expect(adminEditMarkup).toContain("Cancelar");
+    expect(adminEditMarkup).toContain("Archivar Profesor");
+    expect(auditorMarkup).not.toContain("Editar");
+    expect(auditorMarkup).not.toContain("Guardar cambios");
+    expect(auditorMarkup).not.toContain("Archivar Profesor");
+    expect(auditorMarkup).not.toContain("Reactivar Profesor");
+  });
+
+  test("updates a Profesor in explicit edit mode and persists an administrative audit entry", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.mutacion.academia@example.com",
+      academyName: "Academia Mutacion",
+      contactName: "Nadia Mutacion",
+      phone: "5555-5555",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "ana",
+      lastName: "perez",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.mutacion@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const response = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "update-professor",
+            firstName: "  maría del carmen ",
+            lastName: " de la cruz ",
+            documentType: "dni",
+            documentNumber: "12.345-678",
+            correctionReason: "",
+          }),
+          professor.id,
+        ),
+      ),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/administracion/profesores/${professor.id}?evento=${event.id}&guardado=1`,
+    );
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "María del Carmen",
+      lastName: "de la Cruz",
+      documentType: "dni",
+      documentNumber: "12345678",
+      active: true,
+    });
+
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "professor",
+          entityId: professor.id,
+          eventId: event.id,
+          action: "update",
+          reason: null,
+          beforeValues: {
+            firstName: "ana",
+            lastName: "perez",
+            documentType: null,
+            documentNumber: null,
+            active: true,
+          },
+          afterValues: {
+            firstName: "María del Carmen",
+            lastName: "de la Cruz",
+            documentType: "dni",
+            documentNumber: "12345678",
+            active: true,
+          },
+        }),
+      ],
+    );
+  });
+
+  test("rejects auditor, judge, and academy mutations", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.roles.academia@example.com",
+      academyName: "Academia Roles",
+      contactName: "Rita Roles",
+      phone: "7777-7777",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Nora",
+      lastName: "Roles",
+    });
+
+    for (const role of ["auditor", "judge", "academy"] as const) {
+      const { request } = await createSignedInRequest({
+        email: `${role}.profesores@example.com`,
+        role,
+        requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      });
+
+      await expectThrownResponse(
+        detailAction(
+          detailActionArgs(
+            createPostRequest(
+              request.url,
+              request.headers.get("cookie") ?? "",
+              {
+                intent: "update-professor",
+                firstName: "Nora",
+                lastName: "Roles",
+                documentType: "",
+                documentNumber: "",
+                correctionReason: "",
+              },
+            ),
+            professor.id,
+          ),
+        ),
+        403,
+      );
+    }
+  });
+
+  test("requires a correction reason when the Profesor participates in the Evento de trabajo", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.motivo.evento.academia@example.com",
+      academyName: "Academia Motivo Evento",
+      contactName: "Mara Evento",
+      phone: "8888-8888",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Lia",
+      lastName: "Participa",
+    });
+    await linkProfessorToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      professorId: professor.id,
+      choreographyName: "Latido",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.motivo.evento@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "Lia",
+          lastName: "Participa",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "",
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        correctionReason:
+          "Ingresá un motivo de corrección para guardar este cambio.",
+      },
+    });
+  });
+
+  test("requires a correction reason without Evento de trabajo when the Profesor participated in any Evento", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.motivo.historial.academia@example.com",
+      academyName: "Academia Motivo Historial",
+      contactName: "Marta Historial",
+      phone: "9999-9999",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Lola",
+      lastName: "Historial",
+    });
+    await linkProfessorToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      professorId: professor.id,
+      choreographyName: "Memoria",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.motivo.historial@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "Lola",
+          lastName: "Historial",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "",
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        correctionReason:
+          "Ingresá un motivo de corrección para guardar este cambio.",
+      },
+    });
+  });
+
+  test("rejects a duplicate document within the same academy", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.duplicado.academia@example.com",
+      academyName: "Academia Duplicados",
+      contactName: "Dora Duplicados",
+      phone: "1010-1010",
+    });
+    await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Original",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Bia",
+      lastName: "Nueva",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.duplicado@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "Bia",
+          lastName: "Nueva",
+          documentType: "dni",
+          documentNumber: "12 345 678",
+          correctionReason: "",
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor con ese documento en la academia.",
+      },
+    });
+  });
+
+  test("archives and reactivates a participating Profesor without unlinking coreografias and persists audit entries", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.archivo.academia@example.com",
+      academyName: "Academia Archivo Admin",
+      contactName: "Ada Archivo",
+      phone: "1111-0000",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosa",
+      lastName: "Archivo",
+    });
+    await linkProfessorToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      professorId: professor.id,
+      choreographyName: "Persistencia",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.archivo@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const archiveResponse = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "archive-professor",
+            correctionReason: "Corrección manual por soporte.",
+          }),
+          professor.id,
+        ),
+      ),
+      302,
+    );
+
+    expect(archiveResponse.headers.get("location")).toBe(
+      `/administracion/profesores/${professor.id}?evento=${event.id}&guardado=1`,
+    );
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({ active: false });
+
+    const archivedDetail = await detailLoader(
+      detailRouteArgs(request, professor.id),
+    );
+    expect(archivedDetail.professor.active).toBe(false);
+    expect(archivedDetail.professor.participationStatus).toBe("participating");
+    expect(archivedDetail.professor.choreographyNames).toEqual([
+      "Persistencia",
+    ]);
+
+    await expect(
+      db
+        .select()
+        .from(choreographyProfessors)
+        .where(eq(choreographyProfessors.professorId, professor.id)),
+    ).resolves.toHaveLength(1);
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+            request.headers.get("cookie") ?? "",
+            {
+              intent: "reactivate-professor",
+              correctionReason: "Reactivación operativa por soporte.",
+            },
+          ),
+          professor.id,
+        ),
+      ),
+      302,
+    );
+
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({ active: true });
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .orderBy(administrativeAuditEntries.createdAt),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "archive",
+        entityId: professor.id,
+        reason: "Corrección manual por soporte.",
+        beforeValues: expect.objectContaining({ active: true }),
+        afterValues: expect.objectContaining({ active: false }),
+      }),
+      expect.objectContaining({
+        action: "reactivate",
+        entityId: professor.id,
+        reason: "Reactivación operativa por soporte.",
+        beforeValues: expect.objectContaining({ active: false }),
+        afterValues: expect.objectContaining({ active: true }),
+      }),
+    ]);
+  });
 });
 
 function renderRoute(
@@ -344,6 +771,24 @@ function createRequestCookie(headers: Headers) {
   return headers.get("set-cookie") ?? "";
 }
 
+function createPostRequest(
+  requestUrl: string,
+  cookie: string,
+  values: Record<string, string>,
+) {
+  const formData = new FormData();
+
+  for (const [key, value] of Object.entries(values)) {
+    formData.set(key, value);
+  }
+
+  return new Request(requestUrl, {
+    method: "POST",
+    body: formData,
+    headers: { cookie },
+  });
+}
+
 function routeArgs(request: Request) {
   return {
     request,
@@ -355,6 +800,16 @@ function routeArgs(request: Request) {
 }
 
 function detailRouteArgs(request: Request, professorId: string) {
+  return {
+    request,
+    params: { professorId },
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/profesores/:professorId",
+  };
+}
+
+function detailActionArgs(request: Request, professorId: string) {
   return {
     request,
     params: { professorId },
@@ -420,7 +875,7 @@ async function createProfessor(input: {
       firstName: input.firstName,
       lastName: input.lastName,
       active: input.active ?? true,
-      documentType: input.documentType ?? "dni",
+      documentType: input.documentType ?? null,
       documentNumber: input.documentNumber ?? null,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
