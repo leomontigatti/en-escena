@@ -16,8 +16,12 @@ import {
   user,
 } from "@/db/schema";
 import {
+  createCategory,
   createExperienceLevel,
   createModality,
+  createScheduleBlock,
+  createScheduleEntry,
+  createSubmodality,
 } from "@/lib/admin-catalogs.server";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
@@ -81,6 +85,60 @@ describe("administracion/ajustes route", () => {
     expect(markup).toContain('name="intent" value="create-experience-level"');
     expect(markup).toContain('name="intent" value="create-schedule-block"');
     expect(markup).toContain('name="intent" value="create-price"');
+  });
+
+  test("shows the minimum registration configuration status for the Evento de trabajo", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(event.id, { name: "Inicial" }),
+    );
+
+    await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: modality.id,
+        name: "Lyrical",
+      }),
+    );
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-05-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+
+    const request = await createSignedInRequest({
+      email: "admin.readiness@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+    const markup = renderRoute(data);
+
+    expect(data.registrationReadiness?.isReady).toBe(false);
+    expect(markup).toContain("Configuración mínima pendiente");
+    expect(markup).toContain("Falta un Precio aplicable");
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -683,6 +741,21 @@ async function createSavedEvent(name: string) {
   }
 
   return result.event;
+}
+
+async function expectCreated(
+  resultPromise: Promise<{
+    ok: boolean;
+    record?: { id: string };
+  }>,
+) {
+  const result = await resultPromise;
+
+  if (!result.ok || !result.record) {
+    throw new Error("Expected catalog creation to succeed.");
+  }
+
+  return result.record;
 }
 
 function renderRoute(

@@ -3,6 +3,14 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, dancers, professors, user } from "@/db/schema";
+import {
+  createCategory,
+  createExperienceLevel,
+  createModality,
+  createScheduleBlock,
+  createScheduleEntry,
+  createSubmodality,
+} from "@/lib/admin-catalogs.server";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import { loader as portalLoader } from "@/routes/portal";
@@ -109,6 +117,88 @@ describe.sequential("portal loader Evento consultado", () => {
       selectedEvent: null,
       isReadOnly: true,
       isRegistrationOpen: false,
+    });
+  });
+
+  test("exposes when there is no Evento activo even if there are Eventos to consult", async () => {
+    await createSavedEvent({
+      name: "Regional 2026",
+      startsAt: date("2026-05-01T12:00:00Z"),
+      endsAt: date("2026-05-03T12:00:00Z"),
+    });
+
+    const loaderData = await coreografiasLoader({
+      request: await createAcademyRequest(
+        "http://localhost/portal/coreografias",
+      ),
+    });
+
+    expect(loaderData.eventContext.hasActiveEvent).toBe(false);
+    expect(loaderData.eventContext.activeEventRegistrationReadiness).toBeNull();
+  });
+
+  test("exposes when the Evento activo lacks minimum configuration for registration", async () => {
+    const activeEvent = await createSavedEvent({
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      startsAt: date("2026-07-01T12:00:00Z"),
+      endsAt: date("2026-07-03T12:00:00Z"),
+    });
+    await activateEvent(activeEvent.id);
+
+    const modality = await expectCreated(
+      createModality(activeEvent.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(activeEvent.id, { name: "Inicial" }),
+    );
+    await expectCreated(
+      createSubmodality(activeEvent.id, {
+        modalityId: modality.id,
+        name: "Lyrical",
+      }),
+    );
+    await expectCreated(
+      createCategory(activeEvent.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(activeEvent.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-05-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+
+    const loaderData = await coreografiasLoader({
+      request: await createAcademyRequest(
+        "http://localhost/portal/coreografias",
+      ),
+    });
+
+    expect(loaderData.eventContext.hasActiveEvent).toBe(true);
+    expect(
+      loaderData.eventContext.activeEventRegistrationReadiness,
+    ).toMatchObject({
+      isReady: false,
+      missingItems: expect.arrayContaining([
+        expect.objectContaining({ code: "price-coverage" }),
+      ]),
     });
   });
 });
@@ -551,4 +641,19 @@ function formData(values: Record<string, string>) {
 
 function date(value: string) {
   return new Date(value);
+}
+
+async function expectCreated(
+  resultPromise: Promise<{
+    ok: boolean;
+    record?: { id: string };
+  }>,
+) {
+  const result = await resultPromise;
+
+  if (!result.ok || !result.record) {
+    throw new Error("Expected catalog creation to succeed.");
+  }
+
+  return result.record;
 }

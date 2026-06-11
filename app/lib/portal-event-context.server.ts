@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
 import type {
   PortalEventContext,
   PortalEventSummary,
@@ -26,12 +27,19 @@ export async function getPortalEventContext(
   });
 
   const selectedEvent = selectPortalEvent(events, selectedEventId);
+  const activeEvent = events.find((event) => event.active) ?? null;
   const now = new Date();
+  const activeEventRegistrationReadiness = activeEvent
+    ? await getEventRegistrationReadiness(activeEvent.id)
+    : null;
 
   return {
     queryParamName: portalEventQueryParamName,
     events,
     selectedEvent,
+    activeEvent,
+    hasActiveEvent: activeEvent !== null,
+    activeEventRegistrationReadiness,
     hasEvents: events.length > 0,
     isReadOnly: selectedEvent ? !selectedEvent.active : true,
     isRegistrationOpen: isRegistrationWindowOpen(selectedEvent, now),

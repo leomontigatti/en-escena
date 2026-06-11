@@ -118,14 +118,8 @@ export function PortalCoreographiesSection({
   eventContext: PortalEventContext;
 }) {
   const selectedEvent = eventContext.selectedEvent;
-  const canCreateCoreographies =
-    selectedEvent !== null &&
-    !eventContext.isReadOnly &&
-    eventContext.isRegistrationOpen;
+  const creationAvailability = getCoreographyCreationState(eventContext);
   const eventStatus = getPortalEventStatus(eventContext.isReadOnly);
-  const creationAvailabilityMessage = getCoreographyCreationMessage(
-    canCreateCoreographies,
-  );
 
   return (
     <section className="mt-8" aria-labelledby="coreografias-title">
@@ -159,9 +153,26 @@ export function PortalCoreographiesSection({
               </div>
               <span className={eventStatus.className}>{eventStatus.label}</span>
             </div>
-            <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-              {creationAvailabilityMessage}
-            </p>
+            <div
+              className={clsx(
+                "mt-4 rounded-lg px-4 py-3 text-sm leading-6",
+                creationAvailability.tone === "ready" &&
+                  "bg-emerald-50 text-emerald-900",
+                creationAvailability.tone === "blocked" &&
+                  "bg-amber-50 text-amber-900",
+                creationAvailability.tone === "info" &&
+                  "bg-slate-50 text-slate-700",
+              )}
+            >
+              <p>{creationAvailability.message}</p>
+              {creationAvailability.details.length > 0 ? (
+                <ul className="mt-2 space-y-1">
+                  {creationAvailability.details.map((detail) => (
+                    <li key={detail}>{detail}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </>
         ) : (
           <div>
@@ -196,12 +207,47 @@ function getPortalEventStatus(isReadOnly: boolean) {
   };
 }
 
-function getCoreographyCreationMessage(canCreateCoreographies: boolean) {
-  if (canCreateCoreographies) {
-    return "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.";
+function getCoreographyCreationState(eventContext: PortalEventContext) {
+  const canCreateCoreographies =
+    eventContext.selectedEvent !== null &&
+    !eventContext.isReadOnly &&
+    eventContext.isRegistrationOpen &&
+    eventContext.activeEventRegistrationReadiness?.isReady === true;
+
+  if (!eventContext.hasActiveEvent) {
+    return {
+      tone: "blocked" as const,
+      message: "Todavía no hay un Evento activo para registrar coreografías.",
+      details: [],
+    };
   }
 
-  return "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta.";
+  if (eventContext.activeEventRegistrationReadiness?.isReady === false) {
+    return {
+      tone: "blocked" as const,
+      message:
+        "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
+      details: eventContext.activeEventRegistrationReadiness.missingItems.map(
+        (item) => item.detail,
+      ),
+    };
+  }
+
+  if (canCreateCoreographies) {
+    return {
+      tone: "ready" as const,
+      message:
+        "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
+      details: [],
+    };
+  }
+
+  return {
+    tone: "info" as const,
+    message:
+      "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta.",
+    details: [],
+  };
 }
 
 function PortalEventSelector({

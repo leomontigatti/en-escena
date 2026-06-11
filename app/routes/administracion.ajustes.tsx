@@ -42,6 +42,8 @@ import {
   loadAdminEventContext,
   type AdminEventContext,
 } from "@/lib/admin-event-context.server";
+import type { EventRegistrationReadiness } from "@/lib/event-registration-readiness";
+import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
 import type { Route } from "./+types/administracion.ajustes";
@@ -71,6 +73,7 @@ type AdministracionAjustesRouteProps = {
     categories: CategoryRow[];
     scheduleBlocks: ScheduleBlockListItem[];
     prices: PriceListItem[];
+    registrationReadiness: EventRegistrationReadiness | null;
   };
   actionData?: ActionData;
 };
@@ -130,11 +133,15 @@ export async function loader({ request }: Route.LoaderArgs) {
         scheduleBlocks: [],
         prices: [],
       };
+  const registrationReadiness = eventContext.selectedEventId
+    ? await getEventRegistrationReadiness(eventContext.selectedEventId)
+    : null;
 
   return {
     email: user.email,
     events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
+    registrationReadiness,
     ...catalogs,
   };
 }
@@ -191,6 +198,12 @@ export function AdministracionAjustesRouteView({
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
             {providedActionData.message}
           </div>
+        ) : null}
+
+        {loaderData.registrationReadiness ? (
+          <RegistrationReadinessPanel
+            readiness={loaderData.registrationReadiness}
+          />
         ) : null}
 
         {loaderData.selectedEventId ? (
@@ -451,6 +464,45 @@ function CatalogSection({
     <section>
       <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
       <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function RegistrationReadinessPanel({
+  readiness,
+}: {
+  readiness: EventRegistrationReadiness;
+}) {
+  if (readiness.isReady) {
+    return (
+      <section className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+        <h3 className="text-base font-semibold text-emerald-950">
+          Configuración mínima lista
+        </h3>
+        <p className="mt-2 leading-6">
+          Este Evento ya tiene la configuración mínima para registrar
+          coreografías.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+      <h3 className="text-base font-semibold text-amber-950">
+        Configuración mínima pendiente
+      </h3>
+      <p className="mt-2 leading-6">
+        El Evento de trabajo todavía no tiene todo lo necesario para habilitar
+        el registro de coreografías.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {readiness.missingItems.map((item) => (
+          <li key={`${item.code}-${item.detail}`} className="leading-6">
+            {item.detail}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

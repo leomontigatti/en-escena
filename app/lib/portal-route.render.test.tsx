@@ -17,6 +17,9 @@ describe("portal route view", () => {
         queryParamName: "evento",
         events: [],
         selectedEvent: null,
+        activeEvent: null,
+        hasActiveEvent: false,
+        activeEventRegistrationReadiness: null,
         hasEvents: false,
         isReadOnly: true,
         isRegistrationOpen: false,
@@ -47,6 +50,9 @@ describe("portal route view", () => {
           selectedEvent,
         ],
         selectedEvent,
+        activeEvent: eventSummary({ id: "event_2026", name: "Regional 2026" }),
+        hasActiveEvent: true,
+        activeEventRegistrationReadiness: readiness(true),
         hasEvents: true,
         isReadOnly: true,
         isRegistrationOpen: false,
@@ -79,6 +85,9 @@ describe("portal route view", () => {
         queryParamName: "evento",
         events: [selectedEvent],
         selectedEvent,
+        activeEvent: selectedEvent,
+        hasActiveEvent: true,
+        activeEventRegistrationReadiness: readiness(true),
         hasEvents: true,
         isReadOnly: false,
         isRegistrationOpen: true,
@@ -89,6 +98,68 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
     );
+  });
+
+  test("shows a blocked message when there is no Evento activo available for registration", () => {
+    const selectedEvent = eventSummary({
+      id: "event_2025",
+      name: "Regional 2025",
+      active: false,
+    });
+
+    const markup = renderPortal({
+      eventContext: {
+        queryParamName: "evento",
+        events: [selectedEvent],
+        selectedEvent,
+        activeEvent: null,
+        hasActiveEvent: false,
+        activeEventRegistrationReadiness: null,
+        hasEvents: true,
+        isReadOnly: true,
+        isRegistrationOpen: false,
+      },
+    });
+
+    expect(markup).toContain(
+      "Todavía no hay un Evento activo para registrar coreografías.",
+    );
+  });
+
+  test("shows a blocked message when the Evento activo lacks minimum configuration", () => {
+    const selectedEvent = eventSummary({
+      id: "event_active",
+      name: "Regional 2026",
+      active: true,
+      registrationStartsAt: date("2026-01-01T12:00:00Z"),
+      registrationEndsAt: date("2026-12-31T12:00:00Z"),
+    });
+
+    const markup = renderPortal({
+      eventContext: {
+        queryParamName: "evento",
+        events: [selectedEvent],
+        selectedEvent,
+        activeEvent: selectedEvent,
+        hasActiveEvent: true,
+        activeEventRegistrationReadiness: readiness(false, [
+          {
+            code: "price-coverage",
+            label: "Precios aplicables",
+            detail:
+              "Falta un Precio aplicable para Categoría Juvenil, Modalidad Jazz, Tipo de grupo Solo.",
+          },
+        ]),
+        hasEvents: true,
+        isReadOnly: false,
+        isRegistrationOpen: true,
+      },
+    });
+
+    expect(markup).toContain(
+      "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
+    );
+    expect(markup).toContain("Falta un Precio aplicable");
   });
 
   test("shows the Bailarines empty list surface", () => {
@@ -383,4 +454,19 @@ function eventSummary(
 
 function date(value: string) {
   return new Date(value);
+}
+
+function readiness(
+  isReady: boolean,
+  missingItems: PortalLoaderData["eventContext"]["activeEventRegistrationReadiness"] extends infer T
+    ? T extends { missingItems: infer M }
+      ? M
+      : never
+    : never = [],
+) {
+  return {
+    eventId: "event_1",
+    isReady,
+    missingItems,
+  };
 }
