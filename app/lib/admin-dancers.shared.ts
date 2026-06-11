@@ -25,125 +25,116 @@ export function readAdminDancerParticipationFilter(input: {
   value: string | null;
   hasSelectedEvent: boolean;
 }): AdminDancerParticipationFilter {
-  if (input.value === "si") {
-    return "yes";
+  switch (input.value) {
+    case "si":
+      return "yes";
+    case "no":
+      return "no";
+    case "todos":
+      return "all";
+    default:
+      return input.hasSelectedEvent ? "yes" : "all";
   }
-
-  if (input.value === "no") {
-    return "no";
-  }
-
-  if (input.value === "todos") {
-    return "all";
-  }
-
-  return input.hasSelectedEvent ? "yes" : "all";
 }
 
 export function readAdminDancerStatusFilter(
   value: string | null,
 ): AdminDancerStatusFilter {
-  if (value === "archivados") {
-    return "archived";
+  switch (value) {
+    case "archivados":
+      return "archived";
+    case "todos":
+      return "all";
+    default:
+      return "active";
   }
-
-  if (value === "todos") {
-    return "all";
-  }
-
-  return "active";
 }
 
 export function readAdminDancerIdentificationFilter(
   value: string | null,
 ): AdminDancerIdentificationFilter {
-  if (value === "sin-imagenes") {
-    return "missing-images";
+  switch (value) {
+    case "sin-imagenes":
+      return "missing-images";
+    case "todos":
+      return "all";
+    default:
+      return "all";
   }
-
-  if (value === "todos") {
-    return "all";
-  }
-
-  return "all";
 }
 
 export function toAdminDancerParticipationSearchValue(
   value: AdminDancerParticipationFilter,
 ) {
-  if (value === "no") {
-    return "no";
+  switch (value) {
+    case "no":
+      return "no";
+    case "all":
+      return "todos";
+    default:
+      return "si";
   }
-
-  if (value === "all") {
-    return "todos";
-  }
-
-  return "si";
 }
 
 export function toAdminDancerStatusSearchValue(value: AdminDancerStatusFilter) {
-  if (value === "archived") {
-    return "archivados";
+  switch (value) {
+    case "archived":
+      return "archivados";
+    case "all":
+      return "todos";
+    default:
+      return "activos";
   }
-
-  if (value === "all") {
-    return "todos";
-  }
-
-  return "activos";
 }
 
 export function toAdminDancerIdentificationSearchValue(
   value: AdminDancerIdentificationFilter,
 ) {
-  if (value === "missing-images") {
-    return "sin-imagenes";
+  switch (value) {
+    case "missing-images":
+      return "sin-imagenes";
+    case "all":
+      return "todos";
+    default:
+      return "incompleta";
   }
-
-  if (value === "all") {
-    return "todos";
-  }
-
-  return "incompleta";
 }
 
 export function getAdminDancerParticipationLabel(
   participationStatus: AdminDancerParticipationStatus,
 ) {
-  if (participationStatus === "participating") {
-    return "Participando";
+  switch (participationStatus) {
+    case "participating":
+      return "Participando";
+    case "not-participating":
+      return "No participando";
+    default:
+      return "Sin evento";
   }
-
-  if (participationStatus === "not-participating") {
-    return "No participando";
-  }
-
-  return "Sin evento";
 }
 
 export function getAdminDancerParticipationSummary(
   participationStatus: AdminDancerParticipationStatus,
 ) {
-  if (participationStatus === "participating") {
-    return "Participando en el Evento de trabajo.";
+  switch (participationStatus) {
+    case "participating":
+      return "Participando en el Evento de trabajo.";
+    case "not-participating":
+      return "No participa en el Evento de trabajo.";
+    default:
+      return "Sin evento de trabajo seleccionado.";
   }
-
-  if (participationStatus === "not-participating") {
-    return "No participa en el Evento de trabajo.";
-  }
-
-  return "Sin evento de trabajo seleccionado.";
 }
 
 export function getAdminDancerIdentificationLabel(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
-  if (identificationStatus === "missing-images") {
-    return "Sin imágenes";
+  switch (identificationStatus) {
+    case "missing-images":
+      return "Sin imágenes";
+    default:
+      return "Incompleta";
   }
-
-  return "Incompleta";
 }
 
 export function formatAdminDancerDocument(input: {
@@ -154,15 +145,26 @@ export function formatAdminDancerDocument(input: {
     return "Sin documento cargado";
   }
 
-  if (input.documentType === "dni") {
-    return `DNI ${input.documentNumber}`;
+  switch (input.documentType) {
+    case "dni":
+      return `DNI ${input.documentNumber}`;
+    case "passport":
+      return `Pasaporte ${input.documentNumber}`;
+    default:
+      return `Otro ${input.documentNumber}`;
   }
+}
 
-  if (input.documentType === "passport") {
-    return `Pasaporte ${input.documentNumber}`;
-  }
+export function getAdminDancerParticipationBadgeVariant(
+  participationStatus: AdminDancerParticipationStatus,
+) {
+  return participationStatus === "participating" ? "outline" : "secondary";
+}
 
-  return `Otro ${input.documentNumber}`;
+export function getAdminDancerIdentificationBadgeVariant(
+  identificationStatus: AdminDancerIdentificationStatus,
+) {
+  return identificationStatus === "missing-images" ? "outline" : "secondary";
 }
 
 export function formatAdminDancerBirthDate(value: string) {

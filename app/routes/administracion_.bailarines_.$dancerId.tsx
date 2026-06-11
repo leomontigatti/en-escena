@@ -8,7 +8,9 @@ import {
   adminDancerNotFoundMessage,
   formatAdminDancerBirthDate,
   formatAdminDancerDocument,
+  getAdminDancerIdentificationBadgeVariant,
   getAdminDancerIdentificationLabel,
+  getAdminDancerParticipationBadgeVariant,
   getAdminDancerParticipationLabel,
   getAdminDancerParticipationSummary,
   type AdminDancerIdentificationStatus,
@@ -17,6 +19,8 @@ import {
 import { loadAdminEventContext } from "@/lib/admin-event-context.server";
 import { findAdministrativeDancer } from "@/lib/admin-dancers.server";
 import { requireInternalUser } from "@/lib/internal-access.server";
+
+import type { Route } from "./+types/administracion_.bailarines_.$dancerId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
@@ -30,17 +34,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: "America/Argentina/Buenos_Aires",
 });
 
-export const meta = () => [
+export const meta: Route.MetaFunction = () => [
   { title: "Bailarín | Panel de administración | En Escena" },
 ];
 
-export async function loader({
-  request,
-  params,
-}: {
-  request: Request;
-  params: { dancerId?: string };
-}) {
+export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 
@@ -215,11 +213,10 @@ function ParticipationBadge({
 }: {
   participationStatus: AdminDancerParticipationStatus;
 }) {
-  const variant =
-    participationStatus === "participating" ? "outline" : "secondary";
-
   return (
-    <Badge variant={variant}>
+    <Badge
+      variant={getAdminDancerParticipationBadgeVariant(participationStatus)}
+    >
       {getAdminDancerParticipationLabel(participationStatus)}
     </Badge>
   );
@@ -230,11 +227,10 @@ function IdentificationBadge({
 }: {
   identificationStatus: AdminDancerIdentificationStatus;
 }) {
-  const variant =
-    identificationStatus === "missing-images" ? "outline" : "secondary";
-
   return (
-    <Badge variant={variant}>
+    <Badge
+      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
+    >
       {getAdminDancerIdentificationLabel(identificationStatus)}
     </Badge>
   );

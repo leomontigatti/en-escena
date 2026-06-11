@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/table";
 import {
   adminDancerPageSize,
+  getAdminDancerIdentificationBadgeVariant,
   getAdminDancerIdentificationLabel,
+  getAdminDancerParticipationBadgeVariant,
   getAdminDancerParticipationLabel,
   toAdminDancerIdentificationSearchValue,
   toAdminDancerParticipationSearchValue,
@@ -28,17 +30,19 @@ import {
 } from "@/lib/admin-dancers.server";
 import { requireInternalUser } from "@/lib/internal-access.server";
 
+import type { Route } from "./+types/administracion_.bailarines";
+
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
 };
 
-export const meta = () => [
+export const meta: Route.MetaFunction = () => [
   { title: "Bailarines | Panel de administración | En Escena" },
 ];
 
-export async function loader({ request }: { request: Request }) {
+export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 
@@ -289,11 +293,10 @@ function ParticipationBadge({
 }: {
   participationStatus: AdminDancerParticipationStatus;
 }) {
-  const variant =
-    participationStatus === "participating" ? "outline" : "secondary";
-
   return (
-    <Badge variant={variant}>
+    <Badge
+      variant={getAdminDancerParticipationBadgeVariant(participationStatus)}
+    >
       {getAdminDancerParticipationLabel(participationStatus)}
     </Badge>
   );
@@ -304,21 +307,42 @@ function IdentificationBadge({
 }: {
   identificationStatus: AdminDancerIdentificationStatus;
 }) {
-  const variant =
-    identificationStatus === "missing-images" ? "outline" : "secondary";
-
   return (
-    <Badge variant={variant}>
+    <Badge
+      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
+    >
       {getAdminDancerIdentificationLabel(identificationStatus)}
     </Badge>
   );
 }
 
 function buildListHref(loaderData: LoaderData, page: number) {
+  const searchParams = buildSearchParams(loaderData, page);
+  const search = searchParams.toString();
+
+  return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
+}
+
+function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
+  return `/administracion/bailarines/${dancerId}${buildDetailSearch(loaderData)}`;
+}
+
+function buildDetailSearch(loaderData: LoaderData) {
+  const searchParams = buildSearchParams(loaderData, loaderData.filters.page);
+  const search = searchParams.toString();
+
+  return search.length > 0 ? `?${search}` : "";
+}
+
+function buildSearchParams(loaderData: LoaderData, page: number) {
   const searchParams = new URLSearchParams();
 
   if (loaderData.selectedEventId) {
     searchParams.set("evento", loaderData.selectedEventId);
+  }
+
+  if (loaderData.filters.query.length > 0) {
+    searchParams.set("q", loaderData.filters.query);
   }
 
   searchParams.set(
@@ -334,21 +358,11 @@ function buildListHref(loaderData: LoaderData, page: number) {
     toAdminDancerIdentificationSearchValue(loaderData.filters.identification),
   );
 
-  if (loaderData.filters.query.length > 0) {
-    searchParams.set("q", loaderData.filters.query);
-  }
-
   if (page > 1) {
     searchParams.set("page", String(page));
   }
 
-  const search = searchParams.toString();
-
-  return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
-}
-
-function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
-  return `/administracion/bailarines/${dancerId}${buildListHref(loaderData, loaderData.filters.page).replace("/administracion/bailarines", "")}`;
+  return searchParams;
 }
 
 function formatResultCount(totalCount: number) {
