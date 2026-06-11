@@ -153,12 +153,12 @@ export function PortalCoreografiasRouteView({
   created = false,
 }: PortalCoreografiasRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
-  const status = getEventStatus(loaderData.eventContext.isReadOnly);
+  const eventStatus = getEventStatus(loaderData.eventContext.isReadOnly);
   const creationState = getCreationState(
     loaderData.eventContext,
     loaderData.activeDancers.length,
   );
-  const selectedEventQuery = selectedEvent
+  const selectedEventSearch = selectedEvent
     ? `?${loaderData.eventContext.queryParamName}=${selectedEvent.id}`
     : "";
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -203,7 +203,9 @@ export function PortalCoreografiasRouteView({
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:items-end">
-                  <span className={status.className}>{status.label}</span>
+                  <span className={eventStatus.className}>
+                    {eventStatus.label}
+                  </span>
                   <button
                     type="button"
                     disabled={!creationState.canCreate}
@@ -239,7 +241,7 @@ export function PortalCoreografiasRouteView({
               {loaderData.choreographies.length > 0 ? (
                 <ChoreographyTable
                   choreographies={loaderData.choreographies}
-                  selectedEventQuery={selectedEventQuery}
+                  selectedEventSearch={selectedEventSearch}
                 />
               ) : (
                 <PortalEmptyList
@@ -292,28 +294,21 @@ export default function PortalCoreografiasRoute({
 
 function ChoreographyTable({
   choreographies,
-  selectedEventQuery,
+  selectedEventSearch,
 }: {
   choreographies: PortalCoreografiasRouteProps["loaderData"]["choreographies"];
-  selectedEventQuery: string;
+  selectedEventSearch: string;
 }) {
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead className="bg-slate-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Nombre
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Modalidad / Submodalidad
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Categoría / Nivel
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Estado operativo
-            </th>
+            {CHOREOGRAPHY_TABLE_HEADERS.map((header) => (
+              <th key={header} className={CHOREOGRAPHY_TABLE_HEADER_CLASS_NAME}>
+                {header}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
@@ -321,23 +316,23 @@ function ChoreographyTable({
             <tr key={choreography.id} className="hover:bg-slate-50">
               <td className="px-4 py-3 font-medium text-slate-950">
                 <Link
-                  to={`/portal/coreografias/${choreography.id}${selectedEventQuery}`}
+                  to={`/portal/coreografias/${choreography.id}${selectedEventSearch}`}
                   className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 >
                   {choreography.name}
                 </Link>
               </td>
               <td className="px-4 py-3 text-slate-700">
-                {choreography.modalityName}
-                {choreography.submodalityName
-                  ? ` · ${choreography.submodalityName}`
-                  : ""}
+                {formatPrimaryAndSecondaryValue(
+                  choreography.modalityName,
+                  choreography.submodalityName,
+                )}
               </td>
               <td className="px-4 py-3 text-slate-700">
-                {choreography.categoryName ?? "Categoría pendiente"}
-                {choreography.experienceLevelName
-                  ? ` · ${choreography.experienceLevelName}`
-                  : ""}
+                {formatPrimaryAndSecondaryValue(
+                  choreography.categoryName ?? "Categoría pendiente",
+                  choreography.experienceLevelName,
+                )}
               </td>
               <td className="px-4 py-3">
                 <OperationalStatusBadge choreography={choreography} />
@@ -381,6 +376,19 @@ const creationToneClassNames: Record<CreationState["tone"], string> = {
   blocked: "bg-amber-50 text-amber-900",
   info: "bg-slate-50 text-slate-700",
 };
+
+const CHOREOGRAPHY_TABLE_HEADERS = [
+  "Nombre",
+  "Modalidad / Submodalidad",
+  "Categoría / Nivel",
+  "Estado operativo",
+] as const;
+
+const CHOREOGRAPHY_TABLE_HEADER_CLASS_NAME =
+  "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600";
+
+const EVENT_STATUS_BADGE_CLASS_NAME =
+  "inline-flex w-fit rounded-md px-2.5 py-1 text-xs font-semibold";
 
 function getCreationState(
   eventContext: PortalEventContext,
@@ -451,16 +459,21 @@ function getEventStatus(isReadOnly: boolean) {
   if (isReadOnly) {
     return {
       label: "Solo lectura",
-      className:
-        "inline-flex w-fit rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800",
+      className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-amber-50 text-amber-800`,
     };
   }
 
   return {
     label: "Contexto editable",
-    className:
-      "inline-flex w-fit rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800",
+    className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-emerald-50 text-emerald-800`,
   };
+}
+
+function formatPrimaryAndSecondaryValue(
+  primaryValue: string,
+  secondaryValue: string | null,
+) {
+  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function PortalEventSelector({

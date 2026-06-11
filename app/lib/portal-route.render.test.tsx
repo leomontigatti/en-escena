@@ -205,10 +205,15 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Nombre");
-    expect(markup).toContain("Modalidad / Submodalidad");
-    expect(markup).toContain("Categoría / Nivel");
-    expect(markup).toContain("Estado operativo");
+    for (const columnLabel of [
+      "Nombre",
+      "Modalidad / Submodalidad",
+      "Categoría / Nivel",
+      "Estado operativo",
+    ]) {
+      expect(markup).toContain(columnLabel);
+    }
+
     expect(markup).toContain("Solo lectura");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Jazz · Lyrical");
