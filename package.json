@@ -13,9 +13,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "db:push": "drizzle-kit push",
+    "db:push": "node --env-file=.env node_modules/drizzle-kit/bin.cjs push",
     "db:test:push": "tsx tests/db/push-test-schema.ts",
-    "db:studio": "drizzle-kit studio",
+    "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
     "sandcastle": "npx tsx .sandcastle/main.mts"
   },
   "dependencies": {

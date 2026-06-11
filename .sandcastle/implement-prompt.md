@@ -71,15 +71,16 @@ If applicable, use RGR to complete the task.
 
 Before committing, run the validation commands in this order:
 
-1. `npm run format:check`
-2. `npm run typecheck`
-3. `npm run test`
-4. `npm run test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-5. `npm run build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
+1. `npm run format`
+2. `npm run format:check`
+3. `npm run typecheck`
+4. `npm run test`
+5. `npm run test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+6. `npm run build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
-Do not start `typecheck`, tests, DB tests, or build while `format:check` is
-failing or while formatting changes are unverified. Do not run validation
+Do not start `typecheck`, tests, DB tests, or build while formatting or
+`format:check` is failing, or while formatting changes are unverified. Do not run validation
 commands in parallel when later commands depend on earlier code state.
 When validation output is long, use the failing test names, error summaries, and
 focused reruns to diagnose. Do not paste or re-read full logs when a narrower

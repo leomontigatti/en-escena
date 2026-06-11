@@ -80,17 +80,18 @@ Single-issue mode skips the planner, verifies that the issue is open and labeled
 
 Sandcastle prompts must preserve this repo's validation order:
 
-1. `npm run format:check`
-2. `npm run typecheck`
-3. `npm test`
-4. `npm run test:db` when the change touches database schema, repositories,
+1. `npm run format`
+2. `npm run format:check`
+3. `npm run typecheck`
+4. `npm test`
+5. `npm run test:db` when the change touches database schema, repositories,
    loaders/actions that persist data, or persistence-backed business rules
-5. `npm run build` when the change touches routing, server rendering, bundling,
+6. `npm run build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix it and rerun that same command before starting the next
 validation command. Do not run `typecheck`, tests, DB tests, or build while
-formatting is still broken.
+formatting or `format:check` is still broken.
 
 During development, focused DB tests can target one file:
 
