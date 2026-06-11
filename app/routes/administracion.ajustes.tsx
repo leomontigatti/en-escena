@@ -1,5 +1,11 @@
 import { Settings } from "lucide-react";
-import { NavLink, Outlet, redirect, useOutletContext } from "react-router";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  redirect,
+  useOutletContext,
+} from "react-router";
 import { Fragment, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
@@ -58,7 +64,7 @@ type CategoryRow = typeof categories.$inferSelect & {
   experienceLevelIds: string[];
 };
 
-type ActionData = {
+export type ActionData = {
   status: "error";
   message: string;
   fieldErrors: Record<string, string>;
@@ -109,6 +115,7 @@ type AjustesSectionKey =
 type CatalogActionInput = {
   eventId: string;
   confirmDelete: boolean;
+  confirmDeletion: string;
   id: string;
   intent: string;
   capacity: number;
@@ -208,22 +215,18 @@ export async function action({ request }: Route.ActionArgs) {
 
   const formData = await request.formData();
   const input = readCatalogActionInput(eventId, formData);
+
+  if (requiresModalityDeletionConfirmation(request.url, input)) {
+    return actionError("Confirmá el borrado de la Modalidad.");
+  }
+
   const result = await runCatalogIntent(input);
 
   if (!result.ok) {
     return actionError(result.error, result.fieldErrors);
   }
 
-  const redirectUrl = new URL(request.url);
-  applyCatalogRedirect({
-    currentPathname: redirectUrl.pathname,
-    redirectUrl,
-    eventId,
-    input,
-    result,
-  });
-
-  throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
+  throw redirect(buildActionRedirectUrl(request.url, eventId, input, result));
 }
 
 export function useAdministracionAjustesLoaderData() {
@@ -457,39 +460,53 @@ export function AdministracionAjustesCategoriaDetalleRouteView({
   );
 }
 
-export function AdministracionAjustesModalidadesRouteView({
+export function AdministracionAjustesModalidadesListRouteView({
   loaderData,
-  actionData: providedActionData,
-}: AdministracionAjustesSectionProps) {
+}: {
+  loaderData: AdministracionAjustesLoaderData;
+}) {
+  const submodalitiesByModalityId = groupSubmodalitiesByModalityId(
+    loaderData.submodalities,
+  );
+
   return (
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
-      actionData={providedActionData}
       title="Modalidades"
-      description="Gestioná Modalidades y sus Submodalidades dentro del Evento de trabajo seleccionado."
+      description="Gestioná Modalidades desde una lista propia y revisá sus opciones hijas dentro del detalle."
     >
       <CatalogSection title="Modalidades">
-        <CatalogCreateForm
-          intent="create-modality"
-          label="Nombre de la Modalidad"
-          buttonLabel="Crear Modalidad"
-          fieldError={providedActionData?.fieldErrors.name}
-        />
         {loaderData.modalities.length > 0 ? (
           <ul className={catalogListClassName}>
             {loaderData.modalities.map((modality) => (
-              <li key={modality.id} className="space-y-3 p-4">
-                <CatalogUpdateForm
-                  id={modality.id}
-                  intent="update-modality"
-                  name={modality.name}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={modality.id}
-                  intent="delete-modality"
-                  buttonLabel="Borrar Modalidad"
-                />
+              <li
+                key={modality.id}
+                className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-950">
+                      {modality.name}
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Opciones hijas asociadas a esta Modalidad.
+                    </p>
+                  </div>
+                  <SubmodalityBadgeList
+                    submodalities={
+                      submodalitiesByModalityId.get(modality.id) ?? []
+                    }
+                  />
+                </div>
+                <Link
+                  to={buildModalidadDetallePath(
+                    modality.id,
+                    loaderData.selectedEventId,
+                  )}
+                  className={secondaryLinkButtonClassName}
+                >
+                  Ver detalle
+                </Link>
               </li>
             ))}
           </ul>
@@ -499,39 +516,111 @@ export function AdministracionAjustesModalidadesRouteView({
           </EmptyCatalogState>
         )}
       </CatalogSection>
-      <CatalogSection title="Submodalidades">
-        <SubmodalityForm
-          intent="create-submodality"
-          modalities={loaderData.modalities}
-          buttonLabel="Crear Submodalidad"
+      <Link
+        to={buildNuevaModalidadPath(loaderData.selectedEventId)}
+        className={primaryLinkButtonClassName}
+      >
+        Nueva Modalidad
+      </Link>
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesNuevaModalidadRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title="Nueva Modalidad"
+      description="Creá una Modalidad en una ruta dedicada y completá sus Submodalidades desde el detalle."
+    >
+      <ModalidadesBackLink selectedEventId={loaderData.selectedEventId} />
+      <CatalogSection title="Datos de la Modalidad">
+        <ModalityForm
+          intent="create-modality"
+          buttonLabel="Crear Modalidad"
           fieldErrors={providedActionData?.fieldErrors}
         />
-        {loaderData.submodalities.length > 0 ? (
-          <ul className={catalogListClassName}>
-            {loaderData.submodalities.map((submodality) => (
-              <li key={submodality.id} className="space-y-3 p-4">
-                <SubmodalityForm
-                  id={submodality.id}
-                  intent="update-submodality"
-                  modalities={loaderData.modalities}
-                  name={submodality.name}
-                  modalityId={submodality.modalityId}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={submodality.id}
-                  intent="delete-submodality"
-                  buttonLabel="Borrar Submodalidad"
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyCatalogState>
-            Todavía no hay Submodalidades para este Evento.
-          </EmptyCatalogState>
-        )}
       </CatalogSection>
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesModalidadDetalleRouteView({
+  loaderData,
+  actionData: providedActionData,
+  modalityId,
+}: AdministracionAjustesSectionProps & { modalityId: string }) {
+  const modality = loaderData.modalities.find(
+    (record) => record.id === modalityId,
+  );
+  const modalitySubmodalities = loaderData.submodalities.filter(
+    (submodality) => submodality.modalityId === modalityId,
+  );
+
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title={modality?.name ?? "Detalle de Modalidad"}
+      description="Editá la Modalidad, gestioná sus Submodalidades y resolvé acciones destructivas con contexto."
+    >
+      <ModalidadesBackLink selectedEventId={loaderData.selectedEventId} />
+      {modality ? (
+        <div className="space-y-6">
+          <CatalogSection title="Datos de la Modalidad">
+            <ModalityForm
+              id={modality.id}
+              intent="update-modality"
+              name={modality.name}
+              buttonLabel="Guardar Modalidad"
+              fieldErrors={providedActionData?.fieldErrors}
+            />
+          </CatalogSection>
+          <CatalogSection title="Submodalidades">
+            <SubmodalityForm
+              intent="create-submodality"
+              modalities={[modality]}
+              modalityId={modality.id}
+              buttonLabel="Crear Submodalidad"
+              fieldErrors={providedActionData?.fieldErrors}
+            />
+            {modalitySubmodalities.length > 0 ? (
+              <ul className={catalogListClassName}>
+                {modalitySubmodalities.map((submodality) => (
+                  <li key={submodality.id} className="space-y-3 p-4">
+                    <SubmodalityForm
+                      id={submodality.id}
+                      intent="update-submodality"
+                      modalities={[modality]}
+                      name={submodality.name}
+                      modalityId={submodality.modalityId}
+                      buttonLabel="Guardar"
+                    />
+                    <CatalogDeleteForm
+                      id={submodality.id}
+                      intent="delete-submodality"
+                      buttonLabel="Borrar Submodalidad"
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyCatalogState>
+                Todavía no hay Submodalidades para esta Modalidad.
+              </EmptyCatalogState>
+            )}
+          </CatalogSection>
+          <CatalogSection title="Borrar Modalidad">
+            <ModalityDeleteForm id={modality.id} />
+          </CatalogSection>
+        </div>
+      ) : (
+        <EmptyCatalogState>No encontramos esa Modalidad.</EmptyCatalogState>
+      )}
     </AdministracionAjustesSectionLayout>
   );
 }
@@ -685,6 +774,15 @@ const settingsSections: Array<{
 
 const catalogListClassName =
   "mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white";
+const primaryLinkButtonClassName =
+  "inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+const secondaryLinkButtonClassName =
+  "inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+const modalityRoutes = {
+  detail: "/administracion/ajustes/modalidades",
+  list: "/administracion/ajustes/modalidades",
+  new: "/administracion/ajustes/modalidades/nueva",
+} as const;
 
 function buildSettingsPath(
   section: AjustesSectionKey | null,
@@ -710,6 +808,41 @@ function buildCategoryDetailPath(
   return appendSelectedEventId(
     `/administracion/ajustes/categorias/${categoryId}`,
     selectedEventId,
+  );
+}
+
+function buildModalidadesListPath(selectedEventId: string | null) {
+  return appendSelectedEventId(modalityRoutes.list, selectedEventId);
+}
+
+function buildNuevaModalidadPath(selectedEventId: string | null) {
+  return appendSelectedEventId(modalityRoutes.new, selectedEventId);
+}
+
+function buildModalidadDetallePath(
+  modalityId: string,
+  selectedEventId: string | null,
+) {
+  return appendSelectedEventId(
+    `${modalityRoutes.detail}/${modalityId}`,
+    selectedEventId,
+  );
+}
+
+function isModalityDetailPath(requestUrl: string) {
+  return new RegExp(`^${modalityRoutes.detail}/[^/]+$`).test(
+    new URL(requestUrl).pathname,
+  );
+}
+
+function requiresModalityDeletionConfirmation(
+  requestUrl: string,
+  input: CatalogActionInput,
+) {
+  return (
+    input.intent === "delete-modality" &&
+    isModalityDetailPath(requestUrl) &&
+    input.confirmDeletion !== input.id
   );
 }
 
@@ -1000,6 +1133,133 @@ function CatalogUpdateForm({
         className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
       >
         {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function ModalidadesBackLink({
+  selectedEventId,
+}: {
+  selectedEventId: string | null;
+}) {
+  return (
+    <Link
+      to={buildModalidadesListPath(selectedEventId)}
+      className={secondaryLinkButtonClassName}
+    >
+      Volver a Modalidades
+    </Link>
+  );
+}
+
+function groupSubmodalitiesByModalityId(submodalities: SubmodalityRow[]) {
+  const submodalitiesByModalityId = new Map<string, SubmodalityRow[]>();
+
+  for (const submodality of submodalities) {
+    const groupedSubmodalities =
+      submodalitiesByModalityId.get(submodality.modalityId) ?? [];
+
+    groupedSubmodalities.push(submodality);
+    submodalitiesByModalityId.set(submodality.modalityId, groupedSubmodalities);
+  }
+
+  return submodalitiesByModalityId;
+}
+
+function SubmodalityBadgeList({
+  submodalities,
+}: {
+  submodalities: SubmodalityRow[];
+}) {
+  if (submodalities.length === 0) {
+    return (
+      <p className="text-sm text-slate-500">Sin opciones hijas asociadas.</p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {submodalities.map((submodality) => (
+        <span
+          key={submodality.id}
+          className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
+        >
+          {submodality.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ModalityForm({
+  buttonLabel,
+  fieldErrors = {},
+  id,
+  intent,
+  name,
+}: {
+  buttonLabel: string;
+  fieldErrors?: Record<string, string>;
+  id?: string;
+  intent: string;
+  name?: string;
+}) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-slate-200 bg-white p-4"
+    >
+      <input type="hidden" name="intent" value={intent} />
+      {id ? <input type="hidden" name="id" value={id} /> : null}
+      <label className="block text-sm font-medium text-slate-800">
+        Nombre de la Modalidad
+        <input
+          name="name"
+          defaultValue={name}
+          className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+        />
+      </label>
+      {fieldErrors.name ? (
+        <p className="mt-2 text-xs font-medium text-red-700">
+          {fieldErrors.name}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
+function ModalityDeleteForm({ id }: { id: string }) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <input type="hidden" name="intent" value="delete-modality" />
+      <input type="hidden" name="id" value={id} />
+      <p className="text-sm leading-6 text-red-900">
+        Esta acción borra la Modalidad si no tiene Submodalidades, Categorías o
+        Bloques horarios relacionados.
+      </p>
+      <label className="mt-3 block text-sm font-medium text-red-900">
+        Confirmación
+        <input
+          name="confirmDeletion"
+          className="mt-2 h-10 w-full rounded-md border border-red-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-red-700 focus:ring-4 focus:ring-red-100"
+          placeholder="Pegá el ID de la Modalidad para confirmar"
+        />
+      </label>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
+      >
+        Borrar Modalidad
       </button>
     </form>
   );
@@ -1828,6 +2088,7 @@ function readCatalogActionInput(
     confirmDelete:
       String(formData.get("confirmDelete") ?? "") === "1" ||
       String(formData.get("confirmDelete") ?? "") === "on",
+    confirmDeletion: String(formData.get("confirmDeletion") ?? ""),
     eventId,
     capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
     id: String(formData.get("id") ?? ""),
@@ -1866,35 +2127,20 @@ function actionError(
   };
 }
 
-function applyCatalogRedirect({
-  currentPathname,
-  redirectUrl,
-  eventId,
-  input,
-  result,
-}: {
-  currentPathname: string;
-  redirectUrl: URL;
-  eventId: string;
-  input: CatalogActionInput;
-  result: CatalogActionResult;
-}) {
-  redirectUrl.pathname = resolveCatalogRedirectPath(
-    currentPathname,
-    input,
-    result,
-  );
-  redirectUrl.searchParams.set("evento", eventId);
-  redirectUrl.searchParams.set("guardado", "1");
-}
-
-function resolveCatalogRedirectPath(
-  currentPathname: string,
+function buildActionRedirectUrl(
+  requestUrl: string,
+  eventId: string,
   input: CatalogActionInput,
   result: CatalogActionResult,
 ) {
+  const currentUrl = new URL(requestUrl);
+
   if (input.intent === "delete-category") {
-    return buildSettingsPath("categorias", null);
+    return withSavedSearch(buildSettingsPath("categorias", null), eventId);
+  }
+
+  if (input.intent === "delete-modality") {
+    return withSavedSearch(buildModalidadesListPath(null), eventId);
   }
 
   if (
@@ -1902,10 +2148,32 @@ function resolveCatalogRedirectPath(
     result.ok &&
     hasCatalogRecord(result)
   ) {
-    return buildCategoryDetailPath(result.record.id, null);
+    return withSavedSearch(
+      buildCategoryDetailPath(result.record.id, null),
+      eventId,
+    );
   }
 
-  return currentPathname;
+  if (
+    input.intent === "create-modality" &&
+    result.ok &&
+    hasCatalogRecord(result)
+  ) {
+    return withSavedSearch(
+      buildModalidadDetallePath(result.record.id, null),
+      eventId,
+    );
+  }
+
+  return withSavedSearch(currentUrl.pathname, eventId);
+}
+
+function withSavedSearch(pathname: string, eventId: string) {
+  const redirectUrl = new URL(`http://localhost${pathname}`);
+  redirectUrl.searchParams.set("evento", eventId);
+  redirectUrl.searchParams.set("guardado", "1");
+
+  return `${redirectUrl.pathname}${redirectUrl.search}`;
 }
 
 function hasCatalogRecord(

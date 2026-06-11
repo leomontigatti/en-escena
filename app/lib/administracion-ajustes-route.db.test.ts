@@ -34,7 +34,9 @@ import {
   AdministracionAjustesIndexRouteView,
   AdministracionAjustesLayoutView,
   type AdministracionAjustesLoaderData,
-  AdministracionAjustesModalidadesRouteView,
+  AdministracionAjustesModalidadDetalleRouteView,
+  AdministracionAjustesModalidadesListRouteView,
+  AdministracionAjustesNuevaModalidadRouteView,
   AdministracionAjustesPreciosRouteView,
   loader,
 } from "@/routes/administracion.ajustes";
@@ -159,6 +161,11 @@ describe("administracion/ajustes route", () => {
 
     const indexMarkup = renderIndexRoute(data);
     const modalidadesMarkup = renderModalidadesRoute(data);
+    const nuevaModalidadMarkup = renderNuevaModalidadRoute(data);
+    const detalleModalidadMarkup = renderModalidadDetalleRoute(
+      data,
+      "modalidad-inexistente",
+    );
     const categoriaNuevaMarkup = renderCategoriaNuevaRoute(data);
     const categoriaDetalleMarkup = renderCategoriaDetalleRoute(
       data,
@@ -169,6 +176,12 @@ describe("administracion/ajustes route", () => {
       "Elegí un Evento de trabajo para configurar Ajustes",
     );
     expect(modalidadesMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
+    expect(nuevaModalidadMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
+    expect(detalleModalidadMarkup).toContain(
       "Elegí un Evento de trabajo para configurar Ajustes",
     );
     expect(categoriaNuevaMarkup).toContain(
@@ -201,7 +214,202 @@ describe("administracion/ajustes route", () => {
     expect(markup).toContain(
       "Estás editando un Evento de trabajo que no es el Evento activo.",
     );
-    expect(markup).toContain('name="intent" value="create-modality"');
+    expect(markup).toContain("Nueva Modalidad");
+  });
+
+  test("renders the Modalidades list with Submodalidad badges and dedicated create/detail routes", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const urbano = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+
+    await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: jazz.id,
+        name: "Lyrical",
+      }),
+    );
+    await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: jazz.id,
+        name: "Contemporáneo jazz",
+      }),
+    );
+
+    const request = await createSignedInRequest({
+      email: "admin.lista.modalidades@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+    const markup = renderModalidadesRoute(data);
+
+    expect(markup).toContain("Nueva Modalidad");
+    expect(markup).toContain(
+      `/administracion/ajustes/modalidades/nueva?evento=${event.id}`,
+    );
+    expect(markup).toContain("Jazz");
+    expect(markup).toContain("Lyrical");
+    expect(markup).toContain("Contemporáneo jazz");
+    expect(markup).toContain(
+      `/administracion/ajustes/modalidades/${jazz.id}?evento=${event.id}`,
+    );
+    expect(markup).toContain(
+      `/administracion/ajustes/modalidades/${urbano.id}?evento=${event.id}`,
+    );
+    expect(markup).not.toContain('name="intent" value="create-modality"');
+    expect(markup).not.toContain("Borrar Modalidad");
+    expect(markup).not.toContain("Submodalidades");
+  });
+
+  test("creates Modalidades from the dedicated route and loads their detail route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modalityRequest = await createSignedInRequest({
+      email: "admin.crea.modalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/nueva?evento=${event.id}`,
+      body: formData({ intent: "create-modality", name: "Jazz" }),
+    });
+
+    const response = await expectThrownResponse(
+      action(routeArgs(modalityRequest.request)),
+      302,
+    );
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.name, "Jazz"),
+    });
+
+    expect(modality).toMatchObject({ eventId: event.id });
+    expect(response.headers.get("location")).toBe(
+      `/administracion/ajustes/modalidades/${modality?.id}?evento=${event.id}&guardado=1`,
+    );
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.detalle.modalidad@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality?.id}?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const markup = renderModalidadDetalleRoute(data, modality?.id ?? "");
+
+    expect(markup).toContain("Volver a Modalidades");
+    expect(markup).toContain("Guardar Modalidad");
+    expect(markup).toContain("Crear Submodalidad");
+    expect(markup).toContain("Borrar Modalidad");
+  });
+
+  test("edits Modalidades and manages Submodalidades from the detail route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    const submodalityRequest = await createSignedInRequest({
+      email: "admin.crea.submodalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "create-submodality",
+        modalityId: modality.id,
+        name: "Jazz funk",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(submodalityRequest.request)),
+      302,
+    );
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.lista.ajustes@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const detalleMarkup = renderModalidadDetalleRoute(data, modality.id);
+
+    expect(detalleMarkup).toContain("Jazz");
+    expect(detalleMarkup).toContain("Jazz funk");
+    expect(detalleMarkup).toContain('name="intent" value="create-submodality"');
+
+    const editModalityRequest = await createSignedInRequest({
+      email: "admin.edita.modalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-modality",
+        id: modality.id,
+        name: "Jazz escénico",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editModalityRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.modalities.findFirst({
+        where: eq(modalities.id, modality.id),
+      }),
+    ).resolves.toMatchObject({ name: "Jazz escénico" });
+
+    const submodality = await db.query.submodalities.findFirst({
+      where: eq(submodalities.name, "Jazz funk"),
+    });
+    const editSubmodalityRequest = await createSignedInRequest({
+      email: "admin.edita.submodalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-submodality",
+        id: submodality?.id ?? "",
+        modalityId: modality.id,
+        name: "Commercial jazz",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(editSubmodalityRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.submodalities.findFirst({
+        where: eq(submodalities.id, submodality?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({ name: "Commercial jazz" });
+
+    const deleteSubmodalityRequest = await createSignedInRequest({
+      email: "admin.borra.submodalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-submodality",
+        id: submodality?.id ?? "",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(deleteSubmodalityRequest.request)),
+      302,
+    );
+    await expect(
+      db.query.submodalities.findFirst({
+        where: eq(submodalities.id, submodality?.id ?? ""),
+      }),
+    ).resolves.toBeUndefined();
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -541,6 +749,54 @@ describe("administracion/ajustes route", () => {
         where: eq(categories.id, category.id),
       }),
     ).resolves.toMatchObject({ id: category.id });
+  });
+
+  test("deletes Modalidades only from detail with explicit confirmation", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    const blockedRequest = await createSignedInRequest({
+      email: "admin.borra.modalidad.bloqueado@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-modality",
+        id: modality.id,
+      }),
+    });
+
+    await expect(action(routeArgs(blockedRequest.request))).resolves.toEqual({
+      status: "error",
+      message: "Confirmá el borrado de la Modalidad.",
+      fieldErrors: {},
+    });
+
+    const confirmedRequest = await createSignedInRequest({
+      email: "admin.borra.modalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-modality",
+        id: modality.id,
+        confirmDeletion: modality.id,
+      }),
+    });
+
+    const response = await expectThrownResponse(
+      action(routeArgs(confirmedRequest.request)),
+      302,
+    );
+
+    await expect(
+      db.query.modalities.findFirst({
+        where: eq(modalities.id, modality.id),
+      }),
+    ).resolves.toBeUndefined();
+    expect(response.headers.get("location")).toBe(
+      `/administracion/ajustes/modalidades?evento=${event.id}&guardado=1`,
+    );
   });
 
   test("creates, edits and deletes Bloques horarios through the admin action", async () => {
@@ -971,6 +1227,36 @@ describe("administracion/ajustes route", () => {
       },
     });
   });
+
+  test("renders save errors with a top alert and inline messages on Modalidades routes", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const request = await createSignedInRequest({
+      email: "admin.errores.modalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades/${modality.id}?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+
+    const createMarkup = renderNuevaModalidadRoute(data, {
+      status: "error",
+      message: "Ya existe una Modalidad con ese nombre en este Evento.",
+      fieldErrors: { name: "Usá un nombre distinto para la Modalidad." },
+    });
+    const detailMarkup = renderModalidadDetalleRoute(data, modality.id, {
+      status: "error",
+      message: "Ingresá el nombre de la Submodalidad.",
+      fieldErrors: { name: "Ingresá el nombre de la Submodalidad." },
+    });
+
+    expect(createMarkup).toContain(
+      "Ya existe una Modalidad con ese nombre en este Evento.",
+    );
+    expect(createMarkup).toContain("Usá un nombre distinto para la Modalidad.");
+    expect(detailMarkup).toContain("Ingresá el nombre de la Submodalidad.");
+  });
 });
 
 async function createSavedEvent(name: string) {
@@ -1065,7 +1351,47 @@ function renderModalidadesRoute(loaderData: AdministracionAjustesLoaderData) {
   return renderRoute(
     loaderData,
     "/administracion/ajustes/modalidades",
-    createElement(AdministracionAjustesModalidadesRouteView, { loaderData }),
+    createElement(AdministracionAjustesModalidadesListRouteView, {
+      loaderData,
+    }),
+  );
+}
+
+function renderNuevaModalidadRoute(
+  loaderData: AdministracionAjustesLoaderData,
+  actionData?: {
+    status: "error";
+    message: string;
+    fieldErrors: Record<string, string>;
+  },
+) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/modalidades/nueva",
+    createElement(AdministracionAjustesNuevaModalidadRouteView, {
+      loaderData,
+      actionData,
+    }),
+  );
+}
+
+function renderModalidadDetalleRoute(
+  loaderData: AdministracionAjustesLoaderData,
+  modalityId: string,
+  actionData?: {
+    status: "error";
+    message: string;
+    fieldErrors: Record<string, string>;
+  },
+) {
+  return renderRoute(
+    loaderData,
+    `/administracion/ajustes/modalidades/${modalityId}`,
+    createElement(AdministracionAjustesModalidadDetalleRouteView, {
+      loaderData,
+      modalityId,
+      actionData,
+    }),
   );
 }
 
