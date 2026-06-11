@@ -40,6 +40,12 @@ export type UpdateProfessorResult =
     };
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
+const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
+
+type ProfessorIdentityRow = Pick<
+  typeof professors.$inferSelect,
+  "id" | "firstName" | "lastName" | "documentType" | "documentNumber"
+>;
 
 export async function listAcademyProfessors(
   academyId: string,
@@ -59,11 +65,7 @@ export async function listAcademyProfessors(
     ],
   });
 
-  return rows.map((professor) => ({
-    ...professor,
-    isIncomplete:
-      professor.documentType === null || professor.documentNumber === null,
-  }));
+  return rows.map(toProfessorListItem);
 }
 
 export async function createAcademyProfessor(
@@ -74,24 +76,12 @@ export async function createAcademyProfessor(
     firstName: input.firstName,
     lastName: input.lastName,
   };
-  const firstName = normalizeSpanishTitleCase(input.firstName);
-  const lastName = normalizeSpanishTitleCase(input.lastName, {
-    lowercaseLeadingParticle: true,
-  });
-  const fieldErrors: Partial<Record<ProfessorFormField, string>> = {};
+  const { firstName, lastName, fieldErrors } = normalizeProfessorNames(input);
 
-  if (!firstName) {
-    fieldErrors.firstName = "Ingresá el nombre del Profesor.";
-  }
-
-  if (!lastName) {
-    fieldErrors.lastName = "Ingresá el apellido del Profesor.";
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
+  if (hasFieldErrors(fieldErrors)) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: reviewProfessorFieldsMessage,
       fieldErrors,
       values,
     };
@@ -112,7 +102,7 @@ export async function createAcademyProfessor(
 export async function findAcademyProfessor(
   academyId: string,
   professorId: string,
-) {
+): Promise<ProfessorListItem | null> {
   const professor = await db.query.professors.findFirst({
     columns: {
       id: true,
@@ -131,11 +121,7 @@ export async function findAcademyProfessor(
     return null;
   }
 
-  return {
-    ...professor,
-    isIncomplete:
-      professor.documentType === null || professor.documentNumber === null,
-  };
+  return toProfessorListItem(professor);
 }
 
 export async function updateAcademyProfessor(
@@ -149,19 +135,14 @@ export async function updateAcademyProfessor(
     documentType: input.documentType,
     documentNumber: input.documentNumber,
   };
-  const firstName = normalizeSpanishTitleCase(input.firstName);
-  const lastName = normalizeSpanishTitleCase(input.lastName, {
-    lowercaseLeadingParticle: true,
-  });
-  const fieldErrors: Partial<Record<UpdateProfessorField, string>> = {};
-
-  if (!firstName) {
-    fieldErrors.firstName = "Ingresá el nombre del Profesor.";
-  }
-
-  if (!lastName) {
-    fieldErrors.lastName = "Ingresá el apellido del Profesor.";
-  }
+  const {
+    firstName,
+    lastName,
+    fieldErrors: normalizedNameFieldErrors,
+  } = normalizeProfessorNames(input);
+  const fieldErrors: Partial<Record<UpdateProfessorField, string>> = {
+    ...normalizedNameFieldErrors,
+  };
 
   const normalizedDocument = normalizeProfessorDocumentPair(
     input.documentType,
@@ -171,7 +152,7 @@ export async function updateAcademyProfessor(
   if (!normalizedDocument.ok) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: reviewProfessorFieldsMessage,
       fieldErrors: {
         ...fieldErrors,
         ...normalizedDocument.fieldErrors,
@@ -180,10 +161,10 @@ export async function updateAcademyProfessor(
     };
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  if (hasFieldErrors(fieldErrors)) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: reviewProfessorFieldsMessage,
       fieldErrors,
       values,
     };
@@ -206,7 +187,7 @@ export async function updateAcademyProfessor(
     if (duplicateProfessor) {
       return {
         ok: false,
-        message: "Revisá los campos marcados.",
+        message: reviewProfessorFieldsMessage,
         fieldErrors: {
           documentNumber:
             "Ya existe un Profesor con ese documento en tu academia.",
@@ -273,6 +254,38 @@ function capitalizeFirstCharacter(value: string) {
   }
 
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
+}
+
+function toProfessorListItem(
+  professor: ProfessorIdentityRow,
+): ProfessorListItem {
+  return {
+    ...professor,
+    isIncomplete:
+      professor.documentType === null || professor.documentNumber === null,
+  };
+}
+
+function normalizeProfessorNames(input: CreateProfessorInput) {
+  const firstName = normalizeSpanishTitleCase(input.firstName);
+  const lastName = normalizeSpanishTitleCase(input.lastName, {
+    lowercaseLeadingParticle: true,
+  });
+  const fieldErrors: Partial<Record<ProfessorFormField, string>> = {};
+
+  if (!firstName) {
+    fieldErrors.firstName = "Ingresá el nombre del Profesor.";
+  }
+
+  if (!lastName) {
+    fieldErrors.lastName = "Ingresá el apellido del Profesor.";
+  }
+
+  return { firstName, lastName, fieldErrors };
+}
+
+function hasFieldErrors(fieldErrors: Record<string, string | undefined>) {
+  return Object.keys(fieldErrors).length > 0;
 }
 
 function normalizeProfessorDocumentPair(

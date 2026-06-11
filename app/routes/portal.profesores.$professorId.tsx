@@ -14,6 +14,10 @@ import {
   type UpdateProfessorInput,
 } from "@/lib/portal-professors.server";
 
+const professorNotFoundMessage = "No encontramos ese Profesor.";
+const professorUpdatedSearchParam = "actualizado";
+const professorUpdatedSuccessMessage = "Profesor actualizado correctamente.";
+
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type PortalProfesorRouteProps = {
@@ -33,28 +37,16 @@ export async function loader({
   params: { professorId?: string };
 }) {
   const { user, academy } = await requireAcademyUser(request);
-  const professorId = params.professorId;
-
-  if (!professorId) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const professor = await findAcademyProfessor(academy.id, professorId);
-
-  if (!professor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const url = new URL(request.url);
+  const professorId = readProfessorId(params);
+  const professor = await requireProfessor(academy.id, professorId);
 
   return {
     email: user.email,
     academy,
     professor,
-    successMessage:
-      url.searchParams.get("actualizado") === "1"
-        ? "Profesor actualizado correctamente."
-        : null,
+    successMessage: readUpdatedSuccessMessage(
+      new URL(request.url).searchParams,
+    ),
   };
 }
 
@@ -66,24 +58,16 @@ export async function action({
   params: { professorId?: string };
 }) {
   const { academy } = await requireAcademyUser(request);
-  const professorId = params.professorId;
+  const professorId = readProfessorId(params);
 
-  if (!professorId) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const professor = await findAcademyProfessor(academy.id, professorId);
-
-  if (!professor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
+  await requireProfessor(academy.id, professorId);
 
   const formData = await request.formData();
   const result = await updateAcademyProfessor(academy.id, professorId, {
-    firstName: formValue(formData, "firstName"),
-    lastName: formValue(formData, "lastName"),
-    documentType: formValue(formData, "documentType"),
-    documentNumber: formValue(formData, "documentNumber"),
+    firstName: readFormString(formData, "firstName"),
+    lastName: readFormString(formData, "lastName"),
+    documentType: readFormString(formData, "documentType"),
+    documentNumber: readFormString(formData, "documentNumber"),
   });
 
   if (!result.ok) {
@@ -95,7 +79,9 @@ export async function action({
     };
   }
 
-  throw redirect(`/portal/profesores/${professorId}?actualizado=1`);
+  throw redirect(
+    `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+  );
 }
 
 export function PortalProfesorRouteView({
@@ -219,9 +205,7 @@ export default function PortalProfesorRoute({
       loaderData={{
         ...loaderData,
         successMessage:
-          searchParams.get("actualizado") === "1"
-            ? "Profesor actualizado correctamente."
-            : loaderData.successMessage,
+          readUpdatedSuccessMessage(searchParams) ?? loaderData.successMessage,
       }}
       actionData={actionData}
     />
@@ -267,7 +251,34 @@ function DocumentTypeField({
   );
 }
 
-function formValue(formData: FormData, fieldName: keyof UpdateProfessorInput) {
+async function requireProfessor(academyId: string, professorId: string) {
+  const professor = await findAcademyProfessor(academyId, professorId);
+
+  if (!professor) {
+    throw new Response(professorNotFoundMessage, { status: 404 });
+  }
+
+  return professor;
+}
+
+function readProfessorId(params: { professorId?: string }) {
+  if (!params.professorId) {
+    throw new Response(professorNotFoundMessage, { status: 404 });
+  }
+
+  return params.professorId;
+}
+
+function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
+  return searchParams.get(professorUpdatedSearchParam) === "1"
+    ? professorUpdatedSuccessMessage
+    : null;
+}
+
+function readFormString(
+  formData: FormData,
+  fieldName: keyof UpdateProfessorInput,
+) {
   const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";
