@@ -190,11 +190,7 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const input = readCatalogActionInput(eventId, formData);
 
-  if (
-    input.intent === "delete-modality" &&
-    isModalityDetailPath(request.url) &&
-    input.confirmDeletion !== input.id
-  ) {
+  if (requiresModalityDeletionConfirmation(request.url, input)) {
     return actionError("Confirmá el borrado de la Modalidad.");
   }
 
@@ -390,6 +386,10 @@ export function AdministracionAjustesModalidadesListRouteView({
 }: {
   loaderData: AdministracionAjustesLoaderData;
 }) {
+  const submodalitiesByModalityId = groupSubmodalitiesByModalityId(
+    loaderData.submodalities,
+  );
+
   return (
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
@@ -414,9 +414,9 @@ export function AdministracionAjustesModalidadesListRouteView({
                     </p>
                   </div>
                   <SubmodalityBadgeList
-                    submodalities={loaderData.submodalities.filter(
-                      (submodality) => submodality.modalityId === modality.id,
-                    )}
+                    submodalities={
+                      submodalitiesByModalityId.get(modality.id) ?? []
+                    }
                   />
                 </div>
                 <Link
@@ -424,7 +424,7 @@ export function AdministracionAjustesModalidadesListRouteView({
                     modality.id,
                     loaderData.selectedEventId,
                   )}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                  className={secondaryLinkButtonClassName}
                 >
                   Ver detalle
                 </Link>
@@ -439,7 +439,7 @@ export function AdministracionAjustesModalidadesListRouteView({
       </CatalogSection>
       <Link
         to={buildNuevaModalidadPath(loaderData.selectedEventId)}
-        className="inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        className={primaryLinkButtonClassName}
       >
         Nueva Modalidad
       </Link>
@@ -695,6 +695,15 @@ const settingsSections: Array<{
 
 const catalogListClassName =
   "mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white";
+const primaryLinkButtonClassName =
+  "inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+const secondaryLinkButtonClassName =
+  "inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+const modalityRoutes = {
+  detail: "/administracion/ajustes/modalidades",
+  list: "/administracion/ajustes/modalidades",
+  new: "/administracion/ajustes/modalidades/nueva",
+} as const;
 
 function buildSettingsPath(
   section: AjustesSectionKey | null,
@@ -723,17 +732,11 @@ function buildPathWithEventParam(
 }
 
 function buildModalidadesListPath(selectedEventId: string | null) {
-  return buildPathWithEventParam(
-    "/administracion/ajustes/modalidades",
-    selectedEventId,
-  );
+  return buildPathWithEventParam(modalityRoutes.list, selectedEventId);
 }
 
 function buildNuevaModalidadPath(selectedEventId: string | null) {
-  return buildPathWithEventParam(
-    "/administracion/ajustes/modalidades/nueva",
-    selectedEventId,
-  );
+  return buildPathWithEventParam(modalityRoutes.new, selectedEventId);
 }
 
 function buildModalidadDetallePath(
@@ -741,14 +744,25 @@ function buildModalidadDetallePath(
   selectedEventId: string | null,
 ) {
   return buildPathWithEventParam(
-    `/administracion/ajustes/modalidades/${modalityId}`,
+    `${modalityRoutes.detail}/${modalityId}`,
     selectedEventId,
   );
 }
 
 function isModalityDetailPath(requestUrl: string) {
-  return /^\/administracion\/ajustes\/modalidades\/[^/]+$/.test(
+  return new RegExp(`^${modalityRoutes.detail}/[^/]+$`).test(
     new URL(requestUrl).pathname,
+  );
+}
+
+function requiresModalityDeletionConfirmation(
+  requestUrl: string,
+  input: CatalogActionInput,
+) {
+  return (
+    input.intent === "delete-modality" &&
+    isModalityDetailPath(requestUrl) &&
+    input.confirmDeletion !== input.id
   );
 }
 
@@ -1025,11 +1039,25 @@ function ModalidadesBackLink({
   return (
     <Link
       to={buildModalidadesListPath(selectedEventId)}
-      className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      className={secondaryLinkButtonClassName}
     >
       Volver a Modalidades
     </Link>
   );
+}
+
+function groupSubmodalitiesByModalityId(submodalities: SubmodalityRow[]) {
+  const submodalitiesByModalityId = new Map<string, SubmodalityRow[]>();
+
+  for (const submodality of submodalities) {
+    const groupedSubmodalities =
+      submodalitiesByModalityId.get(submodality.modalityId) ?? [];
+
+    groupedSubmodalities.push(submodality);
+    submodalitiesByModalityId.set(submodality.modalityId, groupedSubmodalities);
+  }
+
+  return submodalitiesByModalityId;
 }
 
 function SubmodalityBadgeList({
@@ -1862,22 +1890,42 @@ function buildActionRedirectUrl(
 
   switch (input.intent) {
     case "create-modality":
-      if (result.ok && "record" in result && result.record) {
-        const createdRecord = result.record as { id: string };
+      {
+        const createdRecord = getCreatedCatalogRecord(result);
 
-        return withSavedSearch(
-          `/administracion/ajustes/modalidades/${createdRecord.id}`,
-          eventId,
-        );
+        if (createdRecord) {
+          return withSavedSearch(
+            buildModalidadDetallePath(createdRecord.id, null),
+            eventId,
+          );
+        }
       }
       break;
     case "delete-modality":
-      return withSavedSearch("/administracion/ajustes/modalidades", eventId);
+      return withSavedSearch(buildModalidadesListPath(null), eventId);
     default:
       break;
   }
 
   return withSavedSearch(currentUrl.pathname, eventId);
+}
+
+function getCreatedCatalogRecord(
+  result: Awaited<ReturnType<typeof runCatalogIntent>>,
+) : { id: string } | null {
+  if (!result.ok || !("record" in result) || !result.record) {
+    return null;
+  }
+
+  if (
+    typeof result.record !== "object" ||
+    !("id" in result.record) ||
+    typeof result.record.id !== "string"
+  ) {
+    return null;
+  }
+
+  return { id: result.record.id };
 }
 
 function withSavedSearch(pathname: string, eventId: string) {
