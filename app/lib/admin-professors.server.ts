@@ -94,6 +94,17 @@ export type AdministrativeProfessorMutationResult =
       values: AdministrativeProfessorUpdateInput;
     };
 
+type AdministrativeProfessorStatusMutationResult =
+  | {
+      ok: true;
+      professor: ProfessorEditableSnapshot;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: Pick<AdministrativeProfessorFieldErrors, "correctionReason">;
+    };
+
 export function readAdministrativeProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
@@ -275,7 +286,6 @@ export async function updateAdministrativeProfessor(input: {
   }
 
   const fieldErrors: AdministrativeProfessorFieldErrors = {};
-  const normalizedReason = input.values.correctionReason.trim();
   const values = {
     ...input.values,
     correctionReason: input.values.correctionReason,
@@ -293,17 +303,28 @@ export async function updateAdministrativeProfessor(input: {
     Object.assign(fieldErrors, normalizedDocument.fieldErrors);
   }
 
-  if (
-    (existingProfessor.correctionReasonRequired &&
-      !isCorrectionReasonLengthValid(normalizedReason)) ||
-    (!existingProfessor.correctionReasonRequired &&
-      normalizedReason.length > 0 &&
-      !isCorrectionReasonLengthValid(normalizedReason))
-  ) {
-    fieldErrors.correctionReason = adminProfessorCorrectionReasonMessage;
+  const normalizedReason = validateAdministrativeProfessorCorrectionReason({
+    correctionReason: input.values.correctionReason,
+    required: existingProfessor.correctionReasonRequired,
+  });
+  const correctionReason = normalizedReason.ok
+    ? normalizedReason.correctionReason
+    : null;
+
+  if (!normalizedReason.ok) {
+    fieldErrors.correctionReason = normalizedReason.fieldError;
   }
 
-  if (Object.keys(fieldErrors).length > 0 || !normalizedDocument.ok) {
+  if (!normalizedDocument.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
       message: "Revisá los campos marcados.",
@@ -357,7 +378,8 @@ export async function updateAdministrativeProfessor(input: {
     beforeValues,
     eventId: input.selectedEventId,
     professorId: existingProfessor.id,
-    reason: normalizedReason.length > 0 ? normalizedReason : null,
+    reason:
+      correctionReason && correctionReason.length > 0 ? correctionReason : null,
   });
 
   return {
@@ -372,7 +394,7 @@ export async function setAdministrativeProfessorActiveState(input: {
   professorId: string;
   selectedEventId: string | null;
   correctionReason: string;
-}) {
+}): Promise<AdministrativeProfessorStatusMutationResult> {
   const existingProfessor = await findAdministrativeProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
@@ -382,20 +404,20 @@ export async function setAdministrativeProfessorActiveState(input: {
     throw new Response("No encontramos ese Profesor.", { status: 404 });
   }
 
-  const reason = input.correctionReason.trim();
+  const normalizedReason = validateAdministrativeProfessorCorrectionReason({
+    correctionReason: input.correctionReason,
+    required: existingProfessor.correctionReasonRequired,
+  });
+  const correctionReason = normalizedReason.ok
+    ? normalizedReason.correctionReason
+    : null;
 
-  if (
-    (existingProfessor.correctionReasonRequired &&
-      !isCorrectionReasonLengthValid(reason)) ||
-    (!existingProfessor.correctionReasonRequired &&
-      reason.length > 0 &&
-      !isCorrectionReasonLengthValid(reason))
-  ) {
+  if (!normalizedReason.ok) {
     return {
-      ok: false as const,
+      ok: false,
       message: "Revisá los campos marcados.",
       fieldErrors: {
-        correctionReason: adminProfessorCorrectionReasonMessage,
+        correctionReason: normalizedReason.fieldError,
       },
     };
   }
@@ -419,11 +441,12 @@ export async function setAdministrativeProfessorActiveState(input: {
     beforeValues,
     eventId: input.selectedEventId,
     professorId: existingProfessor.id,
-    reason: reason.length > 0 ? reason : null,
+    reason:
+      correctionReason && correctionReason.length > 0 ? correctionReason : null,
   });
 
   return {
-    ok: true as const,
+    ok: true,
     professor: afterValues,
   };
 }
@@ -563,6 +586,28 @@ function isCorrectionReasonRequired(input: {
 
 function isCorrectionReasonLengthValid(reason: string) {
   return reason.length >= 10 && reason.length <= 500;
+}
+
+function validateAdministrativeProfessorCorrectionReason(input: {
+  correctionReason: string;
+  required: boolean;
+}) {
+  const correctionReason = input.correctionReason.trim();
+
+  if (
+    !isCorrectionReasonLengthValid(correctionReason) &&
+    (input.required || correctionReason.length > 0)
+  ) {
+    return {
+      ok: false as const,
+      fieldError: adminProfessorCorrectionReasonMessage,
+    };
+  }
+
+  return {
+    ok: true as const,
+    correctionReason,
+  };
 }
 
 function toProfessorSnapshot(

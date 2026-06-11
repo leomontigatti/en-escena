@@ -30,6 +30,31 @@ import type { Route } from "./+types/administracion_.profesores_.$professorId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
+type ProfessorUpdateValues = {
+  firstName: string;
+  lastName: string;
+  documentType: string;
+  documentNumber: string;
+  correctionReason: string;
+};
+type ProfessorStatusValues = {
+  correctionReason: string;
+};
+type ProfessorActionError = {
+  status: "error";
+  message: string;
+  fieldErrors: Partial<
+    Record<
+      | "firstName"
+      | "lastName"
+      | "documentType"
+      | "documentNumber"
+      | "correctionReason",
+      string
+    >
+  >;
+  values: ProfessorUpdateValues | ProfessorStatusValues;
+};
 
 type AdministracionProfesorDetalleRouteProps = {
   loaderData: LoaderData;
@@ -112,24 +137,21 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    const correctionReason = readFormString(formData, "correctionReason");
+    const values = readProfessorStatusValues(formData);
 
     if (
       isInvalidCorrectionReason(
         professor.correctionReasonRequired,
-        correctionReason.trim(),
+        values.correctionReason.trim(),
       )
     ) {
-      return {
-        status: "error" as const,
-        message: "Revisá los campos marcados.",
-        fieldErrors: {
+      return buildProfessorActionError(
+        "Revisá los campos marcados.",
+        {
           correctionReason: adminProfessorCorrectionReasonMessage,
         },
-        values: {
-          correctionReason,
-        },
-      };
+        values,
+      );
     }
 
     const result = await setAdministrativeProfessorActiveState({
@@ -137,30 +159,21 @@ export async function action({ request, params }: Route.ActionArgs) {
       adminUserId: adminUser.id,
       professorId,
       selectedEventId: eventContext.selectedEventId,
-      correctionReason,
+      correctionReason: values.correctionReason,
     });
 
     if (!result.ok) {
-      return {
-        status: "error" as const,
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          correctionReason: readFormString(formData, "correctionReason"),
-        },
-      };
+      return buildProfessorActionError(
+        result.message,
+        result.fieldErrors,
+        values,
+      );
     }
 
     throw redirect(buildSavedDetailHref(request.url, professorId));
   }
 
-  const values = {
-    firstName: readFormString(formData, "firstName"),
-    lastName: readFormString(formData, "lastName"),
-    documentType: readFormString(formData, "documentType"),
-    documentNumber: readFormString(formData, "documentNumber"),
-    correctionReason: readFormString(formData, "correctionReason"),
-  };
+  const values = readProfessorUpdateValues(formData);
 
   if (
     isInvalidCorrectionReason(
@@ -168,14 +181,13 @@ export async function action({ request, params }: Route.ActionArgs) {
       values.correctionReason.trim(),
     )
   ) {
-    return {
-      status: "error" as const,
-      message: "Revisá los campos marcados.",
-      fieldErrors: {
+    return buildProfessorActionError(
+      "Revisá los campos marcados.",
+      {
         correctionReason: adminProfessorCorrectionReasonMessage,
       },
       values,
-    };
+    );
   }
 
   const result = await updateAdministrativeProfessor({
@@ -186,12 +198,11 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 
   if (!result.ok) {
-    return {
-      status: "error" as const,
-      message: result.message,
-      fieldErrors: result.fieldErrors,
-      values: result.values,
-    };
+    return buildProfessorActionError(
+      result.message,
+      result.fieldErrors,
+      result.values,
+    );
   }
 
   throw redirect(buildSavedDetailHref(request.url, professorId));
@@ -201,29 +212,19 @@ export function AdministracionProfesorDetalleRouteView({
   loaderData,
   actionData: actionDataOverride,
 }: AdministracionProfesorDetalleRouteProps) {
-  const actionData = actionDataOverride;
+  const actionData =
+    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
   const professor = loaderData.professor;
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
   const successMessage = loaderData.successMessage;
-  const submittedEditValues =
-    actionData?.status === "error" &&
-    "firstName" in actionData.values &&
-    "lastName" in actionData.values &&
-    "documentType" in actionData.values &&
-    "documentNumber" in actionData.values
-      ? actionData.values
-      : null;
+  const submittedEditValues = isProfessorUpdateValues(actionData?.values)
+    ? actionData.values
+    : null;
   const editFieldErrors = submittedEditValues
-    ? (actionData?.fieldErrors as Partial<
-        Record<
-          "firstName" | "lastName" | "documentType" | "documentNumber",
-          string
-        >
-      >)
+    ? actionData?.fieldErrors
     : undefined;
-  const statusFieldErrors =
-    actionData?.status === "error" ? actionData.fieldErrors : undefined;
+  const statusFieldErrors = actionData?.fieldErrors;
   const values = {
     firstName: submittedEditValues?.firstName ?? professor.firstName,
     lastName: submittedEditValues?.lastName ?? professor.lastName,
@@ -231,8 +232,7 @@ export function AdministracionProfesorDetalleRouteView({
       submittedEditValues?.documentType ?? professor.documentType ?? "",
     documentNumber:
       submittedEditValues?.documentNumber ?? professor.documentNumber ?? "",
-    correctionReason:
-      actionData?.status === "error" ? actionData.values.correctionReason : "",
+    correctionReason: actionData?.values.correctionReason ?? "",
   };
   const statusAction = professor.active
     ? {
@@ -685,6 +685,47 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
 function readProfessorIdFromPath(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
   return segments.at(-1) ?? "";
+}
+
+function readProfessorStatusValues(formData: FormData): ProfessorStatusValues {
+  return {
+    correctionReason: readFormString(formData, "correctionReason"),
+  };
+}
+
+function readProfessorUpdateValues(formData: FormData): ProfessorUpdateValues {
+  return {
+    firstName: readFormString(formData, "firstName"),
+    lastName: readFormString(formData, "lastName"),
+    documentType: readFormString(formData, "documentType"),
+    documentNumber: readFormString(formData, "documentNumber"),
+    correctionReason: readFormString(formData, "correctionReason"),
+  };
+}
+
+function buildProfessorActionError(
+  message: string,
+  fieldErrors: ProfessorActionError["fieldErrors"],
+  values: ProfessorActionError["values"],
+): ProfessorActionError {
+  return {
+    status: "error",
+    message,
+    fieldErrors,
+    values,
+  };
+}
+
+function isProfessorUpdateValues(
+  values: ProfessorActionError["values"] | undefined,
+): values is ProfessorUpdateValues {
+  return (
+    values !== undefined &&
+    "firstName" in values &&
+    "lastName" in values &&
+    "documentType" in values &&
+    "documentNumber" in values
+  );
 }
 
 function readFormString(formData: FormData, key: string) {
