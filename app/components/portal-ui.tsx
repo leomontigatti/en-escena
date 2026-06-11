@@ -8,6 +8,7 @@ import {
   PrivateAccessHeader,
 } from "@/components/access-ui";
 import type { PortalEventContext } from "@/lib/portal-event-context";
+import { getPortalEventStatusLabel } from "@/lib/portal-route-state";
 
 type PortalShellProps = {
   email: string;
@@ -204,14 +205,14 @@ export function PortalCoreographiesSection({
 function getPortalEventStatus(isReadOnly: boolean) {
   if (isReadOnly) {
     return {
-      label: "Evento consultado",
+      label: getPortalEventStatusLabel(true),
       className:
         "inline-flex w-fit rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800",
     };
   }
 
   return {
-    label: "Evento activo",
+    label: getPortalEventStatusLabel(false),
     className:
       "inline-flex w-fit rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800",
   };

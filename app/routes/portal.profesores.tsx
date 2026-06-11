@@ -12,6 +12,11 @@ import {
 import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  getPortalRecordStatusSearch,
+  readPortalRecordStatusFilter,
+  type PortalRecordStatusFilter,
+} from "@/lib/portal-route-state";
+import {
   createAcademyProfessor,
   listAcademyProfessors,
   type CreateProfessorInput,
@@ -22,7 +27,7 @@ type PortalProfesoresRouteProps = {
   actionData?: Awaited<ReturnType<typeof action>>;
 };
 
-type ProfessorStatusFilter = "active" | "archived";
+type ProfessorStatusFilter = PortalRecordStatusFilter;
 
 export const meta = () => [
   { title: "Profesores | Portal de academias | En Escena" },
@@ -31,8 +36,7 @@ export const meta = () => [
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
   const url = new URL(request.url);
-  const statusFilter: ProfessorStatusFilter =
-    url.searchParams.get("estado") === "archivados" ? "archived" : "active";
+  const statusFilter = readPortalRecordStatusFilter(url.searchParams);
   const professorRows = await listAcademyProfessors(academy.id, {
     status: statusFilter,
   });
@@ -196,9 +200,9 @@ function ProfessorTable({
   statusFilter,
 }: {
   professors: ProfessorListItem[];
-  statusFilter: "active" | "archived";
+  statusFilter: ProfessorStatusFilter;
 }) {
-  const detailSearch = statusFilter === "archived" ? "?estado=archivados" : "";
+  const detailSearch = getPortalRecordStatusSearch(statusFilter);
 
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">

@@ -19,6 +19,7 @@ import { listChoreographiesForAcademyEvent } from "@/lib/portal-choreographies.s
 import { listAcademyProfessors } from "@/lib/portal-professors.server";
 import { listDancersForAcademy } from "@/lib/portal-dancers.server";
 import { getPortalEventContext } from "@/lib/portal-event-context.server";
+import { getPortalEventStatusLabel } from "@/lib/portal-route-state";
 import { listEventCatalogs } from "@/lib/admin-catalogs.server";
 
 type PortalCoreografiasRouteProps = {
@@ -469,13 +470,13 @@ function getCreationState(
 function getEventStatus(isReadOnly: boolean) {
   if (isReadOnly) {
     return {
-      label: "Evento consultado",
+      label: getPortalEventStatusLabel(true),
       className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-amber-50 text-amber-800`,
     };
   }
 
   return {
-    label: "Evento activo",
+    label: getPortalEventStatusLabel(false),
     className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-emerald-50 text-emerald-800`,
   };
 }

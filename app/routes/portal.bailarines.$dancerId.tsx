@@ -6,6 +6,10 @@ import { AccessNotice } from "@/components/access-ui";
 import { PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  getPortalRecordStatusSearch,
+  resolvePortalRecordStatusFilter,
+} from "@/lib/portal-route-state";
+import {
   archiveDancerForAcademy,
   findDancerForAcademy,
   reactivateDancerForAcademy,
@@ -112,10 +116,7 @@ export function PortalBailarinDetalleRouteView({
   actionData,
 }: PortalBailarinDetalleRouteProps) {
   const values = actionData?.values ?? buildDancerFormValues(loaderData.dancer);
-  const backToList =
-    loaderData.statusFilter === "archived"
-      ? "/portal/bailarines?estado=archivados"
-      : "/portal/bailarines";
+  const backToList = `/portal/bailarines${getPortalRecordStatusSearch(loaderData.statusFilter)}`;
   const isIdentificationIncomplete =
     loaderData.dancer.documentType === null ||
     loaderData.dancer.documentNumber === null;
@@ -378,14 +379,7 @@ function readFormString(formData: FormData, key: string) {
 }
 
 function resolveDancerStatusFilter(request: Request, isActive: boolean) {
-  const requestedFilter =
-    new URL(request.url).searchParams.get("estado") === "archivados"
-      ? "archived"
-      : "active";
-
-  return !isActive && requestedFilter === "active"
-    ? "archived"
-    : requestedFilter;
+  return resolvePortalRecordStatusFilter(request, isActive);
 }
 
 function buildDancerFormValues(

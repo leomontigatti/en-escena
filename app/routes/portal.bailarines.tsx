@@ -12,6 +12,11 @@ import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  getPortalRecordStatusSearch,
+  readPortalRecordStatusFilter,
+  type PortalRecordStatusFilter,
+} from "@/lib/portal-route-state";
+import {
   createDancerForAcademy,
   listDancersForAcademy,
   type CreateDancerInput,
@@ -42,8 +47,7 @@ type ActionData = {
   values: CreateDancerInput;
 };
 
-type DancerStatusFilter =
-  PortalBailarinesRouteProps["loaderData"]["statusFilter"];
+type DancerStatusFilter = PortalRecordStatusFilter;
 
 export const meta = () => [
   { title: "Bailarines | Portal de academias | En Escena" },
@@ -51,9 +55,9 @@ export const meta = () => [
 
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
-  const url = new URL(request.url);
-  const statusFilter =
-    url.searchParams.get("estado") === "archivados" ? "archived" : "active";
+  const statusFilter = readPortalRecordStatusFilter(
+    new URL(request.url).searchParams,
+  );
   const dancers = await listDancersForAcademy(academy.id, {
     status: statusFilter,
   });
@@ -219,9 +223,9 @@ function DancersTable({
   statusFilter,
 }: {
   dancers: DancerListItem[];
-  statusFilter: "active" | "archived";
+  statusFilter: DancerStatusFilter;
 }) {
-  const detailSearch = statusFilter === "archived" ? "?estado=archivados" : "";
+  const detailSearch = getPortalRecordStatusSearch(statusFilter);
 
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">

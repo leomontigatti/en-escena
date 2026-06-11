@@ -10,6 +10,10 @@ import {
 import { PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  getPortalRecordStatusSearch,
+  resolvePortalRecordStatusFilter,
+} from "@/lib/portal-route-state";
+import {
   archiveAcademyProfessor,
   findAcademyProfessor,
   reactivateAcademyProfessor,
@@ -107,10 +111,7 @@ export function PortalProfesorRouteView({
   actionData: actionDataOverride,
 }: PortalProfesorRouteProps) {
   const actionData = actionDataOverride;
-  const backToList =
-    loaderData.statusFilter === "archived"
-      ? "/portal/profesores?estado=archivados"
-      : "/portal/profesores";
+  const backToList = `/portal/profesores${getPortalRecordStatusSearch(loaderData.statusFilter)}`;
   const statusAction = loaderData.professor.active
     ? {
         description:
@@ -347,14 +348,7 @@ function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
 }
 
 function resolveProfessorStatusFilter(request: Request, isActive: boolean) {
-  const requestedFilter =
-    new URL(request.url).searchParams.get("estado") === "archivados"
-      ? "archived"
-      : "active";
-
-  return !isActive && requestedFilter === "active"
-    ? "archived"
-    : requestedFilter;
+  return resolvePortalRecordStatusFilter(request, isActive);
 }
 
 function readFormString(formData: FormData, fieldName: string) {

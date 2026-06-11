@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
 import { PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
+import { getPortalEventStatusLabel } from "@/lib/portal-route-state";
 import {
   formatGroupTypeLabel,
   formatOperationalPendingItemLabel,
@@ -193,9 +194,7 @@ export function PortalCoreografiaDetalleRouteView({
                 loaderData.eventContext.isReadOnly,
               )}
             >
-              {loaderData.eventContext.isReadOnly
-                ? "Evento consultado"
-                : "Evento activo"}
+              {getPortalEventStatusLabel(loaderData.eventContext.isReadOnly)}
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
