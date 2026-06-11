@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
@@ -27,7 +27,13 @@ import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import {
   action,
-  AdministracionAjustesRouteView,
+  AdministracionAjustesBloquesHorariosRouteView,
+  AdministracionAjustesCategoriasRouteView,
+  AdministracionAjustesIndexRouteView,
+  AdministracionAjustesLayoutView,
+  type AdministracionAjustesLoaderData,
+  AdministracionAjustesModalidadesRouteView,
+  AdministracionAjustesPreciosRouteView,
   loader,
 } from "@/routes/administracion.ajustes";
 
@@ -36,7 +42,7 @@ import { installDatabaseTestHooks } from "../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("administracion/ajustes route", () => {
-  test("requires admin access and renders empty catalog states for the Evento de trabajo", async () => {
+  test("requires admin access and renders the Ajustes index with section links", async () => {
     const event = await createSavedEvent("Regional 2026");
     await activateEvent(event.id);
 
@@ -65,26 +71,26 @@ describe("administracion/ajustes route", () => {
       requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
     });
     const data = await loader(routeArgs(selectedRequest.request));
-    const markup = renderRoute(data);
+    const markup = renderIndexRoute(data);
 
     expect(data.selectedEventId).toBe(event.id);
     expect(markup).toContain("Ajustes de administración");
-    expect(markup).toContain("Todavía no hay Modalidades para este Evento.");
-    expect(markup).toContain("Todavía no hay Categorías para este Evento.");
-    expect(markup).toContain("Todavía no hay Submodalidades para este Evento.");
+    expect(markup).toContain("Configuración mínima pendiente");
+    expect(markup).toContain("Secciones de Ajustes");
     expect(markup).toContain(
-      "Todavía no hay Niveles de experiencia para este Evento.",
+      `/administracion/ajustes/modalidades?evento=${event.id}`,
     );
     expect(markup).toContain(
-      "Todavía no hay Bloques horarios para este Evento.",
+      `/administracion/ajustes/categorias?evento=${event.id}`,
     );
-    expect(markup).toContain("Todavía no hay Precios para este Evento.");
-    expect(markup).toContain('name="intent" value="create-modality"');
-    expect(markup).toContain('name="intent" value="create-category"');
-    expect(markup).toContain('name="intent" value="create-submodality"');
-    expect(markup).toContain('name="intent" value="create-experience-level"');
-    expect(markup).toContain('name="intent" value="create-schedule-block"');
-    expect(markup).toContain('name="intent" value="create-price"');
+    expect(markup).toContain(
+      `/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+    );
+    expect(markup).toContain(
+      `/administracion/ajustes/precios?evento=${event.id}`,
+    );
+    expect(markup).not.toContain('name="intent" value="create-modality"');
+    expect(markup).not.toContain("/administracion/ajustes/eventos");
   });
 
   test("shows the minimum registration configuration status for the Evento de trabajo", async () => {
@@ -134,11 +140,52 @@ describe("administracion/ajustes route", () => {
       requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
     });
     const data = await loader(routeArgs(request.request));
-    const markup = renderRoute(data);
+    const markup = renderIndexRoute(data);
 
     expect(data.registrationReadiness?.isReady).toBe(false);
     expect(markup).toContain("Configuración mínima pendiente");
     expect(markup).toContain("Falta un Precio aplicable");
+  });
+
+  test("shows the shared empty state across Ajustes routes when there is no Evento de trabajo", async () => {
+    const request = await createSignedInRequest({
+      email: "admin.sin.evento@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/ajustes",
+    });
+    const data = await loader(routeArgs(request.request));
+
+    const indexMarkup = renderIndexRoute(data);
+    const modalidadesMarkup = renderModalidadesRoute(data);
+
+    expect(indexMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
+    expect(modalidadesMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
+    expect(modalidadesMarkup).not.toContain(
+      'name="intent" value="create-modality"',
+    );
+  });
+
+  test("keeps Ajustes editable for a non-active Evento de trabajo", async () => {
+    const activeEvent = await createSavedEvent("Regional 2026");
+    const inactiveEvent = await createSavedEvent("Nacional 2026");
+    await activateEvent(activeEvent.id);
+
+    const request = await createSignedInRequest({
+      email: "admin.no.activo@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${inactiveEvent.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+    const markup = renderModalidadesRoute(data);
+
+    expect(markup).toContain(
+      "Estás editando un Evento de trabajo que no es el Evento activo.",
+    );
+    expect(markup).toContain('name="intent" value="create-modality"');
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -146,7 +193,7 @@ describe("administracion/ajustes route", () => {
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
       body: formData({ intent: "create-modality", name: "Jazz" }),
     });
 
@@ -160,7 +207,7 @@ describe("administracion/ajustes route", () => {
     const submodalityRequest = await createSignedInRequest({
       email: "admin.crea.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
       body: formData({
         intent: "create-submodality",
         modalityId: modality?.id ?? "",
@@ -170,7 +217,7 @@ describe("administracion/ajustes route", () => {
     const levelRequest = await createSignedInRequest({
       email: "admin.crea.nivel@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
       body: formData({
         intent: "create-experience-level",
         name: "Inicial",
@@ -189,7 +236,7 @@ describe("administracion/ajustes route", () => {
     const categoryRequest = await createSignedInRequest({
       email: "admin.crea.categoria@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
       body: formData({
         intent: "create-category",
         name: "Infantil",
@@ -209,24 +256,25 @@ describe("administracion/ajustes route", () => {
           await createSignedInRequest({
             email: "admin.lista.ajustes@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderRoute(data);
+    const modalidadesMarkup = renderModalidadesRoute(data);
+    const categoriasMarkup = renderCategoriasRoute(data);
 
-    expect(markup).toContain("Jazz");
-    expect(markup).toContain("Infantil");
-    expect(markup).toContain("8 a 12 años");
-    expect(markup).toContain("Solo, Dúo");
-    expect(markup).toContain("Jazz funk");
-    expect(markup).toContain("Inicial");
+    expect(modalidadesMarkup).toContain("Jazz");
+    expect(modalidadesMarkup).toContain("Jazz funk");
+    expect(categoriasMarkup).toContain("Infantil");
+    expect(categoriasMarkup).toContain("8 a 12 años");
+    expect(categoriasMarkup).toContain("Solo, Dúo");
+    expect(categoriasMarkup).toContain("Inicial");
 
     const editLevelRequest = await createSignedInRequest({
       email: "admin.edita.nivel@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
       body: formData({
         intent: "update-experience-level",
         id: level?.id ?? "",
@@ -250,7 +298,7 @@ describe("administracion/ajustes route", () => {
     const editCategoryRequest = await createSignedInRequest({
       email: "admin.edita.categoria@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
       body: formData({
         intent: "update-category",
         id: category?.id ?? "",
@@ -279,7 +327,7 @@ describe("administracion/ajustes route", () => {
     const deleteSubmodalityRequest = await createSignedInRequest({
       email: "admin.borra.submodalidad@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
       body: formData({
         intent: "delete-submodality",
         id: submodality?.id ?? "",
@@ -307,7 +355,7 @@ describe("administracion/ajustes route", () => {
     const scheduleBlockRequest = await createSignedInRequest({
       email: "admin.crea.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-block",
         name: "Sábado mañana",
@@ -339,12 +387,12 @@ describe("administracion/ajustes route", () => {
           await createSignedInRequest({
             email: "admin.lista.bloques@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderRoute(data);
+    const markup = renderBloquesHorariosRoute(data);
 
     expect(markup).toContain("Sábado mañana");
     expect(markup).toContain("02/05/2026");
@@ -359,7 +407,7 @@ describe("administracion/ajustes route", () => {
     const editScheduleBlockRequest = await createSignedInRequest({
       email: "admin.edita.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "update-schedule-block",
         id: scheduleBlock?.id ?? "",
@@ -388,7 +436,7 @@ describe("administracion/ajustes route", () => {
     const deleteScheduleBlockRequest = await createSignedInRequest({
       email: "admin.borra.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "delete-schedule-block",
         id: scheduleBlock?.id ?? "",
@@ -415,7 +463,7 @@ describe("administracion/ajustes route", () => {
     const blockRequest = await createSignedInRequest({
       email: "admin.precio.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-block",
         name: "Sábado mañana",
@@ -433,7 +481,7 @@ describe("administracion/ajustes route", () => {
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
         name: "Solo sábado",
@@ -464,12 +512,12 @@ describe("administracion/ajustes route", () => {
           await createSignedInRequest({
             email: "admin.lista.precios@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderRoute(data);
+    const markup = renderPreciosRoute(data);
 
     expect(markup).toContain("Solo sábado");
     expect(markup).toContain("Solo");
@@ -479,7 +527,7 @@ describe("administracion/ajustes route", () => {
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
       body: formData({
         intent: "update-price",
         id: price?.id ?? "",
@@ -507,7 +555,7 @@ describe("administracion/ajustes route", () => {
     const deletePriceRequest = await createSignedInRequest({
       email: "admin.borra.precio@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
       body: formData({
         intent: "delete-price",
         id: price?.id ?? "",
@@ -534,7 +582,7 @@ describe("administracion/ajustes route", () => {
     const scheduleBlockRequest = await createSignedInRequest({
       email: "admin.crea.bloque.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-block",
         name: "Sábado mañana",
@@ -556,7 +604,7 @@ describe("administracion/ajustes route", () => {
     const createScheduleEntryRequest = await createSignedInRequest({
       email: "admin.crea.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-entry",
         scheduleBlockId: scheduleBlock?.id ?? "",
@@ -584,12 +632,12 @@ describe("administracion/ajustes route", () => {
           await createSignedInRequest({
             email: "admin.lista.cronogramas@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderRoute(data);
+    const markup = renderBloquesHorariosRoute(data);
 
     expect(markup).toContain("Cronogramas");
     expect(markup).toContain("Solo, Dúo");
@@ -599,7 +647,7 @@ describe("administracion/ajustes route", () => {
     const editScheduleEntryRequest = await createSignedInRequest({
       email: "admin.edita.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "update-schedule-entry",
         id: scheduleEntry?.id ?? "",
@@ -624,7 +672,7 @@ describe("administracion/ajustes route", () => {
     const deleteScheduleEntryRequest = await createSignedInRequest({
       email: "admin.borra.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
       body: formData({
         intent: "delete-schedule-entry",
         id: scheduleEntry?.id ?? "",
@@ -649,7 +697,7 @@ describe("administracion/ajustes route", () => {
     const duplicateRequest = await createSignedInRequest({
       email: "admin.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/modalidades?evento=${event.id}`,
       body: formData({ intent: "create-modality", name: " jazz " }),
     });
 
@@ -662,7 +710,7 @@ describe("administracion/ajustes route", () => {
     const invalidCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.invalida@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
       body: formData({
         intent: "create-category",
         name: "Infantil",
@@ -687,7 +735,7 @@ describe("administracion/ajustes route", () => {
     const createPriceRequest = await createSignedInRequest({
       email: "admin.precio.base@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
         name: "Solo general",
@@ -705,7 +753,7 @@ describe("administracion/ajustes route", () => {
     const duplicatePriceRequest = await createSignedInRequest({
       email: "admin.precio.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
         name: "Solo general alternativo",
@@ -759,16 +807,63 @@ async function expectCreated(
 }
 
 function renderRoute(
-  loaderData: Parameters<
-    typeof AdministracionAjustesRouteView
-  >[0]["loaderData"],
+  loaderData: AdministracionAjustesLoaderData,
+  path: string,
+  child: ReactElement,
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
-      { initialEntries: ["/administracion/ajustes"] },
-      createElement(AdministracionAjustesRouteView, { loaderData }),
+      { initialEntries: [path] },
+      createElement(AdministracionAjustesLayoutView, {
+        loaderData,
+        children: child,
+      }),
     ),
+  );
+}
+
+function renderIndexRoute(loaderData: AdministracionAjustesLoaderData) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes",
+    createElement(AdministracionAjustesIndexRouteView, { loaderData }),
+  );
+}
+
+function renderCategoriasRoute(loaderData: AdministracionAjustesLoaderData) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/categorias",
+    createElement(AdministracionAjustesCategoriasRouteView, { loaderData }),
+  );
+}
+
+function renderModalidadesRoute(loaderData: AdministracionAjustesLoaderData) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/modalidades",
+    createElement(AdministracionAjustesModalidadesRouteView, { loaderData }),
+  );
+}
+
+function renderBloquesHorariosRoute(
+  loaderData: AdministracionAjustesLoaderData,
+) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/bloques-horarios",
+    createElement(AdministracionAjustesBloquesHorariosRouteView, {
+      loaderData,
+    }),
+  );
+}
+
+function renderPreciosRoute(loaderData: AdministracionAjustesLoaderData) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/precios",
+    createElement(AdministracionAjustesPreciosRouteView, { loaderData }),
   );
 }
 

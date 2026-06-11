@@ -45,7 +45,7 @@ describe("AdminShell", () => {
         events: [{ id: "evento_2025", name: "Evento 2025", active: false }],
         selectedEventId: "evento_2025",
       }),
-    ).toContain("Operación limitada");
+    ).toContain("no es el Evento activo");
   });
 });
 

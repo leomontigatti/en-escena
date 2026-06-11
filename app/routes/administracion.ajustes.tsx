@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { redirect, useActionData } from "react-router";
+import { NavLink, Outlet, redirect } from "react-router";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
@@ -62,21 +62,34 @@ type ActionData = {
   fieldErrors: Record<string, string>;
 };
 
-type AdministracionAjustesRouteProps = {
-  loaderData: {
-    email: string;
-    events: AdminEventContext["events"];
-    selectedEventId: string | null;
-    modalities: ModalityRow[];
-    submodalities: SubmodalityRow[];
-    experienceLevels: ExperienceLevelRow[];
-    categories: CategoryRow[];
-    scheduleBlocks: ScheduleBlockListItem[];
-    prices: PriceListItem[];
-    registrationReadiness: EventRegistrationReadiness | null;
-  };
+export type AdministracionAjustesLoaderData = {
+  email: string;
+  events: AdminEventContext["events"];
+  selectedEventId: string | null;
+  modalities: ModalityRow[];
+  submodalities: SubmodalityRow[];
+  experienceLevels: ExperienceLevelRow[];
+  categories: CategoryRow[];
+  scheduleBlocks: ScheduleBlockListItem[];
+  prices: PriceListItem[];
+  registrationReadiness: EventRegistrationReadiness | null;
+};
+
+type AdministracionAjustesLayoutProps = {
+  loaderData: AdministracionAjustesLoaderData;
+  children: ReactNode;
+};
+
+type AdministracionAjustesSectionProps = {
+  loaderData: AdministracionAjustesLoaderData;
   actionData?: ActionData;
 };
+
+type AjustesSectionKey =
+  | "categorias"
+  | "modalidades"
+  | "bloques-horarios"
+  | "precios";
 
 type CatalogActionInput = {
   eventId: string;
@@ -169,13 +182,17 @@ export async function action({ request }: Route.ActionArgs) {
     return actionError(result.error, result.fieldErrors);
   }
 
-  throw redirect(`/administracion/ajustes?evento=${eventId}&guardado=1`);
+  const redirectUrl = new URL(request.url);
+  redirectUrl.searchParams.set("evento", eventId);
+  redirectUrl.searchParams.set("guardado", "1");
+
+  throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
 }
 
-export function AdministracionAjustesRouteView({
+export function AdministracionAjustesLayoutView({
   loaderData,
-  actionData: providedActionData,
-}: AdministracionAjustesRouteProps) {
+  children,
+}: AdministracionAjustesLayoutProps) {
   return (
     <AdminShell
       email={loaderData.email}
@@ -192,268 +209,540 @@ export function AdministracionAjustesRouteView({
             </h2>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Configurá Categorías, Modalidades, Submodalidades, Niveles de
-            experiencia y Bloques horarios para el Evento de trabajo
-            seleccionado.
+            Organizá la Configuración mínima del Evento de trabajo y navegá por
+            Modalidades, Categorías, Bloques horarios y Precios desde un mismo
+            contexto.
           </p>
         </section>
 
-        {providedActionData ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            {providedActionData.message}
-          </div>
-        ) : null}
+        <AjustesSectionNavigation
+          selectedEventId={loaderData.selectedEventId}
+        />
 
-        {loaderData.registrationReadiness ? (
-          <RegistrationReadinessPanel
-            readiness={loaderData.registrationReadiness}
-          />
-        ) : null}
-
-        {loaderData.selectedEventId ? (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <CatalogSection title="Categorías">
-              <CategoryForm
-                intent="create-category"
-                modalities={loaderData.modalities}
-                experienceLevels={loaderData.experienceLevels}
-                buttonLabel="Crear Categoría"
-                fieldErrors={providedActionData?.fieldErrors}
-              />
-              {loaderData.categories.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.categories.map((category) => (
-                    <li key={category.id} className="space-y-3 p-4">
-                      <CategorySummary
-                        category={category}
-                        modalities={loaderData.modalities}
-                        experienceLevels={loaderData.experienceLevels}
-                      />
-                      <CategoryForm
-                        id={category.id}
-                        intent="update-category"
-                        modalities={loaderData.modalities}
-                        experienceLevels={loaderData.experienceLevels}
-                        name={category.name}
-                        minAge={category.minAge}
-                        maxAge={category.maxAge}
-                        groupTypes={category.groupTypes}
-                        modalityIds={category.modalityIds}
-                        experienceLevelIds={category.experienceLevelIds}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={category.id}
-                        intent="delete-category"
-                        buttonLabel="Borrar Categoría"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Categorías para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-
-            <CatalogSection title="Modalidades">
-              <CatalogCreateForm
-                intent="create-modality"
-                label="Nombre de la Modalidad"
-                buttonLabel="Crear Modalidad"
-                fieldError={providedActionData?.fieldErrors.name}
-              />
-              {loaderData.modalities.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.modalities.map((modality) => (
-                    <li key={modality.id} className="space-y-3 p-4">
-                      <CatalogUpdateForm
-                        id={modality.id}
-                        intent="update-modality"
-                        name={modality.name}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={modality.id}
-                        intent="delete-modality"
-                        buttonLabel="Borrar Modalidad"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Modalidades para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-
-            <CatalogSection title="Bloques horarios">
-              <ScheduleBlockForm
-                intent="create-schedule-block"
-                modalities={loaderData.modalities}
-                buttonLabel="Crear Bloque"
-                fieldErrors={providedActionData?.fieldErrors}
-              />
-              {loaderData.scheduleBlocks.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.scheduleBlocks.map((scheduleBlock) => (
-                    <li key={scheduleBlock.id} className="space-y-3 p-4">
-                      <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
-                      <ScheduleEntriesPanel
-                        scheduleBlock={scheduleBlock}
-                        fieldErrors={providedActionData?.fieldErrors}
-                      />
-                      <ScheduleBlockForm
-                        id={scheduleBlock.id}
-                        intent="update-schedule-block"
-                        modalities={loaderData.modalities}
-                        name={scheduleBlock.name}
-                        scheduledDate={scheduleBlock.scheduledDate}
-                        startTime={scheduleBlock.startTime}
-                        totalCapacity={scheduleBlock.totalCapacity}
-                        modalityIds={scheduleBlock.modalityIds}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={scheduleBlock.id}
-                        intent="delete-schedule-block"
-                        buttonLabel="Borrar Bloque"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Bloques horarios para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-
-            <CatalogSection title="Precios">
-              <PriceForm
-                intent="create-price"
-                scheduleBlocks={loaderData.scheduleBlocks}
-                buttonLabel="Crear Precio"
-                fieldErrors={providedActionData?.fieldErrors}
-              />
-              {loaderData.prices.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.prices.map((price) => (
-                    <li key={price.id} className="space-y-3 p-4">
-                      <PriceSummary price={price} />
-                      <PriceForm
-                        id={price.id}
-                        intent="update-price"
-                        scheduleBlocks={loaderData.scheduleBlocks}
-                        name={price.name}
-                        groupType={price.groupType}
-                        amount={price.amount}
-                        scheduleBlockId={price.scheduleBlockId}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={price.id}
-                        intent="delete-price"
-                        buttonLabel="Borrar Precio"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Precios para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-
-            <CatalogSection title="Submodalidades">
-              <SubmodalityForm
-                intent="create-submodality"
-                modalities={loaderData.modalities}
-                buttonLabel="Crear Submodalidad"
-                fieldErrors={providedActionData?.fieldErrors}
-              />
-              {loaderData.submodalities.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.submodalities.map((submodality) => (
-                    <li key={submodality.id} className="space-y-3 p-4">
-                      <SubmodalityForm
-                        id={submodality.id}
-                        intent="update-submodality"
-                        modalities={loaderData.modalities}
-                        name={submodality.name}
-                        modalityId={submodality.modalityId}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={submodality.id}
-                        intent="delete-submodality"
-                        buttonLabel="Borrar Submodalidad"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Submodalidades para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-
-            <CatalogSection title="Niveles de experiencia">
-              <CatalogCreateForm
-                intent="create-experience-level"
-                label="Nombre del Nivel de experiencia"
-                buttonLabel="Crear Nivel"
-                fieldError={providedActionData?.fieldErrors.name}
-              />
-              {loaderData.experienceLevels.length > 0 ? (
-                <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {loaderData.experienceLevels.map((level) => (
-                    <li key={level.id} className="space-y-3 p-4">
-                      <CatalogUpdateForm
-                        id={level.id}
-                        intent="update-experience-level"
-                        name={level.name}
-                        buttonLabel="Guardar"
-                      />
-                      <CatalogDeleteForm
-                        id={level.id}
-                        intent="delete-experience-level"
-                        buttonLabel="Borrar Nivel"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyCatalogState>
-                  Todavía no hay Niveles de experiencia para este Evento.
-                </EmptyCatalogState>
-              )}
-            </CatalogSection>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-            Creá un Evento antes de configurar catálogos.
-          </div>
-        )}
+        {children}
       </div>
     </AdminShell>
   );
 }
 
-export default function AdministracionAjustesRoute({
+export function AdministracionAjustesIndexRouteView({
   loaderData,
-}: AdministracionAjustesRouteProps) {
-  const actionData = useActionData<typeof action>();
+}: {
+  loaderData: AdministracionAjustesLoaderData;
+}) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
 
   return (
-    <AdministracionAjustesRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <div className="space-y-6">
+      {loaderData.registrationReadiness ? (
+        <RegistrationReadinessPanel
+          readiness={loaderData.registrationReadiness}
+        />
+      ) : null}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">
+            Secciones de Ajustes
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            La Configuración mínima se mantiene acá y cada catálogo tiene su
+            propia ruta para editarlo con contexto.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {settingsSections.map((section) => (
+            <NavLink
+              key={section.key}
+              to={buildSettingsPath(section.key, loaderData.selectedEventId)}
+              className="rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            >
+              <span className="text-sm font-semibold text-slate-950">
+                {section.label}
+              </span>
+              <span className="mt-2 block text-sm leading-6 text-slate-600">
+                {section.description}
+              </span>
+            </NavLink>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function AdministracionAjustesCategoriasRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        currentLabel="Categorías"
+        selectedEventId={loaderData.selectedEventId}
+      />
+      <AjustesSectionHeader
+        title="Categorías"
+        description="Definí rangos de edad, Tipos de grupo, Modalidades y Niveles de experiencia para el Evento de trabajo."
+      />
+      <ActionErrorBanner actionData={providedActionData} />
+      <CatalogSection title="Categorías">
+        <CategoryForm
+          intent="create-category"
+          modalities={loaderData.modalities}
+          experienceLevels={loaderData.experienceLevels}
+          buttonLabel="Crear Categoría"
+          fieldErrors={providedActionData?.fieldErrors}
+        />
+        {loaderData.categories.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.categories.map((category) => (
+              <li key={category.id} className="space-y-3 p-4">
+                <CategorySummary
+                  category={category}
+                  modalities={loaderData.modalities}
+                  experienceLevels={loaderData.experienceLevels}
+                />
+                <CategoryForm
+                  id={category.id}
+                  intent="update-category"
+                  modalities={loaderData.modalities}
+                  experienceLevels={loaderData.experienceLevels}
+                  name={category.name}
+                  minAge={category.minAge}
+                  maxAge={category.maxAge}
+                  groupTypes={category.groupTypes}
+                  modalityIds={category.modalityIds}
+                  experienceLevelIds={category.experienceLevelIds}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={category.id}
+                  intent="delete-category"
+                  buttonLabel="Borrar Categoría"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Categorías para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+      <CatalogSection title="Niveles de experiencia">
+        <CatalogCreateForm
+          intent="create-experience-level"
+          label="Nombre del Nivel de experiencia"
+          buttonLabel="Crear Nivel"
+          fieldError={providedActionData?.fieldErrors.name}
+        />
+        {loaderData.experienceLevels.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.experienceLevels.map((level) => (
+              <li key={level.id} className="space-y-3 p-4">
+                <CatalogUpdateForm
+                  id={level.id}
+                  intent="update-experience-level"
+                  name={level.name}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={level.id}
+                  intent="delete-experience-level"
+                  buttonLabel="Borrar Nivel"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Niveles de experiencia para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+    </div>
+  );
+}
+
+export function AdministracionAjustesModalidadesRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        currentLabel="Modalidades"
+        selectedEventId={loaderData.selectedEventId}
+      />
+      <AjustesSectionHeader
+        title="Modalidades"
+        description="Gestioná Modalidades y sus Submodalidades dentro del Evento de trabajo seleccionado."
+      />
+      <ActionErrorBanner actionData={providedActionData} />
+      <CatalogSection title="Modalidades">
+        <CatalogCreateForm
+          intent="create-modality"
+          label="Nombre de la Modalidad"
+          buttonLabel="Crear Modalidad"
+          fieldError={providedActionData?.fieldErrors.name}
+        />
+        {loaderData.modalities.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.modalities.map((modality) => (
+              <li key={modality.id} className="space-y-3 p-4">
+                <CatalogUpdateForm
+                  id={modality.id}
+                  intent="update-modality"
+                  name={modality.name}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={modality.id}
+                  intent="delete-modality"
+                  buttonLabel="Borrar Modalidad"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Modalidades para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+      <CatalogSection title="Submodalidades">
+        <SubmodalityForm
+          intent="create-submodality"
+          modalities={loaderData.modalities}
+          buttonLabel="Crear Submodalidad"
+          fieldErrors={providedActionData?.fieldErrors}
+        />
+        {loaderData.submodalities.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.submodalities.map((submodality) => (
+              <li key={submodality.id} className="space-y-3 p-4">
+                <SubmodalityForm
+                  id={submodality.id}
+                  intent="update-submodality"
+                  modalities={loaderData.modalities}
+                  name={submodality.name}
+                  modalityId={submodality.modalityId}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={submodality.id}
+                  intent="delete-submodality"
+                  buttonLabel="Borrar Submodalidad"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Submodalidades para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+    </div>
+  );
+}
+
+export function AdministracionAjustesBloquesHorariosRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        currentLabel="Bloques horarios"
+        selectedEventId={loaderData.selectedEventId}
+      />
+      <AjustesSectionHeader
+        title="Bloques horarios"
+        description="Configurá capacidad, Modalidades aceptadas y Cronogramas del Evento de trabajo."
+      />
+      <ActionErrorBanner actionData={providedActionData} />
+      <CatalogSection title="Bloques horarios">
+        <ScheduleBlockForm
+          intent="create-schedule-block"
+          modalities={loaderData.modalities}
+          buttonLabel="Crear Bloque"
+          fieldErrors={providedActionData?.fieldErrors}
+        />
+        {loaderData.scheduleBlocks.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.scheduleBlocks.map((scheduleBlock) => (
+              <li key={scheduleBlock.id} className="space-y-3 p-4">
+                <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
+                <ScheduleEntriesPanel
+                  scheduleBlock={scheduleBlock}
+                  fieldErrors={providedActionData?.fieldErrors}
+                />
+                <ScheduleBlockForm
+                  id={scheduleBlock.id}
+                  intent="update-schedule-block"
+                  modalities={loaderData.modalities}
+                  name={scheduleBlock.name}
+                  scheduledDate={scheduleBlock.scheduledDate}
+                  startTime={scheduleBlock.startTime}
+                  totalCapacity={scheduleBlock.totalCapacity}
+                  modalityIds={scheduleBlock.modalityIds}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={scheduleBlock.id}
+                  intent="delete-schedule-block"
+                  buttonLabel="Borrar Bloque"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Bloques horarios para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+    </div>
+  );
+}
+
+export function AdministracionAjustesPreciosRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        currentLabel="Precios"
+        selectedEventId={loaderData.selectedEventId}
+      />
+      <AjustesSectionHeader
+        title="Precios"
+        description="Definí Precios base y Precios por Bloque horario para cada Tipo de grupo."
+      />
+      <ActionErrorBanner actionData={providedActionData} />
+      <CatalogSection title="Precios">
+        <PriceForm
+          intent="create-price"
+          scheduleBlocks={loaderData.scheduleBlocks}
+          buttonLabel="Crear Precio"
+          fieldErrors={providedActionData?.fieldErrors}
+        />
+        {loaderData.prices.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            {loaderData.prices.map((price) => (
+              <li key={price.id} className="space-y-3 p-4">
+                <PriceSummary price={price} />
+                <PriceForm
+                  id={price.id}
+                  intent="update-price"
+                  scheduleBlocks={loaderData.scheduleBlocks}
+                  name={price.name}
+                  groupType={price.groupType}
+                  amount={price.amount}
+                  scheduleBlockId={price.scheduleBlockId}
+                  buttonLabel="Guardar"
+                />
+                <CatalogDeleteForm
+                  id={price.id}
+                  intent="delete-price"
+                  buttonLabel="Borrar Precio"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyCatalogState>
+            Todavía no hay Precios para este Evento.
+          </EmptyCatalogState>
+        )}
+      </CatalogSection>
+    </div>
+  );
+}
+
+export default function AdministracionAjustesRoute({
+  loaderData,
+}: {
+  loaderData: AdministracionAjustesLoaderData;
+}) {
+  return (
+    <AdministracionAjustesLayoutView loaderData={loaderData}>
+      <Outlet context={loaderData} />
+    </AdministracionAjustesLayoutView>
+  );
+}
+
+const settingsSections: Array<{
+  key: AjustesSectionKey;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "modalidades",
+    label: "Modalidades",
+    description: "Gestioná Modalidades y Submodalidades del Evento.",
+  },
+  {
+    key: "categorias",
+    label: "Categorías",
+    description:
+      "Agrupá edades, Tipos de grupo, Modalidades y Niveles de experiencia.",
+  },
+  {
+    key: "bloques-horarios",
+    label: "Bloques horarios",
+    description: "Definí capacidad, horarios y Cronogramas de programación.",
+  },
+  {
+    key: "precios",
+    label: "Precios",
+    description: "Configurá importes generales y por Bloque horario.",
+  },
+];
+
+function buildSettingsPath(
+  section: AjustesSectionKey | null,
+  selectedEventId: string | null,
+) {
+  const pathname = section
+    ? `/administracion/ajustes/${section}`
+    : "/administracion/ajustes";
+
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
+function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
+  if (!actionData) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+      {actionData.message}
+    </div>
+  );
+}
+
+function AjustesSectionNavigation({
+  selectedEventId,
+}: {
+  selectedEventId: string | null;
+}) {
+  return (
+    <nav aria-label="Secciones de Ajustes">
+      <ul className="flex flex-wrap gap-2">
+        <li>
+          <NavLink
+            to={buildSettingsPath(null, selectedEventId)}
+            className={({ isActive }) => buildSettingsNavLinkClass(isActive)}
+            end
+          >
+            Índice
+          </NavLink>
+        </li>
+        {settingsSections.map((section) => (
+          <li key={section.key}>
+            <NavLink
+              to={buildSettingsPath(section.key, selectedEventId)}
+              className={({ isActive }) => buildSettingsNavLinkClass(isActive)}
+            >
+              {section.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function buildSettingsNavLinkClass(isCurrent: boolean) {
+  return `inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${
+    isCurrent
+      ? "border-teal-300 bg-teal-50 text-teal-900"
+      : "border-slate-300 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-slate-950"
+  }`;
+}
+
+function AjustesBreadcrumbs({
+  currentLabel,
+  selectedEventId,
+}: {
+  currentLabel: string;
+  selectedEventId: string | null;
+}) {
+  return (
+    <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
+      <ol className="flex flex-wrap items-center gap-2">
+        <li>
+          <NavLink
+            to={buildSettingsPath(null, selectedEventId)}
+            className="font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+          >
+            Ajustes
+          </NavLink>
+        </li>
+        <li aria-hidden="true" className="text-slate-400">
+          /
+        </li>
+        <li className="font-medium text-slate-950">{currentLabel}</li>
+      </ol>
+    </nav>
+  );
+}
+
+function AjustesSectionHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <header className="space-y-1">
+      <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+      <p className="max-w-3xl text-sm leading-6 text-slate-600">
+        {description}
+      </p>
+    </header>
+  );
+}
+
+function AjustesEmptyState() {
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+      <h2 className="text-base font-semibold text-amber-950">
+        Elegí un Evento de trabajo para configurar Ajustes
+      </h2>
+      <p className="mt-2">
+        Creá un Evento o seleccioná uno existente para editar Modalidades,
+        Categorías, Bloques horarios y Precios.
+      </p>
+    </section>
   );
 }
 

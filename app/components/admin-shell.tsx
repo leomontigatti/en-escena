@@ -153,7 +153,7 @@ export function AdminShell({
                 ) : null}
                 {showLimitedOperation ? (
                   <AdminShellBanner tone="info">
-                    Operación limitada: este Evento de trabajo no es el Evento
+                    Estás editando un Evento de trabajo que no es el Evento
                     activo.
                   </AdminShellBanner>
                 ) : null}

@@ -85,7 +85,7 @@ export function AdministracionRouteView({
             Ajustes de administración
           </span>
           <span className="mt-2 block text-sm leading-6 text-slate-600">
-            Configurá Modalidades, Submodalidades y Niveles de experiencia por
+            Configurá Modalidades, Categorías, Bloques horarios y Precios por
             Evento de trabajo.
           </span>
         </Link>
