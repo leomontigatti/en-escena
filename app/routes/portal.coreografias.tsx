@@ -199,7 +199,7 @@ export function PortalCoreografiasRouteView({
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     Revisá nombre, modalidad, categoría y estado operativo de
-                    cada Coreografía.
+                    cada Coreografía del Evento consultado.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:items-end">
@@ -244,7 +244,7 @@ export function PortalCoreografiasRouteView({
               ) : (
                 <PortalEmptyList
                   title="No hay coreografías registradas para este evento"
-                  description="Cuando se habilite el flujo de alta, las nuevas Coreografías van a aparecer acá para seguir su estado operativo."
+                  description="Cuando registres una Coreografía para este Evento consultado, la vas a poder seguir acá junto con su estado operativo."
                 />
               )}
             </>
@@ -303,13 +303,13 @@ function ChoreographyTable({
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Coreografía
+              Nombre
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Modalidad
+              Modalidad / Submodalidad
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Categoría
+              Categoría / Nivel
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               Estado operativo

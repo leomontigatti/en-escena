@@ -166,7 +166,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Falta un Precio aplicable");
   });
 
-  test("shows the Coreografías list with the agreed columns and links to detail preserving the Evento consultado", () => {
+  test("shows the Coreografías list with the agreed columns and readonly historical context", () => {
     const selectedEvent = eventSummary({
       id: "event_2025",
       name: "Regional 2025",
@@ -205,14 +205,20 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Coreografía");
-    expect(markup).toContain("Modalidad");
-    expect(markup).toContain("Categoría");
+    expect(markup).toContain("Nombre");
+    expect(markup).toContain("Modalidad / Submodalidad");
+    expect(markup).toContain("Categoría / Nivel");
     expect(markup).toContain("Estado operativo");
+    expect(markup).toContain("Solo lectura");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Inicial");
     expect(markup).toContain("Pendiente: Música");
+    expect(markup).toContain("Crear Coreografía");
+    expect(markup).toContain("disabled");
+    expect(markup).toContain(
+      "Solo podés crear coreografías cuando el Evento consultado coincide con el Evento activo.",
+    );
     expect(markup).toContain(
       'href="/portal/coreografias/choreo_1?evento=event_2025"',
     );
