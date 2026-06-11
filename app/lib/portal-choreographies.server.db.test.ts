@@ -21,6 +21,7 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
+import { action as choreographyDetailAction } from "@/routes/portal.coreografias.$choreographyId";
 import { loader as choreographyDetailLoader } from "@/routes/portal.coreografias.$choreographyId";
 import { loader as choreographiesLoader } from "@/routes/portal.coreografias";
 
@@ -346,6 +347,253 @@ describe.sequential("portal choreographies reads", () => {
     ).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  test("updates linked Profesores for active Evento detail, keeps archived linked rows visible, and blocks re-adding archived removals", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "coreografias.detail.edit.owner@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2011-04-05",
+    });
+    const activeProfessor = await createProfessor(owner.academyId, {
+      firstName: "Luz",
+      lastName: "Activa",
+    });
+    const archivedLinkedProfessor = await createProfessor(owner.academyId, {
+      active: false,
+      firstName: "Mora",
+      lastName: "Archivada",
+    });
+    const archivedUnlinkedProfessor = await createProfessor(owner.academyId, {
+      active: false,
+      firstName: "Nora",
+      lastName: "Oculta",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-update.mp3",
+      name: "Editable",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 15,
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: choreography.id,
+      professorId: archivedLinkedProfessor.id,
+    });
+
+    const initialDetail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(initialDetail.eventContext.isReadOnly).toBe(false);
+    expect(initialDetail.eventContext.isRegistrationOpen).toBe(false);
+    expect(initialDetail.availableProfessors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: archivedLinkedProfessor.id,
+          active: false,
+        }),
+        expect.objectContaining({
+          id: activeProfessor.id,
+          active: true,
+        }),
+      ]),
+    );
+    expect(
+      initialDetail.availableProfessors.map((professor) => professor.id),
+    ).not.toContain(archivedUnlinkedProfessor.id);
+
+    const updateResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        professorLinkFormData([activeProfessor.id]),
+      ),
+    });
+
+    expect(updateResponse).toBeInstanceOf(Response);
+    if (!(updateResponse instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(updateResponse.status).toBe(302);
+    expect(updateResponse.headers.get("location")).toBe(
+      `/portal/coreografias/${choreography.id}?evento=${event.id}&actualizado=1`,
+    );
+
+    await expect(
+      db.query.choreographyProfessors.findMany({
+        where: eq(choreographyProfessors.choreographyId, choreography.id),
+      }),
+    ).resolves.toMatchObject([{ professorId: activeProfessor.id }]);
+
+    const updatedDetail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(updatedDetail.choreography.professors).toMatchObject([
+      {
+        id: activeProfessor.id,
+        active: true,
+      },
+    ]);
+    expect(
+      updatedDetail.availableProfessors.map((professor) => professor.id),
+    ).toEqual([activeProfessor.id]);
+
+    const rejectedResult = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        professorLinkFormData([archivedLinkedProfessor.id]),
+      ),
+    });
+
+    expect(rejectedResult).toMatchObject({
+      status: "error",
+      message:
+        "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.",
+    });
+
+    const afterRejectedAttempt = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(afterRejectedAttempt.choreography.operationalStatus).toEqual({
+      code: "complete",
+      pendingItems: [],
+    });
+
+    await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        professorLinkFormData([]),
+      ),
+    });
+
+    const withoutProfessors = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(withoutProfessors.choreography.operationalStatus).toEqual({
+      code: "incomplete",
+      pendingItems: ["professors"],
+    });
+  });
+
+  test("keeps historical Evento detail readonly and rejects Profesor updates", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Histórica",
+      email: "coreografias.detail.readonly.owner@example.com",
+    });
+    const historicalEvent = await createEventRecord({
+      active: false,
+      name: "Regional 2025",
+    });
+    const activeEvent = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const historicalCatalog = await createEventCatalog(historicalEvent.id);
+    await createEventCatalog(activeEvent.id);
+    const dancer = await createDancer(owner.academyId);
+    const professor = await createProfessor(owner.academyId);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: historicalCatalog.categoryWithLevel.id,
+      eventId: historicalEvent.id,
+      experienceLevelId: historicalCatalog.level.id,
+      modalityId: historicalCatalog.modality.id,
+      musicStorageKey: "music/readonly.mp3",
+      name: "Histórica",
+      scheduleEntryId: historicalCatalog.scheduleEntry.id,
+      submodalityId: historicalCatalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 14,
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: choreography.id,
+      professorId: professor.id,
+    });
+
+    const detail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${historicalEvent.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(detail.eventContext.isReadOnly).toBe(true);
+
+    await expect(
+      choreographyDetailAction({
+        params: { choreographyId: choreography.id },
+        request: createPortalPostRequest(
+          `http://localhost/portal/coreografias/${choreography.id}?evento=${historicalEvent.id}`,
+          owner.cookie,
+          professorLinkFormData([]),
+        ),
+      }),
+    ).rejects.toMatchObject({
+      status: 403,
+    });
+
+    await expect(
+      db.query.choreographyProfessors.findMany({
+        where: eq(choreographyProfessors.choreographyId, choreography.id),
+      }),
+    ).resolves.toMatchObject([{ professorId: professor.id }]);
   });
 
   test("keeps history-protecting foreign keys restrictive and cascades bridge rows only when the choreography is deleted", async () => {
@@ -688,6 +936,29 @@ function createRequestCookie(headers: Headers) {
   }
 
   return `better-auth.session_token=${sessionCookie[1]}`;
+}
+
+function createPortalPostRequest(
+  requestUrl: string,
+  cookie: string,
+  body: FormData,
+) {
+  return new Request(requestUrl, {
+    method: "POST",
+    headers: { cookie },
+    body,
+  });
+}
+
+function professorLinkFormData(professorIds: string[]) {
+  const formData = new FormData();
+  formData.set("intent", "update-choreography-professors");
+
+  for (const professorId of professorIds) {
+    formData.append("professorIds", professorId);
+  }
+
+  return formData;
 }
 
 function date(value: string) {

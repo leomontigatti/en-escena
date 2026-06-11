@@ -39,6 +39,20 @@ export type ChoreographyDetail = ChoreographyListItem & {
   }>;
 };
 
+export type ChoreographyProfessorOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  active: boolean;
+};
+
+export type UpdateChoreographyProfessorsResult =
+  | { ok: true }
+  | {
+      ok: false;
+      message: string;
+    };
+
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -174,6 +188,119 @@ export async function findChoreographyForAcademyEvent(
     dancers: dancerRows,
     professors: professorRows,
   };
+}
+
+export async function listProfessorOptionsForChoreography(
+  academyId: string,
+  linkedProfessorIds: string[],
+): Promise<ChoreographyProfessorOption[]> {
+  const linkedProfessorIdsSet = new Set(linkedProfessorIds);
+  const rows = await db
+    .select({
+      id: professors.id,
+      firstName: professors.firstName,
+      lastName: professors.lastName,
+      active: professors.active,
+    })
+    .from(professors)
+    .where(eq(professors.academyId, academyId))
+    .orderBy(asc(professors.lastName), asc(professors.firstName));
+
+  return rows.filter(
+    (professor) => professor.active || linkedProfessorIdsSet.has(professor.id),
+  );
+}
+
+export async function updateChoreographyProfessors(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  professorIds: string[];
+}): Promise<UpdateChoreographyProfessorsResult> {
+  const choreography = await db.query.choreographies.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(choreographies.id, input.choreographyId),
+      eq(choreographies.academyId, input.academyId),
+      eq(choreographies.eventId, input.eventId),
+    ),
+  });
+
+  if (!choreography) {
+    throw new Response("No encontramos esa Coreografía.", { status: 404 });
+  }
+
+  const requestedProfessorIds = [...new Set(input.professorIds)];
+  const currentLinks = await db
+    .select({
+      professorId: choreographyProfessors.professorId,
+    })
+    .from(choreographyProfessors)
+    .where(eq(choreographyProfessors.choreographyId, input.choreographyId));
+  const linkedProfessorIds = new Set(
+    currentLinks.map((row) => row.professorId),
+  );
+
+  if (requestedProfessorIds.length > 0) {
+    const selectedProfessors = await db.query.professors.findMany({
+      columns: { id: true, active: true },
+      where: and(
+        eq(professors.academyId, input.academyId),
+        inArray(professors.id, requestedProfessorIds),
+      ),
+    });
+
+    const allowedProfessorIds = new Set(
+      selectedProfessors
+        .filter(
+          (professor) =>
+            professor.active || linkedProfessorIds.has(professor.id),
+        )
+        .map((professor) => professor.id),
+    );
+
+    if (
+      selectedProfessors.length !== requestedProfessorIds.length ||
+      requestedProfessorIds.some((id) => !allowedProfessorIds.has(id))
+    ) {
+      return {
+        ok: false,
+        message:
+          "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.",
+      };
+    }
+  }
+
+  const professorIdsToRemove = currentLinks
+    .map((row) => row.professorId)
+    .filter((id) => !requestedProfessorIds.includes(id));
+  const professorIdsToAdd = requestedProfessorIds.filter(
+    (id) => !linkedProfessorIds.has(id),
+  );
+
+  await db.transaction(async (tx) => {
+    if (professorIdsToRemove.length > 0) {
+      await tx
+        .delete(choreographyProfessors)
+        .where(
+          and(
+            eq(choreographyProfessors.choreographyId, input.choreographyId),
+            inArray(choreographyProfessors.professorId, professorIdsToRemove),
+          ),
+        );
+    }
+
+    if (professorIdsToAdd.length > 0) {
+      await tx.insert(choreographyProfessors).values(
+        professorIdsToAdd.map((professorId) => ({
+          choreographyId: input.choreographyId,
+          professorId,
+        })),
+      );
+    }
+  });
+
+  return { ok: true };
 }
 
 async function hydrateChoreographyRows(
