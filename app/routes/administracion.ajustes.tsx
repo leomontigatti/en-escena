@@ -146,6 +146,12 @@ const groupTypeOptions = Object.entries(groupTypeLabels).map(
   }),
 );
 
+const scheduleBlockDeleteConfirmationValue = "yes";
+const scheduleBlockDeleteErrorMessage =
+  "Confirmá el borrado del Bloque horario antes de continuar.";
+const scheduleBlockDeleteFieldErrorMessage =
+  "Marcá la confirmación para borrar el Bloque horario.";
+
 export const meta = () => [{ title: "Ajustes de administración | En Escena" }];
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -540,19 +546,20 @@ export function AdministracionAjustesDetalleBloqueHorarioRouteView({
   const scheduleBlock = loaderData.scheduleBlocks.find(
     (block) => block.id === scheduleBlockId,
   );
+  const scheduleBlockName = scheduleBlock?.name ?? "Bloque horario";
 
   return (
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
       actionData={actionData}
-      title={scheduleBlock?.name ?? "Bloque horario"}
+      title={scheduleBlockName}
       description="Editá el Bloque horario y gestioná sus Cronogramas dentro del mismo detalle."
       breadcrumbs={[
         {
           label: "Bloques horarios",
           to: buildScheduleBlocksPath(loaderData.selectedEventId),
         },
-        { label: scheduleBlock?.name ?? "Bloque horario" },
+        { label: scheduleBlockName },
       ]}
     >
       {scheduleBlock ? (
@@ -694,6 +701,17 @@ const settingsSections: Array<{
 const catalogListClassName =
   "mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white";
 
+function buildAjustesPathWithEventQuery(
+  pathname: string,
+  selectedEventId: string | null,
+) {
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
 function buildSettingsPath(
   section: AjustesSectionKey | null,
   selectedEventId: string | null,
@@ -702,38 +720,43 @@ function buildSettingsPath(
     ? `/administracion/ajustes/${section}`
     : "/administracion/ajustes";
 
-  if (!selectedEventId) {
-    return pathname;
-  }
-
-  return `${pathname}?evento=${selectedEventId}`;
+  return buildAjustesPathWithEventQuery(pathname, selectedEventId);
 }
 
 function buildScheduleBlocksPath(selectedEventId: string | null) {
-  return buildSettingsPath("bloques-horarios", selectedEventId);
+  return buildAjustesPathWithEventQuery(
+    buildScheduleBlocksPathname(),
+    selectedEventId,
+  );
 }
 
 function buildNewScheduleBlockPath(selectedEventId: string | null) {
-  const pathname = "/administracion/ajustes/bloques-horarios/nuevo";
-
-  if (!selectedEventId) {
-    return pathname;
-  }
-
-  return `${pathname}?evento=${selectedEventId}`;
+  return buildAjustesPathWithEventQuery(
+    buildNewScheduleBlockPathname(),
+    selectedEventId,
+  );
 }
 
 function buildScheduleBlockDetailPath(
   scheduleBlockId: string,
   selectedEventId: string | null,
 ) {
-  const pathname = `/administracion/ajustes/bloques-horarios/${scheduleBlockId}`;
+  return buildAjustesPathWithEventQuery(
+    buildScheduleBlockDetailPathname(scheduleBlockId),
+    selectedEventId,
+  );
+}
 
-  if (!selectedEventId) {
-    return pathname;
-  }
+function buildScheduleBlocksPathname() {
+  return "/administracion/ajustes/bloques-horarios";
+}
 
-  return `${pathname}?evento=${selectedEventId}`;
+function buildNewScheduleBlockPathname() {
+  return "/administracion/ajustes/bloques-horarios/nuevo";
+}
+
+function buildScheduleBlockDetailPathname(scheduleBlockId: string) {
+  return `/administracion/ajustes/bloques-horarios/${scheduleBlockId}`;
 }
 
 function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
@@ -1269,7 +1292,7 @@ function ScheduleBlockSummary({
             Ocupación
           </dt>
           <dd className="mt-1 text-sm text-slate-950">
-            {scheduleBlock.occupiedCapacity}/{scheduleBlock.totalCapacity}
+            {formatScheduleBlockOccupancy(scheduleBlock)}
           </dd>
         </div>
         <div>
@@ -1281,11 +1304,7 @@ function ScheduleBlockSummary({
           </dd>
         </div>
       </dl>
-      <div className="flex flex-wrap gap-2">
-        {scheduleBlock.modalities.map((modality) => (
-          <CatalogBadge key={modality.id}>{modality.name}</CatalogBadge>
-        ))}
-      </div>
+      <ScheduleBlockModalityBadges scheduleBlock={scheduleBlock} />
     </div>
   );
 }
@@ -1324,13 +1343,7 @@ function ScheduleBlockList({
                 </Link>
               </td>
               <td className="px-4 py-4">
-                <div className="flex flex-wrap gap-2">
-                  {scheduleBlock.modalities.map((modality) => (
-                    <CatalogBadge key={modality.id}>
-                      {modality.name}
-                    </CatalogBadge>
-                  ))}
-                </div>
+                <ScheduleBlockModalityBadges scheduleBlock={scheduleBlock} />
               </td>
               <td className="px-4 py-4 text-sm text-slate-700">
                 {formatDate(scheduleBlock.scheduledDate)}
@@ -1339,7 +1352,7 @@ function ScheduleBlockList({
                 {scheduleBlock.startTime}
               </td>
               <td className="px-4 py-4 text-sm font-medium text-slate-950">
-                {scheduleBlock.occupiedCapacity}/{scheduleBlock.totalCapacity}
+                {formatScheduleBlockOccupancy(scheduleBlock)}
               </td>
             </tr>
           ))}
@@ -1793,6 +1806,24 @@ function CatalogBadge({ children }: { children: ReactNode }) {
   );
 }
 
+function ScheduleBlockModalityBadges({
+  scheduleBlock,
+}: {
+  scheduleBlock: ScheduleBlockListItem;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {scheduleBlock.modalities.map((modality) => (
+        <CatalogBadge key={modality.id}>{modality.name}</CatalogBadge>
+      ))}
+    </div>
+  );
+}
+
+function formatScheduleBlockOccupancy(scheduleBlock: ScheduleBlockListItem) {
+  return `${scheduleBlock.occupiedCapacity}/${scheduleBlock.totalCapacity}`;
+}
+
 function CatalogDeleteForm({
   buttonLabel,
   id,
@@ -1844,7 +1875,7 @@ function ScheduleBlockDeleteForm({
           <input
             type="checkbox"
             name="confirmDelete"
-            value="yes"
+            value={scheduleBlockDeleteConfirmationValue}
             className="mt-0.5 size-4 rounded border-red-300 text-red-700 focus:ring-red-100"
           />
           Confirmo que quiero borrar {scheduleBlock.name}.
@@ -1923,7 +1954,6 @@ function buildCatalogSuccessRedirectUrl(
   const redirectUrl = new URL(requestUrl);
   const successPath = getCatalogSuccessPath(
     redirectUrl.pathname,
-    eventId,
     input,
     result,
   );
@@ -1937,17 +1967,16 @@ function buildCatalogSuccessRedirectUrl(
 
 function getCatalogSuccessPath(
   currentPathname: string,
-  eventId: string,
   input: CatalogActionInput,
   result: { ok: true; record?: { id: string } },
 ) {
   switch (input.intent) {
     case "create-schedule-block":
       return result.record
-        ? buildScheduleBlockDetailPath(result.record.id, eventId).split("?")[0]
+        ? buildScheduleBlockDetailPathname(result.record.id)
         : currentPathname;
     case "delete-schedule-block":
-      return buildScheduleBlocksPath(eventId).split("?")[0];
+      return buildScheduleBlocksPathname();
     default:
       return currentPathname;
   }
@@ -1980,14 +2009,13 @@ async function runCatalogIntent(input: CatalogActionInput) {
     case "update-schedule-block":
       return updateScheduleBlock(input.id, getScheduleBlockInput(input));
     case "delete-schedule-block":
-      if (input.confirmDelete !== "yes") {
+      if (input.confirmDelete !== scheduleBlockDeleteConfirmationValue) {
         return {
           ok: false as const,
           code: "invalid-catalog" as const,
-          error: "Confirmá el borrado del Bloque horario antes de continuar.",
+          error: scheduleBlockDeleteErrorMessage,
           fieldErrors: {
-            confirmDelete:
-              "Marcá la confirmación para borrar el Bloque horario.",
+            confirmDelete: scheduleBlockDeleteFieldErrorMessage,
           },
         };
       }
