@@ -1,12 +1,10 @@
-import { useOutletContext } from "react-router";
-
 import {
   AdministracionAjustesIndexRouteView,
-  type AdministracionAjustesLoaderData,
+  useAdministracionAjustesLoaderData,
 } from "./administracion.ajustes";
 
 export default function AdministracionAjustesIndexRoute() {
-  const loaderData = useOutletContext<AdministracionAjustesLoaderData>();
+  const loaderData = useAdministracionAjustesLoaderData();
 
   return <AdministracionAjustesIndexRouteView loaderData={loaderData} />;
 }

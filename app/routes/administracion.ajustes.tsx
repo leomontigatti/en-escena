@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { NavLink, Outlet, redirect } from "react-router";
+import { NavLink, Outlet, redirect, useOutletContext } from "react-router";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
@@ -84,6 +84,13 @@ type AdministracionAjustesSectionProps = {
   loaderData: AdministracionAjustesLoaderData;
   actionData?: ActionData;
 };
+
+type AdministracionAjustesSectionLayoutProps =
+  AdministracionAjustesSectionProps & {
+    title: string;
+    description: string;
+    children: ReactNode;
+  };
 
 type AjustesSectionKey =
   | "categorias"
@@ -189,6 +196,10 @@ export async function action({ request }: Route.ActionArgs) {
   throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
 }
 
+export function useAdministracionAjustesLoaderData() {
+  return useOutletContext<AdministracionAjustesLoaderData>();
+}
+
 export function AdministracionAjustesLayoutView({
   loaderData,
   children,
@@ -277,21 +288,13 @@ export function AdministracionAjustesCategoriasRouteView({
   loaderData,
   actionData: providedActionData,
 }: AdministracionAjustesSectionProps) {
-  if (!loaderData.selectedEventId) {
-    return <AjustesEmptyState />;
-  }
-
   return (
-    <div className="space-y-6">
-      <AjustesBreadcrumbs
-        currentLabel="Categorías"
-        selectedEventId={loaderData.selectedEventId}
-      />
-      <AjustesSectionHeader
-        title="Categorías"
-        description="Definí rangos de edad, Tipos de grupo, Modalidades y Niveles de experiencia para el Evento de trabajo."
-      />
-      <ActionErrorBanner actionData={providedActionData} />
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title="Categorías"
+      description="Definí rangos de edad, Tipos de grupo, Modalidades y Niveles de experiencia para el Evento de trabajo."
+    >
       <CatalogSection title="Categorías">
         <CategoryForm
           intent="create-category"
@@ -301,7 +304,7 @@ export function AdministracionAjustesCategoriasRouteView({
           fieldErrors={providedActionData?.fieldErrors}
         />
         {loaderData.categories.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.categories.map((category) => (
               <li key={category.id} className="space-y-3 p-4">
                 <CategorySummary
@@ -344,7 +347,7 @@ export function AdministracionAjustesCategoriasRouteView({
           fieldError={providedActionData?.fieldErrors.name}
         />
         {loaderData.experienceLevels.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.experienceLevels.map((level) => (
               <li key={level.id} className="space-y-3 p-4">
                 <CatalogUpdateForm
@@ -367,7 +370,7 @@ export function AdministracionAjustesCategoriasRouteView({
           </EmptyCatalogState>
         )}
       </CatalogSection>
-    </div>
+    </AdministracionAjustesSectionLayout>
   );
 }
 
@@ -375,21 +378,13 @@ export function AdministracionAjustesModalidadesRouteView({
   loaderData,
   actionData: providedActionData,
 }: AdministracionAjustesSectionProps) {
-  if (!loaderData.selectedEventId) {
-    return <AjustesEmptyState />;
-  }
-
   return (
-    <div className="space-y-6">
-      <AjustesBreadcrumbs
-        currentLabel="Modalidades"
-        selectedEventId={loaderData.selectedEventId}
-      />
-      <AjustesSectionHeader
-        title="Modalidades"
-        description="Gestioná Modalidades y sus Submodalidades dentro del Evento de trabajo seleccionado."
-      />
-      <ActionErrorBanner actionData={providedActionData} />
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title="Modalidades"
+      description="Gestioná Modalidades y sus Submodalidades dentro del Evento de trabajo seleccionado."
+    >
       <CatalogSection title="Modalidades">
         <CatalogCreateForm
           intent="create-modality"
@@ -398,7 +393,7 @@ export function AdministracionAjustesModalidadesRouteView({
           fieldError={providedActionData?.fieldErrors.name}
         />
         {loaderData.modalities.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.modalities.map((modality) => (
               <li key={modality.id} className="space-y-3 p-4">
                 <CatalogUpdateForm
@@ -429,7 +424,7 @@ export function AdministracionAjustesModalidadesRouteView({
           fieldErrors={providedActionData?.fieldErrors}
         />
         {loaderData.submodalities.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.submodalities.map((submodality) => (
               <li key={submodality.id} className="space-y-3 p-4">
                 <SubmodalityForm
@@ -454,7 +449,7 @@ export function AdministracionAjustesModalidadesRouteView({
           </EmptyCatalogState>
         )}
       </CatalogSection>
-    </div>
+    </AdministracionAjustesSectionLayout>
   );
 }
 
@@ -462,21 +457,13 @@ export function AdministracionAjustesBloquesHorariosRouteView({
   loaderData,
   actionData: providedActionData,
 }: AdministracionAjustesSectionProps) {
-  if (!loaderData.selectedEventId) {
-    return <AjustesEmptyState />;
-  }
-
   return (
-    <div className="space-y-6">
-      <AjustesBreadcrumbs
-        currentLabel="Bloques horarios"
-        selectedEventId={loaderData.selectedEventId}
-      />
-      <AjustesSectionHeader
-        title="Bloques horarios"
-        description="Configurá capacidad, Modalidades aceptadas y Cronogramas del Evento de trabajo."
-      />
-      <ActionErrorBanner actionData={providedActionData} />
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title="Bloques horarios"
+      description="Configurá capacidad, Modalidades aceptadas y Cronogramas del Evento de trabajo."
+    >
       <CatalogSection title="Bloques horarios">
         <ScheduleBlockForm
           intent="create-schedule-block"
@@ -485,7 +472,7 @@ export function AdministracionAjustesBloquesHorariosRouteView({
           fieldErrors={providedActionData?.fieldErrors}
         />
         {loaderData.scheduleBlocks.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.scheduleBlocks.map((scheduleBlock) => (
               <li key={scheduleBlock.id} className="space-y-3 p-4">
                 <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
@@ -518,7 +505,7 @@ export function AdministracionAjustesBloquesHorariosRouteView({
           </EmptyCatalogState>
         )}
       </CatalogSection>
-    </div>
+    </AdministracionAjustesSectionLayout>
   );
 }
 
@@ -526,21 +513,13 @@ export function AdministracionAjustesPreciosRouteView({
   loaderData,
   actionData: providedActionData,
 }: AdministracionAjustesSectionProps) {
-  if (!loaderData.selectedEventId) {
-    return <AjustesEmptyState />;
-  }
-
   return (
-    <div className="space-y-6">
-      <AjustesBreadcrumbs
-        currentLabel="Precios"
-        selectedEventId={loaderData.selectedEventId}
-      />
-      <AjustesSectionHeader
-        title="Precios"
-        description="Definí Precios base y Precios por Bloque horario para cada Tipo de grupo."
-      />
-      <ActionErrorBanner actionData={providedActionData} />
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      title="Precios"
+      description="Definí Precios base y Precios por Bloque horario para cada Tipo de grupo."
+    >
       <CatalogSection title="Precios">
         <PriceForm
           intent="create-price"
@@ -549,7 +528,7 @@ export function AdministracionAjustesPreciosRouteView({
           fieldErrors={providedActionData?.fieldErrors}
         />
         {loaderData.prices.length > 0 ? (
-          <ul className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          <ul className={catalogListClassName}>
             {loaderData.prices.map((price) => (
               <li key={price.id} className="space-y-3 p-4">
                 <PriceSummary price={price} />
@@ -577,7 +556,7 @@ export function AdministracionAjustesPreciosRouteView({
           </EmptyCatalogState>
         )}
       </CatalogSection>
-    </div>
+    </AdministracionAjustesSectionLayout>
   );
 }
 
@@ -621,6 +600,9 @@ const settingsSections: Array<{
   },
 ];
 
+const catalogListClassName =
+  "mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white";
+
 function buildSettingsPath(
   section: AjustesSectionKey | null,
   selectedEventId: string | null,
@@ -644,6 +626,30 @@ function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
       {actionData.message}
+    </div>
+  );
+}
+
+function AdministracionAjustesSectionLayout({
+  loaderData,
+  actionData,
+  title,
+  description,
+  children,
+}: AdministracionAjustesSectionLayoutProps) {
+  if (!loaderData.selectedEventId) {
+    return <AjustesEmptyState />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <AjustesBreadcrumbs
+        currentLabel={title}
+        selectedEventId={loaderData.selectedEventId}
+      />
+      <AjustesSectionHeader title={title} description={description} />
+      <ActionErrorBanner actionData={actionData} />
+      {children}
     </div>
   );
 }
@@ -681,11 +687,14 @@ function AjustesSectionNavigation({
 }
 
 function buildSettingsNavLinkClass(isCurrent: boolean) {
-  return `inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${
-    isCurrent
-      ? "border-teal-300 bg-teal-50 text-teal-900"
-      : "border-slate-300 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-slate-950"
-  }`;
+  const baseClassName =
+    "inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+
+  if (isCurrent) {
+    return `${baseClassName} border-teal-300 bg-teal-50 text-teal-900`;
+  }
+
+  return `${baseClassName} border-slate-300 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-slate-950`;
 }
 
 function AjustesBreadcrumbs({

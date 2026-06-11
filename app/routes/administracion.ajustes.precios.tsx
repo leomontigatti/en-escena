@@ -1,15 +1,15 @@
-import { useActionData, useOutletContext } from "react-router";
+import { useActionData } from "react-router";
 
 import {
   action,
   AdministracionAjustesPreciosRouteView,
-  type AdministracionAjustesLoaderData,
+  useAdministracionAjustesLoaderData,
 } from "./administracion.ajustes";
 
 export { action };
 
 export default function AdministracionAjustesPreciosRoute() {
-  const loaderData = useOutletContext<AdministracionAjustesLoaderData>();
+  const loaderData = useAdministracionAjustesLoaderData();
   const actionData = useActionData<typeof action>();
 
   return (
