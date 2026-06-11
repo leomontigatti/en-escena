@@ -15,7 +15,9 @@ const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyUpdatedSearchParam = "actualizado";
 const choreographyUpdatedSuccessMessage =
   "Profesores actualizados correctamente.";
+const choreographyDeletedSearchParam = "eliminada";
 const updateChoreographyProfessorsIntent = "update-choreography-professors";
+const deleteChoreographyIntent = "delete-choreography";
 const readOnlyEventMessage = "Este Evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
 
@@ -65,6 +67,7 @@ export async function loader({
 
   const {
     findChoreographyForAcademyEvent,
+    getChoreographyDeletionAvailability,
     listProfessorOptionsForChoreography,
   } = await import("@/lib/portal-choreographies.server");
   const choreography = await findChoreographyForAcademyEvent(
@@ -87,6 +90,10 @@ export async function loader({
     academy,
     choreography,
     availableProfessors,
+    deletionAvailability: getChoreographyDeletionAvailability({
+      isReadOnly: eventContext.isReadOnly,
+      isRegistrationOpen: eventContext.isRegistrationOpen,
+    }),
     eventContext,
     successMessage: readUpdatedSuccessMessage(
       new URL(request.url).searchParams,
@@ -117,31 +124,57 @@ export async function action({
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
-  if (intent !== updateChoreographyProfessorsIntent) {
-    throw new Response(unsupportedActionMessage, { status: 400 });
+  if (intent === updateChoreographyProfessorsIntent) {
+    const { updateChoreographyProfessors } =
+      await import("@/lib/portal-choreographies.server");
+    const professorIds = readFormStringArray(formData, "professorIds");
+    const result = await updateChoreographyProfessors({
+      academyId: academy.id,
+      eventId: selectedEventId,
+      choreographyId,
+      professorIds,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error" as const,
+        message: result.message,
+        selectedProfessorIds: professorIds,
+      };
+    }
+
+    return redirect(
+      `/portal/coreografias/${choreographyId}?${eventContext.queryParamName}=${selectedEventId}&${choreographyUpdatedSearchParam}=1`,
+    );
   }
 
-  const { updateChoreographyProfessors } =
-    await import("@/lib/portal-choreographies.server");
-  const professorIds = readFormStringArray(formData, "professorIds");
-  const result = await updateChoreographyProfessors({
-    academyId: academy.id,
-    eventId: selectedEventId,
-    choreographyId,
-    professorIds,
-  });
+  if (intent === deleteChoreographyIntent) {
+    if (formData.get("confirmDeletion") !== choreographyId) {
+      throw new Response(unsupportedActionMessage, { status: 400 });
+    }
 
-  if (!result.ok) {
-    return {
-      status: "error" as const,
-      message: result.message,
-      selectedProfessorIds: professorIds,
-    };
+    const { deleteChoreography } =
+      await import("@/lib/portal-choreographies.server");
+    const result = await deleteChoreography({
+      academyId: academy.id,
+      eventId: selectedEventId,
+      choreographyId,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error" as const,
+        message: result.message,
+        selectedProfessorIds: [],
+      };
+    }
+
+    return redirect(
+      `/portal/coreografias?${eventContext.queryParamName}=${selectedEventId}&${choreographyDeletedSearchParam}=1`,
+    );
   }
 
-  return redirect(
-    `/portal/coreografias/${choreographyId}?${eventContext.queryParamName}=${selectedEventId}&${choreographyUpdatedSearchParam}=1`,
-  );
+  throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
 export function PortalCoreografiaDetalleRouteView({
@@ -153,6 +186,7 @@ export function PortalCoreografiaDetalleRouteView({
     ? `/portal/coreografias?${loaderData.eventContext.queryParamName}=${selectedEvent.id}`
     : "/portal/coreografias";
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
+  const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const selectedProfessorIds = new Set(
     actionData?.selectedProfessorIds ??
       loaderData.choreography.professors.map((professor) => professor.id),
@@ -258,6 +292,13 @@ export function PortalCoreografiaDetalleRouteView({
             operationalStatus={loaderData.choreography.operationalStatus}
           />
         </div>
+
+        {canDeleteChoreography ? (
+          <DeleteChoreographyPanel
+            choreographyId={loaderData.choreography.id}
+            warningMessage={loaderData.deletionAvailability.warningMessage}
+          />
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-lg border border-slate-200 bg-white p-6">
@@ -481,6 +522,50 @@ function ArchivedBadge() {
     <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
       Archivado
     </span>
+  );
+}
+
+function DeleteChoreographyPanel({
+  choreographyId,
+  warningMessage,
+}: {
+  choreographyId: string;
+  warningMessage: string | null;
+}) {
+  return (
+    <section className="rounded-lg border border-red-200 bg-white p-6">
+      <h3 className="text-sm font-semibold text-slate-950">
+        Eliminar Coreografía
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        En esta versión la eliminación es definitiva y libera el cupo del
+        Cronograma.
+      </p>
+      {warningMessage ? (
+        <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          {warningMessage}
+        </p>
+      ) : null}
+      <form method="post" className="mt-4 space-y-3">
+        <input type="hidden" name="intent" value={deleteChoreographyIntent} />
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            name="confirmDeletion"
+            value={choreographyId}
+            required
+            className="mt-1 size-4 rounded border-slate-300 text-red-700 focus:ring-red-100"
+          />
+          Confirmo que quiero eliminar esta Coreografía.
+        </label>
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center rounded-md bg-red-700 px-4 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
+        >
+          Eliminar Coreografía
+        </button>
+      </form>
+    </section>
   );
 }
 

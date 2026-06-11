@@ -24,6 +24,7 @@ import { listEventCatalogs } from "@/lib/admin-catalogs.server";
 type PortalCoreografiasRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   created?: boolean;
+  deleted?: boolean;
 };
 
 type PortalCoreografiasLoaderData = PortalCoreografiasRouteProps["loaderData"];
@@ -151,6 +152,7 @@ export async function action({ request }: { request: Request }) {
 export function PortalCoreografiasRouteView({
   loaderData,
   created = false,
+  deleted = false,
 }: PortalCoreografiasRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const eventStatus = getEventStatus(loaderData.eventContext.isReadOnly);
@@ -238,6 +240,14 @@ export function PortalCoreografiasRouteView({
                 </div>
               ) : null}
 
+              {deleted ? (
+                <div className="mt-4">
+                  <AccessNotice variant="success">
+                    La Coreografía se eliminó correctamente.
+                  </AccessNotice>
+                </div>
+              ) : null}
+
               {loaderData.choreographies.length > 0 ? (
                 <ChoreographyTable
                   choreographies={loaderData.choreographies}
@@ -287,6 +297,7 @@ export default function PortalCoreografiasRoute({
   return (
     <PortalCoreografiasRouteView
       created={searchParams.get("creada") === "1"}
+      deleted={searchParams.get("eliminada") === "1"}
       loaderData={loaderData}
     />
   );

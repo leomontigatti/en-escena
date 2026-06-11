@@ -53,10 +53,21 @@ export type UpdateChoreographyProfessorsResult =
       message: string;
     };
 
+export type DeleteChoreographyResult =
+  | { ok: true }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export type ChoreographyDeletionAvailability = {
+  canDelete: boolean;
+  warningMessage: string | null;
+};
+
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const invalidProfessorSelectionMessage =
   "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
-
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -305,6 +316,57 @@ export async function updateChoreographyProfessors(input: {
   });
 
   return { ok: true };
+}
+
+export async function deleteChoreography(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+}): Promise<DeleteChoreographyResult> {
+  const choreography = await db.query.choreographies.findFirst({
+    columns: {
+      id: true,
+      academyId: true,
+      eventId: true,
+    },
+    where: eq(choreographies.id, input.choreographyId),
+  });
+
+  if (!choreography) {
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
+  }
+
+  if (
+    choreography.academyId !== input.academyId ||
+    choreography.eventId !== input.eventId
+  ) {
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
+  }
+
+  await db
+    .delete(choreographies)
+    .where(eq(choreographies.id, input.choreographyId));
+
+  return { ok: true };
+}
+
+export function getChoreographyDeletionAvailability(input: {
+  isReadOnly: boolean;
+  isRegistrationOpen: boolean;
+}): ChoreographyDeletionAvailability {
+  if (input.isReadOnly) {
+    return {
+      canDelete: false,
+      warningMessage: null,
+    };
+  }
+
+  return {
+    canDelete: true,
+    warningMessage: input.isRegistrationOpen
+      ? null
+      : "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+  };
 }
 
 async function hydrateChoreographyRows(

@@ -256,6 +256,10 @@ describe("portal route view", () => {
   test("shows the Coreografía detail with structural read-only data, roster and archived badges", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
+        deletionAvailability: {
+          canDelete: false,
+          warningMessage: null,
+        },
         eventContext: {
           queryParamName: "evento",
           events: [eventSummary()],
@@ -307,6 +311,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Edad al inicio del Evento: 14");
     expect(markup).toContain("Archivado");
     expect(markup).toContain("Volver a Coreografías");
+    expect(markup).not.toContain("Eliminar Coreografía");
   });
 
   test("shows editable Profesores on active Coreografía detail and keeps archived linked options visible", () => {
@@ -365,6 +370,39 @@ describe("portal route view", () => {
     );
     expect(markup).toContain("Estado operativo al día.");
     expect(markup).toContain('value="update-choreography-professors"');
+    expect(markup).toContain("Eliminar Coreografía");
+    expect(markup).toContain(
+      "En esta versión la eliminación es definitiva y libera el cupo del Cronograma.",
+    );
+  });
+
+  test("shows the delete warning on editable detail when registration is closed", () => {
+    const markup = renderCoreografiaDetalle({
+      loaderData: coreografiaDetalleLoaderData({
+        deletionAvailability: {
+          canDelete: true,
+          warningMessage:
+            "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+        },
+        eventContext: {
+          queryParamName: "evento",
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: false,
+        },
+      }),
+    });
+
+    expect(markup).toContain("Eliminar Coreografía");
+    expect(markup).toContain(
+      "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+    );
+    expect(markup).toContain('value="delete-choreography"');
   });
 
   test("shows the Bailarines empty list surface", () => {
@@ -938,6 +976,10 @@ function coreografiaDetalleLoaderData(
     ...coreografiasLoaderData(),
     availableProfessors: [],
     choreography: choreographyDetailRow(),
+    deletionAvailability: {
+      canDelete: true,
+      warningMessage: null,
+    },
     successMessage: null,
     ...overrides,
   };
