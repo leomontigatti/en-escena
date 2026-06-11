@@ -9,6 +9,7 @@ vi.mock("@/lib/internal-access.server", () => ({
 import { PortalRouteView } from "@/routes/portal";
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
+import { PortalProfesorRouteView } from "@/routes/portal.profesores.$professorId";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
 describe("portal route view", () => {
@@ -372,6 +373,65 @@ describe("portal route view", () => {
   });
 });
 
+describe("portal Profesor edit view", () => {
+  test("shows an info alert when identification is incomplete", () => {
+    const markup = renderProfesorEdit();
+
+    expect(markup).toContain(
+      "Faltan datos para poder validar la identificación.",
+    );
+    expect(markup).toContain("Tipo de documento");
+    expect(markup).toContain("Número de documento");
+    expect(markup).toContain('option value="dni"');
+    expect(markup).toContain(">Pasaporte<");
+    expect(markup).toContain(">Otro<");
+  });
+
+  test("shows field errors and preserves submitted values", () => {
+    const markup = renderProfesorEdit({
+      actionData: {
+        status: "error",
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          documentType: "Seleccioná el tipo de documento.",
+          documentNumber: "Ingresá el número de documento.",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Perez",
+          documentType: "",
+          documentNumber: "1234",
+        },
+      },
+    });
+
+    expect(markup).toContain("Revisá los campos marcados.");
+    expect(markup).toContain("Seleccioná el tipo de documento.");
+    expect(markup).toContain("Ingresá el número de documento.");
+    expect(markup).toContain('value="1234"');
+    expect(markup).toContain('value="" selected="">Sin documento</option>');
+  });
+
+  test("shows the success banner after saving", () => {
+    const markup = renderProfesorEdit({
+      loaderData: {
+        ...academyLoaderData(),
+        professor: professorListItem({
+          documentType: "dni",
+          documentNumber: "12345678",
+          isIncomplete: false,
+        }),
+        successMessage: "Profesor actualizado correctamente.",
+      },
+    });
+
+    expect(markup).toContain("Profesor actualizado correctamente.");
+    expect(markup).not.toContain(
+      "Faltan datos para poder validar la identificación.",
+    );
+  });
+});
+
 type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
 
 function renderPortal(input: {
@@ -441,6 +501,27 @@ function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
     <MemoryRouter initialEntries={["/portal/profesores"]}>
       <PortalProfesoresRouteView
         loaderData={input.loaderData ?? academyLoaderData()}
+        actionData={input.actionData}
+      />
+    </MemoryRouter>,
+  );
+}
+
+type ProfesorEditViewProps = Parameters<typeof PortalProfesorRouteView>[0];
+
+function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/portal/profesores/profesor_1"]}>
+      <PortalProfesorRouteView
+        loaderData={{
+          ...academyLoaderData(),
+          professor: {
+            ...professorListItem(),
+            isIncomplete: true,
+          },
+          successMessage: null,
+          ...input.loaderData,
+        }}
         actionData={input.actionData}
       />
     </MemoryRouter>,

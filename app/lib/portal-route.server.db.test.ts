@@ -27,6 +27,10 @@ import {
   action as profesoresAction,
   loader as profesoresLoader,
 } from "@/routes/portal.profesores";
+import {
+  action as profesorAction,
+  loader as profesorLoader,
+} from "@/routes/portal.profesores.$professorId";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
@@ -675,6 +679,311 @@ describe("portal Profesores management", () => {
         isIncomplete: true,
       }),
     ]);
+  });
+
+  test("updates a Profesor in place with normalized document data and shows the success state", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.edit.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Ana",
+        lastName: "Perez",
+      })
+      .returning();
+
+    const response = await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${professor.id}`,
+          owner.cookie,
+          formData({
+            firstName: "  maría del carmen ",
+            lastName: " de la cruz ",
+            documentType: "dni",
+            documentNumber: "12.345-678",
+          }),
+        ),
+        params: { professorId: professor.id },
+      }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/portal/profesores/${professor.id}?actualizado=1`,
+    );
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "María del Carmen",
+      lastName: "de la Cruz",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+
+    const loaderData = await profesorLoader({
+      request: new Request(
+        `http://localhost/portal/profesores/${professor.id}?actualizado=1`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(loaderData.successMessage).toBe(
+      "Profesor actualizado correctamente.",
+    );
+    expect(loaderData.professor.isIncomplete).toBe(false);
+  });
+
+  test("keeps submitted values and field errors when the document pair is incomplete", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.validation.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Ana",
+        lastName: "Perez",
+      })
+      .returning();
+
+    const result = await profesorAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        formData({
+          firstName: "Ana",
+          lastName: "Perez",
+          documentType: "dni",
+          documentNumber: "",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber: "Ingresá el número de documento.",
+      },
+      values: {
+        firstName: "Ana",
+        lastName: "Perez",
+        documentType: "dni",
+        documentNumber: "",
+      },
+    });
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: null,
+      documentNumber: null,
+    });
+  });
+
+  test("rejects a duplicate complete document within the same Academia", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.duplicate.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    await db.insert(professors).values({
+      academyId: owner.academy.id,
+      firstName: "Ana",
+      lastName: "Perez",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Bea",
+        lastName: "Lopez",
+      })
+      .returning();
+
+    const result = await profesorAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        formData({
+          firstName: "Bea",
+          lastName: "Lopez",
+          documentType: "dni",
+          documentNumber: "12 345 678",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor con ese documento en tu academia.",
+      },
+    });
+  });
+
+  test("allows the same complete document in another Academia", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.cross-academy.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const other = await createAcademySession({
+      email: "profesores.cross-academy.other@example.com",
+      academyName: "Academia Ajena",
+    });
+    await db.insert(professors).values({
+      academyId: other.academy.id,
+      firstName: "Ajena",
+      lastName: "Profesora",
+      documentType: "passport",
+      documentNumber: "AR 123",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Propia",
+        lastName: "Profesora",
+      })
+      .returning();
+
+    await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${professor.id}`,
+          owner.cookie,
+          formData({
+            firstName: "Propia",
+            lastName: "Profesora",
+            documentType: "passport",
+            documentNumber: "AR 123",
+          }),
+        ),
+        params: { professorId: professor.id },
+      }),
+      302,
+    );
+
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: "passport",
+      documentNumber: "AR 123",
+    });
+  });
+
+  test("allows the same complete document once as Profesor and once as Bailarín in the same Academia", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.cross-role.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    await db.insert(dancers).values({
+      academyId: owner.academy.id,
+      firstName: "Bailarina",
+      lastName: "Dual",
+      birthDate: "2010-05-10",
+      documentType: "other",
+      documentNumber: "AB 123",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Profesora",
+        lastName: "Dual",
+      })
+      .returning();
+
+    await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${professor.id}`,
+          owner.cookie,
+          formData({
+            firstName: "Profesora",
+            lastName: "Dual",
+            documentType: "other",
+            documentNumber: "AB 123",
+          }),
+        ),
+        params: { professorId: professor.id },
+      }),
+      302,
+    );
+
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, professor.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: "other",
+      documentNumber: "AB 123",
+    });
+  });
+
+  test("returns not found when another Academia loads or updates the Profesor", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.not-found.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const other = await createAcademySession({
+      email: "profesores.not-found.other@example.com",
+      academyName: "Academia Ajena",
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academy.id,
+        firstName: "Ana",
+        lastName: "Perez",
+      })
+      .returning();
+
+    await expectThrownResponse(
+      profesorLoader({
+        request: new Request(
+          `http://localhost/portal/profesores/${professor.id}`,
+          {
+            headers: { cookie: other.cookie },
+          },
+        ),
+        params: { professorId: professor.id },
+      }),
+      404,
+    );
+
+    await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${professor.id}`,
+          other.cookie,
+          formData({
+            firstName: "Otra",
+            lastName: "Persona",
+            documentType: "",
+            documentNumber: "",
+          }),
+        ),
+        params: { professorId: professor.id },
+      }),
+      404,
+    );
   });
 });
 
