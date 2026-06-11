@@ -59,6 +59,7 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
+type DancerStatusFilter = "active" | "archived";
 
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
@@ -74,7 +75,7 @@ const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 export async function listDancersForAcademy(
   academyId: string,
   options: {
-    status?: "active" | "archived";
+    status?: DancerStatusFilter;
   } = {},
 ): Promise<DancerListItem[]> {
   const status = options.status ?? "active";
@@ -175,14 +176,14 @@ export async function archiveDancerForAcademy(
   academyId: string,
   dancerId: string,
 ) {
-  return await setDancerActiveState(academyId, dancerId, false);
+  return setDancerActiveState(academyId, dancerId, false);
 }
 
 export async function reactivateDancerForAcademy(
   academyId: string,
   dancerId: string,
 ) {
-  return await setDancerActiveState(academyId, dancerId, true);
+  return setDancerActiveState(academyId, dancerId, true);
 }
 
 function validateCreateDancerInput(

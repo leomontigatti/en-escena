@@ -29,6 +29,7 @@ export type CreateProfessorResult =
     };
 
 export type UpdateProfessorField = keyof UpdateProfessorInput;
+type ProfessorStatusFilter = "active" | "archived";
 
 export type UpdateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
@@ -50,7 +51,7 @@ type ProfessorIdentityRow = Pick<
 export async function listAcademyProfessors(
   academyId: string,
   options: {
-    status?: "active" | "archived";
+    status?: ProfessorStatusFilter;
   } = {},
 ): Promise<ProfessorListItem[]> {
   const status = options.status ?? "active";
@@ -139,6 +140,12 @@ export async function updateAcademyProfessor(
   professorId: string,
   input: UpdateProfessorInput,
 ): Promise<UpdateProfessorResult> {
+  const existingProfessor = await findAcademyProfessor(academyId, professorId);
+
+  if (!existingProfessor) {
+    throw new Response("No encontramos ese Profesor.", { status: 404 });
+  }
+
   const values = {
     firstName: input.firstName,
     lastName: input.lastName,
@@ -228,14 +235,14 @@ export async function archiveAcademyProfessor(
   academyId: string,
   professorId: string,
 ) {
-  return await setProfessorActiveState(academyId, professorId, false);
+  return setProfessorActiveState(academyId, professorId, false);
 }
 
 export async function reactivateAcademyProfessor(
   academyId: string,
   professorId: string,
 ) {
-  return await setProfessorActiveState(academyId, professorId, true);
+  return setProfessorActiveState(academyId, professorId, true);
 }
 
 export function normalizeSpanishTitleCase(

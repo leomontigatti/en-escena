@@ -114,6 +114,22 @@ export function PortalBailarinDetalleRouteView({
   const isIdentificationIncomplete =
     loaderData.dancer.documentType === null ||
     loaderData.dancer.documentNumber === null;
+  const statusAction = loaderData.dancer.active
+    ? {
+        description:
+          "Archivá este Bailarín para sacarlo de las listas activas y de los próximos selects de coreografías.",
+        intent: "archive-dancer" as const,
+        buttonLabel: "Archivar Bailarín",
+        buttonClassName:
+          "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100",
+      }
+    : {
+        description:
+          "Reactivá este Bailarín para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías.",
+        intent: "reactivate-dancer" as const,
+        buttonLabel: "Reactivar Bailarín",
+        buttonClassName: "bg-teal-700 text-white hover:bg-teal-800",
+      };
 
   return (
     <PortalShell
@@ -231,29 +247,19 @@ export function PortalBailarinDetalleRouteView({
             <div>
               <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                {loaderData.dancer.active
-                  ? "Archivá este Bailarín para sacarlo de las listas activas y de los próximos selects de coreografías."
-                  : "Reactivá este Bailarín para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías."}
+                {statusAction.description}
               </p>
             </div>
             <button
               type="submit"
               name="intent"
-              value={
-                loaderData.dancer.active
-                  ? "archive-dancer"
-                  : "reactivate-dancer"
-              }
+              value={statusAction.intent}
               className={clsx(
                 "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-                loaderData.dancer.active
-                  ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-                  : "bg-teal-700 text-white hover:bg-teal-800",
+                statusAction.buttonClassName,
               )}
             >
-              {loaderData.dancer.active
-                ? "Archivar Bailarín"
-                : "Reactivar Bailarín"}
+              {statusAction.buttonLabel}
             </button>
           </div>
         </form>

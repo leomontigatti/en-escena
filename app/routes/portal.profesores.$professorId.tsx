@@ -63,8 +63,6 @@ export async function action({
   const { academy } = await requireAcademyUser(request);
   const professorId = readProfessorId(params);
 
-  await requireProfessor(academy.id, professorId);
-
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
@@ -108,6 +106,22 @@ export function PortalProfesorRouteView({
   actionData: actionDataOverride,
 }: PortalProfesorRouteProps) {
   const actionData = actionDataOverride;
+  const statusAction = loaderData.professor.active
+    ? {
+        description:
+          "Archivá este Profesor para sacarlo de las listas activas y de los próximos selects de coreografías.",
+        intent: "archive-professor" as const,
+        buttonLabel: "Archivar Profesor",
+        buttonClassName:
+          "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100",
+      }
+    : {
+        description:
+          "Reactivá este Profesor para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías.",
+        intent: "reactivate-professor" as const,
+        buttonLabel: "Reactivar Profesor",
+        buttonClassName: "bg-teal-700 text-white hover:bg-teal-800",
+      };
   const values = actionData?.values ?? {
     firstName: loaderData.professor.firstName,
     lastName: loaderData.professor.lastName,
@@ -221,29 +235,19 @@ export function PortalProfesorRouteView({
             <div>
               <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                {loaderData.professor.active
-                  ? "Archivá este Profesor para sacarlo de las listas activas y de los próximos selects de coreografías."
-                  : "Reactivá este Profesor para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías."}
+                {statusAction.description}
               </p>
             </div>
             <button
               type="submit"
               name="intent"
-              value={
-                loaderData.professor.active
-                  ? "archive-professor"
-                  : "reactivate-professor"
-              }
+              value={statusAction.intent}
               className={clsx(
                 "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-                loaderData.professor.active
-                  ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-                  : "bg-teal-700 text-white hover:bg-teal-800",
+                statusAction.buttonClassName,
               )}
             >
-              {loaderData.professor.active
-                ? "Archivar Profesor"
-                : "Reactivar Profesor"}
+              {statusAction.buttonLabel}
             </button>
           </div>
         </form>

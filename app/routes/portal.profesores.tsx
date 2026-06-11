@@ -22,6 +22,8 @@ type PortalProfesoresRouteProps = {
   actionData?: Awaited<ReturnType<typeof action>>;
 };
 
+type ProfessorStatusFilter = Awaited<ReturnType<typeof loader>>["statusFilter"];
+
 export const meta = () => [
   { title: "Profesores | Portal de academias | En Escena" },
 ];
@@ -83,6 +85,7 @@ export function PortalProfesoresRouteView({
   const actionFieldErrors = actionData?.fieldErrors;
   const isModalOpen = actionData?.modalOpen === true;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const statusFilterCopy = professorStatusCopy[loaderData.statusFilter];
 
   return (
     <PortalShell
@@ -105,9 +108,7 @@ export function PortalProfesoresRouteView({
               Profesores
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              {loaderData.statusFilter === "archived"
-                ? "Consultá los profesores archivados y reactivalos desde su ficha cuando vuelvan a participar."
-                : "Esta lista muestra solo los profesores activos de tu academia."}
+              {statusFilterCopy.description}
             </p>
           </div>
           {loaderData.statusFilter === "active" ? (
@@ -149,16 +150,8 @@ export function PortalProfesoresRouteView({
           <ProfessorTable professors={loaderData.professors} />
         ) : (
           <PortalEmptyList
-            title={
-              loaderData.statusFilter === "archived"
-                ? "No hay profesores archivados"
-                : "Todavía no cargaste profesores"
-            }
-            description={
-              loaderData.statusFilter === "archived"
-                ? "Los profesores archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha."
-                : "Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías."
-            }
+            title={statusFilterCopy.emptyTitle}
+            description={statusFilterCopy.emptyDescription}
           />
         )}
       </section>
@@ -278,6 +271,30 @@ function StatusTab({
     </Link>
   );
 }
+
+const professorStatusCopy: Record<
+  ProfessorStatusFilter,
+  {
+    description: string;
+    emptyTitle: string;
+    emptyDescription: string;
+  }
+> = {
+  active: {
+    description:
+      "Esta lista muestra solo los profesores activos de tu academia.",
+    emptyTitle: "Todavía no cargaste profesores",
+    emptyDescription:
+      "Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías.",
+  },
+  archived: {
+    description:
+      "Consultá los profesores archivados y reactivalos desde su ficha cuando vuelvan a participar.",
+    emptyTitle: "No hay profesores archivados",
+    emptyDescription:
+      "Los profesores archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha.",
+  },
+};
 
 function CreateProfessorModal({
   isOpen,

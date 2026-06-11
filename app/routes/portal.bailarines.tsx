@@ -42,6 +42,9 @@ type ActionData = {
   values: CreateDancerInput;
 };
 
+type DancerStatusFilter =
+  PortalBailarinesRouteProps["loaderData"]["statusFilter"];
+
 export const meta = () => [
   { title: "Bailarines | Portal de academias | En Escena" },
 ];
@@ -156,6 +159,7 @@ function DancersSection({
   statusFilter: "active" | "archived";
 }) {
   const isArchivedView = statusFilter === "archived";
+  const copy = dancerStatusCopy[statusFilter];
 
   return (
     <section className="mt-8" aria-labelledby="bailarines-title">
@@ -168,9 +172,7 @@ function DancersSection({
             Bailarines
           </p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {isArchivedView
-              ? "Consultá los bailarines archivados y reactivalos desde su ficha cuando vuelvan a participar."
-              : "Esta lista muestra solo los bailarines activos de tu academia."}
+            {copy.description}
           </p>
         </div>
         {!isArchivedView ? (
@@ -200,16 +202,8 @@ function DancersSection({
         <DancersTable dancers={dancers} />
       ) : (
         <PortalEmptyList
-          title={
-            isArchivedView
-              ? "No hay bailarines archivados"
-              : "Todavía no cargaste bailarines"
-          }
-          description={
-            isArchivedView
-              ? "Los bailarines archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha."
-              : "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
-          }
+          title={copy.emptyTitle}
+          description={copy.emptyDescription}
         />
       )}
 
@@ -288,6 +282,30 @@ function StatusTab({
     </Link>
   );
 }
+
+const dancerStatusCopy: Record<
+  DancerStatusFilter,
+  {
+    description: string;
+    emptyTitle: string;
+    emptyDescription: string;
+  }
+> = {
+  active: {
+    description:
+      "Esta lista muestra solo los bailarines activos de tu academia.",
+    emptyTitle: "Todavía no cargaste bailarines",
+    emptyDescription:
+      "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías.",
+  },
+  archived: {
+    description:
+      "Consultá los bailarines archivados y reactivalos desde su ficha cuando vuelvan a participar.",
+    emptyTitle: "No hay bailarines archivados",
+    emptyDescription:
+      "Los bailarines archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha.",
+  },
+};
 
 function CreateDancerModal({
   actionData,
