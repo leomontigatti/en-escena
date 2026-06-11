@@ -2,11 +2,20 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, dancers, professors, user } from "@/db/schema";
+import {
+  academies,
+  choreographies,
+  choreographyDancers,
+  choreographyProfessors,
+  dancers,
+  professors,
+  user,
+} from "@/db/schema";
 import {
   createCategory,
   createExperienceLevel,
   createModality,
+  createPrice,
   createScheduleBlock,
   createScheduleEntry,
   createSubmodality,
@@ -22,7 +31,10 @@ import {
   action as bailarinesDetalleAction,
   loader as bailarinesDetalleLoader,
 } from "@/routes/portal.bailarines.$dancerId";
-import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
+import {
+  action as coreografiasAction,
+  loader as coreografiasLoader,
+} from "@/routes/portal.coreografias";
 import {
   action as profesoresAction,
   loader as profesoresLoader,
@@ -253,6 +265,132 @@ describe.sequential("portal people list loaders", () => {
     await expect(response.text()).resolves.toBe(
       "Los usuarios internos no pueden acceder al portal.",
     );
+  });
+});
+
+describe.sequential("portal Coreografías route", () => {
+  test("creates a Coreografía from the route action and redirects back to the selected Evento", async () => {
+    const ownerSession = await createAcademySession({
+      email: "coreografias.create.owner@example.com",
+      academyName: "Academia Creadora",
+    });
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      startsAt: date("2026-07-01T12:00:00Z"),
+      endsAt: date("2026-07-03T12:00:00Z"),
+    });
+    await activateEvent(event.id);
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(event.id, { name: "Inicial" }),
+    );
+    const submodality = await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: modality.id,
+        name: "Lyrical",
+      }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 11,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-05-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
+      }),
+    );
+    const scheduleEntry = await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        name: "Precio base",
+        groupType: "solo",
+        amount: 15000,
+        scheduleBlockId: block.id,
+      }),
+    );
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: ownerSession.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2014-07-01",
+        active: true,
+      })
+      .returning();
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: ownerSession.academyId,
+        firstName: "Luz",
+        lastName: "Suarez",
+        active: true,
+      })
+      .returning();
+
+    const response = await expectThrownResponse(
+      coreografiasAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/coreografias?evento=${event.id}`,
+          ownerSession.cookie,
+          choreographyFormData({
+            eventId: event.id,
+            name: " danza de la luna ",
+            modalityId: modality.id,
+            submodalityId: submodality.id,
+            dancerIds: [dancer.id],
+            professorIds: [professor.id],
+            experienceLevelId: level.id,
+            scheduleEntryId: scheduleEntry.id,
+          }),
+        ),
+      }),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      `/portal/coreografias?evento=${event.id}&creada=1`,
+    );
+
+    const [storedChoreography] = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, ownerSession.academyId),
+    });
+    expect(storedChoreography).toMatchObject({
+      eventId: event.id,
+      name: "Danza de la Luna",
+      categoryId: category.id,
+      experienceLevelId: level.id,
+      scheduleEntryId: scheduleEntry.id,
+    });
+
+    const storedDancers = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, storedChoreography.id),
+    });
+    expect(storedDancers).toHaveLength(1);
+
+    const storedProfessors = await db.query.choreographyProfessors.findMany({
+      where: eq(choreographyProfessors.choreographyId, storedChoreography.id),
+    });
+    expect(storedProfessors).toHaveLength(1);
   });
 });
 
@@ -1284,6 +1422,37 @@ function dancerEditFormData(input: {
   formData.set("documentNumber", input.documentNumber);
 
   return formData;
+}
+
+function choreographyFormData(input: {
+  eventId: string;
+  name: string;
+  modalityId: string;
+  submodalityId: string;
+  dancerIds: string[];
+  professorIds: string[];
+  experienceLevelId: string;
+  scheduleEntryId: string;
+}) {
+  const values = new FormData();
+
+  values.set("intent", "create-choreography");
+  values.set("eventId", input.eventId);
+  values.set("name", input.name);
+  values.set("modalityId", input.modalityId);
+  values.set("submodalityId", input.submodalityId);
+  values.set("experienceLevelId", input.experienceLevelId);
+  values.set("scheduleEntryId", input.scheduleEntryId);
+
+  for (const dancerId of input.dancerIds) {
+    values.append("dancerIds", dancerId);
+  }
+
+  for (const professorId of input.professorIds) {
+    values.append("professorIds", professorId);
+  }
+
+  return values;
 }
 
 async function createAcademyRecord({

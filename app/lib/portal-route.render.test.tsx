@@ -218,6 +218,30 @@ describe("portal route view", () => {
     );
   });
 
+  test("disables Crear Coreografía with a clear message when there are no Bailarines activos", () => {
+    const markup = renderCoreografias({
+      loaderData: coreografiasLoaderData({
+        activeDancers: [],
+      }),
+    });
+
+    expect(markup).toContain("Crear Coreografía");
+    expect(markup).toContain("disabled");
+    expect(markup).toContain(
+      "Necesitás al menos un Bailarín activo para registrar una Coreografía.",
+    );
+  });
+
+  test("shows the enabled Crear Coreografía button for the active editable Evento", () => {
+    const markup = renderCoreografias();
+
+    expect(markup).toContain("Crear Coreografía");
+    expect(markup).not.toContain("cursor-not-allowed");
+    expect(markup).toContain(
+      "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
+    );
+  });
+
   test("shows the Coreografía detail with structural read-only data, roster and archived badges", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
@@ -783,6 +807,14 @@ function academyLoaderData({
 
 function coreografiasLoaderData({
   choreographies = [],
+  activeDancers = [dancerListItem()],
+  activeProfessors = [professorListItem()],
+  registrationCatalogs = {
+    modalities: [{ id: "modality_1", name: "Jazz" }],
+    submodalities: [
+      { id: "submodality_1", name: "Lyrical", modalityId: "modality_1" },
+    ],
+  },
   eventContext = {
     queryParamName: "evento",
     events: [eventSummary()],
@@ -798,6 +830,15 @@ function coreografiasLoaderData({
   choreographies?: Parameters<
     typeof PortalCoreografiasRouteView
   >[0]["loaderData"]["choreographies"];
+  activeDancers?: Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"]["activeDancers"];
+  activeProfessors?: Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"]["activeProfessors"];
+  registrationCatalogs?: Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"]["registrationCatalogs"];
   eventContext?: Parameters<
     typeof PortalCoreografiasRouteView
   >[0]["loaderData"]["eventContext"];
@@ -812,6 +853,9 @@ function coreografiasLoaderData({
       phone: "11 1234-5678",
     },
     choreographies,
+    activeDancers,
+    activeProfessors,
+    registrationCatalogs,
     eventContext,
   };
 }

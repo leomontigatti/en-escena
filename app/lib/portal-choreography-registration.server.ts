@@ -1,7 +1,15 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { dancers, events } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  choreographyProfessors,
+  dancers,
+  events,
+  professors,
+  scheduleEntries,
+} from "@/db/schema";
 import type { CompatibleScheduleEntry } from "@/lib/admin-catalogs.server";
 import {
   listEventCatalogs,
@@ -10,6 +18,20 @@ import {
 import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
 
 const EVENT_TIME_ZONE = "America/Argentina/Cordoba";
+const choreographyTitleCaseParticles = new Set([
+  "a",
+  "con",
+  "de",
+  "del",
+  "el",
+  "en",
+  "la",
+  "las",
+  "los",
+  "para",
+  "por",
+  "y",
+]);
 
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 type CategoryCalculationMode = "oldest" | "group_tolerance" | "group_average";
@@ -20,6 +42,14 @@ type ChoreographyRegistrationOperationInput = {
   submodalityId: string | null;
   dancerIds: string[];
 };
+
+type CreateChoreographyRegistrationInput =
+  ChoreographyRegistrationOperationInput & {
+    name: string;
+    professorIds: string[];
+    experienceLevelId: string | null;
+    scheduleEntryId: string;
+  };
 
 type CategorySummary = {
   id: string;
@@ -133,6 +163,29 @@ type OperationSuccess = {
 export type ChoreographyRegistrationOperationResult =
   | OperationFailure
   | OperationSuccess;
+
+type CreateChoreographyRegistrationFailureCode =
+  | OperationFailureCode
+  | "invalid-name"
+  | "invalid-professors"
+  | "invalid-experience-level"
+  | "invalid-schedule-entry"
+  | "schedule-entry-full";
+
+type CreateChoreographyRegistrationFailure = {
+  ok: false;
+  code: CreateChoreographyRegistrationFailureCode;
+  error: string;
+};
+
+type CreateChoreographyRegistrationSuccess = {
+  ok: true;
+  choreography: typeof choreographies.$inferSelect;
+};
+
+export type CreateChoreographyRegistrationResult =
+  | CreateChoreographyRegistrationFailure
+  | CreateChoreographyRegistrationSuccess;
 
 export async function resolveChoreographyRegistrationOperation(
   input: ChoreographyRegistrationOperationInput,
@@ -267,6 +320,152 @@ export async function resolveChoreographyRegistrationOperation(
   };
 }
 
+export async function createChoreographyRegistration(
+  input: CreateChoreographyRegistrationInput,
+): Promise<CreateChoreographyRegistrationResult> {
+  const normalizedName = normalizeChoreographyName(input.name);
+
+  if (!normalizedName.ok) {
+    return normalizedName.failure;
+  }
+
+  const uniqueProfessorIds = [...new Set(input.professorIds)];
+
+  if (uniqueProfessorIds.length !== input.professorIds.length) {
+    return createFailure(
+      "invalid-professors",
+      "Elegí Profesores válidos sin repetirlos en la misma Coreografía.",
+    );
+  }
+
+  const operation = await resolveChoreographyRegistrationOperation({
+    academyId: input.academyId,
+    eventId: input.eventId,
+    modalityId: input.modalityId,
+    submodalityId: input.submodalityId,
+    dancerIds: input.dancerIds,
+  });
+
+  if (!operation.ok) {
+    return operation;
+  }
+
+  const experienceLevelId = resolveSelectedExperienceLevelId({
+    resolution: operation.resolution,
+    experienceLevelId: input.experienceLevelId,
+  });
+
+  if (!experienceLevelId.ok) {
+    return experienceLevelId.failure;
+  }
+
+  const scheduleEntryId = resolveSelectedScheduleEntryId({
+    resolution: operation.resolution,
+    scheduleEntryId: input.scheduleEntryId,
+  });
+
+  if (!scheduleEntryId.ok) {
+    return scheduleEntryId.failure;
+  }
+
+  const validProfessorIds = await resolveProfessorIds({
+    academyId: input.academyId,
+    professorIds: uniqueProfessorIds,
+  });
+
+  if (!validProfessorIds.ok) {
+    return validProfessorIds.failure;
+  }
+
+  let choreography: typeof choreographies.$inferSelect;
+
+  try {
+    choreography = await db.transaction(async (tx) => {
+      const [lockedScheduleEntry] = await tx
+        .select({
+          id: scheduleEntries.id,
+          capacity: scheduleEntries.capacity,
+        })
+        .from(scheduleEntries)
+        .where(eq(scheduleEntries.id, scheduleEntryId.value))
+        .for("update");
+
+      if (!lockedScheduleEntry) {
+        throw createFailure(
+          "invalid-schedule-entry",
+          "Elegí un Cronograma compatible para confirmar la Coreografía.",
+        );
+      }
+
+      const [occupancyRow] = await tx
+        .select({
+          occupiedCount: sql<number>`count(*)`,
+        })
+        .from(choreographies)
+        .where(eq(choreographies.scheduleEntryId, lockedScheduleEntry.id));
+
+      const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
+
+      if (occupiedCount >= lockedScheduleEntry.capacity) {
+        throw createFailure(
+          "schedule-entry-full",
+          "El Cronograma seleccionado ya no tiene cupo disponible.",
+        );
+      }
+
+      const [createdChoreography] = await tx
+        .insert(choreographies)
+        .values({
+          eventId: input.eventId,
+          academyId: input.academyId,
+          name: normalizedName.value,
+          modalityId: input.modalityId,
+          submodalityId: input.submodalityId,
+          groupType: operation.resolution.groupType,
+          categoryId:
+            operation.resolution.category.status === "resolved"
+              ? operation.resolution.category.id
+              : null,
+          categoryCalculationMode: operation.resolution.categoryCalculationMode,
+          categoryAgeBasis: operation.resolution.categoryAgeBasis,
+          experienceLevelId: experienceLevelId.value,
+          scheduleEntryId: lockedScheduleEntry.id,
+        })
+        .returning();
+
+      await tx.insert(choreographyDancers).values(
+        operation.resolution.dancers.map((dancer) => ({
+          choreographyId: createdChoreography.id,
+          dancerId: dancer.id,
+          ageAtEventStart: dancer.ageAtEventStart,
+        })),
+      );
+
+      if (validProfessorIds.professorIds.length > 0) {
+        await tx.insert(choreographyProfessors).values(
+          validProfessorIds.professorIds.map((professorId) => ({
+            choreographyId: createdChoreography.id,
+            professorId,
+          })),
+        );
+      }
+
+      return createdChoreography;
+    });
+  } catch (error) {
+    if (isCreateChoreographyRegistrationFailure(error)) {
+      return error;
+    }
+
+    throw error;
+  }
+
+  return {
+    ok: true,
+    choreography,
+  };
+}
+
 function deriveGroupType(dancerCount: number): GroupType {
   if (dancerCount === 1) {
     return "solo";
@@ -281,6 +480,69 @@ function deriveGroupType(dancerCount: number): GroupType {
   }
 
   return "grupal";
+}
+
+function normalizeChoreographyName(
+  value: string,
+):
+  | { ok: true; value: string }
+  | { ok: false; failure: CreateChoreographyRegistrationFailure } {
+  const normalizedValue = value.trim().replace(/\s+/g, " ");
+
+  if (normalizedValue.length === 0) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-name",
+        "Ingresá el nombre de la Coreografía.",
+      ),
+    };
+  }
+
+  if (normalizedValue.length > 120) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-name",
+        "El nombre de la Coreografía no puede superar los 120 caracteres.",
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    value: toChoreographyTitleCase(normalizedValue),
+  };
+}
+
+function toChoreographyTitleCase(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((word, index) => {
+      const lowerWord = word.toLocaleLowerCase("es-AR");
+
+      if (index > 0 && choreographyTitleCaseParticles.has(lowerWord)) {
+        return lowerWord;
+      }
+
+      return lowerWord
+        .split("-")
+        .map((part) => capitalizeFirstCharacter(part))
+        .join("-");
+    })
+    .join(" ");
+}
+
+function capitalizeFirstCharacter(value: string) {
+  const [firstCharacter, ...rest] = Array.from(value);
+
+  if (!firstCharacter) {
+    return value;
+  }
+
+  return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
 }
 
 function validateSubmodalitySelection(input: {
@@ -362,6 +624,41 @@ async function resolveDancers(input: {
       ),
     };
   });
+}
+
+async function resolveProfessorIds(input: {
+  academyId: string;
+  professorIds: string[];
+}): Promise<
+  | { ok: true; professorIds: string[] }
+  | { ok: false; failure: CreateChoreographyRegistrationFailure }
+> {
+  if (input.professorIds.length === 0) {
+    return { ok: true, professorIds: [] };
+  }
+
+  const professorRows = await db.query.professors.findMany({
+    where: and(
+      eq(professors.academyId, input.academyId),
+      eq(professors.active, true),
+      inArray(professors.id, input.professorIds),
+    ),
+    columns: {
+      id: true,
+    },
+  });
+
+  if (professorRows.length !== input.professorIds.length) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-professors",
+        "Elegí Profesores activos que pertenezcan a tu academia.",
+      ),
+    };
+  }
+
+  return { ok: true, professorIds: input.professorIds };
 }
 
 function toCategoryCandidate(
@@ -521,6 +818,90 @@ function mapScheduleResolution(
   };
 }
 
+function resolveSelectedExperienceLevelId(input: {
+  resolution: OperationResolution;
+  experienceLevelId: string | null;
+}):
+  | { ok: true; value: string | null }
+  | { ok: false; failure: CreateChoreographyRegistrationFailure } {
+  if (!input.resolution.experienceLevel.required) {
+    return { ok: true, value: null };
+  }
+
+  if (!input.experienceLevelId) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-experience-level",
+        "Elegí un Nivel de experiencia válido para confirmar la Coreografía.",
+      ),
+    };
+  }
+
+  const isValidLevel = input.resolution.experienceLevel.options.some(
+    (option) => option.id === input.experienceLevelId,
+  );
+
+  if (!isValidLevel) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-experience-level",
+        "Elegí un Nivel de experiencia válido para confirmar la Coreografía.",
+      ),
+    };
+  }
+
+  return { ok: true, value: input.experienceLevelId };
+}
+
+function resolveSelectedScheduleEntryId(input: {
+  resolution: OperationResolution;
+  scheduleEntryId: string;
+}):
+  | { ok: true; value: string }
+  | { ok: false; failure: CreateChoreographyRegistrationFailure } {
+  if (input.resolution.schedule.status === "none") {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-schedule-entry",
+        input.resolution.schedule.error,
+      ),
+    };
+  }
+
+  if (input.resolution.schedule.status === "auto") {
+    if (input.scheduleEntryId !== input.resolution.schedule.scheduleEntryId) {
+      return {
+        ok: false,
+        failure: createFailure(
+          "invalid-schedule-entry",
+          "Elegí un Cronograma compatible para confirmar la Coreografía.",
+        ),
+      };
+    }
+
+    return { ok: true, value: input.resolution.schedule.scheduleEntryId };
+  }
+
+  const isValidOption = input.resolution.schedule.options.some(
+    (option) => option.id === input.scheduleEntryId,
+  );
+
+  if (!isValidOption) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-schedule-entry",
+        "Elegí un Cronograma compatible para confirmar la Coreografía.",
+      ),
+    };
+  }
+
+  return { ok: true, value: input.scheduleEntryId };
+}
+
 function toScheduleOptionSummary(
   option: CompatibleScheduleEntry,
 ): ScheduleOptionSummary {
@@ -577,4 +958,28 @@ function failure(code: OperationFailureCode, error: string): OperationFailure {
     code,
     error,
   };
+}
+
+function createFailure(
+  code: CreateChoreographyRegistrationFailureCode,
+  error: string,
+): CreateChoreographyRegistrationFailure {
+  return {
+    ok: false,
+    code,
+    error,
+  };
+}
+
+function isCreateChoreographyRegistrationFailure(
+  value: unknown,
+): value is CreateChoreographyRegistrationFailure {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "ok" in value &&
+    "code" in value &&
+    "error" in value &&
+    (value as CreateChoreographyRegistrationFailure).ok === false
+  );
 }
