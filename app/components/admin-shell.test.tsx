@@ -12,6 +12,8 @@ describe("AdminShell", () => {
     expect(markup).toContain("Panel de administración");
     expect(markup).toContain("Profesores");
     expect(markup).toContain("/administracion/profesores");
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("/administracion/bailarines");
     expect(markup).toContain("Invitaciones");
     expect(markup).toContain("/administracion/usuarios/invitaciones");
     expect(markup).toContain("Ajustes");
@@ -19,6 +21,9 @@ describe("AdminShell", () => {
     expect(markup).toContain('action="/salir"');
     expect(markup).toContain('method="post"');
     expect(markup.indexOf("Profesores")).toBeLessThan(
+      markup.indexOf("Bailarines"),
+    );
+    expect(markup.indexOf("Bailarines")).toBeLessThan(
       markup.indexOf("Ajustes"),
     );
     expect(markup.indexOf("Ajustes")).toBeLessThan(

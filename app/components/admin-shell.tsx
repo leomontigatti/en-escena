@@ -6,6 +6,7 @@ import {
   LogOut,
   MailPlus,
   Settings,
+  Users,
 } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router";
 import { clsx } from "clsx";
@@ -80,6 +81,11 @@ const primaryNavigationItems = [
     label: "Profesores",
     to: "/administracion/profesores",
     icon: GraduationCap,
+  },
+  {
+    label: "Bailarines",
+    to: "/administracion/bailarines",
+    icon: Users,
   },
 ] satisfies Array<{
   label: string;
