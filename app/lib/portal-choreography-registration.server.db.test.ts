@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -25,19 +25,20 @@ import { installDatabaseTestHooks } from "../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+const OPEN_REGISTRATION_ENDS_AT = date("2099-04-30T12:00:00Z");
+
 describe.sequential("portal choreography registration operation", () => {
   test("resolves a valid solo registration using the Evento local start date, required experience levels, and compatible Cronogramas", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "registro.coreografia.owner@example.com",
     });
-    const event = await createEventRecord({
+    const { event, catalog } = await createOpenEventCatalog({
       active: true,
       registrationStartsAt: date("2026-03-01T12:00:00Z"),
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
+      registrationEndsAt: OPEN_REGISTRATION_ENDS_AT,
       startsAt: date("2026-05-01T02:30:00Z"),
     });
-    const catalog = await createEventCatalog(event.id);
     const dancer = await createDancer(owner.academyId, {
       birthDate: "2013-05-01",
       firstName: "Ana",
@@ -158,11 +159,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Grupo",
       email: "registro.coreografia.grupo@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const dancers = await Promise.all([
       createDancer(owner.academyId, { birthDate: "2013-01-01" }),
       createDancer(owner.academyId, { birthDate: "2012-01-01" }),
@@ -229,11 +226,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Ajena Registro",
       email: "registro.coreografia.ajena@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const ownerDancer = await createDancer(owner.academyId);
     const otherDancer = await createDancer(other.academyId);
 
@@ -269,11 +262,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Dúo",
       email: "registro.coreografia.duo@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const olderDancer = await createDancer(owner.academyId, {
       birthDate: "2012-01-01",
     });
@@ -312,11 +301,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Grupal",
       email: "registro.coreografia.grupal@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const toleranceDancers = await Promise.all([
       createDancer(owner.academyId, { birthDate: "2015-01-01" }),
       createDancer(owner.academyId, { birthDate: "2015-01-02" }),
@@ -380,11 +365,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Pendiente",
       email: "registro.coreografia.pendiente@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const adultDancer = await createDancer(owner.academyId, {
       birthDate: "1990-01-01",
     });
@@ -423,11 +404,7 @@ describe.sequential("portal choreography registration operation", () => {
       academyName: "Academia Cronograma",
       email: "registro.coreografia.cronograma@example.com",
     });
-    const event = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
-    });
-    const catalog = await createEventCatalog(event.id);
+    const { event, catalog } = await createOpenEventCatalog();
     const [scheduleBlockTwo] = await db
       .insert(scheduleBlocks)
       .values({
@@ -588,7 +565,22 @@ async function createAcademySession({
 
   return {
     academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
+  };
+}
+
+async function createOpenEventCatalog(
+  overrides: Partial<typeof events.$inferInsert> = {},
+) {
+  const event = await createEventRecord({
+    active: true,
+    registrationEndsAt: OPEN_REGISTRATION_ENDS_AT,
+    ...overrides,
+  });
+  const catalog = await createEventCatalog(event.id);
+
+  return {
+    event,
+    catalog,
   };
 }
 
@@ -792,22 +784,6 @@ async function createDancer(
     .returning();
 
   return dancer;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected Better Auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/better-auth\.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 function date(value: string) {

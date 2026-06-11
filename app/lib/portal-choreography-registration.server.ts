@@ -13,6 +13,13 @@ const EVENT_TIME_ZONE = "America/Argentina/Cordoba";
 
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 type CategoryCalculationMode = "oldest" | "group_tolerance" | "group_average";
+type ChoreographyRegistrationOperationInput = {
+  academyId: string;
+  eventId: string;
+  modalityId: string;
+  submodalityId: string | null;
+  dancerIds: string[];
+};
 
 type CategorySummary = {
   id: string;
@@ -36,6 +43,20 @@ type DancerAgeSummary = {
   firstName: string;
   lastName: string;
   ageAtEventStart: number;
+};
+
+type LocalDateParts = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+type CategoryCandidate = {
+  id: string;
+  name: string;
+  minAge: number;
+  maxAge: number;
+  experienceLevelIds: string[];
 };
 
 type CategoryResolution =
@@ -113,13 +134,9 @@ export type ChoreographyRegistrationOperationResult =
   | OperationFailure
   | OperationSuccess;
 
-export async function resolveChoreographyRegistrationOperation(input: {
-  academyId: string;
-  eventId: string;
-  modalityId: string;
-  submodalityId: string | null;
-  dancerIds: string[];
-}): Promise<ChoreographyRegistrationOperationResult> {
+export async function resolveChoreographyRegistrationOperation(
+  input: ChoreographyRegistrationOperationInput,
+): Promise<ChoreographyRegistrationOperationResult> {
   const event = await db.query.events.findFirst({
     where: eq(events.id, input.eventId),
   });
@@ -171,25 +188,13 @@ export async function resolveChoreographyRegistrationOperation(input: {
   const modalitySubmodalities = catalogs.submodalities.filter(
     (record) => record.modalityId === modality.id,
   );
-  const resolvedSubmodality = input.submodalityId
-    ? modalitySubmodalities.find((record) => record.id === input.submodalityId)
-    : null;
+  const submodalityValidation = validateSubmodalitySelection({
+    availableSubmodalities: modalitySubmodalities,
+    submodalityId: input.submodalityId,
+  });
 
-  if (modalitySubmodalities.length > 0 && input.submodalityId === null) {
-    return failure(
-      "submodality-required",
-      "Elegí una Submodalidad para la Modalidad seleccionada.",
-    );
-  }
-
-  if (
-    (input.submodalityId !== null && !resolvedSubmodality) ||
-    (modalitySubmodalities.length === 0 && input.submodalityId !== null)
-  ) {
-    return failure(
-      "invalid-submodality",
-      "Elegí una Submodalidad válida para la Modalidad seleccionada.",
-    );
+  if (!submodalityValidation.ok) {
+    return submodalityValidation.failure;
   }
 
   const uniqueDancerIds = [...new Set(input.dancerIds)];
@@ -204,46 +209,22 @@ export async function resolveChoreographyRegistrationOperation(input: {
     );
   }
 
-  const dancerRows = await db.query.dancers.findMany({
-    where: and(
-      eq(dancers.academyId, input.academyId),
-      eq(dancers.active, true),
-      inArray(dancers.id, uniqueDancerIds),
-    ),
-    columns: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      birthDate: true,
-    },
+  const eventLocalStartDate = getLocalDateParts(
+    event.startsAt,
+    EVENT_TIME_ZONE,
+  );
+  const resolvedDancers = await resolveDancers({
+    academyId: input.academyId,
+    dancerIds: uniqueDancerIds,
+    eventLocalStartDate,
   });
 
-  if (dancerRows.length !== uniqueDancerIds.length) {
+  if (!resolvedDancers) {
     return failure(
       "invalid-dancers",
       "Elegí Bailarines activos que pertenezcan a tu academia.",
     );
   }
-
-  const dancerById = new Map(dancerRows.map((dancer) => [dancer.id, dancer]));
-  const eventLocalStartDate = getLocalDateParts(
-    event.startsAt,
-    EVENT_TIME_ZONE,
-  );
-  const resolvedDancers = uniqueDancerIds.map((dancerId) => {
-    const dancer = dancerById.get(dancerId);
-
-    if (!dancer) {
-      throw new Error("Expected dancer to be present after validation.");
-    }
-
-    return {
-      id: dancer.id,
-      firstName: dancer.firstName,
-      lastName: dancer.lastName,
-      ageAtEventStart: getAgeAtDate(dancer.birthDate, eventLocalStartDate),
-    };
-  });
 
   const groupType = deriveGroupType(resolvedDancers.length);
   const categoryCandidates = catalogs.categories
@@ -252,39 +233,18 @@ export async function resolveChoreographyRegistrationOperation(input: {
         category.modalityIds.includes(modality.id) &&
         category.groupTypes.includes(groupType),
     )
-    .map((category) => ({
-      id: category.id,
-      name: category.name,
-      minAge: category.minAge,
-      maxAge: category.maxAge,
-      experienceLevelIds: category.experienceLevelIds,
-    }));
+    .map(toCategoryCandidate);
 
   const categoryResolution = resolveCategory({
     dancers: resolvedDancers,
     categories: categoryCandidates,
   });
 
-  const experienceLevel =
-    categoryResolution.category.status === "resolved" &&
-    categoryResolution.resolvedCategoryExperienceLevelIds.length > 0
-      ? {
-          required: true as const,
-          options: catalogs.experienceLevels
-            .filter((level) =>
-              categoryResolution.resolvedCategoryExperienceLevelIds.includes(
-                level.id,
-              ),
-            )
-            .map((level) => ({
-              id: level.id,
-              name: level.name,
-            })),
-        }
-      : {
-          required: false as const,
-          options: [],
-        };
+  const experienceLevel = resolveExperienceLevel({
+    availableLevels: catalogs.experienceLevels,
+    requiredLevelIds: categoryResolution.resolvedCategoryExperienceLevelIds,
+    category: categoryResolution.category,
+  });
 
   const compatibleScheduleEntries = await resolveCompatibleScheduleEntries({
     eventId: event.id,
@@ -323,15 +283,102 @@ function deriveGroupType(dancerCount: number): GroupType {
   return "grupal";
 }
 
+function validateSubmodalitySelection(input: {
+  availableSubmodalities: Awaited<
+    ReturnType<typeof listEventCatalogs>
+  >["submodalities"];
+  submodalityId: string | null;
+}): { ok: true } | { ok: false; failure: OperationFailure } {
+  if (input.availableSubmodalities.length > 0 && input.submodalityId === null) {
+    return {
+      ok: false,
+      failure: failure(
+        "submodality-required",
+        "Elegí una Submodalidad para la Modalidad seleccionada.",
+      ),
+    };
+  }
+
+  if (input.submodalityId === null) {
+    return { ok: true };
+  }
+
+  const hasMatchingSubmodality = input.availableSubmodalities.some(
+    (record) => record.id === input.submodalityId,
+  );
+
+  if (!hasMatchingSubmodality) {
+    return {
+      ok: false,
+      failure: failure(
+        "invalid-submodality",
+        "Elegí una Submodalidad válida para la Modalidad seleccionada.",
+      ),
+    };
+  }
+
+  return { ok: true };
+}
+
+async function resolveDancers(input: {
+  academyId: string;
+  dancerIds: string[];
+  eventLocalStartDate: LocalDateParts;
+}): Promise<DancerAgeSummary[] | null> {
+  const dancerRows = await db.query.dancers.findMany({
+    where: and(
+      eq(dancers.academyId, input.academyId),
+      eq(dancers.active, true),
+      inArray(dancers.id, input.dancerIds),
+    ),
+    columns: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      birthDate: true,
+    },
+  });
+
+  if (dancerRows.length !== input.dancerIds.length) {
+    return null;
+  }
+
+  const dancerById = new Map(dancerRows.map((dancer) => [dancer.id, dancer]));
+
+  return input.dancerIds.map((dancerId) => {
+    const dancer = dancerById.get(dancerId);
+
+    if (!dancer) {
+      throw new Error("Expected dancer to be present after validation.");
+    }
+
+    return {
+      id: dancer.id,
+      firstName: dancer.firstName,
+      lastName: dancer.lastName,
+      ageAtEventStart: getAgeAtDate(
+        dancer.birthDate,
+        input.eventLocalStartDate,
+      ),
+    };
+  });
+}
+
+function toCategoryCandidate(
+  category: Awaited<ReturnType<typeof listEventCatalogs>>["categories"][number],
+): CategoryCandidate {
+  return {
+    id: category.id,
+    name: category.name,
+    minAge: category.minAge,
+    maxAge: category.maxAge,
+    experienceLevelIds: category.experienceLevelIds,
+  };
+}
+
 function resolveCategory(input: {
   dancers: DancerAgeSummary[];
-  categories: Array<{
-    id: string;
-    name: string;
-    minAge: number;
-    maxAge: number;
-    experienceLevelIds: string[];
-  }>;
+  categories: CategoryCandidate[];
 }): {
   category: CategoryResolution;
   categoryCalculationMode: CategoryCalculationMode;
@@ -347,9 +394,7 @@ function resolveCategory(input: {
     );
 
     return {
-      category: category
-        ? { status: "resolved", id: category.id, name: category.name }
-        : { status: "pending", reason: "no-compatible-category" },
+      category: toCategoryResolution(category),
       categoryCalculationMode: "oldest",
       categoryAgeBasis: oldestAge,
       resolvedCategoryExperienceLevelIds: category?.experienceLevelIds ?? [],
@@ -389,17 +434,53 @@ function resolveCategory(input: {
   );
 
   return {
-    category: averageCategory
-      ? {
-          status: "resolved",
-          id: averageCategory.id,
-          name: averageCategory.name,
-        }
-      : { status: "pending", reason: "no-compatible-category" },
+    category: toCategoryResolution(averageCategory),
     categoryCalculationMode: "group_average",
     categoryAgeBasis: averageAge,
     resolvedCategoryExperienceLevelIds:
       averageCategory?.experienceLevelIds ?? [],
+  };
+}
+
+function toCategoryResolution(
+  category: CategoryCandidate | undefined,
+): CategoryResolution {
+  if (!category) {
+    return { status: "pending", reason: "no-compatible-category" };
+  }
+
+  return {
+    status: "resolved",
+    id: category.id,
+    name: category.name,
+  };
+}
+
+function resolveExperienceLevel(input: {
+  availableLevels: Awaited<
+    ReturnType<typeof listEventCatalogs>
+  >["experienceLevels"];
+  requiredLevelIds: string[];
+  category: CategoryResolution;
+}): ExperienceLevelResolution {
+  if (
+    input.category.status !== "resolved" ||
+    input.requiredLevelIds.length === 0
+  ) {
+    return {
+      required: false,
+      options: [],
+    };
+  }
+
+  return {
+    required: true,
+    options: input.availableLevels
+      .filter((level) => input.requiredLevelIds.includes(level.id))
+      .map((level) => ({
+        id: level.id,
+        name: level.name,
+      })),
   };
 }
 
@@ -476,13 +557,10 @@ function getLocalDateParts(date: Date, timeZone: string) {
     year: Number(partMap.get("year")),
     month: Number(partMap.get("month")),
     day: Number(partMap.get("day")),
-  };
+  } satisfies LocalDateParts;
 }
 
-function getAgeAtDate(
-  birthDate: string,
-  date: { year: number; month: number; day: number },
-) {
+function getAgeAtDate(birthDate: string, date: LocalDateParts) {
   const [birthYear, birthMonth, birthDay] = birthDate
     .split("-")
     .map((value) => Number(value));
