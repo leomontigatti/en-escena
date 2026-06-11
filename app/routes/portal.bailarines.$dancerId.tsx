@@ -20,6 +20,15 @@ type PortalBailarinDetalleRouteProps = {
   actionData?: ActionData;
 };
 
+const dancerNotFoundMessage = "No encontramos ese Bailarín.";
+
+const documentTypeOptions = [
+  { value: "", label: "Seleccionar" },
+  { value: "dni", label: "DNI" },
+  { value: "passport", label: "Pasaporte" },
+  { value: "other", label: "Otro" },
+] as const;
+
 export const meta = () => [
   { title: "Editar Bailarín | Portal de academias | En Escena" },
 ];
@@ -35,13 +44,13 @@ export async function loader({
   const dancerId = params.dancerId;
 
   if (!dancerId) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   const dancer = await findDancerForAcademy(academy.id, dancerId);
 
   if (!dancer) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   return {
@@ -63,7 +72,7 @@ export async function action({
   const dancerId = params.dancerId;
 
   if (!dancerId) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   const formData = await request.formData();
@@ -86,13 +95,7 @@ export function PortalBailarinDetalleRouteView({
   loaderData,
   actionData,
 }: PortalBailarinDetalleRouteProps) {
-  const values = actionData?.values ?? {
-    firstName: loaderData.dancer.firstName,
-    lastName: loaderData.dancer.lastName,
-    birthDate: loaderData.dancer.birthDate,
-    documentType: loaderData.dancer.documentType ?? "",
-    documentNumber: loaderData.dancer.documentNumber ?? "",
-  };
+  const values = actionData?.values ?? buildDancerFormValues(loaderData.dancer);
   const isIdentificationIncomplete =
     loaderData.dancer.documentType === null ||
     loaderData.dancer.documentNumber === null;
@@ -177,12 +180,7 @@ export function PortalBailarinDetalleRouteView({
             name="documentType"
             defaultValue={values.documentType}
             error={actionData?.fieldErrors.documentType}
-            options={[
-              { value: "", label: "Seleccionar" },
-              { value: "dni", label: "DNI" },
-              { value: "passport", label: "Pasaporte" },
-              { value: "other", label: "Otro" },
-            ]}
+            options={documentTypeOptions}
           />
           <FormField
             id="bailarin-numero-documento"
@@ -272,7 +270,7 @@ function SelectField({
   id: string;
   label: string;
   name: keyof UpdateDancerInput;
-  options: Array<{ value: string; label: string }>;
+  options: ReadonlyArray<{ value: string; label: string }>;
 }) {
   const errorId = error ? `${id}-error` : undefined;
 
@@ -308,4 +306,16 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+function buildDancerFormValues(
+  dancer: Awaited<ReturnType<typeof loader>>["dancer"],
+): UpdateDancerInput {
+  return {
+    firstName: dancer.firstName,
+    lastName: dancer.lastName,
+    birthDate: dancer.birthDate,
+    documentType: dancer.documentType ?? "",
+    documentNumber: dancer.documentNumber ?? "",
+  };
 }

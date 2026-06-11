@@ -26,6 +26,28 @@ export type UpdateDancerInput = CreateDancerInput & {
   documentNumber: string;
 };
 
+type DancerNameAndBirthDateValues = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+};
+
+type NormalizedDancerDocument =
+  | {
+      ok: true;
+      documentType: DancerDocumentType | null;
+      documentNumber: string | null;
+    }
+  | {
+      ok: false;
+      fieldErrors: Partial<Record<"documentNumber" | "documentType", string>>;
+    };
+
+type NormalizedUpdateDancerInput = DancerNameAndBirthDateValues & {
+  documentType: DancerDocumentType | null;
+  documentNumber: string | null;
+};
+
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
   | {
@@ -144,30 +166,10 @@ function validateCreateDancerInput(
 ):
   | { ok: true; input: CreateDancerInput }
   | Extract<CreateDancerResult, { ok: false }> {
-  const values = {
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    birthDate: input.birthDate.trim(),
-  };
-  const fieldErrors: Partial<Record<keyof CreateDancerInput, string>> = {};
+  const values = normalizeDancerNameAndBirthDateValues(input);
+  const fieldErrors = validateDancerNameAndBirthDateValues(values);
 
-  if (!values.firstName) {
-    fieldErrors.firstName = "Ingresá el nombre.";
-  }
-
-  if (!values.lastName) {
-    fieldErrors.lastName = "Ingresá el apellido.";
-  }
-
-  if (!values.birthDate) {
-    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
-  } else if (!isDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "Usá una fecha válida.";
-  } else if (isFutureDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "La fecha de nacimiento no puede ser futura.";
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
+  if (hasFieldErrors(fieldErrors)) {
     return {
       ok: false,
       error: "Revisá los datos del Bailarín.",
@@ -193,54 +195,31 @@ async function validateUpdateDancerInput(
 ): Promise<
   | {
       ok: true;
-      input: {
-        firstName: string;
-        lastName: string;
-        birthDate: string;
-        documentType: DancerDocumentType | null;
-        documentNumber: string | null;
-      };
+      input: NormalizedUpdateDancerInput;
     }
   | Extract<UpdateDancerResult, { ok: false }>
 > {
   const values = {
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    birthDate: input.birthDate.trim(),
+    ...normalizeDancerNameAndBirthDateValues(input),
     documentType: input.documentType.trim(),
     documentNumber: input.documentNumber,
   } satisfies UpdateDancerInput;
-  const fieldErrors: Partial<Record<UpdateDancerField, string>> = {};
-
-  if (!values.firstName) {
-    fieldErrors.firstName = "Ingresá el nombre.";
-  }
-
-  if (!values.lastName) {
-    fieldErrors.lastName = "Ingresá el apellido.";
-  }
-
-  if (!values.birthDate) {
-    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
-  } else if (!isDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "Usá una fecha válida.";
-  } else if (isFutureDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "La fecha de nacimiento no puede ser futura.";
-  }
+  const fieldErrors: Partial<Record<UpdateDancerField, string>> =
+    validateDancerNameAndBirthDateValues(values);
 
   const document = normalizeDancerDocumentPair({
     documentType: values.documentType,
     documentNumber: values.documentNumber,
   });
-  let normalizedDocument: {
-    documentType: DancerDocumentType | null;
-    documentNumber: string | null;
-  } | null = null;
+  let normalizedDocument: NormalizedUpdateDancerInput | null = null;
 
   if (!document.ok) {
     Object.assign(fieldErrors, document.fieldErrors);
   } else {
     normalizedDocument = {
+      firstName: toSpanishTitleCase(values.firstName),
+      lastName: toSpanishTitleCase(values.lastName),
+      birthDate: values.birthDate,
       documentType: document.documentType,
       documentNumber: document.documentNumber,
     };
@@ -260,7 +239,7 @@ async function validateUpdateDancerInput(
     }
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  if (hasFieldErrors(fieldErrors)) {
     return {
       ok: false,
       error: "Revisá los datos del Bailarín.",
@@ -271,13 +250,7 @@ async function validateUpdateDancerInput(
 
   return {
     ok: true,
-    input: {
-      firstName: toSpanishTitleCase(values.firstName),
-      lastName: toSpanishTitleCase(values.lastName),
-      birthDate: values.birthDate,
-      documentType: normalizedDocument?.documentType ?? null,
-      documentNumber: normalizedDocument?.documentNumber ?? null,
-    },
+    input: normalizedDocument!,
   };
 }
 
@@ -301,21 +274,7 @@ export function toSpanishTitleCase(value: string) {
 function normalizeDancerDocumentPair(input: {
   documentType: string;
   documentNumber: string;
-}):
-  | {
-      ok: true;
-      documentType: DancerDocumentType | null;
-      documentNumber: string | null;
-    }
-  | {
-      ok: false;
-      fieldErrors: Partial<
-        Record<
-          Extract<UpdateDancerField, "documentNumber" | "documentType">,
-          string
-        >
-      >;
-    } {
+}): NormalizedDancerDocument {
   const documentType = input.documentType.trim();
   const rawDocumentNumber = input.documentNumber;
   const hasDocumentType = documentType.length > 0;
@@ -405,6 +364,44 @@ async function hasDuplicateDancerDocument(input: {
 
 function isDancerDocumentType(value: string): value is DancerDocumentType {
   return value === "dni" || value === "passport" || value === "other";
+}
+
+function normalizeDancerNameAndBirthDateValues(
+  input: CreateDancerInput,
+): DancerNameAndBirthDateValues {
+  return {
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+  };
+}
+
+function validateDancerNameAndBirthDateValues(
+  values: DancerNameAndBirthDateValues,
+) {
+  const fieldErrors: Partial<Record<keyof CreateDancerInput, string>> = {};
+
+  if (!values.firstName) {
+    fieldErrors.firstName = "Ingresá el nombre.";
+  }
+
+  if (!values.lastName) {
+    fieldErrors.lastName = "Ingresá el apellido.";
+  }
+
+  if (!values.birthDate) {
+    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
+  } else if (!isDateOnly(values.birthDate)) {
+    fieldErrors.birthDate = "Usá una fecha válida.";
+  } else if (isFutureDateOnly(values.birthDate)) {
+    fieldErrors.birthDate = "La fecha de nacimiento no puede ser futura.";
+  }
+
+  return fieldErrors;
+}
+
+function hasFieldErrors(fieldErrors: Record<string, string | undefined>) {
+  return Object.keys(fieldErrors).length > 0;
 }
 
 function isDateOnly(value: string) {

@@ -381,7 +381,9 @@ function formatDocument(dancer: DancerListItem) {
   return `${formatDocumentType(dancer.documentType)} ${dancer.documentNumber}`;
 }
 
-function formatDocumentType(value: DancerListItem["documentType"]) {
+function formatDocumentType(
+  value: NonNullable<DancerListItem["documentType"]>,
+) {
   if (value === "dni") {
     return "DNI";
   }
