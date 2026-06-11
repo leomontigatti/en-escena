@@ -37,6 +37,8 @@ import {
   updateScheduleEntry,
   updateScheduleBlock,
   updateSubmodality,
+  type CatalogDeleteResult,
+  type CatalogMutationResult,
 } from "@/lib/admin-catalogs.server";
 import {
   loadAdminEventContext,
@@ -127,6 +129,22 @@ type CatalogActionInput = {
   amount: number;
 };
 
+type CatalogActionResult = CatalogDeleteResult | CatalogMutationResult;
+type CategoryMutationIntent = "create-category" | "update-category";
+type CategoryMutationInput = {
+  name: string;
+  minAge: number;
+  maxAge: number;
+  groupTypes: string[];
+  modalityIds: string[];
+  experienceLevelIds: string[];
+};
+
+const categoryFormDescription =
+  "La edad mínima y la edad máxima son inclusivas.";
+const categoryDeleteConfirmationMessage =
+  "Confirmá el borrado de la Categoría antes de continuar.";
+
 const groupTypeLabels: Record<string, string> = {
   solo: "Solo",
   duo: "Dúo",
@@ -198,6 +216,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const redirectUrl = new URL(request.url);
   applyCatalogRedirect({
+    currentPathname: redirectUrl.pathname,
     redirectUrl,
     eventId,
     input,
@@ -360,7 +379,7 @@ export function AdministracionAjustesCategoriaNuevaRouteView({
     >
       <CategoryFormPanel
         title="Datos de la Categoría"
-        description="La edad mínima y la edad máxima son inclusivas."
+        description={categoryFormDescription}
       >
         <CategoryForm
           intent="create-category"
@@ -405,7 +424,7 @@ export function AdministracionAjustesCategoriaDetalleRouteView({
         <div className="space-y-6">
           <CategoryFormPanel
             title={category.name}
-            description="La edad mínima y la edad máxima son inclusivas."
+            description={categoryFormDescription}
           >
             <CategoryForm
               id={category.id}
@@ -671,33 +690,33 @@ function buildSettingsPath(
   section: AjustesSectionKey | null,
   selectedEventId: string | null,
 ) {
-  const pathname = section
-    ? `/administracion/ajustes/${section}`
-    : "/administracion/ajustes";
-
-  if (!selectedEventId) {
-    return pathname;
-  }
-
-  return `${pathname}?evento=${selectedEventId}`;
+  return appendSelectedEventId(
+    section ? `/administracion/ajustes/${section}` : "/administracion/ajustes",
+    selectedEventId,
+  );
 }
 
 function buildCategoryCreatePath(selectedEventId: string | null) {
-  const pathname = "/administracion/ajustes/categorias/nueva";
-
-  if (!selectedEventId) {
-    return pathname;
-  }
-
-  return `${pathname}?evento=${selectedEventId}`;
+  return appendSelectedEventId(
+    "/administracion/ajustes/categorias/nueva",
+    selectedEventId,
+  );
 }
 
 function buildCategoryDetailPath(
   categoryId: string,
   selectedEventId: string | null,
 ) {
-  const pathname = `/administracion/ajustes/categorias/${categoryId}`;
+  return appendSelectedEventId(
+    `/administracion/ajustes/categorias/${categoryId}`,
+    selectedEventId,
+  );
+}
 
+function appendSelectedEventId(
+  pathname: string,
+  selectedEventId: string | null,
+) {
   if (!selectedEventId) {
     return pathname;
   }
@@ -1848,33 +1867,56 @@ function actionError(
 }
 
 function applyCatalogRedirect({
+  currentPathname,
   redirectUrl,
   eventId,
   input,
   result,
 }: {
+  currentPathname: string;
   redirectUrl: URL;
   eventId: string;
   input: CatalogActionInput;
-  result:
-    | Awaited<ReturnType<typeof createCategory>>
-    | Awaited<ReturnType<typeof deleteCategory>>
-    | Awaited<ReturnType<typeof updateCategory>>
-    | Awaited<ReturnType<typeof runCatalogIntent>>;
+  result: CatalogActionResult;
 }) {
-  if (input.intent === "create-category" && result.ok && "record" in result) {
-    redirectUrl.pathname = buildCategoryDetailPath(result.record.id, null);
-  }
-
-  if (input.intent === "delete-category") {
-    redirectUrl.pathname = buildSettingsPath("categorias", null);
-  }
-
+  redirectUrl.pathname = resolveCatalogRedirectPath(
+    currentPathname,
+    input,
+    result,
+  );
   redirectUrl.searchParams.set("evento", eventId);
   redirectUrl.searchParams.set("guardado", "1");
 }
 
-async function runCatalogIntent(input: CatalogActionInput) {
+function resolveCatalogRedirectPath(
+  currentPathname: string,
+  input: CatalogActionInput,
+  result: CatalogActionResult,
+) {
+  if (input.intent === "delete-category") {
+    return buildSettingsPath("categorias", null);
+  }
+
+  if (
+    input.intent === "create-category" &&
+    result.ok &&
+    hasCatalogRecord(result)
+  ) {
+    return buildCategoryDetailPath(result.record.id, null);
+  }
+
+  return currentPathname;
+}
+
+function hasCatalogRecord(
+  result: CatalogActionResult,
+): result is Extract<CatalogMutationResult, { ok: true }> {
+  return "record" in result;
+}
+
+async function runCatalogIntent(
+  input: CatalogActionInput,
+): Promise<CatalogActionResult> {
   switch (input.intent) {
     case "create-category":
       return saveCategory(input);
@@ -1885,10 +1927,9 @@ async function runCatalogIntent(input: CatalogActionInput) {
         return {
           ok: false as const,
           code: "invalid-catalog" as const,
-          error: "Confirmá el borrado de la Categoría antes de continuar.",
+          error: categoryDeleteConfirmationMessage,
           fieldErrors: {
-            confirmDelete:
-              "Confirmá el borrado de la Categoría antes de continuar.",
+            confirmDelete: categoryDeleteConfirmationMessage,
           },
         };
       }
@@ -1948,8 +1989,10 @@ async function runCatalogIntent(input: CatalogActionInput) {
   }
 }
 
-async function saveCategory(input: CatalogActionInput) {
-  const baseInput = {
+function getCategoryMutationInput(
+  input: CatalogActionInput,
+): CategoryMutationInput {
+  return {
     name: input.name,
     minAge: input.minAge,
     maxAge: input.maxAge,
@@ -1957,12 +2000,52 @@ async function saveCategory(input: CatalogActionInput) {
     modalityIds: input.modalityIds,
     experienceLevelIds: input.experienceLevelIds,
   };
+}
+
+function isCategoryMutationIntent(
+  intent: string,
+): intent is CategoryMutationIntent {
+  return intent === "create-category" || intent === "update-category";
+}
+
+function appendExperienceLevelId(
+  input: CategoryMutationInput,
+  experienceLevelId: string,
+): CategoryMutationInput {
+  return {
+    ...input,
+    experienceLevelIds: [...input.experienceLevelIds, experienceLevelId],
+  };
+}
+
+async function runCategoryMutation(
+  input: CatalogActionInput,
+  categoryInput: CategoryMutationInput,
+): Promise<CatalogMutationResult> {
+  if (!isCategoryMutationIntent(input.intent)) {
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error: "No se pudo interpretar la acción de ajustes.",
+      fieldErrors: {},
+    };
+  }
+
+  if (input.intent === "create-category") {
+    return createCategory(input.eventId, categoryInput);
+  }
+
+  return updateCategory(input.id, categoryInput);
+}
+
+async function saveCategory(
+  input: CatalogActionInput,
+): Promise<CatalogMutationResult> {
+  const categoryInput = getCategoryMutationInput(input);
   const normalizedNewExperienceLevelName = input.newExperienceLevelName.trim();
 
   if (!normalizedNewExperienceLevelName) {
-    return input.intent === "create-category"
-      ? createCategory(input.eventId, baseInput)
-      : updateCategory(input.id, baseInput);
+    return runCategoryMutation(input, categoryInput);
   }
 
   const levelResult = await createExperienceLevel(input.eventId, {
@@ -1980,22 +2063,10 @@ async function saveCategory(input: CatalogActionInput) {
     };
   }
 
-  const categoryResult =
-    input.intent === "create-category"
-      ? await createCategory(input.eventId, {
-          ...baseInput,
-          experienceLevelIds: [
-            ...baseInput.experienceLevelIds,
-            levelResult.record.id,
-          ],
-        })
-      : await updateCategory(input.id, {
-          ...baseInput,
-          experienceLevelIds: [
-            ...baseInput.experienceLevelIds,
-            levelResult.record.id,
-          ],
-        });
+  const categoryResult = await runCategoryMutation(
+    input,
+    appendExperienceLevelId(categoryInput, levelResult.record.id),
+  );
 
   if (!categoryResult.ok) {
     await deleteExperienceLevel(levelResult.record.id);

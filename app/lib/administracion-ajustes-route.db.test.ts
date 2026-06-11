@@ -501,6 +501,48 @@ describe("administracion/ajustes route", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("requires confirmation before deleting a Categoria from its detail route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [],
+      }),
+    );
+
+    const request = await createSignedInRequest({
+      email: "admin.categorias.sin.confirmacion@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/categorias/${category.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-category",
+        id: category.id,
+      }),
+    });
+
+    await expect(action(routeArgs(request.request))).resolves.toEqual({
+      status: "error",
+      message: "Confirmá el borrado de la Categoría antes de continuar.",
+      fieldErrors: {
+        confirmDelete:
+          "Confirmá el borrado de la Categoría antes de continuar.",
+      },
+    });
+
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, category.id),
+      }),
+    ).resolves.toMatchObject({ id: category.id });
+  });
+
   test("creates, edits and deletes Bloques horarios through the admin action", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });
