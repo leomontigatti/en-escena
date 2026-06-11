@@ -48,6 +48,17 @@ type CreateActionData = {
   result: Exclude<CreateChoreographyRegistrationResult, { ok: true }>;
 };
 
+const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
+  "resolve-choreography-registration";
+const CREATE_CHOREOGRAPHY_INTENT = "create-choreography";
+const CHOREOGRAPHY_REGISTRATION_STEP_LABELS = [
+  "Nombre",
+  "Modalidad",
+  "Bailarines",
+  "Nivel y cronograma",
+  "Resumen",
+] as const;
+
 export const meta = () => [
   { title: "Coreografías | Portal de academias | En Escena" },
 ];
@@ -96,7 +107,7 @@ export async function action({ request }: { request: Request }) {
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
-  if (intent === "resolve-choreography-registration") {
+  if (intent === RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT) {
     return {
       intent,
       result: await resolveChoreographyRegistrationOperation({
@@ -109,7 +120,7 @@ export async function action({ request }: { request: Request }) {
     } satisfies CalculationActionData;
   }
 
-  if (intent === "create-choreography") {
+  if (intent === CREATE_CHOREOGRAPHY_INTENT) {
     const result = await createChoreographyRegistration({
       academyId: academy.id,
       eventId: readFormString(formData, "eventId"),
@@ -542,15 +553,11 @@ function CreateChoreographyModal({
     | CalculationActionData
     | undefined;
   const submissionData = submissionFetcher.data as CreateActionData | undefined;
-  const calculationError =
-    calculationData?.intent === "resolve-choreography-registration" &&
-    !calculationData.result.ok
-      ? calculationData.result.error
-      : null;
-  const submissionError =
-    submissionData?.intent === "create-choreography"
-      ? submissionData.result.error
-      : null;
+  const canChooseSubmodality = selectedSubmodalities.length > 0;
+  const isResolving = calculationFetcher.state !== "idle";
+  const isSubmitting = submissionFetcher.state !== "idle";
+  const calculationError = getCalculationError(calculationData);
+  const submissionError = getSubmissionError(submissionData);
   const nameError = getNameError(name);
   const isDirty =
     name.length > 0 ||
@@ -561,7 +568,7 @@ function CreateChoreographyModal({
 
   useEffect(() => {
     if (
-      calculationData?.intent !== "resolve-choreography-registration" ||
+      calculationData?.intent !== RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT ||
       !calculationData.result.ok
     ) {
       return;
@@ -631,46 +638,39 @@ function CreateChoreographyModal({
   }
 
   function handleResolveStep() {
-    const formData = new FormData();
-    formData.set("intent", "resolve-choreography-registration");
-    formData.set("eventId", eventId);
-    formData.set("modalityId", modalityId);
-    if (selectedSubmodalities.length > 0 && submodalityId) {
-      formData.set("submodalityId", submodalityId);
-    }
-    for (const dancerId of selectedDancerIds) {
-      formData.append("dancerIds", dancerId);
-    }
-
-    calculationFetcher.submit(formData, { method: "post" });
+    calculationFetcher.submit(
+      buildResolveChoreographyFormData({
+        eventId,
+        modalityId,
+        submodalityId,
+        canChooseSubmodality,
+        dancerIds: selectedDancerIds,
+      }),
+      { method: "post" },
+    );
   }
 
   function handleConfirm() {
-    const formData = new FormData();
-    formData.set("intent", "create-choreography");
-    formData.set("eventId", eventId);
-    formData.set("name", name);
-    formData.set("modalityId", modalityId);
-    if (selectedSubmodalities.length > 0 && submodalityId) {
-      formData.set("submodalityId", submodalityId);
-    }
-    for (const dancerId of selectedDancerIds) {
-      formData.append("dancerIds", dancerId);
-    }
-    for (const professorId of selectedProfessorIds) {
-      formData.append("professorIds", professorId);
-    }
-    if (experienceLevelId) {
-      formData.set("experienceLevelId", experienceLevelId);
-    }
-    formData.set("scheduleEntryId", scheduleEntryId);
-    submissionFetcher.submit(formData, { method: "post" });
+    submissionFetcher.submit(
+      buildCreateChoreographyFormData({
+        eventId,
+        name,
+        modalityId,
+        submodalityId,
+        canChooseSubmodality,
+        dancerIds: selectedDancerIds,
+        professorIds: selectedProfessorIds,
+        experienceLevelId,
+        scheduleEntryId,
+      }),
+      { method: "post" },
+    );
   }
 
   const canAdvanceFromName = nameError === null;
   const canAdvanceFromModality =
     modalityId.length > 0 &&
-    (selectedSubmodalities.length === 0 || submodalityId.length > 0);
+    (!canChooseSubmodality || submodalityId.length > 0);
   const canResolve = selectedDancerIds.length > 0;
   const canAdvanceFromResolution =
     resolution !== null &&
@@ -705,13 +705,7 @@ function CreateChoreographyModal({
         </div>
 
         <ol className="mt-6 grid gap-2 text-sm text-slate-600 sm:grid-cols-5">
-          {[
-            "Nombre",
-            "Modalidad",
-            "Bailarines",
-            "Nivel y cronograma",
-            "Resumen",
-          ].map((label, index) => (
+          {CHOREOGRAPHY_REGISTRATION_STEP_LABELS.map((label, index) => (
             <li
               key={label}
               className={clsx(
@@ -768,7 +762,7 @@ function CreateChoreographyModal({
                 }))}
               />
 
-              {selectedSubmodalities.length > 0 ? (
+              {canChooseSubmodality ? (
                 <SelectField
                   id="coreografia-submodality"
                   label="Submodalidad"
@@ -1047,13 +1041,11 @@ function CreateChoreographyModal({
             {currentStep === 2 ? (
               <button
                 type="button"
-                disabled={!canResolve || calculationFetcher.state !== "idle"}
+                disabled={!canResolve || isResolving}
                 onClick={handleResolveStep}
                 className={primaryModalButtonClassName(canResolve)}
               >
-                {calculationFetcher.state === "idle"
-                  ? "Continuar"
-                  : "Resolviendo..."}
+                {isResolving ? "Resolviendo..." : "Continuar"}
               </button>
             ) : null}
 
@@ -1073,13 +1065,11 @@ function CreateChoreographyModal({
             {currentStep === 4 ? (
               <button
                 type="button"
-                disabled={submissionFetcher.state !== "idle"}
+                disabled={isSubmitting}
                 onClick={handleConfirm}
                 className={primaryModalButtonClassName(true)}
               >
-                {submissionFetcher.state === "idle"
-                  ? "Confirmar Coreografía"
-                  : "Confirmando..."}
+                {isSubmitting ? "Confirmando..." : "Confirmar Coreografía"}
               </button>
             ) : null}
           </div>
@@ -1183,6 +1173,17 @@ function getNameError(value: string) {
   return null;
 }
 
+function getCalculationError(data: CalculationActionData | undefined) {
+  return data?.intent === RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT &&
+    !data.result.ok
+    ? data.result.error
+    : null;
+}
+
+function getSubmissionError(data: CreateActionData | undefined) {
+  return data?.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
+}
+
 function primaryModalButtonClassName(enabled: boolean) {
   return clsx(
     "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
@@ -1267,4 +1268,70 @@ function readFormStringArray(formData: FormData, key: string) {
   return formData
     .getAll(key)
     .flatMap((value) => (typeof value === "string" && value ? [value] : []));
+}
+
+function buildResolveChoreographyFormData(input: {
+  eventId: string;
+  modalityId: string;
+  submodalityId: string;
+  canChooseSubmodality: boolean;
+  dancerIds: string[];
+}) {
+  const formData = new FormData();
+  formData.set("intent", RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT);
+  formData.set("eventId", input.eventId);
+  formData.set("modalityId", input.modalityId);
+  setOptionalFormString(
+    formData,
+    "submodalityId",
+    input.canChooseSubmodality ? input.submodalityId : "",
+  );
+  appendFormStringArray(formData, "dancerIds", input.dancerIds);
+
+  return formData;
+}
+
+function buildCreateChoreographyFormData(input: {
+  eventId: string;
+  name: string;
+  modalityId: string;
+  submodalityId: string;
+  canChooseSubmodality: boolean;
+  dancerIds: string[];
+  professorIds: string[];
+  experienceLevelId: string;
+  scheduleEntryId: string;
+}) {
+  const formData = new FormData();
+  formData.set("intent", CREATE_CHOREOGRAPHY_INTENT);
+  formData.set("eventId", input.eventId);
+  formData.set("name", input.name);
+  formData.set("modalityId", input.modalityId);
+  setOptionalFormString(
+    formData,
+    "submodalityId",
+    input.canChooseSubmodality ? input.submodalityId : "",
+  );
+  appendFormStringArray(formData, "dancerIds", input.dancerIds);
+  appendFormStringArray(formData, "professorIds", input.professorIds);
+  setOptionalFormString(formData, "experienceLevelId", input.experienceLevelId);
+  formData.set("scheduleEntryId", input.scheduleEntryId);
+
+  return formData;
+}
+
+function setOptionalFormString(formData: FormData, key: string, value: string) {
+  if (value) {
+    formData.set(key, value);
+  }
+}
+
+function appendFormStringArray(
+  formData: FormData,
+  key: string,
+  values: string[],
+) {
+  for (const value of values) {
+    formData.append(key, value);
+  }
 }

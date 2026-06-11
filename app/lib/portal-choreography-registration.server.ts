@@ -18,6 +18,10 @@ import {
 import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
 
 const EVENT_TIME_ZONE = "America/Argentina/Cordoba";
+const INVALID_EXPERIENCE_LEVEL_ERROR =
+  "Elegí un Nivel de experiencia válido para confirmar la Coreografía.";
+const INVALID_SCHEDULE_ENTRY_ERROR =
+  "Elegí un Cronograma compatible para confirmar la Coreografía.";
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -393,7 +397,7 @@ export async function createChoreographyRegistration(
       if (!lockedScheduleEntry) {
         throw createFailure(
           "invalid-schedule-entry",
-          "Elegí un Cronograma compatible para confirmar la Coreografía.",
+          INVALID_SCHEDULE_ENTRY_ERROR,
         );
       }
 
@@ -487,7 +491,7 @@ function normalizeChoreographyName(
 ):
   | { ok: true; value: string }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
-  const normalizedValue = value.trim().replace(/\s+/g, " ");
+  const normalizedValue = collapseWhitespace(value);
 
   if (normalizedValue.length === 0) {
     return {
@@ -517,9 +521,8 @@ function normalizeChoreographyName(
 
 function toChoreographyTitleCase(value: string) {
   return value
-    .trim()
-    .replace(/\s+/g, " ")
     .split(" ")
+    .filter((word) => word.length > 0)
     .map((word, index) => {
       const lowerWord = word.toLocaleLowerCase("es-AR");
 
@@ -543,6 +546,10 @@ function capitalizeFirstCharacter(value: string) {
   }
 
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
+}
+
+function collapseWhitespace(value: string) {
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function validateSubmodalitySelection(input: {
@@ -833,7 +840,7 @@ function resolveSelectedExperienceLevelId(input: {
       ok: false,
       failure: createFailure(
         "invalid-experience-level",
-        "Elegí un Nivel de experiencia válido para confirmar la Coreografía.",
+        INVALID_EXPERIENCE_LEVEL_ERROR,
       ),
     };
   }
@@ -847,7 +854,7 @@ function resolveSelectedExperienceLevelId(input: {
       ok: false,
       failure: createFailure(
         "invalid-experience-level",
-        "Elegí un Nivel de experiencia válido para confirmar la Coreografía.",
+        INVALID_EXPERIENCE_LEVEL_ERROR,
       ),
     };
   }
@@ -877,7 +884,7 @@ function resolveSelectedScheduleEntryId(input: {
         ok: false,
         failure: createFailure(
           "invalid-schedule-entry",
-          "Elegí un Cronograma compatible para confirmar la Coreografía.",
+          INVALID_SCHEDULE_ENTRY_ERROR,
         ),
       };
     }
@@ -894,7 +901,7 @@ function resolveSelectedScheduleEntryId(input: {
       ok: false,
       failure: createFailure(
         "invalid-schedule-entry",
-        "Elegí un Cronograma compatible para confirmar la Coreografía.",
+        INVALID_SCHEDULE_ENTRY_ERROR,
       ),
     };
   }
