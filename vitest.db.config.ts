@@ -28,6 +28,7 @@ export default mergeConfig(
         fallbackCJS: true,
         inline: true,
       },
+      exclude: ["**/.sandcastle/**"],
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,

@@ -7,7 +7,11 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      exclude: [...configDefaults.exclude, "**/*.db.test.ts"],
+      exclude: [
+        ...configDefaults.exclude,
+        "**/*.db.test.ts",
+        "**/.sandcastle/**",
+      ],
     },
   }),
 );
