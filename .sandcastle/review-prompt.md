@@ -6,7 +6,11 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 
 ## Branch diff
 
-!`git diff {{BASE_BRANCH}}...{{BRANCH}}`
+!`git diff --stat {{BASE_BRANCH}}...{{BRANCH}}`
+
+## Changed files
+
+!`git diff --name-only {{BASE_BRANCH}}...{{BRANCH}}`
 
 ## Commits on this branch
 
@@ -15,6 +19,10 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 # REVIEW PROCESS
 
 1. **Understand the change**: Read the diff and commits above to understand the intent.
+   Use targeted `git diff {{BASE_BRANCH}}...{{BRANCH}} -- <path>` commands for
+   the files that need review. Start with the changed files list and avoid
+   loading the full branch diff unless the scoped diffs do not explain the
+   change.
 
 2. **Analyze for improvements**: Look for opportunities to:
    - Reduce unnecessary complexity and nesting

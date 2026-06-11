@@ -4,6 +4,8 @@ import postgres from "postgres";
 
 import { getTestDatabaseUrl } from "./config";
 
+const testDatabaseLockKey = "en-escena-test-database";
+
 function quoteIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
@@ -35,50 +37,60 @@ async function ensureDatabaseExists(databaseUrl: string) {
   }
 }
 
-async function resetTestSchema(databaseUrl: string) {
-  const testClient = postgres(databaseUrl, { max: 1 });
-
-  try {
-    const existingTables = await testClient<{ tablename: string }[]>`
+async function resetTestSchema(
+  testClient: postgres.Sql<Record<string, unknown>>,
+) {
+  const existingTables = await testClient<{ tablename: string }[]>`
       select tablename
       from pg_tables
       where schemaname = 'public'
         and tablename like 'en\\_escena\\_%' escape '\\'
+      order by tablename
     `;
 
-    if (existingTables.length === 0) {
-      return;
-    }
-
-    await testClient.unsafe(
-      `drop table ${existingTables
-        .map((table) => quoteIdentifier(table.tablename))
-        .join(", ")} cascade`,
-    );
-  } finally {
-    await testClient.end();
+  if (existingTables.length === 0) {
+    return;
   }
+
+  await testClient.unsafe(
+    `drop table ${existingTables
+      .map((table) => quoteIdentifier(table.tablename))
+      .join(", ")} cascade`,
+  );
 }
 
 const testDatabaseUrl = getTestDatabaseUrl();
 
 await ensureDatabaseExists(testDatabaseUrl);
-await resetTestSchema(testDatabaseUrl);
 
-const result = spawnSync(
-  "drizzle-kit",
-  ["push", "--config=drizzle.config.ts", "--force"],
-  {
-    env: {
-      ...process.env,
-      DATABASE_URL: testDatabaseUrl,
+const lockClient = postgres(testDatabaseUrl, { max: 1 });
+
+try {
+  await lockClient`
+    select pg_advisory_lock(hashtext(${testDatabaseLockKey}))
+  `;
+  await resetTestSchema(lockClient);
+
+  const result = spawnSync(
+    "drizzle-kit",
+    ["push", "--config=drizzle.config.ts", "--force"],
+    {
+      env: {
+        ...process.env,
+        DATABASE_URL: testDatabaseUrl,
+      },
+      stdio: "inherit",
     },
-    stdio: "inherit",
-  },
-);
+  );
 
-if (result.error) {
-  throw result.error;
+  if (result.error) {
+    throw result.error;
+  }
+
+  process.exitCode = result.status ?? 1;
+} finally {
+  await lockClient`
+    select pg_advisory_unlock(hashtext(${testDatabaseLockKey}))
+  `;
+  await lockClient.end();
 }
-
-process.exit(result.status ?? 1);

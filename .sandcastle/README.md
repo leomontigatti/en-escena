@@ -12,7 +12,7 @@ Create `.sandcastle/.env` from `.sandcastle/.env.example` and set:
   `~/.codex/auth.json`.
 - `SANDCASTLE_DOCKER_NETWORK` only if your Docker Compose network is not
   `en-escena_default`.
-- `SANDCASTLE_TEST_DATABASE_URL` only if the sandbox should use a different
+- `SANDCASTLE_TEST_DATABASE_URL` only if Sandcastle should use a different base
   test database URL than
   `postgres://postgres:postgres@postgres:5432/en-escena-test`.
 
@@ -44,6 +44,10 @@ default and receive `DATABASE_URL` and `TEST_DATABASE_URL` pointing at the
 Compose service hostname `postgres`. This lets agents run `npm run test:db` for
 persistence-backed changes without accidentally using the host development
 database URL.
+
+Issue sandboxes get isolated test databases derived from the base URL. For
+example, issue 34 uses `en-escena-test-issue-34`, and the merge phase uses
+`en-escena-test-merger`. The DB test setup creates these databases on demand.
 
 ## Running
 

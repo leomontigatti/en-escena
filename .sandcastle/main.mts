@@ -49,6 +49,13 @@ const issueSchema = z.object({
   state: z.string(),
   labels: z.array(z.object({ name: z.string() })),
 });
+const issueContextSchema = z.object({
+  number: z.number(),
+  title: z.string(),
+  body: z.string().nullable(),
+  labels: z.array(z.object({ name: z.string() })),
+  comments: z.array(z.object({ body: z.string().nullable() })),
+});
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -57,12 +64,16 @@ const issueSchema = z.object({
 // Maximum number of plan→execute→merge cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
-const CODEX_MODEL = "gpt-5.5";
+const CODEX_MODEL = "gpt-5.4";
 const CODEX_EFFORT = "medium";
 const READY_FOR_AGENT_LABEL = "ready-for-agent";
 const DEFAULT_SANDBOX_DOCKER_NETWORK = "en-escena_default";
 const DEFAULT_SANDBOX_TEST_DATABASE_URL =
   "postgres://postgres:postgres@postgres:5432/en-escena-test";
+const ISSUE_BODY_MAX_LENGTH = 4_000;
+const ISSUE_COMMENT_MAX_LENGTH = 1_500;
+const ISSUE_COMMENT_MAX_COUNT = 3;
+const POSTGRES_IDENTIFIER_MAX_LENGTH = 63;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
 // npm install ensures the sandbox always has fresh dependencies.
@@ -136,7 +147,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
     issues.map(async (issue) => {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
-        sandbox: createDockerSandbox(),
+        sandbox: createDockerSandbox({ databaseNameSuffix: `issue-${issue.id}` }),
         hooks,
         copyToWorktree,
       });
@@ -151,6 +162,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
           promptArgs: {
             TASK_ID: issue.id,
             ISSUE_TITLE: issue.title,
+            ISSUE_CONTEXT: getIssueContext(issue.id),
             BRANCH: issue.branch,
           },
         });
@@ -229,7 +241,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // -------------------------------------------------------------------------
   await sandcastle.run({
     hooks,
-    sandbox: createDockerSandbox(),
+    sandbox: createDockerSandbox({ databaseNameSuffix: "merger" }),
     name: "merger",
     maxIterations: 1,
     agent: createCodexAgent(),
@@ -278,15 +290,34 @@ function usageMessage(): string {
 }
 
 function createCodexAgent(): ReturnType<typeof sandcastle.codex> {
-  return sandcastle.codex(CODEX_MODEL, { effort: CODEX_EFFORT });
+  const provider = sandcastle.codex(CODEX_MODEL, { effort: CODEX_EFFORT });
+
+  return {
+    ...provider,
+    buildPrintCommand(options) {
+      const printCommand = provider.buildPrintCommand(options);
+
+      if (printCommand.stdin === undefined || printCommand.command.endsWith(" -")) {
+        return printCommand;
+      }
+
+      return {
+        ...printCommand,
+        command: `${printCommand.command} -`,
+      };
+    },
+  };
 }
 
-function createDockerSandbox(): ReturnType<typeof docker> {
+function createDockerSandbox(options: { databaseNameSuffix?: string } = {}): ReturnType<typeof docker> {
   const env = readSandcastleEnv();
   const ghToken = getGitHubToken();
   const codexAuthJsonPath = getCodexAuthJsonPath();
   const network = getSandboxDockerNetwork(env);
-  const testDatabaseUrl = getSandboxTestDatabaseUrl(env);
+  const testDatabaseUrl = getSandboxTestDatabaseUrl(
+    env,
+    options.databaseNameSuffix,
+  );
 
   return docker({
     ...(network ? { network } : {}),
@@ -357,6 +388,65 @@ function getRequestedIssue(issueId: string): PlannedIssue {
     title: issue.title,
     branch: `sandcastle/issue-${issue.number}`,
   };
+}
+
+function getIssueContext(issueId: string): string {
+  const issueJson = execFileSync(
+    "gh",
+    [
+      "issue",
+      "view",
+      issueId,
+      "--json",
+      "number,title,body,comments,labels",
+    ],
+    {
+      encoding: "utf8",
+      env: getGitHubCliEnv(),
+    },
+  );
+  const issue = issueContextSchema.parse(JSON.parse(issueJson));
+  const labels = issue.labels.map((label) => label.name).join(", ") || "(none)";
+  const body = truncateText(redactSensitiveText(issue.body || ""), ISSUE_BODY_MAX_LENGTH);
+  const recentComments = issue.comments.slice(-ISSUE_COMMENT_MAX_COUNT);
+
+  return [
+    `#${issue.number}: ${issue.title}`,
+    "",
+    `Labels: ${labels}`,
+    "",
+    "## Body",
+    "",
+    body || "(empty)",
+    "",
+    "## Recent comments",
+    "",
+    recentComments.length === 0
+      ? "(none)"
+      : recentComments
+          .map((comment, index) => {
+            const text = truncateText(
+              redactSensitiveText(comment.body || ""),
+              ISSUE_COMMENT_MAX_LENGTH,
+            );
+            return `### Comment ${index + 1}\n\n${text || "(empty)"}`;
+          })
+          .join("\n\n"),
+  ].join("\n");
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+
+  return `${text.slice(0, maxLength).trimEnd()}\n\n[truncated]`;
+}
+
+function redactSensitiveText(text: string): string {
+  return text
+    .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, "[redacted-github-token]")
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[redacted-github-token]")
+    .replace(/\bsk-[A-Za-z0-9_-]{20,}\b/g, "[redacted-api-key]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{20,}\b/gi, "Bearer [redacted-token]");
 }
 
 function assertGitHeadExists(): void {
@@ -473,12 +563,39 @@ function getSandboxDockerNetwork(env: Record<string, string>): string | undefine
   return network || undefined;
 }
 
-function getSandboxTestDatabaseUrl(env: Record<string, string>): string {
-  return (
+function getSandboxTestDatabaseUrl(
+  env: Record<string, string>,
+  databaseNameSuffix?: string,
+): string {
+  const baseUrl =
     env.SANDCASTLE_TEST_DATABASE_URL ||
     process.env.SANDCASTLE_TEST_DATABASE_URL ||
-    DEFAULT_SANDBOX_TEST_DATABASE_URL
-  );
+    DEFAULT_SANDBOX_TEST_DATABASE_URL;
+
+  if (!databaseNameSuffix) return baseUrl;
+
+  const parsedUrl = new URL(baseUrl);
+  const baseDatabaseName = decodeURIComponent(parsedUrl.pathname.slice(1));
+
+  if (!baseDatabaseName) {
+    throw new Error("SANDCASTLE_TEST_DATABASE_URL must include a database name.");
+  }
+
+  parsedUrl.pathname = `/${encodeURIComponent(
+    createSandboxDatabaseName(baseDatabaseName, databaseNameSuffix),
+  )}`;
+
+  return parsedUrl.toString();
+}
+
+function createSandboxDatabaseName(baseName: string, suffix: string): string {
+  const sanitizedSuffix = suffix
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const databaseName = `${baseName}-${sanitizedSuffix || "sandbox"}`;
+
+  return databaseName.slice(0, POSTGRES_IDENTIFIER_MAX_LENGTH);
 }
 
 function readSandcastleEnv(): Record<string, string> {
