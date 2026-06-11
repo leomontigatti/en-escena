@@ -28,6 +28,8 @@ import { activateEvent, createEvent } from "@/lib/event-management.server";
 import {
   action,
   AdministracionAjustesBloquesHorariosRouteView,
+  AdministracionAjustesCategoriaDetalleRouteView,
+  AdministracionAjustesCategoriaNuevaRouteView,
   AdministracionAjustesCategoriasRouteView,
   AdministracionAjustesIndexRouteView,
   AdministracionAjustesLayoutView,
@@ -157,6 +159,11 @@ describe("administracion/ajustes route", () => {
 
     const indexMarkup = renderIndexRoute(data);
     const modalidadesMarkup = renderModalidadesRoute(data);
+    const categoriaNuevaMarkup = renderCategoriaNuevaRoute(data);
+    const categoriaDetalleMarkup = renderCategoriaDetalleRoute(
+      data,
+      "categoria-inexistente",
+    );
 
     expect(indexMarkup).toContain(
       "Elegí un Evento de trabajo para configurar Ajustes",
@@ -164,8 +171,17 @@ describe("administracion/ajustes route", () => {
     expect(modalidadesMarkup).toContain(
       "Elegí un Evento de trabajo para configurar Ajustes",
     );
+    expect(categoriaNuevaMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
+    expect(categoriaDetalleMarkup).toContain(
+      "Elegí un Evento de trabajo para configurar Ajustes",
+    );
     expect(modalidadesMarkup).not.toContain(
       'name="intent" value="create-modality"',
+    );
+    expect(categoriaNuevaMarkup).not.toContain(
+      'name="intent" value="create-category"',
     );
   });
 
@@ -268,7 +284,8 @@ describe("administracion/ajustes route", () => {
     expect(modalidadesMarkup).toContain("Jazz funk");
     expect(categoriasMarkup).toContain("Infantil");
     expect(categoriasMarkup).toContain("8 a 12 años");
-    expect(categoriasMarkup).toContain("Solo, Dúo");
+    expect(categoriasMarkup).toContain("Solo");
+    expect(categoriasMarkup).toContain("Dúo");
     expect(categoriasMarkup).toContain("Inicial");
 
     const editLevelRequest = await createSignedInRequest({
@@ -341,6 +358,145 @@ describe("administracion/ajustes route", () => {
     await expect(
       db.query.submodalities.findFirst({
         where: eq(submodalities.id, submodality?.id ?? ""),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("uses dedicated category routes and can create a new Nivel from the Categoria form", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const urbano = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+    const inicial = await expectCreated(
+      createExperienceLevel(event.id, { name: "Inicial" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo", "grupal"],
+        modalityIds: [jazz.id, urbano.id],
+        experienceLevelIds: [inicial.id],
+      }),
+    );
+
+    const request = await createSignedInRequest({
+      email: "admin.categorias.rutas@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/categorias?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+
+    const listMarkup = renderCategoriasRoute(data);
+    expect(listMarkup).toContain(
+      `/administracion/ajustes/categorias/nueva?evento=${event.id}`,
+    );
+    expect(listMarkup).toContain("Juvenil");
+    expect(listMarkup).toContain("Solo");
+    expect(listMarkup).toContain("Grupal");
+    expect(listMarkup).toContain("Inicial");
+    expect(listMarkup).toContain("13 a 17 años");
+    expect(listMarkup).not.toContain('name="intent" value="create-category"');
+    expect(listMarkup).not.toContain("Borrar Categoría");
+
+    const nuevaMarkup = renderCategoriaNuevaRoute(data);
+    expect(nuevaMarkup).toContain("Nueva Categoría");
+    expect(nuevaMarkup).toContain(
+      "La edad mínima y la edad máxima son inclusivas.",
+    );
+    expect(nuevaMarkup).toContain("Crear y asociar nuevo Nivel de experiencia");
+
+    const createRequest = await createSignedInRequest({
+      email: "admin.categorias.nueva@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/categorias/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-category",
+        name: "Mayores",
+        minAge: "18",
+        maxAge: "99",
+        groupTypes: ["duo"],
+        modalityIds: [urbano.id],
+        experienceLevelIds: [inicial.id],
+        newExperienceLevelName: "Avanzado",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(createRequest.request)), 302);
+
+    const newLevel = await db.query.experienceLevels.findFirst({
+      where: eq(experienceLevels.name, "Avanzado"),
+    });
+    const createdCategory = await db.query.categories.findFirst({
+      where: eq(categories.name, "Mayores"),
+    });
+
+    expect(newLevel).toMatchObject({ eventId: event.id });
+    expect(createdCategory).toMatchObject({ eventId: event.id });
+
+    const refreshedData = await loader(routeArgs(request.request));
+    const category = refreshedData.categories.find(
+      (candidate) => candidate.name === "Mayores",
+    );
+
+    expect(category?.experienceLevelIds).toEqual(
+      expect.arrayContaining([inicial.id, newLevel?.id ?? ""]),
+    );
+
+    const detailMarkup = renderCategoriaDetalleRoute(
+      refreshedData,
+      createdCategory?.id ?? "",
+    );
+    expect(detailMarkup).toContain("Editar Categoría");
+    expect(detailMarkup).toContain("Borrar Categoría");
+    expect(detailMarkup).toContain("Confirmo que quiero borrar esta Categoría");
+    expect(detailMarkup).toContain(
+      `/administracion/ajustes/categorias?evento=${event.id}`,
+    );
+
+    const updateRequest = await createSignedInRequest({
+      email: "admin.categorias.edita@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/categorias/${createdCategory?.id ?? ""}?evento=${event.id}`,
+      body: formData({
+        intent: "update-category",
+        id: createdCategory?.id ?? "",
+        name: "Mayores A",
+        minAge: "18",
+        maxAge: "99",
+        groupTypes: ["duo", "trio"],
+        modalityIds: [jazz.id, urbano.id],
+        experienceLevelIds: [newLevel?.id ?? ""],
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(updateRequest.request)), 302);
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, createdCategory?.id ?? ""),
+      }),
+    ).resolves.toMatchObject({ name: "Mayores A" });
+
+    const deleteRequest = await createSignedInRequest({
+      email: "admin.categorias.borra@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/categorias/${createdCategory?.id ?? ""}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-category",
+        id: createdCategory?.id ?? "",
+        confirmDelete: "1",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(deleteRequest.request)), 302);
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, createdCategory?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
   });
@@ -836,6 +992,30 @@ function renderCategoriasRoute(loaderData: AdministracionAjustesLoaderData) {
     loaderData,
     "/administracion/ajustes/categorias",
     createElement(AdministracionAjustesCategoriasRouteView, { loaderData }),
+  );
+}
+
+function renderCategoriaNuevaRoute(
+  loaderData: AdministracionAjustesLoaderData,
+) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/categorias/nueva",
+    createElement(AdministracionAjustesCategoriaNuevaRouteView, { loaderData }),
+  );
+}
+
+function renderCategoriaDetalleRoute(
+  loaderData: AdministracionAjustesLoaderData,
+  categoryId: string,
+) {
+  return renderRoute(
+    loaderData,
+    `/administracion/ajustes/categorias/${categoryId}`,
+    createElement(AdministracionAjustesCategoriaDetalleRouteView, {
+      loaderData,
+      categoryId,
+    }),
   );
 }
 

@@ -1,6 +1,6 @@
 import { Settings } from "lucide-react";
 import { NavLink, Outlet, redirect, useOutletContext } from "react-router";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
 import type {
@@ -87,10 +87,16 @@ type AdministracionAjustesSectionProps = {
 
 type AdministracionAjustesSectionLayoutProps =
   AdministracionAjustesSectionProps & {
+    breadcrumbItems?: BreadcrumbItem[];
     title: string;
     description: string;
     children: ReactNode;
   };
+
+type BreadcrumbItem = {
+  label: string;
+  to?: string;
+};
 
 type AjustesSectionKey =
   | "categorias"
@@ -100,6 +106,7 @@ type AjustesSectionKey =
 
 type CatalogActionInput = {
   eventId: string;
+  confirmDelete: boolean;
   id: string;
   intent: string;
   capacity: number;
@@ -111,6 +118,7 @@ type CatalogActionInput = {
   groupType: string;
   modalityIds: string[];
   modalityId: string;
+  newExperienceLevelName: string;
   name: string;
   experienceLevelIds: string[];
   scheduledDate: string;
@@ -181,17 +189,20 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const result = await runCatalogIntent(
-    readCatalogActionInput(eventId, formData),
-  );
+  const input = readCatalogActionInput(eventId, formData);
+  const result = await runCatalogIntent(input);
 
   if (!result.ok) {
     return actionError(result.error, result.fieldErrors);
   }
 
   const redirectUrl = new URL(request.url);
-  redirectUrl.searchParams.set("evento", eventId);
-  redirectUrl.searchParams.set("guardado", "1");
+  applyCatalogRedirect({
+    redirectUrl,
+    eventId,
+    input,
+    result,
+  });
 
   throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
 }
@@ -293,42 +304,20 @@ export function AdministracionAjustesCategoriasRouteView({
       loaderData={loaderData}
       actionData={providedActionData}
       title="Categorías"
-      description="Definí rangos de edad, Tipos de grupo, Modalidades y Niveles de experiencia para el Evento de trabajo."
+      description="Revisá las Categorías del Evento de trabajo y entrá a cada detalle para editar edades, Modalidades y Niveles de experiencia."
     >
       <CatalogSection title="Categorías">
-        <CategoryForm
-          intent="create-category"
-          modalities={loaderData.modalities}
-          experienceLevels={loaderData.experienceLevels}
-          buttonLabel="Crear Categoría"
-          fieldErrors={providedActionData?.fieldErrors}
-        />
         {loaderData.categories.length > 0 ? (
-          <ul className={catalogListClassName}>
+          <ul className="space-y-3">
             {loaderData.categories.map((category) => (
-              <li key={category.id} className="space-y-3 p-4">
-                <CategorySummary
+              <li
+                key={category.id}
+                className="rounded-lg border border-slate-200 bg-white p-4"
+              >
+                <CategoryListItem
                   category={category}
-                  modalities={loaderData.modalities}
+                  selectedEventId={loaderData.selectedEventId}
                   experienceLevels={loaderData.experienceLevels}
-                />
-                <CategoryForm
-                  id={category.id}
-                  intent="update-category"
-                  modalities={loaderData.modalities}
-                  experienceLevels={loaderData.experienceLevels}
-                  name={category.name}
-                  minAge={category.minAge}
-                  maxAge={category.maxAge}
-                  groupTypes={category.groupTypes}
-                  modalityIds={category.modalityIds}
-                  experienceLevelIds={category.experienceLevelIds}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={category.id}
-                  intent="delete-category"
-                  buttonLabel="Borrar Categoría"
                 />
               </li>
             ))}
@@ -338,38 +327,113 @@ export function AdministracionAjustesCategoriasRouteView({
             Todavía no hay Categorías para este Evento.
           </EmptyCatalogState>
         )}
+        <div className="mt-4">
+          <NavLink
+            to={buildCategoryCreatePath(loaderData.selectedEventId)}
+            className="inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          >
+            Nueva Categoría
+          </NavLink>
+        </div>
       </CatalogSection>
-      <CatalogSection title="Niveles de experiencia">
-        <CatalogCreateForm
-          intent="create-experience-level"
-          label="Nombre del Nivel de experiencia"
-          buttonLabel="Crear Nivel"
-          fieldError={providedActionData?.fieldErrors.name}
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesCategoriaNuevaRouteView({
+  loaderData,
+  actionData: providedActionData,
+}: AdministracionAjustesSectionProps) {
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      breadcrumbItems={[
+        {
+          label: "Categorías",
+          to: buildSettingsPath("categorias", loaderData.selectedEventId),
+        },
+        { label: "Nueva Categoría" },
+      ]}
+      title="Nueva Categoría"
+      description="Configurá edades, Tipos de grupo, Modalidades y Niveles de experiencia en un solo formulario."
+    >
+      <CategoryFormPanel
+        title="Datos de la Categoría"
+        description="La edad mínima y la edad máxima son inclusivas."
+      >
+        <CategoryForm
+          intent="create-category"
+          modalities={loaderData.modalities}
+          experienceLevels={loaderData.experienceLevels}
+          buttonLabel="Crear Categoría"
+          fieldErrors={providedActionData?.fieldErrors}
         />
-        {loaderData.experienceLevels.length > 0 ? (
-          <ul className={catalogListClassName}>
-            {loaderData.experienceLevels.map((level) => (
-              <li key={level.id} className="space-y-3 p-4">
-                <CatalogUpdateForm
-                  id={level.id}
-                  intent="update-experience-level"
-                  name={level.name}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={level.id}
-                  intent="delete-experience-level"
-                  buttonLabel="Borrar Nivel"
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyCatalogState>
-            Todavía no hay Niveles de experiencia para este Evento.
-          </EmptyCatalogState>
-        )}
-      </CatalogSection>
+      </CategoryFormPanel>
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesCategoriaDetalleRouteView({
+  loaderData,
+  actionData: providedActionData,
+  categoryId,
+}: AdministracionAjustesSectionProps & { categoryId: string }) {
+  const category = loaderData.categories.find(
+    (currentCategory) => currentCategory.id === categoryId,
+  );
+
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={providedActionData}
+      breadcrumbItems={[
+        {
+          label: "Categorías",
+          to: buildSettingsPath("categorias", loaderData.selectedEventId),
+        },
+        { label: category?.name ?? "Categoría" },
+      ]}
+      title={category ? "Editar Categoría" : "Categoría no encontrada"}
+      description={
+        category
+          ? "Actualizá la aplicabilidad de la Categoría y gestioná sus Niveles de experiencia desde este detalle."
+          : "No encontramos la Categoría solicitada dentro del Evento de trabajo actual."
+      }
+    >
+      {category ? (
+        <div className="space-y-6">
+          <CategoryFormPanel
+            title={category.name}
+            description="La edad mínima y la edad máxima son inclusivas."
+          >
+            <CategoryForm
+              id={category.id}
+              intent="update-category"
+              modalities={loaderData.modalities}
+              experienceLevels={loaderData.experienceLevels}
+              name={category.name}
+              minAge={category.minAge}
+              maxAge={category.maxAge}
+              groupTypes={category.groupTypes}
+              modalityIds={category.modalityIds}
+              experienceLevelIds={category.experienceLevelIds}
+              buttonLabel="Guardar cambios"
+              fieldErrors={providedActionData?.fieldErrors}
+            />
+          </CategoryFormPanel>
+          <CatalogSection title="Eliminar Categoría">
+            <CategoryDeleteForm
+              id={category.id}
+              fieldErrors={providedActionData?.fieldErrors}
+            />
+          </CatalogSection>
+        </div>
+      ) : (
+        <EmptyCatalogState>
+          Volvé a la lista de Categorías y elegí otra para continuar.
+        </EmptyCatalogState>
+      )}
     </AdministracionAjustesSectionLayout>
   );
 }
@@ -618,6 +682,29 @@ function buildSettingsPath(
   return `${pathname}?evento=${selectedEventId}`;
 }
 
+function buildCategoryCreatePath(selectedEventId: string | null) {
+  const pathname = "/administracion/ajustes/categorias/nueva";
+
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
+function buildCategoryDetailPath(
+  categoryId: string,
+  selectedEventId: string | null,
+) {
+  const pathname = `/administracion/ajustes/categorias/${categoryId}`;
+
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
 function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
   if (!actionData) {
     return null;
@@ -631,6 +718,7 @@ function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
 }
 
 function AdministracionAjustesSectionLayout({
+  breadcrumbItems,
   loaderData,
   actionData,
   title,
@@ -644,7 +732,7 @@ function AdministracionAjustesSectionLayout({
   return (
     <div className="space-y-6">
       <AjustesBreadcrumbs
-        currentLabel={title}
+        items={breadcrumbItems ?? [{ label: title }]}
         selectedEventId={loaderData.selectedEventId}
       />
       <AjustesSectionHeader title={title} description={description} />
@@ -698,10 +786,10 @@ function buildSettingsNavLinkClass(isCurrent: boolean) {
 }
 
 function AjustesBreadcrumbs({
-  currentLabel,
+  items,
   selectedEventId,
 }: {
-  currentLabel: string;
+  items: BreadcrumbItem[];
   selectedEventId: string | null;
 }) {
   return (
@@ -715,10 +803,25 @@ function AjustesBreadcrumbs({
             Ajustes
           </NavLink>
         </li>
-        <li aria-hidden="true" className="text-slate-400">
-          /
-        </li>
-        <li className="font-medium text-slate-950">{currentLabel}</li>
+        {items.map((item, index) => (
+          <Fragment key={`${item.label}-${index}`}>
+            <li aria-hidden="true" className="text-slate-400">
+              /
+            </li>
+            <li className="font-medium text-slate-950">
+              {item.to ? (
+                <NavLink
+                  to={item.to}
+                  className="font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+                >
+                  {item.label}
+                </NavLink>
+              ) : (
+                item.label
+              )}
+            </li>
+          </Fragment>
+        ))}
       </ol>
     </nav>
   );
@@ -1357,29 +1460,58 @@ function PriceSummary({ price }: { price: PriceListItem }) {
   );
 }
 
-function CategorySummary({
+function CategoryListItem({
   category,
+  selectedEventId,
   experienceLevels,
-  modalities,
 }: {
   category: CategoryRow;
+  selectedEventId: string | null;
   experienceLevels: ExperienceLevelRow[];
-  modalities: ModalityRow[];
 }) {
-  const experienceLevelNames =
-    category.experienceLevelIds.length > 0
-      ? formatNames(experienceLevels, category.experienceLevelIds)
-      : "Sin Niveles de experiencia";
+  const experienceLevelNames = formatNamesAsArray(
+    experienceLevels,
+    category.experienceLevelIds,
+  );
 
   return (
-    <div className="space-y-1 text-sm text-slate-700">
-      <p className="font-semibold text-slate-950">{category.name}</p>
-      <p>
-        {category.minAge} a {category.maxAge} años
-      </p>
-      <p>{formatGroupTypes(category.groupTypes)}</p>
-      <p>{formatNames(modalities, category.modalityIds)}</p>
-      <p>{experienceLevelNames}</p>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <h3 className="text-base font-semibold text-slate-950">
+            {category.name}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {category.groupTypes.map((groupType) => (
+              <CatalogBadge key={groupType}>
+                {groupTypeLabels[groupType]}
+              </CatalogBadge>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {experienceLevelNames.length > 0 ? (
+              experienceLevelNames.map((levelName) => (
+                <CatalogBadge key={levelName} tone="info">
+                  {levelName}
+                </CatalogBadge>
+              ))
+            ) : (
+              <CatalogBadge tone="neutral">
+                Sin Niveles de experiencia
+              </CatalogBadge>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">
+            {category.minAge} a {category.maxAge} años
+          </p>
+        </div>
+        <NavLink
+          to={buildCategoryDetailPath(category.id, selectedEventId)}
+          className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        >
+          Ver detalle
+        </NavLink>
+      </div>
     </div>
   );
 }
@@ -1396,6 +1528,7 @@ function CategoryForm({
   minAge,
   modalities,
   modalityIds = [],
+  newExperienceLevelName,
   name,
 }: {
   buttonLabel: string;
@@ -1409,13 +1542,11 @@ function CategoryForm({
   minAge?: number;
   modalities: ModalityRow[];
   modalityIds?: string[];
+  newExperienceLevelName?: string;
   name?: string;
 }) {
   return (
-    <form
-      method="post"
-      className="rounded-lg border border-slate-200 bg-white p-4"
-    >
+    <form method="post" className="space-y-4">
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -1442,6 +1573,7 @@ function CategoryForm({
             defaultValue={minAge}
             className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
           />
+          <span className="mt-2 block text-xs text-slate-500">Inclusive.</span>
         </label>
         <label className="block text-sm font-medium text-slate-800">
           Edad máxima
@@ -1452,6 +1584,7 @@ function CategoryForm({
             defaultValue={maxAge}
             className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
           />
+          <span className="mt-2 block text-xs text-slate-500">Inclusive.</span>
         </label>
         {fieldErrors.ageRange ? (
           <p className="text-xs font-medium text-red-700 sm:col-span-2">
@@ -1487,6 +1620,19 @@ function CategoryForm({
           error={fieldErrors.experienceLevelIds}
           className="sm:col-span-2"
         />
+        <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+          Crear y asociar nuevo Nivel de experiencia
+          <input
+            name="newExperienceLevelName"
+            defaultValue={newExperienceLevelName}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.newExperienceLevelName ? (
+          <p className="text-xs font-medium text-red-700 sm:col-span-2">
+            {fieldErrors.newExperienceLevelName}
+          </p>
+        ) : null}
       </div>
       <button
         type="submit"
@@ -1495,6 +1641,26 @@ function CategoryForm({
         {buttonLabel}
       </button>
     </form>
+  );
+}
+
+function CategoryFormPanel({
+  children,
+  description,
+  title,
+}: {
+  children: ReactNode;
+  description: string;
+  title: string;
+}) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+        <p className="text-sm text-slate-600">{description}</p>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
   );
 }
 
@@ -1544,6 +1710,28 @@ function CheckboxGroup({
   );
 }
 
+function CatalogBadge({
+  children,
+  tone = "primary",
+}: {
+  children: ReactNode;
+  tone?: "info" | "neutral" | "primary";
+}) {
+  const classNameByTone = {
+    primary: "border-teal-200 bg-teal-50 text-teal-900",
+    info: "border-sky-200 bg-sky-50 text-sky-900",
+    neutral: "border-slate-200 bg-slate-100 text-slate-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium ${classNameByTone[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function CatalogDeleteForm({
   buttonLabel,
   id,
@@ -1567,6 +1755,44 @@ function CatalogDeleteForm({
   );
 }
 
+function CategoryDeleteForm({
+  fieldErrors = {},
+  id,
+}: {
+  fieldErrors?: Record<string, string>;
+  id: string;
+}) {
+  return (
+    <form
+      method="post"
+      className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <input type="hidden" name="intent" value="delete-category" />
+      <input type="hidden" name="id" value={id} />
+      <label className="flex items-start gap-3 text-sm text-red-900">
+        <input
+          type="checkbox"
+          name="confirmDelete"
+          value="1"
+          className="mt-0.5 size-4 rounded border-red-300 text-red-700 focus:ring-red-100"
+        />
+        <span>Confirmo que quiero borrar esta Categoría</span>
+      </label>
+      {fieldErrors.confirmDelete ? (
+        <p className="text-xs font-medium text-red-700">
+          {fieldErrors.confirmDelete}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        className="inline-flex h-9 items-center justify-center rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
+      >
+        Borrar Categoría
+      </button>
+    </form>
+  );
+}
+
 function EmptyCatalogState({ children }: { children: ReactNode }) {
   return (
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
@@ -1580,6 +1806,9 @@ function readCatalogActionInput(
   formData: FormData,
 ): CatalogActionInput {
   return {
+    confirmDelete:
+      String(formData.get("confirmDelete") ?? "") === "1" ||
+      String(formData.get("confirmDelete") ?? "") === "on",
     eventId,
     capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
     id: String(formData.get("id") ?? ""),
@@ -1590,6 +1819,9 @@ function readCatalogActionInput(
     groupType: String(formData.get("groupType") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
+    newExperienceLevelName: String(
+      formData.get("newExperienceLevelName") ?? "",
+    ),
     name: String(formData.get("name") ?? ""),
     scheduleBlockId: String(formData.get("scheduleBlockId") ?? ""),
     priceScheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
@@ -1615,27 +1847,51 @@ function actionError(
   };
 }
 
+function applyCatalogRedirect({
+  redirectUrl,
+  eventId,
+  input,
+  result,
+}: {
+  redirectUrl: URL;
+  eventId: string;
+  input: CatalogActionInput;
+  result:
+    | Awaited<ReturnType<typeof createCategory>>
+    | Awaited<ReturnType<typeof deleteCategory>>
+    | Awaited<ReturnType<typeof updateCategory>>
+    | Awaited<ReturnType<typeof runCatalogIntent>>;
+}) {
+  if (input.intent === "create-category" && result.ok && "record" in result) {
+    redirectUrl.pathname = buildCategoryDetailPath(result.record.id, null);
+  }
+
+  if (input.intent === "delete-category") {
+    redirectUrl.pathname = buildSettingsPath("categorias", null);
+  }
+
+  redirectUrl.searchParams.set("evento", eventId);
+  redirectUrl.searchParams.set("guardado", "1");
+}
+
 async function runCatalogIntent(input: CatalogActionInput) {
   switch (input.intent) {
     case "create-category":
-      return createCategory(input.eventId, {
-        name: input.name,
-        minAge: input.minAge,
-        maxAge: input.maxAge,
-        groupTypes: input.groupTypes,
-        modalityIds: input.modalityIds,
-        experienceLevelIds: input.experienceLevelIds,
-      });
+      return saveCategory(input);
     case "update-category":
-      return updateCategory(input.id, {
-        name: input.name,
-        minAge: input.minAge,
-        maxAge: input.maxAge,
-        groupTypes: input.groupTypes,
-        modalityIds: input.modalityIds,
-        experienceLevelIds: input.experienceLevelIds,
-      });
+      return saveCategory(input);
     case "delete-category":
+      if (!input.confirmDelete) {
+        return {
+          ok: false as const,
+          code: "invalid-catalog" as const,
+          error: "Confirmá el borrado de la Categoría antes de continuar.",
+          fieldErrors: {
+            confirmDelete:
+              "Confirmá el borrado de la Categoría antes de continuar.",
+          },
+        };
+      }
       return deleteCategory(input.id);
     case "create-schedule-block":
       return createScheduleBlock(input.eventId, getScheduleBlockInput(input));
@@ -1692,6 +1948,62 @@ async function runCatalogIntent(input: CatalogActionInput) {
   }
 }
 
+async function saveCategory(input: CatalogActionInput) {
+  const baseInput = {
+    name: input.name,
+    minAge: input.minAge,
+    maxAge: input.maxAge,
+    groupTypes: input.groupTypes,
+    modalityIds: input.modalityIds,
+    experienceLevelIds: input.experienceLevelIds,
+  };
+  const normalizedNewExperienceLevelName = input.newExperienceLevelName.trim();
+
+  if (!normalizedNewExperienceLevelName) {
+    return input.intent === "create-category"
+      ? createCategory(input.eventId, baseInput)
+      : updateCategory(input.id, baseInput);
+  }
+
+  const levelResult = await createExperienceLevel(input.eventId, {
+    name: normalizedNewExperienceLevelName,
+  });
+
+  if (!levelResult.ok) {
+    return {
+      ...levelResult,
+      fieldErrors: {
+        ...(levelResult.fieldErrors ?? {}),
+        newExperienceLevelName:
+          levelResult.fieldErrors?.name ?? levelResult.error,
+      },
+    };
+  }
+
+  const categoryResult =
+    input.intent === "create-category"
+      ? await createCategory(input.eventId, {
+          ...baseInput,
+          experienceLevelIds: [
+            ...baseInput.experienceLevelIds,
+            levelResult.record.id,
+          ],
+        })
+      : await updateCategory(input.id, {
+          ...baseInput,
+          experienceLevelIds: [
+            ...baseInput.experienceLevelIds,
+            levelResult.record.id,
+          ],
+        });
+
+  if (!categoryResult.ok) {
+    await deleteExperienceLevel(levelResult.record.id);
+  }
+
+  return categoryResult;
+}
+
 function getScheduleBlockInput(input: CatalogActionInput): ScheduleBlockInput {
   return {
     name: input.name,
@@ -1738,9 +2050,16 @@ function formatNames(
   records: Array<{ id: string; name: string }>,
   selectedIds: string[],
 ) {
-  const names = selectedIds
-    .map((id) => records.find((record) => record.id === id)?.name)
-    .filter(Boolean);
+  const names = formatNamesAsArray(records, selectedIds);
 
   return names.length > 0 ? names.join(", ") : "Sin opciones";
+}
+
+function formatNamesAsArray(
+  records: Array<{ id: string; name: string }>,
+  selectedIds: string[],
+) {
+  return selectedIds
+    .map((id) => records.find((record) => record.id === id)?.name)
+    .filter(Boolean);
 }
