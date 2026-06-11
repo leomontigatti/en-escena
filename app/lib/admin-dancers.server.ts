@@ -77,6 +77,10 @@ export type AdministrativeDancerUpdateInput = {
   correctionReason: string;
 };
 
+export type AdministrativeDancerStatusInput = {
+  correctionReason: string;
+};
+
 export type AdministrativeDancerFieldErrors = Partial<
   Record<
     | "firstName"
@@ -110,6 +114,7 @@ type AdministrativeDancerStatusMutationResult =
       ok: false;
       message: string;
       fieldErrors: Pick<AdministrativeDancerFieldErrors, "correctionReason">;
+      values: AdministrativeDancerStatusInput;
     };
 
 export function readAdministrativeDancerFilters(
@@ -304,10 +309,7 @@ export async function updateAdministrativeDancer(input: {
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
   }
 
-  const values = {
-    ...input.values,
-    correctionReason: input.values.correctionReason,
-  };
+  const values = input.values;
   const fieldErrors: AdministrativeDancerFieldErrors = {};
   const normalizedValues = normalizeDancerValues(input.values);
 
@@ -429,6 +431,9 @@ export async function setAdministrativeDancerActiveState(input: {
       message: "Revisá los campos marcados.",
       fieldErrors: {
         correctionReason: normalizedReason.fieldError,
+      },
+      values: {
+        correctionReason: input.correctionReason,
       },
     };
   }

@@ -22,6 +22,9 @@ import {
 } from "@/lib/admin-dancers.shared";
 import {
   findAdministrativeDancer,
+  type AdministrativeDancerFieldErrors,
+  type AdministrativeDancerStatusInput,
+  type AdministrativeDancerUpdateInput,
   setAdministrativeDancerActiveState,
   updateAdministrativeDancer,
 } from "@/lib/admin-dancers.server";
@@ -35,32 +38,11 @@ import type { Route } from "./+types/administracion_.bailarines_.$dancerId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
-type DancerUpdateValues = {
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  documentType: string;
-  documentNumber: string;
-  correctionReason: string;
-};
-type DancerStatusValues = {
-  correctionReason: string;
-};
 type DancerActionError = {
   status: "error";
   message: string;
-  fieldErrors: Partial<
-    Record<
-      | "firstName"
-      | "lastName"
-      | "birthDate"
-      | "documentType"
-      | "documentNumber"
-      | "correctionReason",
-      string
-    >
-  >;
-  values: DancerUpdateValues | DancerStatusValues;
+  fieldErrors: AdministrativeDancerFieldErrors;
+  values: AdministrativeDancerUpdateInput | AdministrativeDancerStatusInput;
 };
 
 type AdministracionBailarinDetalleRouteProps = {
@@ -110,8 +92,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     selectedEventId: eventContext.selectedEventId,
     dancer,
     backToList: buildBackToListHref(request.url),
-    editHref: buildModeHref(url, "editar"),
-    cancelHref: buildModeHref(url, null),
+    editHref: buildModeHref(url, dancerId, "editar"),
+    cancelHref: buildModeHref(url, dancerId, null),
     successMessage: readSavedSuccessMessage(url.searchParams),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
@@ -170,7 +152,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     });
 
     if (!result.ok) {
-      return buildDancerActionError(result.message, result.fieldErrors, values);
+      return buildDancerActionError(
+        result.message,
+        result.fieldErrors,
+        result.values,
+      );
     }
 
     throw redirect(buildSavedDetailHref(request.url, dancerId));
@@ -708,12 +694,14 @@ function Notice({
   children: ReactNode;
   variant: "error" | "success";
 }) {
-  const className =
-    variant === "success"
-      ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-      : "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800";
+  const classNameByVariant = {
+    error:
+      "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800",
+    success:
+      "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800",
+  } satisfies Record<typeof variant, string>;
 
-  return <div className={className}>{children}</div>;
+  return <div className={classNameByVariant[variant]}>{children}</div>;
 }
 
 function buildBackToListHref(requestUrl: string) {
@@ -727,7 +715,7 @@ function buildBackToListHref(requestUrl: string) {
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
 }
 
-function buildModeHref(url: URL, mode: "editar" | null) {
+function buildModeHref(url: URL, dancerId: string, mode: "editar" | null) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete(adminDancerSavedSearchParam);
@@ -740,7 +728,7 @@ function buildModeHref(url: URL, mode: "editar" | null) {
 
   const search = searchParams.toString();
 
-  return `/administracion/bailarines/${readDancerIdFromPath(url.pathname)}${
+  return `/administracion/bailarines/${dancerId}${
     search.length > 0 ? `?${search}` : ""
   }`;
 }
@@ -761,18 +749,17 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
     : null;
 }
 
-function readDancerIdFromPath(pathname: string) {
-  const segments = pathname.split("/").filter(Boolean);
-  return segments.at(-1) ?? "";
-}
-
-function readDancerStatusValues(formData: FormData): DancerStatusValues {
+function readDancerStatusValues(
+  formData: FormData,
+): AdministrativeDancerStatusInput {
   return {
     correctionReason: readFormString(formData, "correctionReason"),
   };
 }
 
-function readDancerUpdateValues(formData: FormData): DancerUpdateValues {
+function readDancerUpdateValues(
+  formData: FormData,
+): AdministrativeDancerUpdateInput {
   return {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -798,7 +785,7 @@ function buildDancerActionError(
 
 function isDancerUpdateValues(
   values: DancerActionError["values"] | undefined,
-): values is DancerUpdateValues {
+): values is AdministrativeDancerUpdateInput {
   return (
     values !== undefined &&
     "firstName" in values &&
