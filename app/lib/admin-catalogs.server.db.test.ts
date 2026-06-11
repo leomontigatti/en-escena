@@ -2,26 +2,30 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { submodalities } from "@/db/schema";
+import { scheduleEntries, submodalities } from "@/db/schema";
 import {
   createCategory,
   createExperienceLevel,
   createModality,
   createPrice,
+  createScheduleEntry,
   createScheduleBlock,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
   deletePrice,
+  deleteScheduleEntry,
   deleteScheduleBlock,
   deleteSubmodality,
   listEventCatalogs,
   resolveApplicablePrice,
+  resolveCompatibleScheduleEntries,
   updateCategory,
   updateExperienceLevel,
   updateModality,
   updatePrice,
+  updateScheduleEntry,
   updateScheduleBlock,
   updateSubmodality,
 } from "@/lib/admin-catalogs.server";
@@ -580,6 +584,118 @@ describe("admin event catalogs", () => {
       error: "No se puede borrar el Precio porque tiene dependencias.",
     });
   });
+
+  test("manages Cronogramas with unique group types, block cupo limits and compatibility resolution", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const urbanas = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 10,
+        modalityIds: [jazz.id],
+      }),
+    );
+    const otherBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Sábado tarde",
+        scheduledDate: "2026-05-02",
+        startTime: "14:00",
+        totalCapacity: 8,
+        modalityIds: [jazz.id],
+      }),
+    );
+
+    const soloSchedule = await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 6,
+      }),
+    );
+    await expect(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 2,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "Ya existe un Cronograma para esa combinación de Tipos de grupo en este Bloque horario.",
+      fieldErrors: { groupTypes: "Revisá los Tipos de grupo del Cronograma." },
+    });
+    await expect(
+      createScheduleEntry(block.id, {
+        groupTypes: ["duo"],
+        capacity: 5,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "La suma de cupos de Cronogramas no puede superar el cupo total del Bloque horario.",
+      fieldErrors: { capacity: "Ajustá el cupo del Cronograma." },
+    });
+    await expectCreated(
+      createScheduleEntry(otherBlock.id, {
+        groupTypes: ["solo"],
+        capacity: 3,
+      }),
+    );
+
+    await expect(
+      resolveCompatibleScheduleEntries({
+        eventId: event.id,
+        modalityId: urbanas.id,
+        groupType: "solo",
+      }),
+    ).resolves.toMatchObject({
+      status: "none",
+      error:
+        "No hay Cronogramas compatibles para la Modalidad y el Tipo de grupo seleccionados.",
+    });
+    await expect(
+      resolveCompatibleScheduleEntries({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+      }),
+    ).resolves.toMatchObject({
+      status: "multiple",
+      options: expect.arrayContaining([
+        expect.objectContaining({ id: soloSchedule.id }),
+      ]),
+    });
+
+    await expect(
+      updateScheduleEntry(
+        soloSchedule.id,
+        { groupTypes: ["solo", "duo"], capacity: 6 },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar Tipos de grupo ni cupo porque el Cronograma tiene dependencias.",
+    });
+    await expect(
+      deleteScheduleEntry(soloSchedule.id, {
+        hasDependencies: async () => true,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "No se puede borrar el Cronograma porque tiene dependencias.",
+    });
+
+    const savedSchedule = await db.query.scheduleEntries.findFirst({
+      where: eq(scheduleEntries.id, soloSchedule.id),
+    });
+    expect(savedSchedule).toMatchObject({ capacity: 6, groupTypeKey: "solo" });
+  });
 });
 
 async function createSavedEvent(name: string) {
@@ -601,7 +717,7 @@ async function createSavedEvent(name: string) {
 async function expectCreated(
   resultPromise: Promise<{
     ok: boolean;
-    record?: { id: string; name: string };
+    record?: { id: string };
   }>,
 ) {
   const result = await resultPromise;

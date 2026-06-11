@@ -14,23 +14,27 @@ import {
   createExperienceLevel,
   createModality,
   createPrice,
+  createScheduleEntry,
   createScheduleBlock,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
   deletePrice,
+  deleteScheduleEntry,
   deleteScheduleBlock,
   deleteSubmodality,
   updateCategory,
   listEventCatalogs,
   type PriceInput,
   type PriceListItem,
+  type ScheduleEntryInput,
   type ScheduleBlockInput,
   type ScheduleBlockListItem,
   updateExperienceLevel,
   updateModality,
   updatePrice,
+  updateScheduleEntry,
   updateScheduleBlock,
   updateSubmodality,
 } from "@/lib/admin-catalogs.server";
@@ -75,6 +79,8 @@ type CatalogActionInput = {
   eventId: string;
   id: string;
   intent: string;
+  capacity: number;
+  scheduleBlockId: string;
   minAge: number;
   maxAge: number;
   groupTypes: string[];
@@ -278,6 +284,10 @@ export function AdministracionAjustesRouteView({
                   {loaderData.scheduleBlocks.map((scheduleBlock) => (
                     <li key={scheduleBlock.id} className="space-y-3 p-4">
                       <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
+                      <ScheduleEntriesPanel
+                        scheduleBlock={scheduleBlock}
+                        fieldErrors={providedActionData?.fieldErrors}
+                      />
                       <ScheduleBlockForm
                         id={scheduleBlock.id}
                         intent="update-schedule-block"
@@ -852,6 +862,128 @@ function PriceForm({
   );
 }
 
+function ScheduleEntrySummary({
+  scheduleEntry,
+}: {
+  scheduleEntry: ScheduleBlockListItem["scheduleEntries"][number];
+}) {
+  return (
+    <div className="space-y-1 text-sm text-slate-700">
+      <p className="font-semibold text-slate-950">
+        {formatGroupTypes(scheduleEntry.groupTypes)}
+      </p>
+      <p>{scheduleEntry.capacity} cupos</p>
+    </div>
+  );
+}
+
+function ScheduleEntriesPanel({
+  fieldErrors,
+  scheduleBlock,
+}: {
+  fieldErrors?: Record<string, string>;
+  scheduleBlock: ScheduleBlockListItem;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <h4 className="text-sm font-semibold text-slate-950">Cronogramas</h4>
+      <ScheduleEntryForm
+        intent="create-schedule-entry"
+        scheduleBlockId={scheduleBlock.id}
+        buttonLabel="Crear Cronograma"
+        fieldErrors={fieldErrors}
+      />
+      {scheduleBlock.scheduleEntries.length > 0 ? (
+        <ul className="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+          {scheduleBlock.scheduleEntries.map((scheduleEntry) => (
+            <li key={scheduleEntry.id} className="space-y-3 p-3">
+              <ScheduleEntrySummary scheduleEntry={scheduleEntry} />
+              <ScheduleEntryForm
+                id={scheduleEntry.id}
+                intent="update-schedule-entry"
+                groupTypes={scheduleEntry.groupTypes}
+                capacity={scheduleEntry.capacity}
+                buttonLabel="Guardar"
+              />
+              <CatalogDeleteForm
+                id={scheduleEntry.id}
+                intent="delete-schedule-entry"
+                buttonLabel="Borrar Cronograma"
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-sm text-slate-600">
+          Todavía no hay Cronogramas para este Bloque horario.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ScheduleEntryForm({
+  buttonLabel,
+  capacity,
+  fieldErrors = {},
+  groupTypes = [],
+  id,
+  intent,
+  scheduleBlockId,
+}: {
+  buttonLabel: string;
+  capacity?: number;
+  fieldErrors?: Record<string, string>;
+  groupTypes?: string[];
+  id?: string;
+  intent: string;
+  scheduleBlockId?: string;
+}) {
+  return (
+    <form
+      method="post"
+      className="mt-3 rounded-lg border border-slate-200 bg-white p-4"
+    >
+      <input type="hidden" name="intent" value={intent} />
+      {id ? <input type="hidden" name="id" value={id} /> : null}
+      {scheduleBlockId ? (
+        <input type="hidden" name="scheduleBlockId" value={scheduleBlockId} />
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <CheckboxGroup
+          title="Tipos de grupo"
+          name="groupTypes"
+          selectedValues={groupTypes}
+          options={groupTypeOptions}
+          error={fieldErrors.groupTypes}
+        />
+        <label className="block text-sm font-medium text-slate-800">
+          Cupo
+          <input
+            type="number"
+            min="1"
+            step="1"
+            name="capacity"
+            defaultValue={capacity}
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
+          />
+        </label>
+        {fieldErrors.capacity ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.capacity}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        {buttonLabel}
+      </button>
+    </form>
+  );
+}
+
 function PriceSummary({ price }: { price: PriceListItem }) {
   return (
     <div className="space-y-1 text-sm text-slate-700">
@@ -1092,6 +1224,7 @@ function readCatalogActionInput(
 ): CatalogActionInput {
   return {
     eventId,
+    capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
     id: String(formData.get("id") ?? ""),
     intent: String(formData.get("intent") ?? ""),
     minAge: Number(formData.get("minAge")),
@@ -1101,6 +1234,7 @@ function readCatalogActionInput(
     modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
+    scheduleBlockId: String(formData.get("scheduleBlockId") ?? ""),
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
     scheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
@@ -1158,6 +1292,15 @@ async function runCatalogIntent(input: CatalogActionInput) {
       return updatePrice(input.id, getPriceInput(input));
     case "delete-price":
       return deletePrice(input.id);
+    case "create-schedule-entry":
+      return createScheduleEntry(
+        input.scheduleBlockId,
+        getScheduleEntryInput(input),
+      );
+    case "update-schedule-entry":
+      return updateScheduleEntry(input.id, getScheduleEntryInput(input));
+    case "delete-schedule-entry":
+      return deleteScheduleEntry(input.id);
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
     case "update-modality":
@@ -1208,6 +1351,13 @@ function getPriceInput(input: CatalogActionInput): PriceInput {
     groupType: input.groupType,
     amount: input.amount,
     scheduleBlockId: input.scheduleBlockId,
+  };
+}
+
+function getScheduleEntryInput(input: CatalogActionInput): ScheduleEntryInput {
+  return {
+    groupTypes: input.groupTypes,
+    capacity: input.capacity,
   };
 }
 
