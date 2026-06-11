@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { professors } from "@/db/schema";
@@ -6,6 +6,11 @@ import { professors } from "@/db/schema";
 export type ProfessorFormField = "firstName" | "lastName";
 
 export type CreateProfessorInput = Record<ProfessorFormField, string>;
+
+export type UpdateProfessorInput = CreateProfessorInput & {
+  documentType: string;
+  documentNumber: string;
+};
 
 export type ProfessorListItem = Pick<
   typeof professors.$inferSelect,
@@ -21,6 +26,17 @@ export type CreateProfessorResult =
       message: string;
       fieldErrors: Partial<Record<ProfessorFormField, string>>;
       values: CreateProfessorInput;
+    };
+
+export type UpdateProfessorField = keyof UpdateProfessorInput;
+
+export type UpdateProfessorResult =
+  | { ok: true; professor: typeof professors.$inferSelect }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: Partial<Record<UpdateProfessorField, string>>;
+      values: UpdateProfessorInput;
     };
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
@@ -93,6 +109,130 @@ export async function createAcademyProfessor(
   return { ok: true, professor };
 }
 
+export async function findAcademyProfessor(
+  academyId: string,
+  professorId: string,
+) {
+  const professor = await db.query.professors.findFirst({
+    columns: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      documentType: true,
+      documentNumber: true,
+    },
+    where: and(
+      eq(professors.id, professorId),
+      eq(professors.academyId, academyId),
+    ),
+  });
+
+  if (!professor) {
+    return null;
+  }
+
+  return {
+    ...professor,
+    isIncomplete:
+      professor.documentType === null || professor.documentNumber === null,
+  };
+}
+
+export async function updateAcademyProfessor(
+  academyId: string,
+  professorId: string,
+  input: UpdateProfessorInput,
+): Promise<UpdateProfessorResult> {
+  const values = {
+    firstName: input.firstName,
+    lastName: input.lastName,
+    documentType: input.documentType,
+    documentNumber: input.documentNumber,
+  };
+  const firstName = normalizeSpanishTitleCase(input.firstName);
+  const lastName = normalizeSpanishTitleCase(input.lastName, {
+    lowercaseLeadingParticle: true,
+  });
+  const fieldErrors: Partial<Record<UpdateProfessorField, string>> = {};
+
+  if (!firstName) {
+    fieldErrors.firstName = "Ingresá el nombre del Profesor.";
+  }
+
+  if (!lastName) {
+    fieldErrors.lastName = "Ingresá el apellido del Profesor.";
+  }
+
+  const normalizedDocument = normalizeProfessorDocumentPair(
+    input.documentType,
+    input.documentNumber,
+  );
+
+  if (!normalizedDocument.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: {
+        ...fieldErrors,
+        ...normalizedDocument.fieldErrors,
+      },
+      values,
+    };
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  if (
+    normalizedDocument.documentType !== null &&
+    normalizedDocument.documentNumber !== null
+  ) {
+    const duplicateProfessor = await db.query.professors.findFirst({
+      columns: { id: true },
+      where: and(
+        eq(professors.academyId, academyId),
+        ne(professors.id, professorId),
+        eq(professors.documentType, normalizedDocument.documentType),
+        eq(professors.documentNumber, normalizedDocument.documentNumber),
+      ),
+    });
+
+    if (duplicateProfessor) {
+      return {
+        ok: false,
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          documentNumber:
+            "Ya existe un Profesor con ese documento en tu academia.",
+        },
+        values,
+      };
+    }
+  }
+
+  const [professor] = await db
+    .update(professors)
+    .set({
+      firstName,
+      lastName,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(professors.id, professorId), eq(professors.academyId, academyId)),
+    )
+    .returning();
+
+  return { ok: true, professor };
+}
+
 export function normalizeSpanishTitleCase(
   value: string,
   options: { lowercaseLeadingParticle?: boolean } = {},
@@ -133,4 +273,82 @@ function capitalizeFirstCharacter(value: string) {
   }
 
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
+}
+
+function normalizeProfessorDocumentPair(
+  documentTypeInput: string,
+  documentNumberInput: string,
+):
+  | {
+      ok: true;
+      documentType: (typeof professors.$inferSelect)["documentType"];
+      documentNumber: string | null;
+    }
+  | {
+      ok: false;
+      fieldErrors: Partial<Record<UpdateProfessorField, string>>;
+    } {
+  const documentType = documentTypeInput.trim();
+  const documentNumber = documentNumberInput.trim();
+  const fieldErrors: Partial<Record<UpdateProfessorField, string>> = {};
+
+  if (!documentType && !documentNumber) {
+    return {
+      ok: true,
+      documentType: null,
+      documentNumber: null,
+    };
+  }
+
+  if (!documentType) {
+    fieldErrors.documentType = "Seleccioná el tipo de documento.";
+  }
+
+  if (!documentNumber) {
+    fieldErrors.documentNumber = "Ingresá el número de documento.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { ok: false, fieldErrors };
+  }
+
+  if (!isDocumentType(documentType)) {
+    return {
+      ok: false,
+      fieldErrors: {
+        documentType: "Seleccioná un tipo de documento válido.",
+      },
+    };
+  }
+
+  if (documentType === "dni") {
+    const normalizedDni = documentNumber.replace(/[.\s-]+/g, "");
+
+    if (!/^\d+$/.test(normalizedDni)) {
+      return {
+        ok: false,
+        fieldErrors: {
+          documentNumber: "Ingresá un DNI válido.",
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      documentType,
+      documentNumber: normalizedDni,
+    };
+  }
+
+  return {
+    ok: true,
+    documentType,
+    documentNumber: documentNumber.replace(/\s+/g, " "),
+  };
+}
+
+function isDocumentType(
+  value: string,
+): value is NonNullable<(typeof professors.$inferSelect)["documentType"]> {
+  return value === "dni" || value === "passport" || value === "other";
 }
