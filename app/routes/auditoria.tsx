@@ -10,6 +10,24 @@ import type { Route } from "./+types/auditoria";
 
 type AuditoriaRouteProps = Pick<Route.ComponentProps, "loaderData">;
 
+const auditoriaLinkCardClassName =
+  "rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+
+const auditoriaLinks = [
+  {
+    to: "/administracion/profesores",
+    title: "Profesores",
+    description:
+      "Consultá Profesores en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+  },
+  {
+    to: "/administracion/bailarines",
+    title: "Bailarines",
+    description:
+      "Consultá Bailarines en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+  },
+] as const;
+
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de auditoría | En Escena" },
 ];
@@ -50,32 +68,20 @@ export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
         className="mt-6 grid gap-4 sm:grid-cols-2"
         aria-label="Accesos de auditoría"
       >
-        <Link
-          to="/administracion/profesores"
-          className="rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <span className="text-sm font-semibold text-slate-950">
-            Profesores
-          </span>
-          <span className="mt-2 block text-sm leading-6 text-slate-600">
-            Consultá Profesores en la vista compartida del Panel de
-            administración, con contexto de Evento de trabajo y sin controles de
-            edición.
-          </span>
-        </Link>
-        <Link
-          to="/administracion/bailarines"
-          className="rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <span className="text-sm font-semibold text-slate-950">
-            Bailarines
-          </span>
-          <span className="mt-2 block text-sm leading-6 text-slate-600">
-            Consultá Bailarines en la vista compartida del Panel de
-            administración, con contexto de Evento de trabajo y sin controles de
-            edición.
-          </span>
-        </Link>
+        {auditoriaLinks.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={auditoriaLinkCardClassName}
+          >
+            <span className="text-sm font-semibold text-slate-950">
+              {link.title}
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">
+              {link.description}
+            </span>
+          </Link>
+        ))}
       </nav>
     </AccessPage>
   );

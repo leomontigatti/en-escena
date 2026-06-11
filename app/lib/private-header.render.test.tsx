@@ -70,10 +70,14 @@ describe("private route headers", () => {
     expect(markup).toContain("Consulta interna");
     expect(markup).toContain("Panel de administración");
     expect(markup).toContain("Evento de trabajo");
-    expect(markup).toContain('href="/administracion/profesores"');
-    expect(markup).toContain('href="/administracion/bailarines"');
-    expect(markup).toContain("Profesores");
-    expect(markup).toContain("Bailarines");
+
+    for (const [href, label] of [
+      ["/administracion/profesores", "Profesores"],
+      ["/administracion/bailarines", "Bailarines"],
+    ] as const) {
+      expect(markup).toContain(`href="${href}"`);
+      expect(markup).toContain(label);
+    }
   });
 });
 
