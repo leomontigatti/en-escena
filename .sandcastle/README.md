@@ -85,6 +85,20 @@ Sandcastle prompts must preserve this repo's validation order:
 3. `npm test`
 4. `npm run test:db` when the change touches database schema, repositories,
    loaders/actions that persist data, or persistence-backed business rules
+5. `npm run build` when the change touches routing, server rendering, bundling,
+   CSS, or deployment behavior
+
+If a command fails, fix it and rerun that same command before starting the next
+validation command. Do not run `typecheck`, tests, DB tests, or build while
+formatting is still broken.
+
+During development, focused DB tests can target one file:
+
+```bash
+npm run test:db:file -- app/lib/example.db.test.ts
+```
+
+Use full `npm run test:db` before finishing database-backed work.
 
 Do not use `npx tsc` directly in this repo. `npm run typecheck` generates React
 Router route types before running TypeScript.

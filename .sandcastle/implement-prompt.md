@@ -42,6 +42,22 @@ workflow, auth, database/domain behavior, UI/style, or when the issue context is
 ambiguous. The validation order for this repo is already listed below; do not
 rediscover it by reading workflow docs unless they are relevant to the task.
 
+# PROGRESS UPDATES
+
+Keep user-facing progress updates short and phase-level:
+
+- Exploring context
+- Writing red test
+- Implementing
+- Running focused validation
+- Running full validation
+- Committing
+- Updating issue
+
+Do not stream every `sed`, `rg`, `git diff`, or `gh` command in user-facing
+updates. Detailed command traces belong in Sandcastle logs. Mention individual
+commands only when they fail, change state, or are the validation result.
+
 # EXECUTION
 
 If applicable, use RGR to complete the task.
@@ -62,10 +78,15 @@ Before committing, run the validation commands in this order:
 5. `npm run build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
+Do not start `typecheck`, tests, DB tests, or build while `format:check` is
+failing or while formatting changes are unverified. Do not run validation
+commands in parallel when later commands depend on earlier code state.
 When validation output is long, use the failing test names, error summaries, and
 focused reruns to diagnose. Do not paste or re-read full logs when a narrower
 command gives the needed signal.
 During development, use focused test commands for the code you are changing.
+For focused DB tests, use `npm run test:db:file -- <path-to-db-test>`; do not
+expect `npm run test:db -- <path>` to narrow the suite.
 Run the full validation sequence once at the end. If `npm run test:db` fails
 because of infrastructure or unrelated database state, do a focused diagnosis
 before repeating the full DB suite. Do not run multiple DB validation commands

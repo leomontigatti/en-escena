@@ -51,12 +51,19 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 
 6. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
 
+# PROGRESS UPDATES
+
+Keep user-facing progress updates short and phase-level. Do not stream every
+`sed`, `rg`, `git diff`, or `gh` command in user-facing updates. Detailed
+command traces belong in Sandcastle logs. Mention individual commands only when
+they fail, change state, or are the validation result.
+
 # EXECUTION
 
 If you find improvements to make:
 
 1. Make the changes directly on this branch
-2. Run `npm run format:check`, `npm run typecheck`, and `npm run test` to ensure nothing is broken. Also run `npm run test:db` if the branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules. Run `npm run build` if the branch touches routing, server rendering, bundling, CSS, or deployment behavior
+2. Run validation in this exact order: `npm run format:check`, `npm run typecheck`, `npm run test`, `npm run test:db` if the branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules, and `npm run build` if the branch touches routing, server rendering, bundling, CSS, or deployment behavior. If a command fails, fix it and rerun that same command before starting the next one. Do not run validation commands in parallel when later commands depend on earlier code state.
 3. Commit describing the refinements
 
 If the code is already clean and well-structured, do nothing.

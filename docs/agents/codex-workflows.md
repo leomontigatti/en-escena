@@ -19,6 +19,8 @@ Recommended validation order after code changes:
 5. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
+Do not start a later validation command while an earlier command is still failing
+or while formatting changes are unverified.
 
 ## Do Work
 
@@ -52,6 +54,14 @@ The repo has a PostgreSQL test harness under `tests/db/`. Use
 `npm run test:db` for database-backed behavior. The script creates the configured
 test database when needed, pushes the Drizzle schema, and runs `*.db.test.ts`
 with serial file execution.
+
+For a focused DB test file during development, use:
+
+```bash
+npm run test:db:file -- app/lib/example.db.test.ts
+```
+
+Run the full `npm run test:db` command before finishing database-backed work.
 
 ## Frontend State TDD
 
