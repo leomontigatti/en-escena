@@ -8,67 +8,56 @@ import type {
   EventRegistrationReadiness,
 } from "@/lib/event-registration-readiness";
 
+type RegistrationPathDescriptor = {
+  categoryName: string;
+  modalityName: string;
+  groupType: string;
+  requiresSubmodality: boolean;
+  requiresExperienceLevel: boolean;
+};
+
+const baseMissingItemDefinitions = {
+  modalities: {
+    label: "Modalidades",
+    detail: "Falta al menos una Modalidad en este Evento.",
+  },
+  categories: {
+    label: "Categorías",
+    detail: "Falta al menos una Categoría en este Evento.",
+  },
+  "schedule-blocks": {
+    label: "Bloques horarios",
+    detail: "Falta al menos un Bloque horario en este Evento.",
+  },
+  "schedule-entries": {
+    label: "Cronogramas",
+    detail: "Falta al menos un Cronograma en este Evento.",
+  },
+  prices: {
+    label: "Precios",
+    detail: "Falta al menos un Precio en este Evento.",
+  },
+} satisfies Record<
+  | "modalities"
+  | "categories"
+  | "schedule-blocks"
+  | "schedule-entries"
+  | "prices",
+  Pick<EventRegistrationMissingItem, "label" | "detail">
+>;
+
 export async function getEventRegistrationReadiness(
   eventId: string,
 ): Promise<EventRegistrationReadiness> {
   const catalogs = await listEventCatalogs(eventId);
-  const missingItems: EventRegistrationMissingItem[] = [];
-
-  if (catalogs.modalities.length === 0) {
-    missingItems.push({
-      code: "modalities",
-      label: "Modalidades",
-      detail: "Falta al menos una Modalidad en este Evento.",
-    });
-  }
-
-  if (catalogs.categories.length === 0) {
-    missingItems.push({
-      code: "categories",
-      label: "Categorías",
-      detail: "Falta al menos una Categoría en este Evento.",
-    });
-  }
-
-  if (catalogs.scheduleBlocks.length === 0) {
-    missingItems.push({
-      code: "schedule-blocks",
-      label: "Bloques horarios",
-      detail: "Falta al menos un Bloque horario en este Evento.",
-    });
-  }
-
-  const allScheduleEntries = catalogs.scheduleBlocks.flatMap(
-    (scheduleBlock) => scheduleBlock.scheduleEntries,
-  );
-
-  if (allScheduleEntries.length === 0) {
-    missingItems.push({
-      code: "schedule-entries",
-      label: "Cronogramas",
-      detail: "Falta al menos un Cronograma en este Evento.",
-    });
-  }
-
-  if (catalogs.prices.length === 0) {
-    missingItems.push({
-      code: "prices",
-      label: "Precios",
-      detail: "Falta al menos un Precio en este Evento.",
-    });
-  }
+  const missingItems = collectBaseMissingItems(catalogs);
 
   const modalitiesById = new Map(
     catalogs.modalities.map((modality) => [modality.id, modality]),
   );
-  const submodalityCountByModalityId = new Map<string, number>();
-
-  for (const submodality of catalogs.submodalities) {
-    submodalityCountByModalityId.set(
-      submodality.modalityId,
-      (submodalityCountByModalityId.get(submodality.modalityId) ?? 0) + 1,
-    );
-  }
+  const submodalityCountByModalityId = countSubmodalitiesByModalityId(
+    catalogs.submodalities,
+  );
 
   for (const category of catalogs.categories) {
     const requiresExperienceLevel = category.experienceLevelIds.length > 0;
@@ -84,6 +73,13 @@ export async function getEventRegistrationReadiness(
         (submodalityCountByModalityId.get(modalityId) ?? 0) > 0;
 
       for (const groupType of category.groupTypes) {
+        const registrationPath = describeRegistrationPath({
+          categoryName: category.name,
+          modalityName: modality.name,
+          groupType,
+          requiresSubmodality,
+          requiresExperienceLevel,
+        });
         const scheduleResolution = await resolveCompatibleScheduleEntries({
           eventId,
           modalityId,
@@ -94,15 +90,7 @@ export async function getEventRegistrationReadiness(
           missingItems.push({
             code: "schedule-compatibility",
             label: "Cronogramas compatibles",
-            detail: `Falta un Cronograma compatible para ${describeRegistrationPath(
-              {
-                categoryName: category.name,
-                modalityName: modality.name,
-                groupType,
-                requiresSubmodality,
-                requiresExperienceLevel,
-              },
-            )}.`,
+            detail: `Falta un Cronograma compatible para ${registrationPath}.`,
           });
           continue;
         }
@@ -118,15 +106,7 @@ export async function getEventRegistrationReadiness(
             missingItems.push({
               code: "price-coverage",
               label: "Precios aplicables",
-              detail: `Falta un Precio aplicable para ${describeRegistrationPath(
-                {
-                  categoryName: category.name,
-                  modalityName: modality.name,
-                  groupType,
-                  requiresSubmodality,
-                  requiresExperienceLevel,
-                },
-              )} en el Bloque horario ${option.scheduleBlock.name}.`,
+              detail: `Falta un Precio aplicable para ${registrationPath} en el Bloque horario ${option.scheduleBlock.name}.`,
             });
           }
         }
@@ -134,20 +114,75 @@ export async function getEventRegistrationReadiness(
     }
   }
 
+  const dedupedMissingItems = dedupeMissingItems(missingItems);
+
   return {
     eventId,
-    isReady: missingItems.length === 0,
-    missingItems: dedupeMissingItems(missingItems),
+    isReady: dedupedMissingItems.length === 0,
+    missingItems: dedupedMissingItems,
   };
 }
 
-function describeRegistrationPath(input: {
-  categoryName: string;
-  modalityName: string;
-  groupType: string;
-  requiresSubmodality: boolean;
-  requiresExperienceLevel: boolean;
-}) {
+function collectBaseMissingItems(
+  catalogs: Awaited<ReturnType<typeof listEventCatalogs>>,
+) {
+  const missingItems: EventRegistrationMissingItem[] = [];
+
+  if (catalogs.modalities.length === 0) {
+    missingItems.push({
+      code: "modalities",
+      ...baseMissingItemDefinitions.modalities,
+    });
+  }
+
+  if (catalogs.categories.length === 0) {
+    missingItems.push({
+      code: "categories",
+      ...baseMissingItemDefinitions.categories,
+    });
+  }
+
+  if (catalogs.scheduleBlocks.length === 0) {
+    missingItems.push({
+      code: "schedule-blocks",
+      ...baseMissingItemDefinitions["schedule-blocks"],
+    });
+  }
+
+  const hasScheduleEntries = catalogs.scheduleBlocks.some(
+    (scheduleBlock) => scheduleBlock.scheduleEntries.length > 0,
+  );
+
+  if (!hasScheduleEntries) {
+    missingItems.push({
+      code: "schedule-entries",
+      ...baseMissingItemDefinitions["schedule-entries"],
+    });
+  }
+
+  if (catalogs.prices.length === 0) {
+    missingItems.push({ code: "prices", ...baseMissingItemDefinitions.prices });
+  }
+
+  return missingItems;
+}
+
+function countSubmodalitiesByModalityId(
+  submodalities: Awaited<ReturnType<typeof listEventCatalogs>>["submodalities"],
+) {
+  const counts = new Map<string, number>();
+
+  for (const submodality of submodalities) {
+    counts.set(
+      submodality.modalityId,
+      (counts.get(submodality.modalityId) ?? 0) + 1,
+    );
+  }
+
+  return counts;
+}
+
+function describeRegistrationPath(input: RegistrationPathDescriptor) {
   const details = [
     `Categoría ${input.categoryName}`,
     `Modalidad ${input.modalityName}`,

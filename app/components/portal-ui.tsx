@@ -16,12 +16,27 @@ type PortalShellProps = {
   children: ReactNode;
 };
 
+type CoreographyCreationState = {
+  tone: "ready" | "blocked" | "info";
+  message: string;
+  details: string[];
+};
+
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", end: true },
   { to: "/portal/bailarines", label: "Bailarines", end: false },
   { to: "/portal/profesores", label: "Profesores", end: false },
   { to: "/portal/coreografias", label: "Coreografías", end: false },
 ] as const;
+
+const creationAvailabilityToneClassNames: Record<
+  CoreographyCreationState["tone"],
+  string
+> = {
+  ready: "bg-emerald-50 text-emerald-900",
+  blocked: "bg-amber-50 text-amber-900",
+  info: "bg-slate-50 text-slate-700",
+};
 
 export function PortalShell({
   email,
@@ -156,12 +171,7 @@ export function PortalCoreographiesSection({
             <div
               className={clsx(
                 "mt-4 rounded-lg px-4 py-3 text-sm leading-6",
-                creationAvailability.tone === "ready" &&
-                  "bg-emerald-50 text-emerald-900",
-                creationAvailability.tone === "blocked" &&
-                  "bg-amber-50 text-amber-900",
-                creationAvailability.tone === "info" &&
-                  "bg-slate-50 text-slate-700",
+                creationAvailabilityToneClassNames[creationAvailability.tone],
               )}
             >
               <p>{creationAvailability.message}</p>
@@ -207,35 +217,37 @@ function getPortalEventStatus(isReadOnly: boolean) {
   };
 }
 
-function getCoreographyCreationState(eventContext: PortalEventContext) {
-  const canCreateCoreographies =
-    eventContext.selectedEvent !== null &&
-    !eventContext.isReadOnly &&
-    eventContext.isRegistrationOpen &&
-    eventContext.activeEventRegistrationReadiness?.isReady === true;
-
+function getCoreographyCreationState(
+  eventContext: PortalEventContext,
+): CoreographyCreationState {
   if (!eventContext.hasActiveEvent) {
     return {
-      tone: "blocked" as const,
+      tone: "blocked",
       message: "Todavía no hay un Evento activo para registrar coreografías.",
       details: [],
     };
   }
 
-  if (eventContext.activeEventRegistrationReadiness?.isReady === false) {
+  const activeEventReadiness = eventContext.activeEventRegistrationReadiness;
+
+  if (activeEventReadiness?.isReady === false) {
     return {
-      tone: "blocked" as const,
+      tone: "blocked",
       message:
         "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
-      details: eventContext.activeEventRegistrationReadiness.missingItems.map(
-        (item) => item.detail,
-      ),
+      details: activeEventReadiness.missingItems.map((item) => item.detail),
     };
   }
 
+  const canCreateCoreographies =
+    eventContext.selectedEvent !== null &&
+    !eventContext.isReadOnly &&
+    eventContext.isRegistrationOpen &&
+    activeEventReadiness?.isReady === true;
+
   if (canCreateCoreographies) {
     return {
-      tone: "ready" as const,
+      tone: "ready",
       message:
         "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
       details: [],
@@ -243,7 +255,7 @@ function getCoreographyCreationState(eventContext: PortalEventContext) {
   }
 
   return {
-    tone: "info" as const,
+    tone: "info",
     message:
       "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta.",
     details: [],

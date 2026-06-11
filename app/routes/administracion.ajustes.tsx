@@ -123,24 +123,28 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const catalogs = eventContext.selectedEventId
-    ? await listEventCatalogs(eventContext.selectedEventId)
-    : {
-        categories: [],
-        modalities: [],
-        submodalities: [],
-        experienceLevels: [],
-        scheduleBlocks: [],
-        prices: [],
-      };
-  const registrationReadiness = eventContext.selectedEventId
-    ? await getEventRegistrationReadiness(eventContext.selectedEventId)
-    : null;
+  const selectedEventId = eventContext.selectedEventId;
+  const [catalogs, registrationReadiness] = selectedEventId
+    ? await Promise.all([
+        listEventCatalogs(selectedEventId),
+        getEventRegistrationReadiness(selectedEventId),
+      ])
+    : [
+        {
+          categories: [],
+          modalities: [],
+          submodalities: [],
+          experienceLevels: [],
+          scheduleBlocks: [],
+          prices: [],
+        },
+        null,
+      ];
 
   return {
     email: user.email,
     events: eventContext.events,
-    selectedEventId: eventContext.selectedEventId,
+    selectedEventId,
     registrationReadiness,
     ...catalogs,
   };
@@ -473,36 +477,39 @@ function RegistrationReadinessPanel({
 }: {
   readiness: EventRegistrationReadiness;
 }) {
-  if (readiness.isReady) {
-    return (
-      <section className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
-        <h3 className="text-base font-semibold text-emerald-950">
-          Configuración mínima lista
-        </h3>
-        <p className="mt-2 leading-6">
-          Este Evento ya tiene la configuración mínima para registrar
-          coreografías.
-        </p>
-      </section>
-    );
-  }
+  const appearance = readiness.isReady
+    ? {
+        className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+        titleClassName: "text-emerald-950",
+        title: "Configuración mínima lista",
+        description:
+          "Este Evento ya tiene la configuración mínima para registrar coreografías.",
+      }
+    : {
+        className: "border-amber-200 bg-amber-50 text-amber-900",
+        titleClassName: "text-amber-950",
+        title: "Configuración mínima pendiente",
+        description:
+          "El Evento de trabajo todavía no tiene todo lo necesario para habilitar el registro de coreografías.",
+      };
 
   return (
-    <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-      <h3 className="text-base font-semibold text-amber-950">
-        Configuración mínima pendiente
+    <section
+      className={`rounded-lg border px-4 py-4 text-sm ${appearance.className}`}
+    >
+      <h3 className={`text-base font-semibold ${appearance.titleClassName}`}>
+        {appearance.title}
       </h3>
-      <p className="mt-2 leading-6">
-        El Evento de trabajo todavía no tiene todo lo necesario para habilitar
-        el registro de coreografías.
-      </p>
-      <ul className="mt-3 space-y-2">
-        {readiness.missingItems.map((item) => (
-          <li key={`${item.code}-${item.detail}`} className="leading-6">
-            {item.detail}
-          </li>
-        ))}
-      </ul>
+      <p className="mt-2 leading-6">{appearance.description}</p>
+      {readiness.isReady ? null : (
+        <ul className="mt-3 space-y-2">
+          {readiness.missingItems.map((item) => (
+            <li key={`${item.code}-${item.detail}`} className="leading-6">
+              {item.detail}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
