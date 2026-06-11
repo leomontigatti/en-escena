@@ -253,6 +253,14 @@ describe("portal route view", () => {
     );
   });
 
+  test("shows the delete success notice on the Coreografías list", () => {
+    const markup = renderCoreografias({
+      deleted: true,
+    });
+
+    expect(markup).toContain("La Coreografía se eliminó correctamente.");
+  });
+
   test("shows the Coreografía detail with structural read-only data, roster and archived badges", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
@@ -842,6 +850,8 @@ function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias"]}>
       <PortalCoreografiasRouteView
+        created={input.created}
+        deleted={input.deleted}
         loaderData={input.loaderData ?? coreografiasLoaderData()}
       />
     </MemoryRouter>,
@@ -858,6 +868,7 @@ function renderCoreografiaDetalle(
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias/choreo_1"]}>
       <PortalCoreografiaDetalleRouteView
+        actionData={input.actionData}
         loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
       />
     </MemoryRouter>,

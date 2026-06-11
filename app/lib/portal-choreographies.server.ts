@@ -53,13 +53,6 @@ export type UpdateChoreographyProfessorsResult =
       message: string;
     };
 
-export type DeleteChoreographyResult =
-  | { ok: true }
-  | {
-      ok: false;
-      message: string;
-    };
-
 export type ChoreographyDeletionAvailability = {
   canDelete: boolean;
   warningMessage: string | null;
@@ -68,6 +61,8 @@ export type ChoreographyDeletionAvailability = {
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const invalidProfessorSelectionMessage =
   "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
+const closedRegistrationDeletionWarningMessage =
+  "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -322,7 +317,7 @@ export async function deleteChoreography(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;
-}): Promise<DeleteChoreographyResult> {
+}): Promise<void> {
   const choreography = await db.query.choreographies.findFirst({
     columns: {
       id: true,
@@ -346,8 +341,6 @@ export async function deleteChoreography(input: {
   await db
     .delete(choreographies)
     .where(eq(choreographies.id, input.choreographyId));
-
-  return { ok: true };
 }
 
 export function getChoreographyDeletionAvailability(input: {
@@ -365,7 +358,7 @@ export function getChoreographyDeletionAvailability(input: {
     canDelete: true,
     warningMessage: input.isRegistrationOpen
       ? null
-      : "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+      : closedRegistrationDeletionWarningMessage,
   };
 }
 

@@ -125,53 +125,25 @@ export async function action({
   const intent = readFormString(formData, "intent");
 
   if (intent === updateChoreographyProfessorsIntent) {
-    const { updateChoreographyProfessors } =
-      await import("@/lib/portal-choreographies.server");
     const professorIds = readFormStringArray(formData, "professorIds");
-    const result = await updateChoreographyProfessors({
+    return await handleUpdateChoreographyProfessorsAction({
       academyId: academy.id,
+      eventContextQueryParamName: eventContext.queryParamName,
       eventId: selectedEventId,
       choreographyId,
       professorIds,
     });
-
-    if (!result.ok) {
-      return {
-        status: "error" as const,
-        message: result.message,
-        selectedProfessorIds: professorIds,
-      };
-    }
-
-    return redirect(
-      `/portal/coreografias/${choreographyId}?${eventContext.queryParamName}=${selectedEventId}&${choreographyUpdatedSearchParam}=1`,
-    );
   }
 
   if (intent === deleteChoreographyIntent) {
-    if (formData.get("confirmDeletion") !== choreographyId) {
-      throw new Response(unsupportedActionMessage, { status: 400 });
-    }
+    assertDeleteConfirmationMatches(formData, choreographyId);
 
-    const { deleteChoreography } =
-      await import("@/lib/portal-choreographies.server");
-    const result = await deleteChoreography({
+    return await handleDeleteChoreographyAction({
       academyId: academy.id,
+      eventContextQueryParamName: eventContext.queryParamName,
       eventId: selectedEventId,
       choreographyId,
     });
-
-    if (!result.ok) {
-      return {
-        status: "error" as const,
-        message: result.message,
-        selectedProfessorIds: [],
-      };
-    }
-
-    return redirect(
-      `/portal/coreografias?${eventContext.queryParamName}=${selectedEventId}&${choreographyDeletedSearchParam}=1`,
-    );
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
@@ -614,6 +586,63 @@ function readFormStringArray(formData: FormData, key: string) {
   return formData
     .getAll(key)
     .flatMap((value) => (typeof value === "string" && value ? [value] : []));
+}
+
+async function handleUpdateChoreographyProfessorsAction(input: {
+  academyId: string;
+  eventContextQueryParamName: string;
+  eventId: string;
+  choreographyId: string;
+  professorIds: string[];
+}) {
+  const { updateChoreographyProfessors } =
+    await import("@/lib/portal-choreographies.server");
+  const result = await updateChoreographyProfessors({
+    academyId: input.academyId,
+    eventId: input.eventId,
+    choreographyId: input.choreographyId,
+    professorIds: input.professorIds,
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error" as const,
+      message: result.message,
+      selectedProfessorIds: input.professorIds,
+    };
+  }
+
+  return redirect(
+    `/portal/coreografias/${input.choreographyId}?${input.eventContextQueryParamName}=${input.eventId}&${choreographyUpdatedSearchParam}=1`,
+  );
+}
+
+async function handleDeleteChoreographyAction(input: {
+  academyId: string;
+  eventContextQueryParamName: string;
+  eventId: string;
+  choreographyId: string;
+}) {
+  const { deleteChoreography } =
+    await import("@/lib/portal-choreographies.server");
+  await deleteChoreography({
+    academyId: input.academyId,
+    eventId: input.eventId,
+    choreographyId: input.choreographyId,
+  });
+
+  return redirect(
+    `/portal/coreografias?${input.eventContextQueryParamName}=${input.eventId}&${choreographyDeletedSearchParam}=1`,
+  );
+}
+
+function assertDeleteConfirmationMatches(
+  formData: FormData,
+  choreographyId: string,
+) {
+  if (formData.get("confirmDeletion") !== choreographyId) {
+    throw new Response(unsupportedActionMessage, { status: 400 });
+  }
 }
 
 function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
