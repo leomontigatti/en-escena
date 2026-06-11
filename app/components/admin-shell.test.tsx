@@ -10,12 +10,20 @@ describe("AdminShell", () => {
 
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Panel de administración");
+    expect(markup).toContain("Profesores");
+    expect(markup).toContain("/administracion/profesores");
     expect(markup).toContain("Invitaciones");
     expect(markup).toContain("/administracion/usuarios/invitaciones");
     expect(markup).toContain("Ajustes");
     expect(markup).not.toContain('href="/administracion/ajustes"');
     expect(markup).toContain('action="/salir"');
     expect(markup).toContain('method="post"');
+    expect(markup.indexOf("Profesores")).toBeLessThan(
+      markup.indexOf("Ajustes"),
+    );
+    expect(markup.indexOf("Ajustes")).toBeLessThan(
+      markup.indexOf("Invitaciones"),
+    );
   });
 
   test("opens Ajustes navigation only as a collapsible section", () => {

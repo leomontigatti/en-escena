@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ChevronRight, Home, LogOut, MailPlus, Settings } from "lucide-react";
+import {
+  ChevronRight,
+  GraduationCap,
+  Home,
+  LogOut,
+  MailPlus,
+  Settings,
+} from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router";
 import { clsx } from "clsx";
 
@@ -70,11 +77,27 @@ const primaryNavigationItems = [
     icon: Home,
   },
   {
+    label: "Profesores",
+    to: "/administracion/profesores",
+    icon: GraduationCap,
+  },
+] satisfies Array<{
+  label: string;
+  to: string;
+  icon: typeof Home;
+}>;
+
+const secondaryNavigationItems = [
+  {
     label: "Invitaciones",
     to: "/administracion/usuarios/invitaciones",
     icon: MailPlus,
   },
-];
+] satisfies Array<{
+  label: string;
+  to: string;
+  icon: typeof Home;
+}>;
 
 export function AdminShell({
   email,
@@ -186,6 +209,24 @@ export function AdminShell({
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
+                {secondaryNavigationItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={location.pathname === item.to}
+                      >
+                        <NavLink to={item.to}>
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
