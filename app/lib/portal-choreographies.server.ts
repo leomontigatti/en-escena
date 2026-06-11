@@ -53,6 +53,10 @@ export type UpdateChoreographyProfessorsResult =
       message: string;
     };
 
+const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
+const invalidProfessorSelectionMessage =
+  "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
+
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -227,10 +231,11 @@ export async function updateChoreographyProfessors(input: {
   });
 
   if (!choreography) {
-    throw new Response("No encontramos esa Coreografía.", { status: 404 });
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
   const requestedProfessorIds = [...new Set(input.professorIds)];
+  const requestedProfessorIdsSet = new Set(requestedProfessorIds);
   const currentLinks = await db
     .select({
       professorId: choreographyProfessors.professorId,
@@ -265,15 +270,14 @@ export async function updateChoreographyProfessors(input: {
     ) {
       return {
         ok: false,
-        message:
-          "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.",
+        message: invalidProfessorSelectionMessage,
       };
     }
   }
 
   const professorIdsToRemove = currentLinks
     .map((row) => row.professorId)
-    .filter((id) => !requestedProfessorIds.includes(id));
+    .filter((id) => !requestedProfessorIdsSet.has(id));
   const professorIdsToAdd = requestedProfessorIds.filter(
     (id) => !linkedProfessorIds.has(id),
   );

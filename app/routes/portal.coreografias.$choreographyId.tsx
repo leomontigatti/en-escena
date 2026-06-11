@@ -15,6 +15,9 @@ const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyUpdatedSearchParam = "actualizado";
 const choreographyUpdatedSuccessMessage =
   "Profesores actualizados correctamente.";
+const updateChoreographyProfessorsIntent = "update-choreography-professors";
+const readOnlyEventMessage = "Este Evento es de solo lectura.";
+const unsupportedActionMessage = "Acción no soportada.";
 
 type ActionData =
   | {
@@ -28,6 +31,12 @@ type PortalCoreografiaDetalleRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
 };
+
+type LoaderData = PortalCoreografiaDetalleRouteProps["loaderData"];
+type ChoreographyProfessor = LoaderData["choreography"]["professors"][number];
+type ChoreographyProfessorOption = LoaderData["availableProfessors"][number];
+type ChoreographyOperationalStatus =
+  LoaderData["choreography"]["operationalStatus"];
 
 export const meta = () => [
   { title: "Detalle de Coreografía | Portal de academias | En Escena" },
@@ -54,8 +63,10 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const { findChoreographyForAcademyEvent } =
-    await import("@/lib/portal-choreographies.server");
+  const {
+    findChoreographyForAcademyEvent,
+    listProfessorOptionsForChoreography,
+  } = await import("@/lib/portal-choreographies.server");
   const choreography = await findChoreographyForAcademyEvent(
     academy.id,
     selectedEventId,
@@ -66,8 +77,6 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const { listProfessorOptionsForChoreography } =
-    await import("@/lib/portal-choreographies.server");
   const availableProfessors = await listProfessorOptionsForChoreography(
     academy.id,
     choreography.professors.map((professor) => professor.id),
@@ -102,14 +111,14 @@ export async function action({
   }
 
   if (eventContext.isReadOnly) {
-    throw new Response("Este Evento es de solo lectura.", { status: 403 });
+    throw new Response(readOnlyEventMessage, { status: 403 });
   }
 
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
-  if (intent !== "update-choreography-professors") {
-    throw new Response("Acción no soportada.", { status: 400 });
+  if (intent !== updateChoreographyProfessorsIntent) {
+    throw new Response(unsupportedActionMessage, { status: 400 });
   }
 
   const { updateChoreographyProfessors } =
@@ -137,13 +146,12 @@ export async function action({
 
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
-  actionData: actionDataOverride,
+  actionData,
 }: PortalCoreografiaDetalleRouteProps) {
-  const actionData = actionDataOverride;
-  const backToList =
-    loaderData.eventContext.selectedEvent !== null
-      ? `/portal/coreografias?${loaderData.eventContext.queryParamName}=${loaderData.eventContext.selectedEvent.id}`
-      : "/portal/coreografias";
+  const selectedEvent = loaderData.eventContext.selectedEvent;
+  const backToList = selectedEvent
+    ? `/portal/coreografias?${loaderData.eventContext.queryParamName}=${selectedEvent.id}`
+    : "/portal/coreografias";
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const selectedProfessorIds = new Set(
     actionData?.selectedProfessorIds ??
@@ -281,78 +289,21 @@ export function PortalCoreografiaDetalleRouteView({
                   Profesores
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {canEditProfessors
-                    ? "Actualizá los Profesores operativos aunque la inscripción esté cerrada."
-                    : "Los Profesores vinculados quedan en solo lectura para este Evento."}
+                  {getProfessorSectionDescription(canEditProfessors)}
                 </p>
               </div>
               <span
-                className={clsx(
-                  "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
-                  canEditProfessors
-                    ? "bg-emerald-50 text-emerald-800"
-                    : "bg-slate-100 text-slate-700",
-                )}
+                className={getProfessorSectionBadgeClassName(canEditProfessors)}
               >
                 {canEditProfessors ? "Editable" : "Solo lectura"}
               </span>
             </div>
 
             {canEditProfessors ? (
-              <form method="post" className="mt-4 space-y-4">
-                <input
-                  type="hidden"
-                  name="intent"
-                  value="update-choreography-professors"
-                />
-                {loaderData.availableProfessors.length > 0 ? (
-                  <ul className="space-y-3">
-                    {loaderData.availableProfessors.map((professor) => (
-                      <li
-                        key={professor.id}
-                        className="rounded-md border border-slate-200 px-3 py-3"
-                      >
-                        <label className="flex items-start justify-between gap-4">
-                          <span className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              name="professorIds"
-                              value={professor.id}
-                              defaultChecked={selectedProfessorIds.has(
-                                professor.id,
-                              )}
-                              className="mt-0.5 size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-100"
-                            />
-                            <span>
-                              <span className="block text-sm font-medium text-slate-950">
-                                {professor.lastName}, {professor.firstName}
-                              </span>
-                              <span className="block text-sm text-slate-600">
-                                {professor.active
-                                  ? "Disponible para nuevas asignaciones."
-                                  : "Archivado pero conservado por vínculo existente."}
-                              </span>
-                            </span>
-                          </span>
-                          {!professor.active ? <ArchivedBadge /> : null}
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm leading-6 text-slate-600">
-                    No hay Profesores activos o vinculados para editar en esta
-                    Coreografía.
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                >
-                  Guardar Profesores
-                </button>
-              </form>
+              <ProfessorEditor
+                professors={loaderData.availableProfessors}
+                selectedProfessorIds={selectedProfessorIds}
+              />
             ) : (
               <ProfessorReadonlyList
                 professors={loaderData.choreography.professors}
@@ -398,10 +349,84 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ProfessorEditor({
+  professors,
+  selectedProfessorIds,
+}: {
+  professors: ChoreographyProfessorOption[];
+  selectedProfessorIds: Set<string>;
+}) {
+  return (
+    <form method="post" className="mt-4 space-y-4">
+      <input
+        type="hidden"
+        name="intent"
+        value={updateChoreographyProfessorsIntent}
+      />
+      {professors.length > 0 ? (
+        <ul className="space-y-3">
+          {professors.map((professor) => (
+            <ProfessorOptionRow
+              key={professor.id}
+              professor={professor}
+              selected={selectedProfessorIds.has(professor.id)}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm leading-6 text-slate-600">
+          No hay Profesores activos o vinculados para editar en esta
+          Coreografía.
+        </p>
+      )}
+
+      <button
+        type="submit"
+        className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+      >
+        Guardar Profesores
+      </button>
+    </form>
+  );
+}
+
+function ProfessorOptionRow({
+  professor,
+  selected,
+}: {
+  professor: ChoreographyProfessorOption;
+  selected: boolean;
+}) {
+  return (
+    <li className="rounded-md border border-slate-200 px-3 py-3">
+      <label className="flex items-start justify-between gap-4">
+        <span className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="professorIds"
+            value={professor.id}
+            defaultChecked={selected}
+            className="mt-0.5 size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-100"
+          />
+          <span>
+            <span className="block text-sm font-medium text-slate-950">
+              {professor.lastName}, {professor.firstName}
+            </span>
+            <span className="block text-sm text-slate-600">
+              {getProfessorAvailabilityCopy(professor.active)}
+            </span>
+          </span>
+        </span>
+        {!professor.active ? <ArchivedBadge /> : null}
+      </label>
+    </li>
+  );
+}
+
 function ProfessorReadonlyList({
   professors,
 }: {
-  professors: PortalCoreografiaDetalleRouteProps["loaderData"]["choreography"]["professors"];
+  professors: ChoreographyProfessor[];
 }) {
   if (professors.length === 0) {
     return (
@@ -431,7 +456,7 @@ function ProfessorReadonlyList({
 function OperationalStatusSummary({
   operationalStatus,
 }: {
-  operationalStatus: PortalCoreografiaDetalleRouteProps["loaderData"]["choreography"]["operationalStatus"];
+  operationalStatus: ChoreographyOperationalStatus;
 }) {
   if (operationalStatus.code === "complete") {
     return (
@@ -463,6 +488,27 @@ function getReadOnlyBadgeClassName(isReadOnly: boolean) {
   return isReadOnly
     ? "inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
     : "inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800";
+}
+
+function getProfessorSectionBadgeClassName(canEditProfessors: boolean) {
+  return clsx(
+    "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
+    canEditProfessors
+      ? "bg-emerald-50 text-emerald-800"
+      : "bg-slate-100 text-slate-700",
+  );
+}
+
+function getProfessorSectionDescription(canEditProfessors: boolean) {
+  return canEditProfessors
+    ? "Actualizá los Profesores operativos aunque la inscripción esté cerrada."
+    : "Los Profesores vinculados quedan en solo lectura para este Evento.";
+}
+
+function getProfessorAvailabilityCopy(isActive: boolean) {
+  return isActive
+    ? "Disponible para nuevas asignaciones."
+    : "Archivado pero conservado por vínculo existente.";
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {
