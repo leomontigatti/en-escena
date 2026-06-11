@@ -552,13 +552,10 @@ export function AdministracionAjustesNuevaModalidadRouteView({
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
       actionData={providedActionData}
-      breadcrumbItems={[
-        {
-          label: "Modalidades",
-          to: buildSettingsPath("modalidades", loaderData.selectedEventId),
-        },
-        { label: "Nueva Modalidad" },
-      ]}
+      breadcrumbItems={buildModalidadesBreadcrumbItems(
+        loaderData.selectedEventId,
+        "Nueva Modalidad",
+      )}
       title="Nueva Modalidad"
       description="Creá una Modalidad en una ruta dedicada y completá sus Submodalidades desde el detalle."
     >
@@ -589,13 +586,10 @@ export function AdministracionAjustesModalidadDetalleRouteView({
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
       actionData={providedActionData}
-      breadcrumbItems={[
-        {
-          label: "Modalidades",
-          to: buildSettingsPath("modalidades", loaderData.selectedEventId),
-        },
-        { label: modality?.name ?? "Modalidad" },
-      ]}
+      breadcrumbItems={buildModalidadesBreadcrumbItems(
+        loaderData.selectedEventId,
+        modality?.name ?? "Modalidad",
+      )}
       title={modality?.name ?? "Detalle de Modalidad"}
       description="Editá la Modalidad, gestioná sus Submodalidades y resolvé acciones destructivas con contexto."
     >
@@ -991,6 +985,19 @@ function buildCategoryDetailPath(
 
 function buildModalidadesListPath(selectedEventId: string | null) {
   return appendSelectedEventId(modalityRoutes.list, selectedEventId);
+}
+
+function buildModalidadesBreadcrumbItems(
+  selectedEventId: string | null,
+  currentLabel: string,
+): BreadcrumbItem[] {
+  return [
+    {
+      label: "Modalidades",
+      to: buildModalidadesListPath(selectedEventId),
+    },
+    { label: currentLabel },
+  ];
 }
 
 function buildNuevaModalidadPath(selectedEventId: string | null) {

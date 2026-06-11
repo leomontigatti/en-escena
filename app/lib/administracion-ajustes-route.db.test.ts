@@ -310,21 +310,21 @@ describe("administracion/ajustes route", () => {
       ),
     );
     const createMarkup = renderNuevaModalidadRoute(data);
-    const markup = renderModalidadDetalleRoute(data, modality?.id ?? "");
+    const detailMarkup = renderModalidadDetalleRoute(data, modality?.id ?? "");
 
     expect(createMarkup).toContain('aria-label="Breadcrumb"');
     expect(createMarkup).toContain(
       `/administracion/ajustes/modalidades?evento=${event.id}`,
     );
     expect(createMarkup).not.toContain("Volver a Modalidades");
-    expect(markup).toContain('aria-label="Breadcrumb"');
-    expect(markup).toContain(
+    expect(detailMarkup).toContain('aria-label="Breadcrumb"');
+    expect(detailMarkup).toContain(
       `/administracion/ajustes/modalidades?evento=${event.id}`,
     );
-    expect(markup).not.toContain("Volver a Modalidades");
-    expect(markup).toContain("Guardar Modalidad");
-    expect(markup).toContain("Crear Submodalidad");
-    expect(markup).toContain("Borrar Modalidad");
+    expect(detailMarkup).not.toContain("Volver a Modalidades");
+    expect(detailMarkup).toContain("Guardar Modalidad");
+    expect(detailMarkup).toContain("Crear Submodalidad");
+    expect(detailMarkup).toContain("Borrar Modalidad");
   });
 
   test("edits Modalidades and manages Submodalidades from the detail route", async () => {
