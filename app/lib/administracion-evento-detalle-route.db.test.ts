@@ -12,19 +12,19 @@ import {
   action,
   AdministracionEventoDetalleRouteView,
   loader,
-} from "@/routes/administracion.eventos.$eventId";
+} from "@/routes/administracion_.ajustes_.eventos_.$eventId";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/eventos/:eventId route", () => {
+describe("administracion/ajustes/eventos/:eventId route", () => {
   test("loads an Evento detail screen governed by the event URL", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const { request } = await createSignedInRequest({
       email: "admin.detalle@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
     });
 
     const data = await loader(routeArgs(request, event.id));
@@ -41,7 +41,7 @@ describe("administracion/eventos/:eventId route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.editar@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({
         intent: "update",
         name: "Regional actualizado",
@@ -65,7 +65,7 @@ describe("administracion/eventos/:eventId route", () => {
       requiredDepositPercentage: 45,
     });
     expect(response.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?guardado=1`,
+      `/administracion/ajustes/eventos/${event.id}?guardado=1`,
     );
   });
 
@@ -76,7 +76,7 @@ describe("administracion/eventos/:eventId route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.activar@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${inactiveEvent.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${inactiveEvent.id}`,
       body: formData({ intent: "activate" }),
     });
 
@@ -101,7 +101,7 @@ describe("administracion/eventos/:eventId route", () => {
     const blockedRequest = await createSignedInRequest({
       email: "admin.desactivar.bloqueado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "deactivate" }),
     });
 
@@ -115,7 +115,7 @@ describe("administracion/eventos/:eventId route", () => {
     const confirmedRequest = await createSignedInRequest({
       email: "admin.desactivar@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "deactivate", confirmDeactivation: event.id }),
     });
 
@@ -133,13 +133,13 @@ describe("administracion/eventos/:eventId route", () => {
     const programRequest = await createSignedInRequest({
       email: "admin.programa@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "set-program-visibility", value: "true" }),
     });
     const resultsRequest = await createSignedInRequest({
       email: "admin.resultados@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "set-results-visibility", value: "true" }),
     });
 
@@ -165,7 +165,7 @@ describe("administracion/eventos/:eventId route", () => {
     const blockedRequest = await createSignedInRequest({
       email: "admin.borrar.bloqueado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "delete" }),
     });
 
@@ -179,7 +179,7 @@ describe("administracion/eventos/:eventId route", () => {
     const confirmedRequest = await createSignedInRequest({
       email: "admin.borrar@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/eventos/${event.id}`,
       body: formData({ intent: "delete", confirmDeletion: event.id }),
     });
 
@@ -191,7 +191,9 @@ describe("administracion/eventos/:eventId route", () => {
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toBeUndefined();
-    expect(response.headers.get("location")).toBe("/administracion/eventos");
+    expect(response.headers.get("location")).toBe(
+      "/administracion/ajustes/eventos",
+    );
   });
 });
 
@@ -225,7 +227,11 @@ function renderRoute(
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
-      { initialEntries: [`/administracion/eventos/${loaderData.event.id}`] },
+      {
+        initialEntries: [
+          `/administracion/ajustes/eventos/${loaderData.event.id}`,
+        ],
+      },
       createElement(AdministracionEventoDetalleRouteView, {
         loaderData,
         actionData,
@@ -284,7 +290,7 @@ function routeArgs(request: Request, eventId: string) {
     params: { eventId },
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/eventos/:eventId",
+    pattern: "/administracion/ajustes/eventos/:eventId",
   };
 }
 

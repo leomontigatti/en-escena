@@ -2,18 +2,18 @@ import { useActionData } from "react-router";
 
 import {
   action,
-  AdministracionAjustesCategoriaNuevaRouteView,
+  AdministracionAjustesPrecioNuevaRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 
-export default function AdministracionAjustesCategoriasNuevaRoute() {
+export default function AdministracionAjustesPrecioNuevaRoute() {
   const loaderData = useAdministracionAjustesLoaderData();
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionAjustesCategoriaNuevaRouteView
+    <AdministracionAjustesPrecioNuevaRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

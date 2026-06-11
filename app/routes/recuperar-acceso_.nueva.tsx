@@ -12,7 +12,7 @@ import {
 import { resetAccessPassword } from "@/lib/access-recovery.server";
 import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
 
-import type { Route } from "./+types/recuperar-acceso.nueva";
+import type { Route } from "./+types/recuperar-acceso_.nueva";
 
 const resetPasswordSchema = z
   .object({

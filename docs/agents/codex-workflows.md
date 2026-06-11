@@ -23,6 +23,31 @@ If a command fails, fix that failure and rerun the same command before moving to
 Do not start a later validation command while an earlier command is still failing
 or while formatting changes are unverified.
 
+## React Router Flat Routes
+
+This repo uses `@react-router/fs-routes` flat route naming. When adding a
+dedicated form or detail route under a list URL, make the form/detail route a
+sibling of the list route unless the list component intentionally renders an
+`<Outlet />`.
+
+Use a trailing underscore on the list segment in child filenames to avoid
+accidental parent/child nesting:
+
+- List: `administracion_.ajustes_.eventos.tsx`
+- Detail sibling: `administracion_.ajustes_.eventos_.$eventId.tsx`
+- New-form sibling: `administracion_.ajustes_.eventos_.nuevo.tsx`
+
+Do not use `administracion_.ajustes_.eventos.$eventId.tsx` or
+`administracion_.ajustes_.eventos.nuevo.tsx` unless
+`administracion_.ajustes_.eventos.tsx` renders `<Outlet />`. Without an outlet,
+the child route matches but the user keeps seeing the parent list instead of the
+detail or form screen.
+
+After adding or renaming route files, run `npm run typecheck` and inspect
+`.react-router/types/+routes.ts` when route parentage matters. The target
+form/detail route should not list the list route as its parent unless nesting is
+intentional.
+
 ## Do Work
 
 Use this workflow when implementing a feature, fixing a bug, or changing code.

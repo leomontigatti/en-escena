@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 
-import { action } from "./administracion.ajustes";
+import { action } from "./administracion_.ajustes";
 
 export { action };
 

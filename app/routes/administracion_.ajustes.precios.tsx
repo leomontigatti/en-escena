@@ -1,7 +1,7 @@
 import {
   AdministracionAjustesPreciosRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export default function AdministracionAjustesPreciosRoute() {
   const loaderData = useAdministracionAjustesLoaderData();

@@ -58,7 +58,7 @@ export function AdministracionRouteView({
         aria-label="Accesos de administración"
       >
         <Link
-          to="/administracion/eventos"
+          to="/administracion/ajustes/eventos"
           className="rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
         >
           <span className="text-sm font-semibold text-slate-950">Eventos</span>

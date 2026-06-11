@@ -10,7 +10,7 @@ import {
 import { createInternalInvitation } from "@/lib/internal-invitation.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
-import type { Route } from "./+types/administracion.usuarios.invitaciones";
+import type { Route } from "./+types/administracion_.usuarios.invitaciones";
 
 const invitationSchema = z.object({
   email: z.email("Ingresá un correo electrónico válido."),

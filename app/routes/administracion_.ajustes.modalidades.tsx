@@ -2,7 +2,7 @@ import {
   action,
   AdministracionAjustesModalidadesListRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 

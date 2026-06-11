@@ -2,22 +2,22 @@ import { useActionData, useParams } from "react-router";
 
 import {
   action,
-  AdministracionAjustesDetalleBloqueHorarioRouteView,
+  AdministracionAjustesModalidadDetalleRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 
-export default function AdministracionAjustesDetalleBloqueHorarioRoute() {
+export default function AdministracionAjustesModalidadDetalleRoute() {
   const loaderData = useAdministracionAjustesLoaderData();
   const actionData = useActionData<typeof action>();
   const params = useParams();
 
   return (
-    <AdministracionAjustesDetalleBloqueHorarioRouteView
+    <AdministracionAjustesModalidadDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
-      scheduleBlockId={params.scheduleBlockId ?? ""}
+      modalityId={params.modalityId ?? ""}
     />
   );
 }

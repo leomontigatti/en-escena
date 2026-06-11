@@ -9,26 +9,33 @@ import { events, user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import { createEvent } from "@/lib/event-management.server";
 import {
-  action,
   AdministracionEventosRouteView,
   loader,
-} from "@/routes/administracion.eventos";
+} from "@/routes/administracion_.ajustes_.eventos";
+import {
+  action as createAction,
+  AdministracionEventoNuevoRouteView,
+} from "@/routes/administracion_.ajustes_.eventos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/eventos route", () => {
+describe("administracion/ajustes/eventos route", () => {
   test("requires admin access for the Eventos screen", async () => {
     await expectThrownResponse(
-      loader(routeArgs(new Request("http://localhost/administracion/eventos"))),
+      loader(
+        routeArgs(
+          new Request("http://localhost/administracion/ajustes/eventos"),
+        ),
+      ),
       302,
     );
 
     const { request } = await createSignedInRequest({
       email: "admin.eventos@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos",
     });
 
     await expect(loader(routeArgs(request))).resolves.toMatchObject({
@@ -37,19 +44,20 @@ describe("administracion/eventos route", () => {
     });
   });
 
-  test("renders an empty Eventos state and creation form", () => {
+  test("renders an empty Eventos state with a link to create a new Evento", () => {
     const markup = renderRoute({
       email: "admin@example.com",
       events: [],
     });
 
     expect(markup).toContain("Todavía no hay Eventos creados.");
+    expect(markup).toContain("/administracion/ajustes/eventos/nuevo");
     expect(markup).toContain("Crear Evento");
-    expect(markup).toContain('name="name"');
-    expect(markup).toContain('name="requiredDepositPercentage"');
+    expect(markup).not.toContain('name="name"');
+    expect(markup).not.toContain('name="requiredDepositPercentage"');
   });
 
-  test("lists Eventos with lifecycle, dates, deposit and visibility flags", async () => {
+  test("lists Eventos with name, registration dates, event dates and state", async () => {
     const finalEvent = await createSavedEvent({
       name: "Regional 2026",
       startsAt: date("2026-05-01T12:00:00Z"),
@@ -68,7 +76,7 @@ describe("administracion/eventos route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.listado@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos",
     });
     const data = await loader(routeArgs(request));
     const markup = renderRoute(data);
@@ -81,21 +89,22 @@ describe("administracion/eventos route", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Activo");
     expect(markup).toContain("Finalizado");
-    expect(markup).toContain("30%");
-    expect(markup).toContain("Programa visible");
-    expect(markup).toContain("Resultados ocultos");
-    expect(markup).toContain(`/administracion/eventos/${finalEvent.id}`);
-    expect(markup).toContain("Editar");
+    expect(markup).toContain(
+      `/administracion/ajustes/eventos/${finalEvent.id}`,
+    );
+    expect(markup).not.toContain("Acciones");
+    expect(markup).not.toContain("Editar");
+    expect(markup).not.toContain("Programa visible");
+    expect(markup).not.toContain("Resultados ocultos");
     expect(markup).toContain("Final 2027");
     expect(markup).toContain("No iniciado");
-    expect(markup).toContain("45%");
   });
 
-  test("creates an inactive Evento and returns to its context", async () => {
+  test("creates an inactive Evento from the new route and redirects to detail", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.crear@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos/nuevo",
       body: eventFormData({
         name: "Metropolitano 2027",
         registrationStartsAt: "2027-03-01T09:00",
@@ -107,7 +116,7 @@ describe("administracion/eventos route", () => {
     });
 
     const response = await expectThrownResponse(
-      action(routeArgs(request)),
+      createAction(newRouteArgs(request)),
       302,
     );
     const savedEvent = await db.query.events.findFirst({
@@ -121,7 +130,7 @@ describe("administracion/eventos route", () => {
       requiredDepositPercentage: 45,
     });
     expect(response.headers.get("location")).toBe(
-      `/administracion/eventos?evento=${savedEvent?.id}`,
+      `/administracion/ajustes/eventos/${savedEvent?.id}?guardado=1`,
     );
   });
 
@@ -129,7 +138,7 @@ describe("administracion/eventos route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.inscripcion-tardia@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos/nuevo",
       body: eventFormData({
         name: "Inscripción tardía 2027",
         registrationStartsAt: "2027-03-01T09:00",
@@ -140,7 +149,7 @@ describe("administracion/eventos route", () => {
       }),
     });
 
-    await expectThrownResponse(action(routeArgs(request)), 302);
+    await expectThrownResponse(createAction(newRouteArgs(request)), 302);
 
     await expect(
       db.query.events.findFirst({
@@ -156,7 +165,7 @@ describe("administracion/eventos route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.validacion@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos/nuevo",
       body: eventFormData({
         name: "",
         registrationStartsAt: "2027-03-01T09:00",
@@ -167,7 +176,7 @@ describe("administracion/eventos route", () => {
       }),
     });
 
-    await expect(action(routeArgs(request))).resolves.toMatchObject({
+    await expect(createAction(newRouteArgs(request))).resolves.toMatchObject({
       status: "error",
       message: "Revisá los datos del Evento.",
       fieldErrors: {
@@ -183,7 +192,7 @@ describe("administracion/eventos route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fechas@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/eventos",
+      requestUrl: "http://localhost/administracion/ajustes/eventos/nuevo",
       body: eventFormData({
         name: "Fechas inválidas",
         registrationStartsAt: "2027-03-01T09:00",
@@ -194,7 +203,7 @@ describe("administracion/eventos route", () => {
       }),
     });
 
-    await expect(action(routeArgs(request))).resolves.toMatchObject({
+    await expect(createAction(newRouteArgs(request))).resolves.toMatchObject({
       status: "error",
       fieldErrors: {
         registrationEndsAt:
@@ -205,9 +214,9 @@ describe("administracion/eventos route", () => {
   });
 
   test("shows a non-blocking warning when registration starts after the Evento starts", () => {
-    const markup = renderRoute(
+    const markup = renderCreateRoute(
       {
-        events: [],
+        eventOptions: [],
       },
       {
         status: "error",
@@ -276,20 +285,40 @@ function renderRoute(
   loaderData: Partial<
     Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
   >,
-  actionData?: Parameters<
-    typeof AdministracionEventosRouteView
-  >[0]["actionData"],
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
-      { initialEntries: ["/administracion/eventos"] },
+      { initialEntries: ["/administracion/ajustes/eventos"] },
       createElement(AdministracionEventosRouteView, {
         loaderData: {
           email: "admin@example.com",
           eventOptions: [],
           events: [],
           selectedEventId: null,
+          ...loaderData,
+        },
+      }),
+    ),
+  );
+}
+
+function renderCreateRoute(
+  loaderData: Partial<
+    Parameters<typeof AdministracionEventoNuevoRouteView>[0]["loaderData"]
+  >,
+  actionData?: Parameters<
+    typeof AdministracionEventoNuevoRouteView
+  >[0]["actionData"],
+) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      { initialEntries: ["/administracion/ajustes/eventos/nuevo"] },
+      createElement(AdministracionEventoNuevoRouteView, {
+        loaderData: {
+          email: "admin@example.com",
+          eventOptions: [],
           ...loaderData,
         },
         actionData,
@@ -348,7 +377,17 @@ function routeArgs(request: Request) {
     params: {},
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/eventos",
+    pattern: "/administracion/ajustes/eventos",
+  };
+}
+
+function newRouteArgs(request: Request) {
+  return {
+    request,
+    params: {},
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/ajustes/eventos/nuevo",
   };
 }
 

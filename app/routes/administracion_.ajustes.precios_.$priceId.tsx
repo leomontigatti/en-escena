@@ -4,7 +4,7 @@ import {
   action,
   AdministracionAjustesPrecioDetalleRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 

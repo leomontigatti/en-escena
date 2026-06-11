@@ -43,7 +43,7 @@ import {
   AdministracionAjustesNuevaModalidadRouteView,
   AdministracionAjustesPreciosRouteView,
   loader,
-} from "@/routes/administracion.ajustes";
+} from "@/routes/administracion_.ajustes";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
@@ -98,7 +98,9 @@ describe("administracion/ajustes route", () => {
       `/administracion/ajustes/precios?evento=${event.id}`,
     );
     expect(markup).not.toContain('name="intent" value="create-modality"');
-    expect(markup).not.toContain("/administracion/ajustes/eventos");
+    expect(markup).toContain(
+      `/administracion/ajustes/eventos?evento=${event.id}`,
+    );
   });
 
   test("shows the minimum registration configuration status for the Evento de trabajo", async () => {

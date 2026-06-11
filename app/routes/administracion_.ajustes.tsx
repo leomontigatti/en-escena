@@ -54,7 +54,7 @@ import type { EventRegistrationReadiness } from "@/lib/event-registration-readin
 import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
-import type { Route } from "./+types/administracion.ajustes";
+import type { Route } from "./+types/administracion_.ajustes";
 
 type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;

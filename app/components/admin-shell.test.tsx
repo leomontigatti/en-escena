@@ -10,12 +10,22 @@ describe("AdminShell", () => {
 
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Panel de administración");
-    expect(markup).toContain("Eventos");
-    expect(markup).toContain("/administracion/eventos");
     expect(markup).toContain("Invitaciones");
     expect(markup).toContain("/administracion/usuarios/invitaciones");
+    expect(markup).toContain("Ajustes");
+    expect(markup).not.toContain('href="/administracion/ajustes"');
     expect(markup).toContain('action="/salir"');
     expect(markup).toContain('method="post"');
+  });
+
+  test("opens Ajustes navigation only as a collapsible section", () => {
+    const markup = renderAdminShell(
+      {},
+      { initialEntry: "/administracion/ajustes/eventos" },
+    );
+
+    expect(markup).toContain("Eventos");
+    expect(markup).toContain("/administracion/ajustes/eventos");
   });
 
   test("defaults the Evento de trabajo selector to the active Evento", () => {
@@ -51,9 +61,10 @@ describe("AdminShell", () => {
 
 function renderAdminShell(
   props: Partial<Parameters<typeof AdminShell>[0]> = {},
+  options: { initialEntry?: string } = {},
 ) {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/administracion"]}>
+    <MemoryRouter initialEntries={[options.initialEntry ?? "/administracion"]}>
       <AdminShell
         email="admin@example.com"
         events={[{ id: "evento_2026", name: "Evento 2026", active: true }]}

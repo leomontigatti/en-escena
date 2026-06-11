@@ -2,18 +2,18 @@ import { useActionData } from "react-router";
 
 import {
   action,
-  AdministracionAjustesNuevoBloqueHorarioRouteView,
+  AdministracionAjustesNuevaModalidadRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 
-export default function AdministracionAjustesNuevoBloqueHorarioRoute() {
+export default function AdministracionAjustesNuevaModalidadRoute() {
   const loaderData = useAdministracionAjustesLoaderData();
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionAjustesNuevoBloqueHorarioRouteView
+    <AdministracionAjustesNuevaModalidadRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

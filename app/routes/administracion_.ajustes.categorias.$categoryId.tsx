@@ -2,22 +2,22 @@ import { useActionData, useParams } from "react-router";
 
 import {
   action,
-  AdministracionAjustesModalidadDetalleRouteView,
+  AdministracionAjustesCategoriaDetalleRouteView,
   useAdministracionAjustesLoaderData,
-} from "./administracion.ajustes";
+} from "./administracion_.ajustes";
 
 export { action };
 
-export default function AdministracionAjustesModalidadDetalleRoute() {
+export default function AdministracionAjustesCategoriasDetalleRoute() {
   const loaderData = useAdministracionAjustesLoaderData();
   const actionData = useActionData<typeof action>();
   const params = useParams();
 
   return (
-    <AdministracionAjustesModalidadDetalleRouteView
+    <AdministracionAjustesCategoriaDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
-      modalityId={params.modalityId ?? ""}
+      categoryId={params.categoryId ?? ""}
     />
   );
 }

@@ -9,13 +9,22 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
 import { Link, redirect, useActionData } from "react-router";
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 
+import { EventFormFields } from "@/components/admin-event-form";
 import { AdminShell } from "@/components/admin-shell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
+import {
+  eventFormValues,
+  parseEventFormValues,
+  readEventFormValues,
+  type EventFormValues,
+  type FieldErrors,
+} from "@/lib/admin-event-form-values";
 import {
   loadAdminEventContext,
   type AdminEventContext,
@@ -26,20 +35,13 @@ import {
   deleteEvent,
   setEventVisibility,
   updateEvent,
-  type CreateEventInput,
   type EventMutationResult,
 } from "@/lib/event-management.server";
 import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
 
-import type { Route } from "./+types/administracion.eventos.$eventId";
+import type { Route } from "./+types/administracion_.ajustes_.eventos_.$eventId";
 
 type EventRow = typeof eventsTable.$inferSelect;
-
-type FieldErrors = NonNullable<
-  Extract<EventMutationResult, { ok: false }>["fieldErrors"]
->;
-
-type EventFormValues = Record<keyof CreateEventInput, string>;
 
 type ActionData = {
   status: "error";
@@ -57,10 +59,6 @@ type AdministracionEventoDetalleRouteProps = {
   };
   actionData?: ActionData;
 };
-
-const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = "30";
-const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
-const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
 
 export const meta = () => [
   { title: "Editar Evento | Panel de administración | En Escena" },
@@ -140,16 +138,15 @@ export function AdministracionEventoDetalleRouteView({
       title="Editar Evento"
       showEventSelector={false}
     >
-      <div className="space-y-6">
-        <Link
-          to="/administracion/eventos"
-          className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Volver a Eventos
-        </Link>
+      <div className="flex flex-col gap-6">
+        <Button asChild variant="outline" className="w-fit">
+          <Link to="/administracion/ajustes/eventos">
+            <ArrowLeft data-icon="inline-start" />
+            Volver a Eventos
+          </Link>
+        </Button>
 
-        <section className="space-y-2">
+        <section className="flex flex-col gap-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-slate-950">
@@ -173,12 +170,12 @@ export function AdministracionEventoDetalleRouteView({
           </div>
 
           {loaderData.saved ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <p className="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
               Evento guardado.
             </p>
           ) : null}
           {actionData ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {actionData.message}
             </p>
           ) : null}
@@ -186,7 +183,7 @@ export function AdministracionEventoDetalleRouteView({
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
           <EditEventPanel event={loaderData.event} actionData={actionData} />
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             <LifecyclePanel event={loaderData.event} />
             <VisibilityPanel event={loaderData.event} />
             <DangerPanel event={loaderData.event} />
@@ -218,20 +215,12 @@ function EditEventPanel({
   actionData?: ActionData;
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
-  const [registrationStartsAt, setRegistrationStartsAt] = useState(
-    defaultValues.registrationStartsAt,
-  );
-  const [startsAt, setStartsAt] = useState(defaultValues.startsAt);
-  const showRegistrationStartWarning =
-    registrationStartsAt !== "" &&
-    startsAt !== "" &&
-    registrationStartsAt > startsAt;
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-teal-50 text-teal-700">
-          <CalendarClock aria-hidden="true" className="size-5" />
+        <span className="mt-0.5 inline-flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <CalendarClock aria-hidden="true" />
         </span>
         <div>
           <h3 className="text-lg font-semibold text-slate-950">
@@ -244,73 +233,16 @@ function EditEventPanel({
         </div>
       </div>
 
-      <form method="post" className="mt-6 space-y-4">
+      <form method="post" className="mt-6">
         <input type="hidden" name="intent" value="update" />
-        <Field
-          label="Nombre"
-          name="name"
-          type="text"
-          defaultValue={defaultValues.name}
-          error={actionData?.fieldErrors.name}
-          autoComplete="off"
+        <EventFormFields
+          values={defaultValues}
+          fieldErrors={actionData?.fieldErrors}
         />
-        <Field
-          label="Inicio de inscripción"
-          name="registrationStartsAt"
-          type="datetime-local"
-          defaultValue={defaultValues.registrationStartsAt}
-          error={actionData?.fieldErrors.registrationStartsAt}
-          onChange={(event) =>
-            setRegistrationStartsAt(event.currentTarget.value)
-          }
-        />
-        <Field
-          label="Cierre de inscripción"
-          name="registrationEndsAt"
-          type="datetime-local"
-          defaultValue={defaultValues.registrationEndsAt}
-          error={actionData?.fieldErrors.registrationEndsAt}
-        />
-        <Field
-          label="Inicio del Evento"
-          name="startsAt"
-          type="datetime-local"
-          defaultValue={defaultValues.startsAt}
-          error={actionData?.fieldErrors.startsAt}
-          onChange={(event) => setStartsAt(event.currentTarget.value)}
-        />
-        <Field
-          label="Cierre del Evento"
-          name="endsAt"
-          type="datetime-local"
-          defaultValue={defaultValues.endsAt}
-          error={actionData?.fieldErrors.endsAt}
-        />
-        <Field
-          label="Seña requerida (%)"
-          name="requiredDepositPercentage"
-          type="number"
-          min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
-          max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
-          step="1"
-          defaultValue={defaultValues.requiredDepositPercentage}
-          error={actionData?.fieldErrors.requiredDepositPercentage}
-        />
-
-        {showRegistrationStartWarning ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-            La inscripción empieza después del inicio del Evento. Podés guardar
-            esta configuración si es intencional.
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <Save aria-hidden="true" className="size-4" />
+        <Button type="submit" className="mt-6 w-full">
+          <Save data-icon="inline-start" />
           Guardar cambios
-        </button>
+        </Button>
       </form>
     </section>
   );
@@ -326,7 +258,7 @@ function LifecyclePanel({ event }: { event: EventRow }) {
       </p>
 
       {event.active ? (
-        <form method="post" className="mt-4 space-y-3">
+        <form method="post" className="mt-4 flex flex-col gap-3">
           <input type="hidden" name="intent" value="deactivate" />
           <label className="flex items-start gap-2 text-sm text-slate-700">
             <input
@@ -338,24 +270,18 @@ function LifecyclePanel({ event }: { event: EventRow }) {
             />
             Confirmo que quiero desactivar este Evento.
           </label>
-          <button
-            type="submit"
-            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            <PowerOff aria-hidden="true" className="size-4" />
+          <Button type="submit" variant="outline" className="w-full">
+            <PowerOff data-icon="inline-start" />
             Desactivar Evento
-          </button>
+          </Button>
         </form>
       ) : (
         <form method="post" className="mt-4">
           <input type="hidden" name="intent" value="activate" />
-          <button
-            type="submit"
-            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            <Power aria-hidden="true" className="size-4" />
+          <Button type="submit" className="w-full">
+            <Power data-icon="inline-start" />
             Activar Evento
-          </button>
+          </Button>
         </form>
       )}
     </section>
@@ -370,7 +296,7 @@ function VisibilityPanel({ event }: { event: EventRow }) {
         Controles preparatorios hasta que existan los flujos de programa y
         resultados. Se pueden cambiar de forma independiente.
       </p>
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 flex flex-col gap-3">
         <VisibilityForm
           intent="set-program-visibility"
           visible={event.programVisible}
@@ -406,17 +332,14 @@ function VisibilityForm({
       <StatusBadge tone={visible ? "info" : "neutral"}>
         {visible ? visibleLabel : hiddenLabel}
       </StatusBadge>
-      <button
-        type="submit"
-        className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-      >
+      <Button type="submit" variant="outline">
         {visible ? (
-          <EyeOff aria-hidden="true" className="size-4" />
+          <EyeOff data-icon="inline-start" />
         ) : (
-          <Eye aria-hidden="true" className="size-4" />
+          <Eye data-icon="inline-start" />
         )}
         {visible ? "Ocultar" : "Mostrar"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -428,7 +351,7 @@ function DangerPanel({ event }: { event: EventRow }) {
       <p className="mt-2 text-sm leading-6 text-slate-600">
         Solo se permite borrar Eventos inactivos y sin dependencias operativas.
       </p>
-      <form method="post" className="mt-4 space-y-3">
+      <form method="post" className="mt-4 flex flex-col gap-3">
         <input type="hidden" name="intent" value="delete" />
         <label className="flex items-start gap-2 text-sm text-slate-700">
           <input
@@ -440,45 +363,12 @@ function DangerPanel({ event }: { event: EventRow }) {
           />
           Confirmo que quiero borrar este Evento.
         </label>
-        <button
-          type="submit"
-          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-red-700 px-3 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100 disabled:cursor-not-allowed disabled:bg-red-300"
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
+        <Button type="submit" variant="destructive" className="w-full">
+          <Trash2 data-icon="inline-start" />
           Borrar Evento
-        </button>
+        </Button>
       </form>
     </section>
-  );
-}
-
-function Field({
-  label,
-  name,
-  error,
-  ...inputProps
-}: {
-  label: string;
-  name: keyof EventFormValues;
-  error?: string;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, "name">) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-slate-800">{label}</span>
-      <input
-        name={name}
-        required
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${name}-error` : undefined}
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-        {...inputProps}
-      />
-      {error ? (
-        <span id={`${name}-error`} className="mt-1 block text-xs text-red-700">
-          {error}
-        </span>
-      ) : null}
-    </label>
   );
 }
 
@@ -489,19 +379,9 @@ function StatusBadge({
   children: ReactNode;
   tone: "info" | "neutral" | "success";
 }) {
-  const classes = {
-    info: "border-sky-200 bg-sky-50 text-sky-900",
-    neutral: "border-slate-200 bg-slate-50 text-slate-700",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  } satisfies Record<typeof tone, string>;
+  const variant = tone === "success" ? "default" : "secondary";
 
-  return (
-    <span
-      className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${classes[tone]}`}
-    >
-      {children}
-    </span>
-  );
+  return <Badge variant={variant}>{children}</Badge>;
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {
@@ -545,7 +425,7 @@ function redirectAfterDeletion(
     return actionError(result.error);
   }
 
-  throw redirect("/administracion/eventos");
+  throw redirect("/administracion/ajustes/eventos");
 }
 
 async function redirectOrError(
@@ -571,7 +451,7 @@ function actionError(message: string): ActionData {
 }
 
 function savedEventPath(eventId: string) {
-  return `/administracion/eventos/${eventId}?guardado=1`;
+  return `/administracion/ajustes/eventos/${eventId}?guardado=1`;
 }
 
 async function loadEvent(eventId: string | undefined) {
@@ -588,129 +468,4 @@ async function loadEvent(eventId: string | undefined) {
   }
 
   return event;
-}
-
-function readEventFormValues(formData: FormData): EventFormValues {
-  return {
-    name: String(formData.get("name") ?? ""),
-    registrationStartsAt: String(formData.get("registrationStartsAt") ?? ""),
-    registrationEndsAt: String(formData.get("registrationEndsAt") ?? ""),
-    startsAt: String(formData.get("startsAt") ?? ""),
-    endsAt: String(formData.get("endsAt") ?? ""),
-    requiredDepositPercentage: String(
-      formData.get("requiredDepositPercentage") ??
-        DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
-    ),
-  };
-}
-
-function parseEventFormValues(
-  values: EventFormValues,
-):
-  | { ok: true; input: CreateEventInput }
-  | { ok: false; fieldErrors: FieldErrors } {
-  const fieldErrors: FieldErrors = {};
-  const registrationStartsAt = parseArgentinaDateTime(
-    values.registrationStartsAt,
-  );
-  const registrationEndsAt = parseArgentinaDateTime(values.registrationEndsAt);
-  const startsAt = parseArgentinaDateTime(values.startsAt);
-  const endsAt = parseArgentinaDateTime(values.endsAt);
-  const requiredDepositPercentage = Number(values.requiredDepositPercentage);
-
-  if (values.name.trim().length === 0) {
-    fieldErrors.name = "Ingresá el nombre del Evento.";
-  }
-
-  if (!registrationStartsAt) {
-    fieldErrors.registrationStartsAt = "Ingresá el inicio de inscripción.";
-  }
-
-  if (!registrationEndsAt) {
-    fieldErrors.registrationEndsAt = "Ingresá el cierre de inscripción.";
-  }
-
-  if (!startsAt) {
-    fieldErrors.startsAt = "Ingresá el inicio del Evento.";
-  }
-
-  if (!endsAt) {
-    fieldErrors.endsAt = "Ingresá el cierre del Evento.";
-  }
-
-  if (
-    values.requiredDepositPercentage.trim().length === 0 ||
-    !Number.isInteger(requiredDepositPercentage) ||
-    requiredDepositPercentage < MIN_REQUIRED_DEPOSIT_PERCENTAGE ||
-    requiredDepositPercentage > MAX_REQUIRED_DEPOSIT_PERCENTAGE
-  ) {
-    fieldErrors.requiredDepositPercentage =
-      "La seña requerida debe ser un entero entre 0 y 100.";
-  }
-
-  if (
-    Object.keys(fieldErrors).length > 0 ||
-    !registrationStartsAt ||
-    !registrationEndsAt ||
-    !startsAt ||
-    !endsAt
-  ) {
-    return { ok: false, fieldErrors };
-  }
-
-  return {
-    ok: true,
-    input: {
-      name: values.name,
-      registrationStartsAt,
-      registrationEndsAt,
-      startsAt,
-      endsAt,
-      requiredDepositPercentage,
-    },
-  };
-}
-
-function parseArgentinaDateTime(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
-    return null;
-  }
-
-  const date = new Date(`${value}:00-03:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
-
-function eventFormValues(event: EventRow): EventFormValues {
-  return {
-    name: event.name,
-    registrationStartsAt: formatArgentinaDateTimeInput(
-      event.registrationStartsAt,
-    ),
-    registrationEndsAt: formatArgentinaDateTimeInput(event.registrationEndsAt),
-    startsAt: formatArgentinaDateTimeInput(event.startsAt),
-    endsAt: formatArgentinaDateTimeInput(event.endsAt),
-    requiredDepositPercentage: String(event.requiredDepositPercentage),
-  };
-}
-
-function formatArgentinaDateTimeInput(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const valueByType = Object.fromEntries(
-    parts.map((part) => [part.type, part.value]),
-  );
-
-  return `${valueByType.year}-${valueByType.month}-${valueByType.day}T${valueByType.hour}:${valueByType.minute}`;
 }

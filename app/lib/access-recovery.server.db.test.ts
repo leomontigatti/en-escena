@@ -8,7 +8,7 @@ import {
   requestAccessRecoveryEmail,
   resetAccessPassword,
 } from "@/lib/access-recovery.server";
-import { action as resetPasswordAction } from "@/routes/recuperar-acceso.nueva";
+import { action as resetPasswordAction } from "@/routes/recuperar-acceso_.nueva";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
