@@ -1,0 +1,502 @@
+import { and, eq, inArray } from "drizzle-orm";
+
+import { db } from "@/db";
+import { dancers, events } from "@/db/schema";
+import type { CompatibleScheduleEntry } from "@/lib/admin-catalogs.server";
+import {
+  listEventCatalogs,
+  resolveCompatibleScheduleEntries,
+} from "@/lib/admin-catalogs.server";
+import { getEventRegistrationReadiness } from "@/lib/event-registration-readiness.server";
+
+const EVENT_TIME_ZONE = "America/Argentina/Cordoba";
+
+type GroupType = "solo" | "duo" | "trio" | "grupal";
+type CategoryCalculationMode = "oldest" | "group_tolerance" | "group_average";
+
+type CategorySummary = {
+  id: string;
+  name: string;
+};
+
+type ExperienceLevelSummary = {
+  id: string;
+  name: string;
+};
+
+type ScheduleOptionSummary = Pick<
+  CompatibleScheduleEntry,
+  "id" | "capacity" | "groupTypes" | "groupTypeKey"
+> & {
+  scheduleBlock: CompatibleScheduleEntry["scheduleBlock"];
+};
+
+type DancerAgeSummary = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  ageAtEventStart: number;
+};
+
+type CategoryResolution =
+  | {
+      status: "resolved";
+      id: string;
+      name: string;
+    }
+  | {
+      status: "pending";
+      reason: "no-compatible-category";
+    };
+
+type ExperienceLevelResolution =
+  | {
+      required: true;
+      options: ExperienceLevelSummary[];
+    }
+  | {
+      required: false;
+      options: ExperienceLevelSummary[];
+    };
+
+type ScheduleResolution =
+  | {
+      status: "none";
+      canConfirm: false;
+      error: string;
+      options: [];
+    }
+  | {
+      status: "auto";
+      canConfirm: true;
+      scheduleEntryId: string;
+      options: [ScheduleOptionSummary];
+    }
+  | {
+      status: "multiple";
+      canConfirm: true;
+      options: ScheduleOptionSummary[];
+    };
+
+type OperationResolution = {
+  groupType: GroupType;
+  category: CategoryResolution;
+  categoryCalculationMode: CategoryCalculationMode;
+  categoryAgeBasis: number | null;
+  experienceLevel: ExperienceLevelResolution;
+  schedule: ScheduleResolution;
+  dancers: DancerAgeSummary[];
+};
+
+type OperationFailureCode =
+  | "event-not-found"
+  | "event-not-active"
+  | "registration-closed"
+  | "event-not-ready"
+  | "invalid-modality"
+  | "submodality-required"
+  | "invalid-submodality"
+  | "invalid-dancers";
+
+type OperationFailure = {
+  ok: false;
+  code: OperationFailureCode;
+  error: string;
+};
+
+type OperationSuccess = {
+  ok: true;
+  resolution: OperationResolution;
+};
+
+export type ChoreographyRegistrationOperationResult =
+  | OperationFailure
+  | OperationSuccess;
+
+export async function resolveChoreographyRegistrationOperation(input: {
+  academyId: string;
+  eventId: string;
+  modalityId: string;
+  submodalityId: string | null;
+  dancerIds: string[];
+}): Promise<ChoreographyRegistrationOperationResult> {
+  const event = await db.query.events.findFirst({
+    where: eq(events.id, input.eventId),
+  });
+
+  if (!event) {
+    return failure(
+      "event-not-found",
+      "No encontramos ese Evento para resolver el registro.",
+    );
+  }
+
+  if (!event.active) {
+    return failure(
+      "event-not-active",
+      "Solo podés registrar Coreografías en el Evento activo.",
+    );
+  }
+
+  if (!isRegistrationWindowOpen(event, new Date())) {
+    return failure(
+      "registration-closed",
+      "La inscripción del Evento activo no está abierta en este momento.",
+    );
+  }
+
+  const [readiness, catalogs] = await Promise.all([
+    getEventRegistrationReadiness(event.id),
+    listEventCatalogs(event.id),
+  ]);
+
+  if (!readiness.isReady) {
+    return failure(
+      "event-not-ready",
+      "El Evento activo todavía no tiene la configuración mínima para registrar Coreografías.",
+    );
+  }
+
+  const modality = catalogs.modalities.find(
+    (record) => record.id === input.modalityId,
+  );
+
+  if (!modality) {
+    return failure(
+      "invalid-modality",
+      "Elegí una Modalidad válida del Evento activo.",
+    );
+  }
+
+  const modalitySubmodalities = catalogs.submodalities.filter(
+    (record) => record.modalityId === modality.id,
+  );
+  const resolvedSubmodality = input.submodalityId
+    ? modalitySubmodalities.find((record) => record.id === input.submodalityId)
+    : null;
+
+  if (modalitySubmodalities.length > 0 && input.submodalityId === null) {
+    return failure(
+      "submodality-required",
+      "Elegí una Submodalidad para la Modalidad seleccionada.",
+    );
+  }
+
+  if (
+    (input.submodalityId !== null && !resolvedSubmodality) ||
+    (modalitySubmodalities.length === 0 && input.submodalityId !== null)
+  ) {
+    return failure(
+      "invalid-submodality",
+      "Elegí una Submodalidad válida para la Modalidad seleccionada.",
+    );
+  }
+
+  const uniqueDancerIds = [...new Set(input.dancerIds)];
+
+  if (
+    uniqueDancerIds.length === 0 ||
+    uniqueDancerIds.length !== input.dancerIds.length
+  ) {
+    return failure(
+      "invalid-dancers",
+      "Elegí uno o más Bailarines válidos para resolver la Coreografía.",
+    );
+  }
+
+  const dancerRows = await db.query.dancers.findMany({
+    where: and(
+      eq(dancers.academyId, input.academyId),
+      eq(dancers.active, true),
+      inArray(dancers.id, uniqueDancerIds),
+    ),
+    columns: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      birthDate: true,
+    },
+  });
+
+  if (dancerRows.length !== uniqueDancerIds.length) {
+    return failure(
+      "invalid-dancers",
+      "Elegí Bailarines activos que pertenezcan a tu academia.",
+    );
+  }
+
+  const dancerById = new Map(dancerRows.map((dancer) => [dancer.id, dancer]));
+  const eventLocalStartDate = getLocalDateParts(
+    event.startsAt,
+    EVENT_TIME_ZONE,
+  );
+  const resolvedDancers = uniqueDancerIds.map((dancerId) => {
+    const dancer = dancerById.get(dancerId);
+
+    if (!dancer) {
+      throw new Error("Expected dancer to be present after validation.");
+    }
+
+    return {
+      id: dancer.id,
+      firstName: dancer.firstName,
+      lastName: dancer.lastName,
+      ageAtEventStart: getAgeAtDate(dancer.birthDate, eventLocalStartDate),
+    };
+  });
+
+  const groupType = deriveGroupType(resolvedDancers.length);
+  const categoryCandidates = catalogs.categories
+    .filter(
+      (category) =>
+        category.modalityIds.includes(modality.id) &&
+        category.groupTypes.includes(groupType),
+    )
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      minAge: category.minAge,
+      maxAge: category.maxAge,
+      experienceLevelIds: category.experienceLevelIds,
+    }));
+
+  const categoryResolution = resolveCategory({
+    dancers: resolvedDancers,
+    categories: categoryCandidates,
+  });
+
+  const experienceLevel =
+    categoryResolution.category.status === "resolved" &&
+    categoryResolution.resolvedCategoryExperienceLevelIds.length > 0
+      ? {
+          required: true as const,
+          options: catalogs.experienceLevels
+            .filter((level) =>
+              categoryResolution.resolvedCategoryExperienceLevelIds.includes(
+                level.id,
+              ),
+            )
+            .map((level) => ({
+              id: level.id,
+              name: level.name,
+            })),
+        }
+      : {
+          required: false as const,
+          options: [],
+        };
+
+  const compatibleScheduleEntries = await resolveCompatibleScheduleEntries({
+    eventId: event.id,
+    modalityId: modality.id,
+    groupType,
+  });
+  const schedule = mapScheduleResolution(compatibleScheduleEntries);
+
+  return {
+    ok: true,
+    resolution: {
+      groupType,
+      category: categoryResolution.category,
+      categoryCalculationMode: categoryResolution.categoryCalculationMode,
+      categoryAgeBasis: categoryResolution.categoryAgeBasis,
+      experienceLevel,
+      schedule,
+      dancers: resolvedDancers,
+    },
+  };
+}
+
+function deriveGroupType(dancerCount: number): GroupType {
+  if (dancerCount === 1) {
+    return "solo";
+  }
+
+  if (dancerCount === 2) {
+    return "duo";
+  }
+
+  if (dancerCount === 3) {
+    return "trio";
+  }
+
+  return "grupal";
+}
+
+function resolveCategory(input: {
+  dancers: DancerAgeSummary[];
+  categories: Array<{
+    id: string;
+    name: string;
+    minAge: number;
+    maxAge: number;
+    experienceLevelIds: string[];
+  }>;
+}): {
+  category: CategoryResolution;
+  categoryCalculationMode: CategoryCalculationMode;
+  categoryAgeBasis: number | null;
+  resolvedCategoryExperienceLevelIds: string[];
+} {
+  if (input.dancers.length <= 3) {
+    const oldestAge = Math.max(
+      ...input.dancers.map((dancer) => dancer.ageAtEventStart),
+    );
+    const category = input.categories.find((candidate) =>
+      isAgeWithinCategory(oldestAge, candidate),
+    );
+
+    return {
+      category: category
+        ? { status: "resolved", id: category.id, name: category.name }
+        : { status: "pending", reason: "no-compatible-category" },
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: oldestAge,
+      resolvedCategoryExperienceLevelIds: category?.experienceLevelIds ?? [],
+    };
+  }
+
+  const toleranceCategory = input.categories.find((candidate) => {
+    const youngerCount = input.dancers.filter(
+      (dancer) => dancer.ageAtEventStart < candidate.minAge,
+    ).length;
+    const olderCount = input.dancers.filter(
+      (dancer) => dancer.ageAtEventStart > candidate.maxAge,
+    ).length;
+
+    return youngerCount === 0 && olderCount / input.dancers.length <= 0.2;
+  });
+
+  if (toleranceCategory) {
+    return {
+      category: {
+        status: "resolved",
+        id: toleranceCategory.id,
+        name: toleranceCategory.name,
+      },
+      categoryCalculationMode: "group_tolerance",
+      categoryAgeBasis: null,
+      resolvedCategoryExperienceLevelIds: toleranceCategory.experienceLevelIds,
+    };
+  }
+
+  const averageAge = Math.round(
+    input.dancers.reduce((total, dancer) => total + dancer.ageAtEventStart, 0) /
+      input.dancers.length,
+  );
+  const averageCategory = input.categories.find((candidate) =>
+    isAgeWithinCategory(averageAge, candidate),
+  );
+
+  return {
+    category: averageCategory
+      ? {
+          status: "resolved",
+          id: averageCategory.id,
+          name: averageCategory.name,
+        }
+      : { status: "pending", reason: "no-compatible-category" },
+    categoryCalculationMode: "group_average",
+    categoryAgeBasis: averageAge,
+    resolvedCategoryExperienceLevelIds:
+      averageCategory?.experienceLevelIds ?? [],
+  };
+}
+
+function isAgeWithinCategory(
+  age: number,
+  category: { minAge: number; maxAge: number },
+) {
+  return category.minAge <= age && age <= category.maxAge;
+}
+
+function mapScheduleResolution(
+  scheduleResolution: Awaited<
+    ReturnType<typeof resolveCompatibleScheduleEntries>
+  >,
+): ScheduleResolution {
+  if (scheduleResolution.status === "none") {
+    return {
+      status: "none",
+      canConfirm: false,
+      error: scheduleResolution.error,
+      options: [],
+    };
+  }
+
+  if (scheduleResolution.status === "auto") {
+    return {
+      status: "auto",
+      canConfirm: true,
+      scheduleEntryId: scheduleResolution.scheduleEntry.id,
+      options: [toScheduleOptionSummary(scheduleResolution.scheduleEntry)],
+    };
+  }
+
+  return {
+    status: "multiple",
+    canConfirm: true,
+    options: scheduleResolution.options.map(toScheduleOptionSummary),
+  };
+}
+
+function toScheduleOptionSummary(
+  option: CompatibleScheduleEntry,
+): ScheduleOptionSummary {
+  return {
+    id: option.id,
+    capacity: option.capacity,
+    groupTypes: option.groupTypes,
+    groupTypeKey: option.groupTypeKey,
+    scheduleBlock: option.scheduleBlock,
+  };
+}
+
+function isRegistrationWindowOpen(
+  event: Pick<
+    typeof events.$inferSelect,
+    "registrationStartsAt" | "registrationEndsAt"
+  >,
+  now: Date,
+) {
+  return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
+}
+
+function getLocalDateParts(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
+
+  return {
+    year: Number(partMap.get("year")),
+    month: Number(partMap.get("month")),
+    day: Number(partMap.get("day")),
+  };
+}
+
+function getAgeAtDate(
+  birthDate: string,
+  date: { year: number; month: number; day: number },
+) {
+  const [birthYear, birthMonth, birthDay] = birthDate
+    .split("-")
+    .map((value) => Number(value));
+  const hasHadBirthday =
+    date.month > birthMonth ||
+    (date.month === birthMonth && date.day >= birthDay);
+
+  return date.year - birthYear - (hasHadBirthday ? 0 : 1);
+}
+
+function failure(code: OperationFailureCode, error: string): OperationFailure {
+  return {
+    ok: false,
+    code,
+    error,
+  };
+}
