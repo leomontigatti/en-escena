@@ -3,13 +3,16 @@ import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
+  administrativeAuditEntries,
   choreographies,
   choreographyDancers,
   dancers,
   user,
 } from "@/db/schema";
 import {
+  adminDancerCorrectionReasonMessage,
   adminDancerPageSize,
+  type AdministrativeDancerAuditAction,
   type AdminDancerIdentificationStatus,
   type AdminDancerParticipationStatus,
   type AdministrativeDancerListFilters,
@@ -17,6 +20,12 @@ import {
   readAdminDancerParticipationFilter,
   readAdminDancerStatusFilter,
 } from "@/lib/admin-dancers.shared";
+import {
+  findDuplicateDancerDocument,
+  type DancerEditableSnapshot,
+  normalizeDancerDocumentPair,
+  normalizeDancerValues,
+} from "@/lib/dancer-records.server";
 
 export type AdministrativeDancerListItem = {
   id: string;
@@ -54,8 +63,54 @@ export type AdministrativeDancerDetail = {
   };
   participationStatus: AdminDancerParticipationStatus;
   identificationStatus: AdminDancerIdentificationStatus;
+  participatedInAnyEvent: boolean;
+  correctionReasonRequired: boolean;
   choreographyNames: string[];
 };
+
+export type AdministrativeDancerUpdateInput = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  documentType: string;
+  documentNumber: string;
+  correctionReason: string;
+};
+
+export type AdministrativeDancerFieldErrors = Partial<
+  Record<
+    | "firstName"
+    | "lastName"
+    | "birthDate"
+    | "documentType"
+    | "documentNumber"
+    | "correctionReason",
+    string
+  >
+>;
+
+export type AdministrativeDancerMutationResult =
+  | {
+      ok: true;
+      dancer: DancerEditableSnapshot;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: AdministrativeDancerFieldErrors;
+      values: AdministrativeDancerUpdateInput;
+    };
+
+type AdministrativeDancerStatusMutationResult =
+  | {
+      ok: true;
+      dancer: DancerEditableSnapshot;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: Pick<AdministrativeDancerFieldErrors, "correctionReason">;
+    };
 
 export function readAdministrativeDancerFilters(
   searchParams: URLSearchParams,
@@ -164,6 +219,7 @@ export async function findAdministrativeDancer(input: {
       academyPhone: academies.phone,
       academyEmail: user.email,
       isParticipating: participationSql,
+      hasParticipatedInAnyEvent: buildAnyEventParticipationSql(),
     })
     .from(dancers)
     .innerJoin(academies, eq(academies.id, dancers.academyId))
@@ -221,9 +277,188 @@ export async function findAdministrativeDancer(input: {
       documentType: row.documentType,
       documentNumber: row.documentNumber,
     }),
+    participatedInAnyEvent: row.hasParticipatedInAnyEvent,
+    correctionReasonRequired: isCorrectionReasonRequired({
+      selectedEventId: input.selectedEventId,
+      isParticipating: row.isParticipating,
+      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+    }),
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
+  };
+}
+
+export async function updateAdministrativeDancer(input: {
+  adminUserId: string;
+  dancerId: string;
+  selectedEventId: string | null;
+  values: AdministrativeDancerUpdateInput;
+}): Promise<AdministrativeDancerMutationResult> {
+  const existingDancer = await findAdministrativeDancerForMutation({
+    dancerId: input.dancerId,
+    selectedEventId: input.selectedEventId,
+  });
+
+  if (!existingDancer) {
+    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+  }
+
+  const values = {
+    ...input.values,
+    correctionReason: input.values.correctionReason,
+  };
+  const fieldErrors: AdministrativeDancerFieldErrors = {};
+  const normalizedValues = normalizeDancerValues(input.values);
+
+  Object.assign(fieldErrors, normalizedValues.fieldErrors);
+
+  const normalizedDocument = normalizeDancerDocumentPair(
+    input.values.documentType,
+    input.values.documentNumber,
+  );
+
+  if (!normalizedDocument.ok) {
+    Object.assign(fieldErrors, normalizedDocument.fieldErrors);
+  }
+
+  const normalizedReason = validateAdministrativeDancerCorrectionReason({
+    correctionReason: input.values.correctionReason,
+    required: existingDancer.correctionReasonRequired,
+  });
+  const correctionReason = normalizedReason.ok
+    ? normalizedReason.correctionReason
+    : null;
+
+  if (!normalizedReason.ok) {
+    fieldErrors.correctionReason = normalizedReason.fieldError;
+  }
+
+  if (!normalizedDocument.ok || Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  if (
+    normalizedDocument.documentType !== null &&
+    normalizedDocument.documentNumber !== null
+  ) {
+    const duplicateDancer = await findDuplicateDancerDocument({
+      academyId: existingDancer.academyId,
+      dancerId: existingDancer.id,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+    });
+
+    if (duplicateDancer) {
+      return {
+        ok: false,
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          documentNumber:
+            "Ya existe un Bailarín con ese documento en la academia.",
+        },
+        values,
+      };
+    }
+  }
+
+  const beforeValues = toDancerSnapshot(existingDancer);
+  const [updatedDancer] = await db
+    .update(dancers)
+    .set({
+      firstName: normalizedValues.firstName,
+      lastName: normalizedValues.lastName,
+      birthDate: normalizedValues.birthDate,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+      updatedAt: new Date(),
+    })
+    .where(eq(dancers.id, existingDancer.id))
+    .returning();
+  const afterValues = toDancerSnapshot(updatedDancer);
+
+  await insertAdministrativeDancerAuditEntry({
+    action: "update",
+    adminUserId: input.adminUserId,
+    afterValues,
+    beforeValues,
+    dancerId: existingDancer.id,
+    eventId: input.selectedEventId,
+    reason:
+      correctionReason && correctionReason.length > 0 ? correctionReason : null,
+  });
+
+  return {
+    ok: true,
+    dancer: afterValues,
+  };
+}
+
+export async function setAdministrativeDancerActiveState(input: {
+  action: "archive" | "reactivate";
+  adminUserId: string;
+  dancerId: string;
+  selectedEventId: string | null;
+  correctionReason: string;
+}): Promise<AdministrativeDancerStatusMutationResult> {
+  const existingDancer = await findAdministrativeDancerForMutation({
+    dancerId: input.dancerId,
+    selectedEventId: input.selectedEventId,
+  });
+
+  if (!existingDancer) {
+    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+  }
+
+  const normalizedReason = validateAdministrativeDancerCorrectionReason({
+    correctionReason: input.correctionReason,
+    required: existingDancer.correctionReasonRequired,
+  });
+  const correctionReason = normalizedReason.ok
+    ? normalizedReason.correctionReason
+    : null;
+
+  if (!normalizedReason.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: {
+        correctionReason: normalizedReason.fieldError,
+      },
+    };
+  }
+
+  const nextActive = input.action === "reactivate";
+  const beforeValues = toDancerSnapshot(existingDancer);
+  const [updatedDancer] = await db
+    .update(dancers)
+    .set({
+      active: nextActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(dancers.id, existingDancer.id))
+    .returning();
+  const afterValues = toDancerSnapshot(updatedDancer);
+
+  await insertAdministrativeDancerAuditEntry({
+    action: input.action,
+    adminUserId: input.adminUserId,
+    afterValues,
+    beforeValues,
+    dancerId: existingDancer.id,
+    eventId: input.selectedEventId,
+    reason:
+      correctionReason && correctionReason.length > 0 ? correctionReason : null,
+  });
+
+  return {
+    ok: true,
+    dancer: afterValues,
   };
 }
 
@@ -298,6 +533,16 @@ function buildParticipationSql(selectedEventId: string | null) {
   )`;
 }
 
+function buildAnyEventParticipationSql() {
+  return sql<boolean>`exists (
+    select 1
+    from ${choreographyDancers}
+    inner join ${choreographies}
+      on ${choreographies.id} = ${choreographyDancers.choreographyId}
+    where ${choreographyDancers.dancerId} = ${dancers.id}
+  )`;
+}
+
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
@@ -307,6 +552,126 @@ function toParticipationStatus(
   }
 
   return isParticipating ? "participating" : "not-participating";
+}
+
+async function findAdministrativeDancerForMutation(input: {
+  dancerId: string;
+  selectedEventId: string | null;
+}) {
+  const participationSql = buildParticipationSql(input.selectedEventId);
+  const anyEventParticipationSql = buildAnyEventParticipationSql();
+
+  return await db
+    .select({
+      id: dancers.id,
+      academyId: dancers.academyId,
+      firstName: dancers.firstName,
+      lastName: dancers.lastName,
+      birthDate: dancers.birthDate,
+      active: dancers.active,
+      documentType: dancers.documentType,
+      documentNumber: dancers.documentNumber,
+      isParticipating: participationSql,
+      hasParticipatedInAnyEvent: anyEventParticipationSql,
+    })
+    .from(dancers)
+    .where(eq(dancers.id, input.dancerId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
+    .then((row) => {
+      if (!row) {
+        return null;
+      }
+
+      return {
+        ...row,
+        correctionReasonRequired: isCorrectionReasonRequired({
+          selectedEventId: input.selectedEventId,
+          isParticipating: row.isParticipating,
+          hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+        }),
+      };
+    });
+}
+
+function isCorrectionReasonRequired(input: {
+  selectedEventId: string | null;
+  isParticipating: boolean;
+  hasParticipatedInAnyEvent: boolean;
+}) {
+  if (input.selectedEventId !== null) {
+    return input.isParticipating || input.hasParticipatedInAnyEvent;
+  }
+
+  return input.hasParticipatedInAnyEvent;
+}
+
+function validateAdministrativeDancerCorrectionReason(input: {
+  correctionReason: string;
+  required: boolean;
+}) {
+  const correctionReason = input.correctionReason.trim();
+
+  if (
+    !isCorrectionReasonLengthValid(correctionReason) &&
+    (input.required || correctionReason.length > 0)
+  ) {
+    return {
+      ok: false as const,
+      fieldError: adminDancerCorrectionReasonMessage,
+    };
+  }
+
+  return {
+    ok: true as const,
+    correctionReason,
+  };
+}
+
+function isCorrectionReasonLengthValid(reason: string) {
+  return reason.length >= 10 && reason.length <= 500;
+}
+
+function toDancerSnapshot(
+  dancer: Pick<
+    typeof dancers.$inferSelect,
+    | "firstName"
+    | "lastName"
+    | "birthDate"
+    | "documentType"
+    | "documentNumber"
+    | "active"
+  >,
+): DancerEditableSnapshot {
+  return {
+    firstName: dancer.firstName,
+    lastName: dancer.lastName,
+    birthDate: dancer.birthDate,
+    documentType: dancer.documentType,
+    documentNumber: dancer.documentNumber,
+    active: dancer.active,
+  };
+}
+
+async function insertAdministrativeDancerAuditEntry(input: {
+  action: AdministrativeDancerAuditAction;
+  adminUserId: string;
+  afterValues: DancerEditableSnapshot;
+  beforeValues: DancerEditableSnapshot;
+  dancerId: string;
+  eventId: string | null;
+  reason: string | null;
+}) {
+  await db.insert(administrativeAuditEntries).values({
+    entityType: "dancer",
+    entityId: input.dancerId,
+    eventId: input.eventId,
+    adminUserId: input.adminUserId,
+    action: input.action,
+    reason: input.reason,
+    beforeValues: input.beforeValues,
+    afterValues: input.afterValues,
+  });
 }
 
 function toIdentificationStatus(input: {

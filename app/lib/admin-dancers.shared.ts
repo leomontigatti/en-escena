@@ -1,5 +1,10 @@
 export const adminDancerPageSize = 50;
 export const adminDancerNotFoundMessage = "No encontramos ese Bailarín.";
+export const adminDancerSavedSearchParam = "guardado";
+export const adminDancerSavedSuccessMessage =
+  "Bailarín actualizado correctamente.";
+export const adminDancerCorrectionReasonMessage =
+  "Ingresá un motivo de corrección para guardar este cambio.";
 
 export type AdminDancerParticipationFilter = "yes" | "no" | "all";
 export type AdminDancerStatusFilter = "active" | "archived" | "all";
@@ -12,6 +17,10 @@ export type AdminDancerParticipationStatus =
   | "not-participating"
   | "no-event";
 export type AdminDancerIdentificationStatus = "incomplete" | "missing-images";
+export type AdministrativeDancerAuditAction =
+  | "update"
+  | "archive"
+  | "reactivate";
 
 export type AdministrativeDancerListFilters = {
   participation: AdminDancerParticipationFilter;

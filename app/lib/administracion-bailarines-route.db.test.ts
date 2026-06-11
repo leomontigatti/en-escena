@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   academies,
+  administrativeAuditEntries,
   choreographyDancers,
   choreographies,
   dancers,
@@ -25,6 +26,7 @@ import {
 } from "@/routes/administracion_.bailarines";
 import {
   AdministracionBailarinDetalleRouteView,
+  action as detailAction,
   loader as detailLoader,
 } from "@/routes/administracion_.bailarines_.$dancerId";
 
@@ -303,6 +305,556 @@ describe("administracion/bailarines route", () => {
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Archivar Bailarín");
   });
+
+  test("shows explicit edit controls only for admin users", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.controles.bailarines.academia@example.com",
+      academyName: "Academia Controles",
+      contactName: "Carla Controles",
+      phone: "6666-6666",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Iris",
+      lastName: "Control",
+      birthDate: "2013-06-06",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.controles.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
+    });
+    const { request: adminEditRequest } = await createSignedInRequest({
+      email: "admin.edicion.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+    });
+    const { request: auditorRequest } = await createSignedInRequest({
+      email: "auditor.controles.bailarines@example.com",
+      role: "auditor",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
+    });
+
+    const adminMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(adminRequest, dancer.id)),
+      dancer.id,
+    );
+    const adminEditMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(adminEditRequest, dancer.id)),
+      dancer.id,
+    );
+    const auditorMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(auditorRequest, dancer.id)),
+      dancer.id,
+    );
+
+    expect(adminMarkup).toContain("Editar");
+    expect(adminMarkup).not.toContain("Guardar cambios");
+    expect(adminEditMarkup).toContain("Guardar cambios");
+    expect(adminEditMarkup).toContain("Cancelar");
+    expect(adminEditMarkup).toContain("Archivar Bailarín");
+    expect(auditorMarkup).not.toContain("Editar");
+    expect(auditorMarkup).not.toContain("Guardar cambios");
+    expect(auditorMarkup).not.toContain("Archivar Bailarín");
+    expect(auditorMarkup).not.toContain("Reactivar Bailarín");
+  });
+
+  test("updates a Bailarín in explicit edit mode and persists an administrative audit entry", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.mutacion.bailarines.academia@example.com",
+      academyName: "Academia Mutacion",
+      contactName: "Nadia Mutacion",
+      phone: "5555-5555",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "ana",
+      lastName: "perez",
+      birthDate: "2013-01-10",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.mutacion.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const response = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "update-dancer",
+            firstName: "  maría del carmen ",
+            lastName: " de la cruz ",
+            birthDate: "2012-05-06",
+            documentType: "dni",
+            documentNumber: "12.345-678",
+            correctionReason: "",
+          }),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/administracion/bailarines/${dancer.id}?evento=${event.id}&guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "María del Carmen",
+      lastName: "de la Cruz",
+      birthDate: "2012-05-06",
+      documentType: "dni",
+      documentNumber: "12345678",
+      active: true,
+    });
+
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "dancer",
+          entityId: dancer.id,
+          eventId: event.id,
+          action: "update",
+          reason: null,
+          beforeValues: {
+            firstName: "ana",
+            lastName: "perez",
+            birthDate: "2013-01-10",
+            documentType: null,
+            documentNumber: null,
+            active: true,
+          },
+          afterValues: {
+            firstName: "María del Carmen",
+            lastName: "de la Cruz",
+            birthDate: "2012-05-06",
+            documentType: "dni",
+            documentNumber: "12345678",
+            active: true,
+          },
+        }),
+      ],
+    );
+  });
+
+  test("rejects auditor, judge, and academy mutations", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.roles.bailarines.academia@example.com",
+      academyName: "Academia Roles",
+      contactName: "Rita Roles",
+      phone: "7777-7777",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Nora",
+      lastName: "Roles",
+      birthDate: "2013-03-03",
+    });
+
+    for (const role of ["auditor", "judge", "academy"] as const) {
+      const { request } = await createSignedInRequest({
+        email: `${role}.bailarines@example.com`,
+        role,
+        requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      });
+
+      await expectThrownResponse(
+        detailAction(
+          detailActionArgs(
+            createPostRequest(
+              request.url,
+              request.headers.get("cookie") ?? "",
+              {
+                intent: "update-dancer",
+                firstName: "Nora",
+                lastName: "Roles",
+                birthDate: "2013-03-03",
+                documentType: "",
+                documentNumber: "",
+                correctionReason: "",
+              },
+            ),
+            dancer.id,
+          ),
+        ),
+        403,
+      );
+    }
+  });
+
+  test("requires a correction reason when the Bailarín participates in the Evento de trabajo", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.motivo.evento.bailarines.academia@example.com",
+      academyName: "Academia Motivo Evento",
+      contactName: "Mara Evento",
+      phone: "8888-8888",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lia",
+      lastName: "Participa",
+      birthDate: "2012-04-08",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Latido",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.motivo.evento.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Lia",
+          lastName: "Participa",
+          birthDate: "2012-04-08",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        correctionReason:
+          "Ingresá un motivo de corrección para guardar este cambio.",
+      },
+    });
+  });
+
+  test("requires a correction reason without Evento de trabajo when the Bailarín participated in any Evento", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.motivo.historial.bailarines.academia@example.com",
+      academyName: "Academia Motivo Historial",
+      contactName: "Marta Historial",
+      phone: "9999-9999",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lola",
+      lastName: "Historial",
+      birthDate: "2011-11-11",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Memoria",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.motivo.historial.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Lola",
+          lastName: "Historial",
+          birthDate: "2011-11-11",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        correctionReason:
+          "Ingresá un motivo de corrección para guardar este cambio.",
+      },
+    });
+  });
+
+  test("rejects a duplicate document within the same academy", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.duplicado.bailarines.academia@example.com",
+      academyName: "Academia Duplicados",
+      contactName: "Dora Duplicados",
+      phone: "1010-1010",
+    });
+    await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Original",
+      birthDate: "2010-01-01",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Bia",
+      lastName: "Nueva",
+      birthDate: "2011-02-02",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.duplicado.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Bia",
+          lastName: "Nueva",
+          birthDate: "2011-02-02",
+          documentType: "dni",
+          documentNumber: "12 345 678",
+          correctionReason: "",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín con ese documento en la academia.",
+      },
+    });
+  });
+
+  test("warns in edit mode that changing birth date may require recalculating linked coreografias", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.advertencia.bailarines.academia@example.com",
+      academyName: "Academia Advertencia",
+      contactName: "Alma Advertencia",
+      phone: "1212-1212",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Vera",
+      lastName: "Aviso",
+      birthDate: "2013-08-08",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Persistencia",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.advertencia.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const markup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(request, dancer.id)),
+      dancer.id,
+    );
+
+    expect(markup).toContain("Guardar cambios");
+    expect(markup).toContain(
+      "Si cambiás la fecha de nacimiento, las coreografías vinculadas pueden requerir recalcular categoría desde el flujo de Coreografías.",
+    );
+  });
+
+  test("updates birth date without recalculating linked coreografias and persists the audit reason", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.fecha.bailarines.academia@example.com",
+      academyName: "Academia Fecha",
+      contactName: "Fabi Fecha",
+      phone: "1313-1313",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Nina",
+      lastName: "Fecha",
+      birthDate: "2013-05-01",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Umbral",
+    });
+    const [{ ageAtEventStart: beforeAgeAtEventStart }] = await db
+      .select({
+        ageAtEventStart: choreographyDancers.ageAtEventStart,
+      })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.dancerId, dancer.id));
+    const { request } = await createSignedInRequest({
+      email: "admin.fecha.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "update-dancer",
+            firstName: "Nina",
+            lastName: "Fecha",
+            birthDate: "2012-05-01",
+            documentType: "",
+            documentNumber: "",
+            correctionReason: "Corrección manual para alinear el legajo.",
+          }),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    const [{ ageAtEventStart: afterAgeAtEventStart }] = await db
+      .select({
+        ageAtEventStart: choreographyDancers.ageAtEventStart,
+      })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.dancerId, dancer.id));
+
+    expect(afterAgeAtEventStart).toBe(beforeAgeAtEventStart);
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .orderBy(administrativeAuditEntries.createdAt),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "update",
+        entityId: dancer.id,
+        reason: "Corrección manual para alinear el legajo.",
+        beforeValues: expect.objectContaining({ birthDate: "2013-05-01" }),
+        afterValues: expect.objectContaining({ birthDate: "2012-05-01" }),
+      }),
+    ]);
+  });
+
+  test("archives and reactivates a participating Bailarín without unlinking coreografias and persists audit entries", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.archivo.bailarines.academia@example.com",
+      academyName: "Academia Archivo Admin",
+      contactName: "Ada Archivo",
+      phone: "1111-0000",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Rosa",
+      lastName: "Archivo",
+      birthDate: "2014-01-20",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Persistencia",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.archivo.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const archiveResponse = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "archive-dancer",
+            correctionReason: "Corrección manual por soporte.",
+          }),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    expect(archiveResponse.headers.get("location")).toBe(
+      `/administracion/bailarines/${dancer.id}?evento=${event.id}&guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({ active: false });
+
+    const archivedDetail = await detailLoader(
+      detailRouteArgs(request, dancer.id),
+    );
+    expect(archivedDetail.dancer.active).toBe(false);
+    expect(archivedDetail.dancer.participationStatus).toBe("participating");
+    expect(archivedDetail.dancer.choreographyNames).toEqual(["Persistencia"]);
+
+    await expect(
+      db
+        .select()
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.dancerId, dancer.id)),
+    ).resolves.toHaveLength(1);
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+            request.headers.get("cookie") ?? "",
+            {
+              intent: "reactivate-dancer",
+              correctionReason: "Reactivación operativa por soporte.",
+            },
+          ),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({ active: true });
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .orderBy(administrativeAuditEntries.createdAt),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "archive",
+        entityId: dancer.id,
+        reason: "Corrección manual por soporte.",
+        beforeValues: expect.objectContaining({ active: true }),
+        afterValues: expect.objectContaining({ active: false }),
+      }),
+      expect.objectContaining({
+        action: "reactivate",
+        entityId: dancer.id,
+        reason: "Reactivación operativa por soporte.",
+        beforeValues: expect.objectContaining({ active: false }),
+        afterValues: expect.objectContaining({ active: true }),
+      }),
+    ]);
+  });
 });
 
 function renderRoute(
@@ -384,6 +936,16 @@ function routeArgs(request: Request) {
 }
 
 function detailRouteArgs(request: Request, dancerId: string) {
+  return {
+    request,
+    params: { dancerId },
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/bailarines/:dancerId",
+  };
+}
+
+function detailActionArgs(request: Request, dancerId: string) {
   return {
     request,
     params: { dancerId },
@@ -551,8 +1113,28 @@ async function expectThrownResponse(
     const response = error as Response;
 
     expect(response.status).toBe(expectedStatus);
-    return;
+    return response;
   }
 
   throw new Error("Expected a Response to be thrown.");
+}
+
+function createPostRequest(
+  url: string,
+  cookie: string,
+  values: Record<string, string>,
+) {
+  const formData = new FormData();
+
+  for (const [key, value] of Object.entries(values)) {
+    formData.set(key, value);
+  }
+
+  return new Request(url, {
+    method: "POST",
+    body: formData,
+    headers: {
+      cookie,
+    },
+  });
 }
