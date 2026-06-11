@@ -469,13 +469,13 @@ function getCreationState(
 function getEventStatus(isReadOnly: boolean) {
   if (isReadOnly) {
     return {
-      label: "Solo lectura",
+      label: "Evento consultado",
       className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-amber-50 text-amber-800`,
     };
   }
 
   return {
-    label: "Contexto editable",
+    label: "Evento activo",
     className: `${EVENT_STATUS_BADGE_CLASS_NAME} bg-emerald-50 text-emerald-800`,
   };
 }

@@ -66,7 +66,7 @@ describe("portal route view", () => {
     expect(markup).toContain('name="evento"');
     expect(markup).toContain('value="event_2026"');
     expect(markup).toContain('value="event_2025" selected="">');
-    expect(markup).toContain("Solo lectura");
+    expect(markup).toContain("Evento consultado");
     expect(markup).toContain(
       "No hay coreografías registradas para este evento",
     );
@@ -98,7 +98,7 @@ describe("portal route view", () => {
       },
     });
 
-    expect(markup).toContain("Contexto editable");
+    expect(markup).toContain("Evento activo");
     expect(markup).toContain(
       "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
     );
@@ -163,7 +163,7 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
     );
-    expect(markup).toContain("Falta un Precio aplicable");
+    expect(markup).not.toContain("Precio");
   });
 
   test("shows the Coreografías list with the agreed columns and readonly historical context", () => {
@@ -214,7 +214,7 @@ describe("portal route view", () => {
       expect(markup).toContain(columnLabel);
     }
 
-    expect(markup).toContain("Solo lectura");
+    expect(markup).toContain("Evento consultado");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Inicial");
@@ -309,7 +309,7 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Mi Pieza");
-    expect(markup).toContain("Solo lectura");
+    expect(markup).toContain("Evento consultado");
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
@@ -368,7 +368,7 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Contexto editable");
+    expect(markup).toContain("Evento activo");
     expect(markup).toContain("Editable");
     expect(markup).toContain("Profesores actualizados correctamente.");
     expect(markup).toContain("Guardar Profesores");
@@ -478,6 +478,9 @@ describe("portal route view", () => {
     expect(markup).toContain(">Activos<");
     expect(markup).toContain(">Archivados<");
     expect(markup).toContain("Archivado");
+    expect(markup).toContain(
+      'href="/portal/bailarines/dancer_archived?estado=archivados"',
+    );
     expect(markup).not.toContain("Cargar Bailarín");
     expect(markup).not.toContain("Archivar Bailarín");
     expect(markup).not.toContain("Reactivar Bailarín");
@@ -554,11 +557,13 @@ describe("portal route view", () => {
           active: false,
         }),
         saved: false,
+        statusFilter: "archived",
       },
     });
 
     expect(markup).toContain("Archivado");
     expect(markup).toContain("Reactivar Bailarín");
+    expect(markup).toContain('href="/portal/bailarines?estado=archivados"');
     expect(markup).not.toContain("Archivar Bailarín");
   });
 
@@ -687,6 +692,9 @@ describe("portal route view", () => {
     expect(markup).toContain(">Activos<");
     expect(markup).toContain(">Archivados<");
     expect(markup).toContain("Archivado");
+    expect(markup).toContain(
+      'href="/portal/profesores/prof_archived?estado=archivados"',
+    );
     expect(markup).not.toContain("Archivar Profesor");
     expect(markup).not.toContain("Reactivar Profesor");
   });
@@ -758,12 +766,15 @@ describe("portal Profesor edit view", () => {
           active: false,
           isIncomplete: false,
         }),
+        statusFilter: "archived",
         successMessage: null,
       },
     });
 
     expect(markup).toContain("Archivado");
     expect(markup).toContain("Reactivar Profesor");
+    expect(markup).toContain('href="/portal/profesores?estado=archivados"');
+    expect(markup).toContain("Volver a Profesores");
     expect(markup).not.toContain("Archivar Profesor");
   });
 });

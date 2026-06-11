@@ -194,8 +194,8 @@ export function PortalCoreografiaDetalleRouteView({
               )}
             >
               {loaderData.eventContext.isReadOnly
-                ? "Solo lectura"
-                : "Contexto editable"}
+                ? "Evento consultado"
+                : "Evento activo"}
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">

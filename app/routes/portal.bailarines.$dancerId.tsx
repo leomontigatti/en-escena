@@ -61,6 +61,7 @@ export async function loader({
     academy,
     dancer,
     saved: new URL(request.url).searchParams.get("guardado") === "1",
+    statusFilter: resolveDancerStatusFilter(request, dancer.active),
   };
 }
 
@@ -111,6 +112,10 @@ export function PortalBailarinDetalleRouteView({
   actionData,
 }: PortalBailarinDetalleRouteProps) {
   const values = actionData?.values ?? buildDancerFormValues(loaderData.dancer);
+  const backToList =
+    loaderData.statusFilter === "archived"
+      ? "/portal/bailarines?estado=archivados"
+      : "/portal/bailarines";
   const isIdentificationIncomplete =
     loaderData.dancer.documentType === null ||
     loaderData.dancer.documentNumber === null;
@@ -142,7 +147,7 @@ export function PortalBailarinDetalleRouteView({
         aria-labelledby="bailarin-detalle-title"
       >
         <Link
-          to="/portal/bailarines"
+          to={backToList}
           className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -370,6 +375,17 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+function resolveDancerStatusFilter(request: Request, isActive: boolean) {
+  const requestedFilter =
+    new URL(request.url).searchParams.get("estado") === "archivados"
+      ? "archived"
+      : "active";
+
+  return !isActive && requestedFilter === "active"
+    ? "archived"
+    : requestedFilter;
 }
 
 function buildDancerFormValues(

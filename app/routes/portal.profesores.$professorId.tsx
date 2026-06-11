@@ -47,6 +47,7 @@ export async function loader({
     email: user.email,
     academy,
     professor,
+    statusFilter: resolveProfessorStatusFilter(request, professor.active),
     successMessage: readUpdatedSuccessMessage(
       new URL(request.url).searchParams,
     ),
@@ -106,6 +107,10 @@ export function PortalProfesorRouteView({
   actionData: actionDataOverride,
 }: PortalProfesorRouteProps) {
   const actionData = actionDataOverride;
+  const backToList =
+    loaderData.statusFilter === "archived"
+      ? "/portal/profesores?estado=archivados"
+      : "/portal/profesores";
   const statusAction = loaderData.professor.active
     ? {
         description:
@@ -253,8 +258,8 @@ export function PortalProfesorRouteView({
         </form>
       </section>
 
-      <AccessSecondaryLink to="/portal/profesores" className="mt-8">
-        Volver a profesores
+      <AccessSecondaryLink to={backToList} className="mt-8">
+        Volver a Profesores
       </AccessSecondaryLink>
     </PortalShell>
   );
@@ -339,6 +344,17 @@ function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
   return searchParams.get(professorUpdatedSearchParam) === "1"
     ? professorUpdatedSuccessMessage
     : null;
+}
+
+function resolveProfessorStatusFilter(request: Request, isActive: boolean) {
+  const requestedFilter =
+    new URL(request.url).searchParams.get("estado") === "archivados"
+      ? "archived"
+      : "active";
+
+  return !isActive && requestedFilter === "active"
+    ? "archived"
+    : requestedFilter;
 }
 
 function readFormString(formData: FormData, fieldName: string) {

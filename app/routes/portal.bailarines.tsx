@@ -199,7 +199,7 @@ function DancersSection({
       </div>
 
       {dancers.length > 0 ? (
-        <DancersTable dancers={dancers} />
+        <DancersTable dancers={dancers} statusFilter={statusFilter} />
       ) : (
         <PortalEmptyList
           title={copy.emptyTitle}
@@ -214,7 +214,15 @@ function DancersSection({
   );
 }
 
-function DancersTable({ dancers }: { dancers: DancerListItem[] }) {
+function DancersTable({
+  dancers,
+  statusFilter,
+}: {
+  dancers: DancerListItem[];
+  statusFilter: "active" | "archived";
+}) {
+  const detailSearch = statusFilter === "archived" ? "?estado=archivados" : "";
+
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <table className="w-full border-collapse text-left text-sm">
@@ -231,7 +239,7 @@ function DancersTable({ dancers }: { dancers: DancerListItem[] }) {
             <tr key={dancer.id} className="hover:bg-slate-50">
               <td className="px-4 py-3 font-medium text-slate-950">
                 <Link
-                  to={`/portal/bailarines/${dancer.id}`}
+                  to={`/portal/bailarines/${dancer.id}${detailSearch}`}
                   className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 >
                   {dancer.lastName}, {dancer.firstName}

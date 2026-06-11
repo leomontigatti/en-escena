@@ -22,7 +22,7 @@ type PortalProfesoresRouteProps = {
   actionData?: Awaited<ReturnType<typeof action>>;
 };
 
-type ProfessorStatusFilter = Awaited<ReturnType<typeof loader>>["statusFilter"];
+type ProfessorStatusFilter = "active" | "archived";
 
 export const meta = () => [
   { title: "Profesores | Portal de academias | En Escena" },
@@ -31,7 +31,7 @@ export const meta = () => [
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
   const url = new URL(request.url);
-  const statusFilter =
+  const statusFilter: ProfessorStatusFilter =
     url.searchParams.get("estado") === "archivados" ? "archived" : "active";
   const professorRows = await listAcademyProfessors(academy.id, {
     status: statusFilter,
@@ -147,7 +147,10 @@ export function PortalProfesoresRouteView({
         ) : null}
 
         {loaderData.professors.length > 0 ? (
-          <ProfessorTable professors={loaderData.professors} />
+          <ProfessorTable
+            professors={loaderData.professors}
+            statusFilter={loaderData.statusFilter}
+          />
         ) : (
           <PortalEmptyList
             title={statusFilterCopy.emptyTitle}
@@ -188,7 +191,15 @@ type ProfessorListItem = Awaited<
   ReturnType<typeof loader>
 >["professors"][number];
 
-function ProfessorTable({ professors }: { professors: ProfessorListItem[] }) {
+function ProfessorTable({
+  professors,
+  statusFilter,
+}: {
+  professors: ProfessorListItem[];
+  statusFilter: "active" | "archived";
+}) {
+  const detailSearch = statusFilter === "archived" ? "?estado=archivados" : "";
+
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -219,7 +230,7 @@ function ProfessorTable({ professors }: { professors: ProfessorListItem[] }) {
             <tr key={professor.id} className="hover:bg-slate-50">
               <td className="px-4 py-3 font-medium text-slate-950">
                 <Link
-                  to={`/portal/profesores/${professor.id}`}
+                  to={`/portal/profesores/${professor.id}${detailSearch}`}
                   className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 >
                   {professor.lastName}, {professor.firstName}
