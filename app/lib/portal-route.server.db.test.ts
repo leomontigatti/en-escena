@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, dancers, user } from "@/db/schema";
+import { academies, dancers, professors, user } from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import { activateEvent, createEvent } from "@/lib/event-management.server";
 import { loader as portalLoader } from "@/routes/portal";
@@ -11,7 +11,10 @@ import {
   loader as bailarinesLoader,
 } from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
-import { loader as profesoresLoader } from "@/routes/portal.profesores";
+import {
+  action as profesoresAction,
+  loader as profesoresLoader,
+} from "@/routes/portal.profesores";
 
 import { installDatabaseTestHooks } from "../../tests/db/harness";
 
@@ -270,6 +273,72 @@ describe.sequential("portal Bailarines route", () => {
   });
 });
 
+describe("portal Profesores management", () => {
+  test("creates normalized Profesores and lists only the Academia's rows ordered by apellido and nombre", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const other = await createAcademySession({
+      email: "profesores.other@example.com",
+      academyName: "Academia Ajena",
+    });
+
+    await db.insert(professors).values({
+      academyId: owner.academy.id,
+      firstName: "Ana",
+      lastName: "Zapata",
+    });
+    await db.insert(professors).values({
+      academyId: other.academy.id,
+      firstName: "Ajeno",
+      lastName: "Alvarez",
+    });
+
+    const createRequest = new Request("http://localhost/portal/profesores", {
+      method: "POST",
+      headers: { cookie: owner.cookie },
+      body: formData({
+        intent: "create-professor",
+        firstName: "  jOSÉ  luis ",
+        lastName: " de la CRUZ ",
+      }),
+    });
+
+    const response = await expectThrownResponse(
+      profesoresAction({ request: createRequest }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "/portal/profesores?creado=1",
+    );
+
+    const loaderData = await profesoresLoader({
+      request: new Request("http://localhost/portal/profesores", {
+        headers: { cookie: owner.cookie },
+      }),
+    });
+
+    expect(loaderData.professors).toEqual([
+      expect.objectContaining({
+        firstName: "José Luis",
+        lastName: "de la Cruz",
+        documentType: null,
+        documentNumber: null,
+        isIncomplete: true,
+      }),
+      expect.objectContaining({
+        firstName: "Ana",
+        lastName: "Zapata",
+        documentType: null,
+        documentNumber: null,
+        isIncomplete: true,
+      }),
+    ]);
+  });
+});
+
 async function loadPortal(requestUrl: string) {
   return await portalLoader({
     request: await createAcademyRequest(requestUrl),
@@ -328,6 +397,7 @@ async function createAcademySession({
     .returning();
 
   return {
+    academy,
     academyId: academy.id,
     cookie: createRequestCookie(signUpResult.headers),
   };
@@ -413,11 +483,18 @@ async function createInternalRequest(requestUrl: string) {
   });
 }
 
-async function expectThrownResponse(promise: Promise<unknown>) {
+async function expectThrownResponse(
+  promise: Promise<unknown>,
+  expectedStatus?: number,
+) {
   try {
     await promise;
   } catch (error) {
     if (error instanceof Response) {
+      if (expectedStatus !== undefined) {
+        expect(error.status).toBe(expectedStatus);
+      }
+
       return error;
     }
 
@@ -460,6 +537,16 @@ function createRequestCookie(headers: Headers) {
   }
 
   return `better-auth.session_token=${sessionCookie[1]}`;
+}
+
+function formData(values: Record<string, string>) {
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(values)) {
+    form.set(key, value);
+  }
+
+  return form;
 }
 
 function date(value: string) {

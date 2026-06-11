@@ -178,6 +178,69 @@ describe("portal route view", () => {
     expect(markup).toContain('href="/portal/coreografias"');
     expect(markup).toContain('aria-current="page"');
   });
+
+  test("keeps the Profesores modal open with field errors and previous values", () => {
+    const markup = renderProfesores({
+      actionData: {
+        status: "error",
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          firstName: "Ingresá el nombre del Profesor.",
+          lastName: "Ingresá el apellido del Profesor.",
+        },
+        values: {
+          firstName: "",
+          lastName: "  de la CRUZ ",
+        },
+        modalOpen: true,
+      },
+    });
+
+    expect(markup).toContain('<dialog id="crear-profesor" open=""');
+    expect(markup).toContain("Ingresá el nombre del Profesor.");
+    expect(markup).toContain("Ingresá el apellido del Profesor.");
+    expect(markup).toContain('value="  de la CRUZ "');
+    expect(markup).toContain("Revisá los campos marcados.");
+  });
+
+  test("shows the Profesores success banner", () => {
+    const markup = renderProfesores({
+      loaderData: {
+        ...academyLoaderData(),
+        successMessage: "Profesor creado correctamente.",
+      },
+    });
+
+    expect(markup).toContain("Profesor creado correctamente.");
+    expect(markup).not.toContain('<dialog id="crear-profesor" open="">');
+  });
+
+  test("shows ordered Profesores with document and incomplete badge", () => {
+    const markup = renderProfesores({
+      loaderData: {
+        ...academyLoaderData(),
+        professors: [
+          professorListItem({
+            id: "prof_1",
+            firstName: "José Luis",
+            lastName: "de la Cruz",
+          }),
+          professorListItem({
+            id: "prof_2",
+            firstName: "Ana",
+            lastName: "Zapata",
+          }),
+        ],
+      },
+    });
+
+    expect(markup.indexOf("de la Cruz, José Luis")).toBeLessThan(
+      markup.indexOf("Zapata, Ana"),
+    );
+    expect(markup).toContain('href="/portal/profesores/prof_1"');
+    expect(markup).toContain("Sin documento");
+    expect(markup).toContain("Incompleto");
+  });
 });
 
 type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
@@ -227,20 +290,29 @@ function renderBailarines(
   );
 }
 
-function renderProfesores() {
+type ProfesoresViewProps = Parameters<typeof PortalProfesoresRouteView>[0];
+
+function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/profesores"]}>
-      <PortalProfesoresRouteView loaderData={academyLoaderData()} />
+      <PortalProfesoresRouteView
+        loaderData={input.loaderData ?? academyLoaderData()}
+        actionData={input.actionData}
+      />
     </MemoryRouter>,
   );
 }
 
 function academyLoaderData({
   dancers = [],
+  professors = [],
+  successMessage = null,
 }: {
   dancers?: Parameters<
     typeof PortalBailarinesRouteView
   >[0]["loaderData"]["dancers"];
+  professors?: ProfesoresViewProps["loaderData"]["professors"];
+  successMessage?: string | null;
 } = {}) {
   return {
     email: "portal@example.com",
@@ -252,6 +324,8 @@ function academyLoaderData({
       phone: "11 1234-5678",
     },
     dancers,
+    professors,
+    successMessage,
   };
 }
 
@@ -272,6 +346,22 @@ function dancerListItem(
     verificationStatus: "incomplete" as const,
     ...overrides,
   };
+}
+
+function professorListItem(
+  overrides: Partial<
+    ProfesoresViewProps["loaderData"]["professors"][number]
+  > = {},
+) {
+  return {
+    id: "profesor_1",
+    firstName: "Ana",
+    lastName: "Zapata",
+    documentType: null,
+    documentNumber: null,
+    isIncomplete: true,
+    ...overrides,
+  } satisfies ProfesoresViewProps["loaderData"]["professors"][number];
 }
 
 function eventSummary(
