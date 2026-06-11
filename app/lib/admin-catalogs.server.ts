@@ -120,6 +120,7 @@ type ScheduleEntryDependencies = {
 export type ScheduleBlockListItem = typeof scheduleBlocks.$inferSelect & {
   modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
   modalityIds: string[];
+  occupiedCapacity: number;
   scheduleEntries: ScheduleEntryListItem[];
 };
 
@@ -659,11 +660,17 @@ export async function listScheduleBlocks(
 
   return blocks.map((block) => {
     const blockModalities = modalitiesByBlockId.get(block.id) ?? [];
+    const scheduleEntriesForBlock = entriesByBlockId.get(block.id) ?? [];
+
     return {
       ...block,
       modalities: blockModalities,
       modalityIds: blockModalities.map((modality) => modality.id),
-      scheduleEntries: entriesByBlockId.get(block.id) ?? [],
+      occupiedCapacity: scheduleEntriesForBlock.reduce(
+        (total, entry) => total + entry.capacity,
+        0,
+      ),
+      scheduleEntries: scheduleEntriesForBlock,
     };
   });
 }

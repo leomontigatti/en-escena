@@ -1,6 +1,12 @@
 import { Settings } from "lucide-react";
-import { NavLink, Outlet, redirect, useOutletContext } from "react-router";
-import type { ReactNode } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  redirect,
+  useOutletContext,
+} from "react-router";
+import { Fragment, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
 import type {
@@ -89,8 +95,14 @@ type AdministracionAjustesSectionLayoutProps =
   AdministracionAjustesSectionProps & {
     title: string;
     description: string;
+    breadcrumbs?: BreadcrumbItem[];
     children: ReactNode;
   };
+
+type BreadcrumbItem = {
+  label: string;
+  to?: string;
+};
 
 type AjustesSectionKey =
   | "categorias"
@@ -102,6 +114,7 @@ type CatalogActionInput = {
   eventId: string;
   id: string;
   intent: string;
+  confirmDelete: string;
   capacity: number;
   scheduleBlockId: string;
   priceScheduleBlockId: string | null;
@@ -181,19 +194,16 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const result = await runCatalogIntent(
-    readCatalogActionInput(eventId, formData),
-  );
+  const input = readCatalogActionInput(eventId, formData);
+  const result = await runCatalogIntent(input);
 
   if (!result.ok) {
     return actionError(result.error, result.fieldErrors);
   }
 
-  const redirectUrl = new URL(request.url);
-  redirectUrl.searchParams.set("evento", eventId);
-  redirectUrl.searchParams.set("guardado", "1");
-
-  throw redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
+  throw redirect(
+    buildCatalogSuccessRedirectUrl(request.url, eventId, input, result),
+  );
 }
 
 export function useAdministracionAjustesLoaderData() {
@@ -455,56 +465,137 @@ export function AdministracionAjustesModalidadesRouteView({
 
 export function AdministracionAjustesBloquesHorariosRouteView({
   loaderData,
-  actionData: providedActionData,
-}: AdministracionAjustesSectionProps) {
+}: {
+  loaderData: AdministracionAjustesLoaderData;
+}) {
   return (
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
-      actionData={providedActionData}
       title="Bloques horarios"
-      description="Configurá capacidad, Modalidades aceptadas y Cronogramas del Evento de trabajo."
+      description="Consultá capacidad, Modalidades aceptadas y Ocupación reservada por Cronogramas."
     >
-      <CatalogSection title="Bloques horarios">
-        <ScheduleBlockForm
-          intent="create-schedule-block"
-          modalities={loaderData.modalities}
-          buttonLabel="Crear Bloque"
-          fieldErrors={providedActionData?.fieldErrors}
-        />
+      <CatalogSection
+        title="Bloques horarios"
+        action={
+          <Link
+            to={buildNewScheduleBlockPath(loaderData.selectedEventId)}
+            className="inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          >
+            Nuevo Bloque horario
+          </Link>
+        }
+      >
         {loaderData.scheduleBlocks.length > 0 ? (
-          <ul className={catalogListClassName}>
-            {loaderData.scheduleBlocks.map((scheduleBlock) => (
-              <li key={scheduleBlock.id} className="space-y-3 p-4">
-                <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
-                <ScheduleEntriesPanel
-                  scheduleBlock={scheduleBlock}
-                  fieldErrors={providedActionData?.fieldErrors}
-                />
-                <ScheduleBlockForm
-                  id={scheduleBlock.id}
-                  intent="update-schedule-block"
-                  modalities={loaderData.modalities}
-                  name={scheduleBlock.name}
-                  scheduledDate={scheduleBlock.scheduledDate}
-                  startTime={scheduleBlock.startTime}
-                  totalCapacity={scheduleBlock.totalCapacity}
-                  modalityIds={scheduleBlock.modalityIds}
-                  buttonLabel="Guardar"
-                />
-                <CatalogDeleteForm
-                  id={scheduleBlock.id}
-                  intent="delete-schedule-block"
-                  buttonLabel="Borrar Bloque"
-                />
-              </li>
-            ))}
-          </ul>
+          <ScheduleBlockList
+            scheduleBlocks={loaderData.scheduleBlocks}
+            selectedEventId={loaderData.selectedEventId}
+          />
         ) : (
           <EmptyCatalogState>
             Todavía no hay Bloques horarios para este Evento.
           </EmptyCatalogState>
         )}
       </CatalogSection>
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesNuevoBloqueHorarioRouteView({
+  loaderData,
+  actionData,
+}: AdministracionAjustesSectionProps) {
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={actionData}
+      title="Nuevo Bloque horario"
+      description="Definí fecha, hora, cupo total y Modalidades aceptadas para este Bloque horario."
+      breadcrumbs={[
+        {
+          label: "Bloques horarios",
+          to: buildScheduleBlocksPath(loaderData.selectedEventId),
+        },
+        { label: "Nuevo Bloque horario" },
+      ]}
+    >
+      <CatalogSection title="Crear Bloque horario">
+        <ScheduleBlockForm
+          intent="create-schedule-block"
+          modalities={loaderData.modalities}
+          buttonLabel="Crear Bloque horario"
+          fieldErrors={actionData?.fieldErrors}
+        />
+      </CatalogSection>
+    </AdministracionAjustesSectionLayout>
+  );
+}
+
+export function AdministracionAjustesDetalleBloqueHorarioRouteView({
+  actionData,
+  loaderData,
+  scheduleBlockId,
+}: AdministracionAjustesSectionProps & {
+  scheduleBlockId: string;
+}) {
+  const scheduleBlock = loaderData.scheduleBlocks.find(
+    (block) => block.id === scheduleBlockId,
+  );
+
+  return (
+    <AdministracionAjustesSectionLayout
+      loaderData={loaderData}
+      actionData={actionData}
+      title={scheduleBlock?.name ?? "Bloque horario"}
+      description="Editá el Bloque horario y gestioná sus Cronogramas dentro del mismo detalle."
+      breadcrumbs={[
+        {
+          label: "Bloques horarios",
+          to: buildScheduleBlocksPath(loaderData.selectedEventId),
+        },
+        { label: scheduleBlock?.name ?? "Bloque horario" },
+      ]}
+    >
+      {scheduleBlock ? (
+        <div className="space-y-6">
+          <CatalogSection title="Detalle del Bloque horario">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
+              <ScheduleBlockSummary scheduleBlock={scheduleBlock} />
+            </div>
+            <div className="mt-4">
+              <ScheduleBlockForm
+                id={scheduleBlock.id}
+                intent="update-schedule-block"
+                modalities={loaderData.modalities}
+                name={scheduleBlock.name}
+                scheduledDate={scheduleBlock.scheduledDate}
+                startTime={scheduleBlock.startTime}
+                totalCapacity={scheduleBlock.totalCapacity}
+                modalityIds={scheduleBlock.modalityIds}
+                buttonLabel="Guardar cambios"
+                fieldErrors={actionData?.fieldErrors}
+              />
+            </div>
+          </CatalogSection>
+
+          <CatalogSection title="Cronogramas">
+            <ScheduleEntriesPanel
+              scheduleBlock={scheduleBlock}
+              fieldErrors={actionData?.fieldErrors}
+            />
+          </CatalogSection>
+
+          <CatalogSection title="Borrar Bloque horario">
+            <ScheduleBlockDeleteForm
+              scheduleBlock={scheduleBlock}
+              fieldErrors={actionData?.fieldErrors}
+            />
+          </CatalogSection>
+        </div>
+      ) : (
+        <EmptyCatalogState>
+          No encontramos ese Bloque horario para este Evento.
+        </EmptyCatalogState>
+      )}
     </AdministracionAjustesSectionLayout>
   );
 }
@@ -618,6 +709,33 @@ function buildSettingsPath(
   return `${pathname}?evento=${selectedEventId}`;
 }
 
+function buildScheduleBlocksPath(selectedEventId: string | null) {
+  return buildSettingsPath("bloques-horarios", selectedEventId);
+}
+
+function buildNewScheduleBlockPath(selectedEventId: string | null) {
+  const pathname = "/administracion/ajustes/bloques-horarios/nuevo";
+
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
+function buildScheduleBlockDetailPath(
+  scheduleBlockId: string,
+  selectedEventId: string | null,
+) {
+  const pathname = `/administracion/ajustes/bloques-horarios/${scheduleBlockId}`;
+
+  if (!selectedEventId) {
+    return pathname;
+  }
+
+  return `${pathname}?evento=${selectedEventId}`;
+}
+
 function ActionErrorBanner({ actionData }: { actionData?: ActionData }) {
   if (!actionData) {
     return null;
@@ -635,6 +753,7 @@ function AdministracionAjustesSectionLayout({
   actionData,
   title,
   description,
+  breadcrumbs,
   children,
 }: AdministracionAjustesSectionLayoutProps) {
   if (!loaderData.selectedEventId) {
@@ -644,7 +763,13 @@ function AdministracionAjustesSectionLayout({
   return (
     <div className="space-y-6">
       <AjustesBreadcrumbs
-        currentLabel={title}
+        items={
+          breadcrumbs ?? [
+            {
+              label: title,
+            },
+          ]
+        }
         selectedEventId={loaderData.selectedEventId}
       />
       <AjustesSectionHeader title={title} description={description} />
@@ -698,10 +823,10 @@ function buildSettingsNavLinkClass(isCurrent: boolean) {
 }
 
 function AjustesBreadcrumbs({
-  currentLabel,
+  items,
   selectedEventId,
 }: {
-  currentLabel: string;
+  items: BreadcrumbItem[];
   selectedEventId: string | null;
 }) {
   return (
@@ -715,10 +840,25 @@ function AjustesBreadcrumbs({
             Ajustes
           </NavLink>
         </li>
-        <li aria-hidden="true" className="text-slate-400">
-          /
-        </li>
-        <li className="font-medium text-slate-950">{currentLabel}</li>
+        {items.map((item) => (
+          <Fragment key={`${item.label}-${item.to ?? "current"}`}>
+            <li aria-hidden="true" className="text-slate-400">
+              /
+            </li>
+            <li className="font-medium text-slate-950">
+              {item.to ? (
+                <NavLink
+                  to={item.to}
+                  className="font-medium text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+                >
+                  {item.label}
+                </NavLink>
+              ) : (
+                item.label
+              )}
+            </li>
+          </Fragment>
+        ))}
       </ol>
     </nav>
   );
@@ -756,15 +896,20 @@ function AjustesEmptyState() {
 }
 
 function CatalogSection({
+  action,
   children,
   title,
 }: {
+  action?: ReactNode;
   children: ReactNode;
   title: string;
 }) {
   return (
     <section>
-      <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+        {action}
+      </div>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -1077,6 +1222,11 @@ function ScheduleBlockForm({
         ) : null}
       </fieldset>
 
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        La Ocupación reservada por Cronogramas no puede superar el cupo total
+        del Bloque horario.
+      </p>
+
       <button
         type="submit"
         className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
@@ -1093,17 +1243,108 @@ function ScheduleBlockSummary({
   scheduleBlock: ScheduleBlockListItem;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
       <p className="text-sm font-semibold text-slate-950">
         {scheduleBlock.name}
       </p>
-      <p className="text-sm text-slate-600">
-        {formatDate(scheduleBlock.scheduledDate)} · {scheduleBlock.startTime} ·{" "}
-        {scheduleBlock.totalCapacity} cupos
-      </p>
-      <p className="text-xs font-medium text-slate-500">
-        {scheduleBlock.modalities.map((modality) => modality.name).join(", ")}
-      </p>
+      <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-4">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Fecha
+          </dt>
+          <dd className="mt-1 text-sm text-slate-950">
+            {formatDate(scheduleBlock.scheduledDate)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Hora
+          </dt>
+          <dd className="mt-1 text-sm text-slate-950">
+            {scheduleBlock.startTime}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Ocupación
+          </dt>
+          <dd className="mt-1 text-sm text-slate-950">
+            {scheduleBlock.occupiedCapacity}/{scheduleBlock.totalCapacity}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Cupo total
+          </dt>
+          <dd className="mt-1 text-sm text-slate-950">
+            {scheduleBlock.totalCapacity}
+          </dd>
+        </div>
+      </dl>
+      <div className="flex flex-wrap gap-2">
+        {scheduleBlock.modalities.map((modality) => (
+          <CatalogBadge key={modality.id}>{modality.name}</CatalogBadge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScheduleBlockList({
+  scheduleBlocks,
+  selectedEventId,
+}: {
+  scheduleBlocks: ScheduleBlockListItem[];
+  selectedEventId: string | null;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <table className="min-w-full divide-y divide-slate-200">
+        <thead className="bg-slate-50">
+          <tr className="text-left text-sm text-slate-600">
+            <th className="px-4 py-3 font-medium">Nombre</th>
+            <th className="px-4 py-3 font-medium">Modalidades</th>
+            <th className="px-4 py-3 font-medium">Fecha</th>
+            <th className="px-4 py-3 font-medium">Hora</th>
+            <th className="px-4 py-3 font-medium">Ocupación</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {scheduleBlocks.map((scheduleBlock) => (
+            <tr key={scheduleBlock.id} className="align-top">
+              <td className="px-4 py-4">
+                <Link
+                  to={buildScheduleBlockDetailPath(
+                    scheduleBlock.id,
+                    selectedEventId,
+                  )}
+                  className="font-semibold text-slate-950 underline-offset-4 hover:text-teal-900 hover:underline"
+                >
+                  {scheduleBlock.name}
+                </Link>
+              </td>
+              <td className="px-4 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {scheduleBlock.modalities.map((modality) => (
+                    <CatalogBadge key={modality.id}>
+                      {modality.name}
+                    </CatalogBadge>
+                  ))}
+                </div>
+              </td>
+              <td className="px-4 py-4 text-sm text-slate-700">
+                {formatDate(scheduleBlock.scheduledDate)}
+              </td>
+              <td className="px-4 py-4 text-sm text-slate-700">
+                {scheduleBlock.startTime}
+              </td>
+              <td className="px-4 py-4 text-sm font-medium text-slate-950">
+                {scheduleBlock.occupiedCapacity}/{scheduleBlock.totalCapacity}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1544,6 +1785,14 @@ function CheckboxGroup({
   );
 }
 
+function CatalogBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+      {children}
+    </span>
+  );
+}
+
 function CatalogDeleteForm({
   buttonLabel,
   id,
@@ -1567,6 +1816,55 @@ function CatalogDeleteForm({
   );
 }
 
+function ScheduleBlockDeleteForm({
+  fieldErrors = {},
+  scheduleBlock,
+}: {
+  fieldErrors?: Record<string, string>;
+  scheduleBlock: ScheduleBlockListItem;
+}) {
+  return (
+    <form
+      method="post"
+      className="rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <input type="hidden" name="intent" value="delete-schedule-block" />
+      <input type="hidden" name="id" value={scheduleBlock.id} />
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-red-950">
+            Esta acción borra el Bloque horario y sus relaciones de
+            programación.
+          </p>
+          <p className="text-sm leading-6 text-red-900">
+            Solo podés borrarlo si no tiene Cronogramas ni otras dependencias.
+          </p>
+        </div>
+        <label className="flex items-start gap-2 text-sm text-red-950">
+          <input
+            type="checkbox"
+            name="confirmDelete"
+            value="yes"
+            className="mt-0.5 size-4 rounded border-red-300 text-red-700 focus:ring-red-100"
+          />
+          Confirmo que quiero borrar {scheduleBlock.name}.
+        </label>
+        {fieldErrors.confirmDelete ? (
+          <p className="text-xs font-medium text-red-700">
+            {fieldErrors.confirmDelete}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="submit"
+        className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-red-300 bg-white px-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
+      >
+        Borrar Bloque horario
+      </button>
+    </form>
+  );
+}
+
 function EmptyCatalogState({ children }: { children: ReactNode }) {
   return (
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
@@ -1581,6 +1879,7 @@ function readCatalogActionInput(
 ): CatalogActionInput {
   return {
     eventId,
+    confirmDelete: String(formData.get("confirmDelete") ?? ""),
     capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
     id: String(formData.get("id") ?? ""),
     intent: String(formData.get("intent") ?? ""),
@@ -1615,6 +1914,45 @@ function actionError(
   };
 }
 
+function buildCatalogSuccessRedirectUrl(
+  requestUrl: string,
+  eventId: string,
+  input: CatalogActionInput,
+  result: { ok: true; record?: { id: string } },
+) {
+  const redirectUrl = new URL(requestUrl);
+  const successPath = getCatalogSuccessPath(
+    redirectUrl.pathname,
+    eventId,
+    input,
+    result,
+  );
+
+  redirectUrl.pathname = successPath;
+  redirectUrl.searchParams.set("evento", eventId);
+  redirectUrl.searchParams.set("guardado", "1");
+
+  return `${redirectUrl.pathname}${redirectUrl.search}`;
+}
+
+function getCatalogSuccessPath(
+  currentPathname: string,
+  eventId: string,
+  input: CatalogActionInput,
+  result: { ok: true; record?: { id: string } },
+) {
+  switch (input.intent) {
+    case "create-schedule-block":
+      return result.record
+        ? buildScheduleBlockDetailPath(result.record.id, eventId).split("?")[0]
+        : currentPathname;
+    case "delete-schedule-block":
+      return buildScheduleBlocksPath(eventId).split("?")[0];
+    default:
+      return currentPathname;
+  }
+}
+
 async function runCatalogIntent(input: CatalogActionInput) {
   switch (input.intent) {
     case "create-category":
@@ -1642,6 +1980,18 @@ async function runCatalogIntent(input: CatalogActionInput) {
     case "update-schedule-block":
       return updateScheduleBlock(input.id, getScheduleBlockInput(input));
     case "delete-schedule-block":
+      if (input.confirmDelete !== "yes") {
+        return {
+          ok: false as const,
+          code: "invalid-catalog" as const,
+          error: "Confirmá el borrado del Bloque horario antes de continuar.",
+          fieldErrors: {
+            confirmDelete:
+              "Marcá la confirmación para borrar el Bloque horario.",
+          },
+        };
+      }
+
       return deleteScheduleBlock(input.id);
     case "create-price":
       return createPrice(input.eventId, getPriceInput(input));

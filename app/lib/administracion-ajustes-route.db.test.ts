@@ -28,11 +28,13 @@ import { activateEvent, createEvent } from "@/lib/event-management.server";
 import {
   action,
   AdministracionAjustesBloquesHorariosRouteView,
+  AdministracionAjustesDetalleBloqueHorarioRouteView,
   AdministracionAjustesCategoriasRouteView,
   AdministracionAjustesIndexRouteView,
   AdministracionAjustesLayoutView,
   type AdministracionAjustesLoaderData,
   AdministracionAjustesModalidadesRouteView,
+  AdministracionAjustesNuevoBloqueHorarioRouteView,
   AdministracionAjustesPreciosRouteView,
   loader,
 } from "@/routes/administracion.ajustes";
@@ -186,6 +188,116 @@ describe("administracion/ajustes route", () => {
       "Estás editando un Evento de trabajo que no es el Evento activo.",
     );
     expect(markup).toContain('name="intent" value="create-modality"');
+  });
+
+  test("renders Bloques horarios as a browse list with Ocupación and detail links", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const jazz = await createModality(event.id, { name: "Jazz" });
+    const urbanas = await createModality(event.id, { name: "Danzas urbanas" });
+
+    if (!jazz.ok || !jazz.record || !urbanas.ok || !urbanas.record) {
+      throw new Error("Expected schedule block modalities to be created.");
+    }
+
+    const scheduleBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 24,
+        modalityIds: [jazz.record.id, urbanas.record.id],
+      }),
+    );
+
+    await expectCreated(
+      createScheduleEntry(scheduleBlock.id, {
+        groupTypes: ["solo", "duo"],
+        capacity: 8,
+      }),
+    );
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.lista.bloques.ocupacion@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+    const markup = renderBloquesHorariosRoute(data);
+
+    expect(markup).toContain("Ocupación");
+    expect(markup).toContain("8/24");
+    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("02/05/2026");
+    expect(markup).toContain("09:00");
+    expect(markup).toContain("Jazz");
+    expect(markup).toContain("Danzas urbanas");
+    expect(markup).toContain(
+      `/administracion/ajustes/bloques-horarios/${scheduleBlock.id}?evento=${event.id}`,
+    );
+    expect(markup).toContain(
+      `/administracion/ajustes/bloques-horarios/nuevo?evento=${event.id}`,
+    );
+    expect(markup).not.toContain('name="intent" value="create-schedule-block"');
+    expect(markup).not.toContain('name="intent" value="delete-schedule-block"');
+    expect(markup).not.toContain('name="intent" value="create-schedule-entry"');
+  });
+
+  test("renders dedicated create and detail routes for Bloques horarios", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await createModality(event.id, { name: "Jazz" });
+
+    if (!modality.ok || !modality.record) {
+      throw new Error("Expected Bloque horario modality to be created.");
+    }
+
+    const scheduleBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo tarde",
+        scheduledDate: "2026-05-03",
+        startTime: "15:00",
+        totalCapacity: 18,
+        modalityIds: [modality.record.id],
+      }),
+    );
+
+    const data = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.rutas.bloques@example.com",
+            role: "admin",
+            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/nuevo?evento=${event.id}`,
+          })
+        ).request,
+      ),
+    );
+
+    const createMarkup = renderNuevoBloqueHorarioRoute(data);
+    const detailMarkup = renderBloqueHorarioDetailRoute(data, scheduleBlock.id);
+
+    expect(createMarkup).toContain("Nuevo Bloque horario");
+    expect(createMarkup).toContain(
+      'name="intent" value="create-schedule-block"',
+    );
+    expect(createMarkup).toContain(
+      "La Ocupación reservada por Cronogramas no puede superar el cupo total del Bloque horario.",
+    );
+    expect(detailMarkup).toContain("Detalle del Bloque horario");
+    expect(detailMarkup).toContain(
+      'name="intent" value="update-schedule-block"',
+    );
+    expect(detailMarkup).toContain(
+      'name="intent" value="create-schedule-entry"',
+    );
+    expect(detailMarkup).toContain(
+      'name="intent" value="delete-schedule-block"',
+    );
+    expect(detailMarkup).toContain('name="confirmDelete" value="yes"');
   });
 
   test("creates, edits and deletes catalogs through the admin action", async () => {
@@ -355,7 +467,7 @@ describe("administracion/ajustes route", () => {
     const scheduleBlockRequest = await createSignedInRequest({
       email: "admin.crea.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/nuevo?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-block",
         name: "Sábado mañana",
@@ -397,7 +509,7 @@ describe("administracion/ajustes route", () => {
     expect(markup).toContain("Sábado mañana");
     expect(markup).toContain("02/05/2026");
     expect(markup).toContain("09:00");
-    expect(markup).toContain("24 cupos");
+    expect(markup).toContain("0/24");
     expect(markup).toContain("Jazz");
     expect(markup).toContain("Danzas urbanas");
 
@@ -407,7 +519,7 @@ describe("administracion/ajustes route", () => {
     const editScheduleBlockRequest = await createSignedInRequest({
       email: "admin.edita.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
       body: formData({
         intent: "update-schedule-block",
         id: scheduleBlock?.id ?? "",
@@ -436,10 +548,11 @@ describe("administracion/ajustes route", () => {
     const deleteScheduleBlockRequest = await createSignedInRequest({
       email: "admin.borra.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
       body: formData({
         intent: "delete-schedule-block",
         id: scheduleBlock?.id ?? "",
+        confirmDelete: "yes",
       }),
     });
 
@@ -452,6 +565,43 @@ describe("administracion/ajustes route", () => {
         where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
+  });
+
+  test("requires confirmation to delete a Bloque horario from detail", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await createModality(event.id, { name: "Jazz" });
+
+    if (!modality.ok || !modality.record) {
+      throw new Error("Expected Bloque horario modality to be created.");
+    }
+
+    const scheduleBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Viernes noche",
+        scheduledDate: "2026-05-01",
+        startTime: "20:00",
+        totalCapacity: 16,
+        modalityIds: [modality.record.id],
+      }),
+    );
+
+    const deleteRequest = await createSignedInRequest({
+      email: "admin.confirma.bloque@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock.id}?evento=${event.id}`,
+      body: formData({
+        intent: "delete-schedule-block",
+        id: scheduleBlock.id,
+      }),
+    });
+
+    await expect(action(routeArgs(deleteRequest.request))).resolves.toEqual({
+      status: "error",
+      message: "Confirmá el borrado del Bloque horario antes de continuar.",
+      fieldErrors: {
+        confirmDelete: "Marcá la confirmación para borrar el Bloque horario.",
+      },
+    });
   });
 
   test("creates, edits and deletes Precios through the admin action", async () => {
@@ -582,7 +732,7 @@ describe("administracion/ajustes route", () => {
     const scheduleBlockRequest = await createSignedInRequest({
       email: "admin.crea.bloque.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/nuevo?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-block",
         name: "Sábado mañana",
@@ -604,7 +754,7 @@ describe("administracion/ajustes route", () => {
     const createScheduleEntryRequest = await createSignedInRequest({
       email: "admin.crea.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
       body: formData({
         intent: "create-schedule-entry",
         scheduleBlockId: scheduleBlock?.id ?? "",
@@ -632,12 +782,15 @@ describe("administracion/ajustes route", () => {
           await createSignedInRequest({
             email: "admin.lista.cronogramas@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderBloquesHorariosRoute(data);
+    const markup = renderBloqueHorarioDetailRoute(
+      data,
+      scheduleBlock?.id ?? "",
+    );
 
     expect(markup).toContain("Cronogramas");
     expect(markup).toContain("Solo, Dúo");
@@ -647,7 +800,7 @@ describe("administracion/ajustes route", () => {
     const editScheduleEntryRequest = await createSignedInRequest({
       email: "admin.edita.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
       body: formData({
         intent: "update-schedule-entry",
         id: scheduleEntry?.id ?? "",
@@ -672,7 +825,7 @@ describe("administracion/ajustes route", () => {
     const deleteScheduleEntryRequest = await createSignedInRequest({
       email: "admin.borra.cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/ajustes/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
       body: formData({
         intent: "delete-schedule-entry",
         id: scheduleEntry?.id ?? "",
@@ -855,6 +1008,32 @@ function renderBloquesHorariosRoute(
     "/administracion/ajustes/bloques-horarios",
     createElement(AdministracionAjustesBloquesHorariosRouteView, {
       loaderData,
+    }),
+  );
+}
+
+function renderNuevoBloqueHorarioRoute(
+  loaderData: AdministracionAjustesLoaderData,
+) {
+  return renderRoute(
+    loaderData,
+    "/administracion/ajustes/bloques-horarios/nuevo",
+    createElement(AdministracionAjustesNuevoBloqueHorarioRouteView, {
+      loaderData,
+    }),
+  );
+}
+
+function renderBloqueHorarioDetailRoute(
+  loaderData: AdministracionAjustesLoaderData,
+  scheduleBlockId: string,
+) {
+  return renderRoute(
+    loaderData,
+    `/administracion/ajustes/bloques-horarios/${scheduleBlockId}`,
+    createElement(AdministracionAjustesDetalleBloqueHorarioRouteView, {
+      loaderData,
+      scheduleBlockId,
     }),
   );
 }
