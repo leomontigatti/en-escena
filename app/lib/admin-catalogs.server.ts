@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -7,6 +7,7 @@ import {
   categoryModalities,
   experienceLevels,
   modalities,
+  prices,
   scheduleBlockModalities,
   scheduleBlocks,
   submodalities,
@@ -25,7 +26,8 @@ type CatalogRecord =
   | typeof scheduleBlocks.$inferSelect
   | typeof submodalities.$inferSelect
   | typeof experienceLevels.$inferSelect
-  | typeof categories.$inferSelect;
+  | typeof categories.$inferSelect
+  | typeof prices.$inferSelect;
 
 type CatalogSuccess = {
   ok: true;
@@ -43,6 +45,7 @@ type CatalogFailure = {
     | "invalid-experience-level"
     | "invalid-group-type"
     | "invalid-modality"
+    | "missing-price"
     | "schedule-block-has-dependencies";
   error: string;
   fieldErrors?: Record<string, string>;
@@ -100,6 +103,38 @@ export type ScheduleBlockListItem = typeof scheduleBlocks.$inferSelect & {
   modalityIds: string[];
 };
 
+export type PriceInput = CatalogNameInput & {
+  groupType: string;
+  amount: number;
+  scheduleBlockId: string | null;
+};
+
+type ValidPriceInput = {
+  name: string;
+  groupType: GroupType;
+  amount: number;
+  scheduleBlockId: string | null;
+};
+
+type PriceDependencies = {
+  hasDependencies?: (priceId: string) => Promise<boolean> | boolean;
+};
+
+export type PriceListItem = typeof prices.$inferSelect & {
+  scheduleBlock: Pick<
+    typeof scheduleBlocks.$inferSelect,
+    "id" | "name" | "scheduledDate" | "startTime"
+  > | null;
+};
+
+export type PriceResolutionResult =
+  | { ok: true; price: typeof prices.$inferSelect }
+  | {
+      ok: false;
+      code: "missing-price" | "invalid-group-type";
+      error: string;
+    };
+
 const catalogCopy = {
   modality: {
     label: "Modalidad",
@@ -151,6 +186,7 @@ export async function listEventCatalogs(eventId: string) {
     eventCategoryModalities,
     eventCategoryExperienceLevels,
     eventScheduleBlocks,
+    eventPrices,
   ] = await Promise.all([
     db.query.modalities.findMany({
       where: eq(modalities.eventId, eventId),
@@ -192,6 +228,7 @@ export async function listEventCatalogs(eventId: string) {
       )
       .where(eq(categories.eventId, eventId)),
     listScheduleBlocks(eventId),
+    listPrices(eventId),
   ]);
 
   const modalityIdsByCategory = groupRelationIdsByCategory(
@@ -213,6 +250,7 @@ export async function listEventCatalogs(eventId: string) {
       experienceLevelIds: experienceLevelIdsByCategory.get(category.id) ?? [],
     })),
     scheduleBlocks: eventScheduleBlocks,
+    prices: eventPrices,
   };
 }
 
@@ -704,8 +742,192 @@ export async function deleteScheduleBlock(
 }
 
 export async function scheduleBlockHasOperationalDependencies(
-  _scheduleBlockId: string,
+  scheduleBlockId: string,
 ) {
+  const price = await db.query.prices.findFirst({
+    columns: { id: true },
+    where: eq(prices.scheduleBlockId, scheduleBlockId),
+  });
+
+  return Boolean(price);
+}
+
+export async function listPrices(eventId: string): Promise<PriceListItem[]> {
+  const eventPrices = await db.query.prices.findMany({
+    where: eq(prices.eventId, eventId),
+  });
+
+  if (eventPrices.length === 0) {
+    return [];
+  }
+
+  const blockIds = uniqueValues(
+    eventPrices
+      .map((price) => price.scheduleBlockId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const blocks =
+    blockIds.length > 0
+      ? await db.query.scheduleBlocks.findMany({
+          where: inArray(scheduleBlocks.id, blockIds),
+          orderBy: [
+            asc(scheduleBlocks.scheduledDate),
+            asc(scheduleBlocks.startTime),
+            asc(scheduleBlocks.name),
+          ],
+        })
+      : [];
+  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+
+  return eventPrices
+    .map((price) => ({
+      ...price,
+      scheduleBlock: price.scheduleBlockId
+        ? (blocksById.get(price.scheduleBlockId) ?? null)
+        : null,
+    }))
+    .sort(comparePrices);
+}
+
+export async function createPrice(
+  eventId: string,
+  input: PriceInput,
+): Promise<CatalogMutationResult> {
+  const validation = await validatePriceInput(eventId, input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .insert(prices)
+    .values({ eventId, ...validation.input })
+    .returning();
+
+  return created(record);
+}
+
+export async function updatePrice(
+  priceId: string,
+  input: PriceInput,
+  dependencies: PriceDependencies = {},
+): Promise<CatalogMutationResult> {
+  const existing = await db.query.prices.findFirst({
+    where: eq(prices.id, priceId),
+  });
+
+  if (!existing) {
+    return priceNotFound();
+  }
+
+  const validation = await validatePriceInput(existing.eventId, input, {
+    exceptId: priceId,
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const hasDependencies =
+    dependencies.hasDependencies ?? priceHasOperationalDependencies;
+
+  if (
+    (await hasDependencies(priceId)) &&
+    hasStructuralPriceChanges(existing, validation.input)
+  ) {
+    return {
+      ok: false,
+      code: "catalog-has-dependencies",
+      error:
+        "No se pueden editar monto, Tipo de grupo ni Bloque horario porque el Precio tiene dependencias.",
+    };
+  }
+
+  const [record] = await db
+    .update(prices)
+    .set(validation.input)
+    .where(eq(prices.id, priceId))
+    .returning();
+
+  return created(record);
+}
+
+export async function deletePrice(
+  priceId: string,
+  dependencies: PriceDependencies = {},
+): Promise<CatalogDeleteResult> {
+  const price = await db.query.prices.findFirst({
+    where: eq(prices.id, priceId),
+  });
+
+  if (!price) {
+    return priceNotFound();
+  }
+
+  const hasDependencies =
+    dependencies.hasDependencies ?? priceHasOperationalDependencies;
+
+  if (await hasDependencies(priceId)) {
+    return {
+      ok: false,
+      code: "catalog-has-dependencies",
+      error: "No se puede borrar el Precio porque tiene dependencias.",
+    };
+  }
+
+  await db.delete(prices).where(eq(prices.id, priceId));
+
+  return { ok: true };
+}
+
+export async function resolveApplicablePrice(input: {
+  eventId: string;
+  groupType: string;
+  scheduleBlockId: string | null;
+}): Promise<PriceResolutionResult> {
+  if (!isGroupType(input.groupType)) {
+    return {
+      ok: false,
+      code: "invalid-group-type",
+      error: "No se pudo resolver el Precio para ese Tipo de grupo.",
+    };
+  }
+
+  if (input.scheduleBlockId) {
+    const specificPrice = await db.query.prices.findFirst({
+      where: and(
+        eq(prices.eventId, input.eventId),
+        eq(prices.groupType, input.groupType),
+        eq(prices.scheduleBlockId, input.scheduleBlockId),
+      ),
+    });
+
+    if (specificPrice) {
+      return { ok: true, price: specificPrice };
+    }
+  }
+
+  const generalPrice = await db.query.prices.findFirst({
+    where: and(
+      eq(prices.eventId, input.eventId),
+      eq(prices.groupType, input.groupType),
+      isNull(prices.scheduleBlockId),
+    ),
+  });
+
+  if (generalPrice) {
+    return { ok: true, price: generalPrice };
+  }
+
+  return {
+    ok: false,
+    code: "missing-price",
+    error:
+      "No hay un Precio configurado para este Tipo de grupo y Bloque horario.",
+  };
+}
+
+export async function priceHasOperationalDependencies(_priceId: string) {
   return false;
 }
 
@@ -845,6 +1067,106 @@ async function validateScheduleBlockInput(
   }
 
   return { ok: true };
+}
+
+async function validatePriceInput(
+  eventId: string,
+  input: PriceInput,
+  options: { exceptId?: string } = {},
+): Promise<{ ok: true; input: ValidPriceInput } | CatalogFailure> {
+  const fieldErrors: Record<string, string> = {};
+  const name = input.name.trim();
+  const scheduleBlockId = input.scheduleBlockId?.trim() || null;
+
+  if (name.length === 0) {
+    fieldErrors.name = "Ingresá el nombre del Precio.";
+  }
+
+  if (!isGroupType(input.groupType)) {
+    fieldErrors.groupType = "Elegí un Tipo de grupo.";
+  }
+
+  if (!Number.isInteger(input.amount) || input.amount <= 0) {
+    fieldErrors.amount = "Ingresá un monto mayor a cero.";
+  }
+
+  if (scheduleBlockId) {
+    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+      columns: { id: true },
+      where: and(
+        eq(scheduleBlocks.id, scheduleBlockId),
+        eq(scheduleBlocks.eventId, eventId),
+      ),
+    });
+
+    if (!scheduleBlock) {
+      fieldErrors.scheduleBlockId =
+        "Elegí un Bloque horario del Evento de trabajo.";
+    }
+  }
+
+  const fieldErrorKeys = Object.keys(fieldErrors);
+
+  if (fieldErrorKeys.length > 0 || !isGroupType(input.groupType)) {
+    const onlyScheduleBlockError =
+      fieldErrorKeys.length === 1 && fieldErrorKeys[0] === "scheduleBlockId";
+
+    return {
+      ok: false,
+      code: "invalid-catalog",
+      error: onlyScheduleBlockError
+        ? "Elegí un Bloque horario del Evento de trabajo."
+        : "Revisá los datos del Precio.",
+      fieldErrors,
+    };
+  }
+
+  const validInput = {
+    name,
+    groupType: input.groupType,
+    amount: input.amount,
+    scheduleBlockId,
+  };
+
+  if (await findDuplicatePrice(eventId, validInput, options.exceptId)) {
+    return {
+      ok: false,
+      code: "duplicate-name",
+      error: scheduleBlockId
+        ? "Ya existe un Precio para ese Tipo de grupo y Bloque horario."
+        : "Ya existe un Precio general para ese Tipo de grupo.",
+      fieldErrors: {
+        groupType: "Revisá el Tipo de grupo del Precio.",
+      },
+    };
+  }
+
+  return { ok: true, input: validInput };
+}
+
+async function findDuplicatePrice(
+  eventId: string,
+  input: ValidPriceInput,
+  exceptId?: string,
+) {
+  const idFilter = exceptId ? ne(prices.id, exceptId) : undefined;
+  const scheduleBlockFilter = input.scheduleBlockId
+    ? eq(prices.scheduleBlockId, input.scheduleBlockId)
+    : isNull(prices.scheduleBlockId);
+
+  return db
+    .select({ id: prices.id })
+    .from(prices)
+    .where(
+      and(
+        eq(prices.eventId, eventId),
+        eq(prices.groupType, input.groupType),
+        scheduleBlockFilter,
+        idFilter,
+      ),
+    )
+    .limit(1)
+    .then(([record]) => record);
 }
 
 async function validateCategoryInput(
@@ -1201,6 +1523,14 @@ function categoryNotFound(): CatalogFailure {
   };
 }
 
+function priceNotFound(): CatalogFailure {
+  return {
+    ok: false,
+    code: "catalog-not-found",
+    error: "No encontramos ese Precio.",
+  };
+}
+
 function getTable(kind: CatalogKind) {
   switch (kind) {
     case "modality":
@@ -1284,6 +1614,49 @@ function hasStructuralScheduleBlockChanges(
     sortedIds(existing.modalityIds).join("\0") !==
       sortedIds(input.modalityIds).join("\0")
   );
+}
+
+function hasStructuralPriceChanges(
+  existing: typeof prices.$inferSelect,
+  input: ValidPriceInput,
+) {
+  return (
+    existing.groupType !== input.groupType ||
+    existing.amount !== input.amount ||
+    existing.scheduleBlockId !== input.scheduleBlockId
+  );
+}
+
+function comparePrices(first: PriceListItem, second: PriceListItem) {
+  const groupTypeComparison =
+    groupTypeOrder.indexOf(first.groupType) -
+    groupTypeOrder.indexOf(second.groupType);
+
+  if (groupTypeComparison !== 0) {
+    return groupTypeComparison;
+  }
+
+  if (first.scheduleBlock && !second.scheduleBlock) {
+    return -1;
+  }
+
+  if (!first.scheduleBlock && second.scheduleBlock) {
+    return 1;
+  }
+
+  const firstBlockKey = first.scheduleBlock
+    ? `${first.scheduleBlock.scheduledDate}\0${first.scheduleBlock.startTime}\0${first.scheduleBlock.name}`
+    : "";
+  const secondBlockKey = second.scheduleBlock
+    ? `${second.scheduleBlock.scheduledDate}\0${second.scheduleBlock.startTime}\0${second.scheduleBlock.name}`
+    : "";
+  const blockComparison = firstBlockKey.localeCompare(secondBlockKey);
+
+  if (blockComparison !== 0) {
+    return blockComparison;
+  }
+
+  return first.name.localeCompare(second.name);
 }
 
 function getScheduleBlockModalityValues(

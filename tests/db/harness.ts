@@ -1,7 +1,7 @@
-import { afterAll, beforeEach } from "vitest";
+import { beforeEach } from "vitest";
 import { sql } from "drizzle-orm";
 
-import { client, db } from "@/db";
+import { db } from "@/db";
 
 const testDatabaseLockKey = "en-escena-test-database";
 
@@ -43,9 +43,5 @@ export async function resetTestDatabase() {
 export function installDatabaseTestHooks() {
   beforeEach(async () => {
     await resetTestDatabase();
-  });
-
-  afterAll(async () => {
-    await client.end();
   });
 }

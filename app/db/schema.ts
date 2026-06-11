@@ -498,3 +498,38 @@ export const scheduleBlockModalities = createTable(
     ),
   ],
 );
+
+export const prices = createTable(
+  "price",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).references(
+      () => scheduleBlocks.id,
+    ),
+    name: text("name").notNull(),
+    groupType: groupType("group_type").notNull(),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("price_event_id_idx").on(table.eventId),
+    index("price_schedule_block_id_idx").on(table.scheduleBlockId),
+    uniqueIndex("price_general_unique")
+      .on(table.eventId, table.groupType)
+      .where(sql`${table.scheduleBlockId} is null`),
+    uniqueIndex("price_specific_unique")
+      .on(table.eventId, table.groupType, table.scheduleBlockId)
+      .where(sql`${table.scheduleBlockId} is not null`),
+  ],
+);

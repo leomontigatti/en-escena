@@ -7,17 +7,21 @@ import {
   createCategory,
   createExperienceLevel,
   createModality,
+  createPrice,
   createScheduleBlock,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
+  deletePrice,
   deleteScheduleBlock,
   deleteSubmodality,
   listEventCatalogs,
+  resolveApplicablePrice,
   updateCategory,
   updateExperienceLevel,
   updateModality,
+  updatePrice,
   updateScheduleBlock,
   updateSubmodality,
 } from "@/lib/admin-catalogs.server";
@@ -404,6 +408,176 @@ describe("admin event catalogs", () => {
     ).resolves.toMatchObject({
       ok: false,
       error: "No se puede borrar el Bloque horario porque tiene dependencias.",
+    });
+  });
+
+  test("manages Precios with event-scoped uniqueness, resolution precedence and dependency guardrails", async () => {
+    const firstEvent = await createSavedEvent("Regional 2026");
+    const secondEvent = await createSavedEvent("Final 2026");
+    const jazz = await expectCreated(
+      createModality(firstEvent.id, { name: "Jazz" }),
+    );
+    const otherEventModality = await expectCreated(
+      createModality(secondEvent.id, { name: "Jazz" }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(firstEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    const otherEventBlock = await expectCreated(
+      createScheduleBlock(secondEvent.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-06-02",
+        startTime: "11:00",
+        totalCapacity: 10,
+        modalityIds: [otherEventModality.id],
+      }),
+    );
+
+    const general = await expectCreated(
+      createPrice(firstEvent.id, {
+        name: "Solo general",
+        groupType: "solo",
+        amount: 12000,
+        scheduleBlockId: null,
+      }),
+    );
+    const specific = await expectCreated(
+      createPrice(firstEvent.id, {
+        name: "Solo sábado",
+        groupType: "solo",
+        amount: 15000,
+        scheduleBlockId: block.id,
+      }),
+    );
+    await expect(deleteScheduleBlock(block.id)).resolves.toMatchObject({
+      ok: false,
+      error: "No se puede borrar el Bloque horario porque tiene dependencias.",
+    });
+    await expect(
+      createPrice(secondEvent.id, {
+        name: "Solo general",
+        groupType: "solo",
+        amount: 9000,
+        scheduleBlockId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      createPrice(firstEvent.id, {
+        name: "Solo duplicado",
+        groupType: "solo",
+        amount: 13000,
+        scheduleBlockId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Ya existe un Precio general para ese Tipo de grupo.",
+      fieldErrors: { groupType: "Revisá el Tipo de grupo del Precio." },
+    });
+    await expect(
+      createPrice(firstEvent.id, {
+        name: "Solo otro evento",
+        groupType: "solo",
+        amount: 13000,
+        scheduleBlockId: otherEventBlock.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Elegí un Bloque horario del Evento de trabajo.",
+      fieldErrors: {
+        scheduleBlockId: "Elegí un Bloque horario del Evento de trabajo.",
+      },
+    });
+
+    await expect(
+      resolveApplicablePrice({
+        eventId: firstEvent.id,
+        groupType: "solo",
+        scheduleBlockId: block.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      price: { id: specific.id, amount: 15000 },
+    });
+    await expect(
+      resolveApplicablePrice({
+        eventId: firstEvent.id,
+        groupType: "solo",
+        scheduleBlockId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      price: { id: general.id, amount: 12000 },
+    });
+    await expect(
+      resolveApplicablePrice({
+        eventId: firstEvent.id,
+        groupType: "duo",
+        scheduleBlockId: block.id,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "missing-price",
+      error:
+        "No hay un Precio configurado para este Tipo de grupo y Bloque horario.",
+    });
+
+    await expect(listEventCatalogs(firstEvent.id)).resolves.toMatchObject({
+      prices: [
+        {
+          eventId: firstEvent.id,
+          name: "Solo sábado",
+          scheduleBlock: { name: "Sábado mañana" },
+        },
+        {
+          eventId: firstEvent.id,
+          name: "Solo general",
+          scheduleBlock: null,
+        },
+      ],
+    });
+
+    await expect(
+      updatePrice(
+        general.id,
+        {
+          name: "Solo general actualizado",
+          groupType: "solo",
+          amount: 12000,
+          scheduleBlockId: null,
+        },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { name: "Solo general actualizado" },
+    });
+    await expect(
+      updatePrice(
+        general.id,
+        {
+          name: "Solo general actualizado",
+          groupType: "solo",
+          amount: 14000,
+          scheduleBlockId: null,
+        },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar monto, Tipo de grupo ni Bloque horario porque el Precio tiene dependencias.",
+    });
+    await expect(
+      deletePrice(general.id, { hasDependencies: async () => true }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "No se puede borrar el Precio porque tiene dependencias.",
     });
   });
 });
