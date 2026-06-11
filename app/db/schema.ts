@@ -34,6 +34,11 @@ export const documentType = pgEnum("en_escena_document_type", [
   "other",
 ]);
 
+export const choreographyCategoryCalculationMode = pgEnum(
+  "en_escena_choreography_category_calculation_mode",
+  ["oldest", "group_tolerance", "group_average"],
+);
+
 export const user = createTable("user", {
   id: varchar("id", { length: 255 })
     .primaryKey()
@@ -648,5 +653,114 @@ export const scheduleEntries = createTable(
       table.scheduleBlockId,
       table.groupTypeKey,
     ),
+  ],
+);
+
+export const choreographies = createTable(
+  "choreography",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id),
+    name: text("name").notNull(),
+    modalityId: varchar("modality_id", { length: 255 })
+      .notNull()
+      .references(() => modalities.id),
+    submodalityId: varchar("submodality_id", { length: 255 }).references(
+      () => submodalities.id,
+    ),
+    groupType: groupType("group_type").notNull(),
+    categoryId: varchar("category_id", { length: 255 }).references(
+      () => categories.id,
+    ),
+    categoryAgeBasis: integer("category_age_basis"),
+    categoryCalculationMode: choreographyCategoryCalculationMode(
+      "category_calculation_mode",
+    ).notNull(),
+    experienceLevelId: varchar("experience_level_id", {
+      length: 255,
+    }).references(() => experienceLevels.id),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 255 })
+      .notNull()
+      .references(() => scheduleEntries.id),
+    musicStorageKey: text("music_storage_key"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("choreography_event_academy_created_idx").on(
+      table.eventId,
+      table.academyId,
+      table.createdAt,
+    ),
+    index("choreography_schedule_entry_id_idx").on(table.scheduleEntryId),
+  ],
+);
+
+export const choreographyDancers = createTable(
+  "choreography_dancer",
+  {
+    choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
+    dancerId: varchar("dancer_id", { length: 255 }).notNull(),
+    ageAtEventStart: integer("age_at_event_start").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.choreographyId],
+      foreignColumns: [choreographies.id],
+      name: "choreography_dancer_choreography_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.dancerId],
+      foreignColumns: [dancers.id],
+      name: "choreography_dancer_dancer_fk",
+    }),
+    uniqueIndex("choreography_dancer_unique").on(
+      table.choreographyId,
+      table.dancerId,
+    ),
+    index("choreography_dancer_dancer_id_idx").on(table.dancerId),
+  ],
+);
+
+export const choreographyProfessors = createTable(
+  "choreography_professor",
+  {
+    choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
+    professorId: varchar("professor_id", { length: 255 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.choreographyId],
+      foreignColumns: [choreographies.id],
+      name: "choreography_professor_choreography_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.professorId],
+      foreignColumns: [professors.id],
+      name: "choreography_professor_professor_fk",
+    }),
+    uniqueIndex("choreography_professor_unique").on(
+      table.choreographyId,
+      table.professorId,
+    ),
+    index("choreography_professor_professor_id_idx").on(table.professorId),
   ],
 );

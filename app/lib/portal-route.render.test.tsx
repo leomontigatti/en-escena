@@ -9,6 +9,8 @@ vi.mock("@/lib/internal-access.server", () => ({
 import { PortalRouteView } from "@/routes/portal";
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
+import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias.$choreographyId";
+import { PortalCoreografiasRouteView } from "@/routes/portal.coreografias";
 import { PortalProfesorRouteView } from "@/routes/portal.profesores.$professorId";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
@@ -162,6 +164,112 @@ describe("portal route view", () => {
       "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
     );
     expect(markup).toContain("Falta un Precio aplicable");
+  });
+
+  test("shows the Coreografías list with the agreed columns and links to detail preserving the Evento consultado", () => {
+    const selectedEvent = eventSummary({
+      id: "event_2025",
+      name: "Regional 2025",
+      active: false,
+    });
+
+    const markup = renderCoreografias({
+      loaderData: coreografiasLoaderData({
+        choreographies: [
+          choreographyListItem({
+            id: "choreo_1",
+            name: "Mi Pieza",
+            submodalityName: "Lyrical",
+            categoryName: "Juvenil",
+            experienceLevelName: "Inicial",
+            operationalStatus: {
+              code: "incomplete",
+              pendingItems: ["music"],
+            },
+          }),
+        ],
+        eventContext: {
+          queryParamName: "evento",
+          events: [selectedEvent],
+          selectedEvent,
+          activeEvent: eventSummary({
+            id: "event_2026",
+            name: "Regional 2026",
+          }),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: true,
+          isRegistrationOpen: false,
+        },
+      }),
+    });
+
+    expect(markup).toContain("Coreografía");
+    expect(markup).toContain("Modalidad");
+    expect(markup).toContain("Categoría");
+    expect(markup).toContain("Estado operativo");
+    expect(markup).toContain("Mi Pieza");
+    expect(markup).toContain("Jazz · Lyrical");
+    expect(markup).toContain("Juvenil · Inicial");
+    expect(markup).toContain("Pendiente: Música");
+    expect(markup).toContain(
+      'href="/portal/coreografias/choreo_1?evento=event_2025"',
+    );
+  });
+
+  test("shows the Coreografía detail with structural read-only data, roster and archived badges", () => {
+    const markup = renderCoreografiaDetalle({
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          queryParamName: "evento",
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: true,
+          isRegistrationOpen: false,
+        },
+        choreography: choreographyDetailRow({
+          name: "Mi Pieza",
+          categoryName: null,
+          experienceLevelName: null,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["category", "professors"],
+          },
+          dancers: [
+            {
+              id: "dancer_1",
+              firstName: "Ana",
+              lastName: "Paz",
+              active: false,
+              ageAtEventStart: 14,
+            },
+          ],
+          professors: [
+            {
+              id: "prof_1",
+              firstName: "Luz",
+              lastName: "Suárez",
+              active: false,
+            },
+          ],
+        }),
+      }),
+    });
+
+    expect(markup).toContain("Mi Pieza");
+    expect(markup).toContain("Solo lectura");
+    expect(markup).toContain("Modalidad");
+    expect(markup).toContain("Tipo de grupo");
+    expect(markup).toContain("Categoría pendiente");
+    expect(markup).toContain("Pendiente: Categoría, Profesores");
+    expect(markup).toContain("Edad al inicio del Evento: 14");
+    expect(markup).toContain("Archivado");
+    expect(markup).toContain("Volver a Coreografías");
   });
 
   test("shows the Bailarines empty list surface", () => {
@@ -595,6 +703,34 @@ function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
   );
 }
 
+type CoreografiasViewProps = Parameters<typeof PortalCoreografiasRouteView>[0];
+
+function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/portal/coreografias"]}>
+      <PortalCoreografiasRouteView
+        loaderData={input.loaderData ?? coreografiasLoaderData()}
+      />
+    </MemoryRouter>,
+  );
+}
+
+type CoreografiaDetalleViewProps = Parameters<
+  typeof PortalCoreografiaDetalleRouteView
+>[0];
+
+function renderCoreografiaDetalle(
+  input: Partial<CoreografiaDetalleViewProps> = {},
+) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/portal/coreografias/choreo_1"]}>
+      <PortalCoreografiaDetalleRouteView
+        loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
+      />
+    </MemoryRouter>,
+  );
+}
+
 type ProfesorEditViewProps = Parameters<typeof PortalProfesorRouteView>[0];
 
 function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
@@ -645,6 +781,51 @@ function academyLoaderData({
   };
 }
 
+function coreografiasLoaderData({
+  choreographies = [],
+  eventContext = {
+    queryParamName: "evento",
+    events: [eventSummary()],
+    selectedEvent: eventSummary(),
+    activeEvent: eventSummary(),
+    hasActiveEvent: true,
+    activeEventRegistrationReadiness: readiness(true),
+    hasEvents: true,
+    isReadOnly: false,
+    isRegistrationOpen: true,
+  },
+}: {
+  choreographies?: Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"]["choreographies"];
+  eventContext?: Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"]["eventContext"];
+} = {}) {
+  return {
+    email: "portal@example.com",
+    academy: {
+      id: "academy_1",
+      userId: "user_1",
+      name: "Academia de Prueba",
+      contactName: "Contacto",
+      phone: "11 1234-5678",
+    },
+    choreographies,
+    eventContext,
+  };
+}
+
+function coreografiaDetalleLoaderData(
+  overrides: Partial<CoreografiaDetalleViewProps["loaderData"]> = {},
+) {
+  return {
+    ...coreografiasLoaderData(),
+    choreography: choreographyDetailRow(),
+    ...overrides,
+  };
+}
+
 function bailarinDetalleLoaderData() {
   return {
     ...academyLoaderData(),
@@ -688,6 +869,50 @@ function professorListItem(
     isIncomplete: true,
     ...overrides,
   } satisfies ProfesoresViewProps["loaderData"]["professors"][number];
+}
+
+function choreographyListItem(
+  overrides: Partial<
+    CoreografiasViewProps["loaderData"]["choreographies"][number]
+  > = {},
+) {
+  return {
+    id: "choreo_1",
+    name: "Coreografía",
+    modalityName: "Jazz",
+    submodalityName: null,
+    groupType: "solo" as const,
+    categoryName: "Juvenil",
+    experienceLevelName: "Inicial",
+    operationalStatus: {
+      code: "complete" as const,
+      pendingItems: [],
+    },
+    ...overrides,
+  };
+}
+
+function choreographyDetailRow(
+  overrides: Partial<
+    CoreografiaDetalleViewProps["loaderData"]["choreography"]
+  > = {},
+) {
+  return {
+    ...choreographyListItem(),
+    scheduleBlockName: "Bloque mañana",
+    scheduleLabel: "2026-05-01 · 10:00",
+    dancers: [
+      {
+        id: "dancer_1",
+        firstName: "Ana",
+        lastName: "Paz",
+        active: true,
+        ageAtEventStart: 14,
+      },
+    ],
+    professors: [],
+    ...overrides,
+  };
 }
 
 function dancerDetailRow(
