@@ -81,6 +81,7 @@ type CatalogActionInput = {
   intent: string;
   capacity: number;
   scheduleBlockId: string;
+  priceScheduleBlockId: string | null;
   minAge: number;
   maxAge: number;
   groupTypes: string[];
@@ -90,7 +91,6 @@ type CatalogActionInput = {
   name: string;
   experienceLevelIds: string[];
   scheduledDate: string;
-  scheduleBlockId: string | null;
   startTime: string;
   totalCapacity: number;
   amount: number;
@@ -1235,9 +1235,9 @@ function readCatalogActionInput(
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     scheduleBlockId: String(formData.get("scheduleBlockId") ?? ""),
+    priceScheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
-    scheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
     startTime: String(formData.get("startTime") ?? ""),
     totalCapacity: Number.parseInt(
       String(formData.get("totalCapacity") ?? ""),
@@ -1350,7 +1350,7 @@ function getPriceInput(input: CatalogActionInput): PriceInput {
     name: input.name,
     groupType: input.groupType,
     amount: input.amount,
-    scheduleBlockId: input.scheduleBlockId,
+    scheduleBlockId: input.priceScheduleBlockId,
   };
 }
 
