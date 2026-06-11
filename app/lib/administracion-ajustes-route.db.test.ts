@@ -309,9 +309,19 @@ describe("administracion/ajustes route", () => {
         ).request,
       ),
     );
+    const createMarkup = renderNuevaModalidadRoute(data);
     const markup = renderModalidadDetalleRoute(data, modality?.id ?? "");
 
-    expect(markup).toContain("Volver a Modalidades");
+    expect(createMarkup).toContain('aria-label="Breadcrumb"');
+    expect(createMarkup).toContain(
+      `/administracion/ajustes/modalidades?evento=${event.id}`,
+    );
+    expect(createMarkup).not.toContain("Volver a Modalidades");
+    expect(markup).toContain('aria-label="Breadcrumb"');
+    expect(markup).toContain(
+      `/administracion/ajustes/modalidades?evento=${event.id}`,
+    );
+    expect(markup).not.toContain("Volver a Modalidades");
     expect(markup).toContain("Guardar Modalidad");
     expect(markup).toContain("Crear Submodalidad");
     expect(markup).toContain("Borrar Modalidad");

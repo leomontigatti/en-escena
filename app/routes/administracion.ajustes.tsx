@@ -552,10 +552,16 @@ export function AdministracionAjustesNuevaModalidadRouteView({
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
       actionData={providedActionData}
+      breadcrumbItems={[
+        {
+          label: "Modalidades",
+          to: buildSettingsPath("modalidades", loaderData.selectedEventId),
+        },
+        { label: "Nueva Modalidad" },
+      ]}
       title="Nueva Modalidad"
       description="Creá una Modalidad en una ruta dedicada y completá sus Submodalidades desde el detalle."
     >
-      <ModalidadesBackLink selectedEventId={loaderData.selectedEventId} />
       <CatalogSection title="Datos de la Modalidad">
         <ModalityForm
           intent="create-modality"
@@ -583,10 +589,16 @@ export function AdministracionAjustesModalidadDetalleRouteView({
     <AdministracionAjustesSectionLayout
       loaderData={loaderData}
       actionData={providedActionData}
+      breadcrumbItems={[
+        {
+          label: "Modalidades",
+          to: buildSettingsPath("modalidades", loaderData.selectedEventId),
+        },
+        { label: modality?.name ?? "Modalidad" },
+      ]}
       title={modality?.name ?? "Detalle de Modalidad"}
       description="Editá la Modalidad, gestioná sus Submodalidades y resolvé acciones destructivas con contexto."
     >
-      <ModalidadesBackLink selectedEventId={loaderData.selectedEventId} />
       {modality ? (
         <div className="space-y-6">
           <CatalogSection title="Datos de la Modalidad">
@@ -1372,21 +1384,6 @@ function CatalogUpdateForm({
         {buttonLabel}
       </button>
     </form>
-  );
-}
-
-function ModalidadesBackLink({
-  selectedEventId,
-}: {
-  selectedEventId: string | null;
-}) {
-  return (
-    <Link
-      to={buildModalidadesListPath(selectedEventId)}
-      className={secondaryLinkButtonClassName}
-    >
-      Volver a Modalidades
-    </Link>
   );
 }
 
