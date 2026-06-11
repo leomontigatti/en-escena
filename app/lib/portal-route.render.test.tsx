@@ -204,9 +204,34 @@ describe("portal route view", () => {
     expect(markup).toContain("Sin documento");
     expect(markup).toContain("Incompleto");
     expect(markup).toContain('href="/portal/bailarines/dancer_ana"');
+    expect(markup).not.toContain("Archivar Bailarín");
+    expect(markup).not.toContain("Reactivar Bailarín");
     expect(markup.indexOf("Alvarez, Ana")).toBeLessThan(
       markup.indexOf("Cruz de la Torre, Juan Manuel"),
     );
+  });
+
+  test("shows the Archivados tab for Bailarines and keeps archive actions out of the list", () => {
+    const markup = renderBailarines({
+      loaderData: academyLoaderData({
+        dancers: [
+          dancerListItem({
+            id: "dancer_archived",
+            firstName: "Ana",
+            lastName: "Archivada",
+            active: false,
+          }),
+        ],
+        statusFilter: "archived",
+      }),
+    });
+
+    expect(markup).toContain(">Activos<");
+    expect(markup).toContain(">Archivados<");
+    expect(markup).toContain("Archivado");
+    expect(markup).not.toContain("Cargar Bailarín");
+    expect(markup).not.toContain("Archivar Bailarín");
+    expect(markup).not.toContain("Reactivar Bailarín");
   });
 
   test("keeps the Bailarín modal open with errors and previous values", () => {
@@ -267,6 +292,25 @@ describe("portal route view", () => {
     expect(markup).toContain("Pasaporte");
     expect(markup).toContain("Otro");
     expect(markup).toContain("El Bailarín se guardó correctamente.");
+  });
+
+  test("shows the Bailarín archived badge and reactivate action by direct URL", () => {
+    const markup = renderBailarinDetalle({
+      loaderData: {
+        ...academyLoaderData(),
+        dancer: dancerDetailRow({
+          id: "dancer_archived",
+          firstName: "Ana",
+          lastName: "Archivada",
+          active: false,
+        }),
+        saved: false,
+      },
+    });
+
+    expect(markup).toContain("Archivado");
+    expect(markup).toContain("Reactivar Bailarín");
+    expect(markup).not.toContain("Archivar Bailarín");
   });
 
   test("shows Bailarín edit field errors while preserving submitted values", () => {
@@ -370,6 +414,32 @@ describe("portal route view", () => {
     expect(markup).toContain('href="/portal/profesores/prof_1"');
     expect(markup).toContain("Sin documento");
     expect(markup).toContain("Incompleto");
+    expect(markup).not.toContain("Archivar Profesor");
+    expect(markup).not.toContain("Reactivar Profesor");
+  });
+
+  test("shows the Archivados tab for Profesores and keeps archive actions out of the list", () => {
+    const markup = renderProfesores({
+      loaderData: {
+        ...academyLoaderData({
+          professors: [
+            professorListItem({
+              id: "prof_archived",
+              firstName: "Ana",
+              lastName: "Archivada",
+              active: false,
+            }),
+          ],
+        }),
+        statusFilter: "archived",
+      },
+    });
+
+    expect(markup).toContain(">Activos<");
+    expect(markup).toContain(">Archivados<");
+    expect(markup).toContain("Archivado");
+    expect(markup).not.toContain("Archivar Profesor");
+    expect(markup).not.toContain("Reactivar Profesor");
   });
 });
 
@@ -430,6 +500,23 @@ describe("portal Profesor edit view", () => {
       "Faltan datos para poder validar la identificación.",
     );
   });
+
+  test("shows the archived badge and reactivate action for Profesores by direct URL", () => {
+    const markup = renderProfesorEdit({
+      loaderData: {
+        ...academyLoaderData(),
+        professor: professorListItem({
+          active: false,
+          isIncomplete: false,
+        }),
+        successMessage: null,
+      },
+    });
+
+    expect(markup).toContain("Archivado");
+    expect(markup).toContain("Reactivar Profesor");
+    expect(markup).not.toContain("Archivar Profesor");
+  });
 });
 
 type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
@@ -457,12 +544,7 @@ function renderPortal(input: {
 }
 
 function renderBailarines(
-  input: Partial<
-    Pick<
-      Parameters<typeof PortalBailarinesRouteView>[0],
-      "actionData" | "created"
-    >
-  > & {
+  input: Partial<Parameters<typeof PortalBailarinesRouteView>[0]> & {
     dancers?: Parameters<
       typeof PortalBailarinesRouteView
     >[0]["loaderData"]["dancers"];
@@ -473,7 +555,13 @@ function renderBailarines(
       <PortalBailarinesRouteView
         actionData={input.actionData}
         created={input.created}
-        loaderData={academyLoaderData({ dancers: input.dancers ?? [] })}
+        loaderData={
+          input.loaderData ??
+          academyLoaderData({
+            dancers: input.dancers ?? [],
+            statusFilter: "active",
+          })
+        }
       />
     </MemoryRouter>,
   );
@@ -531,12 +619,14 @@ function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
 function academyLoaderData({
   dancers = [],
   professors = [],
+  statusFilter = "active",
   successMessage = null,
 }: {
   dancers?: Parameters<
     typeof PortalBailarinesRouteView
   >[0]["loaderData"]["dancers"];
   professors?: ProfesoresViewProps["loaderData"]["professors"];
+  statusFilter?: "active" | "archived";
   successMessage?: string | null;
 } = {}) {
   return {
@@ -550,6 +640,7 @@ function academyLoaderData({
     },
     dancers,
     professors,
+    statusFilter,
     successMessage,
   };
 }
@@ -573,6 +664,7 @@ function dancerListItem(
     id: "dancer_1",
     firstName: "Bailarina",
     lastName: "Prueba",
+    active: true,
     birthDate: "2015-01-01",
     documentType: null,
     documentNumber: null,
@@ -590,6 +682,7 @@ function professorListItem(
     id: "profesor_1",
     firstName: "Ana",
     lastName: "Zapata",
+    active: true,
     documentType: null,
     documentNumber: null,
     isIncomplete: true,
@@ -606,6 +699,7 @@ function dancerDetailRow(
     firstName: "Bailarina",
     lastName: "Prueba",
     birthDate: "2015-01-01",
+    active: true,
     documentType: null,
     documentNumber: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),

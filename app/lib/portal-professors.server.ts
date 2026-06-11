@@ -14,7 +14,7 @@ export type UpdateProfessorInput = CreateProfessorInput & {
 
 export type ProfessorListItem = Pick<
   typeof professors.$inferSelect,
-  "id" | "firstName" | "lastName" | "documentType" | "documentNumber"
+  "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
 > & {
   isIncomplete: boolean;
 };
@@ -44,21 +44,29 @@ const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
 
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
-  "id" | "firstName" | "lastName" | "documentType" | "documentNumber"
+  "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
 >;
 
 export async function listAcademyProfessors(
   academyId: string,
+  options: {
+    status?: "active" | "archived";
+  } = {},
 ): Promise<ProfessorListItem[]> {
+  const status = options.status ?? "active";
   const rows = await db.query.professors.findMany({
     columns: {
       id: true,
       firstName: true,
       lastName: true,
+      active: true,
       documentType: true,
       documentNumber: true,
     },
-    where: eq(professors.academyId, academyId),
+    where: and(
+      eq(professors.academyId, academyId),
+      eq(professors.active, status === "active"),
+    ),
     orderBy: [
       asc(sql`lower(${professors.lastName})`),
       asc(sql`lower(${professors.firstName})`),
@@ -93,6 +101,7 @@ export async function createAcademyProfessor(
       academyId,
       firstName,
       lastName,
+      active: true,
     })
     .returning();
 
@@ -108,6 +117,7 @@ export async function findAcademyProfessor(
       id: true,
       firstName: true,
       lastName: true,
+      active: true,
       documentType: true,
       documentNumber: true,
     },
@@ -212,6 +222,20 @@ export async function updateAcademyProfessor(
     .returning();
 
   return { ok: true, professor };
+}
+
+export async function archiveAcademyProfessor(
+  academyId: string,
+  professorId: string,
+) {
+  return await setProfessorActiveState(academyId, professorId, false);
+}
+
+export async function reactivateAcademyProfessor(
+  academyId: string,
+  professorId: string,
+) {
+  return await setProfessorActiveState(academyId, professorId, true);
 }
 
 export function normalizeSpanishTitleCase(
@@ -364,4 +388,29 @@ function isDocumentType(
   value: string,
 ): value is NonNullable<(typeof professors.$inferSelect)["documentType"]> {
   return value === "dni" || value === "passport" || value === "other";
+}
+
+async function setProfessorActiveState(
+  academyId: string,
+  professorId: string,
+  active: boolean,
+) {
+  const professor = await findAcademyProfessor(academyId, professorId);
+
+  if (!professor) {
+    throw new Response("No encontramos ese Profesor.", { status: 404 });
+  }
+
+  const [updatedProfessor] = await db
+    .update(professors)
+    .set({
+      active,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(professors.id, professorId), eq(professors.academyId, academyId)),
+    )
+    .returning();
+
+  return updatedProfessor;
 }

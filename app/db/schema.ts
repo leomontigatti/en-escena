@@ -203,6 +203,7 @@ export const dancers = createTable(
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     birthDate: text("birth_date").notNull(),
+    active: boolean("active").notNull().default(true),
     documentType: documentType("document_type"),
     documentNumber: text("document_number"),
     createdAt: timestamp("created_at", {
@@ -275,6 +276,7 @@ export const professors = createTable(
       .references(() => academies.id, { onDelete: "cascade" }),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
+    active: boolean("active").notNull().default(true),
     documentType: documentType("document_type"),
     documentNumber: text("document_number"),
     createdAt: timestamp("created_at", {

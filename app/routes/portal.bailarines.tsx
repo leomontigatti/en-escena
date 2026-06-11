@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Link, redirect, useActionData, useSearchParams } from "react-router";
+import {
+  Link,
+  redirect,
+  useActionData,
+  useSearchParams,
+  type LinkProps,
+} from "react-router";
+import { clsx } from "clsx";
 
 import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
@@ -22,6 +29,7 @@ type PortalBailarinesRouteProps = {
       userId: string;
     };
     dancers: DancerListItem[];
+    statusFilter: "active" | "archived";
   };
   actionData?: ActionData;
   created?: boolean;
@@ -40,12 +48,18 @@ export const meta = () => [
 
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
-  const dancers = await listDancersForAcademy(academy.id);
+  const url = new URL(request.url);
+  const statusFilter =
+    url.searchParams.get("estado") === "archivados" ? "archived" : "active";
+  const dancers = await listDancersForAcademy(academy.id, {
+    status: statusFilter,
+  });
 
   return {
     email: user.email,
     academy,
     dancers,
+    statusFilter,
   };
 }
 
@@ -93,6 +107,7 @@ export function PortalBailarinesRouteView({
         isCreateOpen={isCreateOpen}
         onCloseCreate={() => setIsCreateOpen(false)}
         onOpenCreate={() => setIsCreateOpen(true)}
+        statusFilter={loaderData.statusFilter}
       />
 
       {created ? (
@@ -131,13 +146,17 @@ function DancersSection({
   isCreateOpen,
   onCloseCreate,
   onOpenCreate,
+  statusFilter,
 }: {
   actionData?: ActionData;
   dancers: DancerListItem[];
   isCreateOpen: boolean;
   onCloseCreate: () => void;
   onOpenCreate: () => void;
+  statusFilter: "active" | "archived";
 }) {
+  const isArchivedView = statusFilter === "archived";
+
   return (
     <section className="mt-8" aria-labelledby="bailarines-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -149,24 +168,48 @@ function DancersSection({
             Bailarines
           </p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Esta lista muestra solo los bailarines cargados por tu academia.
+            {isArchivedView
+              ? "Consultá los bailarines archivados y reactivalos desde su ficha cuando vuelvan a participar."
+              : "Esta lista muestra solo los bailarines activos de tu academia."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenCreate}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        {!isArchivedView ? (
+          <button
+            type="button"
+            onClick={onOpenCreate}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          >
+            Cargar Bailarín
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <StatusTab to="/portal/bailarines" isActive={!isArchivedView}>
+          Activos
+        </StatusTab>
+        <StatusTab
+          to="/portal/bailarines?estado=archivados"
+          isActive={isArchivedView}
         >
-          Cargar Bailarín
-        </button>
+          Archivados
+        </StatusTab>
       </div>
 
       {dancers.length > 0 ? (
         <DancersTable dancers={dancers} />
       ) : (
         <PortalEmptyList
-          title="Todavía no cargaste bailarines"
-          description="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
+          title={
+            isArchivedView
+              ? "No hay bailarines archivados"
+              : "Todavía no cargaste bailarines"
+          }
+          description={
+            isArchivedView
+              ? "Los bailarines archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha."
+              : "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
+          }
         />
       )}
 
@@ -199,6 +242,11 @@ function DancersTable({ dancers }: { dancers: DancerListItem[] }) {
                 >
                   {dancer.lastName}, {dancer.firstName}
                 </Link>
+                {!dancer.active ? (
+                  <span className="ml-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                    Archivado
+                  </span>
+                ) : null}
               </td>
               <td className="px-4 py-3 text-slate-700">
                 {formatDateOnly(dancer.birthDate)}
@@ -214,6 +262,30 @@ function DancersTable({ dancers }: { dancers: DancerListItem[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function StatusTab({
+  children,
+  isActive,
+  to,
+}: {
+  children: string;
+  isActive: boolean;
+  to: LinkProps["to"];
+}) {
+  return (
+    <Link
+      to={to}
+      className={clsx(
+        "inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
+        isActive
+          ? "bg-teal-50 text-teal-900"
+          : "text-slate-700 hover:bg-slate-50 hover:text-slate-950",
+      )}
+    >
+      {children}
+    </Link>
   );
 }
 

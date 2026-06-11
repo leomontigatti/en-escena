@@ -614,6 +614,103 @@ describe.sequential("portal Bailarines route", () => {
       404,
     );
   });
+
+  test("archives and reactivates a Bailarín while keeping direct URL access", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.archive@example.com",
+      academyName: "Academia Archivo",
+    });
+    const [activeDancer, archivedDancer] = await db
+      .insert(dancers)
+      .values([
+        {
+          academyId: session.academyId,
+          firstName: "Ana",
+          lastName: "Activa",
+          birthDate: "2014-02-01",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Beto",
+          lastName: "Archivado",
+          birthDate: "2013-03-02",
+          active: false,
+        },
+      ])
+      .returning();
+
+    const archiveResponse = await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${activeDancer.id}`,
+          session.cookie,
+          formData({ intent: "archive-dancer" }),
+        ),
+        params: { dancerId: activeDancer.id },
+      }),
+      302,
+    );
+
+    expect(archiveResponse.headers.get("location")).toBe(
+      `/portal/bailarines/${activeDancer.id}?guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
+    ).resolves.toMatchObject({ active: false });
+
+    const activeListData = await bailarinesLoader({
+      request: new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+    expect(activeListData.dancers).toEqual([]);
+
+    const archivedListData = await bailarinesLoader({
+      request: new Request(
+        "http://localhost/portal/bailarines?estado=archivados",
+        {
+          headers: { cookie: session.cookie },
+        },
+      ),
+    });
+    expect(archivedListData.dancers).toMatchObject([
+      { id: activeDancer.id, active: false },
+      { id: archivedDancer.id, active: false },
+    ]);
+
+    const archivedDetailData = await bailarinesDetalleLoader({
+      request: new Request(
+        `http://localhost/portal/bailarines/${activeDancer.id}`,
+        {
+          headers: { cookie: session.cookie },
+        },
+      ),
+      params: { dancerId: activeDancer.id },
+    });
+    expect(archivedDetailData.dancer).toMatchObject({
+      id: activeDancer.id,
+      active: false,
+    });
+
+    const reactivateResponse = await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${activeDancer.id}`,
+          session.cookie,
+          formData({ intent: "reactivate-dancer" }),
+        ),
+        params: { dancerId: activeDancer.id },
+      }),
+      302,
+    );
+
+    expect(reactivateResponse.headers.get("location")).toBe(
+      `/portal/bailarines/${activeDancer.id}?guardado=1`,
+    );
+    await expect(
+      db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
+    ).resolves.toMatchObject({ active: true });
+  });
 });
 
 describe("portal Profesores management", () => {
@@ -984,6 +1081,105 @@ describe("portal Profesores management", () => {
       }),
       404,
     );
+  });
+
+  test("archives and reactivates a Profesor while keeping direct URL access", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.archive.owner@example.com",
+      academyName: "Academia Archivo",
+    });
+    const [activeProfessor, archivedProfessor] = await db
+      .insert(professors)
+      .values([
+        {
+          academyId: owner.academy.id,
+          firstName: "Ana",
+          lastName: "Activa",
+        },
+        {
+          academyId: owner.academy.id,
+          firstName: "Bea",
+          lastName: "Archivada",
+          active: false,
+        },
+      ])
+      .returning();
+
+    const archiveResponse = await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${activeProfessor.id}`,
+          owner.cookie,
+          formData({ intent: "archive-professor" }),
+        ),
+        params: { professorId: activeProfessor.id },
+      }),
+      302,
+    );
+
+    expect(archiveResponse.headers.get("location")).toBe(
+      `/portal/profesores/${activeProfessor.id}?actualizado=1`,
+    );
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, activeProfessor.id),
+      }),
+    ).resolves.toMatchObject({ active: false });
+
+    const activeListData = await profesoresLoader({
+      request: new Request("http://localhost/portal/profesores", {
+        headers: { cookie: owner.cookie },
+      }),
+    });
+    expect(activeListData.professors).toEqual([]);
+
+    const archivedListData = await profesoresLoader({
+      request: new Request(
+        "http://localhost/portal/profesores?estado=archivados",
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+    expect(archivedListData.professors).toMatchObject([
+      { id: activeProfessor.id, active: false },
+      { id: archivedProfessor.id, active: false },
+    ]);
+
+    const archivedDetailData = await profesorLoader({
+      request: new Request(
+        `http://localhost/portal/profesores/${activeProfessor.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+      params: { professorId: activeProfessor.id },
+    });
+    expect(archivedDetailData.professor).toMatchObject({
+      id: activeProfessor.id,
+      active: false,
+    });
+
+    const reactivateResponse = await expectThrownResponse(
+      profesorAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/profesores/${activeProfessor.id}`,
+          owner.cookie,
+          formData({ intent: "reactivate-professor" }),
+        ),
+        params: { professorId: activeProfessor.id },
+      }),
+      302,
+    );
+
+    expect(reactivateResponse.headers.get("location")).toBe(
+      `/portal/profesores/${activeProfessor.id}?actualizado=1`,
+    );
+    await expect(
+      db.query.professors.findFirst({
+        where: eq(professors.id, activeProfessor.id),
+      }),
+    ).resolves.toMatchObject({ active: true });
   });
 });
 

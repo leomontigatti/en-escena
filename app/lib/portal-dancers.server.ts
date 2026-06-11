@@ -7,6 +7,7 @@ export type DancerListItem = {
   id: string;
   firstName: string;
   lastName: string;
+  active: boolean;
   birthDate: string;
   documentType: string | null;
   documentNumber: string | null;
@@ -72,9 +73,16 @@ const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
 export async function listDancersForAcademy(
   academyId: string,
+  options: {
+    status?: "active" | "archived";
+  } = {},
 ): Promise<DancerListItem[]> {
+  const status = options.status ?? "active";
   const rows = await db.query.dancers.findMany({
-    where: eq(dancers.academyId, academyId),
+    where: and(
+      eq(dancers.academyId, academyId),
+      eq(dancers.active, status === "active"),
+    ),
     orderBy: [asc(dancers.lastName), asc(dancers.firstName)],
   });
 
@@ -82,6 +90,7 @@ export async function listDancersForAcademy(
     id: dancer.id,
     firstName: dancer.firstName,
     lastName: dancer.lastName,
+    active: dancer.active,
     birthDate: dancer.birthDate,
     documentType: dancer.documentType,
     documentNumber: dancer.documentNumber,
@@ -109,6 +118,7 @@ export async function createDancerForAcademy(
       firstName: validation.input.firstName,
       lastName: validation.input.lastName,
       birthDate: validation.input.birthDate,
+      active: true,
     })
     .returning();
 
@@ -159,6 +169,20 @@ export async function updateDancerForAcademy(
     .returning();
 
   return { ok: true, dancer: updatedDancer };
+}
+
+export async function archiveDancerForAcademy(
+  academyId: string,
+  dancerId: string,
+) {
+  return await setDancerActiveState(academyId, dancerId, false);
+}
+
+export async function reactivateDancerForAcademy(
+  academyId: string,
+  dancerId: string,
+) {
+  return await setDancerActiveState(academyId, dancerId, true);
 }
 
 function validateCreateDancerInput(
@@ -360,6 +384,29 @@ async function hasDuplicateDancerDocument(input: {
   });
 
   return duplicate !== undefined;
+}
+
+async function setDancerActiveState(
+  academyId: string,
+  dancerId: string,
+  active: boolean,
+) {
+  const dancer = await findDancerForAcademy(academyId, dancerId);
+
+  if (!dancer) {
+    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+  }
+
+  const [updatedDancer] = await db
+    .update(dancers)
+    .set({
+      active,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
+    .returning();
+
+  return updatedDancer;
 }
 
 function isDancerDocumentType(value: string): value is DancerDocumentType {

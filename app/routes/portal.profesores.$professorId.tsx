@@ -1,4 +1,5 @@
 import { redirect, useActionData, useSearchParams } from "react-router";
+import { clsx } from "clsx";
 
 import {
   AccessField,
@@ -9,7 +10,9 @@ import {
 import { PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  archiveAcademyProfessor,
   findAcademyProfessor,
+  reactivateAcademyProfessor,
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal-professors.server";
@@ -63,6 +66,22 @@ export async function action({
   await requireProfessor(academy.id, professorId);
 
   const formData = await request.formData();
+  const intent = readFormString(formData, "intent");
+
+  if (intent === "archive-professor") {
+    await archiveAcademyProfessor(academy.id, professorId);
+    throw redirect(
+      `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+    );
+  }
+
+  if (intent === "reactivate-professor") {
+    await reactivateAcademyProfessor(academy.id, professorId);
+    throw redirect(
+      `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+    );
+  }
+
   const result = await updateAcademyProfessor(academy.id, professorId, {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -106,12 +125,19 @@ export function PortalProfesorRouteView({
     >
       <section className="mt-8 max-w-2xl" aria-labelledby="profesor-editar">
         <div>
-          <p
-            id="profesor-editar"
-            className="text-sm font-semibold text-slate-950"
-          >
-            Editar Profesor
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p
+              id="profesor-editar"
+              className="text-sm font-semibold text-slate-950"
+            >
+              Editar Profesor
+            </p>
+            {!loaderData.professor.active ? (
+              <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Archivado
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Completá nombre, apellido y documento para mantener el registro al
             día.
@@ -141,6 +167,7 @@ export function PortalProfesorRouteView({
         ) : null}
 
         <form method="post" className="mt-6 space-y-5">
+          <input type="hidden" name="intent" value="update-professor" />
           <AccessField
             id="profesor-first-name"
             label="Nombre"
@@ -184,6 +211,41 @@ export function PortalProfesorRouteView({
           <button type="submit" className={accessButtonClassName}>
             Guardar cambios
           </button>
+        </form>
+
+        <form
+          method="post"
+          className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {loaderData.professor.active
+                  ? "Archivá este Profesor para sacarlo de las listas activas y de los próximos selects de coreografías."
+                  : "Reactivá este Profesor para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías."}
+              </p>
+            </div>
+            <button
+              type="submit"
+              name="intent"
+              value={
+                loaderData.professor.active
+                  ? "archive-professor"
+                  : "reactivate-professor"
+              }
+              className={clsx(
+                "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
+                loaderData.professor.active
+                  ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  : "bg-teal-700 text-white hover:bg-teal-800",
+              )}
+            >
+              {loaderData.professor.active
+                ? "Archivar Profesor"
+                : "Reactivar Profesor"}
+            </button>
+          </div>
         </form>
       </section>
 
@@ -275,10 +337,7 @@ function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
     : null;
 }
 
-function readFormString(
-  formData: FormData,
-  fieldName: keyof UpdateProfessorInput,
-) {
+function readFormString(formData: FormData, fieldName: string) {
   const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";

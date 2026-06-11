@@ -1,11 +1,14 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, redirect, useActionData } from "react-router";
+import { clsx } from "clsx";
 
 import { AccessNotice } from "@/components/access-ui";
 import { PortalShell } from "@/components/portal-ui";
 import { requireAcademyUser } from "@/lib/internal-access.server";
 import {
+  archiveDancerForAcademy,
   findDancerForAcademy,
+  reactivateDancerForAcademy,
   updateDancerForAcademy,
   type UpdateDancerInput,
 } from "@/lib/portal-dancers.server";
@@ -76,6 +79,18 @@ export async function action({
   }
 
   const formData = await request.formData();
+  const intent = readFormString(formData, "intent");
+
+  if (intent === "archive-dancer") {
+    await archiveDancerForAcademy(academy.id, dancerId);
+    throw redirect(`/portal/bailarines/${dancerId}?guardado=1`);
+  }
+
+  if (intent === "reactivate-dancer") {
+    await reactivateDancerForAcademy(academy.id, dancerId);
+    throw redirect(`/portal/bailarines/${dancerId}?guardado=1`);
+  }
+
   const result = await updateDancerForAcademy(academy.id, dancerId, {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -119,12 +134,19 @@ export function PortalBailarinDetalleRouteView({
         </Link>
 
         <div>
-          <h2
-            id="bailarin-detalle-title"
-            className="text-xl font-semibold text-slate-950"
-          >
-            {loaderData.dancer.lastName}, {loaderData.dancer.firstName}
-          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2
+              id="bailarin-detalle-title"
+              className="text-xl font-semibold text-slate-950"
+            >
+              {loaderData.dancer.lastName}, {loaderData.dancer.firstName}
+            </h2>
+            {!loaderData.dancer.active ? (
+              <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Archivado
+              </span>
+            ) : null}
+          </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Actualizá los datos de identidad y documento del Bailarín.
           </p>
@@ -150,6 +172,7 @@ export function PortalBailarinDetalleRouteView({
           method="post"
           className="space-y-4 rounded-lg border border-slate-200 bg-white p-6"
         >
+          <input type="hidden" name="intent" value="update-dancer" />
           <FormField
             id="bailarin-nombre"
             label="Nombre"
@@ -196,6 +219,41 @@ export function PortalBailarinDetalleRouteView({
               className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             >
               Guardar cambios
+            </button>
+          </div>
+        </form>
+
+        <form
+          method="post"
+          className="rounded-lg border border-slate-200 bg-slate-50 p-6"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {loaderData.dancer.active
+                  ? "Archivá este Bailarín para sacarlo de las listas activas y de los próximos selects de coreografías."
+                  : "Reactivá este Bailarín para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías."}
+              </p>
+            </div>
+            <button
+              type="submit"
+              name="intent"
+              value={
+                loaderData.dancer.active
+                  ? "archive-dancer"
+                  : "reactivate-dancer"
+              }
+              className={clsx(
+                "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
+                loaderData.dancer.active
+                  ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  : "bg-teal-700 text-white hover:bg-teal-800",
+              )}
+            >
+              {loaderData.dancer.active
+                ? "Archivar Bailarín"
+                : "Reactivar Bailarín"}
             </button>
           </div>
         </form>

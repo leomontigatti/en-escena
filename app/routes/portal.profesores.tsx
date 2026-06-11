@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { Link, redirect, useActionData } from "react-router";
+import { Link, redirect, useActionData, type LinkProps } from "react-router";
+import { clsx } from "clsx";
 
 import {
   AccessField,
@@ -28,12 +29,17 @@ export const meta = () => [
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
   const url = new URL(request.url);
-  const professorRows = await listAcademyProfessors(academy.id);
+  const statusFilter =
+    url.searchParams.get("estado") === "archivados" ? "archived" : "active";
+  const professorRows = await listAcademyProfessors(academy.id, {
+    status: statusFilter,
+  });
 
   return {
     email: user.email,
     academy,
     professors: professorRows,
+    statusFilter,
     successMessage:
       url.searchParams.get("creado") === "1"
         ? "Profesor creado correctamente."
@@ -99,17 +105,36 @@ export function PortalProfesoresRouteView({
               Profesores
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Esta lista muestra solo los profesores cargados por tu academia.
+              {loaderData.statusFilter === "archived"
+                ? "Consultá los profesores archivados y reactivalos desde su ficha cuando vuelvan a participar."
+                : "Esta lista muestra solo los profesores activos de tu academia."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          {loaderData.statusFilter === "active" ? (
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              Cargar profesor
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <StatusTab
+            to="/portal/profesores"
+            isActive={loaderData.statusFilter === "active"}
           >
-            <Plus aria-hidden="true" className="size-4" />
-            Cargar profesor
-          </button>
+            Activos
+          </StatusTab>
+          <StatusTab
+            to="/portal/profesores?estado=archivados"
+            isActive={loaderData.statusFilter === "archived"}
+          >
+            Archivados
+          </StatusTab>
         </div>
 
         {loaderData.successMessage ? (
@@ -124,8 +149,16 @@ export function PortalProfesoresRouteView({
           <ProfessorTable professors={loaderData.professors} />
         ) : (
           <PortalEmptyList
-            title="Todavía no cargaste profesores"
-            description="Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías."
+            title={
+              loaderData.statusFilter === "archived"
+                ? "No hay profesores archivados"
+                : "Todavía no cargaste profesores"
+            }
+            description={
+              loaderData.statusFilter === "archived"
+                ? "Los profesores archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha."
+                : "Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías."
+            }
           />
         )}
       </section>
@@ -198,6 +231,11 @@ function ProfessorTable({ professors }: { professors: ProfessorListItem[] }) {
                 >
                   {professor.lastName}, {professor.firstName}
                 </Link>
+                {!professor.active ? (
+                  <span className="ml-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                    Archivado
+                  </span>
+                ) : null}
               </td>
               <td className="px-4 py-3 text-slate-700">
                 {formatProfessorDocument(professor)}
@@ -214,6 +252,30 @@ function ProfessorTable({ professors }: { professors: ProfessorListItem[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function StatusTab({
+  children,
+  isActive,
+  to,
+}: {
+  children: string;
+  isActive: boolean;
+  to: LinkProps["to"];
+}) {
+  return (
+    <Link
+      to={to}
+      className={clsx(
+        "inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
+        isActive
+          ? "bg-teal-50 text-teal-900"
+          : "text-slate-700 hover:bg-slate-50 hover:text-slate-950",
+      )}
+    >
+      {children}
+    </Link>
   );
 }
 
