@@ -4,10 +4,29 @@ import {
   PrivateAccessHeader,
 } from "@/components/access-ui";
 import { requireAuditorPanelUser } from "@/lib/internal-navigation.server";
+import { Link } from "react-router";
 
 import type { Route } from "./+types/auditoria";
 
 type AuditoriaRouteProps = Pick<Route.ComponentProps, "loaderData">;
+
+const auditoriaLinkCardClassName =
+  "rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+
+const auditoriaLinks = [
+  {
+    to: "/administracion/profesores",
+    title: "Profesores",
+    description:
+      "Consultá Profesores en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+  },
+  {
+    to: "/administracion/bailarines",
+    title: "Bailarines",
+    description:
+      "Consultá Bailarines en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+  },
+] as const;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de auditoría | En Escena" },
@@ -39,10 +58,31 @@ export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
           Vistas de auditoría
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Las consultas operativas, financieras y de participación se van a
-          sumar en próximas iteraciones.
+          Consultá las vistas compartidas del Panel de administración. Estas
+          rutas usan el Evento de trabajo seleccionado y se mantienen en solo
+          lectura para Auditoría.
         </p>
       </div>
+
+      <nav
+        className="mt-6 grid gap-4 sm:grid-cols-2"
+        aria-label="Accesos de auditoría"
+      >
+        {auditoriaLinks.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={auditoriaLinkCardClassName}
+          >
+            <span className="text-sm font-semibold text-slate-950">
+              {link.title}
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">
+              {link.description}
+            </span>
+          </Link>
+        ))}
+      </nav>
     </AccessPage>
   );
 }

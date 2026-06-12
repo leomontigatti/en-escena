@@ -61,6 +61,24 @@ describe("private route headers", () => {
     expect(markup).toContain('action="/salir"');
     expect(markup).toContain('method="post"');
   });
+
+  test("auditoría renders shared readonly consultation links", () => {
+    const markup = renderPrivateRoute(
+      <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+    );
+
+    expect(markup).toContain("Consulta interna");
+    expect(markup).toContain("Panel de administración");
+    expect(markup).toContain("Evento de trabajo");
+
+    for (const [href, label] of [
+      ["/administracion/profesores", "Profesores"],
+      ["/administracion/bailarines", "Bailarines"],
+    ] as const) {
+      expect(markup).toContain(`href="${href}"`);
+      expect(markup).toContain(label);
+    }
+  });
 });
 
 function renderPortal(email: string) {
