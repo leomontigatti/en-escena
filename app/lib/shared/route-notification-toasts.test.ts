@@ -29,6 +29,11 @@ describe("route notification toasts", () => {
       message: "Evento guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["usuario-interno-creado"]).toEqual({
+      id: "route-notification:usuario-interno-creado",
+      message: "Usuario interno creado.",
+      variant: "success",
+    });
     expect(getRouteNotificationToast("desconocida")).toBeUndefined();
   });
 

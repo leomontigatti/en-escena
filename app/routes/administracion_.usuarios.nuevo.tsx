@@ -1,14 +1,18 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleAlert } from "lucide-react";
+import { useEffect, useId } from "react";
 import {
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useSearchParams,
-} from "react-router";
+  Controller,
+  type Control,
+  type SubmitHandler,
+  useForm,
+} from "react-hook-form";
+import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import { AdminShell } from "@/components/admin/shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
@@ -17,8 +21,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,34 +36,45 @@ import {
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  applyServerFieldErrors,
+  requiredFieldMessage,
+} from "@/lib/shared/forms";
+import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/administracion_.usuarios.nuevo";
 
-const requiredTextField = (message: string) =>
-  z.preprocess(
-    (value) => (typeof value === "string" ? value : ""),
-    z.string().trim().min(1, message),
+const internalUserRoles = ["admin", "auditor", "judge"] as const;
+
+const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
+
+const optionalEmailField = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === "" || z.email().safeParse(value).success,
+    "Ingresá un correo válido o dejalo vacío.",
   );
 
-const optionalEmailField = z.preprocess(
-  (value) => (typeof value === "string" ? value.trim() : ""),
-  z.union([z.literal(""), z.email("Ingresá un correo válido o dejalo vacío.")]),
-);
-
-const roleField = z.enum(["admin", "auditor", "judge"], {
-  error: "Elegí un permiso principal válido.",
-});
+const roleField = z
+  .string()
+  .trim()
+  .min(1, requiredFieldMessage)
+  .refine(
+    (value): value is (typeof internalUserRoles)[number] =>
+      internalUserRoles.includes(value as (typeof internalUserRoles)[number]),
+    "Elegí un permiso principal válido.",
+  );
 
 const createInternalUserSchema = z.object({
-  name: requiredTextField("Ingresá el nombre visible."),
-  internalUsername: requiredTextField("Ingresá el nombre de usuario interno."),
+  name: requiredTextField(),
+  internalUsername: requiredTextField(),
   role: roleField,
-  temporaryPassword: requiredTextField(
-    "Ingresá la contraseña temporal.",
-  ).refine(
+  temporaryPassword: requiredTextField().refine(
     (value) => value.length >= 8,
     "La contraseña temporal debe tener al menos 8 caracteres.",
   ),
@@ -80,19 +93,36 @@ type CreateInternalUserField = (typeof fieldNames)[number];
 type CreateInternalUserFieldErrors = Partial<
   Record<CreateInternalUserField, string>
 >;
+type CreateInternalUserFormValues = {
+  name: string;
+  internalUsername: string;
+  role: string;
+  temporaryPassword: string;
+  email: string;
+};
+type CreateInternalUserControl = Control<CreateInternalUserFormValues>;
 
 type AdministracionUsuariosNuevoRouteProps = {
   actionData?: {
+    form: "create";
     status: "error";
     message: string;
     fieldErrors: CreateInternalUserFieldErrors;
+    values: CreateInternalUserFormValues;
   };
   loaderData: {
     email: string;
     eventOptions: AdminEventContext["events"];
     selectedEventId: AdminEventContext["selectedEventId"];
   };
-  wasCreated?: boolean;
+};
+
+const defaultCreateInternalUserFormValues: CreateInternalUserFormValues = {
+  name: "",
+  internalUsername: "",
+  role: "judge",
+  temporaryPassword: "",
+  email: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -113,19 +143,16 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const appUser = await requireAdminPanelUser(request);
   const formData = await request.formData();
-  const parsed = createInternalUserSchema.safeParse({
-    name: formData.get("name"),
-    internalUsername: formData.get("internalUsername"),
-    role: formData.get("role"),
-    temporaryPassword: formData.get("temporaryPassword"),
-    email: formData.get("email"),
-  });
+  const values = readCreateInternalUserFormValues(formData);
+  const parsed = createInternalUserSchema.safeParse(values);
 
   if (!parsed.success) {
     return {
+      form: "create" as const,
       status: "error" as const,
       message: "Revisá los datos del Usuario interno.",
       fieldErrors: getFieldErrors(parsed.error, fieldNames),
+      values,
     };
   }
 
@@ -140,21 +167,65 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (!result.ok) {
     return {
+      form: "create" as const,
       status: "error" as const,
       message: result.error,
-      fieldErrors: getEmptyFieldErrors<CreateInternalUserField>(),
+      fieldErrors: getCreateInternalUserServerFieldErrors(result.error),
+      values: {
+        ...values,
+        temporaryPassword: "",
+      },
     };
   }
 
-  throw redirect("/administracion/usuarios/nuevo?estado=creado");
+  throw redirect(
+    "/administracion/usuarios/nuevo?notificacion=usuario-interno-creado",
+  );
 }
 
 export function AdministracionUsuariosNuevoRouteView({
   actionData,
   loaderData,
-  wasCreated = false,
 }: AdministracionUsuariosNuevoRouteProps) {
-  const fieldErrors = actionData?.fieldErrors ?? {};
+  const formValues = actionData?.values ?? defaultCreateInternalUserFormValues;
+  const form = useForm<
+    CreateInternalUserFormValues,
+    unknown,
+    CreateInternalUserFormValues
+  >({
+    defaultValues: formValues,
+    mode: "onSubmit",
+    resolver: zodResolver(createInternalUserSchema),
+  });
+
+  useEffect(() => {
+    form.reset(formValues);
+  }, [form, formValues]);
+
+  useEffect(() => {
+    if (!actionData) {
+      return;
+    }
+
+    applyServerFieldErrors(form, actionData.fieldErrors);
+  }, [actionData, form]);
+
+  useServerActionToast(actionData, {
+    toastId: routeNotificationToastIds["user-form-error"],
+  });
+
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const submitNativeForm: SubmitHandler<
+      CreateInternalUserFormValues
+    > = () => {
+      formElement.submit();
+    };
+
+    void form.handleSubmit(submitNativeForm)(event);
+  }
 
   return (
     <AdminShell
@@ -188,112 +259,48 @@ export function AdministracionUsuariosNuevoRouteView({
           </AlertDescription>
         </Alert>
 
-        {wasCreated ? (
-          <Alert>
-            <CircleAlert aria-hidden="true" />
-            <AlertTitle>Usuario interno creado</AlertTitle>
-            <AlertDescription>
-              Compartí la contraseña temporal por un canal seguro. La persona
-              deberá cambiarla al ingresar por primera vez.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {actionData?.status === "error" ? (
-          <Alert variant="destructive">
-            <CircleAlert aria-hidden="true" />
-            <AlertTitle>No pudimos crear el Usuario interno</AlertTitle>
-            <AlertDescription>{actionData.message}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Form method="post" className="rounded-lg border bg-card p-6 shadow-sm">
+        <form
+          method="post"
+          noValidate
+          className="rounded-lg border bg-card p-6 shadow-sm"
+          onSubmit={handleSubmit}
+        >
           <FieldGroup>
-            <Field data-invalid={!!fieldErrors.name} orientation="responsive">
-              <FieldLabel htmlFor="name">Nombre visible</FieldLabel>
-              <FieldContent>
-                <Input id="name" name="name" autoComplete="name" required />
-                <FieldError>{fieldErrors.name}</FieldError>
-              </FieldContent>
-            </Field>
+            <CreateInternalUserTextField
+              autoComplete="name"
+              control={form.control}
+              label="Nombre visible"
+              name="name"
+            />
 
-            <Field
-              data-invalid={!!fieldErrors.internalUsername}
-              orientation="responsive"
-            >
-              <FieldLabel htmlFor="internalUsername">
-                Nombre de usuario interno
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="internalUsername"
-                  name="internalUsername"
-                  autoComplete="username"
-                  required
-                  spellCheck={false}
-                />
-                <FieldDescription>
-                  Usá solo letras minúsculas, números, punto, guion o guion
-                  bajo.
-                </FieldDescription>
-                <FieldError>{fieldErrors.internalUsername}</FieldError>
-              </FieldContent>
-            </Field>
+            <CreateInternalUserTextField
+              autoComplete="username"
+              control={form.control}
+              description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
+              label="Nombre de usuario interno"
+              name="internalUsername"
+              spellCheck={false}
+            />
 
-            <Field data-invalid={!!fieldErrors.role} orientation="responsive">
-              <FieldLabel htmlFor="role">Permiso principal</FieldLabel>
-              <FieldContent>
-                <Select name="role" defaultValue="judge">
-                  <SelectTrigger id="role" aria-invalid={!!fieldErrors.role}>
-                    <SelectValue placeholder="Elegí un permiso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="auditor">Auditor</SelectItem>
-                    <SelectItem value="judge">Juez</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldError>{fieldErrors.role}</FieldError>
-              </FieldContent>
-            </Field>
+            <CreateInternalUserRoleField control={form.control} />
 
-            <Field
-              data-invalid={!!fieldErrors.temporaryPassword}
-              orientation="responsive"
-            >
-              <FieldLabel htmlFor="temporaryPassword">
-                Contraseña temporal
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="temporaryPassword"
-                  name="temporaryPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                />
-                <FieldDescription>
-                  Debe tener al menos 8 caracteres.
-                </FieldDescription>
-                <FieldError>{fieldErrors.temporaryPassword}</FieldError>
-              </FieldContent>
-            </Field>
+            <CreateInternalUserTextField
+              autoComplete="new-password"
+              control={form.control}
+              description="Debe tener al menos 8 caracteres."
+              label="Contraseña temporal"
+              name="temporaryPassword"
+              type="password"
+            />
 
-            <Field data-invalid={!!fieldErrors.email} orientation="responsive">
-              <FieldLabel htmlFor="email">Correo</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                />
-                <FieldDescription>
-                  Opcional. No se verifica ni se usa para ingresar.
-                </FieldDescription>
-                <FieldError>{fieldErrors.email}</FieldError>
-              </FieldContent>
-            </Field>
+            <CreateInternalUserTextField
+              autoComplete="email"
+              control={form.control}
+              description="Opcional. No se verifica ni se usa para ingresar."
+              label="Correo"
+              name="email"
+              type="email"
+            />
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button type="submit">Crear Usuario interno</Button>
@@ -302,23 +309,147 @@ export function AdministracionUsuariosNuevoRouteView({
               </Button>
             </div>
           </FieldGroup>
-        </Form>
+        </form>
       </div>
     </AdminShell>
   );
+}
+
+function CreateInternalUserTextField({
+  autoComplete,
+  control,
+  description,
+  label,
+  name,
+  spellCheck,
+  type = "text",
+}: {
+  autoComplete?: string;
+  control: CreateInternalUserControl;
+  description?: string;
+  label: string;
+  name: CreateInternalUserField;
+  spellCheck?: boolean;
+  type?: React.InputHTMLAttributes<HTMLInputElement>["type"];
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<CreateInternalUserFormValues, CreateInternalUserField>
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="responsive"
+        >
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Input
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
+              autoComplete={autoComplete}
+              spellCheck={spellCheck}
+              type={type}
+              {...field}
+              value={field.value ?? ""}
+            />
+            {description ? (
+              <FieldDescription>{description}</FieldDescription>
+            ) : null}
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function CreateInternalUserRoleField({
+  control,
+}: {
+  control: CreateInternalUserControl;
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<CreateInternalUserFormValues, "role">
+      control={control}
+      name="role"
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="responsive"
+        >
+          <FieldLabel htmlFor={id}>Permiso principal</FieldLabel>
+          <FieldContent>
+            <Select
+              name={field.name}
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger
+                id={id}
+                aria-describedby={fieldState.error ? errorId : undefined}
+                aria-invalid={fieldState.error ? true : undefined}
+              >
+                <SelectValue placeholder="Elegí un permiso" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="auditor">Auditor</SelectItem>
+                <SelectItem value="judge">Juez</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function readCreateInternalUserFormValues(
+  formData: FormData,
+): CreateInternalUserFormValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    internalUsername: String(formData.get("internalUsername") ?? ""),
+    role: String(formData.get("role") ?? ""),
+    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+    email: String(formData.get("email") ?? ""),
+  };
+}
+
+function getCreateInternalUserServerFieldErrors(
+  error: string,
+): CreateInternalUserFieldErrors {
+  if (
+    error === "Ese nombre de usuario interno ya existe." ||
+    error === "Ingresá un nombre de usuario interno válido."
+  ) {
+    return { internalUsername: error };
+  }
+
+  if (error === "Ese correo ya tiene un usuario en En Escena.") {
+    return { email: error };
+  }
+
+  return getEmptyFieldErrors<CreateInternalUserField>();
 }
 
 export default function AdministracionUsuariosNuevoRoute({
   loaderData,
 }: AdministracionUsuariosNuevoRouteProps) {
   const actionData = useActionData<typeof action>();
-  const [searchParams] = useSearchParams();
 
   return (
     <AdministracionUsuariosNuevoRouteView
       actionData={actionData}
       loaderData={loaderData}
-      wasCreated={searchParams.get("estado") === "creado"}
     />
   );
 }

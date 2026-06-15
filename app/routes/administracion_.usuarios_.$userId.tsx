@@ -1,17 +1,17 @@
-import { ArrowLeft, CircleAlert } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { eq } from "drizzle-orm";
-import type { ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useId, type ReactNode } from "react";
 import {
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useSearchParams,
-} from "react-router";
+  Controller,
+  type Control,
+  type SubmitHandler,
+  useForm,
+} from "react-hook-form";
+import { Form, Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import { AdminShell } from "@/components/admin/shell";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,10 +35,7 @@ import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
-import {
-  resetInternalUserPassword,
-  TEMPORARY_PASSWORD_MIN_LENGTH,
-} from "@/lib/admin/users/internal-user-password-reset.server";
+import { resetInternalUserPassword } from "@/lib/admin/users/internal-user-password-reset.server";
 import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import {
@@ -47,52 +44,59 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  applyServerFieldErrors,
+  requiredFieldMessage,
+} from "@/lib/shared/forms";
+import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import {
+  routeNotificationToastIds,
+  type RouteNotificationKey,
+} from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 
 import type { Route } from "./+types/administracion_.usuarios_.$userId";
 
-const userSavedSearchParam = "guardado";
-const userSavedKindSearchParam = "tipoGuardado";
+const internalUserRoles = ["admin", "auditor", "judge"] as const;
+const routeNotificationSearchParam = "notificacion";
+const temporaryPasswordMinLength = 8;
 
-const requiredTextField = (message: string) =>
-  z.preprocess(
-    (value) => (typeof value === "string" ? value : ""),
-    z.string().trim().min(1, message),
+const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
+
+const optionalEmailField = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === "" || z.email().safeParse(value).success,
+    "Ingresá un correo válido o dejalo vacío.",
   );
 
-const optionalEmailField = z.preprocess(
-  (value) => (typeof value === "string" ? value.trim() : ""),
-  z.union([z.literal(""), z.email("Ingresá un correo válido o dejalo vacío.")]),
-);
-
-const roleField = z.enum(["admin", "auditor", "judge"], {
-  error: "Elegí un permiso principal válido.",
-});
+const roleField = z
+  .string()
+  .trim()
+  .min(1, requiredFieldMessage)
+  .refine(
+    (value): value is (typeof internalUserRoles)[number] =>
+      internalUserRoles.includes(value as (typeof internalUserRoles)[number]),
+    "Elegí un permiso principal válido.",
+  );
 
 const updateInternalUserSchema = z.object({
-  name: requiredTextField("Ingresá el nombre visible."),
+  name: requiredTextField(),
   email: optionalEmailField,
   role: roleField,
 });
+
 const statusIntentSchema = z.enum(["suspend-user", "reactivate-user"]);
 const resetPasswordIntent = "reset-password";
-const temporaryPasswordField = z.preprocess(
-  (value) => (typeof value === "string" ? value : ""),
-  z
-    .string()
-    .trim()
-    .min(1, "Ingresá una contraseña temporal.")
-    .min(
-      TEMPORARY_PASSWORD_MIN_LENGTH,
-      "La contraseña temporal debe tener al menos 8 caracteres.",
-    ),
-);
 const resetPasswordSchema = z.object({
-  intent: z.literal(resetPasswordIntent),
-  temporaryPassword: temporaryPasswordField,
+  temporaryPassword: requiredTextField().refine(
+    (value) => value.length >= temporaryPasswordMinLength,
+    "La contraseña temporal debe tener al menos 8 caracteres.",
+  ),
 });
 
 const fieldNames = ["name", "email", "role"] as const;
@@ -104,6 +108,16 @@ type UpdateInternalUserFieldErrors = Partial<
 >;
 type ResetPasswordField = (typeof resetPasswordFieldNames)[number];
 type ResetPasswordFieldErrors = Partial<Record<ResetPasswordField, string>>;
+type UpdateInternalUserFormValues = {
+  name: string;
+  email: string;
+  role: string;
+};
+type ResetPasswordFormValues = {
+  temporaryPassword: string;
+};
+type UpdateInternalUserControl = Control<UpdateInternalUserFormValues>;
+type ResetPasswordControl = Control<ResetPasswordFormValues>;
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DetailUser = LoaderData["user"];
@@ -123,14 +137,29 @@ type DetailUserRow = {
   academyContactName: string | null;
 };
 
+type DetailActionData = {
+  form: "edit" | "reset-password" | "status";
+  status: "error";
+  message: string;
+  fieldErrors: UpdateInternalUserFieldErrors;
+  resetPasswordFieldErrors: ResetPasswordFieldErrors;
+  editValues: UpdateInternalUserFormValues;
+  resetPasswordValues: ResetPasswordFormValues;
+};
+
 type AdministracionUsuarioDetalleRouteProps = {
-  actionData?: {
-    status: "error";
-    message: string;
-    fieldErrors: UpdateInternalUserFieldErrors;
-    resetPasswordFieldErrors: ResetPasswordFieldErrors;
-  };
+  actionData?: DetailActionData;
   loaderData: LoaderData;
+};
+
+const emptyEditValues: UpdateInternalUserFormValues = {
+  name: "",
+  email: "",
+  role: "judge",
+};
+
+const emptyResetPasswordValues: ResetPasswordFormValues = {
+  temporaryPassword: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -185,7 +214,6 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       appUser.role === "admin" &&
       url.searchParams.get("modo") === "restablecer-contrasena",
     selectedEventId: eventContext.selectedEventId,
-    successMessage: readSavedSuccessMessage(url.searchParams),
     user: buildDetailUser(savedUser),
   };
 }
@@ -211,33 +239,37 @@ export async function action({ request, params }: Route.ActionArgs) {
     });
 
     if (!result.ok) {
-      return {
-        status: "error" as const,
+      return buildDetailActionError({
+        form: "status",
         message: result.error,
-        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
-        resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
-      };
+      });
     }
 
-    throw redirect(buildSavedDetailHref(request.url, userId, "status"));
+    throw redirect(
+      buildNotificationDetailHref(
+        request.url,
+        userId,
+        parsedIntent.data === "suspend-user"
+          ? "usuario-interno-suspendido"
+          : "usuario-interno-reactivado",
+      ),
+    );
   }
 
   if (intent === resetPasswordIntent) {
-    const parsedResetPassword = resetPasswordSchema.safeParse({
-      intent,
-      temporaryPassword: formData.get("temporaryPassword"),
-    });
+    const values = readResetPasswordFormValues(formData);
+    const parsedResetPassword = resetPasswordSchema.safeParse(values);
 
     if (!parsedResetPassword.success) {
-      return {
-        status: "error" as const,
+      return buildDetailActionError({
+        form: "reset-password",
         message: "Revisá la contraseña temporal.",
-        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
         resetPasswordFieldErrors: getFieldErrors(
           parsedResetPassword.error,
           resetPasswordFieldNames,
         ),
-      };
+        resetPasswordValues: values,
+      });
     }
 
     const result = await resetInternalUserPassword({
@@ -247,30 +279,31 @@ export async function action({ request, params }: Route.ActionArgs) {
     });
 
     if (!result.ok) {
-      return {
-        status: "error" as const,
+      return buildDetailActionError({
+        form: "reset-password",
         message: result.error,
-        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
-        resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
-      };
+      });
     }
 
-    throw redirect(buildSavedDetailHref(request.url, userId, "password"));
+    throw redirect(
+      buildNotificationDetailHref(
+        request.url,
+        userId,
+        "usuario-interno-restablecido",
+      ),
+    );
   }
 
-  const parsed = updateInternalUserSchema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
-    role: formData.get("role"),
-  });
+  const values = readUpdateInternalUserFormValues(formData);
+  const parsed = updateInternalUserSchema.safeParse(values);
 
   if (!parsed.success) {
-    return {
-      status: "error" as const,
+    return buildDetailActionError({
+      form: "edit",
       message: "Revisá los datos del Usuario interno.",
       fieldErrors: getFieldErrors(parsed.error, fieldNames),
-      resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
-    };
+      editValues: values,
+    });
   }
 
   const result = await updateInternalUser({
@@ -282,15 +315,21 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 
   if (!result.ok) {
-    return {
-      status: "error" as const,
+    return buildDetailActionError({
+      form: "edit",
       message: result.error,
-      fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
-      resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
-    };
+      fieldErrors: getUpdateInternalUserServerFieldErrors(result.error),
+      editValues: values,
+    });
   }
 
-  throw redirect(buildSavedDetailHref(request.url, userId, "details"));
+  throw redirect(
+    buildNotificationDetailHref(
+      request.url,
+      userId,
+      "usuario-interno-actualizado",
+    ),
+  );
 }
 
 export function AdministracionUsuarioDetalleRouteView({
@@ -301,16 +340,19 @@ export function AdministracionUsuarioDetalleRouteView({
   const isEditing =
     loaderData.canManage &&
     savedUser.userType === "internal" &&
-    (loaderData.isEditing || Boolean(actionData));
+    (loaderData.isEditing || actionData?.form === "edit");
   const isResettingPassword =
     loaderData.canManage &&
     savedUser.userType === "internal" &&
-    (loaderData.isResettingPassword ||
-      Boolean(actionData?.resetPasswordFieldErrors.temporaryPassword));
+    (loaderData.isResettingPassword || actionData?.form === "reset-password");
   const breadcrumbItems = [
     { label: "Usuarios", to: loaderData.backToList },
     { label: savedUser.name },
   ];
+
+  useServerActionToast(actionData, {
+    toastId: routeNotificationToastIds["user-form-error"],
+  });
 
   return (
     <AdminShell
@@ -368,10 +410,6 @@ export function AdministracionUsuarioDetalleRouteView({
           </p>
         </header>
 
-        {loaderData.successMessage ? (
-          <SuccessAlert message={loaderData.successMessage} />
-        ) : null}
-
         {savedUser.userType === "academy" ? (
           <AcademyUserDetailCard user={savedUser} />
         ) : isResettingPassword ? (
@@ -397,10 +435,43 @@ function InternalUserResetPasswordCard({
   actionData,
   cancelHref,
 }: {
-  actionData?: AdministracionUsuarioDetalleRouteProps["actionData"];
+  actionData?: DetailActionData;
   cancelHref: string;
 }) {
-  const fieldErrors = actionData?.resetPasswordFieldErrors ?? {};
+  const formValues =
+    actionData?.resetPasswordValues ?? emptyResetPasswordValues;
+  const form = useForm<
+    ResetPasswordFormValues,
+    unknown,
+    ResetPasswordFormValues
+  >({
+    defaultValues: formValues,
+    mode: "onSubmit",
+    resolver: zodResolver(resetPasswordSchema),
+  });
+
+  useEffect(() => {
+    form.reset(formValues);
+  }, [form, formValues]);
+
+  useEffect(() => {
+    if (!actionData || actionData.form !== "reset-password") {
+      return;
+    }
+
+    applyServerFieldErrors(form, actionData.resetPasswordFieldErrors);
+  }, [actionData, form]);
+
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const submitNativeForm: SubmitHandler<ResetPasswordFormValues> = () => {
+      formElement.submit();
+    };
+
+    void form.handleSubmit(submitNativeForm)(event);
+  }
 
   return (
     <Card>
@@ -408,39 +479,15 @@ function InternalUserResetPasswordCard({
         <CardTitle>Restablecimiento administrativo de contraseña</CardTitle>
       </CardHeader>
       <CardContent>
-        {actionData?.status === "error" ? (
-          <Alert variant="destructive" className="mb-6">
-            <CircleAlert aria-hidden="true" />
-            <AlertTitle>No pudimos restablecer la contraseña</AlertTitle>
-            <AlertDescription>{actionData.message}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Form method="post" className="grid gap-6">
+        <form
+          method="post"
+          noValidate
+          className="grid gap-6"
+          onSubmit={handleSubmit}
+        >
           <input type="hidden" name="intent" value={resetPasswordIntent} />
           <FieldGroup>
-            <Field
-              data-invalid={!!fieldErrors.temporaryPassword}
-              orientation="responsive"
-            >
-              <FieldLabel htmlFor="temporaryPassword">
-                Contraseña temporal
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="temporaryPassword"
-                  name="temporaryPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                />
-                <FieldDescription>
-                  Compartila por un canal seguro. El Usuario deberá cambiarla
-                  antes de volver a ingresar a su área privada.
-                </FieldDescription>
-                <FieldError>{fieldErrors.temporaryPassword}</FieldError>
-              </FieldContent>
-            </Field>
+            <InternalUserResetPasswordField control={form.control} />
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button type="submit">Guardar contraseña temporal</Button>
@@ -449,7 +496,7 @@ function InternalUserResetPasswordCard({
               </Button>
             </div>
           </FieldGroup>
-        </Form>
+        </form>
       </CardContent>
     </Card>
   );
@@ -459,16 +506,11 @@ export default function AdministracionUsuarioDetalleRoute({
   loaderData,
 }: AdministracionUsuarioDetalleRouteProps) {
   const actionData = useActionData<typeof action>();
-  const [searchParams] = useSearchParams();
 
   return (
     <AdministracionUsuarioDetalleRouteView
       actionData={actionData}
-      loaderData={{
-        ...loaderData,
-        successMessage:
-          loaderData.successMessage ?? readSavedSuccessMessage(searchParams),
-      }}
+      loaderData={loaderData}
     />
   );
 }
@@ -519,11 +561,46 @@ function InternalUserEditCard({
   cancelHref,
   user,
 }: {
-  actionData?: AdministracionUsuarioDetalleRouteProps["actionData"];
+  actionData?: DetailActionData;
   cancelHref: string;
   user: DetailUser;
 }) {
-  const fieldErrors = actionData?.fieldErrors ?? {};
+  const formValues =
+    actionData?.editValues ?? buildUpdateInternalUserFormValues(user);
+  const form = useForm<
+    UpdateInternalUserFormValues,
+    unknown,
+    UpdateInternalUserFormValues
+  >({
+    defaultValues: formValues,
+    mode: "onSubmit",
+    resolver: zodResolver(updateInternalUserSchema),
+  });
+
+  useEffect(() => {
+    form.reset(formValues);
+  }, [form, formValues]);
+
+  useEffect(() => {
+    if (!actionData || actionData.form !== "edit") {
+      return;
+    }
+
+    applyServerFieldErrors(form, actionData.fieldErrors);
+  }, [actionData, form]);
+
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const submitNativeForm: SubmitHandler<
+      UpdateInternalUserFormValues
+    > = () => {
+      formElement.submit();
+    };
+
+    void form.handleSubmit(submitNativeForm)(event);
+  }
 
   return (
     <Card>
@@ -531,29 +608,19 @@ function InternalUserEditCard({
         <CardTitle>Editar Usuario</CardTitle>
       </CardHeader>
       <CardContent>
-        {actionData?.status === "error" ? (
-          <Alert variant="destructive" className="mb-6">
-            <CircleAlert aria-hidden="true" />
-            <AlertTitle>No pudimos guardar el Usuario interno</AlertTitle>
-            <AlertDescription>{actionData.message}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Form method="post" className="grid gap-6">
+        <form
+          method="post"
+          noValidate
+          className="grid gap-6"
+          onSubmit={handleSubmit}
+        >
           <FieldGroup>
-            <Field data-invalid={!!fieldErrors.name} orientation="responsive">
-              <FieldLabel htmlFor="name">Nombre visible</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="name"
-                  name="name"
-                  defaultValue={user.name}
-                  autoComplete="name"
-                  required
-                />
-                <FieldError>{fieldErrors.name}</FieldError>
-              </FieldContent>
-            </Field>
+            <InternalUserEditTextField
+              autoComplete="name"
+              control={form.control}
+              label="Nombre visible"
+              name="name"
+            />
 
             <Field orientation="responsive">
               <FieldLabel htmlFor="identifier">
@@ -573,43 +640,16 @@ function InternalUserEditCard({
               </FieldContent>
             </Field>
 
-            <Field data-invalid={!!fieldErrors.role} orientation="responsive">
-              <FieldLabel htmlFor="role">Permiso principal</FieldLabel>
-              <FieldContent>
-                <Select name="role" defaultValue={user.mainRole}>
-                  <SelectTrigger id="role" aria-invalid={!!fieldErrors.role}>
-                    <SelectValue placeholder="Elegí un permiso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="auditor">Auditor</SelectItem>
-                    <SelectItem value="judge">Juez</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Si cambia, el sistema cerrará las sesiones activas de este
-                  Usuario.
-                </FieldDescription>
-                <FieldError>{fieldErrors.role}</FieldError>
-              </FieldContent>
-            </Field>
+            <InternalUserEditRoleField control={form.control} />
 
-            <Field data-invalid={!!fieldErrors.email} orientation="responsive">
-              <FieldLabel htmlFor="email">Correo</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  defaultValue={user.email ?? ""}
-                  autoComplete="email"
-                />
-                <FieldDescription>
-                  Opcional. No se usa como credencial principal.
-                </FieldDescription>
-                <FieldError>{fieldErrors.email}</FieldError>
-              </FieldContent>
-            </Field>
+            <InternalUserEditTextField
+              autoComplete="email"
+              control={form.control}
+              description="Opcional. No se usa como credencial principal."
+              label="Correo"
+              name="email"
+              type="email"
+            />
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button type="submit">Guardar cambios</Button>
@@ -618,9 +658,147 @@ function InternalUserEditCard({
               </Button>
             </div>
           </FieldGroup>
-        </Form>
+        </form>
       </CardContent>
     </Card>
+  );
+}
+
+function InternalUserEditTextField({
+  autoComplete,
+  control,
+  description,
+  label,
+  name,
+  type = "text",
+}: {
+  autoComplete?: string;
+  control: UpdateInternalUserControl;
+  description?: string;
+  label: string;
+  name: UpdateInternalUserField;
+  type?: React.InputHTMLAttributes<HTMLInputElement>["type"];
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<UpdateInternalUserFormValues, UpdateInternalUserField>
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="responsive"
+        >
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Input
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
+              autoComplete={autoComplete}
+              type={type}
+              {...field}
+              value={field.value ?? ""}
+            />
+            {description ? (
+              <FieldDescription>{description}</FieldDescription>
+            ) : null}
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function InternalUserEditRoleField({
+  control,
+}: {
+  control: UpdateInternalUserControl;
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<UpdateInternalUserFormValues, "role">
+      control={control}
+      name="role"
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="responsive"
+        >
+          <FieldLabel htmlFor={id}>Permiso principal</FieldLabel>
+          <FieldContent>
+            <Select
+              name={field.name}
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger
+                id={id}
+                aria-describedby={fieldState.error ? errorId : undefined}
+                aria-invalid={fieldState.error ? true : undefined}
+              >
+                <SelectValue placeholder="Elegí un permiso" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="auditor">Auditor</SelectItem>
+                <SelectItem value="judge">Juez</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              Si cambia, el sistema cerrará las sesiones activas de este
+              Usuario.
+            </FieldDescription>
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function InternalUserResetPasswordField({
+  control,
+}: {
+  control: ResetPasswordControl;
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<ResetPasswordFormValues, "temporaryPassword">
+      control={control}
+      name="temporaryPassword"
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="responsive"
+        >
+          <FieldLabel htmlFor={id}>Contraseña temporal</FieldLabel>
+          <FieldContent>
+            <Input
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
+              autoComplete="new-password"
+              type="password"
+              {...field}
+              value={field.value ?? ""}
+            />
+            <FieldDescription>
+              Compartila por un canal seguro. El Usuario deberá cambiarla antes
+              de volver a ingresar a su área privada.
+            </FieldDescription>
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }
 
@@ -731,8 +909,9 @@ function getDetailState(
 
 function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
+  const searchParams = sanitizeUserDetailSearchParams(url.searchParams);
 
-  return buildPathWithSearch("/administracion/usuarios", url.searchParams);
+  return buildPathWithSearch("/administracion/usuarios", searchParams);
 }
 
 function buildModeHref(
@@ -740,47 +919,47 @@ function buildModeHref(
   userId: string,
   mode: "editar" | "restablecer-contrasena" | null,
 ) {
-  const nextUrl = new URL(url);
+  const nextSearchParams = sanitizeUserDetailSearchParams(url.searchParams);
 
   if (mode) {
-    nextUrl.searchParams.set("modo", mode);
+    nextSearchParams.set("modo", mode);
   } else {
-    nextUrl.searchParams.delete("modo");
+    nextSearchParams.delete("modo");
   }
 
-  return buildUserDetailPath(userId, nextUrl.searchParams);
+  return buildUserDetailPath(userId, nextSearchParams);
 }
 
-function buildSavedDetailHref(
+type UserRouteNotification = Extract<
+  RouteNotificationKey,
+  | "usuario-interno-actualizado"
+  | "usuario-interno-reactivado"
+  | "usuario-interno-restablecido"
+  | "usuario-interno-suspendido"
+>;
+
+function buildNotificationDetailHref(
   requestUrl: string,
   userId: string,
-  kind: "details" | "password" | "status",
+  notification: UserRouteNotification,
 ) {
   const url = new URL(requestUrl);
+  const searchParams = sanitizeUserDetailSearchParams(url.searchParams);
 
-  url.searchParams.delete("modo");
-  url.searchParams.set(userSavedSearchParam, "1");
-  url.searchParams.set(userSavedKindSearchParam, kind);
+  searchParams.set(routeNotificationSearchParam, notification);
 
-  return buildUserDetailPath(userId, url.searchParams);
+  return buildUserDetailPath(userId, searchParams);
 }
 
-function readSavedSuccessMessage(searchParams: URLSearchParams) {
-  if (searchParams.get(userSavedSearchParam) !== "1") {
-    return null;
-  }
+function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
+  const nextSearchParams = new URLSearchParams(searchParams);
 
-  const savedKind = searchParams.get(userSavedKindSearchParam);
+  nextSearchParams.delete("modo");
+  nextSearchParams.delete(routeNotificationSearchParam);
+  nextSearchParams.delete("guardado");
+  nextSearchParams.delete("tipoGuardado");
 
-  if (savedKind === "status") {
-    return "Guardamos el estado del Usuario interno.";
-  }
-
-  if (savedKind === "password") {
-    return "Guardamos la contraseña temporal del Usuario interno.";
-  }
-
-  return "Guardamos los datos del Usuario interno.";
+  return nextSearchParams;
 }
 
 function getDetailDescription(userType: DetailUserType, canManage: boolean) {
@@ -812,14 +991,68 @@ function buildPathWithSearch(pathname: string, searchParams: URLSearchParams) {
   return `${pathname}?${search}`;
 }
 
-function SuccessAlert({ message }: { message: string }) {
-  return (
-    <Alert>
-      <CircleAlert aria-hidden="true" />
-      <AlertTitle>Usuario interno guardado</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
-  );
+function readUpdateInternalUserFormValues(
+  formData: FormData,
+): UpdateInternalUserFormValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    role: String(formData.get("role") ?? ""),
+  };
+}
+
+function readResetPasswordFormValues(
+  formData: FormData,
+): ResetPasswordFormValues {
+  return {
+    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+  };
+}
+
+function buildUpdateInternalUserFormValues(
+  user: DetailUser,
+): UpdateInternalUserFormValues {
+  return {
+    name: user.name,
+    email: user.email ?? "",
+    role: user.mainRole === "academy" ? "judge" : user.mainRole,
+  };
+}
+
+function buildDetailActionError({
+  editValues = emptyEditValues,
+  fieldErrors = getEmptyFieldErrors<UpdateInternalUserField>(),
+  form,
+  message,
+  resetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>(),
+  resetPasswordValues = emptyResetPasswordValues,
+}: {
+  editValues?: UpdateInternalUserFormValues;
+  fieldErrors?: UpdateInternalUserFieldErrors;
+  form: DetailActionData["form"];
+  message: string;
+  resetPasswordFieldErrors?: ResetPasswordFieldErrors;
+  resetPasswordValues?: ResetPasswordFormValues;
+}): DetailActionData {
+  return {
+    form,
+    status: "error",
+    message,
+    fieldErrors,
+    resetPasswordFieldErrors,
+    editValues,
+    resetPasswordValues,
+  };
+}
+
+function getUpdateInternalUserServerFieldErrors(
+  error: string,
+): UpdateInternalUserFieldErrors {
+  if (error === "Ese correo ya tiene un usuario en En Escena.") {
+    return { email: error };
+  }
+
+  return getEmptyFieldErrors<UpdateInternalUserField>();
 }
 
 function getRoleLabel(role: LoaderData["user"]["mainRole"]) {
