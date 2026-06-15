@@ -579,7 +579,7 @@ describe.sequential("portal Coreografías route", () => {
 });
 
 describe.sequential("portal Bailarines route", () => {
-  test("creates normalized Bailarines for the signed-in Academia and lists only that Academia ordered by apellido and nombre", async () => {
+  test("creates normalized Bailarines for the signed-in Academia, redirects with notificacion and loads active plus archived rows for client filtering", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.owner@example.com",
       academyName: "Academia Dueña",
@@ -588,8 +588,15 @@ describe.sequential("portal Bailarines route", () => {
       email: "bailarines.other@example.com",
       academyName: "Academia Ajena",
     });
+    await db.insert(dancers).values({
+      academyId: ownerSession.academyId,
+      firstName: "Beto",
+      lastName: "Archivado",
+      birthDate: "2013-02-02",
+      active: false,
+    });
 
-    await expectThrownResponse(
+    const createResponse = await expectThrownResponse(
       bailarinesAction({
         request: createPortalPostRequest(
           "http://localhost/portal/bailarines",
@@ -601,6 +608,10 @@ describe.sequential("portal Bailarines route", () => {
           }),
         ),
       }),
+      302,
+    );
+    expect(createResponse.headers.get("location")).toBe(
+      "/portal/bailarines?notificacion=bailarin-creado",
     );
     await expectThrownResponse(
       bailarinesAction({
@@ -633,6 +644,15 @@ describe.sequential("portal Bailarines route", () => {
         firstName: "Ana",
         lastName: "Alvarez",
         birthDate: "2014-02-01",
+        active: true,
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+      {
+        firstName: "Beto",
+        lastName: "Archivado",
+        birthDate: "2013-02-02",
+        active: false,
         documentNumber: null,
         verificationStatus: "incomplete",
       },
@@ -640,11 +660,12 @@ describe.sequential("portal Bailarines route", () => {
         firstName: "Juan Manuel",
         lastName: "Cruz de la Torre",
         birthDate: "2015-04-03",
+        active: true,
         documentNumber: null,
         verificationStatus: "incomplete",
       },
     ]);
-    expect(ownerLoaderData.dancers).toHaveLength(2);
+    expect(ownerLoaderData.dancers).toHaveLength(3);
 
     await expect(
       db.query.dancers.findFirst({
@@ -980,22 +1001,12 @@ describe.sequential("portal Bailarines route", () => {
       db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
     ).resolves.toMatchObject({ active: false });
 
-    const activeListData = await bailarinesLoader({
+    const listData = await bailarinesLoader({
       request: new Request("http://localhost/portal/bailarines", {
         headers: { cookie: session.cookie },
       }),
     });
-    expect(activeListData.dancers).toEqual([]);
-
-    const archivedListData = await bailarinesLoader({
-      request: new Request(
-        "http://localhost/portal/bailarines?estado=archivados",
-        {
-          headers: { cookie: session.cookie },
-        },
-      ),
-    });
-    expect(archivedListData.dancers).toMatchObject([
+    expect(listData.dancers).toMatchObject([
       { id: activeDancer.id, active: false },
       { id: archivedDancer.id, active: false },
     ]);
@@ -1591,6 +1602,7 @@ function dancerFormData(input: {
   birthDate: string;
 }) {
   const formData = new FormData();
+  formData.set("intent", "create-dancer");
   formData.set("firstName", input.firstName);
   formData.set("lastName", input.lastName);
   formData.set("birthDate", input.birthDate);

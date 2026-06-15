@@ -59,7 +59,7 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
-type DancerStatusFilter = "active" | "archived";
+type DancerStatusFilter = "active" | "archived" | "all";
 
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
@@ -80,10 +80,13 @@ export async function listDancersForAcademy(
 ): Promise<DancerListItem[]> {
   const status = options.status ?? "active";
   const rows = await db.query.dancers.findMany({
-    where: and(
-      eq(dancers.academyId, academyId),
-      eq(dancers.active, status === "active"),
-    ),
+    where:
+      status === "all"
+        ? eq(dancers.academyId, academyId)
+        : and(
+            eq(dancers.academyId, academyId),
+            eq(dancers.active, status === "active"),
+          ),
     orderBy: [asc(dancers.lastName), asc(dancers.firstName)],
   });
 

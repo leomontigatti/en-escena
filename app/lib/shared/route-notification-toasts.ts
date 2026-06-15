@@ -10,6 +10,7 @@ export const routeNotificationToastIds = {
   "profesor-guardado": "route-notification:profesor-guardado",
   "profesor-archivado": "route-notification:profesor-archivado",
   "profesor-reactivado": "route-notification:profesor-reactivado",
+  "bailarin-creado": "route-notification:bailarin-creado",
   "bailarin-guardado": "route-notification:bailarin-guardado",
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
@@ -65,6 +66,11 @@ export const routeNotificationToasts = {
   "profesor-reactivado": {
     id: routeNotificationToastIds["profesor-reactivado"],
     message: "Profesor reactivado.",
+    variant: "success",
+  },
+  "bailarin-creado": {
+    id: routeNotificationToastIds["bailarin-creado"],
+    message: "Bailarín creado.",
     variant: "success",
   },
   "bailarin-guardado": {
