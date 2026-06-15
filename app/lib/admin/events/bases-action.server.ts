@@ -91,6 +91,10 @@ type CategoryMutationInput = {
   modalityIds: string[];
   experienceLevelIds: string[];
 };
+type RequiredFieldErrorResult = {
+  message: string;
+  fieldErrors: Record<string, string>;
+};
 
 const eventBasesNotificationSearchParam = "notificacion";
 const categorySavedNotification = "categoria-guardada";
@@ -414,10 +418,7 @@ function isScheduleEntryMutationIntent(intent: string) {
 function getRequiredFieldErrors(
   input: EventBasesActionInput,
   formData: FormData,
-): {
-  message: string;
-  fieldErrors: Record<string, string>;
-} | null {
+): RequiredFieldErrorResult | null {
   switch (input.intent) {
     case "create-price":
     case "update-price":
@@ -433,22 +434,21 @@ function getRequiredFieldErrors(
   }
 }
 
-function getPriceRequiredFieldErrors(formData: FormData) {
+function getPriceRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
   const fieldErrors = getRequiredErrors({
     name: formData.get("name"),
     groupType: formData.get("groupType"),
     amount: formData.get("amount"),
   });
 
-  return Object.keys(fieldErrors).length > 0
-    ? {
-        message: "Revisá los datos del precio.",
-        fieldErrors,
-      }
-    : null;
+  return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
 }
 
-function getScheduleBlockRequiredFieldErrors(formData: FormData) {
+function getScheduleBlockRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
   const fieldErrors = {
     ...getRequiredErrors({
       name: formData.get("name"),
@@ -461,15 +461,15 @@ function getScheduleBlockRequiredFieldErrors(formData: FormData) {
     }),
   };
 
-  return Object.keys(fieldErrors).length > 0
-    ? {
-        message: "Revisá los datos del bloque horario.",
-        fieldErrors,
-      }
-    : null;
+  return buildRequiredFieldError(
+    "Revisá los datos del bloque horario.",
+    fieldErrors,
+  );
 }
 
-function getScheduleEntryRequiredFieldErrors(formData: FormData) {
+function getScheduleEntryRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
   const fieldErrors = {
     ...getRequiredErrors({
       capacity: formData.get("capacity"),
@@ -479,12 +479,24 @@ function getScheduleEntryRequiredFieldErrors(formData: FormData) {
     }),
   };
 
-  return Object.keys(fieldErrors).length > 0
-    ? {
-        message: "Revisá los datos del cronograma.",
-        fieldErrors,
-      }
-    : null;
+  return buildRequiredFieldError(
+    "Revisá los datos del cronograma.",
+    fieldErrors,
+  );
+}
+
+function buildRequiredFieldError(
+  message: string,
+  fieldErrors: Record<string, string>,
+): RequiredFieldErrorResult | null {
+  if (Object.keys(fieldErrors).length === 0) {
+    return null;
+  }
+
+  return {
+    message,
+    fieldErrors,
+  };
 }
 
 function getRequiredErrors(values: Record<string, FormDataEntryValue | null>) {
