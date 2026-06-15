@@ -24,6 +24,16 @@ describe("route notification toasts", () => {
   });
 
   test("defines shared toast ids, messages, and variants", () => {
+    expect(routeNotificationToasts["profesor-guardado"]).toEqual({
+      id: "route-notification:profesor-guardado",
+      message: "Profesor guardado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["bailarin-archivado"]).toEqual({
+      id: "route-notification:bailarin-archivado",
+      message: "Bailarín archivado.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["evento-guardado"]).toEqual({
       id: "route-notification:evento-guardado",
       message: "Evento guardado.",

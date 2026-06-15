@@ -398,7 +398,7 @@ describe("administracion/bailarines route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/administracion/bailarines/${dancer.id}?guardado=1`,
+      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
     );
     await expect(
       db.query.dancers.findFirst({
@@ -789,7 +789,7 @@ describe("administracion/bailarines route", () => {
     );
 
     expect(archiveResponse.headers.get("location")).toBe(
-      `/administracion/bailarines/${dancer.id}?guardado=1`,
+      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-archivado`,
     );
     await expect(
       db.query.dancers.findFirst({

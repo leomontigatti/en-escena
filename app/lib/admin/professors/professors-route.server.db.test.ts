@@ -329,6 +329,37 @@ describe("administracion/profesores route", () => {
     expect(auditorMarkup).not.toContain("Reactivar Profesor");
   });
 
+  test("renders the Profesor edit forms with RHF validation instead of native required attributes", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.render.rhf.profesores.academia@example.com",
+      academyName: "Academia Render RHF",
+      contactName: "Rita Render",
+      phone: "4545-4545",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Nora",
+      lastName: "Render",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.render.rhf.profesores@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+
+    const markup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(request, professor.id)),
+      professor.id,
+    );
+
+    expect(markup).toContain('name="firstName"');
+    expect(markup).toContain('name="lastName"');
+    expect(markup).toContain('name="correctionReason"');
+    expect(markup).toContain('noValidate=""');
+    expect(markup).not.toContain("required");
+    expect(markup).not.toContain("minlength");
+  });
+
   test("updates a Profesor in explicit edit mode and persists an administrative audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
@@ -366,7 +397,7 @@ describe("administracion/profesores route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/administracion/profesores/${professor.id}?guardado=1`,
+      `/administracion/profesores/${professor.id}?notificacion=profesor-guardado`,
     );
     await expect(
       db.query.professors.findFirst({
@@ -633,7 +664,7 @@ describe("administracion/profesores route", () => {
     );
 
     expect(archiveResponse.headers.get("location")).toBe(
-      `/administracion/profesores/${professor.id}?guardado=1`,
+      `/administracion/profesores/${professor.id}?notificacion=profesor-archivado`,
     );
     await expect(
       db.query.professors.findFirst({

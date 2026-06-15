@@ -6,6 +6,12 @@ type RouteNotificationToast = ToastMessage & {
 
 export const routeNotificationToastIds = {
   "event-form-error": "route-notification:event-form-error",
+  "profesor-guardado": "route-notification:profesor-guardado",
+  "profesor-archivado": "route-notification:profesor-archivado",
+  "profesor-reactivado": "route-notification:profesor-reactivado",
+  "bailarin-guardado": "route-notification:bailarin-guardado",
+  "bailarin-archivado": "route-notification:bailarin-archivado",
+  "bailarin-reactivado": "route-notification:bailarin-reactivado",
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
@@ -26,6 +32,36 @@ type RouteNotificationToastKey = Exclude<
 >;
 
 export const routeNotificationToasts = {
+  "profesor-guardado": {
+    id: routeNotificationToastIds["profesor-guardado"],
+    message: "Profesor guardado.",
+    variant: "success",
+  },
+  "profesor-archivado": {
+    id: routeNotificationToastIds["profesor-archivado"],
+    message: "Profesor archivado.",
+    variant: "success",
+  },
+  "profesor-reactivado": {
+    id: routeNotificationToastIds["profesor-reactivado"],
+    message: "Profesor reactivado.",
+    variant: "success",
+  },
+  "bailarin-guardado": {
+    id: routeNotificationToastIds["bailarin-guardado"],
+    message: "Bailarín guardado.",
+    variant: "success",
+  },
+  "bailarin-archivado": {
+    id: routeNotificationToastIds["bailarin-archivado"],
+    message: "Bailarín archivado.",
+    variant: "success",
+  },
+  "bailarin-reactivado": {
+    id: routeNotificationToastIds["bailarin-reactivado"],
+    message: "Bailarín reactivado.",
+    variant: "success",
+  },
   "evento-activado": {
     id: routeNotificationToastIds["evento-activado"],
     message: "Evento activado.",
