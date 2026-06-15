@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CircleAlert } from "lucide-react";
 import { eq } from "drizzle-orm";
 import type { ReactNode } from "react";
 import {
@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 
 import { AdminShell } from "@/components/admin/shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -256,11 +257,7 @@ export function AdministracionUsuarioDetalleRouteView({
             </div>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            {savedUser.userType === "academy"
-              ? "Consultá la identidad de acceso de la Academia en modo solo lectura."
-              : loaderData.canManage
-                ? "Actualizá los datos del Usuario interno y su Permiso principal sin modificar el Nombre de usuario interno."
-                : "Consultá la identidad interna en modo solo lectura."}
+            {getDetailDescription(savedUser.userType, loaderData.canManage)}
           </p>
         </header>
 
@@ -344,7 +341,11 @@ function InternalUserEditCard({
       </CardHeader>
       <CardContent>
         {actionData?.status === "error" ? (
-          <p className="mb-6 text-sm text-destructive">{actionData.message}</p>
+          <Alert variant="destructive" className="mb-6">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>No pudimos guardar el Usuario interno</AlertTitle>
+            <AlertDescription>{actionData.message}</AlertDescription>
+          </Alert>
         ) : null}
 
         <Form method="post" className="grid gap-6">
@@ -539,11 +540,8 @@ function getDetailUserType(isAcademyUser: boolean): DetailUserType {
 
 function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
-  const search = url.searchParams.toString();
 
-  return search.length > 0
-    ? `/administracion/usuarios?${search}`
-    : "/administracion/usuarios";
+  return buildPathWithSearch("/administracion/usuarios", url.searchParams);
 }
 
 function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
@@ -555,11 +553,7 @@ function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
     nextUrl.searchParams.delete("modo");
   }
 
-  const search = nextUrl.searchParams.toString();
-
-  return search.length > 0
-    ? `/administracion/usuarios/${userId}?${search}`
-    : `/administracion/usuarios/${userId}`;
+  return buildUserDetailPath(userId, nextUrl.searchParams);
 }
 
 function buildSavedDetailHref(requestUrl: string, userId: string) {
@@ -568,11 +562,7 @@ function buildSavedDetailHref(requestUrl: string, userId: string) {
   url.searchParams.delete("modo");
   url.searchParams.set(userSavedSearchParam, "1");
 
-  const search = url.searchParams.toString();
-
-  return search.length > 0
-    ? `/administracion/usuarios/${userId}?${search}`
-    : `/administracion/usuarios/${userId}`;
+  return buildUserDetailPath(userId, url.searchParams);
 }
 
 function readSavedSuccessMessage(searchParams: URLSearchParams) {
@@ -587,13 +577,42 @@ function getInternalOptionalEmail(email: string) {
   return email.endsWith(`@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`) ? null : email;
 }
 
+function getDetailDescription(userType: DetailUserType, canManage: boolean) {
+  if (userType === "academy") {
+    return "Consultá la identidad de acceso de la Academia en modo solo lectura.";
+  }
+
+  if (canManage) {
+    return "Actualizá los datos del Usuario interno y su Permiso principal sin modificar el Nombre de usuario interno.";
+  }
+
+  return "Consultá la identidad interna en modo solo lectura.";
+}
+
+function buildUserDetailPath(userId: string, searchParams: URLSearchParams) {
+  return buildPathWithSearch(
+    `/administracion/usuarios/${userId}`,
+    searchParams,
+  );
+}
+
+function buildPathWithSearch(pathname: string, searchParams: URLSearchParams) {
+  const search = searchParams.toString();
+
+  if (!search) {
+    return pathname;
+  }
+
+  return `${pathname}?${search}`;
+}
+
 function SuccessAlert({ message }: { message: string }) {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="text-sm text-foreground">{message}</p>
-      </CardContent>
-    </Card>
+    <Alert>
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>Usuario interno guardado</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   );
 }
 
