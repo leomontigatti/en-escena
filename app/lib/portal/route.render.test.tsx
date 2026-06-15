@@ -15,7 +15,60 @@ import { PortalProfesorRouteView } from "@/routes/portal.profesores.$professorId
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
 describe("portal route view", () => {
-  test("shows a clear no-event state while keeping academy areas available", () => {
+  test("renders the portal shell and dashboard summary cards", () => {
+    const markup = renderPortal({
+      eventContext: {
+        events: [eventSummary({ name: "Regional 2026" })],
+        selectedEvent: eventSummary({ name: "Regional 2026" }),
+        activeEvent: eventSummary({ name: "Regional 2026" }),
+        hasActiveEvent: true,
+        activeEventRegistrationReadiness: readiness(true),
+        hasEvents: true,
+        isReadOnly: false,
+        isRegistrationOpen: true,
+      },
+      summary: {
+        professors: { activeCount: 4, incompleteCount: 1 },
+        dancers: { activeCount: 7, incompleteCount: 3 },
+        choreographies: { registeredCount: 5, incompleteCount: 2 },
+      },
+    });
+
+    expect(markup).toContain("Regional 2026");
+    expect(markup).toContain("Portal de academias");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain("Profesores");
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Coreografías");
+    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Profesores"));
+    expect(markup.indexOf("Profesores")).toBeLessThan(
+      markup.indexOf("Bailarines"),
+    );
+    expect(markup.indexOf("Bailarines")).toBeLessThan(
+      markup.indexOf("Coreografías"),
+    );
+    expect(markup).toContain("Saltar al contenido principal");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain("Revisá el estado de los datos de tu academia.");
+    expect(markup).toContain("Activos");
+    expect(markup).toContain("4");
+    expect(markup).toContain("Incompletos");
+    expect(markup).toContain("1");
+    expect(markup).toContain("Ver profesores");
+    expect(markup).toContain("7");
+    expect(markup).toContain("3");
+    expect(markup).toContain("Ver bailarines");
+    expect(markup).toContain("Registradas");
+    expect(markup).toContain("5");
+    expect(markup).toContain("2");
+    expect(markup).toContain("Ver coreografías");
+    expect(markup).toContain("Portal User");
+    expect(markup).toContain("Academia de Prueba");
+    expect(markup).not.toContain("Contacto");
+    expect(markup).not.toContain("Teléfono");
+  });
+
+  test("shows a no-active-event dashboard state for the shell and choreographies card", () => {
     const markup = renderPortal({
       eventContext: {
         events: [],
@@ -27,104 +80,19 @@ describe("portal route view", () => {
         isReadOnly: true,
         isRegistrationOpen: false,
       },
-    });
-
-    expect(markup).toContain("Todavía no hay Eventos configurados");
-    expect(markup).toContain("Profesores");
-    expect(markup).toContain('href="/portal/profesores"');
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain('href="/portal/bailarines"');
-    expect(markup).toContain('href="/portal/coreografias"');
-    expect(markup).toContain('aria-current="page"');
-  });
-
-  test("shows active-event empty state without an event selector", () => {
-    const selectedEvent = eventSummary({
-      id: "event_2025",
-      name: "Regional 2025",
-      active: false,
-    });
-
-    const markup = renderPortal({
-      eventContext: {
-        events: [
-          eventSummary({ id: "event_2026", name: "Regional 2026" }),
-          selectedEvent,
-        ],
-        selectedEvent,
-        activeEvent: eventSummary({ id: "event_2026", name: "Regional 2026" }),
-        hasActiveEvent: true,
-        activeEventRegistrationReadiness: readiness(true),
-        hasEvents: true,
-        isReadOnly: true,
-        isRegistrationOpen: false,
+      summary: {
+        professors: { activeCount: 0, incompleteCount: 0 },
+        dancers: { activeCount: 0, incompleteCount: 0 },
+        choreographies: null,
       },
     });
 
-    expect(markup).not.toContain('name="evento"');
-    expect(markup).not.toContain("Evento consultado");
-    expect(markup).toContain(
-      "No hay coreografías registradas para este evento",
-    );
-    expect(markup).toContain(
-      "La creación de coreografías va a estar disponible cuando exista un Evento activo y la inscripción esté abierta.",
-    );
+    expect(markup).toContain("Sin evento");
+    expect(markup).toContain("Sin evento activo");
+    expect(markup).toContain("Ver coreografías");
   });
 
-  test("distinguishes an active Evento with open registration as editable", () => {
-    const selectedEvent = eventSummary({
-      id: "event_active",
-      name: "Regional 2026",
-      active: true,
-      registrationStartsAt: date("2026-01-01T12:00:00Z"),
-      registrationEndsAt: date("2026-12-31T12:00:00Z"),
-    });
-
-    const markup = renderPortal({
-      eventContext: {
-        events: [selectedEvent],
-        selectedEvent,
-        activeEvent: selectedEvent,
-        hasActiveEvent: true,
-        activeEventRegistrationReadiness: readiness(true),
-        hasEvents: true,
-        isReadOnly: false,
-        isRegistrationOpen: true,
-      },
-    });
-
-    expect(markup).toContain("Evento activo");
-    expect(markup).toContain(
-      "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
-    );
-  });
-
-  test("shows a blocked message when there is no Evento activo available for registration", () => {
-    const selectedEvent = eventSummary({
-      id: "event_2025",
-      name: "Regional 2025",
-      active: false,
-    });
-
-    const markup = renderPortal({
-      eventContext: {
-        events: [selectedEvent],
-        selectedEvent,
-        activeEvent: null,
-        hasActiveEvent: false,
-        activeEventRegistrationReadiness: null,
-        hasEvents: true,
-        isReadOnly: true,
-        isRegistrationOpen: false,
-      },
-    });
-
-    expect(markup).toContain(
-      "Todavía no hay un Evento activo para registrar coreografías.",
-    );
-  });
-
-  test("shows a blocked message when the evento activo lacks minimum bases", () => {
+  test("keeps the dashboard focused on summary cards even when the active event is not ready", () => {
     const selectedEvent = eventSummary({
       id: "event_active",
       name: "Regional 2026",
@@ -151,12 +119,17 @@ describe("portal route view", () => {
         isReadOnly: false,
         isRegistrationOpen: true,
       },
+      summary: {
+        professors: { activeCount: 2, incompleteCount: 1 },
+        dancers: { activeCount: 3, incompleteCount: 3 },
+        choreographies: { registeredCount: 0, incompleteCount: 0 },
+      },
     });
 
-    expect(markup).toContain(
-      "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
-    );
-    expect(markup).not.toContain("Precio");
+    expect(markup).toContain("Coreografías");
+    expect(markup).toContain("Registradas");
+    expect(markup).toContain("Ver coreografías");
+    expect(markup).not.toContain("Precios aplicables");
   });
 
   test("shows the coreografías list with the agreed columns for the active event", () => {
@@ -767,9 +740,11 @@ type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
 
 function renderPortal(input: {
   eventContext: PortalLoaderData["eventContext"];
+  summary?: PortalLoaderData["dashboardSummary"];
 }) {
   const loaderData = {
     email: "portal@example.com",
+    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -778,6 +753,11 @@ function renderPortal(input: {
       phone: "11 1234-5678",
     },
     eventContext: input.eventContext,
+    dashboardSummary: input.summary ?? {
+      professors: { activeCount: 0, incompleteCount: 0 },
+      dancers: { activeCount: 0, incompleteCount: 0 },
+      choreographies: null,
+    },
   } satisfies PortalLoaderData;
 
   return renderToStaticMarkup(
@@ -896,6 +876,16 @@ function academyLoaderData({
   professors = [],
   statusFilter = "active",
   successMessage = null,
+  eventContext = {
+    events: [eventSummary()],
+    selectedEvent: eventSummary(),
+    activeEvent: eventSummary(),
+    hasActiveEvent: true,
+    activeEventRegistrationReadiness: readiness(true),
+    hasEvents: true,
+    isReadOnly: false,
+    isRegistrationOpen: true,
+  },
 }: {
   dancers?: Parameters<
     typeof PortalBailarinesRouteView
@@ -903,9 +893,11 @@ function academyLoaderData({
   professors?: ProfesoresViewProps["loaderData"]["professors"];
   statusFilter?: "active" | "archived";
   successMessage?: string | null;
+  eventContext?: PortalLoaderData["eventContext"];
 } = {}) {
   return {
     email: "portal@example.com",
+    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -913,6 +905,7 @@ function academyLoaderData({
       contactName: "Contacto",
       phone: "11 1234-5678",
     },
+    eventContext,
     dancers,
     professors,
     statusFilter,
@@ -959,6 +952,7 @@ function coreografiasLoaderData({
 } = {}) {
   return {
     email: "portal@example.com",
+    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",

@@ -24,6 +24,7 @@ describe("private route headers", () => {
       "portal de academias",
       renderPortal("portal@example.com"),
       "portal@example.com",
+      false,
     ],
     [
       "auditoría",
@@ -31,6 +32,7 @@ describe("private route headers", () => {
         <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
       ),
       "auditoria@example.com",
+      true,
     ],
     [
       "juzgamiento",
@@ -40,14 +42,25 @@ describe("private route headers", () => {
         />,
       ),
       "juzgamiento@example.com",
+      true,
     ],
-  ])("%s renders the shared private header", (_name, markup, email) => {
-    expect(markup).toContain(email);
-    expect(markup).toContain("Sesión activa para");
-    expect(markup).toContain("<span>Salir</span>");
-    expect(markup).toContain('action="/salir"');
-    expect(markup).toContain('method="post"');
-  });
+  ])(
+    "%s renders the expected signed-in session context",
+    (_name, markup, email, usesLegacyHeader) => {
+      expect(markup).toContain(email);
+
+      if (usesLegacyHeader) {
+        expect(markup).toContain("Sesión activa para");
+        expect(markup).toContain("Salir");
+        expect(markup).toContain('action="/salir"');
+        expect(markup).toContain('method="post"');
+      } else {
+        expect(markup).not.toContain("Sesión activa para");
+        expect(markup).toContain("Portal de academias");
+        expect(markup).toContain("Academia de Prueba");
+      }
+    },
+  );
 
   test("panel de administración renders session context in the sidebar dropdown trigger", () => {
     const markup = renderPrivateRoute(
@@ -87,6 +100,7 @@ describe("private route headers", () => {
 function renderPortal(email: string) {
   const loaderData = {
     email,
+    userName: "",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -103,6 +117,11 @@ function renderPortal(email: string) {
       hasEvents: false,
       isReadOnly: true,
       isRegistrationOpen: false,
+    },
+    dashboardSummary: {
+      professors: { activeCount: 0, incompleteCount: 0 },
+      dancers: { activeCount: 0, incompleteCount: 0 },
+      choreographies: null,
     },
   };
   return renderPrivateRoute(<PortalRouteView loaderData={loaderData} />);

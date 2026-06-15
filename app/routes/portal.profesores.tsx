@@ -6,7 +6,6 @@ import { clsx } from "clsx";
 import {
   AccessField,
   AccessNotice,
-  AccessSecondaryLink,
   accessButtonClassName,
 } from "@/components/auth/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
@@ -16,6 +15,7 @@ import {
   readPortalRecordStatusFilter,
   type PortalRecordStatusFilter,
 } from "@/lib/portal/route-state";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createAcademyProfessor,
   listAcademyProfessors,
@@ -37,13 +37,18 @@ export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
   const url = new URL(request.url);
   const statusFilter = readPortalRecordStatusFilter(url.searchParams);
-  const professorRows = await listAcademyProfessors(academy.id, {
-    status: statusFilter,
-  });
+  const [eventContext, professorRows] = await Promise.all([
+    getPortalEventContext(request),
+    listAcademyProfessors(academy.id, {
+      status: statusFilter,
+    }),
+  ]);
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
+    eventContext,
     professors: professorRows,
     statusFilter,
     successMessage:
@@ -93,14 +98,11 @@ export function PortalProfesoresRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={
-        <>
-          Gestioná los profesores de la academia antes de vincularlos a
-          coreografías.
-        </>
-      }
+      eventContext={loaderData.eventContext}
+      title="Profesores"
     >
       <section className="mt-8" aria-labelledby="profesores-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -170,10 +172,6 @@ export function PortalProfesoresRouteView({
         fieldErrors={actionFieldErrors}
         message={actionData?.message}
       />
-
-      <AccessSecondaryLink to="/portal" className="mt-8">
-        Volver al inicio
-      </AccessSecondaryLink>
     </PortalShell>
   );
 }

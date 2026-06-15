@@ -137,6 +137,193 @@ describe.sequential("portal loader Evento activo", () => {
     });
   });
 
+  test("builds dashboard summary counts from active academy data and the active event", async () => {
+    const session = await createAcademySession({
+      email: "dashboard@example.com",
+      academyName: "Academia Dashboard",
+    });
+    const activeEvent = await createSavedEvent({
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      startsAt: date("2026-07-01T12:00:00Z"),
+      endsAt: date("2026-07-03T12:00:00Z"),
+    });
+    await activateEvent(activeEvent.id);
+
+    const [completeProfessor] = await db
+      .insert(professors)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Completa",
+        documentType: "dni",
+        documentNumber: "12345678",
+      })
+      .returning();
+    await db.insert(professors).values([
+      {
+        academyId: session.academyId,
+        firstName: "Bea",
+        lastName: "Incompleta",
+      },
+      {
+        academyId: session.academyId,
+        firstName: "Cora",
+        lastName: "Archivada",
+        active: false,
+      },
+    ]);
+    const [incompleteDancer, completeDancer] = await db
+      .insert(dancers)
+      .values([
+        {
+          academyId: session.academyId,
+          firstName: "Dora",
+          lastName: "Activa",
+          birthDate: "2013-05-01",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Eva",
+          lastName: "Documento",
+          birthDate: "2012-04-01",
+          documentType: "dni",
+          documentNumber: "99887766",
+        },
+      ])
+      .returning();
+    await db.insert(dancers).values({
+      academyId: session.academyId,
+      firstName: "Fiona",
+      lastName: "Archivada",
+      birthDate: "2011-03-01",
+      active: false,
+    });
+
+    const modality = await expectCreated(
+      createModality(activeEvent.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(activeEvent.id, { name: "Inicial" }),
+    );
+    const submodality = await expectCreated(
+      createSubmodality(activeEvent.id, {
+        modalityId: modality.id,
+        name: "Lyrical",
+      }),
+    );
+    const category = await expectCreated(
+      createCategory(activeEvent.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
+    await expectCreated(
+      createPrice(activeEvent.id, {
+        name: "Solo general",
+        groupType: "solo",
+        amount: 1000,
+        scheduleBlockId: null,
+      }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(activeEvent.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-07-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
+      }),
+    );
+    const entry = await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+    const [completeChoreography, incompleteChoreography] = await db
+      .insert(choreographies)
+      .values([
+        {
+          academyId: session.academyId,
+          eventId: activeEvent.id,
+          name: "Completa",
+          groupType: "solo",
+          modalityId: modality.id,
+          submodalityId: submodality.id,
+          categoryId: category.id,
+          categoryAgeBasis: 13,
+          categoryCalculationMode: "oldest",
+          experienceLevelId: level.id,
+          scheduleEntryId: entry.id,
+          musicStorageKey: "music.mp3",
+        },
+        {
+          academyId: session.academyId,
+          eventId: activeEvent.id,
+          name: "Incompleta",
+          groupType: "solo",
+          modalityId: modality.id,
+          submodalityId: submodality.id,
+          categoryId: null,
+          categoryAgeBasis: 13,
+          categoryCalculationMode: "oldest",
+          experienceLevelId: null,
+          scheduleEntryId: entry.id,
+          musicStorageKey: null,
+        },
+      ])
+      .returning();
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: completeChoreography.id,
+        dancerId: completeDancer.id,
+        ageAtEventStart: 13,
+      },
+      {
+        choreographyId: incompleteChoreography.id,
+        dancerId: incompleteDancer.id,
+        ageAtEventStart: 14,
+      },
+    ]);
+    await db.insert(choreographyProfessors).values([
+      {
+        choreographyId: completeChoreography.id,
+        professorId: completeProfessor.id,
+      },
+    ]);
+
+    const loaderData = await portalLoader({
+      request: new Request("http://localhost/portal", {
+        headers: { cookie: session.cookie },
+      }),
+      params: {},
+      context: {},
+      url: new URL("http://localhost/portal"),
+      pattern: "/portal",
+    });
+
+    expect(loaderData.dashboardSummary).toEqual({
+      professors: {
+        activeCount: 2,
+        incompleteCount: 1,
+      },
+      dancers: {
+        activeCount: 2,
+        incompleteCount: 2,
+      },
+      choreographies: {
+        registeredCount: 2,
+        incompleteCount: 1,
+      },
+    });
+  });
+
   test("exposes when there is no Evento activo even if there are Eventos to consult", async () => {
     await createSavedEvent({
       name: "Regional 2026",

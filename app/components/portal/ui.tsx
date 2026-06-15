@@ -1,20 +1,66 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import {
+  AudioLines,
+  CalendarDays,
+  ChevronsUpDown,
+  GraduationCap,
+  Home,
+  LogOut,
+  User,
+  Users,
+} from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router";
 import { clsx } from "clsx";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  AccessHeader,
-  AccessPage,
-  PrivateAccessHeader,
-} from "@/components/auth/access-ui";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import type { PortalEventContext } from "@/lib/portal/event-context";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 type PortalShellProps = {
-  email: string;
+  userEmail: string;
+  userName: string | null;
   academyName: string;
-  description: ReactNode;
+  eventContext: PortalEventContext;
+  title: string;
   children: ReactNode;
+  breadcrumbItems?: PortalShellBreadcrumbItem[];
+};
+
+type PortalShellBreadcrumbItem = {
+  label: string;
+  to?: string;
 };
 
 type CoreographyCreationState = {
@@ -24,10 +70,10 @@ type CoreographyCreationState = {
 };
 
 const portalNavigationItems = [
-  { to: "/portal", label: "Inicio", end: true },
-  { to: "/portal/bailarines", label: "Bailarines", end: false },
-  { to: "/portal/profesores", label: "Profesores", end: false },
-  { to: "/portal/coreografias", label: "Coreografías", end: false },
+  { to: "/portal", label: "Inicio", icon: Home },
+  { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
+  { to: "/portal/bailarines", label: "Bailarines", icon: Users },
+  { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
 ] as const;
 
 const creationAvailabilityToneClassNames: Record<
@@ -40,49 +86,209 @@ const creationAvailabilityToneClassNames: Record<
 };
 
 export function PortalShell({
-  email,
+  userEmail,
+  userName,
   academyName,
-  description,
+  eventContext,
+  title,
   children,
+  breadcrumbItems,
 }: PortalShellProps) {
+  const location = useLocation();
+  const isHome = location.pathname === "/portal";
+  const resolvedBreadcrumbItems = breadcrumbItems ?? [{ label: title }];
+  const displayName = getPortalUserDisplayName(userName, userEmail);
+
   return (
-    <AccessPage width="xl">
-      <PrivateAccessHeader email={email} />
-      <AccessHeader
-        eyebrow="Portal de academias"
-        title={academyName}
-        description={description}
-      />
-      <PortalNavigation />
-      {children}
-    </AccessPage>
+    <>
+      <a
+        href="#contenido-principal"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-background focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-foreground focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30"
+      >
+        Saltar al contenido principal
+      </a>
+      <SidebarProvider>
+        <Sidebar variant="inset">
+          <SidebarHeader>
+            <PortalActiveEventSummary eventContext={eventContext} />
+          </SidebarHeader>
+
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Portal</SidebarGroupLabel>
+              <SidebarMenu>
+                {portalNavigationItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={isNavigationItemActive(
+                          location.pathname,
+                          item.to,
+                        )}
+                      >
+                        <NavLink to={item.to}>
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton size="lg">
+                      <Avatar className="rounded-lg after:rounded-lg">
+                        <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                          {getUserInitials(displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">
+                          {displayName}
+                        </span>
+                        <span className="truncate text-xs">{academyName}</span>
+                      </div>
+                      <ChevronsUpDown aria-hidden="true" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="top"
+                    align="end"
+                    className="w-(--radix-dropdown-menu-trigger-width)"
+                  >
+                    <DropdownMenuLabel>Sesión</DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem disabled>
+                        <User aria-hidden="true" />
+                        Perfil
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <form action="/salir" method="post">
+                        <DropdownMenuItem asChild variant="destructive">
+                          <button type="submit" className="w-full">
+                            <LogOut aria-hidden="true" />
+                            Salir
+                          </button>
+                        </DropdownMenuItem>
+                      </form>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
+
+        <SidebarInset>
+          <header className="flex shrink-0 flex-col border-b border-border bg-background">
+            <div className="flex min-h-16 items-center gap-2 px-4 py-4">
+              <SidebarTrigger className="-ml-1" />
+              <span className="mr-2 flex h-4 items-center">
+                <Separator
+                  orientation="vertical"
+                  className="data-[orientation=vertical]:h-full"
+                />
+              </span>
+              <Breadcrumb className="flex items-center">
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    {isHome ? (
+                      <BreadcrumbPage>Inicio</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link to="/portal">Inicio</Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                  {isHome
+                    ? null
+                    : resolvedBreadcrumbItems.map((item, index) => {
+                        const isCurrent =
+                          index === resolvedBreadcrumbItems.length - 1;
+
+                        return (
+                          <PortalBreadcrumbSegment
+                            key={`${item.label}-${index}`}
+                            item={item}
+                            isCurrent={isCurrent}
+                          />
+                        );
+                      })}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </header>
+
+          <main id="contenido-principal" className="flex-1 px-4 py-6">
+            <div className="mx-auto flex max-w-6xl flex-col gap-6">
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </>
   );
 }
 
-function PortalNavigation() {
+function PortalBreadcrumbSegment({
+  item,
+  isCurrent,
+}: {
+  item: PortalShellBreadcrumbItem;
+  isCurrent: boolean;
+}) {
   return (
-    <nav
-      aria-label="Secciones del portal"
-      className="mt-8 flex gap-2 overflow-x-auto border-b border-slate-200 pb-2"
-    >
-      {portalNavigationItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          className={({ isActive }) =>
-            clsx(
-              "inline-flex h-9 shrink-0 items-center rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-              isActive
-                ? "bg-teal-50 text-teal-900"
-                : "text-slate-700 hover:bg-slate-50 hover:text-slate-950",
-            )
-          }
-        >
-          {item.label}
-        </NavLink>
-      ))}
-    </nav>
+    <>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        {item.to && !isCurrent ? (
+          <BreadcrumbLink asChild>
+            <Link to={item.to}>{item.label}</Link>
+          </BreadcrumbLink>
+        ) : (
+          <BreadcrumbPage>{item.label}</BreadcrumbPage>
+        )}
+      </BreadcrumbItem>
+    </>
+  );
+}
+
+function PortalActiveEventSummary({
+  eventContext,
+}: {
+  eventContext: PortalEventContext;
+}) {
+  const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton size="lg">
+          <Avatar className="rounded-lg after:rounded-lg">
+            <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <CalendarDays aria-hidden="true" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium">{activeEventName}</span>
+            <span className="truncate text-xs">Portal de academias</span>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
@@ -198,6 +404,40 @@ export function PortalCoreographiesSection({
       </div>
     </section>
   );
+}
+
+function getPortalUserDisplayName(userName: string | null, userEmail: string) {
+  const trimmedName = userName?.trim();
+
+  if (trimmedName && trimmedName !== userEmail) {
+    return trimmedName;
+  }
+
+  return userEmail;
+}
+
+function getUserInitials(value: string) {
+  const parts = value
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "EE";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function isNavigationItemActive(pathname: string, to: string) {
+  if (to === "/portal") {
+    return pathname === to;
+  }
+
+  return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 function getPortalEventStatus(isReadOnly: boolean) {

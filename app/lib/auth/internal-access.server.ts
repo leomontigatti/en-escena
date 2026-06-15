@@ -15,6 +15,7 @@ import {
 export type AppUser = {
   id: string;
   email: string;
+  name: string | null;
   role: "academy" | InternalUserRole;
   requiresPasswordChange: boolean;
 };
@@ -37,6 +38,7 @@ export async function requireSignedInUser(
     columns: {
       id: true,
       email: true,
+      name: true,
       role: true,
       requiresPasswordChange: true,
       suspended: true,

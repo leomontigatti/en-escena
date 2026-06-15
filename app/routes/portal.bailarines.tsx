@@ -8,10 +8,11 @@ import {
 } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { AccessNotice } from "@/components/auth/access-ui";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   getPortalRecordStatusSearch,
   readPortalRecordStatusFilter,
@@ -27,6 +28,7 @@ import {
 type PortalBailarinesRouteProps = {
   loaderData: {
     email: string;
+    userName: string | null;
     academy: {
       id: string;
       name: string;
@@ -34,6 +36,7 @@ type PortalBailarinesRouteProps = {
       phone: string;
       userId: string;
     };
+    eventContext: Awaited<ReturnType<typeof getPortalEventContext>>;
     dancers: DancerListItem[];
     statusFilter: "active" | "archived";
   };
@@ -59,13 +62,18 @@ export async function loader({ request }: { request: Request }) {
   const statusFilter = readPortalRecordStatusFilter(
     new URL(request.url).searchParams,
   );
-  const dancers = await listDancersForAcademy(academy.id, {
-    status: statusFilter,
-  });
+  const [eventContext, dancers] = await Promise.all([
+    getPortalEventContext(request),
+    listDancersForAcademy(academy.id, {
+      status: statusFilter,
+    }),
+  ]);
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
+    eventContext,
     dancers,
     statusFilter,
   };
@@ -103,11 +111,11 @@ export function PortalBailarinesRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={
-        <>Gestioná los bailarines de la academia antes de armar coreografías.</>
-      }
+      eventContext={loaderData.eventContext}
+      title="Bailarines"
     >
       <DancersSection
         actionData={actionData}
@@ -125,10 +133,6 @@ export function PortalBailarinesRouteView({
           </AccessNotice>
         </div>
       ) : null}
-
-      <AccessSecondaryLink to="/portal" className="mt-8">
-        Volver al inicio
-      </AccessSecondaryLink>
     </PortalShell>
   );
 }
