@@ -104,7 +104,7 @@ export default function CambiarContrasenaRoute() {
         description="Antes de entrar a tu área privada, reemplazá la contraseña temporal por una propia."
       />
 
-      <Form method="post" className="mt-8 space-y-5">
+      <Form method="post" className="mt-8 flex flex-col gap-5">
         <AccessField
           id="currentPassword"
           label="Contraseña actual"

@@ -180,7 +180,7 @@ export default function IngresarRoute() {
         description="Accedé al portal de academias o al panel interno según tu permiso."
       />
 
-      <Form method="post" className="mt-8 space-y-5">
+      <Form method="post" className="mt-8 flex flex-col gap-5">
         <AccessField
           id="identifier"
           label="Correo o Nombre de usuario interno"

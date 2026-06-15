@@ -5,13 +5,26 @@ import { db } from "@/db";
 import { user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { normalizeInternalUsername } from "@/lib/auth/internal-username.server";
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import {
+  isInternalUserRole,
+  type InternalUserRole,
+} from "@/lib/auth/internal-user-roles";
 
 const emailSchema = z.email();
 
-export type CredentialUserIdentifierMatch = "email" | "internalUsername";
+type CredentialUserIdentifierMatch = "email" | "internalUsername";
+type CredentialUser = {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  role: "academy" | InternalUserRole;
+  requiresPasswordChange: boolean;
+  match: CredentialUserIdentifierMatch;
+};
 
-export async function findCredentialUserForIdentifier(identifier: string) {
+export async function findCredentialUserForIdentifier(
+  identifier: string,
+): Promise<CredentialUser | null> {
   const trimmedIdentifier = identifier.trim();
 
   const internalUser = await db.query.user.findFirst({
@@ -31,7 +44,7 @@ export async function findCredentialUserForIdentifier(identifier: string) {
   if (internalUser && isInternalUserRole(internalUser.role)) {
     return {
       ...internalUser,
-      match: "internalUsername" as const,
+      match: "internalUsername",
     };
   }
 
@@ -58,6 +71,6 @@ export async function findCredentialUserForIdentifier(identifier: string) {
 
   return {
     ...credentialUser,
-    match: "email" as const,
+    match: "email",
   };
 }

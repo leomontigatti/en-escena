@@ -1,5 +1,5 @@
 import { and, eq, ne } from "drizzle-orm";
-import { hashPassword, verifyPassword } from "@better-auth/utils/password";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -47,10 +47,10 @@ export async function completeMandatoryPasswordChange(input: {
     };
   }
 
-  const matchesCurrentPassword = await verifyPassword(
-    credentialAccount.password,
-    input.currentPassword,
-  );
+  const matchesCurrentPassword = await verifyPassword({
+    hash: credentialAccount.password,
+    password: input.currentPassword,
+  });
 
   if (!matchesCurrentPassword) {
     return {

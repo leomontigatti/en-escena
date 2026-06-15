@@ -8,9 +8,7 @@ export function isValidInternalUsername(value: string) {
   const normalized = normalizeInternalUsername(value);
 
   return (
-    INTERNAL_USERNAME_PATTERN.test(normalized) &&
-    !normalized.includes("@") &&
-    normalized === value.trim().toLowerCase()
+    INTERNAL_USERNAME_PATTERN.test(normalized) && !normalized.includes("@")
   );
 }
 
