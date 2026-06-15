@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Inbox, Plus } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
@@ -43,6 +43,7 @@ import {
   createDancerForAcademy,
   listDancersForAcademy,
   type CreateDancerInput,
+  type DancerListItem,
 } from "@/lib/portal/dancers.server";
 import {
   createValidatedNativeSubmitHandler,
@@ -78,6 +79,15 @@ const defaultDancerFilters = {
   },
 };
 
+const createDancerIntent = "create-dancer";
+const createDancerSuccessRedirect =
+  "/portal/bailarines?notificacion=bailarin-creado";
+
+type DancerBadge = {
+  label: string;
+  variant: ComponentProps<typeof Badge>["variant"];
+};
+
 export const meta = () => [
   { title: "Bailarines | Portal de academias | En Escena" },
 ];
@@ -103,7 +113,7 @@ export async function action({ request }: { request: Request }) {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
-  if (intent !== "create-dancer") {
+  if (intent !== createDancerIntent) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
@@ -117,11 +127,7 @@ export async function action({ request }: { request: Request }) {
   if (!parsed.success) {
     return {
       status: "error" as const,
-      fieldErrors: {
-        firstName: parsed.error.flatten().fieldErrors.firstName?.[0],
-        lastName: parsed.error.flatten().fieldErrors.lastName?.[0],
-        birthDate: parsed.error.flatten().fieldErrors.birthDate?.[0],
-      },
+      fieldErrors: getCreateDancerFieldErrors(parsed.error),
       values,
       modalOpen: true,
     };
@@ -138,7 +144,7 @@ export async function action({ request }: { request: Request }) {
     };
   }
 
-  throw redirect("/portal/bailarines?notificacion=bailarin-creado");
+  throw redirect(createDancerSuccessRedirect);
 }
 
 export function PortalBailarinesRouteView({
@@ -367,7 +373,7 @@ function CreateDancerDialog({
           onSubmit={createValidatedNativeSubmitHandler(form)}
           className="flex flex-col gap-5"
         >
-          <input type="hidden" name="intent" value="create-dancer" />
+          <input type="hidden" name="intent" value={createDancerIntent} />
           <FieldGroup>
             <DancerTextField
               control={form.control}
@@ -467,24 +473,29 @@ function DancerTextField({
 }
 
 function getDancerStateBadges(dancer: DancerRow) {
-  const badges: Array<{
-    label: string;
-    variant: "default" | "secondary" | "outline" | "destructive";
-  }> = [];
+  const badges: DancerBadge[] = [];
 
   if (!dancer.active) {
     badges.push({ label: "Archivado", variant: "outline" });
   }
 
   badges.push({
-    label:
-      dancer.verificationStatus === "missingImages"
-        ? "Faltan imágenes"
-        : "Incompleto",
+    label: getDancerVerificationLabel(dancer.verificationStatus),
     variant: "secondary",
   });
 
   return badges;
+}
+
+function getDancerVerificationLabel(
+  status: DancerListItem["verificationStatus"],
+) {
+  switch (status) {
+    case "missingImages":
+      return "Faltan imágenes";
+    case "incomplete":
+      return "Incompleto";
+  }
 }
 
 function formatDateOnly(value: string) {
@@ -498,19 +509,28 @@ function formatDocument(dancer: DancerRow) {
     return "Sin documento";
   }
 
-  if (dancer.documentType === "dni") {
-    return `DNI ${dancer.documentNumber}`;
+  switch (dancer.documentType) {
+    case "dni":
+      return `DNI ${dancer.documentNumber}`;
+    case "passport":
+      return `Pasaporte ${dancer.documentNumber}`;
+    default:
+      return `Otro ${dancer.documentNumber}`;
   }
-
-  if (dancer.documentType === "passport") {
-    return `Pasaporte ${dancer.documentNumber}`;
-  }
-
-  return `Otro ${dancer.documentNumber}`;
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateDancerInput) {
   const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";
+}
+
+function getCreateDancerFieldErrors(error: z.ZodError<CreateDancerFormValues>) {
+  const fieldErrors = error.flatten().fieldErrors;
+
+  return {
+    firstName: fieldErrors.firstName?.[0],
+    lastName: fieldErrors.lastName?.[0],
+    birthDate: fieldErrors.birthDate?.[0],
+  };
 }

@@ -7,6 +7,8 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 type PortalBailarinesRouteViewComponent =
   typeof import("@/routes/portal.bailarines").PortalBailarinesRouteView;
+type PortalBailarinesRouteViewProps =
+  Parameters<PortalBailarinesRouteViewComponent>[0];
 
 describe("PortalBailarinesRouteView dialog", () => {
   let container: HTMLDivElement | null = null;
@@ -104,9 +106,7 @@ function installReactTestEnvironment() {
   })) as typeof window.matchMedia;
 }
 
-function createLoaderData(): Parameters<
-  PortalBailarinesRouteViewComponent
->[0]["loaderData"] {
+function createLoaderData(): PortalBailarinesRouteViewProps["loaderData"] {
   return {
     email: "portal@example.com",
     userName: "Portal User",
