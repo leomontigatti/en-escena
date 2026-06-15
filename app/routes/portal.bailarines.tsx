@@ -1,57 +1,92 @@
-import { useState } from "react";
-import {
-  Link,
-  redirect,
-  useActionData,
-  useSearchParams,
-  type LinkProps,
-} from "react-router";
-import { clsx } from "clsx";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Inbox, Plus } from "lucide-react";
+import { useEffect, useId, useState, type ComponentProps } from "react";
+import { Controller, useForm, type Control } from "react-hook-form";
+import { Link, redirect, useActionData } from "react-router";
+import { z } from "zod";
 
-import { AccessNotice } from "@/components/auth/access-ui";
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+import { PortalShell } from "@/components/portal/ui";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
-import {
-  getPortalRecordStatusSearch,
-  readPortalRecordStatusFilter,
-  type PortalRecordStatusFilter,
-} from "@/lib/portal/route-state";
 import {
   createDancerForAcademy,
   listDancersForAcademy,
   type CreateDancerInput,
   type DancerListItem,
 } from "@/lib/portal/dancers.server";
+import {
+  createValidatedNativeSubmitHandler,
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
 
-type PortalBailarinesRouteProps = {
-  loaderData: {
-    email: string;
-    userName: string | null;
-    academy: {
-      id: string;
-      name: string;
-      contactName: string;
-      phone: string;
-      userId: string;
-    };
-    eventContext: Awaited<ReturnType<typeof getPortalEventContext>>;
-    dancers: DancerListItem[];
-    statusFilter: "active" | "archived";
-  };
-  actionData?: ActionData;
-  created?: boolean;
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ActionData = Awaited<ReturnType<typeof action>>;
+type DancerRow = LoaderData["dancers"][number];
+
+const createDancerSchema = z.object({
+  firstName: z.string().trim().min(1, requiredFieldMessage),
+  lastName: z.string().trim().min(1, requiredFieldMessage),
+  birthDate: z.string().trim().min(1, requiredFieldMessage),
+});
+
+type CreateDancerFormValues = z.infer<typeof createDancerSchema>;
+
+const emptyDancerValues: CreateDancerFormValues = {
+  firstName: "",
+  lastName: "",
+  birthDate: "",
 };
 
-type ActionData = {
-  status: "error";
-  error: string;
-  fieldErrors: Partial<Record<keyof CreateDancerInput, string>>;
-  values: CreateDancerInput;
+const emptyDancerFieldErrors: Partial<
+  Record<keyof CreateDancerFormValues, string>
+> = {};
+
+const defaultDancerFilters = {
+  status: {
+    Estado: "active",
+  },
 };
 
-type DancerStatusFilter = PortalRecordStatusFilter;
+const createDancerIntent = "create-dancer";
+const createDancerSuccessRedirect =
+  "/portal/bailarines?notificacion=bailarin-creado";
+
+type DancerBadge = {
+  label: string;
+  variant: ComponentProps<typeof Badge>["variant"];
+};
 
 export const meta = () => [
   { title: "Bailarines | Portal de academias | En Escena" },
@@ -59,14 +94,9 @@ export const meta = () => [
 
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
-  const statusFilter = readPortalRecordStatusFilter(
-    new URL(request.url).searchParams,
-  );
   const [eventContext, dancers] = await Promise.all([
     getPortalEventContext(request),
-    listDancersForAcademy(academy.id, {
-      status: statusFilter,
-    }),
+    listDancersForAcademy(academy.id, { status: "all" }),
   ]);
 
   return {
@@ -75,39 +105,70 @@ export async function loader({ request }: { request: Request }) {
     academy,
     eventContext,
     dancers,
-    statusFilter,
   };
 }
 
 export async function action({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
   const formData = await request.formData();
-  const result = await createDancerForAcademy(academy.id, {
-    firstName: readFormString(formData, "firstName"),
-    lastName: readFormString(formData, "lastName"),
-    birthDate: readFormString(formData, "birthDate"),
-  });
+  const intent = formData.get("intent");
+
+  if (intent !== createDancerIntent) {
+    throw new Response("Acción no soportada.", { status: 400 });
+  }
+
+  const values = {
+    firstName: formValue(formData, "firstName"),
+    lastName: formValue(formData, "lastName"),
+    birthDate: formValue(formData, "birthDate"),
+  };
+  const parsed = createDancerSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return {
+      status: "error" as const,
+      fieldErrors: getCreateDancerFieldErrors(parsed.error),
+      values,
+      modalOpen: true,
+    };
+  }
+
+  const result = await createDancerForAcademy(academy.id, parsed.data);
 
   if (!result.ok) {
     return {
-      status: "error",
-      error: result.error,
+      status: "error" as const,
       fieldErrors: result.fieldErrors,
       values: result.values,
-    } satisfies ActionData;
+      modalOpen: true,
+    };
   }
 
-  throw redirect("/portal/bailarines?creado=1");
+  throw redirect(createDancerSuccessRedirect);
 }
 
 export function PortalBailarinesRouteView({
-  actionData,
-  created = false,
   loaderData,
-}: PortalBailarinesRouteProps) {
-  const [isCreateOpen, setIsCreateOpen] = useState(
-    actionData?.status === "error",
+  actionData: providedActionData,
+}: {
+  loaderData: LoaderData;
+  actionData?: ActionData;
+}) {
+  const actionData = providedActionData;
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
+    actionData?.modalOpen === true,
   );
+  const [dismissServerState, setDismissServerState] = useState(false);
+  const [dialogResetKey, setDialogResetKey] = useState(0);
+
+  useEffect(() => {
+    if (actionData?.modalOpen === true) {
+      setIsCreateDialogOpen(true);
+      setDismissServerState(false);
+    }
+  }, [actionData]);
+
+  const visibleActionData = dismissServerState ? undefined : actionData;
 
   return (
     <PortalShell
@@ -117,363 +178,324 @@ export function PortalBailarinesRouteView({
       eventContext={loaderData.eventContext}
       title="Bailarines"
     >
-      <DancersSection
-        actionData={actionData}
-        dancers={loaderData.dancers}
-        isCreateOpen={isCreateOpen}
-        onCloseCreate={() => setIsCreateOpen(false)}
-        onOpenCreate={() => setIsCreateOpen(true)}
-        statusFilter={loaderData.statusFilter}
-      />
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="bailarines-title"
+      >
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h2 id="bailarines-title" className="text-xl font-semibold">
+              Bailarines
+            </h2>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Gestioná los bailarines de tu academia y priorizá los registros
+              que todavía necesitan documento o imágenes.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => {
+              setDismissServerState(true);
+              setIsCreateDialogOpen(true);
+            }}
+          >
+            <Plus aria-hidden="true" data-icon />
+            Nuevo bailarín
+          </Button>
+        </header>
 
-      {created ? (
-        <div className="mt-6">
-          <AccessNotice variant="success">
-            El Bailarín se creó correctamente.
-          </AccessNotice>
-        </div>
-      ) : null}
+        {loaderData.dancers.length > 0 ? (
+          <DancersTable dancers={loaderData.dancers} />
+        ) : (
+          <Empty className="min-h-64 border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>Todavía no cargaste bailarines</EmptyTitle>
+              <EmptyDescription>
+                Cuando cargues bailarines, van a aparecer en esta lista para
+                usarlos en coreografías.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </section>
+
+      <CreateDancerDialog
+        key={dialogResetKey}
+        actionData={visibleActionData}
+        isOpen={isCreateDialogOpen}
+        onOpenChange={(nextOpen) => {
+          setIsCreateDialogOpen(nextOpen);
+
+          if (!nextOpen) {
+            setDismissServerState(true);
+            setDialogResetKey((currentValue) => currentValue + 1);
+          }
+        }}
+      />
     </PortalShell>
   );
 }
 
 export default function PortalBailarinesRoute({
   loaderData,
-}: PortalBailarinesRouteProps) {
+}: {
+  loaderData: LoaderData;
+}) {
   const actionData = useActionData<typeof action>();
-  const [searchParams] = useSearchParams();
 
   return (
     <PortalBailarinesRouteView
-      actionData={actionData}
-      created={searchParams.get("creado") === "1"}
       loaderData={loaderData}
+      actionData={actionData}
     />
   );
 }
 
-function DancersSection({
-  actionData,
-  dancers,
-  isCreateOpen,
-  onCloseCreate,
-  onOpenCreate,
-  statusFilter,
-}: {
-  actionData?: ActionData;
-  dancers: DancerListItem[];
-  isCreateOpen: boolean;
-  onCloseCreate: () => void;
-  onOpenCreate: () => void;
-  statusFilter: "active" | "archived";
-}) {
-  const isArchivedView = statusFilter === "archived";
-  const copy = dancerStatusCopy[statusFilter];
-
-  return (
-    <section className="mt-8" aria-labelledby="bailarines-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p
-            id="bailarines-title"
-            className="text-sm font-semibold text-slate-950"
-          >
-            Bailarines
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            {copy.description}
-          </p>
-        </div>
-        {!isArchivedView ? (
-          <button
-            type="button"
-            onClick={onOpenCreate}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            Cargar Bailarín
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        <StatusTab to="/portal/bailarines" isActive={!isArchivedView}>
-          Activos
-        </StatusTab>
-        <StatusTab
-          to="/portal/bailarines?estado=archivados"
-          isActive={isArchivedView}
+function DancersTable({ dancers }: { dancers: DancerRow[] }) {
+  const columns: DataTableColumn<DancerRow>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "font-medium",
+      cell: (dancer) => (
+        <Link
+          to={`/portal/bailarines/${dancer.id}`}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          Archivados
-        </StatusTab>
-      </div>
-
-      {dancers.length > 0 ? (
-        <DancersTable dancers={dancers} statusFilter={statusFilter} />
-      ) : (
-        <PortalEmptyList
-          title={copy.emptyTitle}
-          description={copy.emptyDescription}
-        />
-      )}
-
-      {isCreateOpen ? (
-        <CreateDancerModal actionData={actionData} onClose={onCloseCreate} />
-      ) : null}
-    </section>
-  );
-}
-
-function DancersTable({
-  dancers,
-  statusFilter,
-}: {
-  dancers: DancerListItem[];
-  statusFilter: DancerStatusFilter;
-}) {
-  const detailSearch = getPortalRecordStatusSearch(statusFilter);
-
-  return (
-    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-600">
-          <tr>
-            <th className="px-4 py-3">Bailarín</th>
-            <th className="px-4 py-3">Fecha de nacimiento</th>
-            <th className="px-4 py-3">Documento</th>
-            <th className="px-4 py-3">Estado de verificación</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {dancers.map((dancer) => (
-            <tr key={dancer.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 font-medium text-slate-950">
-                <Link
-                  to={`/portal/bailarines/${dancer.id}${detailSearch}`}
-                  className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                >
-                  {dancer.lastName}, {dancer.firstName}
-                </Link>
-                {!dancer.active ? (
-                  <span className="ml-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                    Archivado
-                  </span>
-                ) : null}
-              </td>
-              <td className="px-4 py-3 text-slate-700">
-                {formatDateOnly(dancer.birthDate)}
-              </td>
-              <td className="px-4 py-3 text-slate-700">
-                {formatDocument(dancer)}
-              </td>
-              <td className="px-4 py-3">
-                <VerificationBadge status={dancer.verificationStatus} />
-              </td>
-            </tr>
+          {dancer.lastName}, {dancer.firstName}
+        </Link>
+      ),
+      filterValue: (dancer) =>
+        `${dancer.lastName} ${dancer.firstName} ${dancer.documentNumber ?? ""}`,
+      sortValue: (dancer) => `${dancer.lastName}, ${dancer.firstName}`,
+    },
+    {
+      id: "birthDate",
+      header: "Fecha de nacimiento",
+      cell: (dancer) => formatDateOnly(dancer.birthDate),
+    },
+    {
+      id: "document",
+      header: "Documento",
+      cell: (dancer) => formatDocument(dancer),
+      filterValue: (dancer) => dancer.documentNumber ?? "",
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (dancer) => (
+        <div className="flex flex-wrap gap-2">
+          {getDancerStateBadges(dancer).map((badge) => (
+            <Badge key={badge.label} variant={badge.variant}>
+              {badge.label}
+            </Badge>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+        </div>
+      ),
+      filterValues: (dancer) => [
+        dancer.active ? "active" : "archived",
+        dancer.verificationStatus,
+      ],
+    },
+  ];
 
-function StatusTab({
-  children,
-  isActive,
-  to,
-}: {
-  children: string;
-  isActive: boolean;
-  to: LinkProps["to"];
-}) {
   return (
-    <Link
-      to={to}
-      className={clsx(
-        "inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-        isActive
-          ? "bg-teal-50 text-teal-900"
-          : "text-slate-700 hover:bg-slate-50 hover:text-slate-950",
-      )}
-    >
-      {children}
-    </Link>
+    <DataTable
+      rows={dancers}
+      columns={columns}
+      getRowKey={(dancer) => dancer.id}
+      searchPlaceholder="Buscar bailarín por nombre o número de documento"
+      textFilterColumnId="name"
+      facetedFilters={[
+        {
+          columnId: "status",
+          label: "Filtros",
+          groups: [
+            {
+              label: "Estado",
+              options: [
+                { label: "Activo", value: "active" },
+                { label: "Archivado", value: "archived" },
+              ],
+            },
+            {
+              label: "Completitud",
+              options: [
+                { label: "Incompleto", value: "incomplete" },
+                { label: "Faltan imágenes", value: "missingImages" },
+              ],
+            },
+          ],
+        },
+      ]}
+      initialFacetedFilterValues={defaultDancerFilters}
+      emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
+      initialSort={{ columnId: "name", direction: "asc" }}
+    />
   );
 }
 
-const dancerStatusCopy: Record<
-  DancerStatusFilter,
-  {
-    description: string;
-    emptyTitle: string;
-    emptyDescription: string;
-  }
-> = {
-  active: {
-    description:
-      "Esta lista muestra solo los bailarines activos de tu academia.",
-    emptyTitle: "Todavía no cargaste bailarines",
-    emptyDescription:
-      "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías.",
-  },
-  archived: {
-    description:
-      "Consultá los bailarines archivados y reactivalos desde su ficha cuando vuelvan a participar.",
-    emptyTitle: "No hay bailarines archivados",
-    emptyDescription:
-      "Los bailarines archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha.",
-  },
-};
-
-function CreateDancerModal({
+function CreateDancerDialog({
   actionData,
-  onClose,
+  isOpen,
+  onOpenChange,
 }: {
   actionData?: ActionData;
-  onClose: () => void;
+  isOpen: boolean;
+  onOpenChange: (nextOpen: boolean) => void;
 }) {
-  const values = actionData?.values ?? {
-    firstName: "",
-    lastName: "",
-    birthDate: "",
-  };
+  const firstNameId = useId();
+  const lastNameId = useId();
+  const birthDateId = useId();
+  const form = useForm<CreateDancerFormValues>({
+    resolver: zodResolver(createDancerSchema),
+    defaultValues: actionData?.values ?? emptyDancerValues,
+  });
+  const serverFieldErrors = actionData?.fieldErrors ?? emptyDancerFieldErrors;
+
+  useApplyServerFieldErrors(form, serverFieldErrors);
 
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-      role="dialog"
-    >
-      <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-6 shadow-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">
-              Cargar Bailarín
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Completá los datos mínimos para crear el registro.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            Cerrar
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent forceMount>
+        <DialogHeader>
+          <DialogTitle>Nuevo bailarín</DialogTitle>
+          <DialogDescription>
+            Ingresá los datos mínimos para cargarlo en la academia.
+          </DialogDescription>
+        </DialogHeader>
 
-        {actionData ? (
-          <div className="mt-4">
-            <AccessNotice variant="error">{actionData.error}</AccessNotice>
-          </div>
-        ) : null}
+        <form
+          method="post"
+          onSubmit={createValidatedNativeSubmitHandler(form)}
+          className="flex flex-col gap-5"
+        >
+          <input type="hidden" name="intent" value={createDancerIntent} />
+          <FieldGroup>
+            <DancerTextField
+              control={form.control}
+              fieldName="firstName"
+              id={firstNameId}
+              label="Nombre"
+              autoComplete="given-name"
+              serverError={serverFieldErrors.firstName}
+            />
 
-        <form method="post" className="mt-5 space-y-4">
-          <PortalField
-            error={actionData?.fieldErrors.firstName}
-            id="bailarin-nombre"
-            label="Nombre"
-            name="firstName"
-            defaultValue={values.firstName}
-            type="text"
-          />
-          <PortalField
-            error={actionData?.fieldErrors.lastName}
-            id="bailarin-apellido"
-            label="Apellido"
-            name="lastName"
-            defaultValue={values.lastName}
-            type="text"
-          />
-          <DateOnlyField
-            error={actionData?.fieldErrors.birthDate}
-            id="bailarin-fecha-nacimiento"
-            label="Fecha de nacimiento"
-            name="birthDate"
-            defaultValue={values.birthDate}
-            labelClassName="text-slate-800"
-            buttonClassName="mt-0 h-10 w-full border-slate-300 bg-white text-slate-950 hover:bg-slate-50 focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-            errorClassName="mt-0 font-medium"
-          />
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-            >
-              Crear Bailarín
-            </button>
-          </div>
+            <DancerTextField
+              control={form.control}
+              fieldName="lastName"
+              id={lastNameId}
+              label="Apellido"
+              autoComplete="family-name"
+              serverError={serverFieldErrors.lastName}
+            />
+
+            <Controller
+              control={form.control}
+              name="birthDate"
+              render={({ field, fieldState }) => {
+                const errorMessage =
+                  fieldState.error?.message ?? serverFieldErrors.birthDate;
+
+                return (
+                  <DateOnlyField
+                    id={birthDateId}
+                    label="Fecha de nacimiento"
+                    name={field.name}
+                    defaultValue={field.value}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onValueChange={field.onChange}
+                    error={errorMessage}
+                  />
+                );
+              }}
+            />
+          </FieldGroup>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit">Guardar bailarín</Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function PortalField({
-  defaultValue,
-  error,
+function DancerTextField({
+  autoComplete,
+  control,
+  fieldName,
   id,
   label,
-  name,
-  type,
+  serverError,
 }: {
-  defaultValue: string;
-  error?: string;
+  autoComplete: string;
+  control: Control<CreateDancerFormValues>;
+  fieldName: keyof CreateDancerFormValues;
   id: string;
   label: string;
-  name: keyof CreateDancerInput;
-  type: "text";
+  serverError?: string;
 }) {
-  const errorId = error ? `${id}-error` : undefined;
-
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      <input
-        aria-describedby={errorId}
-        aria-invalid={error ? true : undefined}
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-        defaultValue={defaultValue}
-        id={id}
-        name={name}
-        type={type}
-      />
-      {error ? (
-        <p id={errorId} className="mt-2 text-xs font-medium text-red-700">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Controller
+      control={control}
+      name={fieldName}
+      render={({ field, fieldState }) => {
+        const errorMessage = fieldState.error?.message ?? serverError;
+        const isInvalid = Boolean(errorMessage);
+
+        return (
+          <Field data-invalid={isInvalid ? true : undefined}>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldContent>
+              <Input
+                {...field}
+                id={id}
+                autoComplete={autoComplete}
+                aria-invalid={isInvalid ? true : undefined}
+              />
+              <FieldError>{errorMessage}</FieldError>
+            </FieldContent>
+          </Field>
+        );
+      }}
+    />
   );
 }
 
-function VerificationBadge({
-  status,
-}: {
-  status: DancerListItem["verificationStatus"];
-}) {
-  if (status === "missingImages") {
-    return (
-      <span className="inline-flex rounded-md bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">
-        Faltan imágenes
-      </span>
-    );
+function getDancerStateBadges(dancer: DancerRow) {
+  const badges: DancerBadge[] = [];
+
+  if (!dancer.active) {
+    badges.push({ label: "Archivado", variant: "outline" });
   }
 
-  return (
-    <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-      Incompleto
-    </span>
-  );
+  badges.push({
+    label: getDancerVerificationLabel(dancer.verificationStatus),
+    variant: "secondary",
+  });
+
+  return badges;
+}
+
+function getDancerVerificationLabel(
+  status: DancerListItem["verificationStatus"],
+) {
+  switch (status) {
+    case "missingImages":
+      return "Faltan imágenes";
+    case "incomplete":
+      return "Incompleto";
+  }
 }
 
 function formatDateOnly(value: string) {
@@ -482,30 +504,33 @@ function formatDateOnly(value: string) {
   return `${day}/${month}/${year}`;
 }
 
-function formatDocument(dancer: DancerListItem) {
+function formatDocument(dancer: DancerRow) {
   if (!dancer.documentType || !dancer.documentNumber) {
     return "Sin documento";
   }
 
-  return `${formatDocumentType(dancer.documentType)} ${dancer.documentNumber}`;
+  switch (dancer.documentType) {
+    case "dni":
+      return `DNI ${dancer.documentNumber}`;
+    case "passport":
+      return `Pasaporte ${dancer.documentNumber}`;
+    default:
+      return `Otro ${dancer.documentNumber}`;
+  }
 }
 
-function formatDocumentType(
-  value: NonNullable<DancerListItem["documentType"]>,
-) {
-  if (value === "dni") {
-    return "DNI";
-  }
-
-  if (value === "passport") {
-    return "Pasaporte";
-  }
-
-  return "Otro";
-}
-
-function readFormString(formData: FormData, key: string) {
-  const value = formData.get(key);
+function formValue(formData: FormData, fieldName: keyof CreateDancerInput) {
+  const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";
+}
+
+function getCreateDancerFieldErrors(error: z.ZodError<CreateDancerFormValues>) {
+  const fieldErrors = error.flatten().fieldErrors;
+
+  return {
+    firstName: fieldErrors.firstName?.[0],
+    lastName: fieldErrors.lastName?.[0],
+    birthDate: fieldErrors.birthDate?.[0],
+  };
 }

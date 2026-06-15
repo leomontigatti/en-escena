@@ -374,7 +374,7 @@ describe("portal route view", () => {
     const markup = renderBailarines();
 
     expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Cargar Bailarín");
+    expect(markup).toContain("Nuevo bailarín");
     expect(markup).toContain("Todavía no cargaste bailarines");
     expect(markup).toContain(
       "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías.",
@@ -385,39 +385,81 @@ describe("portal route view", () => {
     expect(markup).toContain('aria-current="page"');
   });
 
-  test("shows ordered Bailarines with date, document and incomplete verification state", () => {
+  test("renders the redesigned Bailarines table with filters and action", () => {
     const markup = renderBailarines({
-      dancers: [
-        dancerListItem({
-          id: "dancer_ana",
-          firstName: "Ana",
-          lastName: "Alvarez",
-          birthDate: "2014-02-01",
-        }),
-        dancerListItem({
-          id: "dancer_juan",
-          firstName: "Juan Manuel",
-          lastName: "Cruz de la Torre",
-          birthDate: "2015-04-03",
-        }),
-      ],
+      loaderData: academyLoaderData({
+        dancers: [
+          dancerListItem({
+            id: "dancer_complete",
+            firstName: "Ana",
+            lastName: "Completa",
+            birthDate: "2014-02-01",
+            documentType: "dni",
+            documentNumber: "12345678",
+            verificationStatus: "missingImages",
+          }),
+          dancerListItem({
+            id: "dancer_archived",
+            firstName: "José Luis",
+            lastName: "de la Cruz",
+            active: false,
+          }),
+        ],
+      }),
+    });
+
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain(
+      "Buscar bailarín por nombre o número de documento",
+    );
+    expect(markup).toContain("Nuevo bailarín");
+    expect(markup).toContain("Filtros");
+    expect(markup).toContain("1 de 2 registros");
+    expect(markup).toContain("DNI 12345678");
+    expect(markup).toContain("Faltan imágenes");
+    expect(markup).toContain('href="/portal/bailarines/dancer_complete"');
+    expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
+    expect(markup).not.toContain("Cargar Bailarín");
+  });
+
+  test("shows ordered Bailarines with date, document and state badges", () => {
+    const markup = renderBailarines({
+      loaderData: academyLoaderData({
+        dancers: [
+          dancerListItem({
+            id: "dancer_ana",
+            firstName: "Ana",
+            lastName: "Alvarez",
+            birthDate: "2014-02-01",
+            documentType: "dni",
+            documentNumber: "12345678",
+            verificationStatus: "missingImages",
+          }),
+          dancerListItem({
+            id: "dancer_juan",
+            firstName: "Juan Manuel",
+            lastName: "Cruz de la Torre",
+            birthDate: "2015-04-03",
+          }),
+        ],
+      }),
     });
 
     expect(markup).toContain("Alvarez, Ana");
     expect(markup).toContain("01/02/2014");
     expect(markup).toContain("Cruz de la Torre, Juan Manuel");
     expect(markup).toContain("03/04/2015");
+    expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Sin documento");
+    expect(markup).toContain("Faltan imágenes");
     expect(markup).toContain("Incompleto");
     expect(markup).toContain('href="/portal/bailarines/dancer_ana"');
-    expect(markup).not.toContain("Archivar Bailarín");
-    expect(markup).not.toContain("Reactivar Bailarín");
     expect(markup.indexOf("Alvarez, Ana")).toBeLessThan(
       markup.indexOf("Cruz de la Torre, Juan Manuel"),
     );
   });
 
-  test("shows the Archivados tab for Bailarines and keeps archive actions out of the list", () => {
+  test("hides archived Bailarines by default while keeping the shared filters visible", () => {
     const markup = renderBailarines({
       loaderData: academyLoaderData({
         dancers: [
@@ -427,29 +469,28 @@ describe("portal route view", () => {
             lastName: "Archivada",
             active: false,
           }),
+          dancerListItem({
+            id: "dancer_active",
+            firstName: "Beto",
+            lastName: "Activo",
+            active: true,
+          }),
         ],
-        statusFilter: "archived",
       }),
     });
 
-    expect(markup).toContain(">Activos<");
-    expect(markup).toContain(">Archivados<");
-    expect(markup).toContain("Archivado");
-    expect(markup).toContain(
-      'href="/portal/bailarines/dancer_archived?estado=archivados"',
-    );
-    expect(markup).not.toContain("Cargar Bailarín");
-    expect(markup).not.toContain("Archivar Bailarín");
-    expect(markup).not.toContain("Reactivar Bailarín");
+    expect(markup).toContain("Filtros");
+    expect(markup).toContain("1 de 2 registros");
+    expect(markup).toContain('href="/portal/bailarines/dancer_active"');
+    expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
   });
 
-  test("keeps the Bailarín modal open with errors and previous values", () => {
+  test("keeps the Bailarines screen stable when create returns field errors", () => {
     const markup = renderBailarines({
       actionData: {
         status: "error",
-        error: "Revisá los datos del Bailarín.",
         fieldErrors: {
-          firstName: "Ingresá el nombre.",
+          firstName: "Este campo es obligatorio.",
           birthDate: "La fecha de nacimiento no puede ser futura.",
         },
         values: {
@@ -457,22 +498,13 @@ describe("portal route view", () => {
           lastName: "López",
           birthDate: "2999-01-01",
         },
+        modalOpen: true,
       },
     });
 
-    expect(markup).toContain('role="dialog"');
-    expect(markup).toContain("Revisá los datos del Bailarín.");
-    expect(markup).toContain("Ingresá el nombre.");
-    expect(markup).toContain("La fecha de nacimiento no puede ser futura.");
-    expect(markup).toContain('name="lastName" value="López"');
-    expect(markup).toContain('name="birthDate" value="2999-01-01"');
-  });
-
-  test("shows a success banner after creating a Bailarín", () => {
-    const markup = renderBailarines({ created: true });
-
-    expect(markup).toContain("El Bailarín se creó correctamente.");
-    expect(markup).not.toContain('role="dialog"');
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Nuevo bailarín");
+    expect(markup).not.toContain("Bailarín creado.");
   });
 
   test("shows the Bailarín edit alert, fields and success banner", () => {
@@ -781,7 +813,6 @@ function renderBailarines(
     <MemoryRouter initialEntries={["/portal/bailarines"]}>
       <PortalBailarinesRouteView
         actionData={input.actionData}
-        created={input.created}
         loaderData={
           input.loaderData ??
           academyLoaderData({

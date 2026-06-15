@@ -59,7 +59,7 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
-type DancerStatusFilter = "active" | "archived";
+type DancerStatusFilter = "active" | "archived" | "all";
 
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
@@ -80,10 +80,7 @@ export async function listDancersForAcademy(
 ): Promise<DancerListItem[]> {
   const status = options.status ?? "active";
   const rows = await db.query.dancers.findMany({
-    where: and(
-      eq(dancers.academyId, academyId),
-      eq(dancers.active, status === "active"),
-    ),
+    where: getDancerListWhere(academyId, status),
     orderBy: [asc(dancers.lastName), asc(dancers.firstName)],
   });
 
@@ -100,6 +97,17 @@ export async function listDancersForAcademy(
         ? "missingImages"
         : "incomplete",
   }));
+}
+
+function getDancerListWhere(academyId: string, status: DancerStatusFilter) {
+  if (status === "all") {
+    return eq(dancers.academyId, academyId);
+  }
+
+  return and(
+    eq(dancers.academyId, academyId),
+    eq(dancers.active, status === "active"),
+  );
 }
 
 export async function createDancerForAcademy(
