@@ -2,33 +2,38 @@ import { Form, redirect, useActionData, useLoaderData } from "react-router";
 import { z } from "zod";
 
 import {
-  AccessField,
   AccessHeader,
-  AccessNotice,
   AccessPage,
   AccessSecondaryLink,
-  accessButtonClassName,
 } from "@/components/auth/access-ui";
+import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
+import { Button } from "@/components/ui/button";
+import { FieldGroup } from "@/components/ui/field";
 import {
   completeAcademyRegistration,
   getRegistrationTokenStatus,
 } from "@/lib/academies/registration.server";
 import {
+  authToastIds,
+  passwordField,
+  readFormValue,
+  requiredTextField,
+} from "@/lib/auth/access-form.shared";
+import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro_.$token";
 
 const completeRegistrationSchema = z
   .object({
-    academyName: z.string().trim().min(1, "Ingresá el nombre de la academia."),
-    contactName: z.string().trim().min(1, "Ingresá el nombre de contacto."),
-    phone: z.string().trim().min(1, "Ingresá un teléfono de contacto."),
-    password: z
-      .string()
-      .min(8, "La contraseña debe tener al menos 8 caracteres."),
-    confirmPassword: z.string(),
+    academyName: requiredTextField(),
+    contactName: requiredTextField(),
+    phone: requiredTextField(),
+    password: passwordField(),
+    confirmPassword: requiredTextField(),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "Las contraseñas no coinciden.",
@@ -42,6 +47,21 @@ const completeRegistrationFields = [
   "confirmPassword",
 ] as const;
 type CompleteRegistrationField = (typeof completeRegistrationFields)[number];
+type CompleteRegistrationValues = {
+  academyName: string;
+  contactName: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+};
+
+const emptyCompleteRegistrationValues: CompleteRegistrationValues = {
+  academyName: "",
+  contactName: "",
+  phone: "",
+  password: "",
+  confirmPassword: "",
+};
 
 export const meta: Route.MetaFunction = () => [
   { title: "Completar registro | En Escena" },
@@ -65,10 +85,18 @@ export async function action({ request, params }: Route.ActionArgs) {
       status: "error" as const,
       message: "El enlace no es válido.",
       fieldErrors: getEmptyFieldErrors<CompleteRegistrationField>(),
+      values: emptyCompleteRegistrationValues,
     };
   }
 
   const formData = await request.formData();
+  const values = {
+    academyName: readFormValue(formData.get("academyName")),
+    contactName: readFormValue(formData.get("contactName")),
+    phone: readFormValue(formData.get("phone")),
+    password: "",
+    confirmPassword: "",
+  } satisfies CompleteRegistrationValues;
   const parsed = completeRegistrationSchema.safeParse({
     academyName: formData.get("academyName"),
     contactName: formData.get("contactName"),
@@ -82,6 +110,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       status: "error" as const,
       message: "Revisá los campos marcados.",
       fieldErrors: getFieldErrors(parsed.error, completeRegistrationFields),
+      values,
     };
   }
 
@@ -99,6 +128,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       status: "error" as const,
       message: result.error,
       fieldErrors: getEmptyFieldErrors<CompleteRegistrationField>(),
+      values,
     };
   }
 
@@ -108,6 +138,15 @@ export async function action({ request, params }: Route.ActionArgs) {
 export default function CompletarRegistroRoute() {
   const { tokenStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const form = useAccessForm({
+    schema: completeRegistrationSchema,
+    values: actionData?.values ?? emptyCompleteRegistrationValues,
+    fieldErrors: actionData?.fieldErrors,
+  });
+
+  useServerActionToast(actionData, {
+    toastId: authToastIds.registrationError,
+  });
 
   if (tokenStatus === "invalid") {
     return (
@@ -133,78 +172,59 @@ export default function CompletarRegistroRoute() {
         description="Estos datos pertenecen a la academia. El usuario de acceso queda asociado al correo confirmado por el enlace."
       />
 
-      <Form method="post" className="mt-8 space-y-5">
-        <AccessField
-          id="academyName"
-          label="Nombre de la academia"
-          error={actionData?.fieldErrors.academyName}
-          inputProps={{
-            name: "academyName",
-            required: true,
-            autoComplete: "organization",
-          }}
-        />
-
-        <AccessField
-          id="contactName"
-          label="Nombre de contacto"
-          error={actionData?.fieldErrors.contactName}
-          inputProps={{
-            name: "contactName",
-            required: true,
-            autoComplete: "name",
-          }}
-        />
-
-        <AccessField
-          id="phone"
-          label="Teléfono"
-          error={actionData?.fieldErrors.phone}
-          inputProps={{
-            name: "phone",
-            type: "tel",
-            required: true,
-            autoComplete: "tel",
-            inputMode: "tel",
-          }}
-        />
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <AccessField
-            id="password"
-            label="Contraseña"
-            hint="Usá al menos 8 caracteres."
-            error={actionData?.fieldErrors.password}
-            inputProps={{
-              name: "password",
-              type: "password",
-              required: true,
-              minLength: 8,
-              autoComplete: "new-password",
-            }}
+      <Form
+        method="post"
+        noValidate
+        className="mt-8"
+        onSubmit={form.handleSubmit}
+      >
+        <FieldGroup>
+          <AccessTextField
+            autoComplete="organization"
+            controller={form}
+            label="Nombre de la academia"
+            name="academyName"
           />
 
-          <AccessField
-            id="confirmPassword"
-            label="Confirmar contraseña"
-            error={actionData?.fieldErrors.confirmPassword}
-            inputProps={{
-              name: "confirmPassword",
-              type: "password",
-              required: true,
-              minLength: 8,
-              autoComplete: "new-password",
-            }}
+          <AccessTextField
+            autoComplete="name"
+            controller={form}
+            label="Nombre de contacto"
+            name="contactName"
           />
-        </div>
 
-        {actionData ? (
-          <AccessNotice variant="error">{actionData.message}</AccessNotice>
-        ) : null}
+          <AccessTextField
+            autoComplete="tel"
+            controller={form}
+            inputMode="tel"
+            label="Teléfono"
+            name="phone"
+            type="tel"
+          />
 
-        <button type="submit" className={accessButtonClassName}>
-          Crear academia e ingresar
-        </button>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <AccessTextField
+              autoComplete="new-password"
+              controller={form}
+              description="Usá al menos 8 caracteres."
+              label="Contraseña"
+              name="password"
+              type="password"
+            />
+
+            <AccessTextField
+              autoComplete="new-password"
+              controller={form}
+              label="Confirmar contraseña"
+              name="confirmPassword"
+              type="password"
+            />
+          </div>
+
+          <Button className="w-full" type="submit">
+            Crear academia e ingresar
+          </Button>
+        </FieldGroup>
       </Form>
     </AccessPage>
   );

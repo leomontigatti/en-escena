@@ -1,68 +1,62 @@
-import { Form, redirect, useActionData, useSearchParams } from "react-router";
+import { useEffect } from "react";
+import {
+  Form,
+  redirect,
+  useActionData,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
 import { z } from "zod";
 
 import {
-  AccessField,
   AccessHeader,
-  AccessNotice,
   AccessPage,
   AccessTextLink,
-  accessButtonClassName,
 } from "@/components/auth/access-ui";
+import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
+import { Button } from "@/components/ui/button";
+import { FieldGroup } from "@/components/ui/field";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
 import { auth } from "@/lib/auth/auth.server";
-import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
 import {
-  getEmptyFieldErrors,
-  getFieldErrors,
-} from "@/lib/shared/form-validation";
+  authToastIds,
+  loginNotices,
+  logoutSuccessNotice,
+  readFormValue,
+  recoverySuccessNotice,
+  requiredTextField,
+  type LoginNotice,
+} from "@/lib/auth/access-form.shared";
+import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
 import {
   getPostLoginPathForUserId,
   redirectSignedInUserFromPublicRoute,
 } from "@/lib/auth/internal-navigation.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
+import { showToastMessage, useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/ingresar";
 
-const requiredTextField = (message: string) =>
-  z.preprocess(
-    (value) => (typeof value === "string" ? value : ""),
-    z.string().trim().min(1, message),
-  );
-
 const signInSchema = z.object({
-  identifier: requiredTextField(
-    "Ingresá tu correo o nombre de usuario interno.",
-  ),
-  password: requiredTextField("Ingresá tu contraseña."),
+  identifier: requiredTextField(),
+  password: requiredTextField(),
 });
 const signInFields = ["identifier", "password"] as const;
 type SignInField = (typeof signInFields)[number];
-type LoginNotice = {
-  variant: "error" | "info" | "success";
-  message: string;
+type SignInValues = {
+  identifier: string;
+  password: string;
 };
 
-const loginNotices = {
-  continuar: {
-    variant: "info",
-    message: "Ingresá para continuar.",
-  },
-  expirada: {
-    variant: "error",
-    message: "Tu sesión expiró. Volvé a ingresar.",
-  },
-} satisfies Record<LoginRedirectReason, LoginNotice>;
-
-const recoverySuccessNotice = {
-  variant: "success",
-  message: "Tu contraseña fue actualizada. Ya podés ingresar.",
-} satisfies LoginNotice;
-
-const logoutSuccessNotice = {
-  variant: "success",
-  message: "Cerraste sesión.",
-} satisfies LoginNotice;
+const emptySignInValues: SignInValues = {
+  identifier: "",
+  password: "",
+};
 
 export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
@@ -76,6 +70,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
+  const values = {
+    identifier: readFormValue(formData.get("identifier")),
+    password: "",
+  } satisfies SignInValues;
   const parsed = signInSchema.safeParse({
     identifier: formData.get("identifier"),
     password: formData.get("password"),
@@ -86,6 +84,7 @@ export async function action({ request }: Route.ActionArgs) {
       status: "error" as const,
       message: "Revisá los campos marcados.",
       fieldErrors: getFieldErrors(parsed.error, signInFields),
+      values,
     };
   }
 
@@ -95,15 +94,15 @@ export async function action({ request }: Route.ActionArgs) {
     );
 
     if (!credentialUser) {
-      return genericLoginError();
+      return genericLoginError(values);
     }
 
     if (credentialUser.match === "email" && !credentialUser.emailVerified) {
-      return genericLoginError();
+      return genericLoginError(values);
     }
 
     if (credentialUser.suspended) {
-      return genericLoginError();
+      return genericLoginError(values);
     }
 
     const result = await auth.api.signInEmail({
@@ -133,6 +132,7 @@ export async function action({ request }: Route.ActionArgs) {
       status: "error" as const,
       message: "No pudimos ingresar con esos datos.",
       fieldErrors: getEmptyFieldErrors<SignInField>(),
+      values,
     };
   }
 }
@@ -163,18 +163,20 @@ function isLoginRedirectReason(
   return reason === "continuar" || reason === "expirada";
 }
 
-function genericLoginError() {
-  return {
-    status: "error" as const,
-    message: "No pudimos ingresar con esos datos.",
-    fieldErrors: getEmptyFieldErrors<SignInField>(),
-  };
-}
-
 export default function IngresarRoute() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const loginNotice = getLoginNotice(searchParams);
+  const form = useAccessForm({
+    schema: signInSchema,
+    values: actionData?.values ?? emptySignInValues,
+    fieldErrors: actionData?.fieldErrors,
+  });
+
+  useServerActionToast(actionData, {
+    toastId: authToastIds.loginError,
+  });
+  useLoginNoticeToast(loginNotice);
 
   return (
     <AccessPage>
@@ -184,56 +186,86 @@ export default function IngresarRoute() {
         description="Accedé al portal de academias o al panel interno según tu permiso."
       />
 
-      <Form method="post" className="mt-8 flex flex-col gap-5">
-        <AccessField
-          id="identifier"
-          label="Correo o Nombre de usuario interno"
-          error={actionData?.fieldErrors.identifier}
-          inputProps={{
-            name: "identifier",
-            type: "text",
-            required: true,
-            autoComplete: "username",
-            spellCheck: false,
-          }}
-        />
+      <Form
+        method="post"
+        noValidate
+        className="mt-8"
+        onSubmit={form.handleSubmit}
+      >
+        <FieldGroup>
+          <AccessTextField
+            controller={form}
+            autoComplete="username"
+            label="Correo o Nombre de usuario interno"
+            name="identifier"
+            spellCheck={false}
+            type="text"
+          />
 
-        <AccessField
-          id="password"
-          label="Contraseña"
-          error={actionData?.fieldErrors.password}
-          inputProps={{
-            name: "password",
-            type: "password",
-            required: true,
-            autoComplete: "current-password",
-          }}
-        />
+          <AccessTextField
+            controller={form}
+            autoComplete="current-password"
+            label="Contraseña"
+            name="password"
+            type="password"
+          />
 
-        {actionData ? (
-          <AccessNotice variant="error">{actionData.message}</AccessNotice>
-        ) : null}
-
-        {loginNotice ? (
-          <AccessNotice variant={loginNotice.variant}>
-            {loginNotice.message}
-          </AccessNotice>
-        ) : null}
-
-        <button type="submit" className={accessButtonClassName}>
-          Ingresar
-        </button>
+          <Button className="w-full" type="submit">
+            Ingresar
+          </Button>
+        </FieldGroup>
       </Form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         ¿No recordás tu contraseña?{" "}
         <AccessTextLink to="/recuperar-acceso">Recuperar acceso</AccessTextLink>
       </p>
 
-      <p className="mt-3 text-center text-sm text-slate-600">
+      <p className="mt-3 text-center text-sm text-muted-foreground">
         ¿Tu academia todavía no está registrada?{" "}
         <AccessTextLink to="/registro">Pedir enlace</AccessTextLink>
       </p>
     </AccessPage>
   );
+}
+
+function genericLoginError(values: SignInValues) {
+  return {
+    status: "error" as const,
+    message: "No pudimos ingresar con esos datos.",
+    fieldErrors: getEmptyFieldErrors<SignInField>(),
+    values,
+  };
+}
+
+function useLoginNoticeToast(loginNotice: LoginNotice | null) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loginNotice) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      showToastMessage(loginNotice);
+    }, 0);
+
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.delete("motivo");
+    searchParams.delete("recuperacion");
+    searchParams.delete("sesion");
+    const nextSearch = searchParams.toString();
+
+    navigate(
+      `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
+      { replace: true },
+    );
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    loginNotice,
+    navigate,
+  ]);
 }

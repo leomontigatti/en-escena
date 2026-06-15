@@ -143,6 +143,10 @@ describe("internal navigation", () => {
         identifier: undefined,
         password: undefined,
       },
+      values: {
+        identifier: "sin-verificar@example.com",
+        password: "",
+      },
     });
   });
 
@@ -171,6 +175,10 @@ describe("internal navigation", () => {
       fieldErrors: {
         identifier: undefined,
         password: undefined,
+      },
+      values: {
+        identifier: "suspendido.login@example.com",
+        password: "",
       },
     });
   });
