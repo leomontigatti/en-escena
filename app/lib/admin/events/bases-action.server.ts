@@ -297,27 +297,42 @@ function buildActionErrorScope(
 
   switch (input.intent) {
     case "create-submodality":
-      return {
-        intent: input.intent,
-        parentRecordId: input.modalityId || undefined,
-      };
+      return buildParentRecordActionScope(input.intent, input.modalityId);
     case "update-submodality":
       return {
         intent: input.intent,
-        recordId: input.id || undefined,
-        parentRecordId: input.modalityId || undefined,
+        recordId: emptyStringToUndefined(input.id),
+        parentRecordId: emptyStringToUndefined(input.modalityId),
       };
     case "create-schedule-entry":
-      return {
-        intent: input.intent,
-        parentRecordId: input.scheduleBlockId || undefined,
-      };
+      return buildParentRecordActionScope(input.intent, input.scheduleBlockId);
     default:
-      return {
-        intent: input.intent,
-        recordId: input.id || undefined,
-      };
+      return buildRecordActionScope(input.intent, input.id);
   }
+}
+
+function buildRecordActionScope(
+  intent: string,
+  recordId: string,
+): ActionErrorScope {
+  return {
+    intent,
+    recordId: emptyStringToUndefined(recordId),
+  };
+}
+
+function buildParentRecordActionScope(
+  intent: string,
+  parentRecordId: string,
+): ActionErrorScope {
+  return {
+    intent,
+    parentRecordId: emptyStringToUndefined(parentRecordId),
+  };
+}
+
+function emptyStringToUndefined(value: string) {
+  return value || undefined;
 }
 
 function buildActionRedirectUrl(

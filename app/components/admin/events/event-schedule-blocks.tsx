@@ -911,22 +911,20 @@ function getScheduleBlockFieldErrors(
   actionData?: ActionData,
   scheduleBlockId?: string,
 ) {
-  if (!actionData?.scope) {
-    return {};
-  }
-
-  if (actionData.scope.intent === "create-schedule-block") {
-    return actionData.fieldErrors;
+  if (matchesActionScope(actionData, { intent: "create-schedule-block" })) {
+    return actionData?.fieldErrors ?? emptyScheduleFieldErrors;
   }
 
   if (
-    actionData.scope.intent === "update-schedule-block" &&
-    actionData.scope.recordId === scheduleBlockId
+    matchesActionScope(actionData, {
+      intent: "update-schedule-block",
+      recordId: scheduleBlockId,
+    })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptyScheduleFieldErrors;
   }
 
-  return {};
+  return emptyScheduleFieldErrors;
 }
 
 function getCreateScheduleEntryFieldErrors(
@@ -934,13 +932,15 @@ function getCreateScheduleEntryFieldErrors(
   scheduleBlockId: string,
 ) {
   if (
-    actionData?.scope?.intent === "create-schedule-entry" &&
-    actionData.scope.parentRecordId === scheduleBlockId
+    matchesActionScope(actionData, {
+      intent: "create-schedule-entry",
+      parentRecordId: scheduleBlockId,
+    })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptyScheduleFieldErrors;
   }
 
-  return {};
+  return emptyScheduleFieldErrors;
 }
 
 function getUpdateScheduleEntryFieldErrors(
@@ -948,13 +948,15 @@ function getUpdateScheduleEntryFieldErrors(
   scheduleEntryId: string,
 ) {
   if (
-    actionData?.scope?.intent === "update-schedule-entry" &&
-    actionData.scope.recordId === scheduleEntryId
+    matchesActionScope(actionData, {
+      intent: "update-schedule-entry",
+      recordId: scheduleEntryId,
+    })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptyScheduleFieldErrors;
   }
 
-  return {};
+  return emptyScheduleFieldErrors;
 }
 
 function getScheduleBlockDeleteFieldErrors(
@@ -962,13 +964,42 @@ function getScheduleBlockDeleteFieldErrors(
   scheduleBlockId: string,
 ) {
   if (
-    actionData?.scope?.intent === "delete-schedule-block" &&
-    actionData.scope.recordId === scheduleBlockId
+    matchesActionScope(actionData, {
+      intent: "delete-schedule-block",
+      recordId: scheduleBlockId,
+    })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptyScheduleFieldErrors;
   }
 
-  return {};
+  return emptyScheduleFieldErrors;
+}
+
+function matchesActionScope(
+  actionData: ActionData | undefined,
+  {
+    intent,
+    parentRecordId,
+    recordId,
+  }: {
+    intent: string;
+    parentRecordId?: string;
+    recordId?: string;
+  },
+) {
+  if (actionData?.scope?.intent !== intent) {
+    return false;
+  }
+
+  if (recordId && actionData.scope.recordId !== recordId) {
+    return false;
+  }
+
+  if (parentRecordId && actionData.scope.parentRecordId !== parentRecordId) {
+    return false;
+  }
+
+  return true;
 }
 
 function ScheduleBlockDeleteForm({

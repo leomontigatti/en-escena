@@ -70,6 +70,7 @@ const nameFormSchema = z.object({
 type NameFormValues = z.infer<typeof nameFormSchema>;
 
 const emptyModalityFieldErrors: Record<string, string> = {};
+const emptySubmodalityFieldErrors: Record<string, string> = {};
 
 export function EventModalitiesRouteView({
   loaderData,
@@ -623,22 +624,17 @@ function CreateSubmodalityDialog({
 }
 
 function getModalityFieldErrors(actionData?: ActionData, modalityId?: string) {
-  if (!actionData) {
-    return {};
-  }
-
-  if (actionData.scope?.intent === "create-modality") {
-    return actionData.fieldErrors;
+  if (matchesActionScope(actionData, { intent: "create-modality" })) {
+    return actionData?.fieldErrors ?? emptyModalityFieldErrors;
   }
 
   if (
-    actionData.scope?.intent === "update-modality" &&
-    actionData.scope.recordId === modalityId
+    matchesActionScope(actionData, { intent: "update-modality", modalityId })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptyModalityFieldErrors;
   }
 
-  return {};
+  return emptyModalityFieldErrors;
 }
 
 function getSubmodalityFieldErrors(
@@ -646,21 +642,44 @@ function getSubmodalityFieldErrors(
   modalityId: string,
 ) {
   if (
-    actionData?.scope?.intent === "create-submodality" &&
-    actionData.scope.parentRecordId === modalityId
+    matchesActionScope(actionData, { intent: "create-submodality", modalityId })
   ) {
-    return actionData.fieldErrors;
+    return actionData?.fieldErrors ?? emptySubmodalityFieldErrors;
   }
 
-  return {};
+  return emptySubmodalityFieldErrors;
 }
 
 function shouldOpenCreateSubmodalityDialog(
   actionData: ActionData | undefined,
   modalityId: string,
 ) {
+  return matchesActionScope(actionData, {
+    intent: "create-submodality",
+    modalityId,
+  });
+}
+
+function matchesActionScope(
+  actionData: ActionData | undefined,
+  {
+    intent,
+    modalityId,
+  }: {
+    intent: string;
+    modalityId?: string;
+  },
+) {
+  if (actionData?.scope?.intent !== intent) {
+    return false;
+  }
+
+  if (!modalityId) {
+    return true;
+  }
+
   return (
-    actionData?.scope?.intent === "create-submodality" &&
+    actionData.scope.recordId === modalityId ||
     actionData.scope.parentRecordId === modalityId
   );
 }
