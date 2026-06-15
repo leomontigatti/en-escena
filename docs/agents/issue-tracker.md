@@ -1,6 +1,8 @@
 # Issue tracker: GitHub
 
 Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+Do not use GitHub connector/MCP app tools for this repo. The local `gh` auth is
+the source of truth for issue and pull request operations.
 
 ## Conventions
 

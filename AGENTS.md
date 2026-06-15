@@ -17,6 +17,10 @@ Frontend and UI changes should follow [docs/agents/style-guide.md](docs/agents/s
 ### Issue tracker
 
 Issues are tracked in GitHub Issues for `leomontigatti/en-escena` using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Use `gh` directly for GitHub operations in this repo, including creating,
+reading, editing, labeling, commenting on issues, and inspecting PRs/checks. Do
+not use the GitHub connector/MCP app tools for this repo; they may have narrower
+permissions than the local `gh` auth and can fail with misleading access errors.
 
 ### Triage labels
 
