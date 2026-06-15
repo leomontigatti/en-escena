@@ -202,33 +202,10 @@ export function PortalShell({
                   className="data-[orientation=vertical]:h-full"
                 />
               </span>
-              <Breadcrumb className="flex items-center">
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    {isHome ? (
-                      <BreadcrumbPage>Inicio</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink asChild>
-                        <Link to="/portal">Inicio</Link>
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                  {isHome
-                    ? null
-                    : resolvedBreadcrumbItems.map((item, index) => {
-                        const isCurrent =
-                          index === resolvedBreadcrumbItems.length - 1;
-
-                        return (
-                          <PortalBreadcrumbSegment
-                            key={`${item.label}-${index}`}
-                            item={item}
-                            isCurrent={isCurrent}
-                          />
-                        );
-                      })}
-                </BreadcrumbList>
-              </Breadcrumb>
+              <PortalBreadcrumbs
+                isHome={isHome}
+                items={resolvedBreadcrumbItems}
+              />
             </div>
           </header>
 
@@ -241,6 +218,49 @@ export function PortalShell({
       </SidebarProvider>
     </>
   );
+}
+
+function PortalBreadcrumbs({
+  isHome,
+  items,
+}: {
+  isHome: boolean;
+  items: PortalShellBreadcrumbItem[];
+}) {
+  return (
+    <Breadcrumb className="flex items-center">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          {isHome ? (
+            <BreadcrumbPage>Inicio</BreadcrumbPage>
+          ) : (
+            <BreadcrumbLink asChild>
+              <Link to="/portal">Inicio</Link>
+            </BreadcrumbLink>
+          )}
+        </BreadcrumbItem>
+        {isHome ? null : <PortalBreadcrumbSegments items={items} />}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+
+function PortalBreadcrumbSegments({
+  items,
+}: {
+  items: PortalShellBreadcrumbItem[];
+}) {
+  return items.map((item, index) => {
+    const isCurrent = index === items.length - 1;
+
+    return (
+      <PortalBreadcrumbSegment
+        key={`${item.label}-${index}`}
+        item={item}
+        isCurrent={isCurrent}
+      />
+    );
+  });
 }
 
 function PortalBreadcrumbSegment({

@@ -20,9 +20,42 @@ import type { Route } from "./+types/portal";
 
 type PortalRouteProps = Pick<Route.ComponentProps, "loaderData">;
 
+type ProfessorSummaryItem = Awaited<
+  ReturnType<typeof listAcademyProfessors>
+>[number];
+type DancerSummaryItem = Awaited<
+  ReturnType<typeof listDancersForAcademy>
+>[number];
+type ChoreographySummaryItem = Awaited<
+  ReturnType<typeof listChoreographiesForAcademyEvent>
+>[number];
+
+type DashboardSummary = {
+  professors: {
+    activeCount: number;
+    incompleteCount: number;
+  };
+  dancers: {
+    activeCount: number;
+    incompleteCount: number;
+  };
+  choreographies: {
+    registeredCount: number;
+    incompleteCount: number;
+  } | null;
+};
+
 type DashboardCardMetric = {
   label: string;
   value: string;
+};
+
+type DashboardCardConfig = {
+  title: string;
+  description: string;
+  metrics: DashboardCardMetric[];
+  to: string;
+  actionLabel: string;
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -46,32 +79,17 @@ export async function loader({ request }: Route.LoaderArgs) {
     userName: user.name ?? "",
     academy,
     eventContext,
-    dashboardSummary: {
-      professors: {
-        activeCount: professors.length,
-        incompleteCount: professors.filter(
-          (professor) => professor.isIncomplete,
-        ).length,
-      },
-      dancers: {
-        activeCount: dancers.length,
-        incompleteCount: dancers.length,
-      },
-      choreographies: choreographies
-        ? {
-            registeredCount: choreographies.length,
-            incompleteCount: choreographies.filter(
-              (choreography) =>
-                choreography.operationalStatus.code === "incomplete",
-            ).length,
-          }
-        : null,
-    },
+    dashboardSummary: buildDashboardSummary(
+      professors,
+      dancers,
+      choreographies,
+    ),
   };
 }
 
 export function PortalRouteView({ loaderData }: PortalRouteProps) {
   const { dashboardSummary, eventContext } = loaderData;
+  const dashboardCards = getDashboardCards(dashboardSummary);
 
   return (
     <PortalShell
@@ -94,62 +112,9 @@ export function PortalRouteView({ loaderData }: PortalRouteProps) {
         className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
         aria-label="Resumen del portal"
       >
-        <DashboardSummaryCard
-          title="Profesores"
-          description="Controlá cuántos profesores activos todavía tienen datos pendientes."
-          metrics={[
-            {
-              label: "Activos",
-              value: String(dashboardSummary.professors.activeCount),
-            },
-            {
-              label: "Incompletos",
-              value: String(dashboardSummary.professors.incompleteCount),
-            },
-          ]}
-          to="/portal/profesores"
-          actionLabel="Ver profesores"
-        />
-        <DashboardSummaryCard
-          title="Bailarines"
-          description="Priorizá los bailarines activos que todavía necesitan completarse."
-          metrics={[
-            {
-              label: "Activos",
-              value: String(dashboardSummary.dancers.activeCount),
-            },
-            {
-              label: "Incompletos",
-              value: String(dashboardSummary.dancers.incompleteCount),
-            },
-          ]}
-          to="/portal/bailarines"
-          actionLabel="Ver bailarines"
-        />
-        <DashboardSummaryCard
-          title="Coreografías"
-          description="Seguí el avance de las coreografías del evento activo."
-          metrics={
-            dashboardSummary.choreographies
-              ? [
-                  {
-                    label: "Registradas",
-                    value: String(
-                      dashboardSummary.choreographies.registeredCount,
-                    ),
-                  },
-                  {
-                    label: "Incompletas",
-                    value: String(
-                      dashboardSummary.choreographies.incompleteCount,
-                    ),
-                  },
-                ]
-              : [{ label: "Sin evento activo", value: "Sin evento activo" }]
-          }
-          to="/portal/coreografias"
-          actionLabel="Ver coreografías"
-        />
+        {dashboardCards.map((card) => (
+          <DashboardSummaryCard key={card.to} {...card} />
+        ))}
       </section>
     </PortalShell>
   );
@@ -161,13 +126,7 @@ function DashboardSummaryCard({
   metrics,
   to,
   actionLabel,
-}: {
-  title: string;
-  description: string;
-  metrics: DashboardCardMetric[];
-  to: string;
-  actionLabel: string;
-}) {
+}: DashboardCardConfig) {
   return (
     <Card>
       <CardHeader>
@@ -195,6 +154,105 @@ function DashboardSummaryCard({
       </CardFooter>
     </Card>
   );
+}
+
+function buildDashboardSummary(
+  professors: ProfessorSummaryItem[],
+  dancers: DancerSummaryItem[],
+  choreographies: ChoreographySummaryItem[] | null,
+): DashboardSummary {
+  return {
+    professors: {
+      activeCount: professors.length,
+      incompleteCount: professors.filter((professor) => professor.isIncomplete)
+        .length,
+    },
+    dancers: {
+      activeCount: dancers.length,
+      incompleteCount: dancers.length,
+    },
+    choreographies: buildChoreographySummary(choreographies),
+  };
+}
+
+function buildChoreographySummary(
+  choreographies: ChoreographySummaryItem[] | null,
+): DashboardSummary["choreographies"] {
+  if (!choreographies) {
+    return null;
+  }
+
+  return {
+    registeredCount: choreographies.length,
+    incompleteCount: choreographies.filter(
+      (choreography) => choreography.operationalStatus.code === "incomplete",
+    ).length,
+  };
+}
+
+function getDashboardCards(summary: DashboardSummary): DashboardCardConfig[] {
+  return [
+    {
+      title: "Profesores",
+      description:
+        "Controlá cuántos profesores activos todavía tienen datos pendientes.",
+      metrics: [
+        {
+          label: "Activos",
+          value: String(summary.professors.activeCount),
+        },
+        {
+          label: "Incompletos",
+          value: String(summary.professors.incompleteCount),
+        },
+      ],
+      to: "/portal/profesores",
+      actionLabel: "Ver profesores",
+    },
+    {
+      title: "Bailarines",
+      description:
+        "Priorizá los bailarines activos que todavía necesitan completarse.",
+      metrics: [
+        {
+          label: "Activos",
+          value: String(summary.dancers.activeCount),
+        },
+        {
+          label: "Incompletos",
+          value: String(summary.dancers.incompleteCount),
+        },
+      ],
+      to: "/portal/bailarines",
+      actionLabel: "Ver bailarines",
+    },
+    {
+      title: "Coreografías",
+      description: "Seguí el avance de las coreografías del evento activo.",
+      metrics: getChoreographyMetrics(summary.choreographies),
+      to: "/portal/coreografias",
+      actionLabel: "Ver coreografías",
+    },
+  ];
+}
+
+function getChoreographyMetrics(
+  choreographies: DashboardSummary["choreographies"],
+): DashboardCardMetric[] {
+  if (!choreographies) {
+    return [{ label: "Sin evento activo", value: "Sin evento activo" }];
+  }
+
+  return [
+    {
+      label: "Registradas",
+      value: String(choreographies.registeredCount),
+    },
+    {
+      label: "Incompletas",
+      value: String(choreographies.incompleteCount),
+    },
+  ];
 }
 
 export default PortalRouteView;
