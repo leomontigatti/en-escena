@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 const signInEmail = vi.hoisted(() => vi.fn());
+const findCredentialUserForIdentifier = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/auth.server", () => ({
   auth: {
@@ -8,6 +9,10 @@ vi.mock("@/lib/auth/auth.server", () => ({
       signInEmail,
     },
   },
+}));
+
+vi.mock("@/lib/auth/internal-login.server", () => ({
+  findCredentialUserForIdentifier,
 }));
 
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
@@ -19,7 +24,7 @@ import { action as loginAction, getLoginNotice } from "@/routes/ingresar";
 describe("access UI validation", () => {
   test("returns field errors for invalid login submissions", async () => {
     const formData = new FormData();
-    formData.set("email", "no-es-correo");
+    formData.set("identifier", "");
     formData.set("password", "");
 
     const result = await loginAction({
@@ -37,7 +42,7 @@ describe("access UI validation", () => {
       status: "error",
       message: "Revisá los campos marcados.",
       fieldErrors: {
-        email: "Ingresá un correo electrónico válido.",
+        identifier: "Ingresá tu correo o nombre de usuario interno.",
         password: "Ingresá tu contraseña.",
       },
     });

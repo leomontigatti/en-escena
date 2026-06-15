@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
+import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
+import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
 import { auth } from "@/lib/auth/auth.server";
 import {
   INTERNAL_USER_ROLES,
@@ -10,15 +12,19 @@ import {
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
 
-type AppUser = {
+export type AppUser = {
   id: string;
   email: string;
   role: "academy" | InternalUserRole;
+  requiresPasswordChange: boolean;
 };
 
 const DEFAULT_FORBIDDEN_MESSAGE = "No tenés permiso para acceder a esta vista.";
 
-export async function requireSignedInUser(request: Request) {
+export async function requireSignedInUser(
+  request: Request,
+  options?: { allowMandatoryPasswordChange?: boolean },
+) {
   const session = await auth.api.getSession({
     headers: request.headers,
   });
@@ -28,12 +34,25 @@ export async function requireSignedInUser(request: Request) {
   }
 
   const appUser = await db.query.user.findFirst({
-    columns: { id: true, email: true, role: true },
+    columns: {
+      id: true,
+      email: true,
+      role: true,
+      requiresPasswordChange: true,
+    },
     where: eq(user.id, session.user.id),
   });
 
   if (!appUser) {
     redirectToLoginForRequest(request);
+  }
+
+  if (
+    !options?.allowMandatoryPasswordChange &&
+    appUser.role !== "academy" &&
+    appUser.requiresPasswordChange
+  ) {
+    throw redirect(MANDATORY_PASSWORD_CHANGE_PATH);
   }
 
   return appUser satisfies AppUser;

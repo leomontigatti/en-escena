@@ -1,6 +1,5 @@
 import { Form, redirect, useActionData, useSearchParams } from "react-router";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 
 import {
   AccessField,
@@ -10,28 +9,34 @@ import {
   AccessTextLink,
   accessButtonClassName,
 } from "@/components/auth/access-ui";
-import { db } from "@/db";
-import { user } from "@/db/schema";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { auth } from "@/lib/auth/auth.server";
+import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 import {
-  getLandingPathForUserId,
+  getPostLoginPathForUserId,
   redirectSignedInUserFromPublicRoute,
 } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/ingresar";
 
+const requiredTextField = (message: string) =>
+  z.preprocess(
+    (value) => (typeof value === "string" ? value : ""),
+    z.string().trim().min(1, message),
+  );
+
 const signInSchema = z.object({
-  email: z.email("Ingresá un correo electrónico válido."),
-  password: z.string().min(1, "Ingresá tu contraseña."),
+  identifier: requiredTextField(
+    "Ingresá tu correo o nombre de usuario interno.",
+  ),
+  password: requiredTextField("Ingresá tu contraseña."),
 });
-const signInFields = ["email", "password"] as const;
+const signInFields = ["identifier", "password"] as const;
 type SignInField = (typeof signInFields)[number];
 type LoginNotice = {
   variant: "error" | "info" | "success";
@@ -72,7 +77,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const parsed = signInSchema.safeParse({
-    email: formData.get("email"),
+    identifier: formData.get("identifier"),
     password: formData.get("password"),
   });
 
@@ -85,18 +90,21 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   try {
-    const credentialUser = await db.query.user.findFirst({
-      columns: { emailVerified: true },
-      where: eq(user.email, normalizeEmail(parsed.data.email)),
-    });
+    const credentialUser = await findCredentialUserForIdentifier(
+      parsed.data.identifier,
+    );
 
-    if (credentialUser && !credentialUser.emailVerified) {
+    if (!credentialUser) {
+      return genericLoginError();
+    }
+
+    if (credentialUser.match === "email" && !credentialUser.emailVerified) {
       return genericLoginError();
     }
 
     const result = await auth.api.signInEmail({
       body: {
-        email: parsed.data.email,
+        email: credentialUser.email,
         password: parsed.data.password,
       },
       headers: request.headers,
@@ -104,8 +112,10 @@ export async function action({ request }: Route.ActionArgs) {
     });
 
     throw redirect(
-      getSafeRedirectTo(request) ??
-        (await getLandingPathForUserId(result.response.user.id)),
+      await getPostLoginPathForUserId(
+        result.response.user.id,
+        getSafeRedirectTo(request),
+      ),
       {
         headers: result.headers,
       },
@@ -172,15 +182,14 @@ export default function IngresarRoute() {
 
       <Form method="post" className="mt-8 space-y-5">
         <AccessField
-          id="email"
-          label="Correo"
-          error={actionData?.fieldErrors.email}
+          id="identifier"
+          label="Correo o Nombre de usuario interno"
+          error={actionData?.fieldErrors.identifier}
           inputProps={{
-            name: "email",
-            type: "email",
+            name: "identifier",
+            type: "text",
             required: true,
-            autoComplete: "email",
-            inputMode: "email",
+            autoComplete: "username",
             spellCheck: false,
           }}
         />

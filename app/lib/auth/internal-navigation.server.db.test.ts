@@ -73,7 +73,7 @@ describe("internal navigation", () => {
         url: new URL("http://localhost/ingresar"),
         pattern: "/ingresar",
         request: createSignInRequest({
-          email: "admin.login@example.com",
+          identifier: "admin.login@example.com",
           password: "password-segura",
         }),
         params: {},
@@ -83,6 +83,34 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe("/administracion");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token",
+    );
+  });
+
+  test("authenticates internal users with nombre de usuario interno and redirects mandatory changes", async () => {
+    await createCredentialUser({
+      email: "admin.interno@example.com",
+      role: "admin",
+      internalUsername: "admin.interno",
+      requiresPasswordChange: true,
+    });
+
+    const response = await expectThrownResponse(
+      signInAction({
+        url: new URL("http://localhost/ingresar"),
+        pattern: "/ingresar",
+        request: createSignInRequest({
+          identifier: "Admin.Interno",
+          password: "password-segura",
+        }),
+        params: {},
+        context: {},
+      }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe("/cambiar-contrasena");
     expect(response.headers.get("set-cookie")).toContain(
       "better-auth.session_token",
     );
@@ -102,7 +130,7 @@ describe("internal navigation", () => {
         url: new URL("http://localhost/ingresar"),
         pattern: "/ingresar",
         request: createSignInRequest({
-          email: "sin-verificar@example.com",
+          identifier: "sin-verificar@example.com",
           password: "password-segura",
         }),
         params: {},
@@ -112,7 +140,7 @@ describe("internal navigation", () => {
       status: "error",
       message: "No pudimos ingresar con esos datos.",
       fieldErrors: {
-        email: undefined,
+        identifier: undefined,
         password: undefined,
       },
     });
@@ -131,7 +159,7 @@ describe("internal navigation", () => {
         ),
         pattern: "/ingresar",
         request: createSignInRequest({
-          email: "redirect.login@example.com",
+          identifier: "redirect.login@example.com",
           password: "password-segura",
           requestUrl:
             "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Finvitaciones%3Festado%3Dpendiente",
@@ -164,7 +192,7 @@ describe("internal navigation", () => {
         url: new URL(requestUrl),
         pattern: "/ingresar",
         request: createSignInRequest({
-          email,
+          identifier: email,
           password: "password-segura",
           requestUrl,
         }),
@@ -268,6 +296,8 @@ async function createSignedInRequest(input: {
 async function createCredentialUser(input: {
   email: string;
   role: "academy" | InternalUserRole;
+  internalUsername?: string;
+  requiresPasswordChange?: boolean;
 }) {
   const signUpResult = await auth.api.signUpEmail({
     body: {
@@ -283,6 +313,8 @@ async function createCredentialUser(input: {
     .set({
       emailVerified: true,
       role: input.role,
+      internalUsername: input.internalUsername,
+      requiresPasswordChange: input.requiresPasswordChange,
     })
     .where(eq(user.id, signUpResult.response.user.id));
 
@@ -293,12 +325,12 @@ async function createCredentialUser(input: {
 }
 
 function createSignInRequest(input: {
-  email: string;
+  identifier: string;
   password: string;
   requestUrl?: string;
 }) {
   const formData = new FormData();
-  formData.set("email", input.email);
+  formData.set("identifier", input.identifier);
   formData.set("password", input.password);
 
   return new Request(input.requestUrl ?? "http://localhost/ingresar", {

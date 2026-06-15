@@ -225,7 +225,7 @@ function createRequestCookie(headers: Headers) {
 
 function createSignInRequest(email: string) {
   const formData = new FormData();
-  formData.set("email", email);
+  formData.set("identifier", email);
   formData.set("password", "password-segura");
 
   return new Request("http://localhost/ingresar", {

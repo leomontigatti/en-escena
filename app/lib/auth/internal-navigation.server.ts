@@ -3,6 +3,7 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
 import { auth } from "@/lib/auth/auth.server";
 import {
   requireInternalUser,
@@ -34,6 +35,26 @@ export async function getLandingPathForUserId(userId: string) {
   return (await findLandingPathForUserId(userId)) ?? "/ingresar";
 }
 
+export async function getPostLoginPathForUserId(
+  userId: string,
+  redirectTo?: string | null,
+) {
+  const appUser = await db.query.user.findFirst({
+    columns: { role: true, requiresPasswordChange: true },
+    where: eq(user.id, userId),
+  });
+
+  if (!appUser) {
+    return "/ingresar";
+  }
+
+  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
+    return MANDATORY_PASSWORD_CHANGE_PATH;
+  }
+
+  return redirectTo ?? landingPaths[appUser.role];
+}
+
 export async function redirectSignedInUserFromPublicRoute(request: Request) {
   const session = await auth.api.getSession({
     headers: request.headers,
@@ -43,7 +64,7 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
     return null;
   }
 
-  const landingPath = await findLandingPathForUserId(session.user.id);
+  const landingPath = await getPostLoginPathForUserId(session.user.id);
 
   if (!landingPath) {
     return null;

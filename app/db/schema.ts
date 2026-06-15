@@ -60,6 +60,10 @@ export const user = createTable("user", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   role: userRole("role").notNull().default("academy"),
+  internalUsername: text("internal_username").unique(),
+  requiresPasswordChange: boolean("requires_password_change")
+    .notNull()
+    .default(false),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,
