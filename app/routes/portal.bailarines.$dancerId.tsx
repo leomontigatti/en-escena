@@ -6,6 +6,7 @@ import { AccessNotice } from "@/components/auth/access-ui";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   getPortalRecordStatusSearch,
   resolvePortalRecordStatusFilter,
@@ -55,7 +56,10 @@ export async function loader({
     throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
-  const dancer = await findDancerForAcademy(academy.id, dancerId);
+  const [eventContext, dancer] = await Promise.all([
+    getPortalEventContext(request),
+    findDancerForAcademy(academy.id, dancerId),
+  ]);
 
   if (!dancer) {
     throw new Response(dancerNotFoundMessage, { status: 404 });
@@ -63,7 +67,9 @@ export async function loader({
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
+    eventContext,
     dancer,
     saved: new URL(request.url).searchParams.get("guardado") === "1",
     statusFilter: resolveDancerStatusFilter(request, dancer.active),
@@ -140,9 +146,17 @@ export function PortalBailarinDetalleRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={<>Completá o corregí la identificación del Bailarín.</>}
+      eventContext={loaderData.eventContext}
+      title="Bailarines"
+      breadcrumbItems={[
+        { label: "Bailarines", to: "/portal/bailarines" },
+        {
+          label: `${loaderData.dancer.lastName}, ${loaderData.dancer.firstName}`,
+        },
+      ]}
     >
       <section
         className="mt-8 space-y-6"

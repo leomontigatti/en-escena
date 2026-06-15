@@ -90,6 +90,7 @@ export async function loader({
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
     choreography,
     availableProfessors,
@@ -165,11 +166,15 @@ export function PortalCoreografiaDetalleRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={
-        <>Revisá los datos estructurales ya registrados de la Coreografía.</>
-      }
+      eventContext={loaderData.eventContext}
+      title="Coreografías"
+      breadcrumbItems={[
+        { label: "Coreografías", to: "/portal/coreografias" },
+        { label: loaderData.choreography.name },
+      ]}
     >
       <section className="mt-8 space-y-6" aria-labelledby="coreografia-title">
         <Link

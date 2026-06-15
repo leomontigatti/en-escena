@@ -9,6 +9,7 @@ import {
 } from "@/components/auth/access-ui";
 import { PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   getPortalRecordStatusSearch,
   resolvePortalRecordStatusFilter,
@@ -45,11 +46,16 @@ export async function loader({
 }) {
   const { user, academy } = await requireAcademyUser(request);
   const professorId = readProfessorId(params);
-  const professor = await requireProfessor(academy.id, professorId);
+  const [eventContext, professor] = await Promise.all([
+    getPortalEventContext(request),
+    requireProfessor(academy.id, professorId),
+  ]);
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
+    eventContext,
     professor,
     statusFilter: resolveProfessorStatusFilter(request, professor.active),
     successMessage: readUpdatedSuccessMessage(
@@ -137,11 +143,17 @@ export function PortalProfesorRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={
-        <>Revisá y completá la identificación del Profesor desde esta ficha.</>
-      }
+      eventContext={loaderData.eventContext}
+      title="Profesores"
+      breadcrumbItems={[
+        { label: "Profesores", to: "/portal/profesores" },
+        {
+          label: `${loaderData.professor.lastName}, ${loaderData.professor.firstName}`,
+        },
+      ]}
     >
       <section className="mt-8 max-w-2xl" aria-labelledby="profesor-editar">
         <div>

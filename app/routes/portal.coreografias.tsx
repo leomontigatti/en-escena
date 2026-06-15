@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { AccessNotice } from "@/components/auth/access-ui";
 import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
@@ -82,6 +82,7 @@ export async function loader({ request }: { request: Request }) {
 
   return {
     email: user.email,
+    userName: user.name ?? "",
     academy,
     choreographies,
     eventContext,
@@ -152,11 +153,11 @@ export function PortalCoreografiasRouteView({
 
   return (
     <PortalShell
-      email={loaderData.email}
+      userEmail={loaderData.email}
+      userName={loaderData.userName}
       academyName={loaderData.academy.name}
-      description={
-        <>Consultá las coreografías de la academia para el Evento activo.</>
-      }
+      eventContext={loaderData.eventContext}
+      title="Coreografías"
     >
       <section className="mt-8" aria-labelledby="coreografias-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -260,10 +261,6 @@ export function PortalCoreografiasRouteView({
           onClose={() => setIsCreateModalOpen(false)}
         />
       ) : null}
-
-      <AccessSecondaryLink to="/portal" className="mt-8">
-        Volver al inicio
-      </AccessSecondaryLink>
     </PortalShell>
   );
 }

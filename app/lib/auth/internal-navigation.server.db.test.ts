@@ -15,6 +15,7 @@ import {
   action as signInAction,
   loader as signInLoader,
 } from "@/routes/ingresar";
+import { loader as indexLoader } from "@/routes/_index";
 import { loader as recoveryLoader } from "@/routes/recuperar-acceso";
 import { loader as registrationLoader } from "@/routes/registro";
 
@@ -277,6 +278,50 @@ describe("internal navigation", () => {
       );
 
       expect(response.headers.get("location")).toBe("/juzgamiento");
+    },
+  );
+
+  test("redirects visitors from / to ingresar", async () => {
+    const response = await expectThrownResponse(
+      indexLoader({
+        request: new Request("http://localhost/"),
+        params: {},
+        context: {},
+        url: new URL("http://localhost/"),
+        pattern: "/",
+      }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe("/ingresar");
+  });
+
+  test.each([
+    ["academy", "/portal"],
+    ["admin", "/administracion"],
+    ["auditor", "/auditoria"],
+    ["judge", "/juzgamiento"],
+  ] as const)(
+    "redirects signed-in %s users from / to their landing route",
+    async (role, path) => {
+      const { request } = await createSignedInRequest({
+        email: `index-${role}@example.com`,
+        role,
+        requestUrl: "http://localhost/",
+      });
+
+      const response = await expectThrownResponse(
+        indexLoader({
+          request,
+          params: {},
+          context: {},
+          url: new URL("http://localhost/"),
+          pattern: "/",
+        }),
+        302,
+      );
+
+      expect(response.headers.get("location")).toBe(path);
     },
   );
 
