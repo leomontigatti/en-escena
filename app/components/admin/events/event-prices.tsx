@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { Save } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId } from "react";
+import { useEffect, useId, useMemo } from "react";
 import type { ReactNode } from "react";
 import {
   Controller,
@@ -279,16 +279,24 @@ function PriceForm({
   scheduleBlockId?: string | null;
   scheduleBlocks: ScheduleBlockListItem[];
 }) {
-  const form = useForm<PriceFormValues>({
-    defaultValues: {
+  const defaultValues = useMemo(
+    () => ({
       name: name ?? "",
       groupType: groupType ?? "",
       amount: amount ? String(amount) : "",
       scheduleBlockId: scheduleBlockId ?? PRICE_BASE_SCHEDULE_BLOCK_VALUE,
-    },
+    }),
+    [amount, groupType, name, scheduleBlockId],
+  );
+  const form = useForm<PriceFormValues>({
+    defaultValues,
     mode: "onSubmit",
     resolver: zodResolver(priceFormSchema),
   });
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
   useApplyServerFieldErrors(form, fieldErrors);
 
