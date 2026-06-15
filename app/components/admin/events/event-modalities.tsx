@@ -170,9 +170,13 @@ export function EventModalityDetailRouteView({
               id={modality.id}
               intent="update-modality"
               name={modality.name}
-              fieldErrors={getModalityFieldErrors(providedActionData)}
+              fieldErrors={getModalityFieldErrors(
+                providedActionData,
+                modality.id,
+              )}
             />
             <SubmodalitiesField
+              actionData={providedActionData}
               modalityId={modality.id}
               submodalities={modalitySubmodalities}
             />
@@ -456,13 +460,27 @@ function DeleteModalityDialog({
 }
 
 function SubmodalitiesField({
+  actionData,
   modalityId,
   submodalities,
 }: {
+  actionData?: ActionData;
   modalityId: string;
   submodalities: SubmodalityRow[];
 }) {
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const submodalityFieldErrors = getSubmodalityFieldErrors(
+    actionData,
+    modalityId,
+  );
+  const [createDialogOpen, setCreateDialogOpen] = useState(() =>
+    shouldOpenCreateSubmodalityDialog(actionData, modalityId),
+  );
+
+  useEffect(() => {
+    if (shouldOpenCreateSubmodalityDialog(actionData, modalityId)) {
+      setCreateDialogOpen(true);
+    }
+  }, [actionData, modalityId]);
 
   return (
     <div className="mt-4 flex flex-col gap-2">
@@ -492,8 +510,14 @@ function SubmodalitiesField({
           </span>
         )}
       </div>
+      {submodalityFieldErrors.name ? (
+        <p className="text-sm font-medium text-destructive">
+          {submodalityFieldErrors.name}
+        </p>
+      ) : null}
 
       <CreateSubmodalityDialog
+        actionData={actionData}
         modalityId={modalityId}
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
@@ -527,19 +551,24 @@ function SubmodalityDeletableBadge({
 }
 
 function CreateSubmodalityDialog({
+  actionData,
   modalityId,
   open,
   onOpenChange,
 }: {
+  actionData?: ActionData;
   modalityId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const fieldErrors = getSubmodalityFieldErrors(actionData, modalityId);
   const form = useForm<NameFormValues>({
     defaultValues: { name: "" },
     mode: "onSubmit",
     resolver: zodResolver(nameFormSchema),
   });
+
+  useApplyServerFieldErrors(form, fieldErrors);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -562,7 +591,7 @@ function CreateSubmodalityDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent forceMount>
         <DialogHeader>
           <DialogTitle>Crear submodalidad</DialogTitle>
         </DialogHeader>
@@ -570,7 +599,11 @@ function CreateSubmodalityDialog({
           <input type="hidden" name="intent" value="create-submodality" />
           <input type="hidden" name="modalityId" value={modalityId} />
           <FieldGroup>
-            <NameField form={form} id="submodality-name" />
+            <NameField
+              form={form}
+              id="submodality-name"
+              serverError={fieldErrors.name}
+            />
             <DialogFooter className="flex-row justify-between sm:justify-between">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -589,16 +622,47 @@ function CreateSubmodalityDialog({
   );
 }
 
-function getModalityFieldErrors(actionData?: ActionData) {
-  if (!actionData || isSubmodalityActionError(actionData)) {
+function getModalityFieldErrors(actionData?: ActionData, modalityId?: string) {
+  if (!actionData) {
     return {};
   }
 
-  return actionData.fieldErrors;
+  if (actionData.scope?.intent === "create-modality") {
+    return actionData.fieldErrors;
+  }
+
+  if (
+    actionData.scope?.intent === "update-modality" &&
+    actionData.scope.recordId === modalityId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
 }
 
-function isSubmodalityActionError(actionData: ActionData) {
-  return actionData.message.toLowerCase().includes("submodalidad");
+function getSubmodalityFieldErrors(
+  actionData: ActionData | undefined,
+  modalityId: string,
+) {
+  if (
+    actionData?.scope?.intent === "create-submodality" &&
+    actionData.scope.parentRecordId === modalityId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
+}
+
+function shouldOpenCreateSubmodalityDialog(
+  actionData: ActionData | undefined,
+  modalityId: string,
+) {
+  return (
+    actionData?.scope?.intent === "create-submodality" &&
+    actionData.scope.parentRecordId === modalityId
+  );
 }
 
 function EmptyResourceState({ children }: { children: ReactNode }) {

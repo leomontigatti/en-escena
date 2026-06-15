@@ -48,6 +48,7 @@ import { auth } from "@/lib/auth/auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   action,
+  type ActionData,
   type EventBasesLoaderData,
   loader,
 } from "@/lib/admin/events/bases-route.server";
@@ -817,6 +818,10 @@ describe("administracion Bases del evento routes", () => {
         confirmDelete:
           "Confirmá el borrado de la categoría antes de continuar.",
       },
+      scope: {
+        intent: "delete-category",
+        recordId: category.id,
+      },
     });
 
     await expect(
@@ -846,6 +851,10 @@ describe("administracion Bases del evento routes", () => {
       status: "error",
       message: "Confirmá el borrado de la modalidad.",
       fieldErrors: {},
+      scope: {
+        intent: "delete-modality",
+        recordId: modality.id,
+      },
     });
 
     const confirmedRequest = await createSignedInRequest({
@@ -1085,6 +1094,10 @@ describe("administracion Bases del evento routes", () => {
       status: "error",
       message: "Confirmá el borrado del precio.",
       fieldErrors: {},
+      scope: {
+        intent: "delete-price",
+        recordId: price?.id ?? "",
+      },
     });
 
     const deletePriceRequest = await createSignedInRequest({
@@ -1497,6 +1510,9 @@ describe("administracion Bases del evento routes", () => {
       status: "error",
       message: "Ya existe una modalidad con ese nombre en este evento.",
       fieldErrors: { name: "Usá un nombre distinto para la modalidad." },
+      scope: {
+        intent: "create-modality",
+      },
     });
 
     const invalidCategoryRequest = await createSignedInRequest({
@@ -1521,6 +1537,9 @@ describe("administracion Bases del evento routes", () => {
       message: "Revisá las edades de la categoría.",
       fieldErrors: {
         ageRange: "La edad máxima debe ser mayor o igual a la mínima.",
+      },
+      scope: {
+        intent: "create-category",
       },
     });
 
@@ -1563,6 +1582,9 @@ describe("administracion Bases del evento routes", () => {
       fieldErrors: {
         groupType: "Revisá el tipo de grupo del precio.",
       },
+      scope: {
+        intent: "create-price",
+      },
     });
 
     const requiredPriceRequest = await createSignedInRequest({
@@ -1587,6 +1609,9 @@ describe("administracion Bases del evento routes", () => {
         name: "Este campo es obligatorio.",
         groupType: "Este campo es obligatorio.",
         amount: "Este campo es obligatorio.",
+      },
+      scope: {
+        intent: "create-price",
       },
     });
 
@@ -1615,6 +1640,9 @@ describe("administracion Bases del evento routes", () => {
         startTime: "Este campo es obligatorio.",
         totalCapacity: "Este campo es obligatorio.",
         modalityIds: "Este campo es obligatorio.",
+      },
+      scope: {
+        intent: "create-schedule-block",
       },
     });
 
@@ -1649,10 +1677,14 @@ describe("administracion Bases del evento routes", () => {
         groupTypes: "Este campo es obligatorio.",
         capacity: "Este campo es obligatorio.",
       },
+      scope: {
+        intent: "create-schedule-entry",
+        parentRecordId: createdBlock.id,
+      },
     });
   });
 
-  test("renders modality field errors inline and keeps submodality errors out of the modality form", async () => {
+  test("routes modalidad and submodalidad field errors to the correct form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -1668,22 +1700,31 @@ describe("administracion Bases del evento routes", () => {
       status: "error",
       message: "Ya existe una modalidad con ese nombre en este evento.",
       fieldErrors: { name: "Usá un nombre distinto para la modalidad." },
+      scope: {
+        intent: "create-modality",
+      },
     });
     const detailMarkup = renderModalidadDetalleRoute(data, modality.id, {
       status: "error",
       message: "Ingresá el nombre de la submodalidad.",
       fieldErrors: { name: "Ingresá el nombre de la submodalidad." },
+      scope: {
+        intent: "create-submodality",
+        parentRecordId: modality.id,
+      },
     });
 
     expect(createMarkup).not.toContain(
       "Ya existe una modalidad con ese nombre en este evento.",
     );
     expect(createMarkup).toContain("Usá un nombre distinto para la modalidad.");
-    expect(detailMarkup).not.toContain("Revisá los datos de la submodalidad.");
-    expect(detailMarkup).not.toContain("Ingresá el nombre de la submodalidad.");
+    expect(detailMarkup).not.toContain(
+      "Usá un nombre distinto para la modalidad.",
+    );
+    expect(detailMarkup).toContain("Ingresá el nombre de la submodalidad.");
   });
 
-  test("renders price and schedule field errors inline without admin action alerts", async () => {
+  test("routes cronograma field errors to the submitted cronograma form only", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -1703,6 +1744,13 @@ describe("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
     });
     const data = await loader(routeArgs(request.request));
+    const scheduleEntry = await expectCreated(
+      createScheduleEntry(scheduleBlock.id, {
+        groupTypes: ["solo"],
+        capacity: 6,
+      }),
+    );
+    const refreshedData = await loader(routeArgs(request.request));
 
     const priceMarkup = renderRoute(
       data,
@@ -1713,6 +1761,9 @@ describe("administracion Bases del evento routes", () => {
           status: "error",
           message: "Revisá los datos del precio.",
           fieldErrors: { amount: "Este campo es obligatorio." },
+          scope: {
+            intent: "create-price",
+          },
         },
       }),
     );
@@ -1726,12 +1777,32 @@ describe("administracion Bases del evento routes", () => {
           status: "error",
           message: "Revisá los datos del cronograma.",
           fieldErrors: { capacity: "Este campo es obligatorio." },
+          scope: {
+            intent: "create-schedule-entry",
+            parentRecordId: scheduleBlock.id,
+          },
         },
       }),
+    );
+    const updateScheduleMarkup = renderBloqueHorarioDetailRoute(
+      refreshedData,
+      scheduleBlock.id,
+      {
+        status: "error",
+        message: "Revisá los datos del cronograma.",
+        fieldErrors: { capacity: "Ajustá el cupo del cronograma." },
+        scope: {
+          intent: "update-schedule-entry",
+          recordId: scheduleEntry.id,
+        },
+      },
     );
 
     expect(priceMarkup).not.toContain("Revisá los datos del precio.");
     expect(scheduleMarkup).not.toContain("Revisá los datos del cronograma.");
+    expect(scheduleMarkup).toContain("Este campo es obligatorio.");
+    expect(updateScheduleMarkup).toContain("Ajustá el cupo del cronograma.");
+    expect(updateScheduleMarkup).not.toContain("Este campo es obligatorio.");
   });
 });
 
@@ -1827,11 +1898,7 @@ function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
 
 function renderNuevaModalidadRoute(
   loaderData: EventBasesLoaderData,
-  actionData?: {
-    status: "error";
-    message: string;
-    fieldErrors: Record<string, string>;
-  },
+  actionData?: ActionData,
 ) {
   return renderRoute(
     loaderData,
@@ -1846,11 +1913,7 @@ function renderNuevaModalidadRoute(
 function renderModalidadDetalleRoute(
   loaderData: EventBasesLoaderData,
   modalityId: string,
-  actionData?: {
-    status: "error";
-    message: string;
-    fieldErrors: Record<string, string>;
-  },
+  actionData?: ActionData,
 ) {
   return renderRoute(
     loaderData,
@@ -1886,6 +1949,7 @@ function renderNuevoBloqueHorarioRoute(loaderData: EventBasesLoaderData) {
 function renderBloqueHorarioDetailRoute(
   loaderData: EventBasesLoaderData,
   scheduleBlockId: string,
+  actionData?: ActionData,
 ) {
   return renderRoute(
     loaderData,
@@ -1893,6 +1957,7 @@ function renderBloqueHorarioDetailRoute(
     createElement(EventScheduleBlockDetailRouteView, {
       loaderData,
       scheduleBlockId,
+      actionData,
     }),
   );
 }

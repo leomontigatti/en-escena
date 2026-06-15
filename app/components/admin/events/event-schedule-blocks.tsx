@@ -166,7 +166,7 @@ export function NewEventScheduleBlockRouteView({
           formId={createScheduleBlockFormId}
           intent="create-schedule-block"
           modalities={loaderData.modalities}
-          fieldErrors={actionData?.fieldErrors}
+          fieldErrors={getScheduleBlockFieldErrors(actionData)}
         />
       </ScheduleBlockFormPanel>
       <ScheduleBlockFormActions
@@ -222,21 +222,27 @@ export function EventScheduleBlockDetailRouteView({
                   totalCapacity={scheduleBlock.totalCapacity}
                   modalityIds={scheduleBlock.modalityIds}
                   buttonLabel="Guardar cambios"
-                  fieldErrors={actionData?.fieldErrors}
+                  fieldErrors={getScheduleBlockFieldErrors(
+                    actionData,
+                    scheduleBlock.id,
+                  )}
                 />
               </CardContent>
             </Card>
           </ResourceSection>
           <ResourceSection title="Cronogramas">
             <ScheduleEntriesPanel
+              actionData={actionData}
               scheduleBlock={scheduleBlock}
-              fieldErrors={actionData?.fieldErrors}
             />
           </ResourceSection>
           <ResourceSection title="Borrar bloque horario">
             <ScheduleBlockDeleteForm
               scheduleBlock={scheduleBlock}
-              fieldErrors={actionData?.fieldErrors}
+              fieldErrors={getScheduleBlockDeleteFieldErrors(
+                actionData,
+                scheduleBlock.id,
+              )}
             />
           </ResourceSection>
         </div>
@@ -329,6 +335,7 @@ function ScheduleBlockForm({
           form={form}
           label="Nombre del bloque horario"
           name="name"
+          serverError={fieldErrors.name}
         />
         <Controller
           control={form.control}
@@ -342,7 +349,7 @@ function ScheduleBlockForm({
               value={field.value}
               onBlur={field.onBlur}
               onValueChange={field.onChange}
-              error={fieldState.error?.message}
+              error={fieldState.error?.message ?? fieldErrors.scheduledDate}
             />
           )}
         />
@@ -350,6 +357,7 @@ function ScheduleBlockForm({
           form={form}
           label="Hora"
           name="startTime"
+          serverError={fieldErrors.startTime}
           type="time"
         />
         <ScheduleBlockTextField
@@ -358,6 +366,7 @@ function ScheduleBlockForm({
           label="Cupo total"
           min={1}
           name="totalCapacity"
+          serverError={fieldErrors.totalCapacity}
           step={1}
           type="number"
         />
@@ -367,6 +376,7 @@ function ScheduleBlockForm({
           name="modalityIds"
           options={modalityOptions}
           placeholder="Elegí modalidades"
+          serverError={fieldErrors.modalityIds}
           title="Modalidades aceptadas"
         />
         <FieldDescription className="sm:col-span-2">
@@ -418,6 +428,7 @@ function ScheduleBlockTextField({
   label,
   min,
   name,
+  serverError,
   step,
   type = "text",
 }: {
@@ -426,6 +437,7 @@ function ScheduleBlockTextField({
   label: string;
   min?: number;
   name: "name" | "startTime" | "totalCapacity";
+  serverError?: string;
   step?: number;
   type?: "number" | "text" | "time";
 }) {
@@ -433,23 +445,24 @@ function ScheduleBlockTextField({
     <Controller
       control={form.control}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field
-          className={className}
-          data-invalid={fieldState.error ? true : undefined}
-        >
-          <FieldLabel htmlFor={name}>{label}</FieldLabel>
-          <Input
-            id={name}
-            aria-invalid={fieldState.error ? true : undefined}
-            type={type}
-            min={min}
-            step={step}
-            {...field}
-          />
-          <FieldError>{fieldState.error?.message}</FieldError>
-        </Field>
-      )}
+      render={({ field, fieldState }) => {
+        const error = fieldState.error?.message ?? serverError;
+
+        return (
+          <Field className={className} data-invalid={error ? true : undefined}>
+            <FieldLabel htmlFor={name}>{label}</FieldLabel>
+            <Input
+              id={name}
+              aria-invalid={error ? true : undefined}
+              type={type}
+              min={min}
+              step={step}
+              {...field}
+            />
+            <FieldError>{error}</FieldError>
+          </Field>
+        );
+      }}
     />
   );
 }
@@ -459,6 +472,7 @@ function ScheduleEntryTextField({
   label,
   min,
   name,
+  serverError,
   step,
   type = "text",
 }: {
@@ -466,6 +480,7 @@ function ScheduleEntryTextField({
   label: string;
   min?: number;
   name: "capacity";
+  serverError?: string;
   step?: number;
   type?: "number" | "text";
 }) {
@@ -473,20 +488,24 @@ function ScheduleEntryTextField({
     <Controller
       control={form.control}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={name}>{label}</FieldLabel>
-          <Input
-            id={name}
-            aria-invalid={fieldState.error ? true : undefined}
-            type={type}
-            min={min}
-            step={step}
-            {...field}
-          />
-          <FieldError>{fieldState.error?.message}</FieldError>
-        </Field>
-      )}
+      render={({ field, fieldState }) => {
+        const error = fieldState.error?.message ?? serverError;
+
+        return (
+          <Field data-invalid={error ? true : undefined}>
+            <FieldLabel htmlFor={name}>{label}</FieldLabel>
+            <Input
+              id={name}
+              aria-invalid={error ? true : undefined}
+              type={type}
+              min={min}
+              step={step}
+              {...field}
+            />
+            <FieldError>{error}</FieldError>
+          </Field>
+        );
+      }}
     />
   );
 }
@@ -497,6 +516,7 @@ function ScheduleBlockMultipleComboboxField({
   name,
   options,
   placeholder,
+  serverError,
   title,
 }: {
   className?: string;
@@ -504,6 +524,7 @@ function ScheduleBlockMultipleComboboxField({
   name: "modalityIds";
   options: Array<{ value: string; label: string }>;
   placeholder: string;
+  serverError?: string;
   title: string;
 }) {
   return (
@@ -513,7 +534,7 @@ function ScheduleBlockMultipleComboboxField({
       render={({ field, fieldState }) => (
         <MultipleComboboxFieldView
           className={className}
-          error={fieldState.error?.message}
+          error={fieldState.error?.message ?? serverError}
           name={name}
           onBlur={field.onBlur}
           onChange={field.onChange}
@@ -532,12 +553,14 @@ function ScheduleEntryMultipleComboboxField({
   name,
   options,
   placeholder,
+  serverError,
   title,
 }: {
   form: ScheduleEntryFormController;
   name: "groupTypes";
   options: Array<{ value: string; label: string }>;
   placeholder: string;
+  serverError?: string;
   title: string;
 }) {
   return (
@@ -546,7 +569,7 @@ function ScheduleEntryMultipleComboboxField({
       name={name}
       render={({ field, fieldState }) => (
         <MultipleComboboxFieldView
-          error={fieldState.error?.message}
+          error={fieldState.error?.message ?? serverError}
           name={name}
           onBlur={field.onBlur}
           onChange={field.onChange}
@@ -750,10 +773,10 @@ function ScheduleEntrySummary({
 }
 
 function ScheduleEntriesPanel({
-  fieldErrors,
+  actionData,
   scheduleBlock,
 }: {
-  fieldErrors?: Record<string, string>;
+  actionData?: ActionData;
   scheduleBlock: ScheduleBlockListItem;
 }) {
   return (
@@ -763,7 +786,10 @@ function ScheduleEntriesPanel({
         intent="create-schedule-entry"
         scheduleBlockId={scheduleBlock.id}
         buttonLabel="Crear Cronograma"
-        fieldErrors={fieldErrors}
+        fieldErrors={getCreateScheduleEntryFieldErrors(
+          actionData,
+          scheduleBlock.id,
+        )}
       />
       {scheduleBlock.scheduleEntries.length > 0 ? (
         <ul className="flex flex-col gap-3">
@@ -778,6 +804,10 @@ function ScheduleEntriesPanel({
                     groupTypes={scheduleEntry.groupTypes}
                     capacity={scheduleEntry.capacity}
                     buttonLabel="Guardar"
+                    fieldErrors={getUpdateScheduleEntryFieldErrors(
+                      actionData,
+                      scheduleEntry.id,
+                    )}
                   />
                   <ResourceDeleteForm
                     id={scheduleEntry.id}
@@ -856,6 +886,7 @@ function ScheduleEntryForm({
             name="groupTypes"
             options={groupTypeOptions}
             placeholder="Elegí tipos"
+            serverError={fieldErrors.groupTypes}
             title="Tipos de grupo"
           />
           <ScheduleEntryTextField
@@ -863,6 +894,7 @@ function ScheduleEntryForm({
             label="Cupo"
             min={1}
             name="capacity"
+            serverError={fieldErrors.capacity}
             step={1}
             type="number"
           />
@@ -873,6 +905,70 @@ function ScheduleEntryForm({
       </FieldGroup>
     </form>
   );
+}
+
+function getScheduleBlockFieldErrors(
+  actionData?: ActionData,
+  scheduleBlockId?: string,
+) {
+  if (!actionData?.scope) {
+    return {};
+  }
+
+  if (actionData.scope.intent === "create-schedule-block") {
+    return actionData.fieldErrors;
+  }
+
+  if (
+    actionData.scope.intent === "update-schedule-block" &&
+    actionData.scope.recordId === scheduleBlockId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
+}
+
+function getCreateScheduleEntryFieldErrors(
+  actionData: ActionData | undefined,
+  scheduleBlockId: string,
+) {
+  if (
+    actionData?.scope?.intent === "create-schedule-entry" &&
+    actionData.scope.parentRecordId === scheduleBlockId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
+}
+
+function getUpdateScheduleEntryFieldErrors(
+  actionData: ActionData | undefined,
+  scheduleEntryId: string,
+) {
+  if (
+    actionData?.scope?.intent === "update-schedule-entry" &&
+    actionData.scope.recordId === scheduleEntryId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
+}
+
+function getScheduleBlockDeleteFieldErrors(
+  actionData: ActionData | undefined,
+  scheduleBlockId: string,
+) {
+  if (
+    actionData?.scope?.intent === "delete-schedule-block" &&
+    actionData.scope.recordId === scheduleBlockId
+  ) {
+    return actionData.fieldErrors;
+  }
+
+  return {};
 }
 
 function ScheduleBlockDeleteForm({

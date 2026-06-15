@@ -86,6 +86,7 @@ export async function runEventBasesRouteAction(request: Request) {
       status: "error",
       message: "Elegí un Evento activo antes de guardar las Bases del evento.",
       fieldErrors: {},
+      scope: null,
     } satisfies ActionData;
   }
 

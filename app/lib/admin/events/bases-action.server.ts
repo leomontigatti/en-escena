@@ -55,6 +55,13 @@ export type ActionData = {
   status: "error";
   message: string;
   fieldErrors: Record<string, string>;
+  scope: ActionErrorScope | null;
+};
+
+export type ActionErrorScope = {
+  intent: string;
+  parentRecordId?: string;
+  recordId?: string;
 };
 
 type EventBasesActionInput = {
@@ -123,23 +130,39 @@ export async function runEventBasesAction({
   const input = readEventBasesActionInput(eventId, formData);
 
   if (requiresCategoryDeletionConfirmation(request.url, input)) {
-    return actionError(categoryDeleteConfirmationMessage, {
-      confirmDelete: categoryDeleteConfirmationMessage,
-    });
+    return actionError(
+      categoryDeleteConfirmationMessage,
+      {
+        confirmDelete: categoryDeleteConfirmationMessage,
+      },
+      buildActionErrorScope(input),
+    );
   }
 
   if (requiresModalityDeletionConfirmation(request.url, input)) {
-    return actionError("Confirmá el borrado de la modalidad.");
+    return actionError(
+      "Confirmá el borrado de la modalidad.",
+      {},
+      buildActionErrorScope(input),
+    );
   }
 
   if (requiresPriceDeletionConfirmation(request.url, input)) {
-    return actionError("Confirmá el borrado del precio.");
+    return actionError(
+      "Confirmá el borrado del precio.",
+      {},
+      buildActionErrorScope(input),
+    );
   }
 
   if (requiresScheduleBlockDeletionConfirmation(request.url, input)) {
-    return actionError(scheduleBlockDeleteConfirmationMessage, {
-      confirmDelete: scheduleBlockDeleteConfirmationMessage,
-    });
+    return actionError(
+      scheduleBlockDeleteConfirmationMessage,
+      {
+        confirmDelete: scheduleBlockDeleteConfirmationMessage,
+      },
+      buildActionErrorScope(input),
+    );
   }
 
   const requiredFieldErrors = getRequiredFieldErrors(input, formData);
@@ -148,13 +171,18 @@ export async function runEventBasesAction({
     return actionError(
       requiredFieldErrors.message,
       requiredFieldErrors.fieldErrors,
+      buildActionErrorScope(input),
     );
   }
 
   const result = await runEventBasesIntent(input);
 
   if (!result.ok) {
-    return actionError(result.error, result.fieldErrors);
+    return actionError(
+      result.error,
+      result.fieldErrors,
+      buildActionErrorScope(input),
+    );
   }
 
   throw redirect(buildActionRedirectUrl(request.url, eventId, input, result));
@@ -250,12 +278,46 @@ function readEventBasesActionInput(
 function actionError(
   message: string,
   fieldErrors: Record<string, string> = {},
+  scope: ActionErrorScope | null = null,
 ): ActionData {
   return {
     status: "error",
     message,
     fieldErrors,
+    scope,
   };
+}
+
+function buildActionErrorScope(
+  input: EventBasesActionInput,
+): ActionErrorScope | null {
+  if (!input.intent) {
+    return null;
+  }
+
+  switch (input.intent) {
+    case "create-submodality":
+      return {
+        intent: input.intent,
+        parentRecordId: input.modalityId || undefined,
+      };
+    case "update-submodality":
+      return {
+        intent: input.intent,
+        recordId: input.id || undefined,
+        parentRecordId: input.modalityId || undefined,
+      };
+    case "create-schedule-entry":
+      return {
+        intent: input.intent,
+        parentRecordId: input.scheduleBlockId || undefined,
+      };
+    default:
+      return {
+        intent: input.intent,
+        recordId: input.id || undefined,
+      };
+  }
 }
 
 function buildActionRedirectUrl(
