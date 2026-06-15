@@ -50,16 +50,16 @@ describe("internal access authorization", () => {
   test("redirects private actions to login with the action path as destination", async () => {
     const response = await expectThrownResponse(
       requireSignedInUser(
-        new Request("http://localhost/administracion/usuarios/invitaciones", {
+        new Request("http://localhost/administracion/usuarios/nuevo", {
           method: "POST",
-          body: new URLSearchParams({ email: "nuevo@example.com" }),
+          body: new URLSearchParams({ name: "Nuevo Usuario" }),
         }),
       ),
     );
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
-      "/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Finvitaciones&motivo=continuar",
+      "/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo&motivo=continuar",
     );
   });
 

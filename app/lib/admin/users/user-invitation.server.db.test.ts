@@ -52,7 +52,7 @@ describe("internal user invitations", () => {
       {
         email: " Admin.Invitado@Example.COM ",
         role: "admin",
-        requestUrl: "http://localhost/admin/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       },
       { sendEmail },
     );
@@ -97,7 +97,7 @@ describe("internal user invitations", () => {
         {
           email: `${role}@example.com`,
           role,
-          requestUrl: "http://localhost/admin/usuarios/invitaciones",
+          requestUrl: "http://localhost/administracion/usuarios/nuevo",
         },
         { sendEmail },
       );
@@ -126,7 +126,7 @@ describe("internal user invitations", () => {
       requestInternalUserInvitation({
         email: "academia@example.com",
         role: "academy" as "admin",
-        requestUrl: "http://localhost/admin/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       }),
     ).rejects.toThrow("La invitación interna no puede asignar academia.");
   });
@@ -138,7 +138,7 @@ describe("internal user invitations", () => {
       {
         email: "juez@example.com",
         role: "judge",
-        requestUrl: "http://localhost/admin/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       },
       { sendEmail },
     );
@@ -213,7 +213,7 @@ describe("internal user invitations", () => {
       {
         email: "existing@example.com",
         role: "judge",
-        requestUrl: "http://localhost/admin/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       },
       { sendEmail },
     );
@@ -262,7 +262,7 @@ describe("internal user invitations", () => {
       {
         email: "academia@example.com",
         role: "admin",
-        requestUrl: "http://localhost/admin/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       },
       { sendEmail },
     );
