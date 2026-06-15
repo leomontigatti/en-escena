@@ -164,9 +164,10 @@ describe("access recovery", () => {
     expect(result).toEqual({
       status: "error",
       message: EXPIRED_RESET_TOKEN_MESSAGE,
-      fieldErrors: {
-        password: undefined,
-        confirmPassword: undefined,
+      fieldErrors: {},
+      values: {
+        password: "",
+        confirmPassword: "",
       },
     });
     await expect(findSessionsByUserId(userId)).resolves.toHaveLength(1);
