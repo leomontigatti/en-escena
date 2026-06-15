@@ -1,19 +1,13 @@
 import type { ComponentProps, ReactNode } from "react";
 import { LogOut } from "lucide-react";
 import { Link } from "react-router";
-import { clsx } from "clsx";
 
-const inputClassName =
-  "mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 shadow-sm transition-[border-color,box-shadow] placeholder:text-slate-400 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:border-red-600 aria-[invalid=true]:focus-visible:ring-red-100";
-
-export const accessButtonClassName =
-  "inline-flex w-full items-center justify-center rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
-
-export const accessSecondaryLinkClassName =
-  "inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/shared/utils";
 
 export const accessTextLinkClassName =
-  "rounded-sm font-medium text-teal-700 underline-offset-4 hover:text-teal-900 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+  "rounded-sm font-medium text-primary underline-offset-4 hover:text-primary/80 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 type AccessPageProps = {
   children: ReactNode;
@@ -25,17 +19,17 @@ export function AccessPage({ children, width = "md" }: AccessPageProps) {
     <>
       <a
         href="#contenido-principal"
-        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-lg focus-visible:bg-white focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-slate-950 focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:rounded-lg focus-visible:bg-background focus-visible:px-4 focus-visible:py-3 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-foreground focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         Saltar al contenido principal
       </a>
       <main
         id="contenido-principal"
-        className="grid min-h-screen place-items-center overflow-x-hidden bg-slate-100 px-4 py-8 sm:px-6 sm:py-12"
+        className="grid min-h-screen place-items-center overflow-x-hidden bg-muted px-4 py-8 sm:px-6 sm:py-12"
       >
         <section
-          className={clsx(
-            "w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8",
+          className={cn(
+            "w-full rounded-lg border bg-card p-6 text-card-foreground shadow-sm sm:p-8",
             width === "md" && "max-w-md",
             width === "lg" && "max-w-lg",
             width === "xl" && "max-w-4xl",
@@ -64,17 +58,17 @@ export function AccessHeader({
   return (
     <header>
       <p
-        className={clsx(
+        className={cn(
           "text-sm font-medium",
-          tone === "danger" ? "text-red-700" : "text-teal-700",
+          tone === "danger" ? "text-destructive" : "text-primary",
         )}
       >
         {eyebrow}
       </p>
-      <h1 className="mt-3 text-3xl font-semibold text-pretty text-slate-950">
+      <h1 className="mt-3 text-3xl font-semibold text-pretty text-foreground">
         {title}
       </h1>
-      <p className="mt-4 text-sm leading-6 text-pretty text-slate-600">
+      <p className="mt-4 text-sm leading-6 text-pretty text-muted-foreground">
         {description}
       </p>
     </header>
@@ -87,73 +81,22 @@ type PrivateAccessHeaderProps = {
 
 export function PrivateAccessHeader({ email }: PrivateAccessHeaderProps) {
   return (
-    <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-8 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-sm font-semibold text-slate-950">En Escena</p>
-        <p className="mt-1 text-sm leading-5 text-slate-600">
+        <p className="text-sm font-semibold text-foreground">En Escena</p>
+        <p className="mt-1 text-sm leading-5 text-muted-foreground">
           Sesión activa para{" "}
-          <span className="break-words font-medium text-slate-800">
+          <span className="break-words font-medium text-foreground">
             {email}
           </span>
         </p>
       </div>
       <form action="/salir" method="post">
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <LogOut aria-hidden="true" className="size-4" />
+        <Button type="submit" variant="outline">
+          <LogOut aria-hidden="true" data-icon="inline-start" />
           <span>Salir</span>
-        </button>
+        </Button>
       </form>
-    </div>
-  );
-}
-
-type AccessFieldProps = {
-  id: string;
-  label: string;
-  error?: string;
-  hint?: ReactNode;
-  inputProps: Omit<
-    ComponentProps<"input">,
-    "id" | "className" | "aria-describedby" | "aria-invalid"
-  >;
-};
-
-export function AccessField({
-  id,
-  label,
-  error,
-  hint,
-  inputProps,
-}: AccessFieldProps) {
-  const hintId = hint ? `${id}-hint` : undefined;
-  const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
-
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      {hint ? (
-        <p id={hintId} className="mt-1 text-sm leading-5 text-slate-600">
-          {hint}
-        </p>
-      ) : null}
-      <input
-        {...inputProps}
-        id={id}
-        aria-describedby={describedBy}
-        aria-invalid={error ? true : undefined}
-        className={inputClassName}
-      />
-      {error ? (
-        <p id={errorId} className="mt-2 text-sm leading-5 text-red-700">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -165,32 +108,18 @@ type AccessNoticeProps = {
 
 type AccessNoticeVariant = "error" | "info" | "success";
 
-const accessNoticeClassNames = {
-  error: "bg-red-50 text-red-800",
-  info: "bg-sky-50 text-sky-800",
-  success: "bg-emerald-50 text-emerald-800",
-} satisfies Record<AccessNoticeVariant, string>;
-
 export function AccessNotice({ children, variant }: AccessNoticeProps) {
   return (
-    <p
-      aria-live="polite"
-      className={clsx(
-        "rounded-lg px-4 py-3 text-sm leading-6",
-        accessNoticeClassNames[variant],
-      )}
-    >
-      {children}
-    </p>
+    <Alert variant={variant === "error" ? "destructive" : "default"}>
+      <AlertDescription aria-live="polite">{children}</AlertDescription>
+    </Alert>
   );
 }
 
 type AccessTextLinkProps = ComponentProps<typeof Link>;
 
 export function AccessTextLink({ className, ...props }: AccessTextLinkProps) {
-  return (
-    <Link {...props} className={clsx(accessTextLinkClassName, className)} />
-  );
+  return <Link {...props} className={cn(accessTextLinkClassName, className)} />;
 }
 
 type AccessSecondaryLinkProps = ComponentProps<typeof Link>;
@@ -202,7 +131,10 @@ export function AccessSecondaryLink({
   return (
     <Link
       {...props}
-      className={clsx(accessSecondaryLinkClassName, className)}
+      className={cn(
+        buttonVariants({ variant: "outline", size: "lg" }),
+        className,
+      )}
     />
   );
 }

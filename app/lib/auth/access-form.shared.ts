@@ -16,6 +16,7 @@ export const authToastIds = {
   mandatoryPasswordChangeError: "auth:mandatory-password-change-error",
   invitationError: "auth:invitation-error",
   registrationError: "auth:registration-error",
+  registrationResult: "auth:registration-result",
   loginContinueNotice: "auth:motivo-continuar",
   loginExpiredNotice: "auth:motivo-expirada",
   loginRecoveryNotice: "auth:recuperacion-ok",
