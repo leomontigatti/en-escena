@@ -146,7 +146,7 @@ export function DataTable<TData>({
           column.sortValue?.(row) ?? column.filterValue?.(row),
         filterFn: (row, _columnId, filterValue) => {
           if (isFacetedFilterValue(filterValue)) {
-            const selectedValues = Object.values(filterValue).filter(Boolean);
+            const selectedValues = getActiveFacetedFilterValues(filterValue);
 
             if (selectedValues.length === 0) {
               return true;
@@ -404,7 +404,7 @@ function DataTableFacetedFilterControl({
   selectedValues: DataTableFacetedFilterValue;
   onChange: (values: DataTableFacetedFilterValue) => void;
 }) {
-  const selectedCount = Object.values(selectedValues).filter(Boolean).length;
+  const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
   const hasSelectedValues = selectedCount > 0;
 
   return (
@@ -590,6 +590,14 @@ function isFacetedFilterValue(
   value: unknown,
 ): value is DataTableFacetedFilterValue {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getActiveFacetedFilterValues(
+  filterValue: DataTableFacetedFilterValue,
+) {
+  return Object.values(filterValue).filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
 }
 
 function compareSortValues(firstValue: SortValue, secondValue: SortValue) {

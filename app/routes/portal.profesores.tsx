@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Inbox, Plus } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
@@ -65,6 +65,10 @@ const emptyProfessorValues: CreateProfessorFormValues = {
   lastName: "",
 };
 
+const emptyProfessorFieldErrors: Partial<
+  Record<keyof CreateProfessorFormValues, string>
+> = {};
+
 const defaultProfessorFilters = {
   status: {
     Estado: "active",
@@ -115,7 +119,6 @@ export async function action({ request }: { request: Request }) {
       },
       values,
       modalOpen: true,
-      formError: null,
     };
   }
 
@@ -127,10 +130,6 @@ export async function action({ request }: { request: Request }) {
       fieldErrors: result.fieldErrors,
       values: result.values,
       modalOpen: true,
-      formError:
-        hasFieldErrors(result.fieldErrors) || !result.message
-          ? null
-          : result.message,
     };
   }
 
@@ -338,8 +337,10 @@ function CreateProfessorDialog({
     resolver: zodResolver(createProfessorSchema),
     defaultValues: actionData?.values ?? emptyProfessorValues,
   });
+  const serverFieldErrors =
+    actionData?.fieldErrors ?? emptyProfessorFieldErrors;
 
-  useApplyServerFieldErrors(form, actionData?.fieldErrors ?? {});
+  useApplyServerFieldErrors(form, serverFieldErrors);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -358,68 +359,22 @@ function CreateProfessorDialog({
         >
           <input type="hidden" name="intent" value="create-professor" />
           <FieldGroup>
-            <Controller
+            <ProfessorTextField
               control={form.control}
-              name="firstName"
-              render={({ field, fieldState }) => (
-                <Field
-                  data-invalid={
-                    fieldState.error || actionData?.fieldErrors.firstName
-                      ? true
-                      : undefined
-                  }
-                >
-                  <FieldLabel htmlFor={firstNameId}>Nombre</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      {...field}
-                      id={firstNameId}
-                      autoComplete="given-name"
-                      aria-invalid={
-                        fieldState.error || actionData?.fieldErrors.firstName
-                          ? true
-                          : undefined
-                      }
-                    />
-                    <FieldError>
-                      {fieldState.error?.message ??
-                        actionData?.fieldErrors.firstName}
-                    </FieldError>
-                  </FieldContent>
-                </Field>
-              )}
+              fieldName="firstName"
+              id={firstNameId}
+              label="Nombre"
+              autoComplete="given-name"
+              serverError={serverFieldErrors.firstName}
             />
 
-            <Controller
+            <ProfessorTextField
               control={form.control}
-              name="lastName"
-              render={({ field, fieldState }) => (
-                <Field
-                  data-invalid={
-                    fieldState.error || actionData?.fieldErrors.lastName
-                      ? true
-                      : undefined
-                  }
-                >
-                  <FieldLabel htmlFor={lastNameId}>Apellido</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      {...field}
-                      id={lastNameId}
-                      autoComplete="family-name"
-                      aria-invalid={
-                        fieldState.error || actionData?.fieldErrors.lastName
-                          ? true
-                          : undefined
-                      }
-                    />
-                    <FieldError>
-                      {fieldState.error?.message ??
-                        actionData?.fieldErrors.lastName}
-                    </FieldError>
-                  </FieldContent>
-                </Field>
-              )}
+              fieldName="lastName"
+              id={lastNameId}
+              label="Apellido"
+              autoComplete="family-name"
+              serverError={serverFieldErrors.lastName}
             />
           </FieldGroup>
 
@@ -434,6 +389,48 @@ function CreateProfessorDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ProfessorTextField({
+  autoComplete,
+  control,
+  fieldName,
+  id,
+  label,
+  serverError,
+}: {
+  autoComplete: string;
+  control: Control<CreateProfessorFormValues>;
+  fieldName: keyof CreateProfessorFormValues;
+  id: string;
+  label: string;
+  serverError?: string;
+}) {
+  return (
+    <Controller
+      control={control}
+      name={fieldName}
+      render={({ field, fieldState }) => {
+        const errorMessage = fieldState.error?.message ?? serverError;
+        const isInvalid = Boolean(errorMessage);
+
+        return (
+          <Field data-invalid={isInvalid ? true : undefined}>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldContent>
+              <Input
+                {...field}
+                id={id}
+                autoComplete={autoComplete}
+                aria-invalid={isInvalid ? true : undefined}
+              />
+              <FieldError>{errorMessage}</FieldError>
+            </FieldContent>
+          </Field>
+        );
+      }}
+    />
   );
 }
 
@@ -454,28 +451,26 @@ function formatProfessorDocument(professor: ProfessorRow) {
 }
 
 function getProfessorStateBadges(professor: ProfessorRow) {
-  return [
-    professor.active
-      ? {
-          label: professor.isIncomplete ? "Incompleto" : "Completo",
-          variant: professor.isIncomplete ? ("secondary" as const) : ("default" as const),
-        }
-      : {
-          label: "Archivado",
-          variant: "outline" as const,
-        },
-    ...(!professor.active && professor.isIncomplete
-      ? [{ label: "Incompleto", variant: "secondary" as const }]
-      : []),
-  ];
+  if (professor.active && professor.isIncomplete) {
+    return [{ label: "Incompleto", variant: "secondary" as const }];
+  }
+
+  if (professor.active) {
+    return [{ label: "Completo", variant: "default" as const }];
+  }
+
+  if (professor.isIncomplete) {
+    return [
+      { label: "Archivado", variant: "outline" as const },
+      { label: "Incompleto", variant: "secondary" as const },
+    ];
+  }
+
+  return [{ label: "Archivado", variant: "outline" as const }];
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateProfessorInput) {
   const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";
-}
-
-function hasFieldErrors(fieldErrors: Partial<Record<string, string>>) {
-  return Object.values(fieldErrors).some(Boolean);
 }

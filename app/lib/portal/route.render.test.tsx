@@ -577,7 +577,6 @@ describe("portal route view", () => {
           lastName: "  de la CRUZ ",
         },
         modalOpen: true,
-        formError: null,
       },
     });
 

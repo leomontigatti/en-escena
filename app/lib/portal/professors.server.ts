@@ -58,6 +58,11 @@ export async function listAcademyProfessors(
   } = {},
 ): Promise<ProfessorListItem[]> {
   const status = options.status;
+  const statusFilter =
+    status === undefined
+      ? undefined
+      : eq(professors.active, status === "active");
+
   const rows = await db.query.professors.findMany({
     columns: {
       id: true,
@@ -67,13 +72,7 @@ export async function listAcademyProfessors(
       documentType: true,
       documentNumber: true,
     },
-    where:
-      status === undefined
-        ? eq(professors.academyId, academyId)
-        : and(
-            eq(professors.academyId, academyId),
-            eq(professors.active, status === "active"),
-          ),
+    where: and(eq(professors.academyId, academyId), statusFilter),
     orderBy: [
       asc(sql`lower(${professors.lastName})`),
       asc(sql`lower(${professors.firstName})`),
