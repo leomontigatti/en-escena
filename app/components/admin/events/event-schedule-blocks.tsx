@@ -70,6 +70,7 @@ import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { formatGroupTypes, groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleBlockListItem } from "@/lib/events/bases.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import { useApplyServerFieldErrors } from "@/lib/shared/forms";
 import { cn } from "@/lib/shared/utils";
 
 type EventBaseAreaProps = {
@@ -297,15 +298,7 @@ function ScheduleBlockForm({
     });
   }, [form, modalityIds, name, scheduledDate, startTime, totalCapacity]);
 
-  useEffect(() => {
-    const fieldErrorEntries = Object.entries(fieldErrors);
-
-    for (const [fieldName, message] of fieldErrorEntries) {
-      if (isScheduleBlockFormField(fieldName)) {
-        form.setError(fieldName, { message });
-      }
-    }
-  }, [fieldErrors, form]);
+  useApplyServerFieldErrors(form, fieldErrors, resolveScheduleBlockFieldName);
 
   const submitForm: SubmitHandler<ScheduleBlockFormValues> = (_, event) => {
     const formElement = event?.target as HTMLFormElement | undefined;
@@ -833,15 +826,7 @@ function ScheduleEntryForm({
     });
   }, [capacity, form, groupTypes]);
 
-  useEffect(() => {
-    const fieldErrorEntries = Object.entries(fieldErrors);
-
-    for (const [fieldName, message] of fieldErrorEntries) {
-      if (isScheduleEntryFormField(fieldName)) {
-        form.setError(fieldName, { message });
-      }
-    }
-  }, [fieldErrors, form]);
+  useApplyServerFieldErrors(form, fieldErrors, resolveScheduleEntryFieldName);
 
   const submitForm: SubmitHandler<ScheduleEntryFormValues> = (_, event) => {
     const formElement = event?.target as HTMLFormElement | undefined;
@@ -1097,4 +1082,12 @@ function isScheduleEntryFormField(
   fieldName: string,
 ): fieldName is keyof ScheduleEntryFormValues {
   return ["groupTypes", "capacity"].includes(fieldName);
+}
+
+function resolveScheduleBlockFieldName(fieldName: string) {
+  return isScheduleBlockFormField(fieldName) ? fieldName : null;
+}
+
+function resolveScheduleEntryFieldName(fieldName: string) {
+  return isScheduleEntryFormField(fieldName) ? fieldName : null;
 }

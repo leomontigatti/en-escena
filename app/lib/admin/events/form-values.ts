@@ -8,6 +8,7 @@ import {
   BUSINESS_TIME_ZONE,
   BUSINESS_TIME_ZONE_UTC_OFFSET,
 } from "@/lib/shared/business-time-zone";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 import { z } from "zod";
 
 export type EventRow = typeof eventsTable.$inferSelect;
@@ -21,17 +22,15 @@ export const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
 export const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
 
 export const eventFormSchema = z.object({
-  name: z.string().trim().min(1, "Este campo es obligatorio."),
+  name: z.string().trim().min(1, requiredFieldMessage),
   registrationStartsAt: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Este campo es obligatorio."),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
   registrationEndsAt: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Este campo es obligatorio."),
-  startsAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Este campo es obligatorio."),
-  endsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Este campo es obligatorio."),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
+  startsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
+  endsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
   requiredDepositPercentage: z.string().refine((value) => {
     const percentage = Number(value);
 
@@ -97,12 +96,12 @@ export function parseEventFormValues(
       fieldErrors: {
         registrationStartsAt: registrationStartsAt
           ? undefined
-          : "Este campo es obligatorio.",
+          : requiredFieldMessage,
         registrationEndsAt: registrationEndsAt
           ? undefined
-          : "Este campo es obligatorio.",
-        startsAt: startsAt ? undefined : "Este campo es obligatorio.",
-        endsAt: endsAt ? undefined : "Este campo es obligatorio.",
+          : requiredFieldMessage,
+        startsAt: startsAt ? undefined : requiredFieldMessage,
+        endsAt: endsAt ? undefined : requiredFieldMessage,
       },
     };
   }

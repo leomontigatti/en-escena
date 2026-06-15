@@ -1,7 +1,5 @@
-import { useEffect } from "react";
 import { Link, redirect, useActionData } from "react-router";
 import { Save } from "lucide-react";
-import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -21,6 +19,7 @@ import {
 import { createEvent } from "@/lib/events/management.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/administracion_.eventos_.nuevo";
 
@@ -97,17 +96,9 @@ export function AdministracionEventoNuevoRouteView({
     fieldErrors: actionData?.fieldErrors,
   });
 
-  useEffect(() => {
-    if (actionData) {
-      window.setTimeout(
-        () =>
-          toast.error(actionData.message, {
-            id: routeNotificationToastIds["event-form-error"],
-          }),
-        0,
-      );
-    }
-  }, [actionData]);
+  useServerActionToast(actionData, {
+    toastId: routeNotificationToastIds["event-form-error"],
+  });
 
   return (
     <AdminResourceLayout

@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
 import {
   Controller,
-  type FieldPath,
   type FieldPathByValue,
   type SubmitHandler,
   useForm,
@@ -26,9 +25,9 @@ import {
   type EventFormValues,
   type FieldErrors,
 } from "@/lib/admin/events/form-values";
+import { useApplyServerFieldErrors } from "@/lib/shared/forms";
 
 type EventFormReturn = UseFormReturn<EventFormValues, unknown, EventFormValues>;
-type EventFormFieldName = FieldPath<EventFormValues>;
 type EventFormStringFieldName = FieldPathByValue<EventFormValues, string>;
 
 export type EventFormController = {
@@ -67,16 +66,7 @@ export function useEventForm({
     values.startsAt,
   ]);
 
-  useEffect(() => {
-    for (const [name, message] of Object.entries(fieldErrors)) {
-      if (message) {
-        form.setError(name as EventFormFieldName, {
-          message,
-          type: "server",
-        });
-      }
-    }
-  }, [fieldErrors, form]);
+  useApplyServerFieldErrors(form, fieldErrors);
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();

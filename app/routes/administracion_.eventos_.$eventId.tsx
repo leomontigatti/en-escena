@@ -48,7 +48,11 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import {
+  routeNotificationToastIds,
+  type RouteNotificationKey,
+} from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/administracion_.eventos_.$eventId";
 
@@ -162,17 +166,16 @@ export function AdministracionEventoDetalleRouteView({
   loaderData,
   actionData,
 }: AdministracionEventoDetalleRouteProps) {
+  useServerActionToast(actionData, {
+    toastId: routeNotificationToastIds["event-form-error"],
+  });
+
   useEffect(() => {
-    if (actionData) {
-      window.setTimeout(
-        () =>
-          toast.error(actionData.message, {
-            id: routeNotificationToastIds["event-form-error"],
-          }),
-        0,
-      );
-      toast.dismiss(routeNotificationToastIds["evento-guardado"]);
+    if (!actionData) {
+      return;
     }
+
+    toast.dismiss(routeNotificationToastIds["evento-guardado"]);
   }, [actionData]);
 
   return (
@@ -461,14 +464,16 @@ function actionError(message: string): ActionData {
   };
 }
 
-type EventRouteNotification =
+type EventRouteNotification = Extract<
+  RouteNotificationKey,
   | "evento-activado"
   | "evento-desactivado"
   | "evento-guardado"
   | "programa-visible"
   | "programa-oculto"
   | "resultados-visibles"
-  | "resultados-ocultos";
+  | "resultados-ocultos"
+>;
 
 function savedEventPath(eventId: string) {
   return eventNotificationPath(eventId, "evento-guardado");

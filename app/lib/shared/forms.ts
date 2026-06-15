@@ -1,0 +1,44 @@
+import { useEffect } from "react";
+import type { FieldPath, FieldValues, UseFormReturn } from "react-hook-form";
+
+export const requiredFieldMessage = "Este campo es obligatorio.";
+
+type ServerFieldErrors = Partial<Record<string, string>>;
+type ServerFieldNameResolver<TFieldValues extends FieldValues> = (
+  fieldName: string,
+) => FieldPath<TFieldValues> | null;
+
+export function applyServerFieldErrors<TFieldValues extends FieldValues>(
+  form: Pick<UseFormReturn<TFieldValues>, "setError">,
+  fieldErrors: ServerFieldErrors,
+  resolveFieldName?: ServerFieldNameResolver<TFieldValues>,
+) {
+  for (const [fieldName, message] of Object.entries(fieldErrors)) {
+    if (!message) {
+      continue;
+    }
+
+    const resolvedFieldName = resolveFieldName
+      ? resolveFieldName(fieldName)
+      : (fieldName as FieldPath<TFieldValues>);
+
+    if (!resolvedFieldName) {
+      continue;
+    }
+
+    form.setError(resolvedFieldName, {
+      message,
+      type: "server",
+    });
+  }
+}
+
+export function useApplyServerFieldErrors<TFieldValues extends FieldValues>(
+  form: Pick<UseFormReturn<TFieldValues>, "setError">,
+  fieldErrors: ServerFieldErrors,
+  resolveFieldName?: ServerFieldNameResolver<TFieldValues>,
+) {
+  useEffect(() => {
+    applyServerFieldErrors(form, fieldErrors, resolveFieldName);
+  }, [fieldErrors, form, resolveFieldName]);
+}

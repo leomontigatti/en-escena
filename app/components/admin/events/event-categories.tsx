@@ -9,7 +9,6 @@ import {
   useForm,
   type UseFormReturn,
 } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import {
@@ -69,6 +68,11 @@ import type { categories, experienceLevels, modalities } from "@/db/schema";
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
+import {
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 
@@ -84,7 +88,6 @@ type EventBaseAreaProps = {
   actionData?: ActionData;
 };
 
-const requiredFieldMessage = "Este campo es obligatorio.";
 const categoryFormSchema = z
   .object({
     name: z.string().trim().min(1, requiredFieldMessage),
@@ -168,7 +171,7 @@ export function NewEventCategoryRouteView({
   loaderData,
   actionData: providedActionData,
 }: EventBaseAreaProps) {
-  useActionErrorToast(providedActionData);
+  useServerActionToast(providedActionData);
 
   return (
     <AdminResourceLayout
@@ -202,7 +205,7 @@ export function EventCategoryDetailRouteView({
   actionData: providedActionData,
   categoryId,
 }: EventBaseAreaProps & { categoryId: string }) {
-  useActionErrorToast(providedActionData);
+  useServerActionToast(providedActionData);
 
   const category = loaderData.categories.find(
     (currentCategory) => currentCategory.id === categoryId,
@@ -494,21 +497,7 @@ function CategoryForm({
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
-  useEffect(() => {
-    for (const [fieldName, message] of Object.entries(fieldErrors)) {
-      if (!message) {
-        continue;
-      }
-
-      const normalizedFieldName =
-        fieldName === "ageRange" ? "maxAge" : fieldName;
-
-      form.setError(normalizedFieldName as keyof CategoryFormValues, {
-        message,
-        type: "server",
-      });
-    }
-  }, [fieldErrors, form]);
+  useApplyServerFieldErrors(form, fieldErrors, resolveCategoryFieldName);
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -742,16 +731,6 @@ function EmptyResourceState({ children }: { children: ReactNode }) {
   );
 }
 
-function useActionErrorToast(actionData?: ActionData) {
-  useEffect(() => {
-    if (!actionData) {
-      return;
-    }
-
-    toast.error(actionData.message);
-  }, [actionData]);
-}
-
 export function buildCategoryCreatePath(selectedEventId: string | null) {
   return appendSelectedEventId(
     "/administracion/categorias/nueva",
@@ -787,4 +766,10 @@ function formatNamesAsArray(
   return selectedIds
     .map((id) => records.find((record) => record.id === id)?.name)
     .filter((name): name is string => Boolean(name));
+}
+
+function resolveCategoryFieldName(fieldName: string) {
+  return (fieldName === "ageRange" ? "maxAge" : fieldName) as
+    | keyof CategoryFormValues
+    | null;
 }

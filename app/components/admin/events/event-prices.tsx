@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { Save } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
+import { useId } from "react";
 import type { ReactNode } from "react";
 import {
   Controller,
@@ -66,6 +66,7 @@ import type {
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import { useApplyServerFieldErrors } from "@/lib/shared/forms";
 
 type PriceScope = {
   detail: string | null;
@@ -283,16 +284,7 @@ function PriceForm({
     resolver: zodResolver(priceFormSchema),
   });
 
-  useEffect(() => {
-    for (const [fieldName, message] of Object.entries(fieldErrors)) {
-      if (message) {
-        form.setError(fieldName as keyof PriceFormValues, {
-          message,
-          type: "server",
-        });
-      }
-    }
-  }, [fieldErrors, form]);
+  useApplyServerFieldErrors(form, fieldErrors);
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();

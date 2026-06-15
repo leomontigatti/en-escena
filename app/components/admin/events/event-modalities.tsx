@@ -4,7 +4,6 @@ import type * as React from "react";
 import { Link } from "react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Controller, type SubmitHandler, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import {
@@ -50,6 +49,11 @@ import {
 import type { modalities, submodalities } from "@/db/schema";
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import {
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;
@@ -59,7 +63,6 @@ type EventBaseAreaProps = {
   actionData?: ActionData;
 };
 
-const requiredFieldMessage = "Este campo es obligatorio.";
 const nameFormSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
 });
@@ -103,7 +106,7 @@ export function NewEventModalityRouteView({
   loaderData,
   actionData: providedActionData,
 }: EventBaseAreaProps) {
-  useActionErrorToast(providedActionData);
+  useServerActionToast(providedActionData);
 
   return (
     <AdminResourceLayout
@@ -135,7 +138,7 @@ export function EventModalityDetailRouteView({
   actionData: providedActionData,
   modalityId,
 }: EventBaseAreaProps & { modalityId: string }) {
-  useActionErrorToast(providedActionData);
+  useServerActionToast(providedActionData);
 
   const modality = loaderData.modalities.find(
     (record) => record.id === modalityId,
@@ -294,14 +297,7 @@ function ModalityForm({
     form.reset({ name: name ?? "" });
   }, [form, name]);
 
-  useEffect(() => {
-    if (fieldErrors.name) {
-      form.setError("name", {
-        message: fieldErrors.name,
-        type: "server",
-      });
-    }
-  }, [fieldErrors.name, form]);
+  useApplyServerFieldErrors(form, fieldErrors);
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -591,16 +587,6 @@ function CreateSubmodalityDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function useActionErrorToast(actionData?: ActionData) {
-  useEffect(() => {
-    if (!actionData) {
-      return;
-    }
-
-    toast.error(actionData.message);
-  }, [actionData]);
 }
 
 function getModalityFieldErrors(actionData?: ActionData) {
