@@ -77,12 +77,15 @@ const fieldNames = [
 ] as const;
 
 type CreateInternalUserField = (typeof fieldNames)[number];
+type CreateInternalUserFieldErrors = Partial<
+  Record<CreateInternalUserField, string>
+>;
 
 type AdministracionUsuariosNuevoRouteProps = {
   actionData?: {
     status: "error";
     message: string;
-    fieldErrors: Partial<Record<CreateInternalUserField, string>>;
+    fieldErrors: CreateInternalUserFieldErrors;
   };
   loaderData: {
     email: string;
@@ -151,6 +154,8 @@ export function AdministracionUsuariosNuevoRouteView({
   loaderData,
   wasCreated = false,
 }: AdministracionUsuariosNuevoRouteProps) {
+  const fieldErrors = actionData?.fieldErrors ?? {};
+
   return (
     <AdminShell
       email={loaderData.email}
@@ -204,19 +209,16 @@ export function AdministracionUsuariosNuevoRouteView({
 
         <Form method="post" className="rounded-lg border bg-card p-6 shadow-sm">
           <FieldGroup>
-            <Field
-              data-invalid={!!actionData?.fieldErrors.name}
-              orientation="responsive"
-            >
+            <Field data-invalid={!!fieldErrors.name} orientation="responsive">
               <FieldLabel htmlFor="name">Nombre visible</FieldLabel>
               <FieldContent>
                 <Input id="name" name="name" autoComplete="name" required />
-                <FieldError>{actionData?.fieldErrors.name}</FieldError>
+                <FieldError>{fieldErrors.name}</FieldError>
               </FieldContent>
             </Field>
 
             <Field
-              data-invalid={!!actionData?.fieldErrors.internalUsername}
+              data-invalid={!!fieldErrors.internalUsername}
               orientation="responsive"
             >
               <FieldLabel htmlFor="internalUsername">
@@ -234,23 +236,15 @@ export function AdministracionUsuariosNuevoRouteView({
                   Usá solo letras minúsculas, números, punto, guion o guion
                   bajo.
                 </FieldDescription>
-                <FieldError>
-                  {actionData?.fieldErrors.internalUsername}
-                </FieldError>
+                <FieldError>{fieldErrors.internalUsername}</FieldError>
               </FieldContent>
             </Field>
 
-            <Field
-              data-invalid={!!actionData?.fieldErrors.role}
-              orientation="responsive"
-            >
+            <Field data-invalid={!!fieldErrors.role} orientation="responsive">
               <FieldLabel htmlFor="role">Permiso principal</FieldLabel>
               <FieldContent>
                 <Select name="role" defaultValue="judge">
-                  <SelectTrigger
-                    id="role"
-                    aria-invalid={!!actionData?.fieldErrors.role}
-                  >
+                  <SelectTrigger id="role" aria-invalid={!!fieldErrors.role}>
                     <SelectValue placeholder="Elegí un permiso" />
                   </SelectTrigger>
                   <SelectContent>
@@ -259,12 +253,12 @@ export function AdministracionUsuariosNuevoRouteView({
                     <SelectItem value="judge">Juez</SelectItem>
                   </SelectContent>
                 </Select>
-                <FieldError>{actionData?.fieldErrors.role}</FieldError>
+                <FieldError>{fieldErrors.role}</FieldError>
               </FieldContent>
             </Field>
 
             <Field
-              data-invalid={!!actionData?.fieldErrors.temporaryPassword}
+              data-invalid={!!fieldErrors.temporaryPassword}
               orientation="responsive"
             >
               <FieldLabel htmlFor="temporaryPassword">
@@ -281,16 +275,11 @@ export function AdministracionUsuariosNuevoRouteView({
                 <FieldDescription>
                   Debe tener al menos 8 caracteres.
                 </FieldDescription>
-                <FieldError>
-                  {actionData?.fieldErrors.temporaryPassword}
-                </FieldError>
+                <FieldError>{fieldErrors.temporaryPassword}</FieldError>
               </FieldContent>
             </Field>
 
-            <Field
-              data-invalid={!!actionData?.fieldErrors.email}
-              orientation="responsive"
-            >
+            <Field data-invalid={!!fieldErrors.email} orientation="responsive">
               <FieldLabel htmlFor="email">Correo</FieldLabel>
               <FieldContent>
                 <Input
@@ -302,7 +291,7 @@ export function AdministracionUsuariosNuevoRouteView({
                 <FieldDescription>
                   Opcional. No se verifica ni se usa para ingresar.
                 </FieldDescription>
-                <FieldError>{actionData?.fieldErrors.email}</FieldError>
+                <FieldError>{fieldErrors.email}</FieldError>
               </FieldContent>
             </Field>
 

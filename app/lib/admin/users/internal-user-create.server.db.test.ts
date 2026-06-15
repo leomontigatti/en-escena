@@ -13,15 +13,7 @@ installDatabaseTestHooks();
 
 describe("create internal user", () => {
   test("creates an internal user with normalized username, hashed temporary password, mandatory password change, and sanitized audit data", async () => {
-    const [adminUser] = await db
-      .insert(user)
-      .values({
-        email: "admin.creator@example.com",
-        name: "Admin Creator",
-        emailVerified: true,
-        role: "admin",
-      })
-      .returning();
+    const adminUser = await createAdminUser("admin.creator@example.com");
 
     const result = await createInternalUser({
       name: "Jurado Principal",
@@ -29,7 +21,7 @@ describe("create internal user", () => {
       role: "judge",
       temporaryPassword: "temporal-segura",
       email: "",
-      createdByUserId: adminUser?.id ?? "",
+      createdByUserId: adminUser.id,
     });
 
     expect(result).toMatchObject({
@@ -38,7 +30,9 @@ describe("create internal user", () => {
     });
 
     if (!result.ok) {
-      throw new Error(`Expected internal user creation to succeed: ${result.error}`);
+      throw new Error(
+        `Expected internal user creation to succeed: ${result.error}`,
+      );
     }
 
     const createdUserId = result.userId;
@@ -92,7 +86,7 @@ describe("create internal user", () => {
       expect.objectContaining({
         entityType: "user",
         action: "create",
-        adminUserId: adminUser?.id,
+        adminUserId: adminUser.id,
         beforeValues: {},
         afterValues: {
           email: null,
@@ -104,4 +98,67 @@ describe("create internal user", () => {
       }),
     ]);
   });
+
+  test("saves optional email as unverified audit data without requiring it", async () => {
+    const adminUser = await createAdminUser("admin.optional@example.com");
+
+    const result = await createInternalUser({
+      name: "Auditor Interno",
+      internalUsername: "auditor.interno",
+      role: "auditor",
+      temporaryPassword: "temporal-segura",
+      email: " Auditor.Interno@Example.COM ",
+      createdByUserId: adminUser.id,
+    });
+
+    if (!result.ok) {
+      throw new Error(
+        `Expected internal user creation to succeed: ${result.error}`,
+      );
+    }
+
+    const savedUser = await db.query.user.findFirst({
+      where: eq(user.id, result.userId),
+    });
+
+    expect(savedUser).toMatchObject({
+      email: "auditor.interno@example.com",
+      emailVerified: false,
+      internalUsername: "auditor.interno",
+      role: "auditor",
+    });
+
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .where(eq(administrativeAuditEntries.entityId, result.userId)),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        afterValues: expect.objectContaining({
+          email: "auditor.interno@example.com",
+          internalUsername: "auditor.interno",
+          role: "auditor",
+        }),
+      }),
+    ]);
+  });
 });
+
+async function createAdminUser(email: string) {
+  const [adminUser] = await db
+    .insert(user)
+    .values({
+      email,
+      name: "Admin Creator",
+      emailVerified: true,
+      role: "admin",
+    })
+    .returning();
+
+  if (!adminUser) {
+    throw new Error("Expected admin user to be created.");
+  }
+
+  return adminUser;
+}

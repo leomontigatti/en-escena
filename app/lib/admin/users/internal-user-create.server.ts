@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 
 import { db } from "@/db";
@@ -22,6 +22,16 @@ type CreateInternalUserInput = {
   createdByUserId: string;
 };
 
+type CreateInternalUserResult =
+  | {
+      ok: true;
+      userId: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 type InternalUserAuditSnapshot = {
   email: string | null;
   internalUsername: string;
@@ -30,40 +40,32 @@ type InternalUserAuditSnapshot = {
   role: InternalUserRole;
 };
 
-export async function createInternalUser(input: CreateInternalUserInput) {
+export async function createInternalUser(
+  input: CreateInternalUserInput,
+): Promise<CreateInternalUserResult> {
   const adminUser = await db.query.user.findFirst({
     columns: { id: true, role: true },
     where: eq(user.id, input.createdByUserId),
   });
 
   if (adminUser?.role !== "admin") {
-    return {
-      ok: false as const,
-      error: "Solo administración puede crear usuarios internos.",
-    };
+    return creationError("Solo administración puede crear usuarios internos.");
   }
 
   const name = input.name.trim();
 
   if (!name) {
-    return {
-      ok: false as const,
-      error: "Ingresá el nombre visible.",
-    };
+    return creationError("Ingresá el nombre visible.");
   }
 
   if (!isInternalUserRole(input.role)) {
-    return {
-      ok: false as const,
-      error: "Elegí un permiso principal válido.",
-    };
+    return creationError("Elegí un permiso principal válido.");
   }
 
   if (input.temporaryPassword.length < TEMPORARY_PASSWORD_MIN_LENGTH) {
-    return {
-      ok: false as const,
-      error: "La contraseña temporal debe tener al menos 8 caracteres.",
-    };
+    return creationError(
+      "La contraseña temporal debe tener al menos 8 caracteres.",
+    );
   }
 
   let internalUsername: string;
@@ -71,10 +73,7 @@ export async function createInternalUser(input: CreateInternalUserInput) {
   try {
     internalUsername = assertValidInternalUsername(input.internalUsername);
   } catch {
-    return {
-      ok: false as const,
-      error: "Ingresá un nombre de usuario interno válido.",
-    };
+    return creationError("Ingresá un nombre de usuario interno válido.");
   }
 
   const normalizedOptionalEmail = input.email?.trim()
@@ -99,24 +98,18 @@ export async function createInternalUser(input: CreateInternalUserInput) {
   });
 
   if (existingUser?.internalUsername === internalUsername) {
-    return {
-      ok: false as const,
-      error: "Ese nombre de usuario interno ya existe.",
-    };
+    return creationError("Ese nombre de usuario interno ya existe.");
   }
 
   if (existingUser?.email === credentialEmail) {
-    return {
-      ok: false as const,
-      error: normalizedOptionalEmail
-        ? "Ese correo ya tiene un usuario en En Escena."
-        : "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.",
-    };
+    return creationError(
+      getCredentialEmailConflictMessage(normalizedOptionalEmail),
+    );
   }
 
   const passwordHash = await hashPassword(input.temporaryPassword);
 
-  const [createdUser] = await db.transaction(async (tx) => {
+  const createdUser = await db.transaction(async (tx) => {
     const [savedUser] = await tx
       .insert(user)
       .values({
@@ -150,13 +143,22 @@ export async function createInternalUser(input: CreateInternalUserInput) {
       afterValues: auditSnapshot,
     });
 
-    return [savedUser];
+    return savedUser;
   });
 
-  return {
-    ok: true as const,
-    userId: createdUser.id,
-  };
+  return { ok: true, userId: createdUser.id };
+}
+
+function creationError(error: string): CreateInternalUserResult {
+  return { ok: false, error };
+}
+
+function getCredentialEmailConflictMessage(email: string | null) {
+  if (email) {
+    return "Ese correo ya tiene un usuario en En Escena.";
+  }
+
+  return "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.";
 }
 
 function buildInternalCredentialEmail(internalUsername: string) {
