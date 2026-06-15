@@ -44,8 +44,8 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
-  applyServerFieldErrors,
   requiredFieldMessage,
+  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -66,6 +66,14 @@ const temporaryPasswordMinLength = 8;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
+function isInternalUserRole(
+  value: string,
+): value is (typeof internalUserRoles)[number] {
+  return internalUserRoles.includes(
+    value as (typeof internalUserRoles)[number],
+  );
+}
+
 const optionalEmailField = z
   .string()
   .trim()
@@ -78,11 +86,7 @@ const roleField = z
   .string()
   .trim()
   .min(1, requiredFieldMessage)
-  .refine(
-    (value): value is (typeof internalUserRoles)[number] =>
-      internalUserRoles.includes(value as (typeof internalUserRoles)[number]),
-    "Elegí un permiso principal válido.",
-  );
+  .refine(isInternalUserRole, "Elegí un permiso principal válido.");
 
 const updateInternalUserSchema = z.object({
   name: requiredTextField(),
@@ -161,6 +165,9 @@ const emptyEditValues: UpdateInternalUserFormValues = {
 const emptyResetPasswordValues: ResetPasswordFormValues = {
   temporaryPassword: "",
 };
+const emptyUpdateInternalUserFieldErrors =
+  getEmptyFieldErrors<UpdateInternalUserField>();
+const emptyResetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>();
 
 export const meta: Route.MetaFunction = () => [
   { title: "Usuario | Panel de administración | En Escena" },
@@ -452,15 +459,14 @@ function InternalUserResetPasswordCard({
 
   useEffect(() => {
     form.reset(formValues);
-  }, [form, formValues]);
+  }, [form, formValues.temporaryPassword]);
 
-  useEffect(() => {
-    if (!actionData || actionData.form !== "reset-password") {
-      return;
-    }
-
-    applyServerFieldErrors(form, actionData.resetPasswordFieldErrors);
-  }, [actionData, form]);
+  useApplyServerFieldErrors(
+    form,
+    actionData?.form === "reset-password"
+      ? actionData.resetPasswordFieldErrors
+      : emptyResetPasswordFieldErrors,
+  );
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -579,15 +585,14 @@ function InternalUserEditCard({
 
   useEffect(() => {
     form.reset(formValues);
-  }, [form, formValues]);
+  }, [form, formValues.email, formValues.name, formValues.role]);
 
-  useEffect(() => {
-    if (!actionData || actionData.form !== "edit") {
-      return;
-    }
-
-    applyServerFieldErrors(form, actionData.fieldErrors);
-  }, [actionData, form]);
+  useApplyServerFieldErrors(
+    form,
+    actionData?.form === "edit"
+      ? actionData.fieldErrors
+      : emptyUpdateInternalUserFieldErrors,
+  );
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1021,10 +1026,10 @@ function buildUpdateInternalUserFormValues(
 
 function buildDetailActionError({
   editValues = emptyEditValues,
-  fieldErrors = getEmptyFieldErrors<UpdateInternalUserField>(),
+  fieldErrors = emptyUpdateInternalUserFieldErrors,
   form,
   message,
-  resetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>(),
+  resetPasswordFieldErrors = emptyResetPasswordFieldErrors,
   resetPasswordValues = emptyResetPasswordValues,
 }: {
   editValues?: UpdateInternalUserFormValues;

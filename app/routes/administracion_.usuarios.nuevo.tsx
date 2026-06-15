@@ -36,8 +36,8 @@ import {
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
-  applyServerFieldErrors,
   requiredFieldMessage,
+  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -52,6 +52,14 @@ const internalUserRoles = ["admin", "auditor", "judge"] as const;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
+function isInternalUserRole(
+  value: string,
+): value is (typeof internalUserRoles)[number] {
+  return internalUserRoles.includes(
+    value as (typeof internalUserRoles)[number],
+  );
+}
+
 const optionalEmailField = z
   .string()
   .trim()
@@ -64,11 +72,7 @@ const roleField = z
   .string()
   .trim()
   .min(1, requiredFieldMessage)
-  .refine(
-    (value): value is (typeof internalUserRoles)[number] =>
-      internalUserRoles.includes(value as (typeof internalUserRoles)[number]),
-    "Elegí un permiso principal válido.",
-  );
+  .refine(isInternalUserRole, "Elegí un permiso principal válido.");
 
 const createInternalUserSchema = z.object({
   name: requiredTextField(),
@@ -124,6 +128,8 @@ const defaultCreateInternalUserFormValues: CreateInternalUserFormValues = {
   temporaryPassword: "",
   email: "",
 };
+const emptyCreateInternalUserFieldErrors =
+  getEmptyFieldErrors<CreateInternalUserField>();
 
 export const meta: Route.MetaFunction = () => [
   { title: "Crear Usuario interno | Panel de administración | En Escena" },
@@ -200,15 +206,19 @@ export function AdministracionUsuariosNuevoRouteView({
 
   useEffect(() => {
     form.reset(formValues);
-  }, [form, formValues]);
+  }, [
+    form,
+    formValues.email,
+    formValues.internalUsername,
+    formValues.name,
+    formValues.role,
+    formValues.temporaryPassword,
+  ]);
 
-  useEffect(() => {
-    if (!actionData) {
-      return;
-    }
-
-    applyServerFieldErrors(form, actionData.fieldErrors);
-  }, [actionData, form]);
+  useApplyServerFieldErrors(
+    form,
+    actionData?.fieldErrors ?? emptyCreateInternalUserFieldErrors,
+  );
 
   useServerActionToast(actionData, {
     toastId: routeNotificationToastIds["user-form-error"],
