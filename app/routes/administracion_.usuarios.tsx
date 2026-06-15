@@ -127,7 +127,7 @@ export function AdministracionUsuariosRouteView({
         <UserFilters loaderData={loaderData} />
 
         {loaderData.users.length > 0 ? (
-          <UsersTable users={loaderData.users} />
+          <UsersTable loaderData={loaderData} users={loaderData.users} />
         ) : (
           <AdminEmptyState
             title="No hay Usuarios para mostrar."
@@ -224,7 +224,13 @@ function FilterSelect({
   );
 }
 
-function UsersTable({ users }: { users: AdministrativeUserListItem[] }) {
+function UsersTable({
+  loaderData,
+  users,
+}: {
+  loaderData: LoaderData;
+  users: AdministrativeUserListItem[];
+}) {
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
       <Table>
@@ -240,7 +246,12 @@ function UsersTable({ users }: { users: AdministrativeUserListItem[] }) {
             <TableRow key={savedUser.id}>
               <TableCell className="align-top whitespace-normal">
                 <div className="flex flex-col gap-1">
-                  <span className="font-medium">{savedUser.name}</span>
+                  <Link
+                    to={buildUserDetailHref(loaderData, savedUser.id)}
+                    className="w-fit font-medium underline-offset-4 hover:underline"
+                  >
+                    {savedUser.name}
+                  </Link>
                   {savedUser.academyName ? (
                     <span className="text-xs text-muted-foreground">
                       {savedUser.academyName}
@@ -272,6 +283,34 @@ function UsersTable({ users }: { users: AdministrativeUserListItem[] }) {
       </Table>
     </div>
   );
+}
+
+function buildUserDetailHref(loaderData: LoaderData, userId: string) {
+  return `/administracion/usuarios/${userId}${buildDetailSearch(loaderData)}`;
+}
+
+function buildDetailSearch(loaderData: LoaderData) {
+  const searchParams = new URLSearchParams();
+
+  if (loaderData.filters.query.length > 0) {
+    searchParams.set("q", loaderData.filters.query);
+  }
+
+  if (loaderData.filters.role !== "all") {
+    searchParams.set("permiso", loaderData.filters.role);
+  }
+
+  if (loaderData.filters.state !== "all") {
+    searchParams.set("estado", loaderData.filters.state);
+  }
+
+  if (loaderData.filters.type !== "all") {
+    searchParams.set("tipo", loaderData.filters.type);
+  }
+
+  const search = searchParams.toString();
+
+  return search.length > 0 ? `?${search}` : "";
 }
 
 function formatResultCount(count: number) {
