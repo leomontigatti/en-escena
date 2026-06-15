@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useApplyServerFieldErrors } from "@/lib/shared/forms";
-
-type ServerFieldErrors = Partial<Record<string, string>>;
+import type { ServerFieldErrors } from "@/lib/shared/forms";
 
 export type AccessFormController<TFieldValues extends FieldValues> = {
   form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
@@ -49,11 +48,11 @@ export function useAccessForm<TFieldValues extends FieldValues>({
       TFieldValues
     >,
   });
-  const valuesKey = JSON.stringify(values);
+  const resetKey = JSON.stringify(values);
 
   useEffect(() => {
     form.reset(values);
-  }, [form, values, valuesKey]);
+  }, [form, resetKey]);
 
   useApplyServerFieldErrors(form, fieldErrors);
 

@@ -87,10 +87,7 @@ export default function RecuperarAccesoRoute() {
   });
 
   useServerActionToast(actionData, {
-    toastId:
-      actionData?.status === "success"
-        ? authToastIds.recoveryResult
-        : authToastIds.recoveryError,
+    toastId: getRecoveryToastId(actionData?.status),
   });
 
   return (
@@ -130,4 +127,12 @@ export default function RecuperarAccesoRoute() {
       </p>
     </AccessPage>
   );
+}
+
+function getRecoveryToastId(status: "success" | "error" | undefined) {
+  if (status === "success") {
+    return authToastIds.recoveryResult;
+  }
+
+  return authToastIds.recoveryError;
 }

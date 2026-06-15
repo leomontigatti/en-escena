@@ -16,6 +16,7 @@ import {
 import {
   authToastIds,
   passwordField,
+  passwordMismatchMessage,
   readFormValue,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
@@ -36,7 +37,7 @@ const completeRegistrationSchema = z
     confirmPassword: requiredTextField(),
   })
   .refine((value) => value.password === value.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
+    message: passwordMismatchMessage,
     path: ["confirmPassword"],
   });
 const completeRegistrationFields = [

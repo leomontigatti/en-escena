@@ -6,6 +6,7 @@ import type { ToastVariant } from "@/lib/shared/toasts";
 
 const invalidEmailMessage = "Ingresá un correo electrónico válido.";
 const passwordLengthMessage = "La contraseña debe tener al menos 8 caracteres.";
+export const passwordMismatchMessage = "Las contraseñas no coinciden.";
 
 export const authToastIds = {
   loginError: "auth:login-error",

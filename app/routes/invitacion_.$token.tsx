@@ -12,6 +12,7 @@ import { FieldGroup } from "@/components/ui/field";
 import {
   authToastIds,
   passwordField,
+  passwordMismatchMessage,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
 import {
@@ -33,7 +34,7 @@ const completeInvitationSchema = z
     confirmPassword: requiredTextField(),
   })
   .refine((value) => value.password === value.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
+    message: passwordMismatchMessage,
     path: ["confirmPassword"],
   });
 const completeInvitationFields = ["password", "confirmPassword"] as const;

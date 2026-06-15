@@ -3,7 +3,7 @@ import type { FieldPath, FieldValues, UseFormReturn } from "react-hook-form";
 
 export const requiredFieldMessage = "Este campo es obligatorio.";
 
-type ServerFieldErrors = Partial<Record<string, string>>;
+export type ServerFieldErrors = Partial<Record<string, string>>;
 type ServerFieldNameResolver<TFieldValues extends FieldValues> = (
   fieldName: string,
 ) => FieldPath<TFieldValues> | null;

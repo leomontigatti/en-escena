@@ -13,6 +13,7 @@ import { resetAccessPassword } from "@/lib/auth/access-recovery.server";
 import {
   authToastIds,
   passwordField,
+  passwordMismatchMessage,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
 import {
@@ -30,7 +31,7 @@ const resetPasswordSchema = z
     confirmPassword: requiredTextField(),
   })
   .refine((value) => value.password === value.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
+    message: passwordMismatchMessage,
     path: ["confirmPassword"],
   });
 const resetPasswordFields = ["password", "confirmPassword"] as const;

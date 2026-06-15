@@ -12,6 +12,7 @@ import {
 import {
   authToastIds,
   passwordField,
+  passwordMismatchMessage,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
 import {
@@ -29,7 +30,7 @@ const changePasswordSchema = z
     confirmPassword: requiredTextField(),
   })
   .refine((value) => value.newPassword === value.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
+    message: passwordMismatchMessage,
     path: ["confirmPassword"],
   });
 const changePasswordFields = [
