@@ -2,6 +2,7 @@ import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { professors } from "@/db/schema";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -43,11 +44,11 @@ export function normalizeProfessorNames(input: ProfessorNameInput) {
   const fieldErrors: Partial<Record<keyof ProfessorNameInput, string>> = {};
 
   if (!firstName) {
-    fieldErrors.firstName = "Ingresá el nombre del Profesor.";
+    fieldErrors.firstName = requiredFieldMessage;
   }
 
   if (!lastName) {
-    fieldErrors.lastName = "Ingresá el apellido del Profesor.";
+    fieldErrors.lastName = requiredFieldMessage;
   }
 
   return { firstName, lastName, fieldErrors };

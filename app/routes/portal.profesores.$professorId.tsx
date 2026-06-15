@@ -1,19 +1,52 @@
-import { redirect, useActionData, useSearchParams } from "react-router";
-import { clsx } from "clsx";
-
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Ellipsis, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import {
-  AccessField,
-  AccessNotice,
-  AccessSecondaryLink,
-  accessButtonClassName,
-} from "@/components/auth/access-ui";
+  Controller,
+  useForm,
+  type FieldPath,
+  type UseFormReturn,
+} from "react-hook-form";
+import { Link, redirect, useActionData } from "react-router";
+import { z } from "zod";
+
 import { PortalShell } from "@/components/portal/ui";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
-import {
-  getPortalRecordStatusSearch,
-  resolvePortalRecordStatusFilter,
-} from "@/lib/portal/route-state";
 import {
   archiveAcademyProfessor,
   findAcademyProfessor,
@@ -21,20 +54,70 @@ import {
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
+import {
+  createValidatedNativeSubmitHandler,
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 const professorNotFoundMessage = "No encontramos ese Profesor.";
-const professorUpdatedSearchParam = "actualizado";
-const professorUpdatedSuccessMessage = "Profesor actualizado correctamente.";
+const formId = "portal-profesor-form";
+const noDocumentTypeSelectValue = "sin-documento";
+
+const professorSchema = z
+  .object({
+    firstName: z.string().trim().min(1, requiredFieldMessage),
+    lastName: z.string().trim().min(1, requiredFieldMessage),
+    documentType: z.string().trim(),
+    documentNumber: z.string().trim(),
+  })
+  .superRefine((values, context) => {
+    if (!values.documentType && !values.documentNumber) {
+      return;
+    }
+
+    if (!values.documentType) {
+      context.addIssue({
+        code: "custom",
+        message: "Seleccioná el tipo de documento.",
+        path: ["documentType"],
+      });
+    }
+
+    if (!values.documentNumber) {
+      context.addIssue({
+        code: "custom",
+        message: "Ingresá el número de documento.",
+        path: ["documentNumber"],
+      });
+    }
+  });
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ActionData = Extract<
+  Awaited<ReturnType<typeof action>>,
+  { status: "error" }
+>;
+type ProfessorFormValues = z.infer<typeof professorSchema>;
+type ProfessorFormReturn = UseFormReturn<
+  ProfessorFormValues,
+  unknown,
+  ProfessorFormValues
+>;
+type ProfessorFieldErrors = NonNullable<ActionData["fieldErrors"]>;
+type ProfessorStatusIntent = "archive-professor" | "reactivate-professor";
+
+const emptyProfessorFieldErrors: ProfessorFieldErrors = {};
 
 type PortalProfesorRouteProps = {
   loaderData: LoaderData;
-  actionData?: Awaited<ReturnType<typeof action>>;
+  actionData?: ActionData;
+  initialStatusDialogIntent?: ProfessorStatusIntent | null;
 };
 
 export const meta = () => [
-  { title: "Editar Profesor | Portal de academias | En Escena" },
+  { title: "Editar profesor | Portal de academias | En Escena" },
 ];
 
 export async function loader({
@@ -57,10 +140,6 @@ export async function loader({
     academy,
     eventContext,
     professor,
-    statusFilter: resolveProfessorStatusFilter(request, professor.active),
-    successMessage: readUpdatedSuccessMessage(
-      new URL(request.url).searchParams,
-    ),
   };
 }
 
@@ -80,15 +159,19 @@ export async function action({
   if (intent === "archive-professor") {
     await archiveAcademyProfessor(academy.id, professorId);
     throw redirect(
-      `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+      `/portal/profesores/${professorId}?notificacion=profesor-archivado`,
     );
   }
 
   if (intent === "reactivate-professor") {
     await reactivateAcademyProfessor(academy.id, professorId);
     throw redirect(
-      `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+      `/portal/profesores/${professorId}?notificacion=profesor-reactivado`,
     );
+  }
+
+  if (intent !== "" && intent !== "update-professor") {
+    throw new Response("Acción no soportada.", { status: 400 });
   }
 
   const result = await updateAcademyProfessor(academy.id, professorId, {
@@ -108,38 +191,52 @@ export async function action({
   }
 
   throw redirect(
-    `/portal/profesores/${professorId}?${professorUpdatedSearchParam}=1`,
+    `/portal/profesores/${professorId}?notificacion=profesor-guardado`,
   );
 }
 
 export function PortalProfesorRouteView({
   loaderData,
   actionData: actionDataOverride,
+  initialStatusDialogIntent = null,
 }: PortalProfesorRouteProps) {
-  const actionData = actionDataOverride;
-  const backToList = `/portal/profesores${getPortalRecordStatusSearch(loaderData.statusFilter)}`;
-  const statusAction = loaderData.professor.active
-    ? {
-        description:
-          "Archivá este Profesor para sacarlo de las listas activas y de los próximos selects de coreografías.",
-        intent: "archive-professor" as const,
-        buttonLabel: "Archivar Profesor",
-        buttonClassName:
-          "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100",
-      }
-    : {
-        description:
-          "Reactivá este Profesor para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías.",
-        intent: "reactivate-professor" as const,
-        buttonLabel: "Reactivar Profesor",
-        buttonClassName: "bg-teal-700 text-white hover:bg-teal-800",
-      };
-  const values = actionData?.values ?? {
+  const actionData =
+    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
+  const formValues = actionData?.values ?? {
     firstName: loaderData.professor.firstName,
     lastName: loaderData.professor.lastName,
     documentType: loaderData.professor.documentType ?? "",
     documentNumber: loaderData.professor.documentNumber ?? "",
   };
+  const form = useProfessorForm({
+    fieldErrors: actionData?.fieldErrors,
+    values: formValues,
+  });
+  const [statusDialogIntent, setStatusDialogIntent] =
+    useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
+  const statusAction = loaderData.professor.active
+    ? {
+        intent: "archive-professor" as const,
+        label: "Archivar",
+        confirmTitle: "¿Archivar profesor?",
+        confirmDescription:
+          "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+        confirmButtonLabel: "Archivar",
+        confirmButtonVariant: "destructive" as const,
+      }
+    : {
+        intent: "reactivate-professor" as const,
+        label: "Reactivar",
+        confirmTitle: "¿Reactivar profesor?",
+        confirmDescription:
+          "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+        confirmButtonLabel: "Reactivar",
+        confirmButtonVariant: "default" as const,
+      };
+
+  useServerActionToast(getGeneralActionError(actionData), {
+    toastId: "portal-profesor-detail:error",
+  });
 
   return (
     <PortalShell
@@ -155,125 +252,129 @@ export function PortalProfesorRouteView({
         },
       ]}
     >
-      <section className="mt-8 max-w-2xl" aria-labelledby="profesor-editar">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <p
-              id="profesor-editar"
-              className="text-sm font-semibold text-slate-950"
-            >
-              Editar Profesor
+      <section className="space-y-6" aria-labelledby="profesor-detail-title">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h1 id="profesor-detail-title" className="text-xl font-semibold">
+              Editar profesor
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Actualizá los datos de este profesor.
             </p>
-            {!loaderData.professor.active ? (
-              <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                Archivado
-              </span>
-            ) : null}
           </div>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Completá nombre, apellido y documento para mantener el registro al
-            día.
-          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="lg">
+                <Ellipsis aria-hidden="true" data-icon />
+                Acciones
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                variant={
+                  statusAction.intent === "archive-professor"
+                    ? "destructive"
+                    : "default"
+                }
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setStatusDialogIntent(statusAction.intent);
+                }}
+              >
+                {statusAction.label}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {loaderData.successMessage ? (
-          <div className="mt-4">
-            <AccessNotice variant="success">
-              {loaderData.successMessage}
-            </AccessNotice>
-          </div>
-        ) : null}
-
-        {loaderData.professor.isIncomplete ? (
-          <div className="mt-4">
-            <AccessNotice variant="info">
-              Faltan datos para poder validar la identificación.
-            </AccessNotice>
-          </div>
-        ) : null}
-
-        {actionData?.message ? (
-          <div className="mt-4">
-            <AccessNotice variant="error">{actionData.message}</AccessNotice>
-          </div>
-        ) : null}
-
-        <form method="post" className="mt-6 space-y-5">
-          <input type="hidden" name="intent" value="update-professor" />
-          <AccessField
-            id="profesor-first-name"
-            label="Nombre"
-            error={actionData?.fieldErrors.firstName}
-            inputProps={{
-              name: "firstName",
-              type: "text",
-              required: true,
-              defaultValue: values.firstName,
-              autoComplete: "given-name",
-            }}
-          />
-          <AccessField
-            id="profesor-last-name"
-            label="Apellido"
-            error={actionData?.fieldErrors.lastName}
-            inputProps={{
-              name: "lastName",
-              type: "text",
-              required: true,
-              defaultValue: values.lastName,
-              autoComplete: "family-name",
-            }}
-          />
-          <DocumentTypeField
-            defaultValue={values.documentType}
-            error={actionData?.fieldErrors.documentType}
-          />
-          <AccessField
-            id="profesor-document-number"
-            label="Número de documento"
-            error={actionData?.fieldErrors.documentNumber}
-            inputProps={{
-              name: "documentNumber",
-              type: "text",
-              defaultValue: values.documentNumber,
-              autoComplete: "off",
-            }}
-          />
-
-          <button type="submit" className={accessButtonClassName}>
-            Guardar cambios
-          </button>
-        </form>
-
-        <form
-          method="post"
-          className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                {statusAction.description}
-              </p>
+        <Card>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              {!loaderData.professor.active ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Este profesor está archivado. Reactivalo para que vuelva a
+                    aparecer en las listas activas y en próximas selecciones de
+                    coreografías.
+                  </AlertDescription>
+                  <AlertAction>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      onClick={() => {
+                        setStatusDialogIntent("reactivate-professor");
+                      }}
+                    >
+                      Reactivar
+                    </Button>
+                  </AlertAction>
+                </Alert>
+              ) : null}
+              {loaderData.professor.isIncomplete ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan datos de identificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </div>
-            <button
-              type="submit"
-              name="intent"
-              value={statusAction.intent}
-              className={clsx(
-                "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-                statusAction.buttonClassName,
-              )}
+
+            <form
+              id={formId}
+              method="post"
+              noValidate
+              onSubmit={form.handleSubmit}
             >
-              {statusAction.buttonLabel}
-            </button>
-          </div>
-        </form>
+              <input type="hidden" name="intent" value="update-professor" />
+              <FieldGroup className="grid gap-5 md:grid-cols-2">
+                <ProfessorTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.firstName}
+                  label="Nombre"
+                  name="firstName"
+                />
+                <ProfessorTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.lastName}
+                  label="Apellido"
+                  name="lastName"
+                />
+                <ProfessorDocumentTypeField
+                  error={actionData?.fieldErrors.documentType}
+                  form={form.form}
+                />
+                <ProfessorTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.documentNumber}
+                  label="Número de documento"
+                  name="documentNumber"
+                />
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <Button asChild variant="outline" size="lg">
+            <Link to="/portal/profesores">Volver</Link>
+          </Button>
+          <Button type="submit" form={formId} size="lg">
+            Guardar
+          </Button>
+        </div>
       </section>
 
-      <AccessSecondaryLink to={backToList} className="mt-8">
-        Volver a Profesores
-      </AccessSecondaryLink>
+      <ProfessorStatusDialog
+        intent={statusDialogIntent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusDialogIntent(null);
+          }
+        }}
+      />
     </PortalShell>
   );
 }
@@ -282,57 +383,226 @@ export default function PortalProfesorRoute({
   loaderData,
 }: PortalProfesorRouteProps) {
   const actionData = useActionData<typeof action>();
-  const [searchParams] = useSearchParams();
 
   return (
-    <PortalProfesorRouteView
-      loaderData={{
-        ...loaderData,
-        successMessage:
-          readUpdatedSuccessMessage(searchParams) ?? loaderData.successMessage,
-      }}
-      actionData={actionData}
+    <PortalProfesorRouteView loaderData={loaderData} actionData={actionData} />
+  );
+}
+
+function useProfessorForm({
+  fieldErrors = emptyProfessorFieldErrors,
+  values,
+}: {
+  fieldErrors?: ProfessorFieldErrors;
+  values: ProfessorFormValues;
+}) {
+  const form = useForm<ProfessorFormValues, unknown, ProfessorFormValues>({
+    defaultValues: values,
+    mode: "onSubmit",
+    resolver: zodResolver(professorSchema),
+  });
+
+  useEffect(() => {
+    form.reset(values);
+  }, [
+    form,
+    values.documentNumber,
+    values.documentType,
+    values.firstName,
+    values.lastName,
+  ]);
+
+  useApplyServerFieldErrors(form, fieldErrors);
+
+  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+}
+
+function ProfessorTextField({
+  error,
+  form,
+  label,
+  name,
+}: {
+  error?: string;
+  form: ProfessorFormReturn;
+  label: string;
+  name: FieldPath<ProfessorFormValues>;
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+  const autoComplete =
+    name === "firstName"
+      ? "given-name"
+      : name === "lastName"
+        ? "family-name"
+        : "off";
+
+  return (
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error || error ? true : undefined}>
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Input
+              id={id}
+              autoComplete={autoComplete}
+              aria-invalid={fieldState.error || error ? true : undefined}
+              aria-describedby={fieldState.error || error ? errorId : undefined}
+              {...field}
+            />
+            <FieldError id={errorId}>
+              {fieldState.error?.message ?? error}
+            </FieldError>
+          </FieldContent>
+        </Field>
+      )}
     />
   );
 }
 
-function DocumentTypeField({
-  defaultValue,
+function ProfessorDocumentTypeField({
   error,
+  form,
 }: {
-  defaultValue: string;
   error?: string;
+  form: ProfessorFormReturn;
 }) {
-  const errorId = error ? "profesor-document-type-error" : undefined;
+  const id = useId();
+  const errorId = `${id}-error`;
 
   return (
-    <div>
-      <label
-        htmlFor="profesor-document-type"
-        className="block text-sm font-medium text-slate-800"
-      >
-        Tipo de documento
-      </label>
-      <select
-        id="profesor-document-type"
-        name="documentType"
-        defaultValue={defaultValue}
-        aria-describedby={errorId}
-        aria-invalid={error ? true : undefined}
-        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950 shadow-sm transition-[border-color,box-shadow] focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:border-red-600 aria-[invalid=true]:focus-visible:ring-red-100"
-      >
-        <option value="">Sin documento</option>
-        <option value="dni">DNI</option>
-        <option value="passport">Pasaporte</option>
-        <option value="other">Otro</option>
-      </select>
-      {error ? (
-        <p id={errorId} className="mt-2 text-sm leading-5 text-red-700">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Controller
+      control={form.control}
+      name="documentType"
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error || error ? true : undefined}>
+          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
+          <FieldContent>
+            <Select
+              value={field.value || noDocumentTypeSelectValue}
+              onValueChange={(value) => {
+                field.onChange(
+                  value === noDocumentTypeSelectValue ? "" : value,
+                );
+              }}
+            >
+              <input type="hidden" name={field.name} value={field.value} />
+              <SelectTrigger
+                id={id}
+                aria-invalid={fieldState.error || error ? true : undefined}
+                aria-describedby={
+                  fieldState.error || error ? errorId : undefined
+                }
+                className="h-10 w-full"
+              >
+                <SelectValue placeholder="Sin documento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={noDocumentTypeSelectValue}>
+                  Sin documento
+                </SelectItem>
+                <SelectItem value="dni">DNI</SelectItem>
+                <SelectItem value="passport">Pasaporte</SelectItem>
+                <SelectItem value="other">Otro</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldError id={errorId}>
+              {fieldState.error?.message ?? error}
+            </FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
+}
+
+function ProfessorStatusDialog({
+  intent,
+  onOpenChange,
+}: {
+  intent: ProfessorStatusIntent | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const isOpen = intent !== null;
+  const dialogFormId =
+    intent === "archive-professor"
+      ? "portal-profesor-archive-form"
+      : "portal-profesor-reactivate-form";
+
+  return (
+    <>
+      {intent ? (
+        <div className="sr-only">
+          <p>
+            {intent === "archive-professor"
+              ? "¿Archivar profesor?"
+              : "¿Reactivar profesor?"}
+          </p>
+          <p>
+            {intent === "archive-professor"
+              ? "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."
+              : "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."}
+          </p>
+        </div>
+      ) : null}
+      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+        <AlertDialogContent forceMount={intent !== null ? true : undefined}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intent === "archive-professor"
+                ? "¿Archivar profesor?"
+                : "¿Reactivar profesor?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intent === "archive-professor"
+                ? "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."
+                : "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <form id={dialogFormId} method="post">
+            <input type="hidden" name="intent" value={intent ?? ""} />
+          </form>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              form={dialogFormId}
+              type="submit"
+              variant={
+                intent === "archive-professor" ? "destructive" : "default"
+              }
+            >
+              {intent === "archive-professor" ? "Archivar" : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function getGeneralActionError(actionData?: ActionData) {
+  if (!actionData || hasFieldErrors(actionData.fieldErrors)) {
+    return null;
+  }
+
+  return {
+    status: "error" as const,
+    message: actionData.message,
+  };
+}
+
+function hasFieldErrors(fieldErrors: ProfessorFieldErrors) {
+  return Object.values(fieldErrors).some(Boolean);
+}
+
+function readProfessorId(params: { professorId?: string }) {
+  if (!params.professorId) {
+    throw new Response(professorNotFoundMessage, { status: 404 });
+  }
+
+  return params.professorId;
 }
 
 async function requireProfessor(academyId: string, professorId: string) {
@@ -345,26 +615,11 @@ async function requireProfessor(academyId: string, professorId: string) {
   return professor;
 }
 
-function readProfessorId(params: { professorId?: string }) {
-  if (!params.professorId) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
-  }
-
-  return params.professorId;
-}
-
-function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
-  return searchParams.get(professorUpdatedSearchParam) === "1"
-    ? professorUpdatedSuccessMessage
-    : null;
-}
-
-function resolveProfessorStatusFilter(request: Request, isActive: boolean) {
-  return resolvePortalRecordStatusFilter(request, isActive);
-}
-
-function readFormString(formData: FormData, fieldName: string) {
-  const value = formData.get(fieldName);
+function readFormString(
+  formData: FormData,
+  key: keyof UpdateProfessorInput | "intent",
+) {
+  const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
 }

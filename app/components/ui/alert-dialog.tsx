@@ -44,15 +44,20 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  forceMount,
   size = "default",
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
+  forceMount?: true;
   size?: "default" | "sm";
 }) {
+  const forceMountProps = forceMount ? { forceMount: true as const } : {};
+
   return (
-    <AlertDialogPortal>
-      <AlertDialogOverlay />
+    <AlertDialogPortal {...forceMountProps}>
+      <AlertDialogOverlay {...forceMountProps} />
       <AlertDialogPrimitive.Content
+        {...forceMountProps}
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(

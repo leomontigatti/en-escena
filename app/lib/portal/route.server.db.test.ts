@@ -1114,7 +1114,7 @@ describe("portal Profesores management", () => {
     ]);
   });
 
-  test("updates a Profesor in place with normalized document data and shows the success state", async () => {
+  test("updates a Profesor in place with normalized document data and redirects with a route notification", async () => {
     const owner = await createAcademySession({
       email: "profesores.edit.owner@example.com",
       academyName: "Academia Dueña",
@@ -1146,7 +1146,7 @@ describe("portal Profesores management", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/portal/profesores/${professor.id}?actualizado=1`,
+      `/portal/profesores/${professor.id}?notificacion=profesor-guardado`,
     );
     await expect(
       db.query.professors.findFirst({
@@ -1158,10 +1158,9 @@ describe("portal Profesores management", () => {
       documentType: "dni",
       documentNumber: "12345678",
     });
-
     const loaderData = await profesorLoader({
       request: new Request(
-        `http://localhost/portal/profesores/${professor.id}?actualizado=1`,
+        `http://localhost/portal/profesores/${professor.id}`,
         {
           headers: { cookie: owner.cookie },
         },
@@ -1169,9 +1168,6 @@ describe("portal Profesores management", () => {
       params: { professorId: professor.id },
     });
 
-    expect(loaderData.successMessage).toBe(
-      "Profesor actualizado correctamente.",
-    );
     expect(loaderData.professor.isIncomplete).toBe(false);
   });
 
@@ -1454,7 +1450,7 @@ describe("portal Profesores management", () => {
     );
 
     expect(archiveResponse.headers.get("location")).toBe(
-      `/portal/profesores/${activeProfessor.id}?actualizado=1`,
+      `/portal/profesores/${activeProfessor.id}?notificacion=profesor-archivado`,
     );
     await expect(
       db.query.professors.findFirst({
@@ -1499,7 +1495,7 @@ describe("portal Profesores management", () => {
     );
 
     expect(reactivateResponse.headers.get("location")).toBe(
-      `/portal/profesores/${activeProfessor.id}?actualizado=1`,
+      `/portal/profesores/${activeProfessor.id}?notificacion=profesor-reactivado`,
     );
     await expect(
       db.query.professors.findFirst({

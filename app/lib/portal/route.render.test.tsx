@@ -625,17 +625,41 @@ describe("portal route view", () => {
 });
 
 describe("portal Profesor edit view", () => {
-  test("shows an info alert when identification is incomplete", () => {
-    const markup = renderProfesorEdit();
+  test("renders the redesigned profesor editable ficha", () => {
+    const markup = renderProfesorEdit({
+      loaderData: {
+        ...academyLoaderData(),
+        professor: professorListItem({
+          id: "profesor_1",
+          firstName: "Ana",
+          lastName: "Perez",
+          active: false,
+          isIncomplete: true,
+        }),
+      },
+    });
 
-    expect(markup).toContain(
-      "Faltan datos para poder validar la identificación.",
-    );
+    expect(markup).toContain("Editar profesor");
+    expect(markup).not.toContain("Editar Profesor");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain("Profesores");
+    expect(markup).toContain("Perez, Ana");
+    expect(markup).toContain("Acciones");
+    expect(markup).toContain("Este profesor está archivado");
+    expect(markup).toContain("Reactivar");
+    expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).not.toContain("validar la identificación");
+    expect(markup).toContain("Nombre");
+    expect(markup).toContain("Apellido");
     expect(markup).toContain("Tipo de documento");
     expect(markup).toContain("Número de documento");
-    expect(markup).toContain('option value="dni"');
-    expect(markup).toContain(">Pasaporte<");
-    expect(markup).toContain(">Otro<");
+    expect(markup).toContain('name="documentType" value=""');
+    expect(markup).toContain("Volver");
+    expect(markup).toContain("Guardar");
+    expect(markup).toContain('form="portal-profesor-form"');
+    expect(markup).toContain('href="/portal/profesores"');
+    expect(markup).not.toContain("Archivado");
+    expect(markup).not.toContain("Activo");
   });
 
   test("shows field errors and preserves submitted values", () => {
@@ -656,14 +680,13 @@ describe("portal Profesor edit view", () => {
       },
     });
 
-    expect(markup).toContain("Revisá los campos marcados.");
     expect(markup).toContain("Seleccioná el tipo de documento.");
     expect(markup).toContain("Ingresá el número de documento.");
-    expect(markup).toContain('value="1234"');
-    expect(markup).toContain('value="" selected="">Sin documento</option>');
+    expect(markup).toContain('name="documentNumber" value="1234"');
+    expect(markup).toContain('name="documentType" value=""');
   });
 
-  test("shows the success banner after saving", () => {
+  test("shows the route notification target state after saving", () => {
     const markup = renderProfesorEdit({
       loaderData: {
         ...academyLoaderData(),
@@ -672,17 +695,14 @@ describe("portal Profesor edit view", () => {
           documentNumber: "12345678",
           isIncomplete: false,
         }),
-        successMessage: "Profesor actualizado correctamente.",
       },
     });
 
-    expect(markup).toContain("Profesor actualizado correctamente.");
-    expect(markup).not.toContain(
-      "Faltan datos para poder validar la identificación.",
-    );
+    expect(markup).toContain("Editar profesor");
+    expect(markup).not.toContain("Faltan datos de identificación.");
   });
 
-  test("shows the archived badge and reactivate action for Profesores by direct URL", () => {
+  test("shows archived alerts and reactivate action for Profesores by direct URL", () => {
     const markup = renderProfesorEdit({
       loaderData: {
         ...academyLoaderData(),
@@ -690,16 +710,32 @@ describe("portal Profesor edit view", () => {
           active: false,
           isIncomplete: false,
         }),
-        statusFilter: "archived",
-        successMessage: null,
       },
     });
 
-    expect(markup).toContain("Archivado");
-    expect(markup).toContain("Reactivar Profesor");
-    expect(markup).toContain('href="/portal/profesores?estado=archivados"');
-    expect(markup).toContain("Volver a Profesores");
+    expect(markup).toContain("Este profesor está archivado");
+    expect(markup).toContain("Reactivar");
+    expect(markup).toContain('href="/portal/profesores"');
+    expect(markup).toContain("Volver");
     expect(markup).not.toContain("Archivar Profesor");
+  });
+
+  test("shows the same reactivation confirmation from the alert shortcut and actions menu", () => {
+    const markup = renderProfesorEdit({
+      loaderData: {
+        ...academyLoaderData(),
+        professor: professorListItem({
+          active: false,
+        }),
+      },
+      initialStatusDialogIntent: "reactivate-professor",
+    });
+
+    expect(markup).toContain("Acciones");
+    expect(markup).toContain("¿Reactivar profesor?");
+    expect(markup).toContain(
+      "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    );
   });
 });
 
@@ -829,10 +865,10 @@ function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
             ...professorListItem(),
             isIncomplete: true,
           },
-          successMessage: null,
           ...input.loaderData,
         }}
         actionData={input.actionData}
+        initialStatusDialogIntent={input.initialStatusDialogIntent}
       />
     </MemoryRouter>,
   );
