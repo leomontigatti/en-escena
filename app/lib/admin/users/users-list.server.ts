@@ -1,13 +1,13 @@
-import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import {
+  INTERNAL_USER_ROLES,
+  type InternalUserRole,
+} from "@/lib/auth/internal-user-roles";
 
-export type AdministrativeUserListRole =
-  | "academy"
-  | "admin"
-  | "auditor"
-  | "judge";
+export type AdministrativeUserListRole = "academy" | InternalUserRole;
 
 export type AdministrativeUserListState =
   | "active"
@@ -96,7 +96,7 @@ function buildAdministrativeUserWhere(
         ilike(user.email, search),
         ilike(user.internalUsername, search),
         ilike(academies.contactName, search),
-      )!,
+      ) ?? sql`false`,
     );
   }
 
@@ -107,28 +107,17 @@ function buildAdministrativeUserWhere(
   if (filters.type === "academy") {
     clauses.push(eq(user.role, "academy"));
   } else if (filters.type === "internal") {
-    clauses.push(
-      or(
-        eq(user.role, "admin"),
-        eq(user.role, "auditor"),
-        eq(user.role, "judge"),
-      )!,
-    );
+    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
 
   if (filters.state === "active") {
     clauses.push(
-      or(eq(user.role, "academy"), eq(user.requiresPasswordChange, false))!,
+      or(eq(user.role, "academy"), eq(user.requiresPasswordChange, false)) ??
+        sql`false`,
     );
   } else if (filters.state === "mandatory-password-change") {
     clauses.push(eq(user.requiresPasswordChange, true));
-    clauses.push(
-      or(
-        eq(user.role, "admin"),
-        eq(user.role, "auditor"),
-        eq(user.role, "judge"),
-      )!,
-    );
+    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   } else if (filters.state === "suspended") {
     clauses.push(sql`false`);
   }

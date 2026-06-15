@@ -41,6 +41,32 @@ type AdministracionUsuariosRouteProps = {
 
 const breadcrumbItems = [{ label: "Usuarios" }];
 
+type FilterSelectOption = {
+  label: string;
+  value: string;
+};
+
+const roleFilterOptions = [
+  { label: "Todos", value: "all" },
+  { label: "Administración", value: "admin" },
+  { label: "Auditoría", value: "auditor" },
+  { label: "Juzgamiento", value: "judge" },
+  { label: "Academia", value: "academy" },
+] satisfies FilterSelectOption[];
+
+const stateFilterOptions = [
+  { label: "Todos", value: "all" },
+  { label: "Activo", value: "active" },
+  { label: "Cambio obligatorio", value: "mandatory-password-change" },
+  { label: "Suspendido", value: "suspended" },
+] satisfies FilterSelectOption[];
+
+const typeFilterOptions = [
+  { label: "Todos", value: "all" },
+  { label: "Interno", value: "internal" },
+  { label: "Academia", value: "academy" },
+] satisfies FilterSelectOption[];
+
 export const meta: Route.MetaFunction = () => [
   { title: "Usuarios | Panel de administración | En Escena" },
 ];
@@ -139,36 +165,21 @@ function UserFilters({ loaderData }: { loaderData: LoaderData }) {
         label="Permiso principal"
         name="permiso"
         defaultValue={loaderData.filters.role}
-        options={[
-          { label: "Todos", value: "all" },
-          { label: "Administración", value: "admin" },
-          { label: "Auditoría", value: "auditor" },
-          { label: "Juzgamiento", value: "judge" },
-          { label: "Academia", value: "academy" },
-        ]}
+        options={roleFilterOptions}
       />
 
       <FilterSelect
         label="Estado"
         name="estado"
         defaultValue={loaderData.filters.state}
-        options={[
-          { label: "Todos", value: "all" },
-          { label: "Activo", value: "active" },
-          { label: "Cambio obligatorio", value: "mandatory-password-change" },
-          { label: "Suspendido", value: "suspended" },
-        ]}
+        options={stateFilterOptions}
       />
 
       <FilterSelect
         label="Tipo"
         name="tipo"
         defaultValue={loaderData.filters.type}
-        options={[
-          { label: "Todos", value: "all" },
-          { label: "Interno", value: "internal" },
-          { label: "Academia", value: "academy" },
-        ]}
+        options={typeFilterOptions}
       />
 
       <div className="flex items-end gap-2">
@@ -281,7 +292,12 @@ function getRoleLabel(role: AdministrativeUserListRole) {
 }
 
 function getTypeLabel(type: AdministrativeUserListType) {
-  return type === "internal" ? "Interno" : "Usuario de academia";
+  switch (type) {
+    case "internal":
+      return "Interno";
+    case "academy":
+      return "Usuario de academia";
+  }
 }
 
 function getStateLabel(state: AdministrativeUserListState) {
