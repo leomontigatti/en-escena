@@ -55,6 +55,7 @@ export async function listAdministrativeUsers(input: {
       role: user.role,
       internalUsername: user.internalUsername,
       requiresPasswordChange: user.requiresPasswordChange,
+      suspended: user.suspended,
       academyName: academies.name,
       academyContactName: academies.contactName,
     })
@@ -75,9 +76,11 @@ export async function listAdministrativeUsers(input: {
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
     state:
-      row.role !== "academy" && row.requiresPasswordChange
-        ? "mandatory-password-change"
-        : "active",
+      row.role !== "academy" && row.suspended
+        ? "suspended"
+        : row.role !== "academy" && row.requiresPasswordChange
+          ? "mandatory-password-change"
+          : "active",
     userType: row.role === "academy" ? "academy" : "internal",
   }));
 }
@@ -112,14 +115,18 @@ function buildAdministrativeUserWhere(
 
   if (filters.state === "active") {
     clauses.push(
-      or(eq(user.role, "academy"), eq(user.requiresPasswordChange, false)) ??
-        sql`false`,
+      or(
+        eq(user.role, "academy"),
+        and(eq(user.suspended, false), eq(user.requiresPasswordChange, false)),
+      ) ?? sql`false`,
     );
   } else if (filters.state === "mandatory-password-change") {
     clauses.push(eq(user.requiresPasswordChange, true));
+    clauses.push(eq(user.suspended, false));
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   } else if (filters.state === "suspended") {
-    clauses.push(sql`false`);
+    clauses.push(eq(user.suspended, true));
+    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
 
   if (clauses.length === 0) {

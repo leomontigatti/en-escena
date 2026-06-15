@@ -146,6 +146,35 @@ describe("internal navigation", () => {
     });
   });
 
+  test("rejects suspended users with the generic login error", async () => {
+    const { userId } = await createCredentialUser({
+      email: "suspendido.login@example.com",
+      role: "admin",
+    });
+
+    await db.update(user).set({ suspended: true }).where(eq(user.id, userId));
+
+    await expect(
+      signInAction({
+        url: new URL("http://localhost/ingresar"),
+        pattern: "/ingresar",
+        request: createSignInRequest({
+          identifier: "suspendido.login@example.com",
+          password: "password-segura",
+        }),
+        params: {},
+        context: {},
+      }),
+    ).resolves.toEqual({
+      status: "error",
+      message: "No pudimos ingresar con esos datos.",
+      fieldErrors: {
+        identifier: undefined,
+        password: undefined,
+      },
+    });
+  });
+
   test("returns users to a safe private destination after login", async () => {
     await createCredentialUser({
       email: "redirect.login@example.com",

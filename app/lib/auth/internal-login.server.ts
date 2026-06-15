@@ -19,6 +19,7 @@ type CredentialUser = {
   emailVerified: boolean;
   role: "academy" | InternalUserRole;
   requiresPasswordChange: boolean;
+  suspended: boolean;
   match: CredentialUserIdentifierMatch;
 };
 
@@ -34,6 +35,7 @@ export async function findCredentialUserForIdentifier(
       emailVerified: true,
       role: true,
       requiresPasswordChange: true,
+      suspended: true,
     },
     where: eq(
       user.internalUsername,
@@ -61,6 +63,7 @@ export async function findCredentialUserForIdentifier(
       emailVerified: true,
       role: true,
       requiresPasswordChange: true,
+      suspended: true,
     },
     where: eq(user.email, normalizedEmail),
   });

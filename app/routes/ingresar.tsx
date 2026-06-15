@@ -102,6 +102,10 @@ export async function action({ request }: Route.ActionArgs) {
       return genericLoginError();
     }
 
+    if (credentialUser.suspended) {
+      return genericLoginError();
+    }
+
     const result = await auth.api.signInEmail({
       body: {
         email: credentialUser.email,

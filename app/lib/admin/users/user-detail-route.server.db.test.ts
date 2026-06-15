@@ -27,6 +27,162 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("administracion/usuarios/:userId route", () => {
+  test("suspends and reactivates an internal user, revokes sessions, and enforces admin guardrails", async () => {
+    const targetUser = await createSignedInRequest({
+      email: "usuario.suspendible@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/juzgamiento",
+      userName: "Julia Suspendible",
+      internalUsername: "julia.suspendible",
+    });
+    const adminUser = await createSignedInRequest({
+      email: "admin.suspende@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
+      userName: "Ada Suspende",
+      internalUsername: "ada.suspende",
+    });
+    const adminRequest = adminUser.request;
+
+    const initialDetailMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(adminRequest, targetUser.userId)),
+      targetUser.userId,
+    );
+
+    expect(initialDetailMarkup).toContain("Suspender Usuario");
+    expect(initialDetailMarkup).not.toContain("Reactivar Usuario");
+    await expect(
+      db.query.user.findFirst({
+        columns: { suspended: true },
+        where: eq(user.id, targetUser.userId),
+      }),
+    ).resolves.toMatchObject({ suspended: false });
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toHaveLength(1);
+
+    const suspendResponse = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            adminRequest.url,
+            adminRequest.headers.get("cookie") ?? "",
+            { intent: "suspend-user" },
+          ),
+          targetUser.userId,
+        ),
+      ),
+      302,
+    );
+
+    expect(suspendResponse.headers.get("location")).toBe(
+      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=status`,
+    );
+    await expect(
+      db.query.user.findFirst({
+        columns: { suspended: true },
+        where: eq(user.id, targetUser.userId),
+      }),
+    ).resolves.toMatchObject({ suspended: true });
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toEqual([]);
+
+    const suspendedDetail = await detailLoader(
+      detailRouteArgs(
+        new Request(
+          `http://localhost${suspendResponse.headers.get("location")!}`,
+          {
+            headers: {
+              cookie: adminRequest.headers.get("cookie") ?? "",
+            },
+          },
+        ),
+        targetUser.userId,
+      ),
+    );
+    expect(suspendedDetail.user.state).toBe("suspended");
+    expect(suspendedDetail.successMessage).toBe(
+      "Guardamos el estado del Usuario interno.",
+    );
+
+    const suspendedDetailMarkup = renderDetailRoute(
+      suspendedDetail,
+      targetUser.userId,
+    );
+    expect(suspendedDetailMarkup).toContain("Reactivar Usuario");
+    expect(suspendedDetailMarkup).not.toContain("Suspender Usuario");
+
+    const reactivateResponse = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            adminRequest.url,
+            adminRequest.headers.get("cookie") ?? "",
+            { intent: "reactivate-user" },
+          ),
+          targetUser.userId,
+        ),
+      ),
+      302,
+    );
+
+    expect(reactivateResponse.headers.get("location")).toBe(
+      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=status`,
+    );
+    await expect(
+      db.query.user.findFirst({
+        columns: { suspended: true },
+        where: eq(user.id, targetUser.userId),
+      }),
+    ).resolves.toMatchObject({ suspended: false });
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .where(eq(administrativeAuditEntries.entityId, targetUser.userId))
+        .orderBy(administrativeAuditEntries.createdAt),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "archive",
+        beforeValues: expect.objectContaining({ suspended: false }),
+        afterValues: expect.objectContaining({ suspended: true }),
+      }),
+      expect.objectContaining({
+        action: "reactivate",
+        beforeValues: expect.objectContaining({ suspended: true }),
+        afterValues: expect.objectContaining({ suspended: false }),
+      }),
+    ]);
+
+    const selfAdmin = await createSignedInRequest({
+      email: "admin.self.suspension@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios/self-admin",
+      userName: "Admin Self Suspension",
+      internalUsername: "admin.self.suspension",
+    });
+
+    const selfSuspendResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          `http://localhost/administracion/usuarios/${selfAdmin.userId}`,
+          selfAdmin.request.headers.get("cookie") ?? "",
+          { intent: "suspend-user" },
+        ),
+        selfAdmin.userId,
+      ),
+    );
+
+    expect(selfSuspendResult).toMatchObject({
+      status: "error",
+      message: "No podés suspender tu propio Usuario.",
+    });
+  });
+
   test("updates an internal user, revokes sessions on permission change, and persists sanitized audit data", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.interno.original@example.com",
@@ -68,7 +224,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?guardado=1`,
+      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=details`,
     );
     await expect(
       db.query.user.findFirst({
@@ -100,6 +256,7 @@ describe("administracion/usuarios/:userId route", () => {
           name: "Julia Original",
           requiresPasswordChange: false,
           role: "judge",
+          suspended: false,
         },
         afterValues: {
           email: "julia.actualizada@example.com",
@@ -107,6 +264,7 @@ describe("administracion/usuarios/:userId route", () => {
           name: "Julia Actualizada",
           requiresPasswordChange: false,
           role: "auditor",
+          suspended: false,
         },
       }),
     ]);
@@ -307,9 +465,10 @@ describe("administracion/usuarios/:userId route", () => {
     expect(internalMarkup).toContain("Estado");
     expect(internalMarkup).toContain("Cambio obligatorio");
     expect(internalMarkup).toContain("Editar datos");
-    expect(internalMarkup).not.toContain("Suspender Usuario");
+    expect(internalMarkup).toContain("Suspender Usuario");
     expect(internalMarkup).not.toContain("Restablecer contraseña");
     expect(auditorInternalMarkup).not.toContain("Editar datos");
+    expect(auditorInternalMarkup).not.toContain("Suspender Usuario");
     expect(auditorInternalMarkup).not.toContain("Guardar cambios");
 
     const academyDetailRequest = new Request(

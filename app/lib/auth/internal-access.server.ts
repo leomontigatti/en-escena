@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import { academies, session as sessionTable, user } from "@/db/schema";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
 import { auth } from "@/lib/auth/auth.server";
@@ -39,11 +39,17 @@ export async function requireSignedInUser(
       email: true,
       role: true,
       requiresPasswordChange: true,
+      suspended: true,
     },
     where: eq(user.id, session.user.id),
   });
 
   if (!appUser) {
+    redirectToLoginForRequest(request);
+  }
+
+  if (appUser.suspended) {
+    await db.delete(sessionTable).where(eq(sessionTable.userId, appUser.id));
     redirectToLoginForRequest(request);
   }
 

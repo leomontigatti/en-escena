@@ -34,6 +34,7 @@ type InternalUserAuditSnapshot = {
   name: string;
   requiresPasswordChange: boolean;
   role: InternalUserRole;
+  suspended: boolean;
 };
 
 export async function updateInternalUser(
@@ -56,6 +57,7 @@ export async function updateInternalUser(
       name: true,
       requiresPasswordChange: true,
       role: true,
+      suspended: true,
     },
     where: eq(user.id, input.userId),
   });
@@ -109,7 +111,7 @@ export async function updateInternalUser(
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })
       .from(user)
-      .where(eq(user.role, "admin"));
+      .where(and(eq(user.role, "admin"), eq(user.suspended, false)));
 
     if (Number(count) <= 1) {
       return updateError(
@@ -127,6 +129,7 @@ export async function updateInternalUser(
     name: existingUser.name,
     requiresPasswordChange: existingUser.requiresPasswordChange,
     role: existingUser.role,
+    suspended: existingUser.suspended,
   };
   const afterValues: InternalUserAuditSnapshot = {
     email: normalizedOptionalEmail,
@@ -134,6 +137,7 @@ export async function updateInternalUser(
     name,
     requiresPasswordChange: existingUser.requiresPasswordChange,
     role: input.role,
+    suspended: existingUser.suspended,
   };
   const roleChanged = existingUser.role !== input.role;
 

@@ -47,6 +47,18 @@ describe("administracion/usuarios route", () => {
       userName: "Joaquín Juez",
       internalUsername: "joaquin.juez",
     });
+    const suspendedUser = await createSignedInRequest({
+      email: "suspendido.usuarios@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios",
+      userName: "Susana Suspendida",
+      internalUsername: "susana.suspendida",
+    });
+    await db
+      .update(user)
+      .set({ suspended: true })
+      .where(eq(user.id, suspendedUser.userId));
     await createSignedInRequest({
       email: "mandatorio.usuarios@example.com",
       role: "admin",
@@ -91,6 +103,7 @@ describe("administracion/usuarios route", () => {
     expect(defaultMarkup).toContain("Interno");
     expect(defaultMarkup).toContain("Activo");
     expect(defaultMarkup).toContain("Cambio obligatorio");
+    expect(defaultMarkup).toContain("Suspendido");
 
     const byIdentifierRequest = await createSignedInRequest({
       email: "admin.busqueda.usuarios@example.com",
@@ -170,6 +183,22 @@ describe("administracion/usuarios route", () => {
         (savedUser) => savedUser.state === "mandatory-password-change",
       ),
     ).toBe(true);
+
+    const bySuspendedStatusRequest = await createSignedInRequest({
+      email: "admin.suspendidos.usuarios@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
+      userName: "Admin Suspendidos",
+      internalUsername: "admin.suspendidos",
+    });
+    const bySuspendedStatusData = await loader(
+      routeArgs(bySuspendedStatusRequest.request),
+    );
+
+    expect(
+      bySuspendedStatusData.users.map((savedUser) => savedUser.identifier),
+    ).toEqual(["susana.suspendida"]);
   });
 });
 

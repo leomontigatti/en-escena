@@ -34,6 +34,7 @@ import {
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import {
   requireAdminUser,
@@ -50,6 +51,7 @@ import type { Route } from "./+types/administracion_.usuarios_.$userId";
 
 const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 const userSavedSearchParam = "guardado";
+const userSavedKindSearchParam = "tipoGuardado";
 
 const requiredTextField = (message: string) =>
   z.preprocess(
@@ -71,6 +73,7 @@ const updateInternalUserSchema = z.object({
   email: optionalEmailField,
   role: roleField,
 });
+const statusIntentSchema = z.enum(["suspend-user", "reactivate-user"]);
 
 const fieldNames = ["name", "email", "role"] as const;
 
@@ -82,7 +85,7 @@ type UpdateInternalUserFieldErrors = Partial<
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DetailUser = LoaderData["user"];
 type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
-type DetailUserState = "active" | "mandatory-password-change";
+type DetailUserState = "active" | "mandatory-password-change" | "suspended";
 type DetailUserType = "academy" | "internal";
 type DetailUserRow = {
   id: string;
@@ -91,6 +94,7 @@ type DetailUserRow = {
   role: DetailUserRole;
   internalUsername: string | null;
   requiresPasswordChange: boolean;
+  suspended: boolean;
   academyId: string | null;
   academyName: string | null;
   academyContactName: string | null;
@@ -126,6 +130,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       role: user.role,
       internalUsername: user.internalUsername,
       requiresPasswordChange: user.requiresPasswordChange,
+      suspended: user.suspended,
       academyId: academies.id,
       academyName: academies.name,
       academyContactName: academies.contactName,
@@ -167,6 +172,26 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
+  const parsedIntent = statusIntentSchema.safeParse(formData.get("intent"));
+
+  if (parsedIntent.success) {
+    const result = await setInternalUserSuspendedState({
+      action: parsedIntent.data === "suspend-user" ? "suspend" : "reactivate",
+      targetUserId: userId,
+      updatedByUserId: appUser.id,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error" as const,
+        message: result.error,
+        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+      };
+    }
+
+    throw redirect(buildSavedDetailHref(request.url, userId, "status"));
+  }
+
   const parsed = updateInternalUserSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -197,7 +222,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     };
   }
 
-  throw redirect(buildSavedDetailHref(request.url, userId));
+  throw redirect(buildSavedDetailHref(request.url, userId, "details"));
 }
 
 export function AdministracionUsuarioDetalleRouteView({
@@ -235,9 +260,12 @@ export function AdministracionUsuarioDetalleRouteView({
           {loaderData.canManage &&
           savedUser.userType === "internal" &&
           !isEditing ? (
-            <Button asChild>
-              <Link to={loaderData.editHref}>Editar datos</Link>
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusActionButton user={savedUser} />
+              <Button asChild>
+                <Link to={loaderData.editHref}>Editar datos</Link>
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -320,6 +348,23 @@ function InternalUserDetailCard({ user }: { user: DetailUser }) {
         <DetailItem label="Estado" value={getStateLabel(user.state)} />
       </CardContent>
     </Card>
+  );
+}
+
+function StatusActionButton({ user }: { user: DetailUser }) {
+  const isSuspended = user.state === "suspended";
+
+  return (
+    <Form method="post">
+      <input
+        type="hidden"
+        name="intent"
+        value={isSuspended ? "reactivate-user" : "suspend-user"}
+      />
+      <Button type="submit" variant={isSuspended ? "default" : "outline"}>
+        {isSuspended ? "Reactivar Usuario" : "Suspender Usuario"}
+      </Button>
+    </Form>
   );
 }
 
@@ -527,15 +572,15 @@ function getDetailState(
   row: DetailUserRow,
   isAcademyUser: boolean,
 ): DetailUserState {
+  if (!isAcademyUser && row.suspended) {
+    return "suspended";
+  }
+
   if (!isAcademyUser && row.requiresPasswordChange) {
     return "mandatory-password-change";
   }
 
   return "active";
-}
-
-function getDetailUserType(isAcademyUser: boolean): DetailUserType {
-  return isAcademyUser ? "academy" : "internal";
 }
 
 function buildBackToListHref(requestUrl: string) {
@@ -556,11 +601,16 @@ function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
   return buildUserDetailPath(userId, nextUrl.searchParams);
 }
 
-function buildSavedDetailHref(requestUrl: string, userId: string) {
+function buildSavedDetailHref(
+  requestUrl: string,
+  userId: string,
+  kind: "details" | "status",
+) {
   const url = new URL(requestUrl);
 
   url.searchParams.delete("modo");
   url.searchParams.set(userSavedSearchParam, "1");
+  url.searchParams.set(userSavedKindSearchParam, kind);
 
   return buildUserDetailPath(userId, url.searchParams);
 }
@@ -570,7 +620,9 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
     return null;
   }
 
-  return "Guardamos los datos del Usuario interno.";
+  return searchParams.get(userSavedKindSearchParam) === "status"
+    ? "Guardamos el estado del Usuario interno."
+    : "Guardamos los datos del Usuario interno.";
 }
 
 function getInternalOptionalEmail(email: string) {
@@ -644,6 +696,8 @@ function getStateLabel(state: LoaderData["user"]["state"]) {
       return "Activo";
     case "mandatory-password-change":
       return "Cambio obligatorio";
+    case "suspended":
+      return "Suspendido";
   }
 }
 
@@ -653,5 +707,11 @@ function getStateBadgeVariant(state: LoaderData["user"]["state"]) {
       return "default";
     case "mandatory-password-change":
       return "secondary";
+    case "suspended":
+      return "outline";
   }
+}
+
+function getDetailUserType(isAcademyUser: boolean): DetailUserType {
+  return isAcademyUser ? "academy" : "internal";
 }

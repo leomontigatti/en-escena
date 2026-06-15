@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import { academies, session, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
 import {
   requireAcademyUser,
@@ -87,6 +87,27 @@ describe("internal access authorization", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/cambiar-contrasena");
+  });
+
+  test("blocks suspended users from private routes and revokes their sessions", async () => {
+    const { request, userId } = await createSignedInRequest({
+      email: "suspendido.privado@example.com",
+      role: "admin",
+    });
+
+    await db.update(user).set({ suspended: true }).where(eq(user.id, userId));
+
+    const response = await expectThrownResponse(requireSignedInUser(request));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/ingresar?redirectTo=%2Fprotected&motivo=expirada",
+    );
+    await expect(
+      db.query.session.findMany({
+        where: eq(session.userId, userId),
+      }),
+    ).resolves.toEqual([]);
   });
 
   test("returns the academy owned by an academy user", async () => {

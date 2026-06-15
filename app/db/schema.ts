@@ -64,6 +64,7 @@ export const user = createTable("user", {
   requiresPasswordChange: boolean("requires_password_change")
     .notNull()
     .default(false),
+  suspended: boolean("suspended").notNull().default(false),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,
