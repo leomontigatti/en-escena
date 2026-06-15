@@ -10,12 +10,28 @@ import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { cn } from "@/lib/shared/utils";
 
 import type { Route } from "./+types/administracion_.usuarios_.$userId";
 
 const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
+type DetailUser = LoaderData["user"];
+type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
+type DetailUserState = "active" | "mandatory-password-change";
+type DetailUserType = "academy" | "internal";
+type DetailUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: DetailUserRole;
+  internalUsername: string | null;
+  requiresPasswordChange: boolean;
+  academyId: string | null;
+  academyName: string | null;
+  academyContactName: string | null;
+};
 
 type AdministracionUsuarioDetalleRouteProps = {
   loaderData: LoaderData;
@@ -62,26 +78,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     email: appUser.email,
     eventOptions: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
-    user: {
-      academyId: savedUser.role === "academy" ? savedUser.academyId : null,
-      academyName: savedUser.role === "academy" ? savedUser.academyName : null,
-      email:
-        savedUser.role === "academy"
-          ? savedUser.email
-          : getInternalOptionalEmail(savedUser.email),
-      identifier: savedUser.internalUsername ?? savedUser.email,
-      id: savedUser.id,
-      mainRole: savedUser.role,
-      name:
-        savedUser.role === "academy"
-          ? (savedUser.academyContactName ?? savedUser.name)
-          : savedUser.name,
-      state:
-        savedUser.role !== "academy" && savedUser.requiresPasswordChange
-          ? "mandatory-password-change"
-          : "active",
-      userType: savedUser.role === "academy" ? "academy" : "internal",
-    },
+    user: buildDetailUser(savedUser),
   };
 }
 
@@ -137,9 +134,9 @@ export function AdministracionUsuarioDetalleRouteView({
         </header>
 
         {savedUser.userType === "academy" ? (
-          <AcademyUserDetailCard loaderData={loaderData} />
+          <AcademyUserDetailCard user={savedUser} />
         ) : (
-          <InternalUserDetailCard loaderData={loaderData} />
+          <InternalUserDetailCard user={savedUser} />
         )}
       </section>
     </AdminShell>
@@ -152,59 +149,55 @@ export default function AdministracionUsuarioDetalleRoute({
   return <AdministracionUsuarioDetalleRouteView loaderData={loaderData} />;
 }
 
-function InternalUserDetailCard({ loaderData }: { loaderData: LoaderData }) {
-  const savedUser = loaderData.user;
-
+function InternalUserDetailCard({ user }: { user: DetailUser }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Detalle del Usuario</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-6 sm:grid-cols-2">
-        <DetailItem label="Nombre" value={savedUser.name} />
-        <DetailItem label="Identificador" value={savedUser.identifier} isCode />
+        <DetailItem label="Nombre" value={user.name} />
+        <DetailItem label="Identificador" value={user.identifier} isCode />
         <DetailItem
           label="Correo"
-          value={savedUser.email ?? "No informado"}
-          muted={savedUser.email === null}
+          value={user.email ?? "No informado"}
+          muted={user.email === null}
         />
         <DetailItem
           label="Permiso principal"
-          value={getRoleLabel(savedUser.mainRole)}
+          value={getRoleLabel(user.mainRole)}
         />
-        <DetailItem label="Estado" value={getStateLabel(savedUser.state)} />
+        <DetailItem label="Estado" value={getStateLabel(user.state)} />
       </CardContent>
     </Card>
   );
 }
 
-function AcademyUserDetailCard({ loaderData }: { loaderData: LoaderData }) {
-  const savedUser = loaderData.user;
-
+function AcademyUserDetailCard({ user }: { user: DetailUser }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Detalle del Usuario</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-6 sm:grid-cols-2">
-        <DetailItem label="Nombre" value={savedUser.name} />
-        <DetailItem label="Correo de acceso" value={savedUser.email ?? "-"} />
+        <DetailItem label="Nombre" value={user.name} />
+        <DetailItem label="Correo de acceso" value={user.email ?? "-"} />
         <DetailItem label="Tipo" value="Usuario de academia" />
         <DetailItem
           label="Academia"
           value={
-            savedUser.academyId && savedUser.academyName ? (
+            user.academyId && user.academyName ? (
               <Link
-                to={`/administracion/academias/${savedUser.academyId}`}
+                to={`/administracion/academias/${user.academyId}`}
                 className="font-medium underline-offset-4 hover:underline"
               >
-                {savedUser.academyName}
+                {user.academyName}
               </Link>
             ) : (
               "Sin Academia vinculada"
             )
           }
-          muted={!savedUser.academyId || !savedUser.academyName}
+          muted={!user.academyId || !user.academyName}
         />
       </CardContent>
     </Card>
@@ -230,12 +223,59 @@ function DetailItem({
           {value}
         </code>
       ) : (
-        <div className={muted ? "text-sm text-muted-foreground" : "text-sm"}>
+        <div className={cn("text-sm", muted && "text-muted-foreground")}>
           {value}
         </div>
       )}
     </div>
   );
+}
+
+function buildDetailUser(row: DetailUserRow) {
+  const isAcademyUser = row.role === "academy";
+
+  return {
+    academyId: isAcademyUser ? row.academyId : null,
+    academyName: isAcademyUser ? row.academyName : null,
+    email: getDetailEmail(row, isAcademyUser),
+    identifier: row.internalUsername ?? row.email,
+    id: row.id,
+    mainRole: row.role,
+    name: getDetailName(row, isAcademyUser),
+    state: getDetailState(row, isAcademyUser),
+    userType: getDetailUserType(isAcademyUser),
+  };
+}
+
+function getDetailEmail(row: DetailUserRow, isAcademyUser: boolean) {
+  if (isAcademyUser) {
+    return row.email;
+  }
+
+  return getInternalOptionalEmail(row.email);
+}
+
+function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {
+  if (isAcademyUser) {
+    return row.academyContactName ?? row.name;
+  }
+
+  return row.name;
+}
+
+function getDetailState(
+  row: DetailUserRow,
+  isAcademyUser: boolean,
+): DetailUserState {
+  if (!isAcademyUser && row.requiresPasswordChange) {
+    return "mandatory-password-change";
+  }
+
+  return "active";
+}
+
+function getDetailUserType(isAcademyUser: boolean): DetailUserType {
+  return isAcademyUser ? "academy" : "internal";
 }
 
 function buildBackToListHref(requestUrl: string) {
