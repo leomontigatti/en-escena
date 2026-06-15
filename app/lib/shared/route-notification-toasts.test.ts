@@ -29,6 +29,21 @@ describe("route notification toasts", () => {
       message: "Evento guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["precio-guardado"]).toEqual({
+      id: "route-notification:precio-guardado",
+      message: "Precio guardado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["bloque-horario-eliminado"]).toEqual({
+      id: "route-notification:bloque-horario-eliminado",
+      message: "Bloque horario eliminado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["cronograma-guardado"]).toEqual({
+      id: "route-notification:cronograma-guardado",
+      message: "Cronograma guardado.",
+      variant: "success",
+    });
     expect(getRouteNotificationToast("desconocida")).toBeUndefined();
   });
 

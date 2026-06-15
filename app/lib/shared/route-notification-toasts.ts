@@ -10,6 +10,12 @@ export const routeNotificationToastIds = {
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
   "evento-eliminado": "route-notification:evento-eliminado",
+  "bloque-horario-guardado": "route-notification:bloque-horario-guardado",
+  "bloque-horario-eliminado": "route-notification:bloque-horario-eliminado",
+  "cronograma-guardado": "route-notification:cronograma-guardado",
+  "cronograma-eliminado": "route-notification:cronograma-eliminado",
+  "precio-guardado": "route-notification:precio-guardado",
+  "precio-eliminado": "route-notification:precio-eliminado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
   "resultados-visibles": "route-notification:resultados-visibles",
@@ -44,6 +50,36 @@ export const routeNotificationToasts = {
   "evento-eliminado": {
     id: routeNotificationToastIds["evento-eliminado"],
     message: "Evento eliminado.",
+    variant: "success",
+  },
+  "bloque-horario-guardado": {
+    id: routeNotificationToastIds["bloque-horario-guardado"],
+    message: "Bloque horario guardado.",
+    variant: "success",
+  },
+  "bloque-horario-eliminado": {
+    id: routeNotificationToastIds["bloque-horario-eliminado"],
+    message: "Bloque horario eliminado.",
+    variant: "success",
+  },
+  "cronograma-guardado": {
+    id: routeNotificationToastIds["cronograma-guardado"],
+    message: "Cronograma guardado.",
+    variant: "success",
+  },
+  "cronograma-eliminado": {
+    id: routeNotificationToastIds["cronograma-eliminado"],
+    message: "Cronograma eliminado.",
+    variant: "success",
+  },
+  "precio-guardado": {
+    id: routeNotificationToastIds["precio-guardado"],
+    message: "Precio guardado.",
+    variant: "success",
+  },
+  "precio-eliminado": {
+    id: routeNotificationToastIds["precio-eliminado"],
+    message: "Precio eliminado.",
     variant: "success",
   },
   "programa-visible": {

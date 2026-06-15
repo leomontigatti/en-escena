@@ -3,7 +3,6 @@ import { type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { AdminShell } from "@/components/admin/shell";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -36,12 +35,7 @@ type AdminResourceLayoutViewProps = {
   children: ReactNode;
 };
 
-type AdminActionError = {
-  message: string;
-};
-
 type AdminResourceLayoutProps = {
-  actionData?: AdminActionError;
   action?: {
     label: string;
     to: string;
@@ -103,7 +97,6 @@ export function AdminResourceLayout({
   action,
   breadcrumbItems,
   loaderData,
-  actionData,
   headerAction,
   requireSelectedEvent = true,
   title,
@@ -128,7 +121,6 @@ export function AdminResourceLayout({
             action={action}
             headerAction={headerAction}
           />
-          <ActionErrorBanner actionData={actionData} />
           {children}
         </div>
       )}
@@ -213,18 +205,6 @@ function AdminResourceHeader({
           </Button>
         ) : null)}
     </header>
-  );
-}
-
-function ActionErrorBanner({ actionData }: { actionData?: AdminActionError }) {
-  if (!actionData) {
-    return null;
-  }
-
-  return (
-    <Alert variant="destructive">
-      <AlertDescription>{actionData.message}</AlertDescription>
-    </Alert>
   );
 }
 
