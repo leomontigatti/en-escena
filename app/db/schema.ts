@@ -47,7 +47,7 @@ export const administrativeAuditEntityType = pgEnum(
 
 export const administrativeAuditAction = pgEnum(
   "en_escena_administrative_audit_action",
-  ["create", "update", "archive", "reactivate"],
+  ["create", "update", "archive", "reactivate", "reset-password"],
 );
 
 export const user = createTable("user", {

@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { verifyPassword } from "better-auth/crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -6,6 +7,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
+  account,
   academies,
   administrativeAuditEntries,
   session,
@@ -21,6 +23,7 @@ import {
   AdministracionUsuarioDetalleRouteView,
   loader as detailLoader,
 } from "@/routes/administracion_.usuarios_.$userId";
+import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -272,6 +275,130 @@ describe("administracion/usuarios/:userId route", () => {
     ]);
   });
 
+  test("resets an internal user password with mandatory change, revokes sessions, and keeps audit payloads sanitized", async () => {
+    const targetUser = await createSignedInRequest({
+      email: "usuario.restablecer@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/juzgamiento",
+      userName: "Julia Restablecida",
+      internalUsername: "julia.restablecida",
+      password: "password-anterior",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.restablece@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
+      userName: "Ada Restablece",
+      internalUsername: "ada.restablece",
+    });
+
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toHaveLength(1);
+
+    const previousCredential = await db.query.account.findFirst({
+      columns: { password: true },
+      where: and(
+        eq(account.userId, targetUser.userId),
+        eq(account.providerId, "credential"),
+      ),
+    });
+
+    const response = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            adminRequest.url,
+            adminRequest.headers.get("cookie") ?? "",
+            {
+              intent: "reset-password",
+              temporaryPassword: "temporal-nueva",
+            },
+          ),
+          targetUser.userId,
+        ),
+      ),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=password`,
+    );
+    await expect(
+      db.query.user.findFirst({
+        columns: { requiresPasswordChange: true },
+        where: eq(user.id, targetUser.userId),
+      }),
+    ).resolves.toMatchObject({ requiresPasswordChange: true });
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toEqual([]);
+
+    const nextCredential = await db.query.account.findFirst({
+      columns: { password: true },
+      where: and(
+        eq(account.userId, targetUser.userId),
+        eq(account.providerId, "credential"),
+      ),
+    });
+
+    expect(nextCredential?.password).toBeTruthy();
+    expect(nextCredential?.password).not.toBe(previousCredential?.password);
+    expect(nextCredential?.password).not.toBe("temporal-nueva");
+    expect(
+      await verifyPassword({
+        hash: nextCredential?.password ?? "",
+        password: "temporal-nueva",
+      }),
+    ).toBe(true);
+
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .where(eq(administrativeAuditEntries.entityId, targetUser.userId))
+        .orderBy(administrativeAuditEntries.createdAt),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "reset-password",
+        beforeValues: {
+          email: "usuario.restablecer@example.com",
+          internalUsername: "julia.restablecida",
+          name: "Julia Restablecida",
+          requiresPasswordChange: false,
+          role: "judge",
+          suspended: false,
+        },
+        afterValues: {
+          email: "usuario.restablecer@example.com",
+          internalUsername: "julia.restablecida",
+          name: "Julia Restablecida",
+          requiresPasswordChange: true,
+          role: "judge",
+          suspended: false,
+        },
+      }),
+    ]);
+
+    const savedAuditEntry = await db.query.administrativeAuditEntries.findFirst(
+      {
+        where: eq(administrativeAuditEntries.entityId, targetUser.userId),
+      },
+    );
+    expect(JSON.stringify(savedAuditEntry)).not.toContain("temporal-nueva");
+    expect(JSON.stringify(savedAuditEntry)).not.toContain(
+      nextCredential?.password ?? "",
+    );
+
+    const loginResponse = await expectThrownResponse(
+      submitSignInAction("julia.restablecida", "temporal-nueva"),
+      302,
+    );
+    expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
+  });
+
   test("blocks non-admin mutations and prevents self-demotion of the only admin", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.bloqueado@example.com",
@@ -467,9 +594,10 @@ describe("administracion/usuarios/:userId route", () => {
     expect(internalMarkup).toContain("Estado");
     expect(internalMarkup).toContain("Cambio obligatorio");
     expect(internalMarkup).toContain("Editar datos");
+    expect(internalMarkup).toContain("Restablecer contraseña");
     expect(internalMarkup).toContain("Suspender Usuario");
-    expect(internalMarkup).not.toContain("Restablecer contraseña");
     expect(auditorInternalMarkup).not.toContain("Editar datos");
+    expect(auditorInternalMarkup).not.toContain("Restablecer contraseña");
     expect(auditorInternalMarkup).not.toContain("Suspender Usuario");
     expect(auditorInternalMarkup).not.toContain("Guardar cambios");
 
@@ -589,12 +717,13 @@ async function createSignedInRequest(input: {
   requestUrl: string;
   userName: string;
   internalUsername?: string;
+  password?: string;
 }) {
   const signUpResult = await auth.api.signUpEmail({
     body: {
       email: input.email,
       name: input.userName,
-      password: "password-segura",
+      password: input.password ?? "password-segura",
     },
     returnHeaders: true,
   });
@@ -713,6 +842,23 @@ function createPostRequest(
     method: "POST",
     body: formData,
     headers: { cookie },
+  });
+}
+
+function submitSignInAction(identifier: string, password: string) {
+  const formData = new FormData();
+  formData.set("identifier", identifier);
+  formData.set("password", password);
+
+  return signInAction({
+    url: new URL("http://localhost/ingresar"),
+    pattern: "/ingresar",
+    request: new Request("http://localhost/ingresar", {
+      method: "POST",
+      body: formData,
+    }),
+    params: {},
+    context: {},
   });
 }
 

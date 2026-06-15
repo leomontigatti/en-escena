@@ -35,6 +35,7 @@ import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import { resetInternalUserPassword } from "@/lib/admin/users/internal-user-password-reset.server";
 import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import {
@@ -74,13 +75,29 @@ const updateInternalUserSchema = z.object({
   role: roleField,
 });
 const statusIntentSchema = z.enum(["suspend-user", "reactivate-user"]);
+const resetPasswordIntent = "reset-password";
+const temporaryPasswordField = z.preprocess(
+  (value) => (typeof value === "string" ? value : ""),
+  z
+    .string()
+    .trim()
+    .min(1, "Ingresá una contraseña temporal.")
+    .min(8, "La contraseña temporal debe tener al menos 8 caracteres."),
+);
+const resetPasswordSchema = z.object({
+  intent: z.literal(resetPasswordIntent),
+  temporaryPassword: temporaryPasswordField,
+});
 
 const fieldNames = ["name", "email", "role"] as const;
+const resetPasswordFieldNames = ["temporaryPassword"] as const;
 
 type UpdateInternalUserField = (typeof fieldNames)[number];
 type UpdateInternalUserFieldErrors = Partial<
   Record<UpdateInternalUserField, string>
 >;
+type ResetPasswordField = (typeof resetPasswordFieldNames)[number];
+type ResetPasswordFieldErrors = Partial<Record<ResetPasswordField, string>>;
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DetailUser = LoaderData["user"];
@@ -105,6 +122,7 @@ type AdministracionUsuarioDetalleRouteProps = {
     status: "error";
     message: string;
     fieldErrors: UpdateInternalUserFieldErrors;
+    resetPasswordFieldErrors: ResetPasswordFieldErrors;
   };
   loaderData: LoaderData;
 };
@@ -152,10 +170,14 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     canManage: appUser.role === "admin",
     cancelHref: buildModeHref(url, userId, null),
     editHref: buildModeHref(url, userId, "editar"),
+    resetPasswordHref: buildModeHref(url, userId, "restablecer-contrasena"),
     email: appUser.email,
     eventOptions: eventContext.events,
     isEditing:
       appUser.role === "admin" && url.searchParams.get("modo") === "editar",
+    isResettingPassword:
+      appUser.role === "admin" &&
+      url.searchParams.get("modo") === "restablecer-contrasena",
     selectedEventId: eventContext.selectedEventId,
     successMessage: readSavedSuccessMessage(url.searchParams),
     user: buildDetailUser(savedUser),
@@ -186,10 +208,56 @@ export async function action({ request, params }: Route.ActionArgs) {
         status: "error" as const,
         message: result.error,
         fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+        resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
       };
     }
 
     throw redirect(buildSavedDetailHref(request.url, userId, "status"));
+  }
+
+  const parsedResetPassword = resetPasswordSchema.safeParse({
+    intent: formData.get("intent"),
+    temporaryPassword: formData.get("temporaryPassword"),
+  });
+
+  if (parsedResetPassword.success) {
+    const result = await resetInternalUserPassword({
+      targetUserId: userId,
+      temporaryPassword: parsedResetPassword.data.temporaryPassword,
+      updatedByUserId: appUser.id,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error" as const,
+        message: result.error,
+        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+        resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
+      };
+    }
+
+    throw redirect(buildSavedDetailHref(request.url, userId, "password"));
+  }
+
+  if (formData.get("intent") === resetPasswordIntent) {
+    const resetPasswordError = resetPasswordSchema.safeParse({
+      intent: formData.get("intent"),
+      temporaryPassword: formData.get("temporaryPassword"),
+    });
+
+    if (resetPasswordError.success) {
+      throw new Error("Expected reset password validation to fail.");
+    }
+
+    return {
+      status: "error" as const,
+      message: "Revisá la contraseña temporal.",
+      fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+      resetPasswordFieldErrors: getFieldErrors(
+        resetPasswordError.error,
+        resetPasswordFieldNames,
+      ),
+    };
   }
 
   const parsed = updateInternalUserSchema.safeParse({
@@ -203,6 +271,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       status: "error" as const,
       message: "Revisá los datos del Usuario interno.",
       fieldErrors: getFieldErrors(parsed.error, fieldNames),
+      resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
     };
   }
 
@@ -219,6 +288,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       status: "error" as const,
       message: result.error,
       fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+      resetPasswordFieldErrors: getEmptyFieldErrors<ResetPasswordField>(),
     };
   }
 
@@ -234,6 +304,11 @@ export function AdministracionUsuarioDetalleRouteView({
     loaderData.canManage &&
     savedUser.userType === "internal" &&
     (loaderData.isEditing || Boolean(actionData));
+  const isResettingPassword =
+    loaderData.canManage &&
+    savedUser.userType === "internal" &&
+    (loaderData.isResettingPassword ||
+      Boolean(actionData?.resetPasswordFieldErrors.temporaryPassword));
   const breadcrumbItems = [
     { label: "Usuarios", to: loaderData.backToList },
     { label: savedUser.name },
@@ -259,9 +334,15 @@ export function AdministracionUsuarioDetalleRouteView({
           </Link>
           {loaderData.canManage &&
           savedUser.userType === "internal" &&
-          !isEditing ? (
+          !isEditing &&
+          !isResettingPassword ? (
             <div className="flex flex-wrap items-center gap-3">
               <StatusActionButton user={savedUser} />
+              <Button asChild variant="outline">
+                <Link to={loaderData.resetPasswordHref}>
+                  Restablecer contraseña
+                </Link>
+              </Button>
               <Button asChild>
                 <Link to={loaderData.editHref}>Editar datos</Link>
               </Button>
@@ -295,6 +376,11 @@ export function AdministracionUsuarioDetalleRouteView({
 
         {savedUser.userType === "academy" ? (
           <AcademyUserDetailCard user={savedUser} />
+        ) : isResettingPassword ? (
+          <InternalUserResetPasswordCard
+            actionData={actionData}
+            cancelHref={loaderData.cancelHref}
+          />
         ) : isEditing ? (
           <InternalUserEditCard
             actionData={actionData}
@@ -306,6 +392,68 @@ export function AdministracionUsuarioDetalleRouteView({
         )}
       </section>
     </AdminShell>
+  );
+}
+
+function InternalUserResetPasswordCard({
+  actionData,
+  cancelHref,
+}: {
+  actionData?: AdministracionUsuarioDetalleRouteProps["actionData"];
+  cancelHref: string;
+}) {
+  const fieldErrors = actionData?.resetPasswordFieldErrors ?? {};
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Restablecimiento administrativo de contraseña</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {actionData?.status === "error" ? (
+          <Alert variant="destructive" className="mb-6">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>No pudimos restablecer la contraseña</AlertTitle>
+            <AlertDescription>{actionData.message}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <Form method="post" className="grid gap-6">
+          <input type="hidden" name="intent" value={resetPasswordIntent} />
+          <FieldGroup>
+            <Field
+              data-invalid={!!fieldErrors.temporaryPassword}
+              orientation="responsive"
+            >
+              <FieldLabel htmlFor="temporaryPassword">
+                Contraseña temporal
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="temporaryPassword"
+                  name="temporaryPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                />
+                <FieldDescription>
+                  Compartila por un canal seguro. El Usuario deberá cambiarla
+                  antes de volver a ingresar a su área privada.
+                </FieldDescription>
+                <FieldError>{fieldErrors.temporaryPassword}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit">Guardar contraseña temporal</Button>
+              <Button asChild variant="outline">
+                <Link to={cancelHref}>Cancelar</Link>
+              </Button>
+            </div>
+          </FieldGroup>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -589,7 +737,11 @@ function buildBackToListHref(requestUrl: string) {
   return buildPathWithSearch("/administracion/usuarios", url.searchParams);
 }
 
-function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
+function buildModeHref(
+  url: URL,
+  userId: string,
+  mode: "editar" | "restablecer-contrasena" | null,
+) {
   const nextUrl = new URL(url);
 
   if (mode) {
@@ -604,7 +756,7 @@ function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
 function buildSavedDetailHref(
   requestUrl: string,
   userId: string,
-  kind: "details" | "status",
+  kind: "details" | "password" | "status",
 ) {
   const url = new URL(requestUrl);
 
@@ -622,7 +774,9 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
 
   return searchParams.get(userSavedKindSearchParam) === "status"
     ? "Guardamos el estado del Usuario interno."
-    : "Guardamos los datos del Usuario interno.";
+    : searchParams.get(userSavedKindSearchParam) === "password"
+      ? "Guardamos la contraseña temporal del Usuario interno."
+      : "Guardamos los datos del Usuario interno.";
 }
 
 function getDetailDescription(userType: DetailUserType, canManage: boolean) {
