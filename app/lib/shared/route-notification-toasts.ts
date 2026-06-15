@@ -1,0 +1,15 @@
+export const routeNotificationToastIds = {
+  "event-form-error": "route-notification:event-form-error",
+  "evento-activado": "route-notification:evento-activado",
+  "evento-desactivado": "route-notification:evento-desactivado",
+  "evento-guardado": "route-notification:evento-guardado",
+  "evento-eliminado": "route-notification:evento-eliminado",
+  "programa-visible": "route-notification:programa-visible",
+  "programa-oculto": "route-notification:programa-oculto",
+  "resultados-visibles": "route-notification:resultados-visibles",
+  "resultados-ocultos": "route-notification:resultados-ocultos",
+  "categoria-guardada": "route-notification:categoria-guardada",
+  "categoria-eliminada": "route-notification:categoria-eliminada",
+  "modalidad-guardada": "route-notification:modalidad-guardada",
+  "modalidad-eliminada": "route-notification:modalidad-eliminada",
+} as const;

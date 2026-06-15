@@ -2,25 +2,31 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
+import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   formatOperationalStatusLabel,
   type ChoreographyListItem,
-} from "@/lib/portal-choreographies";
+} from "@/lib/portal/choreographies";
 import {
   createChoreographyRegistration,
+  type CreateChoreographyRegistrationResult,
+} from "@/lib/choreographies/registration-confirmation.server";
+import {
   resolveChoreographyRegistrationOperation,
   type ChoreographyRegistrationOperationResult,
-  type CreateChoreographyRegistrationResult,
-} from "@/lib/portal-choreography-registration.server";
-import { listChoreographiesForAcademyEvent } from "@/lib/portal-choreographies.server";
-import { listAcademyProfessors } from "@/lib/portal-professors.server";
-import { listDancersForAcademy } from "@/lib/portal-dancers.server";
-import { getPortalEventContext } from "@/lib/portal-event-context.server";
-import { getPortalEventStatusLabel } from "@/lib/portal-route-state";
-import { listEventCatalogs } from "@/lib/admin-catalogs.server";
+} from "@/lib/choreographies/registration-resolution.server";
+import { listChoreographiesForAcademyEvent } from "@/lib/portal/choreographies.server";
+import { listAcademyProfessors } from "@/lib/portal/professors.server";
+import { listDancersForAcademy } from "@/lib/portal/dancers.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
+import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
+import {
+  getChoreographyRegistrationBaseOptions,
+  getEventBases,
+  type ChoreographyRegistrationBaseOptions,
+} from "@/lib/events/bases.server";
 
 type PortalCoreografiasRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -34,11 +40,6 @@ type RegistrationResolution = Extract<
   ChoreographyRegistrationOperationResult,
   { ok: true }
 >["resolution"];
-
-type RegistrationCatalogs = {
-  modalities: Array<{ id: string; name: string }>;
-  submodalities: Array<{ id: string; name: string; modalityId: string }>;
-};
 
 type CalculationActionData = {
   intent: "resolve-choreography-registration";
@@ -69,16 +70,14 @@ export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
   const eventContext = await getPortalEventContext(request);
   const selectedEventId = eventContext.selectedEvent?.id ?? null;
-  const [choreographies, activeDancers, activeProfessors, catalogs] =
+  const [choreographies, activeDancers, activeProfessors, baseOptions] =
     await Promise.all([
       selectedEventId
         ? listChoreographiesForAcademyEvent(academy.id, selectedEventId)
         : Promise.resolve([]),
       listDancersForAcademy(academy.id, { status: "active" }),
       listAcademyProfessors(academy.id, { status: "active" }),
-      selectedEventId
-        ? listEventCatalogs(selectedEventId)
-        : Promise.resolve(null),
+      selectedEventId ? getEventBases(selectedEventId) : Promise.resolve(null),
     ]);
 
   return {
@@ -88,18 +87,8 @@ export async function loader({ request }: { request: Request }) {
     eventContext,
     activeDancers,
     activeProfessors,
-    registrationCatalogs: catalogs
-      ? {
-          modalities: catalogs.modalities.map((modality) => ({
-            id: modality.id,
-            name: modality.name,
-          })),
-          submodalities: catalogs.submodalities.map((submodality) => ({
-            id: submodality.id,
-            name: submodality.name,
-            modalityId: submodality.modalityId,
-          })),
-        }
+    registrationBaseOptions: baseOptions
+      ? getChoreographyRegistrationBaseOptions(baseOptions)
       : null,
   };
 }
@@ -142,9 +131,7 @@ export async function action({ request }: { request: Request }) {
       } satisfies CreateActionData;
     }
 
-    throw redirect(
-      `/portal/coreografias?evento=${encodeURIComponent(result.choreography.eventId)}&creada=1`,
-    );
+    throw redirect("/portal/coreografias?creada=1");
   }
 
   throw new Response("Acción no soportada.", { status: 400 });
@@ -161,9 +148,6 @@ export function PortalCoreografiasRouteView({
     loaderData.eventContext,
     loaderData.activeDancers.length,
   );
-  const selectedEventSearch = selectedEvent
-    ? `?${loaderData.eventContext.queryParamName}=${selectedEvent.id}`
-    : "";
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
@@ -171,9 +155,7 @@ export function PortalCoreografiasRouteView({
       email={loaderData.email}
       academyName={loaderData.academy.name}
       description={
-        <>
-          Consultá las coreografías de la academia según el Evento consultado.
-        </>
+        <>Consultá las coreografías de la academia para el Evento activo.</>
       }
     >
       <section className="mt-8" aria-labelledby="coreografias-title">
@@ -186,10 +168,9 @@ export function PortalCoreografiasRouteView({
               Coreografías
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              La lista se limita al Evento consultado y a tu academia.
+              La lista se limita al Evento activo y a tu academia.
             </p>
           </div>
-          <PortalEventSelector eventContext={loaderData.eventContext} />
         </div>
 
         <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
@@ -202,7 +183,7 @@ export function PortalCoreografiasRouteView({
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     Revisá nombre, modalidad, categoría y estado operativo de
-                    cada Coreografía del Evento consultado.
+                    cada Coreografía del Evento activo.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:items-end">
@@ -250,14 +231,11 @@ export function PortalCoreografiasRouteView({
               ) : null}
 
               {loaderData.choreographies.length > 0 ? (
-                <ChoreographyTable
-                  choreographies={loaderData.choreographies}
-                  selectedEventSearch={selectedEventSearch}
-                />
+                <ChoreographyTable choreographies={loaderData.choreographies} />
               ) : (
                 <PortalEmptyList
                   title="No hay coreografías registradas para este evento"
-                  description="Cuando registres una Coreografía para este Evento consultado, la vas a poder seguir acá junto con su estado operativo."
+                  description="Cuando registres una Coreografía para el Evento activo, la vas a poder seguir acá junto con su estado operativo."
                 />
               )}
             </>
@@ -270,9 +248,11 @@ export function PortalCoreografiasRouteView({
         </div>
       </section>
 
-      {isCreateModalOpen && selectedEvent && loaderData.registrationCatalogs ? (
+      {isCreateModalOpen &&
+      selectedEvent &&
+      loaderData.registrationBaseOptions ? (
         <CreateChoreographyModal
-          catalogs={loaderData.registrationCatalogs}
+          baseOptions={loaderData.registrationBaseOptions}
           dancers={loaderData.activeDancers}
           eventId={selectedEvent.id}
           eventName={selectedEvent.name}
@@ -306,10 +286,8 @@ export default function PortalCoreografiasRoute({
 
 function ChoreographyTable({
   choreographies,
-  selectedEventSearch,
 }: {
   choreographies: PortalCoreografiasRouteProps["loaderData"]["choreographies"];
-  selectedEventSearch: string;
 }) {
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -328,7 +306,7 @@ function ChoreographyTable({
             <tr key={choreography.id} className="hover:bg-slate-50">
               <td className="px-4 py-3 font-medium text-slate-950">
                 <Link
-                  to={`/portal/coreografias/${choreography.id}${selectedEventSearch}`}
+                  to={`/portal/coreografias/${choreography.id}`}
                   className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 >
                   {choreography.name}
@@ -423,15 +401,6 @@ function getCreationState(
     };
   }
 
-  if (eventContext.selectedEvent !== null && eventContext.isReadOnly) {
-    return {
-      tone: "blocked",
-      message:
-        "Solo podés crear coreografías cuando el Evento consultado coincide con el Evento activo.",
-      canCreate: false,
-    };
-  }
-
   if (!eventContext.isRegistrationOpen) {
     return {
       tone: "blocked",
@@ -462,7 +431,7 @@ function getCreationState(
   return {
     tone: "info",
     message:
-      "La creación de coreografías va a estar disponible solo cuando el Evento consultado sea el Evento activo y la inscripción esté abierta.",
+      "La creación de coreografías va a estar disponible cuando exista un Evento activo y la inscripción esté abierta.",
     canCreate: false,
   };
 }
@@ -488,56 +457,15 @@ function formatPrimaryAndSecondaryValue(
   return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
-function PortalEventSelector({
-  eventContext,
-}: {
-  eventContext: PortalEventContext;
-}) {
-  if (!eventContext.hasEvents) {
-    return null;
-  }
-
-  return (
-    <form method="get" className="w-full sm:max-w-xs">
-      <label
-        htmlFor="evento-consultado"
-        className="block text-sm font-medium text-slate-800"
-      >
-        Evento consultado
-      </label>
-      <div className="mt-2 flex gap-2">
-        <select
-          id="evento-consultado"
-          name={eventContext.queryParamName}
-          defaultValue={eventContext.selectedEvent?.id}
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          {eventContext.events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          Consultar
-        </button>
-      </div>
-    </form>
-  );
-}
-
 function CreateChoreographyModal({
-  catalogs,
+  baseOptions,
   dancers,
   eventId,
   eventName,
   professors,
   onClose,
 }: {
-  catalogs: RegistrationCatalogs;
+  baseOptions: ChoreographyRegistrationBaseOptions;
   dancers: PortalCoreografiasLoaderData["activeDancers"];
   eventId: string;
   eventName: string;
@@ -562,10 +490,10 @@ function CreateChoreographyModal({
 
   const selectedSubmodalities = useMemo(
     () =>
-      catalogs.submodalities.filter(
+      baseOptions.submodalities.filter(
         (submodality) => submodality.modalityId === modalityId,
       ),
-    [catalogs.submodalities, modalityId],
+    [baseOptions.submodalities, modalityId],
   );
   const selectedProfessors = useMemo(
     () =>
@@ -781,7 +709,7 @@ function CreateChoreographyModal({
                   setSubmodalityId("");
                   resetResolutionState();
                 }}
-                options={catalogs.modalities.map((modality) => ({
+                options={baseOptions.modalities.map((modality) => ({
                   value: modality.id,
                   label: modality.name,
                 }))}
@@ -952,7 +880,7 @@ function CreateChoreographyModal({
                 <SummaryItem
                   label="Modalidad"
                   value={formatModalitySummary(
-                    catalogs,
+                    baseOptions,
                     modalityId,
                     submodalityId,
                   )}
@@ -1237,15 +1165,15 @@ function formatGroupTypeLabel(
 }
 
 function formatModalitySummary(
-  catalogs: RegistrationCatalogs,
+  baseOptions: ChoreographyRegistrationBaseOptions,
   modalityId: string,
   submodalityId: string,
 ) {
   const modalityName =
-    catalogs.modalities.find((modality) => modality.id === modalityId)?.name ??
-    "Pendiente";
+    baseOptions.modalities.find((modality) => modality.id === modalityId)
+      ?.name ?? "Pendiente";
   const submodalityName = submodalityId
-    ? (catalogs.submodalities.find(
+    ? (baseOptions.submodalities.find(
         (submodality) => submodality.id === submodalityId,
       )?.name ?? null)
     : null;

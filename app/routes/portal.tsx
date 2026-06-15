@@ -1,10 +1,10 @@
-import { AccessSecondaryLink } from "@/components/access-ui";
+import { AccessSecondaryLink } from "@/components/auth/access-ui";
 import {
   PortalCoreographiesSection,
   PortalShell,
-} from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal-event-context.server";
+} from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import { Link } from "react-router";
 
 import type { Route } from "./+types/portal";

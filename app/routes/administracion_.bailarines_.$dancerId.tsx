@@ -2,7 +2,8 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, redirect, useActionData, useSearchParams } from "react-router";
 
-import { AdminShell } from "@/components/admin-shell";
+import { AdminShell } from "@/components/admin/shell";
+import { DateOnlyField } from "@/components/shared/date-only-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import {
   getAdminDancerParticipationSummary,
   type AdminDancerIdentificationStatus,
   type AdminDancerParticipationStatus,
-} from "@/lib/admin-dancers.shared";
+} from "@/lib/admin/dancers/dancers.shared";
 import {
   findAdministrativeDancer,
   type AdministrativeDancerFieldErrors,
@@ -27,12 +28,12 @@ import {
   type AdministrativeDancerUpdateInput,
   setAdministrativeDancerActiveState,
   updateAdministrativeDancer,
-} from "@/lib/admin-dancers.server";
-import { loadAdminEventContext } from "@/lib/admin-event-context.server";
+} from "@/lib/admin/dancers/dancers.server";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
-} from "@/lib/internal-access.server";
+} from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion_.bailarines_.$dancerId";
 
@@ -316,13 +317,12 @@ export function AdministracionBailarinDetalleRouteView({
                   error={editFieldErrors?.lastName}
                   required
                 />
-                <DateField
+                <DateOnlyField
                   id="bailarin-birth-date"
                   label="Fecha de nacimiento"
                   name="birthDate"
-                  value={values.birthDate}
+                  defaultValue={values.birthDate}
                   error={editFieldErrors?.birthDate}
-                  required
                 />
                 <DocumentTypeField
                   value={values.documentType}
@@ -373,7 +373,7 @@ export function AdministracionBailarinDetalleRouteView({
         </div>
 
         <ReadOnlyCard title="Participación">
-          <DetailRow label="Evento de trabajo">
+          <DetailRow label="Evento activo">
             {getAdminDancerParticipationSummary(dancer.participationStatus)}
           </DetailRow>
           {dancer.choreographyNames.length > 0 ? (
@@ -605,47 +605,6 @@ function CorrectionReasonField({
   );
 }
 
-function DateField({
-  error,
-  id,
-  label,
-  name,
-  required = false,
-  value,
-}: {
-  error?: string;
-  id: string;
-  label: string;
-  name: string;
-  required?: boolean;
-  value: string;
-}) {
-  const errorId = error ? `${id}-error` : undefined;
-
-  return (
-    <div className="grid gap-2">
-      <label htmlFor={id} className="text-sm font-medium text-slate-900">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={name}
-        type="date"
-        required={required}
-        defaultValue={value}
-        aria-describedby={errorId}
-        aria-invalid={error ? true : undefined}
-        className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring aria-[invalid=true]:border-red-500"
-      />
-      {error ? (
-        <p id={errorId} className="text-xs text-red-700">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function TextField({
   error,
   id,
@@ -710,6 +669,7 @@ function buildBackToListHref(requestUrl: string) {
 
   searchParams.delete(adminDancerSavedSearchParam);
   searchParams.delete("modo");
+  searchParams.delete("evento");
   const search = searchParams.toString();
 
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
@@ -719,6 +679,7 @@ function buildModeHref(url: URL, dancerId: string, mode: "editar" | null) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete(adminDancerSavedSearchParam);
+  searchParams.delete("evento");
 
   if (mode === null) {
     searchParams.delete("modo");
@@ -738,6 +699,7 @@ function buildSavedDetailHref(requestUrl: string, dancerId: string) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete("modo");
+  searchParams.delete("evento");
   searchParams.set(adminDancerSavedSearchParam, "1");
 
   return `/administracion/bailarines/${dancerId}?${searchParams.toString()}`;

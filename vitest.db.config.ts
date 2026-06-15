@@ -11,6 +11,9 @@ const semanticConventionsStub = fileURLToPath(
     import.meta.url,
   ),
 );
+const standardWebhooksStub = fileURLToPath(
+  new URL("./tests/stubs/standardwebhooks.ts", import.meta.url),
+);
 
 export default mergeConfig(
   viteConfig,
@@ -21,13 +24,13 @@ export default mergeConfig(
           find: /^@opentelemetry\/semantic-conventions$/,
           replacement: semanticConventionsStub,
         },
+        {
+          find: /^standardwebhooks$/,
+          replacement: standardWebhooksStub,
+        },
       ],
     },
     test: {
-      deps: {
-        fallbackCJS: true,
-        inline: true,
-      },
       exclude: ["**/.sandcastle/**"],
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
@@ -42,6 +45,12 @@ export default mergeConfig(
       setupFiles: ["./tests/db/setup.ts"],
       sequence: {
         concurrent: false,
+      },
+      server: {
+        deps: {
+          fallbackCJS: true,
+          inline: true,
+        },
       },
       hookTimeout: 30_000,
       testTimeout: 30_000,

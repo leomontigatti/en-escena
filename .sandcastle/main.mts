@@ -65,6 +65,7 @@ const issueContextSchema = z.object({
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
 const CODEX_MODEL = "gpt-5.4";
+const REVIEWER_CODEX_MODEL = "gpt-5.5";
 const CODEX_EFFORT = "medium";
 const READY_FOR_AGENT_LABEL = "ready-for-agent";
 const DEFAULT_SANDBOX_DOCKER_NETWORK = "en-escena_default";
@@ -172,7 +173,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
           const review = await sandbox.run({
             name: "reviewer",
             maxIterations: 1,
-            agent: createCodexAgent(),
+            agent: createCodexAgent(REVIEWER_CODEX_MODEL),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
               BASE_BRANCH: TARGET_BRANCH,
@@ -289,8 +290,8 @@ function usageMessage(): string {
   return "Usage: npm run sandcastle [-- --issue <number>] or npm run sandcastle [-- <number>]";
 }
 
-function createCodexAgent(): ReturnType<typeof sandcastle.codex> {
-  const provider = sandcastle.codex(CODEX_MODEL, { effort: CODEX_EFFORT });
+function createCodexAgent(model = CODEX_MODEL): ReturnType<typeof sandcastle.codex> {
+  const provider = sandcastle.codex(model, { effort: CODEX_EFFORT });
 
   return {
     ...provider,
@@ -344,7 +345,7 @@ async function planNextIssues(): Promise<readonly PlannedIssue[]> {
     // One iteration is enough: the planner just needs to read and reason,
     // not write code. (Structured output requires maxIterations: 1.)
     maxIterations: 1,
-    // Use the same Codex model across planning, implementation, and review.
+    // Use the default Codex model for planning.
     agent: createCodexAgent(),
     promptFile: "./.sandcastle/plan-prompt.md",
     // Extract and validate the <plan> JSON into a typed object. Retry output

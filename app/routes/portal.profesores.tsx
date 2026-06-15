@@ -8,19 +8,19 @@ import {
   AccessNotice,
   AccessSecondaryLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
+} from "@/components/auth/access-ui";
+import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   getPortalRecordStatusSearch,
   readPortalRecordStatusFilter,
   type PortalRecordStatusFilter,
-} from "@/lib/portal-route-state";
+} from "@/lib/portal/route-state";
 import {
   createAcademyProfessor,
   listAcademyProfessors,
   type CreateProfessorInput,
-} from "@/lib/portal-professors.server";
+} from "@/lib/portal/professors.server";
 
 type PortalProfesoresRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;

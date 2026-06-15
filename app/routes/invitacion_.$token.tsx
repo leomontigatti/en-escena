@@ -8,13 +8,16 @@ import {
   AccessPage,
   AccessSecondaryLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
-import { getLandingPathForUserId } from "@/lib/internal-navigation.server";
+} from "@/components/auth/access-ui";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
+import { getLandingPathForUserId } from "@/lib/auth/internal-navigation.server";
 import {
   completeInternalUserInvitation,
   getInternalInvitationTokenStatus,
-} from "@/lib/internal-user-invitation.server";
+} from "@/lib/admin/users/user-invitation.server";
 
 import type { Route } from "./+types/invitacion_.$token";
 

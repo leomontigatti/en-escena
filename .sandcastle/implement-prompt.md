@@ -39,8 +39,10 @@ whole diffs unless a failure requires it. When a command can produce a lot of
 output, narrow it with paths, patterns, or line ranges before running it.
 Read `docs/agents/*`, `CONTEXT.md`, and ADRs only when the issue touches agent
 workflow, auth, database/domain behavior, UI/style, or when the issue context is
-ambiguous. The validation order for this repo is already listed below; do not
-rediscover it by reading workflow docs unless they are relevant to the task.
+ambiguous. Do not read coding standards just to do a general cleanup pass; the
+reviewer owns standards and maintainability review. The validation order for
+this repo is already listed below; do not rediscover it by reading workflow docs
+unless they are relevant to the task.
 
 # PROGRESS UPDATES
 
@@ -59,6 +61,11 @@ updates. Detailed command traces belong in Sandcastle logs. Mention individual
 commands only when they fail, change state, or are the validation result.
 
 # EXECUTION
+
+Focus on implementing the requested behavior. Keep code clear enough to finish
+the issue safely, but do not spend time on broad refactors, stylistic cleanup,
+or maintainability review that is not required for the task. The reviewer will
+apply project coding standards after implementation.
 
 If applicable, use RGR to complete the task.
 

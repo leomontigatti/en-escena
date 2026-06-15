@@ -2,8 +2,8 @@ import {
   AccessHeader,
   AccessPage,
   PrivateAccessHeader,
-} from "@/components/access-ui";
-import { requireAuditorPanelUser } from "@/lib/internal-navigation.server";
+} from "@/components/auth/access-ui";
+import { requireAuditorPanelUser } from "@/lib/auth/internal-navigation.server";
 import { Link } from "react-router";
 
 import type { Route } from "./+types/auditoria";
@@ -18,13 +18,13 @@ const auditoriaLinks = [
     to: "/administracion/profesores",
     title: "Profesores",
     description:
-      "Consultá Profesores en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+      "Consultá Profesores en la vista compartida del Panel de administración, con contexto de Evento activo y sin controles de edición.",
   },
   {
     to: "/administracion/bailarines",
     title: "Bailarines",
     description:
-      "Consultá Bailarines en la vista compartida del Panel de administración, con contexto de Evento de trabajo y sin controles de edición.",
+      "Consultá Bailarines en la vista compartida del Panel de administración, con contexto de Evento activo y sin controles de edición.",
   },
 ] as const;
 
@@ -59,8 +59,8 @@ export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Consultá las vistas compartidas del Panel de administración. Estas
-          rutas usan el Evento de trabajo seleccionado y se mantienen en solo
-          lectura para Auditoría.
+          rutas usan el Evento activo y se mantienen en solo lectura para
+          Auditoría.
         </p>
       </div>
 

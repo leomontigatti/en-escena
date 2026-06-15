@@ -1,14 +1,14 @@
 import { Form, Link, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AdminShell } from "@/components/admin-shell";
+import { AdminShell } from "@/components/admin/shell";
 import {
   internalInvitationRoleLabels,
   internalInvitationRoles,
   isInternalInvitationRole,
-} from "@/lib/internal-invitation.shared";
-import { createInternalInvitation } from "@/lib/internal-invitation.server";
-import { requireAdminPanelUser } from "@/lib/internal-navigation.server";
+} from "@/lib/admin/users/internal-invitation.shared";
+import { createInternalInvitation } from "@/lib/admin/users/internal-invitation.server";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/administracion_.usuarios.invitaciones";
 

@@ -10,6 +10,10 @@ Use `npm run typecheck` for type validation.
 
 Do not run `npx tsc` directly. `npm run typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app.
 
+When reading React Router flat-route files with shell commands, quote paths that
+contain `$` segments so the shell does not expand route params. For example, use
+`sed -n '1,220p' 'app/routes/administracion_.eventos_.$eventId.tsx'`.
+
 Recommended validation order after code changes:
 
 1. `npm run format`
@@ -33,13 +37,13 @@ sibling of the list route unless the list component intentionally renders an
 Use a trailing underscore on the list segment in child filenames to avoid
 accidental parent/child nesting:
 
-- List: `administracion_.ajustes_.eventos.tsx`
-- Detail sibling: `administracion_.ajustes_.eventos_.$eventId.tsx`
-- New-form sibling: `administracion_.ajustes_.eventos_.nuevo.tsx`
+- List: `administracion_.eventos.tsx`
+- Detail sibling: `administracion_.eventos_.$eventId.tsx`
+- New-form sibling: `administracion_.eventos_.nuevo.tsx`
 
-Do not use `administracion_.ajustes_.eventos.$eventId.tsx` or
-`administracion_.ajustes_.eventos.nuevo.tsx` unless
-`administracion_.ajustes_.eventos.tsx` renders `<Outlet />`. Without an outlet,
+Do not use `administracion_.eventos.$eventId.tsx` or
+`administracion_.eventos.nuevo.tsx` unless
+`administracion_.eventos.tsx` renders `<Outlet />`. Without an outlet,
 the child route matches but the user keeps seeing the parent list instead of the
 detail or form screen.
 

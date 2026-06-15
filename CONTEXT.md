@@ -1,261 +1,273 @@
 # En Escena
 
-Glosario del dominio de competencias de danza. Define los términos de negocio canónicos usados por el producto.
+Glosario del dominio de competencias de danza. Define términos canónicos; las reglas detalladas viven en [docs/domain/](docs/domain/).
 
 ## Lenguaje
 
 **Evento**:
-Una edición concreta de la competencia de danza, con sus propias fechas, configuración, inscripciones, cronograma, jueces, puntajes y premios. Tiene un único período de inscripción y define el porcentaje de seña requerido y las reglas de descuento por bailarín. Su condición activa indica si está visible u operable para academias en el portal, especialmente para inscripción y gestión; no controla la publicación de resultados, la visibilidad del programa ni oculta resultados ya publicados. Como máximo puede haber un Evento activo global. Su estado indica el ciclo de vida temporal.
+Edición concreta de una competencia de danza, con fechas, configuración, inscripciones, cronograma, jueces, puntajes y premios propios.
 _Evitar_: Concurso, temporada, edition
 
 **Evento activo**:
-Evento único que administración marca como operativo global para el producto. Como máximo puede haber un Evento activo global; también puede no haber ninguno. Es el contexto por defecto para la operación diaria, gobierna qué evento usan inicialmente el Panel de administración y el Portal de academias, y limita las mutaciones operativas, financieras, de coreografías, puntajes y premios salvo excepciones explícitas como la publicación de visibilidad del programa o resultados. Puede ser futuro o finalizado; las fechas del evento y del período de inscripción siguen controlando si una academia puede registrar coreografías.
-_Evitar_: Estado del evento, Evento de trabajo, Evento consultado
-
-**Evento de trabajo**:
-Evento seleccionado por administración para consultar u operar una vista del Panel de administración. Por defecto es el Evento activo cuando existe, pero puede ser otro evento histórico o futuro para revisar listas, ajustar visibilidad o preparar configuración. Cuando el Evento de trabajo no es el Evento activo, las vistas deben dejar claro que el contexto no es el operativo global y que las mutaciones ordinarias siguen restringidas por el Evento activo y sus reglas.
-_Evitar_: Evento activo, Evento consultado, filtro oculto
-
-**Evento consultado**:
-Evento seleccionado por una academia dentro del Portal de academias para consultar secciones específicas de evento, como coreografías, pagos, programa, puntajes o premios propios. El selector de Evento consultado muestra todos los Eventos y permite revisar eventos aunque la academia no tenga coreografías allí. Por defecto usa el Evento activo cuando existe; si no hay Evento activo, usa el evento más reciente. Consultar un evento no activo es de solo lectura: crear, editar o eliminar coreografías queda limitado al Evento activo, al período de inscripción y a las reglas de registro y eliminación.
-_Evitar_: Evento activo, Evento de trabajo, evento visible
+Evento único que administración marca como operativo global para el producto. Como máximo puede haber un Evento activo global; también puede no haber ninguno. Es el único contexto de evento para la primera versión del Panel de administración y del Portal de academias.
+_Evitar_: Estado del evento, filtro de evento oculto, evento consultado
 
 **Estado del evento**:
-Ciclo de vida temporal automático de un evento, calculado a partir de sus fechas de inicio y finalización. Sus valores son no iniciado, en curso y finalizado. No lo cambia administración manualmente y no depende de la publicación de resultados.
+Ciclo de vida temporal automático de un evento, calculado a partir de sus fechas de inicio y finalización.
 _Evitar_: Activo, visible
 
 **Visibilidad de resultados**:
-Condición que indica si los resultados de un evento están visibles u ocultos. Administración la controla con una acción de publicar o despublicar resultados. Es independiente de la condición activa del evento y de su estado temporal automático.
+Condición que indica si los resultados de un evento están visibles u ocultos.
 _Evitar_: Estado del evento, active
 
 **Bloque horario**:
-Franja de programación de un evento, con nombre, fecha, hora y cupo total de coreografías. Puede estar relacionado con muchas modalidades y con uno o más cronogramas que comparten su cupo. Una coreografía solo puede usar un cronograma si el bloque horario de ese cronograma acepta su modalidad.
+Franja de programación de un evento, con nombre, fecha local, hora local y cupo total de coreografías.
 _Evitar_: Cronograma, horario suelto
 
 **Cronograma**:
-Distribución de cupo de coreografías dentro de un bloque horario, relacionada con tipos de grupo. La suma de los cupos de los cronogramas de un bloque no puede superar el cupo total de ese bloque. Cada coreografía registrada consume un lugar del cupo del cronograma elegido, incluso si está impaga. Una coreografía solo puede usar un cronograma si ese cronograma acepta su tipo de grupo. La elección de cronograma no depende de la categoría. En este dominio no significa la agenda completa del evento.
+Distribución de cupo de coreografías dentro de un bloque horario, relacionada con tipos de grupo.
 _Evitar_: Bloque horario, agenda completa
 
 **Academia**:
-Entidad participante que puede inscribirse en eventos y cargar profesores, bailarines y coreografías. No es lo mismo que un usuario de acceso al sistema. Sus datos propios incluyen la información operativa de contacto cargada durante el registro público de academia, como nombre de la academia, nombre de contacto y teléfono. El teléfono de contacto es obligatorio, pero no exige un formato internacional estricto. En la primera versión, una academia tiene un único usuario de academia para administrar su portal. El nombre de academia no necesita ser único en el sistema; la identidad de acceso se controla por el correo del usuario.
+Entidad participante que puede inscribirse en eventos y cargar profesores, bailarines y coreografías.
 _Evitar_: Usuario, profesor, escuela, delegación
 
 **Registro público de academia**:
-Flujo público por el que una academia crea su acceso inicial al sistema. Comienza con una página pública donde se ingresa solo un correo electrónico; si corresponde continuar, el sistema envía a ese correo un enlace de uso único con vigencia limitada de un día. Ese enlace lleva al formulario de registro, donde el correo ya viene determinado por el enlace y no se edita. En el formulario se completan datos obligatorios de la academia, como nombre de la academia, nombre de contacto y teléfono, además de la contraseña y confirmación de contraseña del usuario de acceso. Cuando el correo queda confirmado mediante el enlace y el formulario se completa correctamente, la academia queda autenticada y puede ingresar automáticamente al portal de academias sin aprobación administrativa previa ni inicio de sesión adicional. Puede crear una academia aunque no haya evento activo; el evento activo y el período de inscripción condicionan el registro de coreografías, no el acceso inicial de la academia. Si el correo ingresado ya pertenece a un usuario existente, el flujo no debe revelar públicamente esa condición; la respuesta visible es la misma que para un correo registrable, y el correo recibido orienta al usuario existente hacia el inicio de sesión o recuperación de acceso. Debe mantener separadas la entidad academia y la identidad de acceso del usuario que la administra. El registro público no implica que cualquier usuario pueda administrar datos de otra academia ni reemplaza las acciones administrativas sobre permisos, auditoría o juzgamiento.
+Flujo público por el que una academia crea su acceso inicial al sistema.
 _Evitar_: Registro de coreografía, usuario público, cuenta libre
 
 **Portal de academias**:
-Área privada donde una academia gestiona sus datos y consulta información propia del evento. Tiene secciones operativas para profesores, bailarines y coreografías, cada una con vista de lista, carga rápida desde las listas y formulario de edición cuando corresponde. La academia puede gestionar profesores y bailarines aunque no haya un evento activo; el evento activo y el período de inscripción controlan el registro y gestión ligada a coreografías del evento. Las secciones específicas de evento usan un Evento consultado, muestran todos los Eventos disponibles y permiten revisar historial propio aunque el evento no sea activo o la academia no tenga coreografías allí. En esas secciones, las mutaciones quedan limitadas por el Evento activo y las reglas de inscripción, registro y eliminación; los Eventos no activos se consultan en modo lectura. Si no hay evento activo, la sección coreografías no se oculta: muestra un estado vacío explicando que no hay evento disponible para registrar coreografías. Si hay evento activo pero el período de inscripción no empezó o ya terminó, la sección muestra las coreografías existentes, deshabilita crear nuevas y muestra un mensaje con las fechas del período de inscripción. Fuera del período de inscripción, la academia conserva la posibilidad de eliminar coreografías impagas que cumplan las reglas de eliminación. Tiene una sección de consulta para precios y pagos que muestra todas las coreografías de la academia, incluso impagas, operativamente incompletas y sin factura vigente, con información financiera y detalles de solo lectura. La academia ve el precio por primera vez en esta sección, después de creada la coreografía, no durante el registro. En lista y detalle financiero muestra precio estimado para coreografías impagas o señadas, y precio final solo para coreografías pagadas. En el detalle financiero muestra el desglose de precio bruto, seña requerida, descuentos aplicados, total, importe imputado y saldo pendiente. Para coreografías impagas, el detalle aclara que el precio puede variar hasta alcanzar la seña; para coreografías señadas, aclara que los descuentos pueden variar hasta completar el pago. Cuando hay descuentos por bailarín, muestra el nombre del bailarín, porcentaje y monto del descuento aplicado. Esta consulta no muestra el saldo disponible de la cuenta corriente de la academia. También tiene una sección de puntajes y premios derivada de las presentaciones de la academia: si no hay programa creado o publicado, la lista está vacía; cuando existe programa visible, muestra el mismo programa público filtrado por la academia logueada, con coreografías que tienen presentación y número de orden, pero sin puntajes, promedio ni premio; una presentación todavía no resuelta se muestra como pendiente; cuando una presentación ya está resuelta antes de publicar resultados, se muestra como presentada sin distinguir si fue evaluada, descalificada o ausencia inferida. Antes de publicar resultados, el detalle de una presentación funciona como detalle privado de programa, con orden, bloque horario, cronograma, modalidad, categoría, tipo de grupo, bailarines propios y profesores vinculados, sin puntajes ni estados sensibles. Cuando administración publica resultados, la sección muestra puntajes, devoluciones, promedio y premio, y reemplaza los estados no sensibles por los estados reales de participación. El portal no necesita una sección separada de participación. Toda la interfaz visible del portal usa español.
+Área privada donde una academia gestiona sus datos y consulta información propia del evento activo.
 _Evitar_: Administración, vista pública
 
 **Panel de administración**:
-Área privada para operación, auditoría y configuración del evento. Su dashboard ofrece accesos directos a vistas de lista operativas como coreografías, academias, profesores, bailarines, pagos, premios y ajustes. En la primera versión, las listas operativas usan por defecto el Evento activo, pero pueden consultar otro Evento de trabajo seleccionado por administración cuando la vista lo permite. Las listas de coreografías, participaciones, pagos, puntajes y premios se filtran por el Evento de trabajo; si ese evento no es el Evento activo, la interfaz debe mostrar que el contexto es de consulta o trabajo limitado y no reemplaza el Evento activo global. Las coreografías se consultan desde listas separadas por eje, como operativo, financiero o participación, con acciones y badges propios de cada eje. Las listas de academias, profesores y bailarines tienen un filtro participando, activo por defecto, que muestra solo entidades con inscripciones en el Evento de trabajo. Administración no crea coreografías, profesores ni bailarines, tampoco como excepción; esas altas pertenecen exclusivamente al portal de academias. Un administrador puede invitar usuarios internos por correo electrónico y asignarles permisos de administración, auditoría o juzgamiento; el usuario invitado define su propia contraseña mediante el enlace recibido. Desde administración se auditan y se modifican solo los campos permitidos por reglas específicas. Toda la interfaz visible del panel usa español.
+Área privada para operación, auditoría y configuración del evento activo.
 _Evitar_: Portal de academias, vista pública
 
 **Lista operativa de coreografías**:
-Vista administrativa de coreografías centrada en completitud y consistencia de datos. Permite revisar pendientes y editar datos operativos habilitados. El recálculo operativo vive en el detalle o formulario de la coreografía cuando cambia el roster, no como botón masivo en la lista. Puede mostrar si una coreografía impaga es eliminable por la academia y, si no lo es, el motivo interno de soporte, como documento financiero vigente, presentación existente o estado distinto de impaga. Administración no ejecuta esa eliminación como acción normal. No es el lugar principal para generar presentaciones.
+Vista administrativa de coreografías centrada en completitud y consistencia de datos.
 _Evitar_: Lista financiera, lista de participación
 
 **Lista financiera de coreografías**:
-Vista administrativa de coreografías centrada en estado financiero. Permite revisar estados e importes financieros y acceder al detalle de cada coreografía. El recálculo de precio vive en el detalle de la coreografía, no como botón global ni como acción masiva de lista. Acciones como crear factura de seña, crear factura de saldo, imputar pagos, cancelar o acreditar documentos financieros son acciones de instancia y viven en el detalle de la coreografía o del documento correspondiente, no como acciones masivas de lista. La cuenta corriente completa se consulta desde el detalle de la academia, no como saldo editable dentro de cada coreografía.
+Vista administrativa de coreografías centrada en estado financiero.
 _Evitar_: Lista operativa, cuenta corriente de academia
 
 **Lista de participación de coreografías**:
-Vista administrativa de coreografías centrada en presentaciones, programa y evaluación. Es el lugar principal para generar presentaciones, revisar orden, asignar jueces y seguir estados de participación. Asignar número de orden de presentación es una acción de lista aplicada a coreografías seleccionadas desde esta vista; crea o actualiza presentaciones según la selección filtrada y la regla de orden definida. Si una coreografía seleccionada ya tiene una presentación editable, la acción puede reordenarla; si la presentación ya tiene puntajes o está descalificada, no se reordena. Los motivos iniciales para omitir una coreografía al asignar orden son: está impaga, no tiene categoría asignada, no tiene cronograma, su presentación ya no es editable, o no pertenece al evento activo. Asignar jueces también es una acción de lista, aplicada a presentaciones seleccionadas; omite presentaciones sin número de orden, no editables o descalificadas. No hay recálculo masivo desde esta lista.
+Vista administrativa de coreografías centrada en presentaciones, programa y evaluación.
 _Evitar_: Lista operativa, lista financiera
 
 **Participando**:
-Indicador operativo usado en administración para academias, profesores y bailarines. En academias es verdadero cuando tiene al menos una coreografía registrada en el evento activo, aunque esté impaga. En profesores es verdadero cuando están vinculados a una coreografía del evento activo, no solo por pertenecer a una academia participante. En bailarines es verdadero cuando tienen al menos una inscripción en una coreografía del evento activo, aunque esa coreografía esté impaga. En las listas de administración aparece como filtro explícito y queda activo por defecto. No representa una marca manual de asistencia ni un estado competitivo.
+Indicador operativo usado en administración para academias, profesores y bailarines con inscripción en el Evento activo.
 _Evitar_: Presentada, estado de participación
 
 **Ajustes de administración**:
-Área del panel de administración destinada a configuración y catálogos. Incluye menús como eventos, categorías, modalidades, cronogramas y tarifas. No reemplaza las listas operativas del dashboard; concentra reglas y datos maestros que administración usa para preparar o ajustar el evento.
+Área del panel destinada a configuración global y configuración del evento activo.
 _Evitar_: Dashboard, operación diaria
 
+**Bases del evento**:
+Conjunto de reglas y datos maestros propios de un Evento que definen cómo se registra, programa, calcula, cobra y compite una coreografía.
+_Evitar_: Configuración del Evento, settings, configuration
+
 **Acción de lista**:
-Operación administrativa disponible desde una vista de lista y aplicada a una o más instancias seleccionadas. Sirve para acciones masivas o contextuales sobre un conjunto filtrado, como asignar número de orden de presentación o asignar jueces. Cuando la selección mezcla instancias elegibles y no elegibles, la acción puede procesar las elegibles y reportar las omitidas con su motivo. No se usa para recálculos de coreografía.
+Operación administrativa disponible desde una vista de lista y aplicada a una o más instancias seleccionadas.
 _Evitar_: Acción de instancia, edición de formulario
 
 **Acción de instancia**:
-Operación administrativa disponible dentro de la vista de formulario o detalle de una instancia concreta. Sirve para acciones que requieren revisar el contexto completo de esa instancia antes de ejecutarse, como crear factura de seña, crear factura de saldo, imputar un pago a una factura, cancelar un documento financiero o recalcular la información de una coreografía.
+Operación administrativa disponible dentro de la vista de formulario o detalle de una instancia concreta.
 _Evitar_: Acción de lista, acción masiva
 
 **Usuario**:
-Identidad de acceso al sistema. Se compone de credenciales mínimas, como correo electrónico verificado y contraseña, más un único permiso principal de academia, administración, auditoría o juzgamiento. La contraseña debe tener al menos 8 caracteres y no requiere reglas obligatorias de mayúsculas, números o símbolos. Los datos operativos de contacto de una academia no pertenecen al usuario, pertenecen a la academia. Un usuario de academia administra una sola academia y, en la primera versión, una academia tiene un único usuario de academia. Un usuario interno no combina roles; si una misma persona necesita operar con permisos distintos, usa usuarios distintos. Un usuario auditor es de solo lectura en todo el sistema y no puede crear, editar, publicar, despublicar, anular ni corregir nada.
+Identidad de acceso al sistema, con credenciales y un permiso principal.
 _Evitar_: Academia, profesor, cuenta de academia
 
+**Nombre de usuario interno**:
+Identificador de acceso para usuarios internos sin depender de un correo electrónico válido.
+_Evitar_: Correo interno, alias, cuenta
+
 **Recuperación de acceso**:
-Flujo por el que un usuario existente recupera su acceso mediante un enlace enviado a su correo electrónico verificado para definir una nueva contraseña. No crea una academia ni cambia los permisos del usuario.
+Flujo por el que un usuario existente recupera su acceso mediante un enlace enviado a su correo verificado.
 _Evitar_: Registro público de academia, invitación de usuario
 
+**Restablecimiento administrativo de contraseña**:
+Acción administrativa que asigna una nueva contraseña temporal a un usuario interno y exige cambio obligatorio de contraseña.
+_Evitar_: Recuperación de acceso, invitación de usuario interno
+
 **Sesión de acceso**:
-Período autenticado de un usuario dentro del sistema. Está limitada por inactividad a 8 horas para todos los permisos y se cierra manualmente con la acción de salir, que afecta solo a la sesión actual.
+Período autenticado de un usuario dentro del sistema.
 _Evitar_: Registro, invitación, recuperación de acceso
 
+**Cambio obligatorio de contraseña**:
+Condición de un usuario interno que debe definir una contraseña propia antes de acceder a su área privada.
+_Evitar_: Recuperación de acceso, invitación de usuario interno
+
+**Usuario suspendido**:
+Usuario que conserva su historial pero no puede iniciar ni mantener sesiones de acceso.
+_Evitar_: Usuario eliminado, usuario inactivo, baja
+
 **Administrador**:
-Usuario con permisos de operación sobre el evento y sus excepciones. Puede crear, editar y borrar entidades operativas del evento y ejecutar acciones administrativas sobre coreografías, presentaciones, puntajes, resultados, ajustes y financieros. El primer administrador se crea fuera del registro público y fuera de una pantalla pública; a partir de ese acceso inicial, puede invitar otros usuarios internos por correo electrónico y asignar permisos de administración, auditoría o juzgamiento, pero no crea academias, profesores ni bailarines, que pertenecen exclusivamente al portal de academias.
+Usuario con permisos de operación sobre el evento y sus excepciones.
 _Evitar_: Auditor, usuario de academia
 
 **Invitación de usuario interno**:
-Flujo administrativo para habilitar un usuario de administración, auditoría o juzgamiento. Administración define el correo electrónico y el permiso principal; el usuario invitado recibe un enlace para confirmar el correo y definir su contraseña. No se usa para crear academias.
+Flujo administrativo para habilitar un usuario de administración, auditoría o juzgamiento.
 _Evitar_: Registro público de academia, recuperación de acceso
 
 **Juez**:
-Usuario interno creado por administración con credenciales normales de acceso. Está asignado a evaluar presentaciones de un evento. Solo puede cargar, confirmar o modificar sus propios puntajes y devoluciones sobre presentaciones asignadas. No administra coreografías, no ve ni modifica entidades ajenas a sus asignaciones y no ejecuta acciones operativas, financieras ni de publicación.
+Usuario interno asignado a evaluar presentaciones de un evento.
 _Evitar_: Administrador, auditor
 
 **Publicación de resultados**:
-Acción administrativa única que habilita o oculta los resultados públicos y los resultados de academia para un evento. Solo puede ejecutarla un administrador. Requiere que el evento tenga sus grupos competitivos resueltos y puede revertirse con la misma autoridad.
+Acción administrativa única que habilita u oculta los resultados públicos y de academia para un evento.
 _Evitar_: Estado del evento, visibilidad del programa
 
 **Documento financiero**:
-Registro financiero administrado por un administrador, como factura o nota de crédito. Solo el administrador puede cancelarlo, acreditarlo, anularlo o corregirlo. Estos movimientos tienen trazabilidad y afectan el estado financiero de la coreografía vinculada.
+Registro financiero administrado por un administrador, como factura o nota de crédito.
 _Evitar_: Pago, imputación, estado financiero
 
 **Profesor**:
-Persona asociada a una academia y cargada por esa academia como parte de sus datos. No es el dueño operativo de la cuenta de la academia. Puede crearse desde una carga rápida solo con nombre y apellido, incluso fuera del período de inscripción. Tipo de documento y número de documento se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse. Si ambos faltan, el profesor se muestra con badge incompleto en la lista y en el formulario se alerta que faltan esos datos, sin bloquear la edición ni su uso en coreografías. Si uno está completo y el otro vacío, la ficha es inválida y no se guarda. Si tiene identificación completa, no necesita mostrar un badge permanente de completo. Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia tanto al crear como al editar. No tiene verificación manual administrativa: solo se distingue si sus datos de identificación están completos o incompletos. La academia puede editar la ficha del profesor aunque esté vinculado a una coreografía con factura vigente, señada o ya presentada, porque no modifica cálculo, cupo, precio ni ranking; lo que puede bloquearse es el vínculo del profesor dentro de una coreografía ya no pendiente.
+Persona asociada a una academia y cargada por esa academia como parte de sus datos.
 _Evitar_: Usuario, administrador
 
 **Inscripción**:
-Vínculo entre una coreografía y un bailarín. Representa que ese bailarín participa en esa coreografía dentro de un evento concreto, y es la unidad sobre la que se calculan costos y descuentos del bailarín dentro de su academia. No cruza academias. Si la coreografía se elimina, sus inscripciones se eliminan junto con ella porque no tienen sentido sin esa coreografía.
+Vínculo entre una coreografía y un bailarín dentro de un evento concreto.
 _Evitar_: Participación de academia, cuenta
 
 **Coreografía**:
-Coreografía registrada por una academia para un evento concreto. Se registra con modalidad, bailarines, tipo de grupo, categoría, nivel de experiencia cuando corresponde y cronograma disponible. Puede crearse sin profesores, pero necesita al menos un profesor para estar completa. Puede quedar sin asignar a una categoría cuando falta una regla de categoría aplicable. Tiene un estado operativo y un estado financiero. La academia puede eliminarla en cualquier momento mientras siga impaga, no tenga documentos financieros vigentes vinculados y no tenga presentación; si no cumple esas condiciones, el botón eliminar no aparece en el portal de academias. La existencia de un documento financiero vigente bloquea también la eliminación. Al eliminarla libera el cupo que consumía en el cronograma, no recalcula descuentos de otras coreografías porque no contaba para el umbral, y no queda como entidad visible de dominio. Si la elimina fuera del período de inscripción, no puede registrarla nuevamente salvo que administración ajuste el período de inscripción del evento; la confirmación de eliminación debe advertir explícitamente esta consecuencia. Una vez señada, la academia no puede editar datos bloqueados ni bailarines hasta que administración quite el vínculo financiero vigente y la desbloquee. No es reutilizable entre eventos. Los profesores no son fuente de recálculo; el recálculo automático se dispara al cambiar el roster de bailarines o al aplicar una corrección estructural sobre la coreografía.
+Coreografía registrada por una academia para un evento concreto.
 _Evitar_: Obra reutilizable, inscripción, número
 
 **Registro de coreografía**:
-Flujo del portal de academias para crear una coreografía en el evento activo dentro del período de inscripción. Durante el flujo se trabajan datos temporales y la coreografía se crea recién al confirmar el registro final. Antes de esa confirmación no consume cupo, no genera estado financiero y no queda como coreografía incompleta por abandono del formulario. Consultar cronogramas disponibles no reserva cupo. Si la modalidad elegida tiene submodalidades, la academia debe elegir una; si no tiene, el paso de submodalidad se salta y queda vacío. El cálculo puede dejar la categoría sin asignar; eso no bloquea confirmar el registro, pero la coreografía nace operativamente incompleta. Si no hay categoría asignada, el paso de nivel de experiencia se salta, el nivel queda vacío y no editable hasta que una categoría sea recalculada. Si la categoría calculada tiene niveles de experiencia, el registro no puede avanzar ni confirmarse hasta que la academia elija uno. Los profesores se eligen después de cronograma y nivel de experiencia, antes del resumen; pueden quedar vacíos y en ese caso la coreografía nace operativamente incompleta. El resumen del registro muestra solo información operativa: valores elegidos y calculados por el sistema, incluyendo tipo de grupo, categoría y edad usada para calcular la categoría, incluso cuando la categoría queda sin asignar, sin detallar la regla interna aplicada para coreografías grupales. No muestra precio ni información financiera. Para tipos de grupo solo, dúo y trío, lista nombres y edades de los bailarines seleccionados; para grupales, muestra solo la cantidad de bailarines seleccionados. El registro no permite crear bailarines ni profesores inline; esas entidades deben cargarse previamente desde sus secciones para evitar mezclar flujos o abrir modales sobre modales. Si la academia llega al paso de bailarines sin bailarines cargados, no se muestra el selector; se muestra un texto indicando que para continuar primero debe crear un bailarín y un botón que redirige a la lista de bailarines. Si hay bailarines cargados, el selector permite elegirlos aunque estén incompletos, sin imágenes o no verificados, porque el estado documental no bloquea participación; muestra nombre y edad calculada contra el evento activo, pero los badges documentales se muestran solo en la lista de bailarines. Si llega al paso de profesores sin profesores cargados, se muestra un estado vacío con botón hacia la lista de profesores, pero puede continuar sin seleccionar. El archivo de música no se carga durante el registro inicial; queda como dato operativo pendiente para completar después desde el formulario de la coreografía. Al confirmar, el backend vuelve a validar cupo del cronograma elegido; si ya no hay lugar, rechaza el registro. Si existen otros cronogramas disponibles, la academia debe elegir otro. Si no queda ningún cronograma disponible, el modal se cierra y se muestra un aviso con el motivo por el que no se registró la coreografía.
+Flujo del portal de academias para crear una coreografía en el Evento activo dentro del período de inscripción.
 _Evitar_: Borrador de coreografía, presentación
 
 **Período de inscripción**:
-Ventana temporal del evento durante la cual las academias pueden registrar coreografías desde el portal. Para registrar una coreografía, el evento debe estar activo y la fecha actual debe estar dentro del período de inscripción. Si administración necesita permitir registros fuera de plazo, la herramienta disponible por ahora es ajustar las fechas generales de inscripción del evento; no hay altas administrativas directas ni ventanas excepcionales por academia.
+Ventana temporal del evento durante la cual las academias pueden registrar coreografías desde el portal.
 _Evitar_: Estado del evento, active
 
 **Datos bloqueados de coreografía**:
-Datos que quedan bloqueados para la academia una vez registrada la coreografía, como nombre, modalidad, submodalidad, tipo de grupo, categoría, nivel de experiencia y cronograma. En el formulario se muestran con su valor actual, pero deshabilitados cuando no pueden editarse. Si la academia necesita corregir datos estructurales de una coreografía impaga sin documentos financieros ni presentación, la vía esperada es eliminarla y registrarla nuevamente. Fuera del período de inscripción, la academia no puede crear coreografías nuevas ni cambiar datos estructurales de una coreografía ya registrada. Administración puede hacer una corrección estructural excepcional como acción de instancia con motivo obligatorio, siempre que la coreografía no tenga presentación ni documentos financieros vigentes. Si esa corrección cambia modalidad, submodalidad o bailarines, se recalculan tipo de grupo, categoría, nivel de experiencia y cronograma con las mismas reglas del registro; si no hay cronograma válido, no se puede guardar. Si la categoría resultante requiere nivel de experiencia, administración debe elegirlo dentro de la misma corrección. Si la coreografía tiene una factura vigente vinculada, la academia no puede editar estos datos, cambiar bailarines ni eliminar la coreografía, aunque esa factura todavía no tenga pagos imputados. Si esos documentos se cancelan o acreditan y queda saldo libre en la cuenta corriente de la academia, la coreografía vuelve a quedar editable y eliminable. Nivel de experiencia se limpia si un recálculo cambia la categoría; vuelve a ser editable si la nueva categoría requiere nivel, y el cambio no puede guardarse sin elegirlo. En una coreografía señada o pagada, ese campo puede abrirse una vez por recálculo y vuelve a bloquearse después de guardar. Cronograma se mantiene si un cambio de bailarines no cambia el tipo de grupo; se limpia si el recálculo cambia el tipo de grupo, vuelve a ser editable cuando corresponde elegir cronograma, y el cambio no puede guardarse sin un cronograma válido.
+Datos de una coreografía que la academia no puede cambiar cuando las reglas del evento o su estado financiero/competitivo los bloquean.
 _Evitar_: Datos operativos pendientes, datos financieros
 
 **Datos operativos pendientes de coreografía**:
-Datos que pueden completarse sin cambiar cálculo, cupo ni ubicación competitiva, como música y profesores. Pueden editarse incluso cuando la coreografía tiene una factura vigente, ya alcanzó la seña o terminó el período de inscripción. Los profesores no disparan recálculo de la coreografía. El archivo de música y los profesores vinculados dejan de ser editables en la coreografía cuando tiene una presentación con estado distinto de pendiente, porque eso indica que ya se presentó, quedó con ausencia inferida o fue descalificada.
+Datos de una coreografía que pueden completarse sin cambiar cálculo, cupo ni ubicación competitiva.
 _Evitar_: Datos bloqueados, datos financieros
 
 **Bailarines de coreografía**:
-Bailarines vinculados a una coreografía mediante inscripciones. La academia puede agregarlos o quitarlos después de registrar la coreografía y antes de señarla. Cada cambio dispara automáticamente el recálculo de tipo de grupo y de sus derivados, como categoría, nivel de experiencia y cronograma. Si el recálculo no encuentra categoría, el cambio puede guardarse como sin asignar y la coreografía queda incompleta. En el formulario de gestión de la coreografía se muestra la lista completa de bailarines vinculados, incluso para coreografías grupales.
+Bailarines vinculados a una coreografía mediante inscripciones.
 _Evitar_: Profesores, datos financieros
 
 **Bailarín**:
-Persona cargada por una academia para participar en coreografías. Puede crearse desde una carga rápida con nombre, apellido y fecha de nacimiento como datos requeridos, incluso fuera del período de inscripción. Tipo de documento y número de documento se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse. Las imágenes del documento son datos de identificación opcionales para la academia. Si un bailarín participa en el evento con otra academia, se lo trata como otra entidad. Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia tanto al crear como al editar. Si ambos datos del par están vacíos, se permite guardar y el bailarín queda incompleto. Si uno está completo y el otro vacío, la ficha es inválida y no se guarda. Su estado de verificación no bloquea su participación ni afecta el estado operativo de las coreografías. Mientras no esté verificado, la academia puede editar sus datos e imágenes aunque esté vinculado a coreografías con factura vigente o señadas. Cambiar la fecha de nacimiento dispara un recálculo automático distinto al recálculo por cambios de roster: se recalcula la categoría de sus coreografías, incluso si están señadas; ese recálculo puede dejar coreografías incompletas, pero no modifica su estado financiero. Ese recálculo solo aplica mientras la coreografía todavía no tiene una presentación resuelta; una vez que la presentación deja de estar pendiente, la fecha de nacimiento ya no puede modificarse para evitar recálculos después de competir.
+Persona cargada por una academia para participar en coreografías.
 _Evitar_: Profesor, usuario
 
 **Estado de verificación de bailarín**:
-Situación de validación documental de un bailarín. Puede ser incompleto cuando faltan datos de identificación, faltan imágenes cuando tiene datos de identificación pero no tiene fotos de documento cargadas, no verificado cuando tiene imágenes pendientes de revisión, o verificado cuando administración validó manualmente que los datos cargados coinciden con las imágenes del documento. El estado se calcula por prioridad: si el par de documento está vacío es incompleto; si la identificación está completa pero faltan imágenes es faltan imágenes; si hay identificación e imágenes sin validación administrativa es no verificado; si administración valida los datos es verificado. Un par de documento parcial no es un estado guardado: es un error de validación del formulario y la ficha no se guarda hasta completar tipo y número de documento o dejar ambos vacíos. En la lista de bailarines se muestra como badge y en el formulario una alerta indica qué datos faltan. Nombre, apellido y fecha de nacimiento siguen siendo requeridos; tipo de documento y número de documento pueden quedar ambos vacíos, y las imágenes del documento no bloquean guardar. La academia no puede modificar ningún dato de identidad ni las imágenes del documento de un bailarín verificado; esto incluye nombre, apellido, fecha de nacimiento, tipo de documento y número de documento. Cualquier corrección posterior queda bajo administración. Si la academia o administración corrigen la fecha de nacimiento, se dispara el recálculo automático de la categoría de sus coreografías señadas o pagadas que todavía no tengan una presentación resuelta; esto no modifica su estado financiero, solo su estado operativo. Ese recálculo deja de aplicar cuando la presentación deja de estar pendiente.
+Situación de validación documental de un bailarín.
 _Evitar_: Estado operativo de coreografía, estado financiero
 
 **Inconsistencia administrativa**:
-Alerta interna de administración para datos que requieren revisión o trazabilidad, pero que no pertenecen al estado operativo, financiero ni competitivo. Puede originarse, por ejemplo, cuando administración corrige la fecha de nacimiento de un bailarín que ya participó en una presentación resuelta, o cuando los datos cargados no coinciden con las imágenes del documento. No bloquea por sí misma participación, pagos, ranking ni publicación de resultados, salvo que una regla específica indique lo contrario.
+Alerta interna de administración para datos que requieren revisión o trazabilidad sin pertenecer al estado operativo, financiero ni competitivo.
 _Evitar_: Estado operativo, estado financiero, descalificación
 
 **Estado operativo de coreografía**:
-Completitud de los datos necesarios para presentar una coreografía. Puede ser incompleta cuando falta cargar algún dato requerido, como música, al menos un profesor, categoría asignada o nivel de experiencia cuando corresponde; o completa cuando tiene todo lo necesario cargado. Para cumplir el requisito de profesor alcanza con tener al menos un profesor vinculado, aunque ese profesor tenga datos de identificación incompletos. El estado documental del bailarín no vuelve incompleta a la coreografía: un bailarín incompleto, sin imágenes o no verificado puede participar sin bloquear la completitud operativa. No impide registrar, pagar, ordenar ni tener en cuenta una coreografía señada o pagada para competir; funciona como alerta operativa de pendientes.
+Completitud de datos necesarios para presentar una coreografía.
 _Evitar_: Estado financiero, estado del evento
 
 **Estado financiero de coreografía**:
-Situación financiera derivada de los documentos e imputaciones vigentes de una coreografía. Puede ser impaga cuando los importes imputados vigentes a la factura de seña no alcanzan la seña requerida por el evento, señada cuando la factura de seña tiene imputación suficiente pero la factura de saldo no está completa, o pagada cuando las facturas de seña y saldo tienen imputaciones suficientes. La emisión de una factura y el saldo libre de la cuenta corriente de la academia no modifican este estado hasta que haya una imputación vigente a un documento de la coreografía. Una coreografía puede tener importes parciales imputados y seguir impaga si no alcanzan la seña. Si administración cancela la factura de saldo de una coreografía pagada, la coreografía vuelve a señada mientras conserve la factura de seña suficientemente imputada. Una coreografía puede estar señada o pagada aunque esté operativamente incompleta. Solo las coreografías señadas o pagadas se tienen en cuenta para ordenar y competir. Si administración cancela todos los documentos vigentes vinculados para habilitar cambios, la coreografía vuelve a impaga.
+Situación financiera derivada de documentos e imputaciones vigentes de una coreografía.
 _Evitar_: Estado operativo, estado del evento
 
 **Presentación**:
-Instancia ordenada de una coreografía para el día del evento. Se crea cuando administración genera el orden de presentación para coreografías señadas o pagadas con categoría asignada, aunque estén operativamente incompletas, y se relaciona uno a uno con una coreografía. Tiene un número de orden único dentro del evento. El orden se asigna por acción administrativa según fecha y hora del bloque horario, categoría de menor a mayor edad y tipo de grupo en el orden solo, dúo, trío y grupal. Administración puede modificar el orden de presentaciones que no tengan puntajes cargados ni estén descalificadas; cuando una presentación tiene puntajes o fue descalificada, se considera que ya participó y su orden no se modifica. Puede tener cero o muchos puntajes, y puede quedar descalificada. Si la coreografía vuelve a impaga antes de ser evaluada, su presentación se elimina o queda inválida. Si ya fue evaluada, cualquier cambio financiero posterior se trata como caso administrativo excepcional. Un juez puede descalificarla durante su evaluación; esa marca es irreversible dentro del flujo operativo del juez, cierra la presentación para todos los jueces y la deja fuera del ranking final. Administración puede revertir una descalificación solo mediante una acción administrativa explícita con motivo obligatorio y trazabilidad. Al revertirla, los puntajes con valor cargados antes de la descalificación vuelven a contar si no están anulados; los puntajes no confirmados que quedaron cerrados por la descalificación no se reactivan automáticamente y requieren reasignación o habilitación explícita. Si los resultados están publicados, administración debe despublicarlos antes de descalificar o revertir una descalificación. El juez que descalifica y su devolución opcional quedan registrados en el puntaje asociado a esa presentación. Los puntajes no confirmados de otros jueces dejan de aparecer como próximos cuando la presentación queda descalificada. Si ya tenía puntajes cargados, quedan registrados para auditoría pero no cuentan para ranking mientras siga descalificada. Si no tiene jueces asignados, queda pendiente de asignación o evaluación. Mientras tenga puntajes no confirmados, sigue pendiente de evaluación. La ausencia de puntaje de un juez no baja el promedio: solo se promedian los puntajes con valor no anulados. Si tiene al menos un puntaje con valor no anulado y no está descalificada, entra al ranking con el promedio de los valores cargados, incluso si es un único puntaje válido. Si tiene puntajes asignados, todos están confirmados, no está descalificada y no tiene ningún puntaje con valor no anulado, se infiere que la coreografía estuvo ausente y queda fuera de ranking.
+Instancia ordenada de una coreografía para el día del evento.
 _Evitar_: Coreografía, estado operativo, estado financiero
 
 **Estado de participación**:
-Estado derivado de la presentación de una coreografía en el evento, separado del estado operativo y del estado financiero. Puede ser sin presentación cuando todavía no se creó una presentación, pendiente cuando tiene presentación pero no está resuelta, evaluada cuando entra al ranking con al menos un puntaje con valor, descalificada cuando la presentación fue marcada fuera de competencia, o ausente inferida cuando todos los puntajes asignados fueron confirmados sin ningún valor. Se usa en listas centradas en participación. Sin presentación es útil para administración o listas operativas, pero no aparece como fila dentro del programa publicado.
+Estado derivado de la presentación de una coreografía en el evento.
 _Evitar_: Estado operativo de coreografía, estado financiero de coreografía
 
 **Asignación de juez**:
-Relación entre un juez y las presentaciones que debe evaluar. Administración la crea seleccionando presentaciones filtradas por cronograma, categoría o modalidad, y asignándolas a un juez. Al asignar una presentación a un juez se crea un puntaje vacío para esa presentación y ese juez. Si la misma presentación ya tiene asignado ese juez, la acción no crea duplicados y reporta la asignación como ya existente. Un juez ve y puede modificar solo sus puntajes asignados, ordenados por el número de orden global del evento. Si el puntaje de esa asignación sigue no confirmado, administración puede quitar la asignación y eliminar ese puntaje vacío. Si el puntaje ya está confirmado, no se quita sin una acción administrativa explícita de corrección o anulación.
+Relación entre un juez y las presentaciones que debe evaluar.
 _Evitar_: Presentación, puntaje
 
 **Ranking**:
-Orden competitivo calculado con presentaciones no descalificadas que tengan al menos un puntaje con valor no anulado. Se agrupa por categoría, modalidad, submodalidad cuando corresponde, tipo de grupo y nivel de experiencia cuando corresponde. Submodalidad y nivel de experiencia solo dividen el ranking cuando aplican; si quedan vacíos porque no corresponden, no crean divisiones artificiales. El promedio competitivo se redondea a dos decimales y ese valor se usa para comparar posiciones. Admite empates reales cuando dos o más presentaciones tienen el mismo promedio redondeado; las posiciones siguen el criterio de competencia, como 1, 1, 3. El ranking final para premiación exige que todas las presentaciones del grupo competitivo estén resueltas: con puntaje válido, descalificadas o con ausencia inferida. Aunque esté calculado, no es público hasta que administración lo publica. El cronograma no define contra quién compite una presentación.
+Orden competitivo calculado con presentaciones no descalificadas que tengan al menos un puntaje válido.
 _Evitar_: Presentación, cronograma, orden de presentación
 
 **Resultados publicados**:
-Vista pública de los resultados liberada manualmente por administración en una acción única para todo el evento. Es independiente del estado temporal automático del evento y puede ocurrir durante o después del evento. Exige que todos los grupos competitivos del evento estén resueltos. Muestra el ranking completo de cada grupo competitivo con posición, nombre de coreografía, academia, promedio y premio cuando corresponde, y puede consultarse sin login, incluso por academias que no participaron del evento. No incluye bailarines, devoluciones de audio ni detalle privado por juez. Su publicación habilita al mismo tiempo los resultados de academia y cierra los resultados del evento. Despublicar oculta tanto los resultados públicos como los resultados de academia. Las correcciones posteriores requieren despublicar, corregir con trazabilidad y volver a publicar.
+Vista pública de resultados liberada manualmente por administración.
 _Evitar_: Ranking preliminar, devolución
 
 **Programa del evento**:
-Vista pública del orden cronológico de presentación de un evento. Puede mostrarse antes de publicar resultados y no depende de la condición activa del evento ni de la visibilidad de resultados; administración controla su publicación con una visibilidad propia. Publicar el programa habilita su consulta, pero no congela una copia del orden: si administración modifica presentaciones todavía editables, el programa publicado refleja el orden vigente. Incluye datos no competitivos como número de orden, bloque horario, nombre de coreografía, academia, modalidad, categoría y tipo de grupo. Puede filtrarse por bloque horario, modalidad, academia y categoría. Mantiene visibles las presentaciones aunque luego sean descalificadas o queden con ausencia inferida, pero no muestra bailarines, estados competitivos, puntajes, promedios, premios, descalificaciones ni ausencias inferidas. La ubicación exacta de esta consulta en la navegación pública queda por definir.
+Vista pública del orden cronológico de presentación de un evento.
 _Evitar_: Resultados publicados, ranking
 
 **Resultados de academia**:
-Vista de resultados disponible con login para la academia dueña de una coreografía cuando administración publica resultados. En la lista muestra la misma información que los resultados públicos. Desde allí la academia puede entrar al detalle de su coreografía, con datos competitivos como modalidad, submodalidad, categoría, tipo de grupo, nivel de experiencia cuando corresponda, nombres de bailarines participantes y profesores vinculados, además de datos de presentación como juez, puntaje por juez, devolución, promedio final y premio. No muestra documentos ni imágenes de DNI en resultados.
+Vista de resultados disponible con login para la academia dueña de una coreografía cuando administración publica resultados.
 _Evitar_: Resultados publicados, ranking preliminar
 
 **Ranking preliminar**:
-Vista interna de administración que puede calcularse aunque todavía falten presentaciones por resolver. No es visible para jueces, academias ni público, y no reemplaza el ranking final de premiación.
+Vista interna de administración que puede calcularse aunque falten presentaciones por resolver.
 _Evitar_: Ranking final, premio
 
 **Premio**:
-Reconocimiento derivado del promedio competitivo válido de una presentación dentro de un evento. Se asigna según tipos de premio configurados para ese evento y se mantiene separado del puntaje y de la posición de ranking. Una presentación puede recibir un premio por promedio aunque no esté en las primeras posiciones del ranking. Las presentaciones descalificadas o sin puntaje válido no reciben premio. Si el promedio no cae en ningún tipo de premio configurado, no recibe premio.
+Reconocimiento derivado del promedio competitivo válido de una presentación dentro de un evento.
 _Evitar_: Puntaje, ranking
 
 **Tipo de premio**:
-Configuración de premio dentro de un evento. Define nombre, promedio mínimo y promedio máximo, por ejemplo oro para promedios entre 90 y 100. Sus rangos no pueden solaparse dentro del mismo evento. Los límites mínimo y máximo son inclusivos y se aplican sobre el promedio competitivo redondeado a dos decimales.
+Regla de premio dentro de un evento.
 _Evitar_: Premio, ranking
 
 **Puntaje**:
-Evaluación asignada a un juez para una presentación. Una presentación puede tener puntajes de varios jueces, uno por cada juez asignado. Se crea vacío y no confirmado cuando administración asigna la presentación al juez. El juez modifica ese puntaje durante la evaluación; al guardarlo queda confirmado, aunque conserve valor vacío. Si el juez descalifica la presentación desde su puntaje, ese puntaje también queda confirmado sin valor. Puede dejarlo con valor vacío o cargar un valor entre 0 y 100 con hasta dos decimales, y puede incluir una devolución en audio grabada en ese mismo momento. Un puntaje con valor vacío registra que ese juez no aporta valor al promedio de la presentación y también puede tener devolución opcional. El flujo del juez busca el próximo puntaje no confirmado, no el próximo puntaje sin valor. Las correcciones posteriores quedan bajo administración y requieren trazabilidad del cambio realizado.
+Evaluación asignada a un juez para una presentación.
 _Evitar_: Presentación, precio, pago
 
 **Corrección de puntaje**:
-Cambio administrativo de un puntaje ya confirmado. Registra el valor anterior, el nuevo valor, quién realizó la corrección y un motivo breve obligatorio, sin necesidad de conservar una versión anulada completa del puntaje; cualquiera de esos valores puede ser vacío. No reemplaza la devolución en audio grabada por el juez. Recalcula promedio competitivo, ranking y premio. Si los resultados están publicados, administración debe despublicarlos antes de corregir.
+Cambio administrativo de un puntaje ya confirmado.
 _Evitar_: Puntaje borrador, presentación
 
 **Anulación de puntaje**:
-Acción administrativa explícita sobre un puntaje confirmado que lo excluye del promedio competitivo sin eliminar su trazabilidad. Se usa cuando corresponde quitar el efecto de una evaluación ya guardada, no solo cambiar su valor. Debe registrar que el puntaje fue anulado, quién realizó la acción y un motivo breve obligatorio. Recalcula promedio competitivo, ranking y premio. Si los resultados están publicados, administración debe despublicarlos antes de anular. El puntaje anulado sigue visible para administración como auditoría, pero no se muestra a la academia cuando se publican resultados; la academia ve solo puntajes vigentes.
+Acción administrativa explícita sobre un puntaje confirmado que lo excluye del promedio competitivo sin eliminar su trazabilidad.
 _Evitar_: Corrección de puntaje, eliminación de asignación
 
 **Devolución**:
-Archivo de audio opcional asociado a la evaluación o descalificación realizada por un juez, idealmente grabado en ese momento. Permite que el juez explique su evaluación o descalificación. No es una devolución general de la coreografía, su ausencia no bloquea el avance del evento y no se completa después desde el flujo normal. No es pública; queda disponible para la academia dueña de la coreografía junto al puntaje del juez cuando administración publica resultados o habilita devoluciones.
+Archivo de audio opcional asociado a la evaluación o descalificación realizada por un juez.
 _Evitar_: Puntaje numérico, presentación
 
 **Pago**:
-Ingreso de dinero registrado en la cuenta corriente de una academia. No necesariamente queda vinculado a una coreografía: puede imputarse a facturas de una o varias coreografías, quedar como saldo disponible o volver a imputarse si una factura se cancela o se acredita.
+Ingreso de dinero registrado en la cuenta corriente de una academia.
 _Evitar_: Factura, imputación, estado financiero de coreografía
 
 **Factura de coreografía**:
-Documento financiero que vincula una coreografía con un importe a cobrar. Puede tener propósito de seña o de saldo. Administración crea facturas distintas para imputar pagos a la seña y al saldo de una coreografía. La factura de saldo solo se emite cuando la factura de seña tiene imputación suficiente. Una factura vigente bloquea la edición de los datos estructurales de la coreografía, pero no alcanza por sí sola para que la coreografía se tenga en cuenta para ordenar o competir. Si la factura se cancela o se emite una nota de crédito, deja de vincular ese importe con la coreografía.
+Documento financiero que vincula una coreografía con un importe a cobrar.
 _Evitar_: Pago, inscripción
 
 **Imputación**:
-Aplicación de saldo de un pago a una factura. Determina qué parte del dinero registrado en la cuenta corriente de la academia queda asociada a una coreografía concreta.
+Aplicación de saldo de un pago a una factura.
 _Evitar_: Pago, factura
 
 **Cuenta corriente de academia**:
-Saldo financiero de una academia compuesto por pagos registrados, imputaciones, facturas, cancelaciones y notas de crédito. El saldo no imputado puede quedar disponible para una factura nueva de la misma coreografía o para una factura de otra coreografía.
+Saldo financiero de una academia compuesto por pagos, imputaciones, facturas, cancelaciones y notas de crédito.
 _Evitar_: Estado financiero de coreografía, pago
 
 **Precio de coreografía**:
-Importe calculado para una coreografía a partir de su tipo de grupo, la fecha en que alcanza la seña requerida y los descuentos individuales de sus bailarines. Mientras la coreografía está impaga, se muestra como precio estimado usando el precio actual porque todavía no alcanzó la seña y no congeló fecha de precio. La seña fija la fecha de precio aplicable, pero el precio sigue siendo estimado mientras la coreografía esté señada, porque los descuentos se calculan activamente y pueden cambiar hasta que quede pagada completamente. Cuando la coreografía queda pagada, deja de mostrarse como precio estimado y pasa a precio final, porque su propio costo queda congelado y los recálculos posteriores no lo afectan. Los descuentos por bailarín se calculan según las reglas del evento sobre las coreografías señadas o pagadas del mismo bailarín dentro de la misma academia y el mismo evento, y se aplican sobre el saldo de coreografías señadas. No hay cruce de descuentos entre academias. Si una coreografía deja de estar señada por cancelación o acreditación de sus documentos financieros, deja de contar para el umbral de descuento de otras coreografías. Por defecto, 3 coreografías del mismo bailarín aplican 10% de descuento sobre todas menos la más costosa; 4 o más aplican 15%. Para determinar qué coreografía queda sin descuento, se compara el precio bruto antes de descuentos. Una coreografía pagada puede contar para calcular descuentos de otras coreografías, pero sus propios recálculos no modifican su precio final.
+Importe calculado para una coreografía a partir de tipo de grupo, fecha de seña y descuentos individuales.
 _Evitar_: Pago, estado financiero
 
 **Modalidad**:
-Clasificación artística elegida al registrar una coreografía. Puede tener submodalidades relacionadas.
+Clasificación artística elegida al registrar una coreografía.
 _Evitar_: Categoría, tipo de grupo
 
 **Submodalidad**:
-Clasificación opcional dentro de una modalidad. Solo se elige cuando la modalidad tiene submodalidades relacionadas.
+Clasificación opcional dentro de una modalidad. Su nombre debe ser único dentro de esa modalidad, sin distinguir mayúsculas y minúsculas.
 _Evitar_: Modalidad, categoría
 
 **Tipo de grupo**:
-Clasificación calculada por el sistema a partir de la cantidad de bailarines seleccionados para una coreografía: solo, dúo, trío o grupal. Determina cronogramas disponibles y reglas de precio.
+Clasificación calculada por cantidad de bailarines seleccionados para una coreografía.
 _Evitar_: Modalidad, categoría
 
 **Categoría**:
-Clasificación calculada por el sistema a partir de edades medidas contra la fecha de inicio del evento. Tiene nombre, edad mínima y edad máxima. Siempre aplica a uno o más tipos de grupo, puede aplicar a todas las modalidades o solo a algunas, y puede tener niveles de experiencia relacionados. No puede solaparse con otra categoría aplicable al mismo tipo de grupo y modalidad. Para solo, dúo y trío se calcula con la edad del bailarín mayor; para grupal se permite hasta un 20% de bailarines mayores y, si se supera ese porcentaje, se calcula con el promedio de edades. El cálculo debe devolver una sola categoría o dejar la coreografía sin asignar; una coreografía sin asignar indica que falta una categoría aplicable y requiere que administración ajuste la configuración. Cuando cambia la configuración de categorías, una coreografía sin asignar puede recalcularse. Si un recálculo cambia la categoría y la nueva categoría tiene niveles de experiencia, la coreografía queda incompleta hasta que la academia elija nivel.
+Clasificación calculada por edades medidas contra la fecha de inicio del evento.
 _Evitar_: Modalidad, tipo de grupo
 
 **Nivel de experiencia**:
-Clasificación relacionada con una categoría y elegida por la academia cuando corresponde. Si la categoría calculada tiene niveles de experiencia, la academia debe elegir uno; si no los tiene, la coreografía queda sin nivel de experiencia.
+Clasificación relacionada con una categoría y elegida por la academia cuando corresponde.
 _Evitar_: Categoría

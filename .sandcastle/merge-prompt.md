@@ -11,6 +11,10 @@ For each branch:
 3. After resolving conflicts, run validation in this exact order: `npm run format`, `npm run format:check`, `npm run typecheck`, `npm run test`, `npm run test:db` if the merged branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules, and `npm run build` if the merged branch touches routing, server rendering, bundling, CSS, or deployment behavior
 4. If validation fails, fix the issue and rerun the same command before proceeding to the next command or branch. Do not run validation commands in parallel when later commands depend on earlier code state.
 
+Keep merge fixes minimal. Do not perform a coding-standards or maintainability
+review during merge; the reviewer already owns that pass. Change code only to
+resolve conflicts, preserve branch behavior, or make required validation pass.
+
 After all branches are merged, make a single commit summarizing the merge.
 
 # CLOSE ISSUES

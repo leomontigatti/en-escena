@@ -8,9 +8,12 @@ import {
   AccessPage,
   AccessSecondaryLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { resetAccessPassword } from "@/lib/access-recovery.server";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
+} from "@/components/auth/access-ui";
+import { resetAccessPassword } from "@/lib/auth/access-recovery.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
 
 import type { Route } from "./+types/recuperar-acceso_.nueva";
 

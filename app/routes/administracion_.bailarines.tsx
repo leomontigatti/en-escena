@@ -1,16 +1,13 @@
 import { Link, redirect } from "react-router";
 
-import { AdminShell } from "@/components/admin-shell";
+import { AdminShell } from "@/components/admin/shell";
+import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   adminDancerPageSize,
   getAdminDancerIdentificationBadgeVariant,
@@ -22,17 +19,18 @@ import {
   toAdminDancerStatusSearchValue,
   type AdminDancerIdentificationStatus,
   type AdminDancerParticipationStatus,
-} from "@/lib/admin-dancers.shared";
-import { loadAdminEventContext } from "@/lib/admin-event-context.server";
+} from "@/lib/admin/dancers/dancers.shared";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   listAdministrativeDancers,
   readAdministrativeDancerFilters,
-} from "@/lib/admin-dancers.server";
-import { requireInternalUser } from "@/lib/internal-access.server";
+} from "@/lib/admin/dancers/dancers.server";
+import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion_.bailarines";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
+type DancerRow = LoaderData["dancers"][number];
 
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
@@ -82,7 +80,7 @@ export function AdministracionBailarinesRouteView({
       selectedEventId={loaderData.selectedEventId}
       title="Bailarines"
     >
-      <section className="space-y-4">
+      <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-950">Bailarines</h2>
@@ -105,7 +103,10 @@ export function AdministracionBailarinesRouteView({
             <DancerPagination loaderData={loaderData} />
           </>
         ) : (
-          <EmptyDancerState />
+          <AdminEmptyState
+            title="Todavía no hay Bailarines para mostrar."
+            description="Ajustá los filtros para revisar otros registros del Evento activo."
+          />
         )}
       </section>
     </AdminShell>
@@ -124,11 +125,6 @@ function DancerFilters({ loaderData }: { loaderData: LoaderData }) {
       method="get"
       className="grid gap-4 rounded-lg border bg-background p-4 xl:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto]"
     >
-      <input
-        type="hidden"
-        name="evento"
-        value={loaderData.selectedEventId ?? ""}
-      />
       <label className="grid gap-2 text-sm font-medium text-slate-900">
         Buscar
         <input
@@ -191,49 +187,75 @@ function DancerFilters({ loaderData }: { loaderData: LoaderData }) {
 }
 
 function DancerTable({ loaderData }: { loaderData: LoaderData }) {
+  const columns: DataTableColumn<DancerRow>[] = [
+    {
+      id: "dancer",
+      header: "Bailarín",
+      className: "font-medium",
+      cell: (dancer) => (
+        <Link
+          to={buildDancerDetailHref(loaderData, dancer.id)}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {dancer.lastName}, {dancer.firstName}
+        </Link>
+      ),
+      filterValue: (dancer) => `${dancer.lastName} ${dancer.firstName}`,
+      sortValue: (dancer) => `${dancer.lastName}, ${dancer.firstName}`,
+    },
+    {
+      id: "academy",
+      header: "Academia",
+      cell: (dancer) => dancer.academyName,
+      filterValue: (dancer) => dancer.academyName,
+      sortValue: (dancer) => dancer.academyName,
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (dancer) => (
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={dancer.active ? "default" : "secondary"}>
+            {dancer.active ? "Activo" : "Archivado"}
+          </Badge>
+          <ParticipationBadge
+            participationStatus={dancer.participationStatus}
+          />
+        </div>
+      ),
+      filterValue: (dancer) =>
+        `${dancer.active ? "Activo" : "Archivado"} ${getAdminDancerParticipationLabel(
+          dancer.participationStatus,
+        )}`,
+      sortValue: (dancer) =>
+        `${dancer.active ? "Activo" : "Archivado"} ${getAdminDancerParticipationLabel(
+          dancer.participationStatus,
+        )}`,
+    },
+    {
+      id: "identification",
+      header: "Identificación",
+      cell: (dancer) => (
+        <IdentificationBadge
+          identificationStatus={dancer.identificationStatus}
+        />
+      ),
+      filterValue: (dancer) =>
+        getAdminDancerIdentificationLabel(dancer.identificationStatus),
+      sortValue: (dancer) =>
+        getAdminDancerIdentificationLabel(dancer.identificationStatus),
+    },
+  ];
+
   return (
-    <div className="rounded-lg border bg-background">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Bailarín</TableHead>
-            <TableHead>Academia</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Identificación</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loaderData.dancers.map((dancer) => (
-            <TableRow key={dancer.id}>
-              <TableCell className="font-medium">
-                <Link
-                  to={buildDancerDetailHref(loaderData, dancer.id)}
-                  className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                >
-                  {dancer.lastName}, {dancer.firstName}
-                </Link>
-              </TableCell>
-              <TableCell>{dancer.academyName}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={dancer.active ? "default" : "secondary"}>
-                    {dancer.active ? "Activo" : "Archivado"}
-                  </Badge>
-                  <ParticipationBadge
-                    participationStatus={dancer.participationStatus}
-                  />
-                </div>
-              </TableCell>
-              <TableCell>
-                <IdentificationBadge
-                  identificationStatus={dancer.identificationStatus}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      rows={loaderData.dancers}
+      columns={columns}
+      getRowKey={(dancer) => dancer.id}
+      searchPlaceholder="Filtrar esta página"
+      emptyMessage="No hay Bailarines que coincidan con la búsqueda."
+      initialSort={{ columnId: "dancer", direction: "asc" }}
+    />
   );
 }
 
@@ -271,20 +293,6 @@ function DancerPagination({ loaderData }: { loaderData: LoaderData }) {
         <span />
       )}
     </nav>
-  );
-}
-
-function EmptyDancerState() {
-  return (
-    <div className="rounded-lg border border-dashed bg-background px-5 py-8">
-      <h3 className="text-base font-semibold text-slate-950">
-        Todavía no hay Bailarines para mostrar.
-      </h3>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Ajustá los filtros o cambiá el evento de trabajo para revisar otros
-        registros.
-      </p>
-    </div>
   );
 }
 
@@ -336,10 +344,6 @@ function buildDetailSearch(loaderData: LoaderData) {
 
 function buildSearchParams(loaderData: LoaderData, page: number) {
   const searchParams = new URLSearchParams();
-
-  if (loaderData.selectedEventId) {
-    searchParams.set("evento", loaderData.selectedEventId);
-  }
 
   if (loaderData.filters.query.length > 0) {
     searchParams.set("q", loaderData.filters.query);

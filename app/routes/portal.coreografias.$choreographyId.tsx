@@ -1,16 +1,23 @@
 import { Link, redirect, useActionData, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
-import { PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
-import { getPortalEventStatusLabel } from "@/lib/portal-route-state";
+import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import {
+  findChoreographyForAcademyEvent,
+  getChoreographyDeletionAvailability,
+  listProfessorOptionsForChoreography,
+  updateChoreographyProfessors,
+  deleteChoreography,
+} from "@/lib/portal/choreographies.server";
+import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 import {
   formatGroupTypeLabel,
   formatOperationalPendingItemLabel,
   formatOperationalStatusLabel,
-} from "@/lib/portal-choreographies";
-import { getPortalEventContext } from "@/lib/portal-event-context.server";
+} from "@/lib/portal/choreographies";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyUpdatedSearchParam = "actualizado";
@@ -66,11 +73,6 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const {
-    findChoreographyForAcademyEvent,
-    getChoreographyDeletionAvailability,
-    listProfessorOptionsForChoreography,
-  } = await import("@/lib/portal-choreographies.server");
   const choreography = await findChoreographyForAcademyEvent(
     academy.id,
     selectedEventId,
@@ -129,7 +131,6 @@ export async function action({
     const professorIds = readFormStringArray(formData, "professorIds");
     return await handleUpdateChoreographyProfessorsAction({
       academyId: academy.id,
-      eventContextQueryParamName: eventContext.queryParamName,
       eventId: selectedEventId,
       choreographyId,
       professorIds,
@@ -141,7 +142,6 @@ export async function action({
 
     return await handleDeleteChoreographyAction({
       academyId: academy.id,
-      eventContextQueryParamName: eventContext.queryParamName,
       eventId: selectedEventId,
       choreographyId,
     });
@@ -155,9 +155,7 @@ export function PortalCoreografiaDetalleRouteView({
   actionData,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
-  const backToList = selectedEvent
-    ? `/portal/coreografias?${loaderData.eventContext.queryParamName}=${selectedEvent.id}`
-    : "/portal/coreografias";
+  const backToList = "/portal/coreografias";
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const selectedProfessorIds = new Set(
@@ -198,7 +196,7 @@ export function PortalCoreografiaDetalleRouteView({
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Evento consultado: {loaderData.eventContext.selectedEvent?.name}
+            Evento activo: {selectedEvent?.name}
           </p>
 
           {loaderData.successMessage ? (
@@ -589,13 +587,10 @@ function readFormStringArray(formData: FormData, key: string) {
 
 async function handleUpdateChoreographyProfessorsAction(input: {
   academyId: string;
-  eventContextQueryParamName: string;
   eventId: string;
   choreographyId: string;
   professorIds: string[];
 }) {
-  const { updateChoreographyProfessors } =
-    await import("@/lib/portal-choreographies.server");
   const result = await updateChoreographyProfessors({
     academyId: input.academyId,
     eventId: input.eventId,
@@ -612,27 +607,22 @@ async function handleUpdateChoreographyProfessorsAction(input: {
   }
 
   return redirect(
-    `/portal/coreografias/${input.choreographyId}?${input.eventContextQueryParamName}=${input.eventId}&${choreographyUpdatedSearchParam}=1`,
+    `/portal/coreografias/${input.choreographyId}?${choreographyUpdatedSearchParam}=1`,
   );
 }
 
 async function handleDeleteChoreographyAction(input: {
   academyId: string;
-  eventContextQueryParamName: string;
   eventId: string;
   choreographyId: string;
 }) {
-  const { deleteChoreography } =
-    await import("@/lib/portal-choreographies.server");
   await deleteChoreography({
     academyId: input.academyId,
     eventId: input.eventId,
     choreographyId: input.choreographyId,
   });
 
-  return redirect(
-    `/portal/coreografias?${input.eventContextQueryParamName}=${input.eventId}&${choreographyDeletedSearchParam}=1`,
-  );
+  return redirect(`/portal/coreografias?${choreographyDeletedSearchParam}=1`);
 }
 
 function assertDeleteConfirmationMatches(

@@ -9,18 +9,21 @@ import {
   AccessPage,
   AccessTextLink,
   accessButtonClassName,
-} from "@/components/access-ui";
+} from "@/components/auth/access-ui";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { getSafeRedirectTo } from "@/lib/access-redirects.server";
-import type { LoginRedirectReason } from "@/lib/access-redirects.server";
-import { normalizeEmail } from "@/lib/academy-registration-token.server";
-import { auth } from "@/lib/auth.server";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
+import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
+import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
+import { normalizeEmail } from "@/lib/academies/registration-token.server";
+import { auth } from "@/lib/auth/auth.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
 import {
   getLandingPathForUserId,
   redirectSignedInUserFromPublicRoute,
-} from "@/lib/internal-navigation.server";
+} from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/ingresar";
 

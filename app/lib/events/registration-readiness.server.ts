@@ -1,0 +1,238 @@
+import {
+  getEventBases,
+  resolveEventBasesPrice,
+  resolveEventBasesScheduleOptions,
+  type EventBases,
+} from "@/lib/events/bases.server";
+import type {
+  EventRegistrationMissingItem,
+  EventRegistrationReadiness,
+} from "@/lib/events/registration-readiness";
+
+type RegistrationPathDescriptor = {
+  categoryName: string;
+  modalityName: string;
+  groupType: string;
+  requiresSubmodality: boolean;
+  requiresExperienceLevel: boolean;
+};
+
+const baseMissingItemDefinitions = {
+  modalities: {
+    label: "Modalidades",
+    detail: "Falta al menos una modalidad en este evento.",
+  },
+  categories: {
+    label: "Categorías",
+    detail: "Falta al menos una categoría en este evento.",
+  },
+  "schedule-blocks": {
+    label: "Bloques horarios",
+    detail: "Falta al menos un bloque horario en este evento.",
+  },
+  "schedule-entries": {
+    label: "Cronogramas",
+    detail: "Falta al menos un cronograma en este evento.",
+  },
+  prices: {
+    label: "Precios",
+    detail: "Falta al menos un precio en este evento.",
+  },
+} satisfies Record<
+  | "modalities"
+  | "categories"
+  | "schedule-blocks"
+  | "schedule-entries"
+  | "prices",
+  Pick<EventRegistrationMissingItem, "label" | "detail">
+>;
+
+export async function getEventRegistrationReadiness(
+  eventId: string,
+): Promise<EventRegistrationReadiness> {
+  const eventBases = await getEventBases(eventId);
+
+  return getEventRegistrationReadinessForBases(eventId, eventBases);
+}
+
+export async function getEventRegistrationReadinessForBases(
+  eventId: string,
+  eventBases: EventBases,
+): Promise<EventRegistrationReadiness> {
+  const missingItems = collectBaseMissingItems(eventBases);
+
+  const modalitiesById = new Map(
+    eventBases.modalities.map((modality) => [modality.id, modality]),
+  );
+  const submodalityCountByModalityId = countSubmodalitiesByModalityId(
+    eventBases.submodalities,
+  );
+
+  for (const category of eventBases.categories) {
+    const requiresExperienceLevel = category.experienceLevelIds.length > 0;
+
+    for (const modalityId of category.modalityIds) {
+      const modality = modalitiesById.get(modalityId);
+
+      if (!modality) {
+        continue;
+      }
+
+      const requiresSubmodality =
+        (submodalityCountByModalityId.get(modalityId) ?? 0) > 0;
+
+      for (const groupType of category.groupTypes) {
+        const registrationPath = describeRegistrationPath({
+          categoryName: category.name,
+          modalityName: modality.name,
+          groupType,
+          requiresSubmodality,
+          requiresExperienceLevel,
+        });
+        const scheduleResolution = await resolveEventBasesScheduleOptions({
+          eventId,
+          modalityId,
+          groupType,
+        });
+
+        if (scheduleResolution.status === "none") {
+          missingItems.push({
+            code: "schedule-compatibility",
+            label: "Cronogramas compatibles",
+            detail: `Falta un cronograma compatible para ${registrationPath}.`,
+          });
+          continue;
+        }
+
+        for (const option of scheduleResolution.options) {
+          const priceResolution = await resolveEventBasesPrice({
+            eventId,
+            groupType,
+            scheduleBlockId: option.scheduleBlock.id,
+          });
+
+          if (!priceResolution.ok) {
+            missingItems.push({
+              code: "price-coverage",
+              label: "Precios aplicables",
+              detail: `Falta un precio aplicable para ${registrationPath} en el bloque horario ${option.scheduleBlock.name}.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const dedupedMissingItems = dedupeMissingItems(missingItems);
+
+  return {
+    eventId,
+    isReady: dedupedMissingItems.length === 0,
+    missingItems: dedupedMissingItems,
+  };
+}
+
+function collectBaseMissingItems(eventBases: EventBases) {
+  const missingItems: EventRegistrationMissingItem[] = [];
+
+  if (eventBases.modalities.length === 0) {
+    missingItems.push({
+      code: "modalities",
+      ...baseMissingItemDefinitions.modalities,
+    });
+  }
+
+  if (eventBases.categories.length === 0) {
+    missingItems.push({
+      code: "categories",
+      ...baseMissingItemDefinitions.categories,
+    });
+  }
+
+  if (eventBases.scheduleBlocks.length === 0) {
+    missingItems.push({
+      code: "schedule-blocks",
+      ...baseMissingItemDefinitions["schedule-blocks"],
+    });
+  }
+
+  const hasScheduleEntries = eventBases.scheduleBlocks.some(
+    (scheduleBlock) => scheduleBlock.scheduleEntries.length > 0,
+  );
+
+  if (!hasScheduleEntries) {
+    missingItems.push({
+      code: "schedule-entries",
+      ...baseMissingItemDefinitions["schedule-entries"],
+    });
+  }
+
+  if (eventBases.prices.length === 0) {
+    missingItems.push({ code: "prices", ...baseMissingItemDefinitions.prices });
+  }
+
+  return missingItems;
+}
+
+function countSubmodalitiesByModalityId(
+  submodalities: EventBases["submodalities"],
+) {
+  const counts = new Map<string, number>();
+
+  for (const submodality of submodalities) {
+    counts.set(
+      submodality.modalityId,
+      (counts.get(submodality.modalityId) ?? 0) + 1,
+    );
+  }
+
+  return counts;
+}
+
+function describeRegistrationPath(input: RegistrationPathDescriptor) {
+  const details = [
+    `Categoría ${input.categoryName}`,
+    `Modalidad ${input.modalityName}`,
+    `Tipo de grupo ${formatGroupType(input.groupType)}`,
+  ];
+
+  if (input.requiresSubmodality) {
+    details.push("requiere Submodalidad");
+  }
+
+  if (input.requiresExperienceLevel) {
+    details.push("requiere Nivel de experiencia");
+  }
+
+  return details.join(", ");
+}
+
+function formatGroupType(groupType: string) {
+  switch (groupType) {
+    case "solo":
+      return "Solo";
+    case "duo":
+      return "Dúo";
+    case "trio":
+      return "Trío";
+    case "grupal":
+      return "Grupal";
+    default:
+      return groupType;
+  }
+}
+
+function dedupeMissingItems(items: EventRegistrationMissingItem[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = `${item.code}\0${item.detail}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}

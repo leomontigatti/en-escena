@@ -6,20 +6,20 @@ import {
   AccessNotice,
   AccessSecondaryLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
+} from "@/components/auth/access-ui";
+import { PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   getPortalRecordStatusSearch,
   resolvePortalRecordStatusFilter,
-} from "@/lib/portal-route-state";
+} from "@/lib/portal/route-state";
 import {
   archiveAcademyProfessor,
   findAcademyProfessor,
   reactivateAcademyProfessor,
   updateAcademyProfessor,
   type UpdateProfessorInput,
-} from "@/lib/portal-professors.server";
+} from "@/lib/portal/professors.server";
 
 const professorNotFoundMessage = "No encontramos ese Profesor.";
 const professorUpdatedSearchParam = "actualizado";

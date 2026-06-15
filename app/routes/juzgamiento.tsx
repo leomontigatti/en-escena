@@ -2,8 +2,8 @@ import {
   AccessHeader,
   AccessPage,
   PrivateAccessHeader,
-} from "@/components/access-ui";
-import { requireJudgePanelUser } from "@/lib/internal-navigation.server";
+} from "@/components/auth/access-ui";
+import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/juzgamiento";
 

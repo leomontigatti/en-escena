@@ -1,33 +1,31 @@
 import { Link, redirect } from "react-router";
 
-import { AdminShell } from "@/components/admin-shell";
+import { AdminShell } from "@/components/admin/shell";
+import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   adminProfessorPageSize,
   getAdminProfessorParticipationLabel,
   type AdminProfessorParticipationStatus,
   toAdminProfessorParticipationSearchValue,
   toAdminProfessorStatusSearchValue,
-} from "@/lib/admin-professors.shared";
-import { loadAdminEventContext } from "@/lib/admin-event-context.server";
+} from "@/lib/admin/professors/professors.shared";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   listAdministrativeProfessors,
   readAdministrativeProfessorFilters,
-} from "@/lib/admin-professors.server";
-import { requireInternalUser } from "@/lib/internal-access.server";
+} from "@/lib/admin/professors/professors.server";
+import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion_.profesores";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ProfessorRow = LoaderData["professors"][number];
 
 type AdministracionProfesoresRouteProps = {
   loaderData: LoaderData;
@@ -77,7 +75,7 @@ export function AdministracionProfesoresRouteView({
       selectedEventId={loaderData.selectedEventId}
       title="Profesores"
     >
-      <section className="space-y-4">
+      <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-950">Profesores</h2>
@@ -100,7 +98,10 @@ export function AdministracionProfesoresRouteView({
             <ProfessorPagination loaderData={loaderData} />
           </>
         ) : (
-          <EmptyProfessorState />
+          <AdminEmptyState
+            title="Todavía no hay Profesores para mostrar."
+            description="Ajustá los filtros para revisar otros registros del Evento activo."
+          />
         )}
       </section>
     </AdminShell>
@@ -119,11 +120,6 @@ function ProfessorFilters({ loaderData }: { loaderData: LoaderData }) {
       method="get"
       className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]"
     >
-      <input
-        type="hidden"
-        name="evento"
-        value={loaderData.selectedEventId ?? ""}
-      />
       <label className="grid gap-2 text-sm font-medium text-slate-900">
         Buscar
         <input
@@ -172,43 +168,63 @@ function ProfessorFilters({ loaderData }: { loaderData: LoaderData }) {
 }
 
 function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
+  const columns: DataTableColumn<ProfessorRow>[] = [
+    {
+      id: "professor",
+      header: "Profesor",
+      className: "font-medium",
+      cell: (professor) => (
+        <Link
+          to={buildProfessorDetailHref(loaderData, professor.id)}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {professor.lastName}, {professor.firstName}
+        </Link>
+      ),
+      filterValue: (professor) =>
+        `${professor.lastName} ${professor.firstName}`,
+      sortValue: (professor) => `${professor.lastName}, ${professor.firstName}`,
+    },
+    {
+      id: "academy",
+      header: "Academia",
+      cell: (professor) => professor.academyName,
+      filterValue: (professor) => professor.academyName,
+      sortValue: (professor) => professor.academyName,
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (professor) => (
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={professor.active ? "default" : "secondary"}>
+            {professor.active ? "Activo" : "Archivado"}
+          </Badge>
+          <ParticipationBadge
+            participationStatus={professor.participationStatus}
+          />
+        </div>
+      ),
+      filterValue: (professor) =>
+        `${professor.active ? "Activo" : "Archivado"} ${getAdminProfessorParticipationLabel(
+          professor.participationStatus,
+        )}`,
+      sortValue: (professor) =>
+        `${professor.active ? "Activo" : "Archivado"} ${getAdminProfessorParticipationLabel(
+          professor.participationStatus,
+        )}`,
+    },
+  ];
+
   return (
-    <div className="rounded-lg border bg-background">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Profesor</TableHead>
-            <TableHead>Academia</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loaderData.professors.map((professor) => (
-            <TableRow key={professor.id}>
-              <TableCell className="font-medium">
-                <Link
-                  to={buildProfessorDetailHref(loaderData, professor.id)}
-                  className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                >
-                  {professor.lastName}, {professor.firstName}
-                </Link>
-              </TableCell>
-              <TableCell>{professor.academyName}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={professor.active ? "default" : "secondary"}>
-                    {professor.active ? "Activo" : "Archivado"}
-                  </Badge>
-                  <ParticipationBadge
-                    participationStatus={professor.participationStatus}
-                  />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      rows={loaderData.professors}
+      columns={columns}
+      getRowKey={(professor) => professor.id}
+      searchPlaceholder="Filtrar esta página"
+      emptyMessage="No hay Profesores que coincidan con la búsqueda."
+      initialSort={{ columnId: "professor", direction: "asc" }}
+    />
   );
 }
 
@@ -249,20 +265,6 @@ function ProfessorPagination({ loaderData }: { loaderData: LoaderData }) {
   );
 }
 
-function EmptyProfessorState() {
-  return (
-    <div className="rounded-lg border border-dashed bg-background px-5 py-8">
-      <h3 className="text-base font-semibold text-slate-950">
-        Todavía no hay Profesores para mostrar.
-      </h3>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Ajustá los filtros o cambiá el evento de trabajo para revisar otros
-        registros.
-      </p>
-    </div>
-  );
-}
-
 function ParticipationBadge({
   participationStatus,
 }: {
@@ -298,10 +300,6 @@ function buildListHref(loaderData: LoaderData, page: number) {
 
 function buildSearchParams(loaderData: LoaderData) {
   const searchParams = new URLSearchParams();
-
-  if (loaderData.selectedEventId) {
-    searchParams.set("evento", loaderData.selectedEventId);
-  }
 
   if (loaderData.filters.query.length > 0) {
     searchParams.set("q", loaderData.filters.query);

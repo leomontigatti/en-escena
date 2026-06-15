@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, redirect, useActionData, useSearchParams } from "react-router";
 
-import { AdminShell } from "@/components/admin-shell";
+import { AdminShell } from "@/components/admin/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,17 +14,17 @@ import {
   getAdminProfessorParticipationLabel,
   getAdminProfessorParticipationSummary,
   type AdminProfessorParticipationStatus,
-} from "@/lib/admin-professors.shared";
+} from "@/lib/admin/professors/professors.shared";
 import {
   findAdministrativeProfessor,
   setAdministrativeProfessorActiveState,
   updateAdministrativeProfessor,
-} from "@/lib/admin-professors.server";
-import { loadAdminEventContext } from "@/lib/admin-event-context.server";
+} from "@/lib/admin/professors/professors.server";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
-} from "@/lib/internal-access.server";
+} from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion_.profesores_.$professorId";
 
@@ -367,7 +367,7 @@ export function AdministracionProfesorDetalleRouteView({
         </div>
 
         <ReadOnlyCard title="Participación">
-          <DetailRow label="Evento de trabajo">
+          <DetailRow label="Evento activo">
             {getAdminProfessorParticipationSummary(
               professor.participationStatus,
             )}
@@ -643,6 +643,7 @@ function buildBackToListHref(requestUrl: string) {
 
   searchParams.delete(adminProfessorSavedSearchParam);
   searchParams.delete("modo");
+  searchParams.delete("evento");
   const search = searchParams.toString();
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
@@ -652,6 +653,7 @@ function buildModeHref(url: URL, mode: "editar" | null) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete(adminProfessorSavedSearchParam);
+  searchParams.delete("evento");
 
   if (mode === null) {
     searchParams.delete("modo");
@@ -671,6 +673,7 @@ function buildSavedDetailHref(requestUrl: string, professorId: string) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete("modo");
+  searchParams.delete("evento");
   searchParams.set(adminProfessorSavedSearchParam, "1");
 
   return `/administracion/profesores/${professorId}?${searchParams.toString()}`;

@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 
-import { auth } from "@/lib/auth.server";
+import { auth } from "@/lib/auth/auth.server";
 
 import type { Route } from "./+types/salir";
 

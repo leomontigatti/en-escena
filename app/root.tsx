@@ -5,23 +5,17 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
+  useNavigate,
 } from "react-router";
+import { useEffect } from "react";
+import { Toaster, toast } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
 
-export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
-  },
-];
+export const links: Route.LinksFunction = () => [];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -42,7 +36,101 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <Toaster richColors position="top-center" />
+      <Outlet />
+      <RouteToasts />
+    </>
+  );
+}
+
+function RouteToasts() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const notification = searchParams.get("notificacion");
+
+    if (!notification) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      switch (notification) {
+        case "evento-activado":
+          toast.success("Evento activado.", {
+            id: routeNotificationToastIds["evento-activado"],
+          });
+          break;
+        case "evento-desactivado":
+          toast.success("Evento desactivado.", {
+            id: routeNotificationToastIds["evento-desactivado"],
+          });
+          break;
+        case "evento-guardado":
+          toast.success("Evento guardado.", {
+            id: routeNotificationToastIds["evento-guardado"],
+          });
+          break;
+        case "evento-eliminado":
+          toast.success("Evento eliminado.", {
+            id: routeNotificationToastIds["evento-eliminado"],
+          });
+          break;
+        case "programa-visible":
+          toast.success("Programa visible.", {
+            id: routeNotificationToastIds["programa-visible"],
+          });
+          break;
+        case "programa-oculto":
+          toast.success("Programa oculto.", {
+            id: routeNotificationToastIds["programa-oculto"],
+          });
+          break;
+        case "resultados-visibles":
+          toast.success("Resultados visibles.", {
+            id: routeNotificationToastIds["resultados-visibles"],
+          });
+          break;
+        case "resultados-ocultos":
+          toast.success("Resultados ocultos.", {
+            id: routeNotificationToastIds["resultados-ocultos"],
+          });
+          break;
+        case "categoria-guardada":
+          toast.success("Categoría guardada.", {
+            id: routeNotificationToastIds["categoria-guardada"],
+          });
+          break;
+        case "categoria-eliminada":
+          toast.success("Categoría eliminada.", {
+            id: routeNotificationToastIds["categoria-eliminada"],
+          });
+          break;
+        case "modalidad-guardada":
+          toast.success("Modalidad guardada.", {
+            id: routeNotificationToastIds["modalidad-guardada"],
+          });
+          break;
+        case "modalidad-eliminada":
+          toast.success("Modalidad eliminada.", {
+            id: routeNotificationToastIds["modalidad-eliminada"],
+          });
+          break;
+      }
+    }, 0);
+
+    searchParams.delete("notificacion");
+    const nextSearch = searchParams.toString();
+    navigate(
+      `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
+      { replace: true },
+    );
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  return null;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

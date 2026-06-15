@@ -8,10 +8,13 @@ import {
   AccessPage,
   AccessTextLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { requestAccessRecoveryEmail } from "@/lib/access-recovery.server";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
-import { redirectSignedInUserFromPublicRoute } from "@/lib/internal-navigation.server";
+} from "@/components/auth/access-ui";
+import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
+import { redirectSignedInUserFromPublicRoute } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/recuperar-acceso";
 

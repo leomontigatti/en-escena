@@ -1,33 +1,36 @@
-# Use selectable event contexts for administration and portal views
+# Use the active event as the only V1 event context
 
-We will model event context with three explicit domain terms: Evento activo, Evento de trabajo and Evento consultado. This records the trade-off between a single active-event-only model and selectable event contexts for the Panel de administración and the Portal de academias.
+We will use the Evento activo as the only event context for the first version of the Panel de administración and the Portal de academias. Selectable event contexts are deferred to a later version.
 
 **Context**
 
-The product supports many Eventos over time, but at most one Evento can be active globally. The Evento activo is the operative default for daily work and portal mutations, especially coreography registration and related event operations.
+The product supports many Eventos over time, but at most one Evento can be active globally. The Evento activo is the operative default for daily work and portal mutations, especially choreography registration and related event operations.
 
-Administration also needs to inspect and prepare future or historical events. Academies need to review their own event-specific history even when an event is not active. If every event-specific list only used the Evento activo, historical consultation, future preparation, shareable filtered admin views, program or result visibility corrections, and read-only portal history would be blocked or require changing the active event for the whole product.
+Selectable event contexts would let administration inspect historical or future data and would let academies review event-specific history. That remains useful, but it creates two layout and routing surfaces for V1: views with an `evento` query parameter and views without it.
+
+For the first version, the product needs one consistent shell and one source of truth more than historical filtering.
 
 **Decision**
 
-Use the Evento activo as the single global operative default, but allow selectable event contexts where the user journey requires consultation:
+Use the Evento activo as the only event context in V1:
 
-- The Panel de administración uses an Evento de trabajo for operational lists. It defaults to the Evento activo when one exists, and can be another event when the view supports consulting or preparing historical or future data.
-- The Portal de academias uses an Evento consultado for event-specific sections. It shows all Eventos, defaults to the Evento activo when one exists, and otherwise defaults to the most recent Evento.
-- Ordinary event mutations remain limited by the Evento activo and the relevant registration, deletion, permission, and lifecycle rules. Non-active Eventos are read-only in the portal unless a future PRD defines an explicit exception.
-- Visibility actions for Programa del evento and Resultados publicados are explicit exceptions: administration may publish or unpublish them for any Evento de trabajo.
-- Event detail routes use the event in the URL as their context, so they do not compete with a global selector for source of truth.
+- The Panel de administración uses the Evento activo for operational lists and Bases del evento.
+- The Portal de academias uses the Evento activo for event-specific sections such as coreografías.
+- URLs do not carry an `evento` query parameter for list filtering.
+- When there is no Evento activo, event-specific sections show an empty or blocked state instead of falling back to the most recent Evento.
+- Event detail routes continue using the event in the URL as their context, because those routes are about one explicit Evento and do not act as list filters.
+
+Selectable event contexts can be reintroduced in V2 as explicit Evento de trabajo and Evento consultado concepts if historical or future event consultation becomes a priority.
 
 **Considered Options**
 
-- Single active-event-only model: simpler routing and fewer selectors, but it prevents historical and future consultation unless administration changes the global active event.
-- Multiple active events: flexible for parallel editions, but it weakens the product-wide default, complicates portal mutation rules, and contradicts the one operative event requirement.
-- Selectable event contexts with one Evento activo: keeps one global operative default while allowing administration and academies to consult event-specific data safely.
+- Single active-event-only model: simpler routing, one shell behavior, no hidden query context, but no historical or future list filtering in V1.
+- Selectable event contexts with one active event: supports historical consultation, but adds selectors, query propagation, read-only states, and duplicated UI behavior before the product needs them.
+- Multiple active events: flexible for parallel editions, but weakens the product-wide default and contradicts the one operative event requirement.
 
 **Consequences**
 
-- Loaders, route actions, repositories, and permissions must distinguish whether they are using Evento activo, Evento de trabajo, or Evento consultado.
-- Admin operational list URLs should carry the Evento de trabajo where shareability matters.
-- Portal event-specific URLs should carry the Evento consultado where shareability matters.
-- UI copy must make non-active contexts explicit so users understand when a view is read-only or limited.
-- Tests for future event features should assert both the default active-event behavior and the behavior for selected historical or future contexts.
+- Loaders, actions, repositories, and UI copy should treat the Evento activo as the only implicit event context.
+- Admin and portal list URLs should not preserve or emit `evento` query parameters.
+- Admin Bases del evento for Modalidades, Categorías, Bloques horarios and Precios applies to the Evento activo in V1.
+- V2 event filtering will require a new decision to define URL shape, selector placement, read-only copy, and mutation rules.

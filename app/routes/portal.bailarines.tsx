@@ -8,20 +8,21 @@ import {
 } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
+import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { DateOnlyField } from "@/components/shared/date-only-field";
+import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   getPortalRecordStatusSearch,
   readPortalRecordStatusFilter,
   type PortalRecordStatusFilter,
-} from "@/lib/portal-route-state";
+} from "@/lib/portal/route-state";
 import {
   createDancerForAcademy,
   listDancersForAcademy,
   type CreateDancerInput,
   type DancerListItem,
-} from "@/lib/portal-dancers.server";
+} from "@/lib/portal/dancers.server";
 
 type PortalBailarinesRouteProps = {
   loaderData: {
@@ -380,13 +381,15 @@ function CreateDancerModal({
             defaultValue={values.lastName}
             type="text"
           />
-          <PortalField
+          <DateOnlyField
             error={actionData?.fieldErrors.birthDate}
             id="bailarin-fecha-nacimiento"
             label="Fecha de nacimiento"
             name="birthDate"
             defaultValue={values.birthDate}
-            type="date"
+            labelClassName="text-slate-800"
+            buttonClassName="mt-0 h-10 w-full border-slate-300 bg-white text-slate-950 hover:bg-slate-50 focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
+            errorClassName="mt-0 font-medium"
           />
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button
@@ -422,7 +425,7 @@ function PortalField({
   id: string;
   label: string;
   name: keyof CreateDancerInput;
-  type: "date" | "text";
+  type: "text";
 }) {
   const errorId = error ? `${id}-error` : undefined;
 

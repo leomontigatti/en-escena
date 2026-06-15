@@ -2,20 +2,21 @@ import { ArrowLeft } from "lucide-react";
 import { Link, redirect, useActionData } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice } from "@/components/access-ui";
-import { PortalShell } from "@/components/portal-ui";
-import { requireAcademyUser } from "@/lib/internal-access.server";
+import { AccessNotice } from "@/components/auth/access-ui";
+import { DateOnlyField } from "@/components/shared/date-only-field";
+import { PortalShell } from "@/components/portal/ui";
+import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   getPortalRecordStatusSearch,
   resolvePortalRecordStatusFilter,
-} from "@/lib/portal-route-state";
+} from "@/lib/portal/route-state";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
   reactivateDancerForAcademy,
   updateDancerForAcademy,
   type UpdateDancerInput,
-} from "@/lib/portal-dancers.server";
+} from "@/lib/portal/dancers.server";
 
 type ActionData = Extract<
   Awaited<ReturnType<typeof updateDancerForAcademy>>,
@@ -211,13 +212,15 @@ export function PortalBailarinDetalleRouteView({
             defaultValue={values.lastName}
             error={actionData?.fieldErrors.lastName}
           />
-          <FormField
+          <DateOnlyField
             id="bailarin-fecha-nacimiento"
             label="Fecha de nacimiento"
             name="birthDate"
-            type="date"
             defaultValue={values.birthDate}
             error={actionData?.fieldErrors.birthDate}
+            labelClassName="text-slate-800"
+            buttonClassName="mt-0 h-10 w-full border-slate-300 bg-white text-slate-950 hover:bg-slate-50 focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
+            errorClassName="mt-0 font-medium"
           />
           <SelectField
             id="bailarin-tipo-documento"
@@ -300,7 +303,7 @@ function FormField({
   id: string;
   label: string;
   name: keyof UpdateDancerInput;
-  type: "date" | "text";
+  type: "text";
 }) {
   const errorId = error ? `${id}-error` : undefined;
 

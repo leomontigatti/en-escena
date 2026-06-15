@@ -406,12 +406,8 @@ export const administrativeAuditEntries = createTable(
       .$defaultFn(() => crypto.randomUUID()),
     entityType: administrativeAuditEntityType("entity_type").notNull(),
     entityId: varchar("entity_id", { length: 255 }).notNull(),
-    eventId: varchar("event_id", { length: 255 }).references(() => events.id, {
-      onDelete: "set null",
-    }),
-    adminUserId: varchar("admin_user_id", { length: 255 })
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    eventId: varchar("event_id", { length: 255 }),
+    adminUserId: varchar("admin_user_id", { length: 255 }).notNull(),
     action: administrativeAuditAction("action").notNull(),
     reason: text("reason"),
     beforeValues: jsonb("before_values")
@@ -432,6 +428,16 @@ export const administrativeAuditEntries = createTable(
       table.entityType,
       table.entityId,
     ),
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "audit_entry_event_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.adminUserId],
+      foreignColumns: [user.id],
+      name: "audit_entry_admin_user_fk",
+    }).onDelete("cascade"),
     index("administrative_audit_entry_event_idx").on(table.eventId),
     index("administrative_audit_entry_admin_user_idx").on(table.adminUserId),
   ],
@@ -485,7 +491,10 @@ export const submodalities = createTable(
   (table) => [
     index("submodality_event_id_idx").on(table.eventId),
     index("submodality_modality_id_idx").on(table.modalityId),
-    uniqueIndex("submodality_event_name_unique").on(table.eventId, table.name),
+    uniqueIndex("submodality_modality_name_unique").on(
+      table.modalityId,
+      sql`lower(${table.name})`,
+    ),
   ],
 );
 
@@ -552,14 +561,20 @@ export const categories = createTable(
 export const categoryModalities = createTable(
   "category_modality",
   {
-    categoryId: varchar("category_id", { length: 255 })
-      .notNull()
-      .references(() => categories.id, { onDelete: "cascade" }),
-    modalityId: varchar("modality_id", { length: 255 })
-      .notNull()
-      .references(() => modalities.id),
+    categoryId: varchar("category_id", { length: 255 }).notNull(),
+    modalityId: varchar("modality_id", { length: 255 }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [categories.id],
+      name: "category_modality_category_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.modalityId],
+      foreignColumns: [modalities.id],
+      name: "category_modality_modality_fk",
+    }),
     uniqueIndex("category_modality_unique").on(
       table.categoryId,
       table.modalityId,
@@ -571,14 +586,22 @@ export const categoryModalities = createTable(
 export const categoryExperienceLevels = createTable(
   "category_experience_level",
   {
-    categoryId: varchar("category_id", { length: 255 })
-      .notNull()
-      .references(() => categories.id, { onDelete: "cascade" }),
-    experienceLevelId: varchar("experience_level_id", { length: 255 })
-      .notNull()
-      .references(() => experienceLevels.id),
+    categoryId: varchar("category_id", { length: 255 }).notNull(),
+    experienceLevelId: varchar("experience_level_id", {
+      length: 255,
+    }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [categories.id],
+      name: "category_level_category_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.experienceLevelId],
+      foreignColumns: [experienceLevels.id],
+      name: "category_level_level_fk",
+    }),
     uniqueIndex("category_experience_level_unique").on(
       table.categoryId,
       table.experienceLevelId,
@@ -653,9 +676,7 @@ export const prices = createTable(
     eventId: varchar("event_id", { length: 255 })
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
-    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).references(
-      () => scheduleBlocks.id,
-    ),
+    scheduleBlockId: varchar("schedule_block_id", { length: 255 }),
     name: text("name").notNull(),
     groupType: groupType("group_type").notNull(),
     amount: integer("amount").notNull(),
@@ -668,6 +689,11 @@ export const prices = createTable(
   },
   (table) => [
     index("price_event_id_idx").on(table.eventId),
+    foreignKey({
+      columns: [table.scheduleBlockId],
+      foreignColumns: [scheduleBlocks.id],
+      name: "price_schedule_block_fk",
+    }),
     index("price_schedule_block_id_idx").on(table.scheduleBlockId),
     uniqueIndex("price_general_unique")
       .on(table.eventId, table.groupType)
@@ -685,9 +711,7 @@ export const scheduleEntries = createTable(
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    scheduleBlockId: varchar("schedule_block_id", { length: 255 })
-      .notNull()
-      .references(() => scheduleBlocks.id, { onDelete: "cascade" }),
+    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).notNull(),
     groupTypes: groupType("group_types").array().notNull(),
     groupTypeKey: text("group_type_key").notNull(),
     capacity: integer("capacity").notNull(),
@@ -699,6 +723,11 @@ export const scheduleEntries = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
+    foreignKey({
+      columns: [table.scheduleBlockId],
+      foreignColumns: [scheduleBlocks.id],
+      name: "schedule_entry_block_fk",
+    }).onDelete("cascade"),
     index("schedule_entry_block_id_idx").on(table.scheduleBlockId),
     uniqueIndex("schedule_entry_block_group_types_unique").on(
       table.scheduleBlockId,
@@ -724,9 +753,7 @@ export const choreographies = createTable(
     modalityId: varchar("modality_id", { length: 255 })
       .notNull()
       .references(() => modalities.id),
-    submodalityId: varchar("submodality_id", { length: 255 }).references(
-      () => submodalities.id,
-    ),
+    submodalityId: varchar("submodality_id", { length: 255 }),
     groupType: groupType("group_type").notNull(),
     categoryId: varchar("category_id", { length: 255 }).references(
       () => categories.id,
@@ -737,10 +764,8 @@ export const choreographies = createTable(
     ).notNull(),
     experienceLevelId: varchar("experience_level_id", {
       length: 255,
-    }).references(() => experienceLevels.id),
-    scheduleEntryId: varchar("schedule_entry_id", { length: 255 })
-      .notNull()
-      .references(() => scheduleEntries.id),
+    }),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 255 }).notNull(),
     musicStorageKey: text("music_storage_key"),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -761,6 +786,21 @@ export const choreographies = createTable(
       table.academyId,
       table.createdAt,
     ),
+    foreignKey({
+      columns: [table.submodalityId],
+      foreignColumns: [submodalities.id],
+      name: "choreography_submodality_fk",
+    }),
+    foreignKey({
+      columns: [table.experienceLevelId],
+      foreignColumns: [experienceLevels.id],
+      name: "choreography_experience_level_fk",
+    }),
+    foreignKey({
+      columns: [table.scheduleEntryId],
+      foreignColumns: [scheduleEntries.id],
+      name: "choreography_schedule_entry_fk",
+    }),
     index("choreography_schedule_entry_id_idx").on(table.scheduleEntryId),
   ],
 );

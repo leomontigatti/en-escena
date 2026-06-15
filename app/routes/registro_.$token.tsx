@@ -8,12 +8,15 @@ import {
   AccessPage,
   AccessSecondaryLink,
   accessButtonClassName,
-} from "@/components/access-ui";
+} from "@/components/auth/access-ui";
 import {
   completeAcademyRegistration,
   getRegistrationTokenStatus,
-} from "@/lib/academy-registration.server";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
+} from "@/lib/academies/registration.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
 
 import type { Route } from "./+types/registro_.$token";
 

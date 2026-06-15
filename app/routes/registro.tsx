@@ -8,10 +8,13 @@ import {
   AccessPage,
   AccessTextLink,
   accessButtonClassName,
-} from "@/components/access-ui";
-import { requestAcademyRegistrationEmail } from "@/lib/academy-registration.server";
-import { getEmptyFieldErrors, getFieldErrors } from "@/lib/form-validation";
-import { redirectSignedInUserFromPublicRoute } from "@/lib/internal-navigation.server";
+} from "@/components/auth/access-ui";
+import { requestAcademyRegistrationEmail } from "@/lib/academies/registration.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
+import { redirectSignedInUserFromPublicRoute } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/registro";
 
