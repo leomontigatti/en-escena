@@ -145,7 +145,7 @@ describe("access session policy", () => {
       {
         email: "invitado-sesion@example.com",
         role: "auditor",
-        requestUrl: "http://localhost/administracion/usuarios/invitaciones",
+        requestUrl: "http://localhost/administracion/usuarios/nuevo",
       },
       {
         sendEmail: async (input) => {

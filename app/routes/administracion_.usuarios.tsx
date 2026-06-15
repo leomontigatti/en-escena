@@ -107,7 +107,8 @@ export function AdministracionUsuariosRouteView({
             <h2 className="text-xl font-semibold">Usuarios</h2>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               Consultá accesos internos y de academia con filtros por permiso,
-              tipo y estado.
+              tipo y estado. El alta de Usuarios internos se hace desde Crear
+              Usuario interno.
             </p>
           </div>
           <div className="flex items-center gap-3">
