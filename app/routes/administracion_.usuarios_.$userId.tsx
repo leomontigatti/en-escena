@@ -1,20 +1,82 @@
 import { ArrowLeft } from "lucide-react";
 import { eq } from "drizzle-orm";
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import {
+  Form,
+  Link,
+  redirect,
+  useActionData,
+  useSearchParams,
+} from "react-router";
+import { z } from "zod";
 
 import { AdminShell } from "@/components/admin/shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
+import {
+  requireAdminUser,
+  requireInternalUser,
+} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
 import { cn } from "@/lib/shared/utils";
 
 import type { Route } from "./+types/administracion_.usuarios_.$userId";
 
 const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
+const userSavedSearchParam = "guardado";
+
+const requiredTextField = (message: string) =>
+  z.preprocess(
+    (value) => (typeof value === "string" ? value : ""),
+    z.string().trim().min(1, message),
+  );
+
+const optionalEmailField = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : ""),
+  z.union([z.literal(""), z.email("Ingresá un correo válido o dejalo vacío.")]),
+);
+
+const roleField = z.enum(["admin", "auditor", "judge"], {
+  error: "Elegí un permiso principal válido.",
+});
+
+const updateInternalUserSchema = z.object({
+  name: requiredTextField("Ingresá el nombre visible."),
+  email: optionalEmailField,
+  role: roleField,
+});
+
+const fieldNames = ["name", "email", "role"] as const;
+
+type UpdateInternalUserField = (typeof fieldNames)[number];
+type UpdateInternalUserFieldErrors = Partial<
+  Record<UpdateInternalUserField, string>
+>;
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DetailUser = LoaderData["user"];
@@ -34,6 +96,11 @@ type DetailUserRow = {
 };
 
 type AdministracionUsuarioDetalleRouteProps = {
+  actionData?: {
+    status: "error";
+    message: string;
+    fieldErrors: UpdateInternalUserFieldErrors;
+  };
   loaderData: LoaderData;
 };
 
@@ -72,20 +139,75 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw new Response("Usuario no encontrado.", { status: 404 });
   }
 
+  const url = new URL(request.url);
+
   return {
     backToList: buildBackToListHref(request.url),
     canManage: appUser.role === "admin",
+    cancelHref: buildModeHref(url, userId, null),
+    editHref: buildModeHref(url, userId, "editar"),
     email: appUser.email,
     eventOptions: eventContext.events,
+    isEditing:
+      appUser.role === "admin" && url.searchParams.get("modo") === "editar",
     selectedEventId: eventContext.selectedEventId,
+    successMessage: readSavedSuccessMessage(url.searchParams),
     user: buildDetailUser(savedUser),
   };
 }
 
+export async function action({ request, params }: Route.ActionArgs) {
+  const appUser = await requireAdminUser(request);
+  await requireAdminPanelUser(request);
+  const userId = params.userId;
+
+  if (!userId) {
+    throw new Response("Usuario no encontrado.", { status: 404 });
+  }
+
+  const formData = await request.formData();
+  const parsed = updateInternalUserSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    role: formData.get("role"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error" as const,
+      message: "Revisá los datos del Usuario interno.",
+      fieldErrors: getFieldErrors(parsed.error, fieldNames),
+    };
+  }
+
+  const result = await updateInternalUser({
+    userId,
+    name: parsed.data.name,
+    email: parsed.data.email,
+    role: parsed.data.role,
+    updatedByUserId: appUser.id,
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error" as const,
+      message: result.error,
+      fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+    };
+  }
+
+  throw redirect(buildSavedDetailHref(request.url, userId));
+}
+
 export function AdministracionUsuarioDetalleRouteView({
+  actionData,
   loaderData,
 }: AdministracionUsuarioDetalleRouteProps) {
   const savedUser = loaderData.user;
+  const isEditing =
+    loaderData.canManage &&
+    savedUser.userType === "internal" &&
+    (loaderData.isEditing || Boolean(actionData));
   const breadcrumbItems = [
     { label: "Usuarios", to: loaderData.backToList },
     { label: savedUser.name },
@@ -109,6 +231,13 @@ export function AdministracionUsuarioDetalleRouteView({
             <ArrowLeft aria-hidden="true" className="size-4" />
             Volver a Usuarios
           </Link>
+          {loaderData.canManage &&
+          savedUser.userType === "internal" &&
+          !isEditing ? (
+            <Button asChild>
+              <Link to={loaderData.editHref}>Editar datos</Link>
+            </Button>
+          ) : null}
         </div>
 
         <header className="flex flex-col gap-3">
@@ -129,12 +258,24 @@ export function AdministracionUsuarioDetalleRouteView({
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
             {savedUser.userType === "academy"
               ? "Consultá la identidad de acceso de la Academia en modo solo lectura."
-              : "Consultá la identidad interna en modo solo lectura."}
+              : loaderData.canManage
+                ? "Actualizá los datos del Usuario interno y su Permiso principal sin modificar el Nombre de usuario interno."
+                : "Consultá la identidad interna en modo solo lectura."}
           </p>
         </header>
 
+        {loaderData.successMessage ? (
+          <SuccessAlert message={loaderData.successMessage} />
+        ) : null}
+
         {savedUser.userType === "academy" ? (
           <AcademyUserDetailCard user={savedUser} />
+        ) : isEditing ? (
+          <InternalUserEditCard
+            actionData={actionData}
+            cancelHref={loaderData.cancelHref}
+            user={savedUser}
+          />
         ) : (
           <InternalUserDetailCard user={savedUser} />
         )}
@@ -146,7 +287,19 @@ export function AdministracionUsuarioDetalleRouteView({
 export default function AdministracionUsuarioDetalleRoute({
   loaderData,
 }: AdministracionUsuarioDetalleRouteProps) {
-  return <AdministracionUsuarioDetalleRouteView loaderData={loaderData} />;
+  const actionData = useActionData<typeof action>();
+  const [searchParams] = useSearchParams();
+
+  return (
+    <AdministracionUsuarioDetalleRouteView
+      actionData={actionData}
+      loaderData={{
+        ...loaderData,
+        successMessage:
+          loaderData.successMessage ?? readSavedSuccessMessage(searchParams),
+      }}
+    />
+  );
 }
 
 function InternalUserDetailCard({ user }: { user: DetailUser }) {
@@ -168,6 +321,112 @@ function InternalUserDetailCard({ user }: { user: DetailUser }) {
           value={getRoleLabel(user.mainRole)}
         />
         <DetailItem label="Estado" value={getStateLabel(user.state)} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function InternalUserEditCard({
+  actionData,
+  cancelHref,
+  user,
+}: {
+  actionData?: AdministracionUsuarioDetalleRouteProps["actionData"];
+  cancelHref: string;
+  user: DetailUser;
+}) {
+  const fieldErrors = actionData?.fieldErrors ?? {};
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Editar Usuario</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {actionData?.status === "error" ? (
+          <p className="mb-6 text-sm text-destructive">{actionData.message}</p>
+        ) : null}
+
+        <Form method="post" className="grid gap-6">
+          <FieldGroup>
+            <Field data-invalid={!!fieldErrors.name} orientation="responsive">
+              <FieldLabel htmlFor="name">Nombre visible</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={user.name}
+                  autoComplete="name"
+                  required
+                />
+                <FieldError>{fieldErrors.name}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <Field orientation="responsive">
+              <FieldLabel htmlFor="identifier">
+                Nombre de usuario interno
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="identifier"
+                  value={user.identifier}
+                  readOnly
+                  disabled
+                  aria-readonly="true"
+                />
+                <FieldDescription>
+                  Se mantiene fijo después de crear el Usuario.
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+
+            <Field data-invalid={!!fieldErrors.role} orientation="responsive">
+              <FieldLabel htmlFor="role">Permiso principal</FieldLabel>
+              <FieldContent>
+                <Select name="role" defaultValue={user.mainRole}>
+                  <SelectTrigger id="role" aria-invalid={!!fieldErrors.role}>
+                    <SelectValue placeholder="Elegí un permiso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="auditor">Auditor</SelectItem>
+                    <SelectItem value="judge">Juez</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Si cambia, el sistema cerrará las sesiones activas de este
+                  Usuario.
+                </FieldDescription>
+                <FieldError>{fieldErrors.role}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <Field data-invalid={!!fieldErrors.email} orientation="responsive">
+              <FieldLabel htmlFor="email">Correo</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={user.email ?? ""}
+                  autoComplete="email"
+                />
+                <FieldDescription>
+                  Opcional. No se usa como credencial principal.
+                </FieldDescription>
+                <FieldError>{fieldErrors.email}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit">Guardar cambios</Button>
+              <Button asChild variant="outline">
+                <Link to={cancelHref}>Cancelar</Link>
+              </Button>
+            </div>
+          </FieldGroup>
+        </Form>
       </CardContent>
     </Card>
   );
@@ -287,8 +546,55 @@ function buildBackToListHref(requestUrl: string) {
     : "/administracion/usuarios";
 }
 
+function buildModeHref(url: URL, userId: string, mode: "editar" | null) {
+  const nextUrl = new URL(url);
+
+  if (mode) {
+    nextUrl.searchParams.set("modo", mode);
+  } else {
+    nextUrl.searchParams.delete("modo");
+  }
+
+  const search = nextUrl.searchParams.toString();
+
+  return search.length > 0
+    ? `/administracion/usuarios/${userId}?${search}`
+    : `/administracion/usuarios/${userId}`;
+}
+
+function buildSavedDetailHref(requestUrl: string, userId: string) {
+  const url = new URL(requestUrl);
+
+  url.searchParams.delete("modo");
+  url.searchParams.set(userSavedSearchParam, "1");
+
+  const search = url.searchParams.toString();
+
+  return search.length > 0
+    ? `/administracion/usuarios/${userId}?${search}`
+    : `/administracion/usuarios/${userId}`;
+}
+
+function readSavedSuccessMessage(searchParams: URLSearchParams) {
+  if (searchParams.get(userSavedSearchParam) !== "1") {
+    return null;
+  }
+
+  return "Guardamos los datos del Usuario interno.";
+}
+
 function getInternalOptionalEmail(email: string) {
   return email.endsWith(`@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`) ? null : email;
+}
+
+function SuccessAlert({ message }: { message: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-sm text-foreground">{message}</p>
+      </CardContent>
+    </Card>
+  );
 }
 
 function getRoleLabel(role: LoaderData["user"]["mainRole"]) {

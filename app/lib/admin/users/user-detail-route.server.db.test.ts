@@ -5,13 +5,19 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import {
+  academies,
+  administrativeAuditEntries,
+  session,
+  user,
+} from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
 import {
   loader as listLoader,
   AdministracionUsuariosRouteView,
 } from "@/routes/administracion_.usuarios";
 import {
+  action as detailAction,
   AdministracionUsuarioDetalleRouteView,
   loader as detailLoader,
 } from "@/routes/administracion_.usuarios_.$userId";
@@ -21,6 +27,181 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("administracion/usuarios/:userId route", () => {
+  test("updates an internal user, revokes sessions on permission change, and persists sanitized audit data", async () => {
+    const targetUser = await createSignedInRequest({
+      email: "usuario.interno.original@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/juzgamiento",
+      userName: "Julia Original",
+      internalUsername: "julia.original",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.editor@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?modo=editar`,
+      userName: "Ada Editora",
+      internalUsername: "ada.editora",
+    });
+
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toHaveLength(1);
+
+    const response = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            adminRequest.url,
+            adminRequest.headers.get("cookie") ?? "",
+            {
+              name: "  Julia Actualizada  ",
+              email: " Julia.Actualizada@Example.COM ",
+              role: "auditor",
+            },
+          ),
+          targetUser.userId,
+        ),
+      ),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `/administracion/usuarios/${targetUser.userId}?guardado=1`,
+    );
+    await expect(
+      db.query.user.findFirst({
+        where: eq(user.id, targetUser.userId),
+      }),
+    ).resolves.toMatchObject({
+      name: "Julia Actualizada",
+      email: "julia.actualizada@example.com",
+      internalUsername: "julia.original",
+      role: "auditor",
+    });
+    await expect(
+      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+    ).resolves.toEqual([]);
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .where(eq(administrativeAuditEntries.entityId, targetUser.userId)),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        entityType: "user",
+        entityId: targetUser.userId,
+        action: "update",
+        reason: null,
+        beforeValues: {
+          email: "usuario.interno.original@example.com",
+          internalUsername: "julia.original",
+          name: "Julia Original",
+          requiresPasswordChange: false,
+          role: "judge",
+        },
+        afterValues: {
+          email: "julia.actualizada@example.com",
+          internalUsername: "julia.original",
+          name: "Julia Actualizada",
+          requiresPasswordChange: false,
+          role: "auditor",
+        },
+      }),
+    ]);
+  });
+
+  test("blocks non-admin mutations and prevents self-demotion of the only admin", async () => {
+    const targetUser = await createSignedInRequest({
+      email: "usuario.bloqueado@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/juzgamiento",
+      userName: "Julia Bloqueada",
+      internalUsername: "julia.bloqueada",
+    });
+
+    const blockedUsers: Array<{
+      role: "academy" | "auditor" | "judge";
+      userId: string;
+      request: Request;
+    }> = [];
+
+    for (const role of ["auditor", "judge", "academy"] as const) {
+      const blockedUser = await createSignedInRequest({
+        email: `${role}.sin-permiso@example.com`,
+        role,
+        requiresPasswordChange: false,
+        requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?modo=editar`,
+        userName: `${role} sin permiso`,
+        internalUsername:
+          role === "academy" ? undefined : `${role}.sin.permiso`,
+      });
+      blockedUsers.push({ role, ...blockedUser });
+
+      await expectThrownResponse(
+        detailAction(
+          detailActionArgs(
+            createPostRequest(
+              blockedUser.request.url,
+              blockedUser.request.headers.get("cookie") ?? "",
+              {
+                name: "No autorizado",
+                email: "",
+                role: "auditor",
+              },
+            ),
+            targetUser.userId,
+          ),
+        ),
+        403,
+      );
+    }
+
+    const selfAdmin = await createSignedInRequest({
+      email: "admin.self@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl:
+        "http://localhost/administracion/usuarios/self-admin?modo=editar",
+      userName: "Admin Self",
+      internalUsername: "admin.self",
+    });
+
+    for (const blockedUser of blockedUsers) {
+      await db
+        .update(user)
+        .set({ role: blockedUser.role === "academy" ? "academy" : "judge" })
+        .where(eq(user.id, blockedUser.userId));
+    }
+    const selfResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          `http://localhost/administracion/usuarios/${selfAdmin.userId}?modo=editar`,
+          selfAdmin.request.headers.get("cookie") ?? "",
+          {
+            name: "Admin Self",
+            email: "",
+            role: "auditor",
+          },
+        ),
+        selfAdmin.userId,
+      ),
+    );
+
+    expect(selfResult).toMatchObject({
+      status: "error",
+      message: "No podés cambiar tu propio permiso de Administrador.",
+    });
+    await expect(
+      db.query.user.findFirst({
+        columns: { role: true },
+        where: eq(user.id, selfAdmin.userId),
+      }),
+    ).resolves.toMatchObject({ role: "admin" });
+  });
+
   test("allows admin and auditor access, blocks academy and judge users, and renders readonly internal and academy detail views", async () => {
     const internalUser = await createSignedInRequest({
       email: "admin.detalle.usuario@example.com",
@@ -113,6 +294,10 @@ describe("administracion/usuarios/:userId route", () => {
       await detailLoader(detailRouteArgs(adminRequest, internalUser.userId)),
       internalUser.userId,
     );
+    const auditorInternalMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(auditorRequest, internalUser.userId)),
+      internalUser.userId,
+    );
 
     expect(internalMarkup).toContain("Ada Admin");
     expect(internalMarkup).toContain("ada.admin");
@@ -121,9 +306,11 @@ describe("administracion/usuarios/:userId route", () => {
     expect(internalMarkup).toContain("Administrador");
     expect(internalMarkup).toContain("Estado");
     expect(internalMarkup).toContain("Cambio obligatorio");
-    expect(internalMarkup).not.toContain("Editar");
+    expect(internalMarkup).toContain("Editar datos");
     expect(internalMarkup).not.toContain("Suspender Usuario");
     expect(internalMarkup).not.toContain("Restablecer contraseña");
+    expect(auditorInternalMarkup).not.toContain("Editar datos");
+    expect(auditorInternalMarkup).not.toContain("Guardar cambios");
 
     const academyDetailRequest = new Request(
       `http://localhost/administracion/usuarios/${academyUser.userId}`,
@@ -338,6 +525,34 @@ function detailRouteArgs(request: Request, userId: string) {
     url: new URL(request.url),
     pattern: "/administracion/usuarios/:userId",
   };
+}
+
+function detailActionArgs(request: Request, userId: string) {
+  return {
+    request,
+    params: { userId },
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/usuarios/:userId",
+  };
+}
+
+function createPostRequest(
+  requestUrl: string,
+  cookie: string,
+  values: Record<string, string>,
+) {
+  const formData = new FormData();
+
+  for (const [key, value] of Object.entries(values)) {
+    formData.set(key, value);
+  }
+
+  return new Request(requestUrl, {
+    method: "POST",
+    body: formData,
+    headers: { cookie },
+  });
 }
 
 function createRequestCookie(headers: Headers) {
