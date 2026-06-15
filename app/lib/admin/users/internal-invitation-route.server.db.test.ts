@@ -4,7 +4,11 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
-import { action, loader } from "@/routes/administracion_.usuarios.invitaciones";
+import {
+  action,
+  internalInvitationRedirectPath,
+  loader,
+} from "@/routes/administracion_.usuarios.invitaciones";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -34,10 +38,10 @@ describe("administracion/usuarios/invitaciones route", () => {
     );
 
     expect(loaderResponse.headers.get("location")).toBe(
-      "/administracion/usuarios/nuevo",
+      internalInvitationRedirectPath,
     );
     expect(actionResponse.headers.get("location")).toBe(
-      "/administracion/usuarios/nuevo",
+      internalInvitationRedirectPath,
     );
   });
 });
