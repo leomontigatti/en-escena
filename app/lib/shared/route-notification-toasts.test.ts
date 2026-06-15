@@ -54,6 +54,11 @@ describe("route notification toasts", () => {
       message: "Cronograma guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["usuario-interno-creado"]).toEqual({
+      id: "route-notification:usuario-interno-creado",
+      message: "Usuario interno creado.",
+      variant: "success",
+    });
     expect(getRouteNotificationToast("desconocida")).toBeUndefined();
   });
 

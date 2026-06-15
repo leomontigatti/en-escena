@@ -41,9 +41,10 @@ describe("administracion/usuarios/nuevo route", () => {
     expect(markup).toContain("Crear Usuario interno");
     expect(markup).toContain("Contraseña temporal");
     expect(markup).toContain("canal seguro");
+    expect(markup).not.toContain("Usuario interno creado");
   });
 
-  test("creates an internal judge user and redirects without revealing the temporary password", async () => {
+  test("creates an internal judge user and redirects with a toast notification without revealing the temporary password", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.crea.usuario@example.com",
       role: "admin",
@@ -71,7 +72,7 @@ describe("administracion/usuarios/nuevo route", () => {
       requiresPasswordChange: true,
     });
     expect(response.headers.get("location")).toBe(
-      "/administracion/usuarios/nuevo?estado=creado",
+      "/administracion/usuarios/nuevo?notificacion=usuario-interno-creado",
     );
     expect(response.headers.get("location")).not.toContain("temporal-segura");
   });

@@ -192,14 +192,14 @@ describe("internal navigation", () => {
     const response = await expectThrownResponse(
       signInAction({
         url: new URL(
-          "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Festado%3Dcreado",
+          "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Fnotificacion%3Dusuario-interno-creado",
         ),
         pattern: "/ingresar",
         request: createSignInRequest({
           identifier: "redirect.login@example.com",
           password: "password-segura",
           requestUrl:
-            "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Festado%3Dcreado",
+            "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Fnotificacion%3Dusuario-interno-creado",
         }),
         params: {},
         context: {},
@@ -208,7 +208,7 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      "/administracion/usuarios/nuevo?estado=creado",
+      "/administracion/usuarios/nuevo?notificacion=usuario-interno-creado",
     );
   });
 

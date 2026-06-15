@@ -12,6 +12,7 @@ export const routeNotificationToastIds = {
   "bailarin-guardado": "route-notification:bailarin-guardado",
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
+  "user-form-error": "route-notification:user-form-error",
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
@@ -30,11 +31,18 @@ export const routeNotificationToastIds = {
   "categoria-eliminada": "route-notification:categoria-eliminada",
   "modalidad-guardada": "route-notification:modalidad-guardada",
   "modalidad-eliminada": "route-notification:modalidad-eliminada",
+  "usuario-interno-creado": "route-notification:usuario-interno-creado",
+  "usuario-interno-actualizado":
+    "route-notification:usuario-interno-actualizado",
+  "usuario-interno-restablecido":
+    "route-notification:usuario-interno-restablecido",
+  "usuario-interno-suspendido": "route-notification:usuario-interno-suspendido",
+  "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
 } as const;
 
 type RouteNotificationToastKey = Exclude<
   keyof typeof routeNotificationToastIds,
-  "event-form-error"
+  "event-form-error" | "user-form-error"
 >;
 
 export const routeNotificationToasts = {
@@ -156,6 +164,31 @@ export const routeNotificationToasts = {
   "modalidad-eliminada": {
     id: routeNotificationToastIds["modalidad-eliminada"],
     message: "Modalidad eliminada.",
+    variant: "success",
+  },
+  "usuario-interno-creado": {
+    id: routeNotificationToastIds["usuario-interno-creado"],
+    message: "Usuario interno creado.",
+    variant: "success",
+  },
+  "usuario-interno-actualizado": {
+    id: routeNotificationToastIds["usuario-interno-actualizado"],
+    message: "Usuario interno actualizado.",
+    variant: "success",
+  },
+  "usuario-interno-restablecido": {
+    id: routeNotificationToastIds["usuario-interno-restablecido"],
+    message: "Contraseña temporal guardada.",
+    variant: "success",
+  },
+  "usuario-interno-suspendido": {
+    id: routeNotificationToastIds["usuario-interno-suspendido"],
+    message: "Usuario suspendido.",
+    variant: "success",
+  },
+  "usuario-interno-reactivado": {
+    id: routeNotificationToastIds["usuario-interno-reactivado"],
+    message: "Usuario reactivado.",
     variant: "success",
   },
 } as const satisfies Record<RouteNotificationToastKey, RouteNotificationToast>;

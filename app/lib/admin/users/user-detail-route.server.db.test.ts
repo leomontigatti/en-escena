@@ -81,7 +81,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     expect(suspendResponse.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=status`,
+      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-suspendido`,
     );
     await expect(
       db.query.user.findFirst({
@@ -107,13 +107,12 @@ describe("administracion/usuarios/:userId route", () => {
       ),
     );
     expect(suspendedDetail.user.state).toBe("suspended");
-    expect(suspendedDetail.successMessage).toBe(
-      "Guardamos el estado del Usuario interno.",
-    );
-
     const suspendedDetailMarkup = renderDetailRoute(
       suspendedDetail,
       targetUser.userId,
+    );
+    expect(suspendedDetailMarkup).not.toContain(
+      "Guardamos el estado del Usuario interno.",
     );
     expect(suspendedDetailMarkup).toContain("Reactivar Usuario");
     expect(suspendedDetailMarkup).not.toContain("Suspender Usuario");
@@ -133,7 +132,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     expect(reactivateResponse.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=status`,
+      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-reactivado`,
     );
     await expect(
       db.query.user.findFirst({
@@ -229,7 +228,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=details`,
+      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-actualizado`,
     );
     await expect(
       db.query.user.findFirst({
@@ -320,7 +319,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?guardado=1&tipoGuardado=password`,
+      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-restablecido`,
     );
     await expect(
       db.query.user.findFirst({
