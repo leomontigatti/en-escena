@@ -5,7 +5,6 @@ import {
   GraduationCap,
   Home,
   LogOut,
-  MailPlus,
   Settings,
   Users,
   AudioLines,
@@ -121,8 +120,8 @@ const primaryNavigationItems = [
 const secondaryNavigationItems = [
   {
     label: "Usuarios",
-    to: "/administracion/usuarios/invitaciones",
-    icon: MailPlus,
+    to: "/administracion/usuarios/nuevo",
+    icon: Users,
   },
 ] satisfies Array<{
   label: string;

@@ -1,5 +1,11 @@
 import { Link, redirect } from "react-router";
-import { Building2, GraduationCap, Music2, Users } from "lucide-react";
+import {
+  Building2,
+  GraduationCap,
+  Music2,
+  ShieldUser,
+  Users,
+} from "lucide-react";
 
 import { AdminShell } from "@/components/admin/shell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -114,6 +120,12 @@ const adminHomeCards = [
     description: "Placeholder para revisión operativa de Coreografías.",
     icon: Music2,
     to: null,
+  },
+  {
+    title: "Usuarios",
+    description: "Creá accesos internos y administrá su ingreso inicial.",
+    icon: ShieldUser,
+    to: "/administracion/usuarios/nuevo",
   },
 ] satisfies Array<{
   title: string;

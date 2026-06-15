@@ -42,12 +42,12 @@ export const choreographyCategoryCalculationMode = pgEnum(
 
 export const administrativeAuditEntityType = pgEnum(
   "en_escena_administrative_audit_entity_type",
-  ["professor", "dancer"],
+  ["professor", "dancer", "user"],
 );
 
 export const administrativeAuditAction = pgEnum(
   "en_escena_administrative_audit_action",
-  ["update", "archive", "reactivate"],
+  ["create", "update", "archive", "reactivate"],
 );
 
 export const user = createTable("user", {
