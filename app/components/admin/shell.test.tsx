@@ -16,7 +16,7 @@ describe("AdminShell", () => {
     expect(markup).toContain("Bailarines");
     expect(markup).toContain("/administracion/bailarines");
     expect(markup).toContain("Usuarios");
-    expect(markup).toContain("/administracion/usuarios/nuevo");
+    expect(markup).toContain("/administracion/usuarios");
     expect(markup).toContain("Bases del evento");
     expect(markup).toContain('href="/administracion/eventos"');
     expect(markup.indexOf("Profesores")).toBeLessThan(

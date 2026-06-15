@@ -125,7 +125,7 @@ const adminHomeCards = [
     title: "Usuarios",
     description: "Creá accesos internos y administrá su ingreso inicial.",
     icon: ShieldUser,
-    to: "/administracion/usuarios/nuevo",
+    to: "/administracion/usuarios",
   },
 ] satisfies Array<{
   title: string;

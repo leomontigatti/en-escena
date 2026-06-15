@@ -120,7 +120,7 @@ const primaryNavigationItems = [
 const secondaryNavigationItems = [
   {
     label: "Usuarios",
-    to: "/administracion/usuarios/nuevo",
+    to: "/administracion/usuarios",
     icon: Users,
   },
 ] satisfies Array<{
