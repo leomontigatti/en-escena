@@ -107,8 +107,37 @@ type ProfessorFormReturn = UseFormReturn<
 >;
 type ProfessorFieldErrors = NonNullable<ActionData["fieldErrors"]>;
 type ProfessorStatusIntent = "archive-professor" | "reactivate-professor";
+type ProfessorStatusAction = {
+  intent: ProfessorStatusIntent;
+  label: string;
+  confirmTitle: string;
+  confirmDescription: string;
+  confirmButtonLabel: string;
+  confirmButtonVariant: "default" | "destructive";
+};
 
 const emptyProfessorFieldErrors: ProfessorFieldErrors = {};
+
+const professorStatusActions = {
+  "archive-professor": {
+    intent: "archive-professor",
+    label: "Archivar",
+    confirmTitle: "¿Archivar profesor?",
+    confirmDescription:
+      "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmButtonLabel: "Archivar",
+    confirmButtonVariant: "destructive",
+  },
+  "reactivate-professor": {
+    intent: "reactivate-professor",
+    label: "Reactivar",
+    confirmTitle: "¿Reactivar profesor?",
+    confirmDescription:
+      "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmButtonLabel: "Reactivar",
+    confirmButtonVariant: "default",
+  },
+} as const satisfies Record<ProfessorStatusIntent, ProfessorStatusAction>;
 
 type PortalProfesorRouteProps = {
   loaderData: LoaderData;
@@ -214,25 +243,7 @@ export function PortalProfesorRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
-  const statusAction = loaderData.professor.active
-    ? {
-        intent: "archive-professor" as const,
-        label: "Archivar",
-        confirmTitle: "¿Archivar profesor?",
-        confirmDescription:
-          "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
-        confirmButtonLabel: "Archivar",
-        confirmButtonVariant: "destructive" as const,
-      }
-    : {
-        intent: "reactivate-professor" as const,
-        label: "Reactivar",
-        confirmTitle: "¿Reactivar profesor?",
-        confirmDescription:
-          "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
-        confirmButtonLabel: "Reactivar",
-        confirmButtonVariant: "default" as const,
-      };
+  const statusAction = getProfessorStatusAction(loaderData.professor.active);
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
@@ -271,11 +282,7 @@ export function PortalProfesorRouteView({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
-                variant={
-                  statusAction.intent === "archive-professor"
-                    ? "destructive"
-                    : "default"
-                }
+                variant={statusAction.confirmButtonVariant}
                 onSelect={(event) => {
                   event.preventDefault();
                   setStatusDialogIntent(statusAction.intent);
@@ -430,12 +437,7 @@ function ProfessorTextField({
 }) {
   const id = useId();
   const errorId = `${id}-error`;
-  const autoComplete =
-    name === "firstName"
-      ? "given-name"
-      : name === "lastName"
-        ? "family-name"
-        : "off";
+  const autoComplete = getProfessorFieldAutoComplete(name);
 
   return (
     <Controller
@@ -525,61 +527,76 @@ function ProfessorStatusDialog({
   intent: ProfessorStatusIntent | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const isOpen = intent !== null;
-  const dialogFormId =
-    intent === "archive-professor"
-      ? "portal-profesor-archive-form"
-      : "portal-profesor-reactivate-form";
+  const action = intent ? professorStatusActions[intent] : null;
+  const isOpen = action !== null;
+  const dialogFormId = getProfessorStatusFormId(intent);
 
   return (
     <>
-      {intent ? (
+      {action ? (
         <div className="sr-only">
-          <p>
-            {intent === "archive-professor"
-              ? "¿Archivar profesor?"
-              : "¿Reactivar profesor?"}
-          </p>
-          <p>
-            {intent === "archive-professor"
-              ? "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."
-              : "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."}
-          </p>
+          <p>{action.confirmTitle}</p>
+          <p>{action.confirmDescription}</p>
         </div>
       ) : null}
       <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        <AlertDialogContent forceMount={intent !== null ? true : undefined}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {intent === "archive-professor"
-                ? "¿Archivar profesor?"
-                : "¿Reactivar profesor?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {intent === "archive-professor"
-                ? "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."
-                : "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <form id={dialogFormId} method="post">
-            <input type="hidden" name="intent" value={intent ?? ""} />
-          </form>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              form={dialogFormId}
-              type="submit"
-              variant={
-                intent === "archive-professor" ? "destructive" : "default"
-              }
-            >
-              {intent === "archive-professor" ? "Archivar" : "Reactivar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        {action ? (
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {action.confirmDescription}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <form id={dialogFormId} method="post">
+              <input type="hidden" name="intent" value={action.intent} />
+            </form>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                form={dialogFormId}
+                type="submit"
+                variant={action.confirmButtonVariant}
+              >
+                {action.confirmButtonLabel}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        ) : null}
       </AlertDialog>
     </>
   );
+}
+
+function getProfessorStatusAction(isActive: boolean) {
+  if (isActive) {
+    return professorStatusActions["archive-professor"];
+  }
+
+  return professorStatusActions["reactivate-professor"];
+}
+
+function getProfessorFieldAutoComplete(name: FieldPath<ProfessorFormValues>) {
+  switch (name) {
+    case "firstName":
+      return "given-name";
+    case "lastName":
+      return "family-name";
+    case "documentNumber":
+    case "documentType":
+      return "off";
+  }
+}
+
+function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {
+  switch (intent) {
+    case "archive-professor":
+      return "portal-profesor-archive-form";
+    case "reactivate-professor":
+      return "portal-profesor-reactivate-form";
+    case null:
+      return "portal-profesor-status-form";
+  }
 }
 
 function getGeneralActionError(actionData?: ActionData) {
