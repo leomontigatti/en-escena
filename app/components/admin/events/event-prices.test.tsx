@@ -3,14 +3,23 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
+import type { EventPriceDetailRouteView as EventPriceDetailRouteViewType } from "@/components/admin/events/event-prices";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
+  let EventPriceDetailRouteView: typeof EventPriceDetailRouteViewType;
+
+  beforeAll(async () => {
+    installReactTestEnvironment();
+
+    ({ EventPriceDetailRouteView } =
+      await import("@/components/admin/events/event-prices"));
+  });
 
   afterEach(() => {
     if (root) {
@@ -24,30 +33,6 @@ describe("EventPriceDetailRouteView", () => {
   });
 
   test("resets the form when rendering a different precio in the same component instance", async () => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
-      .IS_REACT_ACT_ENVIRONMENT = true;
-    const testWindow = window as Window &
-      typeof globalThis & {
-        __vite_plugin_react_preamble_installed__?: boolean;
-      };
-    testWindow.__vite_plugin_react_preamble_installed__ = true;
-    window.matchMedia = (() =>
-      ({
-        addEventListener() {},
-        addListener() {},
-        dispatchEvent() {
-          return false;
-        },
-        matches: false,
-        media: "",
-        onchange: null,
-        removeEventListener() {},
-        removeListener() {},
-      })) as typeof window.matchMedia;
-
-    const { EventPriceDetailRouteView } =
-      await import("@/components/admin/events/event-prices");
-
     const firstPrice = createPrice({
       amount: 12000,
       groupType: "solo",
@@ -71,17 +56,12 @@ describe("EventPriceDetailRouteView", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    const currentRoot = root;
 
-    await act(async () => {
-      currentRoot.render(
-        <MemoryRouter>
-          <EventPriceDetailRouteView
-            loaderData={loaderData}
-            priceId={firstPrice.id}
-          />
-        </MemoryRouter>,
-      );
+    await renderPriceDetailRoute({
+      loaderData,
+      priceId: firstPrice.id,
+      root,
+      EventPriceDetailRouteView,
     });
 
     expect(readInputValue(container, "name")).toBe("Precio base");
@@ -89,15 +69,11 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "amount")).toBe("12000");
     expect(readInputValue(container, "scheduleBlockId")).toBe("");
 
-    await act(async () => {
-      currentRoot.render(
-        <MemoryRouter>
-          <EventPriceDetailRouteView
-            loaderData={loaderData}
-            priceId={secondPrice.id}
-          />
-        </MemoryRouter>,
-      );
+    await renderPriceDetailRoute({
+      loaderData,
+      priceId: secondPrice.id,
+      root,
+      EventPriceDetailRouteView,
     });
 
     expect(readInputValue(container, "name")).toBe("Precio bloque noche");
@@ -106,6 +82,51 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "scheduleBlockId")).toBe("block_2");
   });
 });
+
+function installReactTestEnvironment() {
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+
+  const testWindow = window as Window &
+    typeof globalThis & {
+      __vite_plugin_react_preamble_installed__?: boolean;
+    };
+  testWindow.__vite_plugin_react_preamble_installed__ = true;
+
+  window.matchMedia = (() => ({
+    addEventListener() {},
+    addListener() {},
+    dispatchEvent() {
+      return false;
+    },
+    matches: false,
+    media: "",
+    onchange: null,
+    removeEventListener() {},
+    removeListener() {},
+  })) as typeof window.matchMedia;
+}
+
+async function renderPriceDetailRoute({
+  EventPriceDetailRouteView,
+  loaderData,
+  priceId,
+  root,
+}: {
+  EventPriceDetailRouteView: typeof EventPriceDetailRouteViewType;
+  loaderData: EventBasesLoaderData;
+  priceId: string;
+  root: ReturnType<typeof createRoot>;
+}) {
+  await act(async () => {
+    root.render(
+      <MemoryRouter>
+        <EventPriceDetailRouteView loaderData={loaderData} priceId={priceId} />
+      </MemoryRouter>,
+    );
+  });
+}
 
 function readInputValue(container: HTMLElement, name: string) {
   const input = container.querySelector<HTMLInputElement>(
