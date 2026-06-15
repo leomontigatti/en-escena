@@ -20,6 +20,11 @@ export const routeNotificationToastIds = {
   "modalidad-eliminada": "route-notification:modalidad-eliminada",
 } as const;
 
+type RouteNotificationToastKey = Exclude<
+  keyof typeof routeNotificationToastIds,
+  "event-form-error"
+>;
+
 export const routeNotificationToasts = {
   "evento-activado": {
     id: routeNotificationToastIds["evento-activado"],
@@ -81,21 +86,18 @@ export const routeNotificationToasts = {
     message: "Modalidad eliminada.",
     variant: "success",
   },
-} as const satisfies Record<string, RouteNotificationToast>;
+} as const satisfies Record<RouteNotificationToastKey, RouteNotificationToast>;
 
 export type RouteNotificationKey = keyof typeof routeNotificationToasts;
 
 export function getRouteNotificationToast(
   notification: string,
 ): RouteNotificationToast | undefined {
-  return Object.prototype.hasOwnProperty.call(
-    routeNotificationToasts,
-    notification,
-  )
-    ? routeNotificationToasts[
-        notification as keyof typeof routeNotificationToasts
-      ]
-    : undefined;
+  if (!isRouteNotificationKey(notification)) {
+    return undefined;
+  }
+
+  return routeNotificationToasts[notification];
 }
 
 export function showRouteNotificationToast(notification: string) {
@@ -108,4 +110,13 @@ export function showRouteNotificationToast(notification: string) {
   showToastMessage(toastMessage);
 
   return true;
+}
+
+function isRouteNotificationKey(
+  notification: string,
+): notification is RouteNotificationKey {
+  return Object.prototype.hasOwnProperty.call(
+    routeNotificationToasts,
+    notification,
+  );
 }

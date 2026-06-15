@@ -18,9 +18,13 @@ export function applyServerFieldErrors<TFieldValues extends FieldValues>(
       continue;
     }
 
-    const resolvedFieldName = resolveFieldName
-      ? resolveFieldName(fieldName)
-      : (fieldName as FieldPath<TFieldValues>);
+    let resolvedFieldName: FieldPath<TFieldValues> | null;
+
+    if (resolveFieldName) {
+      resolvedFieldName = resolveFieldName(fieldName);
+    } else {
+      resolvedFieldName = fieldName as FieldPath<TFieldValues>;
+    }
 
     if (!resolvedFieldName) {
       continue;
