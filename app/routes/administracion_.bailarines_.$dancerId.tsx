@@ -5,7 +5,6 @@ import { useEffect, useId } from "react";
 import {
   Controller,
   type FieldPath,
-  type SubmitHandler,
   useForm,
   type UseFormReturn,
 } from "react-hook-form";
@@ -61,6 +60,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import {
+  createValidatedNativeSubmitHandler,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -105,6 +105,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
+const noDocumentTypeSelectValue = "sin-documento";
 const dancerFieldNames = [
   "firstName",
   "lastName",
@@ -556,20 +557,7 @@ function useDancerEditForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<
-      AdministrativeDancerUpdateInput
-    > = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
-  return { form, handleSubmit };
+  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
 function useDancerStatusForm({
@@ -597,20 +585,7 @@ function useDancerStatusForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<
-      AdministrativeDancerStatusInput
-    > = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
-  return { form, handleSubmit };
+  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
 function DancerTextField({
@@ -684,10 +659,14 @@ function DancerDocumentTypeField({ form }: { form: DancerFormReturn }) {
           <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
           <FieldContent>
             <Select
-              name={field.name}
-              value={field.value}
-              onValueChange={field.onChange}
+              value={field.value || noDocumentTypeSelectValue}
+              onValueChange={(value) => {
+                field.onChange(
+                  value === noDocumentTypeSelectValue ? "" : value,
+                );
+              }}
             >
+              <input type="hidden" name={field.name} value={field.value} />
               <SelectTrigger
                 id={id}
                 aria-invalid={fieldState.error ? true : undefined}
@@ -697,7 +676,9 @@ function DancerDocumentTypeField({ form }: { form: DancerFormReturn }) {
                 <SelectValue placeholder="Sin documento" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sin documento</SelectItem>
+                <SelectItem value={noDocumentTypeSelectValue}>
+                  Sin documento
+                </SelectItem>
                 <SelectItem value="dni">DNI</SelectItem>
                 <SelectItem value="passport">Pasaporte</SelectItem>
                 <SelectItem value="other">Otro</SelectItem>

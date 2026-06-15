@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import type { FieldPath, FieldValues, UseFormReturn } from "react-hook-form";
+import type { SubmitEventHandler } from "react";
+import type {
+  FieldPath,
+  FieldValues,
+  SubmitHandler,
+  UseFormReturn,
+} from "react-hook-form";
 
 export const requiredFieldMessage = "Este campo es obligatorio.";
 
@@ -45,4 +51,21 @@ export function useApplyServerFieldErrors<TFieldValues extends FieldValues>(
   useEffect(() => {
     applyServerFieldErrors(form, fieldErrors, resolveFieldName);
   }, [fieldErrors, form, resolveFieldName]);
+}
+
+export function createValidatedNativeSubmitHandler<
+  TFieldValues extends FieldValues,
+>(
+  form: Pick<UseFormReturn<TFieldValues>, "handleSubmit">,
+): SubmitEventHandler<HTMLFormElement> {
+  return (event) => {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const submitNativeForm: SubmitHandler<TFieldValues> = () => {
+      formElement.submit();
+    };
+
+    void form.handleSubmit(submitNativeForm)(event);
+  };
 }
