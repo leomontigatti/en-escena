@@ -35,7 +35,10 @@ import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
-import { resetInternalUserPassword } from "@/lib/admin/users/internal-user-password-reset.server";
+import {
+  resetInternalUserPassword,
+  TEMPORARY_PASSWORD_MIN_LENGTH,
+} from "@/lib/admin/users/internal-user-password-reset.server";
 import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import {
@@ -82,7 +85,10 @@ const temporaryPasswordField = z.preprocess(
     .string()
     .trim()
     .min(1, "Ingresá una contraseña temporal.")
-    .min(8, "La contraseña temporal debe tener al menos 8 caracteres."),
+    .min(
+      TEMPORARY_PASSWORD_MIN_LENGTH,
+      "La contraseña temporal debe tener al menos 8 caracteres.",
+    ),
 );
 const resetPasswordSchema = z.object({
   intent: z.literal(resetPasswordIntent),
@@ -194,7 +200,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const parsedIntent = statusIntentSchema.safeParse(formData.get("intent"));
+  const intent = formData.get("intent");
+  const parsedIntent = statusIntentSchema.safeParse(intent);
 
   if (parsedIntent.success) {
     const result = await setInternalUserSuspendedState({
@@ -215,12 +222,24 @@ export async function action({ request, params }: Route.ActionArgs) {
     throw redirect(buildSavedDetailHref(request.url, userId, "status"));
   }
 
-  const parsedResetPassword = resetPasswordSchema.safeParse({
-    intent: formData.get("intent"),
-    temporaryPassword: formData.get("temporaryPassword"),
-  });
+  if (intent === resetPasswordIntent) {
+    const parsedResetPassword = resetPasswordSchema.safeParse({
+      intent,
+      temporaryPassword: formData.get("temporaryPassword"),
+    });
 
-  if (parsedResetPassword.success) {
+    if (!parsedResetPassword.success) {
+      return {
+        status: "error" as const,
+        message: "Revisá la contraseña temporal.",
+        fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
+        resetPasswordFieldErrors: getFieldErrors(
+          parsedResetPassword.error,
+          resetPasswordFieldNames,
+        ),
+      };
+    }
+
     const result = await resetInternalUserPassword({
       targetUserId: userId,
       temporaryPassword: parsedResetPassword.data.temporaryPassword,
@@ -237,27 +256,6 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     throw redirect(buildSavedDetailHref(request.url, userId, "password"));
-  }
-
-  if (formData.get("intent") === resetPasswordIntent) {
-    const resetPasswordError = resetPasswordSchema.safeParse({
-      intent: formData.get("intent"),
-      temporaryPassword: formData.get("temporaryPassword"),
-    });
-
-    if (resetPasswordError.success) {
-      throw new Error("Expected reset password validation to fail.");
-    }
-
-    return {
-      status: "error" as const,
-      message: "Revisá la contraseña temporal.",
-      fieldErrors: getEmptyFieldErrors<UpdateInternalUserField>(),
-      resetPasswordFieldErrors: getFieldErrors(
-        resetPasswordError.error,
-        resetPasswordFieldNames,
-      ),
-    };
   }
 
   const parsed = updateInternalUserSchema.safeParse({
@@ -772,11 +770,17 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
     return null;
   }
 
-  return searchParams.get(userSavedKindSearchParam) === "status"
-    ? "Guardamos el estado del Usuario interno."
-    : searchParams.get(userSavedKindSearchParam) === "password"
-      ? "Guardamos la contraseña temporal del Usuario interno."
-      : "Guardamos los datos del Usuario interno.";
+  const savedKind = searchParams.get(userSavedKindSearchParam);
+
+  if (savedKind === "status") {
+    return "Guardamos el estado del Usuario interno.";
+  }
+
+  if (savedKind === "password") {
+    return "Guardamos la contraseña temporal del Usuario interno.";
+  }
+
+  return "Guardamos los datos del Usuario interno.";
 }
 
 function getDetailDescription(userType: DetailUserType, canManage: boolean) {

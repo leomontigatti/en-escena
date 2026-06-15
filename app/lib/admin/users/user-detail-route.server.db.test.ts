@@ -298,13 +298,9 @@ describe("administracion/usuarios/:userId route", () => {
       db.select().from(session).where(eq(session.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
-    const previousCredential = await db.query.account.findFirst({
-      columns: { password: true },
-      where: and(
-        eq(account.userId, targetUser.userId),
-        eq(account.providerId, "credential"),
-      ),
-    });
+    const previousCredentialPassword = await findCredentialPassword(
+      targetUser.userId,
+    );
 
     const response = await expectThrownResponse(
       detailAction(
@@ -336,20 +332,16 @@ describe("administracion/usuarios/:userId route", () => {
       db.select().from(session).where(eq(session.userId, targetUser.userId)),
     ).resolves.toEqual([]);
 
-    const nextCredential = await db.query.account.findFirst({
-      columns: { password: true },
-      where: and(
-        eq(account.userId, targetUser.userId),
-        eq(account.providerId, "credential"),
-      ),
-    });
+    const nextCredentialPassword = await findCredentialPassword(
+      targetUser.userId,
+    );
 
-    expect(nextCredential?.password).toBeTruthy();
-    expect(nextCredential?.password).not.toBe(previousCredential?.password);
-    expect(nextCredential?.password).not.toBe("temporal-nueva");
+    expect(nextCredentialPassword).toBeTruthy();
+    expect(nextCredentialPassword).not.toBe(previousCredentialPassword);
+    expect(nextCredentialPassword).not.toBe("temporal-nueva");
     expect(
       await verifyPassword({
-        hash: nextCredential?.password ?? "",
+        hash: nextCredentialPassword ?? "",
         password: "temporal-nueva",
       }),
     ).toBe(true);
@@ -389,7 +381,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
     expect(JSON.stringify(savedAuditEntry)).not.toContain("temporal-nueva");
     expect(JSON.stringify(savedAuditEntry)).not.toContain(
-      nextCredential?.password ?? "",
+      nextCredentialPassword ?? "",
     );
 
     const loginResponse = await expectThrownResponse(
@@ -860,6 +852,18 @@ function submitSignInAction(identifier: string, password: string) {
     params: {},
     context: {},
   });
+}
+
+async function findCredentialPassword(userId: string) {
+  const credentialAccount = await db.query.account.findFirst({
+    columns: { password: true },
+    where: and(
+      eq(account.userId, userId),
+      eq(account.providerId, "credential"),
+    ),
+  });
+
+  return credentialAccount?.password ?? null;
 }
 
 function createRequestCookie(headers: Headers) {

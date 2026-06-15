@@ -9,9 +9,12 @@ import {
   user,
 } from "@/db/schema";
 import { getInternalOptionalEmail } from "@/lib/admin/users/internal-user-credentials.server";
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import {
+  isInternalUserRole,
+  type InternalUserRole,
+} from "@/lib/auth/internal-user-roles";
 
-const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
+export const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
 
 type ResetInternalUserPasswordInput = {
   temporaryPassword: string;
@@ -34,7 +37,7 @@ type InternalUserPasswordResetAuditSnapshot = {
   internalUsername: string;
   name: string;
   requiresPasswordChange: boolean;
-  role: "admin" | "auditor" | "judge";
+  role: InternalUserRole;
   suspended: boolean;
 };
 
@@ -47,17 +50,15 @@ export async function resetInternalUserPassword(
   });
 
   if (adminUser?.role !== "admin") {
-    return {
-      ok: false,
-      error: "Solo administración puede restablecer contraseñas internas.",
-    };
+    return resetPasswordError(
+      "Solo administración puede restablecer contraseñas internas.",
+    );
   }
 
   if (input.temporaryPassword.length < TEMPORARY_PASSWORD_MIN_LENGTH) {
-    return {
-      ok: false,
-      error: "La contraseña temporal debe tener al menos 8 caracteres.",
-    };
+    return resetPasswordError(
+      "La contraseña temporal debe tener al menos 8 caracteres.",
+    );
   }
 
   const existingUser = await db.query.user.findFirst({
@@ -74,17 +75,16 @@ export async function resetInternalUserPassword(
   });
 
   if (!existingUser) {
-    return { ok: false, error: "No encontramos ese Usuario." };
+    return resetPasswordError("No encontramos ese Usuario.");
   }
 
   if (
     !existingUser.internalUsername ||
     !isInternalUserRole(existingUser.role)
   ) {
-    return {
-      ok: false,
-      error: "Solo podés restablecer contraseñas de Usuarios internos.",
-    };
+    return resetPasswordError(
+      "Solo podés restablecer contraseñas de Usuarios internos.",
+    );
   }
 
   const credentialAccount = await db.query.account.findFirst({
@@ -96,10 +96,9 @@ export async function resetInternalUserPassword(
   });
 
   if (!credentialAccount) {
-    return {
-      ok: false,
-      error: "No pudimos actualizar la contraseña de este Usuario.",
-    };
+    return resetPasswordError(
+      "No pudimos actualizar la contraseña de este Usuario.",
+    );
   }
 
   const nextPasswordHash = await hashPassword(input.temporaryPassword);
@@ -144,4 +143,8 @@ export async function resetInternalUserPassword(
   });
 
   return { ok: true, userId: existingUser.id };
+}
+
+function resetPasswordError(error: string): ResetInternalUserPasswordResult {
+  return { ok: false, error };
 }
