@@ -34,6 +34,7 @@ import {
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
 import {
@@ -49,7 +50,6 @@ import { cn } from "@/lib/shared/utils";
 
 import type { Route } from "./+types/administracion_.usuarios_.$userId";
 
-const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 const userSavedSearchParam = "guardado";
 const userSavedKindSearchParam = "tipoGuardado";
 
@@ -557,7 +557,7 @@ function getDetailEmail(row: DetailUserRow, isAcademyUser: boolean) {
     return row.email;
   }
 
-  return getInternalOptionalEmail(row.email);
+  return isInternalCredentialEmail(row.email) ? null : row.email;
 }
 
 function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {
@@ -623,10 +623,6 @@ function readSavedSuccessMessage(searchParams: URLSearchParams) {
   return searchParams.get(userSavedKindSearchParam) === "status"
     ? "Guardamos el estado del Usuario interno."
     : "Guardamos los datos del Usuario interno.";
-}
-
-function getInternalOptionalEmail(email: string) {
-  return email.endsWith(`@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`) ? null : email;
 }
 
 function getDetailDescription(userType: DetailUserType, canManage: boolean) {

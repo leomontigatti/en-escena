@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { administrativeAuditEntries, session, user } from "@/db/schema";
+import { getInternalOptionalEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 
 type SetInternalUserSuspendedStateInput = {
@@ -28,8 +29,6 @@ type InternalUserSuspensionAuditSnapshot = {
   role: "admin" | "auditor" | "judge";
   suspended: boolean;
 };
-
-const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 
 export async function setInternalUserSuspendedState(
   input: SetInternalUserSuspendedStateInput,
@@ -134,17 +133,4 @@ export async function setInternalUserSuspendedState(
   });
 
   return { ok: true, userId: existingUser.id };
-}
-
-function getInternalOptionalEmail(input: {
-  email: string;
-  internalUsername: string;
-}) {
-  return input.email === buildInternalCredentialEmail(input.internalUsername)
-    ? null
-    : input.email;
-}
-
-function buildInternalCredentialEmail(internalUsername: string) {
-  return `${internalUsername}@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`;
 }

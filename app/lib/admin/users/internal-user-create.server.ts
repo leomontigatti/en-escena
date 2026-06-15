@@ -4,6 +4,7 @@ import { hashPassword } from "better-auth/crypto";
 import { db } from "@/db";
 import { account, administrativeAuditEntries, user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
+import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { assertValidInternalUsername } from "@/lib/auth/internal-username.server";
 import {
   isInternalUserRole,
@@ -11,7 +12,6 @@ import {
 } from "@/lib/auth/internal-user-roles";
 
 const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
-const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 
 type CreateInternalUserInput = {
   name: string;
@@ -159,8 +159,4 @@ function getCredentialEmailConflictMessage(email: string | null) {
   }
 
   return "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.";
-}
-
-function buildInternalCredentialEmail(internalUsername: string) {
-  return `${internalUsername}@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`;
 }

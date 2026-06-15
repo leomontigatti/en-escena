@@ -27,7 +27,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("administracion/usuarios/:userId route", () => {
-  test("suspends and reactivates an internal user, revokes sessions, and enforces admin guardrails", async () => {
+  test("suspends and reactivates an internal user, revokes sessions, and records status audits", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.suspendible@example.com",
       role: "judge",
@@ -156,7 +156,9 @@ describe("administracion/usuarios/:userId route", () => {
         afterValues: expect.objectContaining({ suspended: false }),
       }),
     ]);
+  });
 
+  test("prevents admins from suspending their own user", async () => {
     const selfAdmin = await createSignedInRequest({
       email: "admin.self.suspension@example.com",
       role: "admin",

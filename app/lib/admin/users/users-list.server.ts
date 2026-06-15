@@ -75,14 +75,29 @@ export async function listAdministrativeUsers(input: {
     mainRole: row.role,
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
-    state:
-      row.role !== "academy" && row.suspended
-        ? "suspended"
-        : row.role !== "academy" && row.requiresPasswordChange
-          ? "mandatory-password-change"
-          : "active",
+    state: getAdministrativeUserListState(row),
     userType: row.role === "academy" ? "academy" : "internal",
   }));
+}
+
+function getAdministrativeUserListState(row: {
+  requiresPasswordChange: boolean;
+  role: AdministrativeUserListRole;
+  suspended: boolean;
+}): AdministrativeUserListState {
+  if (row.role === "academy") {
+    return "active";
+  }
+
+  if (row.suspended) {
+    return "suspended";
+  }
+
+  if (row.requiresPasswordChange) {
+    return "mandatory-password-change";
+  }
+
+  return "active";
 }
 
 function buildAdministrativeUserWhere(

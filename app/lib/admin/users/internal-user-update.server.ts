@@ -4,11 +4,13 @@ import { db } from "@/db";
 import { administrativeAuditEntries, session, user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import {
+  buildInternalCredentialEmail,
+  getInternalOptionalEmail,
+} from "@/lib/admin/users/internal-user-credentials.server";
+import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
-
-const INTERNAL_CREDENTIAL_EMAIL_DOMAIN = "usuarios-internos.enescena.local";
 
 type UpdateInternalUserInput = {
   userId: string;
@@ -175,17 +177,4 @@ export async function updateInternalUser(
 
 function updateError(error: string): UpdateInternalUserResult {
   return { ok: false, error };
-}
-
-function buildInternalCredentialEmail(internalUsername: string) {
-  return `${internalUsername}@${INTERNAL_CREDENTIAL_EMAIL_DOMAIN}`;
-}
-
-function getInternalOptionalEmail(input: {
-  email: string;
-  internalUsername: string;
-}) {
-  return input.email === buildInternalCredentialEmail(input.internalUsername)
-    ? null
-    : input.email;
 }
