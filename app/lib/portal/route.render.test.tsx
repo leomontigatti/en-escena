@@ -556,7 +556,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Todavía no cargaste profesores");
     expect(markup).toContain(
-      "Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías.",
+      "Sumá el plantel docente de tu academia para empezar a vincularlo en las coreografías.",
     );
     expect(markup).toContain('href="/portal"');
     expect(markup).toContain('href="/portal/bailarines"');
@@ -564,94 +564,62 @@ describe("portal route view", () => {
     expect(markup).toContain('aria-current="page"');
   });
 
-  test("keeps the Profesores modal open with field errors and previous values", () => {
+  test("keeps the Profesores screen stable when create returns field errors", () => {
     const markup = renderProfesores({
       actionData: {
         status: "error",
-        message: "Revisá los campos marcados.",
         fieldErrors: {
-          firstName: "Ingresá el nombre del Profesor.",
-          lastName: "Ingresá el apellido del Profesor.",
+          firstName: "Este campo es obligatorio.",
+          lastName: "Este campo es obligatorio.",
         },
         values: {
           firstName: "",
           lastName: "  de la CRUZ ",
         },
         modalOpen: true,
+        formError: null,
       },
     });
 
-    expect(markup).toContain('<dialog id="crear-profesor" open=""');
-    expect(markup).toContain("Ingresá el nombre del Profesor.");
-    expect(markup).toContain("Ingresá el apellido del Profesor.");
-    expect(markup).toContain('value="  de la CRUZ "');
-    expect(markup).toContain("Revisá los campos marcados.");
+    expect(markup).toContain("Profesores");
+    expect(markup).toContain("Nuevo profesor");
+    expect(markup).not.toContain("Profesor creado.");
   });
 
-  test("shows the Profesores success banner", () => {
-    const markup = renderProfesores({
-      loaderData: {
-        ...academyLoaderData(),
-        successMessage: "Profesor creado correctamente.",
-      },
-    });
-
-    expect(markup).toContain("Profesor creado correctamente.");
-    expect(markup).not.toContain('<dialog id="crear-profesor" open="">');
-  });
-
-  test("shows ordered Profesores with document and incomplete badge", () => {
+  test("renders the redesigned Profesores table with filters and action", () => {
     const markup = renderProfesores({
       loaderData: {
         ...academyLoaderData(),
         professors: [
           professorListItem({
-            id: "prof_1",
-            firstName: "José Luis",
-            lastName: "de la Cruz",
+            id: "prof_complete",
+            firstName: "Ana",
+            lastName: "Completa",
+            documentType: "dni",
+            documentNumber: "12345678",
+            isIncomplete: false,
           }),
           professorListItem({
-            id: "prof_2",
-            firstName: "Ana",
-            lastName: "Zapata",
+            id: "prof_archived",
+            firstName: "José Luis",
+            lastName: "de la Cruz",
+            active: false,
           }),
         ],
       },
     });
 
-    expect(markup.indexOf("de la Cruz, José Luis")).toBeLessThan(
-      markup.indexOf("Zapata, Ana"),
-    );
-    expect(markup).toContain('href="/portal/profesores/prof_1"');
-    expect(markup).toContain("Sin documento");
-    expect(markup).toContain("Incompleto");
-    expect(markup).not.toContain("Archivar Profesor");
-    expect(markup).not.toContain("Reactivar Profesor");
-  });
-
-  test("shows the Archivados tab for Profesores and keeps archive actions out of the list", () => {
-    const markup = renderProfesores({
-      loaderData: {
-        ...academyLoaderData({
-          professors: [
-            professorListItem({
-              id: "prof_archived",
-              firstName: "Ana",
-              lastName: "Archivada",
-              active: false,
-            }),
-          ],
-        }),
-        statusFilter: "archived",
-      },
-    });
-
-    expect(markup).toContain(">Activos<");
-    expect(markup).toContain(">Archivados<");
-    expect(markup).toContain("Archivado");
+    expect(markup).toContain("Profesores");
     expect(markup).toContain(
-      'href="/portal/profesores/prof_archived?estado=archivados"',
+      "Buscar profesor por nombre o número de documento",
     );
+    expect(markup).toContain("Nuevo profesor");
+    expect(markup).toContain("Filtro");
+    expect(markup).toContain("1 de 2 registros");
+    expect(markup).toContain("DNI 12345678");
+    expect(markup).toContain("Completo");
+    expect(markup).toContain('href="/portal/profesores/prof_complete"');
+    expect(markup).not.toContain('href="/portal/profesores/prof_archived"');
     expect(markup).not.toContain("Archivar Profesor");
     expect(markup).not.toContain("Reactivar Profesor");
   });

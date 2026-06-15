@@ -1036,7 +1036,7 @@ describe.sequential("portal Bailarines route", () => {
 });
 
 describe("portal Profesores management", () => {
-  test("creates normalized Profesores and lists only the Academia's rows ordered by apellido and nombre", async () => {
+  test("creates normalized Profesores, redirects with notificacion and loads active plus archived rows for client filtering", async () => {
     const owner = await createAcademySession({
       email: "profesores.owner@example.com",
       academyName: "Academia Dueña",
@@ -1050,6 +1050,12 @@ describe("portal Profesores management", () => {
       academyId: owner.academy.id,
       firstName: "Ana",
       lastName: "Zapata",
+    });
+    await db.insert(professors).values({
+      academyId: owner.academy.id,
+      firstName: "Bea",
+      lastName: "Archivada",
+      active: false,
     });
     await db.insert(professors).values({
       academyId: other.academy.id,
@@ -1073,7 +1079,7 @@ describe("portal Profesores management", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      "/portal/profesores?creado=1",
+      "/portal/profesores?notificacion=profesor-creado",
     );
 
     const loaderData = await profesoresLoader({
@@ -1083,6 +1089,14 @@ describe("portal Profesores management", () => {
     });
 
     expect(loaderData.professors).toEqual([
+      expect.objectContaining({
+        firstName: "Bea",
+        lastName: "Archivada",
+        active: false,
+        documentType: null,
+        documentNumber: null,
+        isIncomplete: true,
+      }),
       expect.objectContaining({
         firstName: "José Luis",
         lastName: "de la Cruz",
@@ -1448,22 +1462,12 @@ describe("portal Profesores management", () => {
       }),
     ).resolves.toMatchObject({ active: false });
 
-    const activeListData = await profesoresLoader({
+    const baseListData = await profesoresLoader({
       request: new Request("http://localhost/portal/profesores", {
         headers: { cookie: owner.cookie },
       }),
     });
-    expect(activeListData.professors).toEqual([]);
-
-    const archivedListData = await profesoresLoader({
-      request: new Request(
-        "http://localhost/portal/profesores?estado=archivados",
-        {
-          headers: { cookie: owner.cookie },
-        },
-      ),
-    });
-    expect(archivedListData.professors).toMatchObject([
+    expect(baseListData.professors).toMatchObject([
       { id: activeProfessor.id, active: false },
       { id: archivedProfessor.id, active: false },
     ]);

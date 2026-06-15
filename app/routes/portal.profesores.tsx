@@ -1,33 +1,75 @@
-import { Plus } from "lucide-react";
-import { useState } from "react";
-import { Link, redirect, useActionData, type LinkProps } from "react-router";
-import { clsx } from "clsx";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Inbox, Plus } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { Link, redirect, useActionData } from "react-router";
+import { z } from "zod";
 
+import { PortalShell } from "@/components/portal/ui";
 import {
-  AccessField,
-  AccessNotice,
-  accessButtonClassName,
-} from "@/components/auth/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import {
-  getPortalRecordStatusSearch,
-  readPortalRecordStatusFilter,
-  type PortalRecordStatusFilter,
-} from "@/lib/portal/route-state";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createAcademyProfessor,
   listAcademyProfessors,
   type CreateProfessorInput,
 } from "@/lib/portal/professors.server";
+import {
+  createValidatedNativeSubmitHandler,
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
 
-type PortalProfesoresRouteProps = {
-  loaderData: Awaited<ReturnType<typeof loader>>;
-  actionData?: Awaited<ReturnType<typeof action>>;
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ActionData = Awaited<ReturnType<typeof action>>;
+type ProfessorRow = LoaderData["professors"][number];
+
+const createProfessorSchema = z.object({
+  firstName: z.string().trim().min(1, requiredFieldMessage),
+  lastName: z.string().trim().min(1, requiredFieldMessage),
+});
+
+type CreateProfessorFormValues = z.infer<typeof createProfessorSchema>;
+
+const emptyProfessorValues: CreateProfessorFormValues = {
+  firstName: "",
+  lastName: "",
 };
 
-type ProfessorStatusFilter = PortalRecordStatusFilter;
+const defaultProfessorFilters = {
+  status: {
+    Estado: "active",
+  },
+};
 
 export const meta = () => [
   { title: "Profesores | Portal de academias | En Escena" },
@@ -35,13 +77,9 @@ export const meta = () => [
 
 export async function loader({ request }: { request: Request }) {
   const { user, academy } = await requireAcademyUser(request);
-  const url = new URL(request.url);
-  const statusFilter = readPortalRecordStatusFilter(url.searchParams);
-  const [eventContext, professorRows] = await Promise.all([
+  const [eventContext, professors] = await Promise.all([
     getPortalEventContext(request),
-    listAcademyProfessors(academy.id, {
-      status: statusFilter,
-    }),
+    listAcademyProfessors(academy.id),
   ]);
 
   return {
@@ -49,12 +87,7 @@ export async function loader({ request }: { request: Request }) {
     userName: user.name ?? "",
     academy,
     eventContext,
-    professors: professorRows,
-    statusFilter,
-    successMessage:
-      url.searchParams.get("creado") === "1"
-        ? "Profesor creado correctamente."
-        : null,
+    professors,
   };
 }
 
@@ -67,34 +100,65 @@ export async function action({ request }: { request: Request }) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
-  const result = await createAcademyProfessor(academy.id, {
+  const values = {
     firstName: formValue(formData, "firstName"),
     lastName: formValue(formData, "lastName"),
-  });
+  };
+  const parsed = createProfessorSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return {
+      status: "error" as const,
+      fieldErrors: {
+        firstName: parsed.error.flatten().fieldErrors.firstName?.[0],
+        lastName: parsed.error.flatten().fieldErrors.lastName?.[0],
+      },
+      values,
+      modalOpen: true,
+      formError: null,
+    };
+  }
+
+  const result = await createAcademyProfessor(academy.id, parsed.data);
 
   if (!result.ok) {
     return {
       status: "error" as const,
-      message: result.message,
       fieldErrors: result.fieldErrors,
       values: result.values,
       modalOpen: true,
+      formError:
+        hasFieldErrors(result.fieldErrors) || !result.message
+          ? null
+          : result.message,
     };
   }
 
-  throw redirect("/portal/profesores?creado=1");
+  throw redirect("/portal/profesores?notificacion=profesor-creado");
 }
 
 export function PortalProfesoresRouteView({
   loaderData,
-  actionData: actionDataOverride,
-}: PortalProfesoresRouteProps) {
-  const actionData = actionDataOverride;
-  const actionValues = actionData?.values;
-  const actionFieldErrors = actionData?.fieldErrors;
-  const isModalOpen = actionData?.modalOpen === true;
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const statusFilterCopy = professorStatusCopy[loaderData.statusFilter];
+  actionData: providedActionData,
+}: {
+  loaderData: LoaderData;
+  actionData?: ActionData;
+}) {
+  const actionData = providedActionData;
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
+    actionData?.modalOpen === true,
+  );
+  const [dismissServerState, setDismissServerState] = useState(false);
+  const [dialogResetKey, setDialogResetKey] = useState(0);
+
+  useEffect(() => {
+    if (actionData?.modalOpen === true) {
+      setIsCreateDialogOpen(true);
+      setDismissServerState(false);
+    }
+  }, [actionData]);
+
+  const visibleActionData = dismissServerState ? undefined : actionData;
 
   return (
     <PortalShell
@@ -104,73 +168,62 @@ export function PortalProfesoresRouteView({
       eventContext={loaderData.eventContext}
       title="Profesores"
     >
-      <section className="mt-8" aria-labelledby="profesores-title">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p
-              id="profesores-title"
-              className="text-sm font-semibold text-slate-950"
-            >
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="profesores-title"
+      >
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h2 id="profesores-title" className="text-xl font-semibold">
               Profesores
-            </p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              {statusFilterCopy.description}
+            </h2>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Gestioná los profesores de tu academia y completá su
+              identificación cuando tengas los datos.
             </p>
           </div>
-          {loaderData.statusFilter === "active" ? (
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-            >
-              <Plus aria-hidden="true" className="size-4" />
-              Cargar profesor
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <StatusTab
-            to="/portal/profesores"
-            isActive={loaderData.statusFilter === "active"}
+          <Button
+            type="button"
+            onClick={() => {
+              setDismissServerState(true);
+              setIsCreateDialogOpen(true);
+            }}
           >
-            Activos
-          </StatusTab>
-          <StatusTab
-            to="/portal/profesores?estado=archivados"
-            isActive={loaderData.statusFilter === "archived"}
-          >
-            Archivados
-          </StatusTab>
-        </div>
-
-        {loaderData.successMessage ? (
-          <div className="mt-4">
-            <AccessNotice variant="success">
-              {loaderData.successMessage}
-            </AccessNotice>
-          </div>
-        ) : null}
+            <Plus aria-hidden="true" data-icon />
+            Nuevo profesor
+          </Button>
+        </header>
 
         {loaderData.professors.length > 0 ? (
-          <ProfessorTable
-            professors={loaderData.professors}
-            statusFilter={loaderData.statusFilter}
-          />
+          <ProfessorsTable professors={loaderData.professors} />
         ) : (
-          <PortalEmptyList
-            title={statusFilterCopy.emptyTitle}
-            description={statusFilterCopy.emptyDescription}
-          />
+          <Empty className="min-h-64 border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>Todavía no cargaste profesores</EmptyTitle>
+              <EmptyDescription>
+                Sumá el plantel docente de tu academia para empezar a vincularlo
+                en las coreografías.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </section>
 
-      <CreateProfessorModal
-        isOpen={isModalOpen || isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        values={actionValues}
-        fieldErrors={actionFieldErrors}
-        message={actionData?.message}
+      <CreateProfessorDialog
+        key={dialogResetKey}
+        actionData={visibleActionData}
+        isOpen={isCreateDialogOpen}
+        onOpenChange={(nextOpen) => {
+          setIsCreateDialogOpen(nextOpen);
+
+          if (!nextOpen) {
+            setDismissServerState(true);
+            setDialogResetKey((currentValue) => currentValue + 1);
+          }
+        }}
       />
     </PortalShell>
   );
@@ -178,7 +231,9 @@ export function PortalProfesoresRouteView({
 
 export default function PortalProfesoresRoute({
   loaderData,
-}: PortalProfesoresRouteProps) {
+}: {
+  loaderData: LoaderData;
+}) {
   const actionData = useActionData<typeof action>();
 
   return (
@@ -189,226 +244,238 @@ export default function PortalProfesoresRoute({
   );
 }
 
-type ProfessorListItem = Awaited<
-  ReturnType<typeof loader>
->["professors"][number];
-
-function ProfessorTable({
-  professors,
-  statusFilter,
-}: {
-  professors: ProfessorListItem[];
-  statusFilter: ProfessorStatusFilter;
-}) {
-  const detailSearch = getPortalRecordStatusSearch(statusFilter);
-
-  return (
-    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <thead className="bg-slate-50">
-          <tr>
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
-            >
-              Profesor
-            </th>
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
-            >
-              Documento
-            </th>
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
-            >
-              Estado
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200">
-          {professors.map((professor) => (
-            <tr key={professor.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 font-medium text-slate-950">
-                <Link
-                  to={`/portal/profesores/${professor.id}${detailSearch}`}
-                  className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                >
-                  {professor.lastName}, {professor.firstName}
-                </Link>
-                {!professor.active ? (
-                  <span className="ml-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                    Archivado
-                  </span>
-                ) : null}
-              </td>
-              <td className="px-4 py-3 text-slate-700">
-                {formatProfessorDocument(professor)}
-              </td>
-              <td className="px-4 py-3">
-                {professor.isIncomplete ? (
-                  <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                    Incompleto
-                  </span>
-                ) : null}
-              </td>
-            </tr>
+function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
+  const columns: DataTableColumn<ProfessorRow>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "font-medium",
+      cell: (professor) => (
+        <Link
+          to={`/portal/profesores/${professor.id}`}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {professor.lastName}, {professor.firstName}
+        </Link>
+      ),
+      filterValue: (professor) =>
+        `${professor.lastName} ${professor.firstName} ${professor.documentNumber ?? ""}`,
+      sortValue: (professor) => `${professor.lastName}, ${professor.firstName}`,
+    },
+    {
+      id: "document",
+      header: "Documento",
+      cell: (professor) => formatProfessorDocument(professor),
+      filterValue: (professor) => professor.documentNumber ?? "",
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (professor) => (
+        <div className="flex flex-wrap gap-2">
+          {getProfessorStateBadges(professor).map((badge) => (
+            <Badge key={badge.label} variant={badge.variant}>
+              {badge.label}
+            </Badge>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function StatusTab({
-  children,
-  isActive,
-  to,
-}: {
-  children: string;
-  isActive: boolean;
-  to: LinkProps["to"];
-}) {
-  return (
-    <Link
-      to={to}
-      className={clsx(
-        "inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-        isActive
-          ? "bg-teal-50 text-teal-900"
-          : "text-slate-700 hover:bg-slate-50 hover:text-slate-950",
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
-
-const professorStatusCopy: Record<
-  ProfessorStatusFilter,
-  {
-    description: string;
-    emptyTitle: string;
-    emptyDescription: string;
-  }
-> = {
-  active: {
-    description:
-      "Esta lista muestra solo los profesores activos de tu academia.",
-    emptyTitle: "Todavía no cargaste profesores",
-    emptyDescription:
-      "Cuando cargues profesores, van a aparecer en esta lista para vincularlos a coreografías.",
-  },
-  archived: {
-    description:
-      "Consultá los profesores archivados y reactivalos desde su ficha cuando vuelvan a participar.",
-    emptyTitle: "No hay profesores archivados",
-    emptyDescription:
-      "Los profesores archivados dejan de aparecer en las listas activas y se pueden reactivar desde su ficha.",
-  },
-};
-
-function CreateProfessorModal({
-  isOpen,
-  onClose,
-  values,
-  fieldErrors,
-  message,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  values?: CreateProfessorInput;
-  fieldErrors?: Partial<Record<keyof CreateProfessorInput, string>>;
-  message?: string;
-}) {
-  return (
-    <dialog
-      id="crear-profesor"
-      open={isOpen}
-      className="m-auto w-[min(92vw,32rem)] rounded-lg border border-slate-200 bg-white p-6 shadow-xl backdrop:bg-slate-950/30 open:block"
-    >
-      <div>
-        <p className="text-base font-semibold text-slate-950">
-          Cargar profesor
-        </p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Usá nombre y apellido. La identificación se puede completar después.
-        </p>
-      </div>
-
-      <form method="post" className="mt-6 space-y-5">
-        <input type="hidden" name="intent" value="create-professor" />
-        <AccessField
-          id="firstName"
-          label="Nombre"
-          error={fieldErrors?.firstName}
-          inputProps={{
-            name: "firstName",
-            type: "text",
-            required: true,
-            defaultValue: values?.firstName,
-            autoComplete: "given-name",
-          }}
-        />
-        <AccessField
-          id="lastName"
-          label="Apellido"
-          error={fieldErrors?.lastName}
-          inputProps={{
-            name: "lastName",
-            type: "text",
-            required: true,
-            defaultValue: values?.lastName,
-            autoComplete: "family-name",
-          }}
-        />
-
-        {message ? (
-          <AccessNotice variant="error">{message}</AccessNotice>
-        ) : null}
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            Cancelar
-          </button>
-          <button type="submit" className={accessButtonClassName}>
-            Guardar profesor
-          </button>
         </div>
-      </form>
-    </dialog>
+      ),
+      filterValues: (professor) => [
+        professor.active ? "active" : "archived",
+        professor.isIncomplete ? "incomplete" : "complete",
+      ],
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={professors}
+      columns={columns}
+      getRowKey={(professor) => professor.id}
+      searchPlaceholder="Buscar profesor por nombre o número de documento"
+      textFilterColumnId="name"
+      facetedFilters={[
+        {
+          columnId: "status",
+          label: "Filtros",
+          groups: [
+            {
+              label: "Estado",
+              options: [
+                { label: "Activo", value: "active" },
+                { label: "Archivado", value: "archived" },
+              ],
+            },
+            {
+              label: "Completitud",
+              options: [
+                { label: "Completo", value: "complete" },
+                { label: "Incompleto", value: "incomplete" },
+              ],
+            },
+          ],
+        },
+      ]}
+      initialFacetedFilterValues={defaultProfessorFilters}
+      emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
+      initialSort={{ columnId: "name", direction: "asc" }}
+    />
   );
 }
 
-function formatProfessorDocument(professor: ProfessorListItem) {
+function CreateProfessorDialog({
+  actionData,
+  isOpen,
+  onOpenChange,
+}: {
+  actionData?: ActionData;
+  isOpen: boolean;
+  onOpenChange: (nextOpen: boolean) => void;
+}) {
+  const firstNameId = useId();
+  const lastNameId = useId();
+  const form = useForm<CreateProfessorFormValues>({
+    resolver: zodResolver(createProfessorSchema),
+    defaultValues: actionData?.values ?? emptyProfessorValues,
+  });
+
+  useApplyServerFieldErrors(form, actionData?.fieldErrors ?? {});
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent forceMount>
+        <DialogHeader>
+          <DialogTitle>Nuevo profesor</DialogTitle>
+          <DialogDescription>
+            Ingresá los datos mínimos para cargarlo en la academia.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          method="post"
+          onSubmit={createValidatedNativeSubmitHandler(form)}
+          className="flex flex-col gap-5"
+        >
+          <input type="hidden" name="intent" value="create-professor" />
+          <FieldGroup>
+            <Controller
+              control={form.control}
+              name="firstName"
+              render={({ field, fieldState }) => (
+                <Field
+                  data-invalid={
+                    fieldState.error || actionData?.fieldErrors.firstName
+                      ? true
+                      : undefined
+                  }
+                >
+                  <FieldLabel htmlFor={firstNameId}>Nombre</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      {...field}
+                      id={firstNameId}
+                      autoComplete="given-name"
+                      aria-invalid={
+                        fieldState.error || actionData?.fieldErrors.firstName
+                          ? true
+                          : undefined
+                      }
+                    />
+                    <FieldError>
+                      {fieldState.error?.message ??
+                        actionData?.fieldErrors.firstName}
+                    </FieldError>
+                  </FieldContent>
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="lastName"
+              render={({ field, fieldState }) => (
+                <Field
+                  data-invalid={
+                    fieldState.error || actionData?.fieldErrors.lastName
+                      ? true
+                      : undefined
+                  }
+                >
+                  <FieldLabel htmlFor={lastNameId}>Apellido</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      {...field}
+                      id={lastNameId}
+                      autoComplete="family-name"
+                      aria-invalid={
+                        fieldState.error || actionData?.fieldErrors.lastName
+                          ? true
+                          : undefined
+                      }
+                    />
+                    <FieldError>
+                      {fieldState.error?.message ??
+                        actionData?.fieldErrors.lastName}
+                    </FieldError>
+                  </FieldContent>
+                </Field>
+              )}
+            />
+          </FieldGroup>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit">Guardar profesor</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatProfessorDocument(professor: ProfessorRow) {
   if (!professor.documentType || !professor.documentNumber) {
     return "Sin documento";
   }
 
-  return `${formatDocumentType(professor.documentType)} ${professor.documentNumber}`;
+  if (professor.documentType === "dni") {
+    return `DNI ${professor.documentNumber}`;
+  }
+
+  if (professor.documentType === "passport") {
+    return `Pasaporte ${professor.documentNumber}`;
+  }
+
+  return `Otro ${professor.documentNumber}`;
 }
 
-function formatDocumentType(
-  documentType: NonNullable<ProfessorListItem["documentType"]>,
-) {
-  if (documentType === "dni") {
-    return "DNI";
-  }
-
-  if (documentType === "passport") {
-    return "Pasaporte";
-  }
-
-  return "Otro";
+function getProfessorStateBadges(professor: ProfessorRow) {
+  return [
+    professor.active
+      ? {
+          label: professor.isIncomplete ? "Incompleto" : "Completo",
+          variant: professor.isIncomplete ? ("secondary" as const) : ("default" as const),
+        }
+      : {
+          label: "Archivado",
+          variant: "outline" as const,
+        },
+    ...(!professor.active && professor.isIncomplete
+      ? [{ label: "Incompleto", variant: "secondary" as const }]
+      : []),
+  ];
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateProfessorInput) {
   const value = formData.get(fieldName);
 
   return typeof value === "string" ? value : "";
+}
+
+function hasFieldErrors(fieldErrors: Partial<Record<string, string>>) {
+  return Object.values(fieldErrors).some(Boolean);
 }

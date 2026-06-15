@@ -92,6 +92,8 @@ type DataTableFacetedFilterOption = {
   value: string;
 };
 
+type DataTableFacetedFilterValue = Record<string, string>;
+
 type DataTableProps<TData> = {
   rows: TData[];
   columns: DataTableColumn<TData>[];
@@ -101,6 +103,7 @@ type DataTableProps<TData> = {
   textFilterColumnId?: string;
   facetedFilters?: DataTableFacetedFilter[];
   emptyMessage?: string;
+  initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
   initialSort?: {
     columnId: string;
     direction: SortDirection;
@@ -116,10 +119,16 @@ export function DataTable<TData>({
   textFilterColumnId,
   facetedFilters = [],
   emptyMessage = "No hay resultados para mostrar.",
+  initialFacetedFilterValues = {},
   initialSort,
 }: DataTableProps<TData>) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
+    Object.entries(initialFacetedFilterValues).map(([columnId, value]) => ({
+      id: columnId,
+      value,
+    })),
+  );
   const [sorting, setSorting] = useState<SortingState>(
     initialSort
       ? [{ id: initialSort.columnId, desc: initialSort.direction === "desc" }]
@@ -136,20 +145,23 @@ export function DataTable<TData>({
         accessorFn: (row) =>
           column.sortValue?.(row) ?? column.filterValue?.(row),
         filterFn: (row, _columnId, filterValue) => {
-          if (Array.isArray(filterValue)) {
-            if (filterValue.length === 0) {
+          if (isFacetedFilterValue(filterValue)) {
+            const selectedValues = Object.values(filterValue).filter(Boolean);
+
+            if (selectedValues.length === 0) {
               return true;
             }
 
-            const selectedValues = filterValue.map((value) =>
-              normalizeSearchValue(String(value)),
-            );
             const rowValues =
               column.filterValues?.(row.original) ??
               (column.filterValue ? [column.filterValue(row.original)] : []);
 
-            return rowValues.some((rowValue) =>
-              selectedValues.includes(normalizeSearchValue(rowValue)),
+            return selectedValues.every((selectedValue) =>
+              rowValues.some(
+                (rowValue) =>
+                  normalizeSearchValue(rowValue) ===
+                  normalizeSearchValue(selectedValue),
+              ),
             );
           }
 
@@ -389,10 +401,11 @@ function DataTableFacetedFilterControl({
   onChange,
 }: {
   filter: DataTableFacetedFilter;
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
+  selectedValues: DataTableFacetedFilterValue;
+  onChange: (values: DataTableFacetedFilterValue) => void;
 }) {
-  const hasSelectedValues = selectedValues.length > 0;
+  const selectedCount = Object.values(selectedValues).filter(Boolean).length;
+  const hasSelectedValues = selectedCount > 0;
 
   return (
     <DropdownMenu>
@@ -401,7 +414,7 @@ function DataTableFacetedFilterControl({
           <ListFilter data-icon="inline-start" />
           {filter.label}
           {hasSelectedValues ? (
-            <Badge variant="secondary">{selectedValues.length}</Badge>
+            <Badge variant="secondary">{selectedCount}</Badge>
           ) : null}
           <ChevronDown data-icon="inline-end" />
         </Button>
@@ -410,15 +423,13 @@ function DataTableFacetedFilterControl({
         <DropdownMenuGroup>
           <DropdownMenuItem
             disabled={!hasSelectedValues}
-            onSelect={() => onChange([])}
+            onSelect={() => onChange({})}
           >
             Limpiar filtros
           </DropdownMenuItem>
         </DropdownMenuGroup>
         {filter.groups.map((group) => {
-          const optionValues = group.options.map((option) => option.value);
-          const selectedValue =
-            selectedValues.find((value) => optionValues.includes(value)) ?? "";
+          const selectedValue = selectedValues[group.label] ?? "";
 
           return (
             <DropdownMenuGroup key={group.label}>
@@ -427,12 +438,12 @@ function DataTableFacetedFilterControl({
               <DropdownMenuRadioGroup
                 value={selectedValue}
                 onValueChange={(nextValue) => {
-                  const nextValues = selectedValues.filter(
-                    (value) => !optionValues.includes(value),
-                  );
+                  const nextValues = { ...selectedValues };
 
-                  if (nextValue !== selectedValue) {
-                    nextValues.push(nextValue);
+                  if (nextValue === selectedValue) {
+                    delete nextValues[group.label];
+                  } else {
+                    nextValues[group.label] = nextValue;
                   }
 
                   onChange(nextValues);
@@ -546,7 +557,7 @@ function getSelectedFilterValues<TData>(
 ) {
   const filterValue = table.getColumn(columnId)?.getFilterValue();
 
-  return Array.isArray(filterValue) ? filterValue.map(String) : [];
+  return isFacetedFilterValue(filterValue) ? filterValue : {};
 }
 
 function getPaginationPages(pageCount: number, currentPage: number) {
@@ -573,6 +584,12 @@ function normalizeSearchValue(value: string) {
     .replace(/\p{Diacritic}/gu, "")
     .toLocaleLowerCase("es-AR")
     .trim();
+}
+
+function isFacetedFilterValue(
+  value: unknown,
+): value is DataTableFacetedFilterValue {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function compareSortValues(firstValue: SortValue, secondValue: SortValue) {

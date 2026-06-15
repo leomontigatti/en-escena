@@ -34,8 +34,6 @@ export type CreateProfessorResult =
     };
 
 export type UpdateProfessorField = keyof UpdateProfessorInput;
-type ProfessorStatusFilter = "active" | "archived";
-
 export type UpdateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
   | {
@@ -46,6 +44,7 @@ export type UpdateProfessorResult =
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
+type ProfessorStatusFilter = "active" | "archived";
 
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
@@ -58,7 +57,7 @@ export async function listAcademyProfessors(
     status?: ProfessorStatusFilter;
   } = {},
 ): Promise<ProfessorListItem[]> {
-  const status = options.status ?? "active";
+  const status = options.status;
   const rows = await db.query.professors.findMany({
     columns: {
       id: true,
@@ -68,10 +67,13 @@ export async function listAcademyProfessors(
       documentType: true,
       documentNumber: true,
     },
-    where: and(
-      eq(professors.academyId, academyId),
-      eq(professors.active, status === "active"),
-    ),
+    where:
+      status === undefined
+        ? eq(professors.academyId, academyId)
+        : and(
+            eq(professors.academyId, academyId),
+            eq(professors.active, status === "active"),
+          ),
     orderBy: [
       asc(sql`lower(${professors.lastName})`),
       asc(sql`lower(${professors.firstName})`),
