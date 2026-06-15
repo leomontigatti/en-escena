@@ -66,7 +66,11 @@ import type {
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
-import { useApplyServerFieldErrors } from "@/lib/shared/forms";
+import {
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 type PriceScope = {
   detail: string | null;
@@ -83,11 +87,11 @@ const PRICE_BASE_HELPER_TEXT =
 const PRICE_BASE_SCHEDULE_BLOCK_VALUE = "__price-base__";
 
 const priceFormSchema = z.object({
-  name: z.string().trim().min(1, "Ingresá el nombre del precio."),
-  groupType: z.string().min(1, "Elegí un tipo de grupo."),
+  name: z.string().trim().min(1, requiredFieldMessage),
+  groupType: z.string().min(1, requiredFieldMessage),
   amount: z
     .string()
-    .min(1, "Ingresá un monto mayor a cero.")
+    .min(1, requiredFieldMessage)
     .refine((value) => {
       const amount = Number(value);
 
@@ -136,10 +140,11 @@ export function NewEventPriceRouteView({
   loaderData,
   actionData,
 }: EventBaseAreaProps) {
+  useServerActionToast(actionData);
+
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      actionData={actionData}
       breadcrumbItems={[
         {
           label: "Precios",
@@ -169,12 +174,13 @@ export function EventPriceDetailRouteView({
   actionData,
   priceId,
 }: EventBaseAreaProps & { priceId: string }) {
+  useServerActionToast(actionData);
+
   const price = loaderData.prices.find((item) => item.id === priceId);
 
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      actionData={actionData}
       breadcrumbItems={[
         {
           label: "Precios",

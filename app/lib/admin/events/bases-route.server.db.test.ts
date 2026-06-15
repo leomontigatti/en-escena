@@ -1005,7 +1005,7 @@ describe("administracion Bases del evento routes", () => {
       where: eq(prices.name, "Solo sábado"),
     });
     expect(createResponse.headers.get("location")).toMatch(
-      /\/administracion\/precios\/[^?]+\?guardado=1/,
+      /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
     );
 
     const createData = await loader(
@@ -1103,7 +1103,7 @@ describe("administracion Bases del evento routes", () => {
       302,
     );
     expect(deleteResponse.headers.get("location")).toBe(
-      "/administracion/precios?guardado=1",
+      "/administracion/precios?notificacion=precio-eliminado",
     );
   });
 
@@ -1128,9 +1128,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const createScheduleBlockResponse = await expectThrownResponse(
       action(routeArgs(scheduleBlockRequest.request)),
       302,
+    );
+    expect(createScheduleBlockResponse.headers.get("location")).toMatch(
+      /\/administracion\/bloques-horarios\/[^?]+\?notificacion=bloque-horario-guardado/,
     );
 
     const scheduleBlock = await db.query.scheduleBlocks.findFirst({
@@ -1181,9 +1184,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const updateScheduleBlockResponse = await expectThrownResponse(
       action(routeArgs(editScheduleBlockRequest.request)),
       302,
+    );
+    expect(updateScheduleBlockResponse.headers.get("location")).toContain(
+      "notificacion=bloque-horario-guardado",
     );
     await expect(
       db.query.scheduleBlocks.findFirst({
@@ -1205,9 +1211,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const deleteScheduleBlockResponse = await expectThrownResponse(
       action(routeArgs(deleteScheduleBlockRequest.request)),
       302,
+    );
+    expect(deleteScheduleBlockResponse.headers.get("location")).toBe(
+      "/administracion/bloques-horarios?notificacion=bloque-horario-eliminado",
     );
     await expect(
       db.query.scheduleBlocks.findFirst({
@@ -1253,9 +1262,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const createPriceResponse = await expectThrownResponse(
       action(routeArgs(createPriceRequest.request)),
       302,
+    );
+    expect(createPriceResponse.headers.get("location")).toMatch(
+      /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
     );
 
     const price = await db.query.prices.findFirst({
@@ -1300,9 +1312,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const updatePriceResponse = await expectThrownResponse(
       action(routeArgs(editPriceRequest.request)),
       302,
+    );
+    expect(updatePriceResponse.headers.get("location")).toContain(
+      "notificacion=precio-guardado",
     );
     await expect(
       db.query.prices.findFirst({
@@ -1324,9 +1339,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const deletePriceResponse = await expectThrownResponse(
       action(routeArgs(deletePriceRequest.request)),
       302,
+    );
+    expect(deletePriceResponse.headers.get("location")).toBe(
+      "/administracion/precios?notificacion=precio-eliminado",
     );
     await expect(
       db.query.prices.findFirst({
@@ -1375,9 +1393,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const createScheduleEntryResponse = await expectThrownResponse(
       action(routeArgs(createScheduleEntryRequest.request)),
       302,
+    );
+    expect(createScheduleEntryResponse.headers.get("location")).toContain(
+      "notificacion=cronograma-guardado",
     );
 
     const scheduleEntry = await db.query.scheduleEntries.findFirst({
@@ -1421,9 +1442,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const updateScheduleEntryResponse = await expectThrownResponse(
       action(routeArgs(editScheduleEntryRequest.request)),
       302,
+    );
+    expect(updateScheduleEntryResponse.headers.get("location")).toContain(
+      "notificacion=cronograma-guardado",
     );
     await expect(
       db.query.scheduleEntries.findFirst({
@@ -1444,9 +1468,12 @@ describe("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
+    const deleteScheduleEntryResponse = await expectThrownResponse(
       action(routeArgs(deleteScheduleEntryRequest.request)),
       302,
+    );
+    expect(deleteScheduleEntryResponse.headers.get("location")).toContain(
+      "notificacion=cronograma-eliminado",
     );
     await expect(
       db.query.scheduleEntries.findFirst({
@@ -1537,6 +1564,92 @@ describe("administracion Bases del evento routes", () => {
         groupType: "Revisá el tipo de grupo del precio.",
       },
     });
+
+    const requiredPriceRequest = await createSignedInRequest({
+      email: "admin.precio.requerido@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      body: formData({
+        intent: "create-price",
+        name: "",
+        groupType: "",
+        amount: "",
+        scheduleBlockId: "",
+      }),
+    });
+
+    await expect(
+      action(routeArgs(requiredPriceRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Revisá los datos del precio.",
+      fieldErrors: {
+        name: "Este campo es obligatorio.",
+        groupType: "Este campo es obligatorio.",
+        amount: "Este campo es obligatorio.",
+      },
+    });
+
+    const requiredScheduleBlockRequest = await createSignedInRequest({
+      email: "admin.bloque.requerido@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bloques-horarios/nuevo?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-block",
+        name: "",
+        scheduledDate: "",
+        startTime: "",
+        totalCapacity: "",
+        modalityIds: [],
+      }),
+    });
+
+    await expect(
+      action(routeArgs(requiredScheduleBlockRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Revisá los datos del bloque horario.",
+      fieldErrors: {
+        name: "Este campo es obligatorio.",
+        scheduledDate: "Este campo es obligatorio.",
+        startTime: "Este campo es obligatorio.",
+        totalCapacity: "Este campo es obligatorio.",
+        modalityIds: "Este campo es obligatorio.",
+      },
+    });
+
+    const createdBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo tarde",
+        scheduledDate: "2026-05-03",
+        startTime: "15:00",
+        totalCapacity: 10,
+        modalityIds: modality.ok && modality.record ? [modality.record.id] : [],
+      }),
+    );
+
+    const requiredScheduleEntryRequest = await createSignedInRequest({
+      email: "admin.cronograma.requerido@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bloques-horarios/${createdBlock.id}?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule-entry",
+        scheduleBlockId: createdBlock.id,
+        groupTypes: [],
+        capacity: "",
+      }),
+    });
+
+    await expect(
+      action(routeArgs(requiredScheduleEntryRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Revisá los datos del cronograma.",
+      fieldErrors: {
+        groupTypes: "Este campo es obligatorio.",
+        capacity: "Este campo es obligatorio.",
+      },
+    });
   });
 
   test("renders modality field errors inline and keeps submodality errors out of the modality form", async () => {
@@ -1568,6 +1681,57 @@ describe("administracion Bases del evento routes", () => {
     expect(createMarkup).toContain("Usá un nombre distinto para la modalidad.");
     expect(detailMarkup).not.toContain("Revisá los datos de la submodalidad.");
     expect(detailMarkup).not.toContain("Ingresá el nombre de la submodalidad.");
+  });
+
+  test("renders price and schedule field errors inline without admin action alerts", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const scheduleBlock = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 24,
+        modalityIds: [modality.id],
+      }),
+    );
+    const request = await createSignedInRequest({
+      email: "admin.errores.precios.bloques@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+
+    const priceMarkup = renderRoute(
+      data,
+      "/administracion/precios/nuevo",
+      createElement(NewEventPriceRouteView, {
+        loaderData: data,
+        actionData: {
+          status: "error",
+          message: "Revisá los datos del precio.",
+          fieldErrors: { amount: "Este campo es obligatorio." },
+        },
+      }),
+    );
+    const scheduleMarkup = renderRoute(
+      data,
+      `/administracion/bloques-horarios/${scheduleBlock.id}`,
+      createElement(EventScheduleBlockDetailRouteView, {
+        loaderData: data,
+        scheduleBlockId: scheduleBlock.id,
+        actionData: {
+          status: "error",
+          message: "Revisá los datos del cronograma.",
+          fieldErrors: { capacity: "Este campo es obligatorio." },
+        },
+      }),
+    );
+
+    expect(priceMarkup).not.toContain("Revisá los datos del precio.");
+    expect(scheduleMarkup).not.toContain("Revisá los datos del cronograma.");
   });
 });
 

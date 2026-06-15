@@ -13,6 +13,7 @@ import {
   scheduleBlocks,
   submodalities,
 } from "@/db/schema";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 
 type EventBaseEntityKind =
   | "modality"
@@ -1309,14 +1310,18 @@ async function validateScheduleBlockInput(
   const copy = eventBaseCopy["schedule-block"];
 
   if (input.name.trim().length === 0) {
-    fieldErrors.name = copy.requiredNameError;
+    fieldErrors.name = requiredFieldMessage;
   }
 
-  if (!isValidDate(input.scheduledDate)) {
+  if (input.scheduledDate.trim().length === 0) {
+    fieldErrors.scheduledDate = requiredFieldMessage;
+  } else if (!isValidDate(input.scheduledDate)) {
     fieldErrors.scheduledDate = "Ingresá una fecha válida.";
   }
 
-  if (!isValidTime(input.startTime)) {
+  if (input.startTime.trim().length === 0) {
+    fieldErrors.startTime = requiredFieldMessage;
+  } else if (!isValidTime(input.startTime)) {
     fieldErrors.startTime = "Ingresá una hora válida.";
   }
 
@@ -1327,7 +1332,7 @@ async function validateScheduleBlockInput(
   const modalityIds = uniqueValues(input.modalityIds);
 
   if (modalityIds.length === 0) {
-    fieldErrors.modalityIds = "Elegí al menos una modalidad aceptada.";
+    fieldErrors.modalityIds = requiredFieldMessage;
   } else {
     const validModalities = await db
       .select({ id: modalities.id })
@@ -1382,10 +1387,12 @@ async function validatePriceInput(
   const scheduleBlockId = input.scheduleBlockId?.trim() || null;
 
   if (name.length === 0) {
-    fieldErrors.name = "Ingresá el nombre del precio.";
+    fieldErrors.name = requiredFieldMessage;
   }
 
-  if (!isGroupType(input.groupType)) {
+  if (input.groupType.trim().length === 0) {
+    fieldErrors.groupType = requiredFieldMessage;
+  } else if (!isGroupType(input.groupType)) {
     fieldErrors.groupType = "Elegí un tipo de grupo.";
   }
 
@@ -1493,7 +1500,7 @@ async function validateScheduleEntryInput(
     .sort((a, b) => groupTypeOrder.indexOf(a) - groupTypeOrder.indexOf(b));
 
   if (groupTypes.length === 0) {
-    fieldErrors.groupTypes = "Elegí al menos un tipo de grupo.";
+    fieldErrors.groupTypes = requiredFieldMessage;
   }
 
   if (!Number.isInteger(input.capacity) || input.capacity <= 0) {

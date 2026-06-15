@@ -49,6 +49,7 @@ import {
   updateSubmodality,
 } from "@/lib/events/bases-repository.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export type ActionData = {
   status: "error";
@@ -90,12 +91,22 @@ type CategoryMutationInput = {
   modalityIds: string[];
   experienceLevelIds: string[];
 };
+type RequiredFieldErrorResult = {
+  message: string;
+  fieldErrors: Record<string, string>;
+};
 
 const eventBasesNotificationSearchParam = "notificacion";
 const categorySavedNotification = "categoria-guardada";
 const categoryDeletedNotification = "categoria-eliminada";
+const scheduleBlockSavedNotification = "bloque-horario-guardado";
+const scheduleBlockDeletedNotification = "bloque-horario-eliminado";
+const scheduleEntrySavedNotification = "cronograma-guardado";
+const scheduleEntryDeletedNotification = "cronograma-eliminado";
 const modalitySavedNotification = "modalidad-guardada";
 const modalityDeletedNotification = "modalidad-eliminada";
+const priceSavedNotification = "precio-guardado";
+const priceDeletedNotification = "precio-eliminado";
 const categoryDeleteConfirmationMessage =
   "Confirmá el borrado de la categoría antes de continuar.";
 const scheduleBlockDeleteConfirmationMessage =
@@ -129,6 +140,15 @@ export async function runEventBasesAction({
     return actionError(scheduleBlockDeleteConfirmationMessage, {
       confirmDelete: scheduleBlockDeleteConfirmationMessage,
     });
+  }
+
+  const requiredFieldErrors = getRequiredFieldErrors(input, formData);
+
+  if (requiredFieldErrors) {
+    return actionError(
+      requiredFieldErrors.message,
+      requiredFieldErrors.fieldErrors,
+    );
   }
 
   const result = await runEventBasesIntent(input);
@@ -261,11 +281,24 @@ function buildActionRedirectUrl(
   }
 
   if (input.intent === "delete-price") {
-    return withSavedSearch(buildPriceListPath(null), eventId);
+    return withEventBasesNotification(
+      buildPriceListPath(null),
+      priceDeletedNotification,
+    );
   }
 
   if (input.intent === "delete-schedule-block") {
-    return withSavedSearch(buildScheduleBlocksPath(null), eventId);
+    return withEventBasesNotification(
+      buildScheduleBlocksPath(null),
+      scheduleBlockDeletedNotification,
+    );
+  }
+
+  if (input.intent === "delete-schedule-entry") {
+    return withEventBasesNotification(
+      currentUrl.pathname,
+      scheduleEntryDeletedNotification,
+    );
   }
 
   if (
@@ -295,9 +328,9 @@ function buildActionRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withSavedSearch(
+    return withEventBasesNotification(
       buildPriceDetailPath(result.record.id, null),
-      eventId,
+      priceSavedNotification,
     );
   }
 
@@ -306,9 +339,9 @@ function buildActionRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withSavedSearch(
+    return withEventBasesNotification(
       buildScheduleBlockDetailPath(result.record.id, null),
-      eventId,
+      scheduleBlockSavedNotification,
     );
   }
 
@@ -326,14 +359,28 @@ function buildActionRedirectUrl(
     );
   }
 
-  return withSavedSearch(currentUrl.pathname, eventId);
-}
+  if (isPriceMutationIntent(input.intent)) {
+    return withEventBasesNotification(
+      currentUrl.pathname,
+      priceSavedNotification,
+    );
+  }
 
-function withSavedSearch(pathname: string, _eventId: string) {
-  const redirectUrl = new URL(`http://localhost${pathname}`);
-  redirectUrl.searchParams.set("guardado", "1");
+  if (isScheduleBlockMutationIntent(input.intent)) {
+    return withEventBasesNotification(
+      currentUrl.pathname,
+      scheduleBlockSavedNotification,
+    );
+  }
 
-  return `${redirectUrl.pathname}${redirectUrl.search}`;
+  if (isScheduleEntryMutationIntent(input.intent)) {
+    return withEventBasesNotification(
+      currentUrl.pathname,
+      scheduleEntrySavedNotification,
+    );
+  }
+
+  return currentUrl.pathname;
 }
 
 function withEventBasesNotification(pathname: string, notification: string) {
@@ -350,6 +397,136 @@ function isModalityMutationIntent(intent: string) {
     intent === "update-submodality" ||
     intent === "delete-submodality"
   );
+}
+
+function isPriceMutationIntent(intent: string) {
+  return intent === "create-price" || intent === "update-price";
+}
+
+function isScheduleBlockMutationIntent(intent: string) {
+  return (
+    intent === "create-schedule-block" || intent === "update-schedule-block"
+  );
+}
+
+function isScheduleEntryMutationIntent(intent: string) {
+  return (
+    intent === "create-schedule-entry" || intent === "update-schedule-entry"
+  );
+}
+
+function getRequiredFieldErrors(
+  input: EventBasesActionInput,
+  formData: FormData,
+): RequiredFieldErrorResult | null {
+  switch (input.intent) {
+    case "create-price":
+    case "update-price":
+      return getPriceRequiredFieldErrors(formData);
+    case "create-schedule-block":
+    case "update-schedule-block":
+      return getScheduleBlockRequiredFieldErrors(formData);
+    case "create-schedule-entry":
+    case "update-schedule-entry":
+      return getScheduleEntryRequiredFieldErrors(formData);
+    default:
+      return null;
+  }
+}
+
+function getPriceRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
+  const fieldErrors = getRequiredErrors({
+    name: formData.get("name"),
+    groupType: formData.get("groupType"),
+    amount: formData.get("amount"),
+  });
+
+  return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
+}
+
+function getScheduleBlockRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
+  const fieldErrors = {
+    ...getRequiredErrors({
+      name: formData.get("name"),
+      scheduledDate: formData.get("scheduledDate"),
+      startTime: formData.get("startTime"),
+      totalCapacity: formData.get("totalCapacity"),
+    }),
+    ...getRequiredArrayErrors({
+      modalityIds: formData.getAll("modalityIds"),
+    }),
+  };
+
+  return buildRequiredFieldError(
+    "Revisá los datos del bloque horario.",
+    fieldErrors,
+  );
+}
+
+function getScheduleEntryRequiredFieldErrors(
+  formData: FormData,
+): RequiredFieldErrorResult | null {
+  const fieldErrors = {
+    ...getRequiredErrors({
+      capacity: formData.get("capacity"),
+    }),
+    ...getRequiredArrayErrors({
+      groupTypes: formData.getAll("groupTypes"),
+    }),
+  };
+
+  return buildRequiredFieldError(
+    "Revisá los datos del cronograma.",
+    fieldErrors,
+  );
+}
+
+function buildRequiredFieldError(
+  message: string,
+  fieldErrors: Record<string, string>,
+): RequiredFieldErrorResult | null {
+  if (Object.keys(fieldErrors).length === 0) {
+    return null;
+  }
+
+  return {
+    message,
+    fieldErrors,
+  };
+}
+
+function getRequiredErrors(values: Record<string, FormDataEntryValue | null>) {
+  const fieldErrors: Record<string, string> = {};
+
+  for (const [fieldName, value] of Object.entries(values)) {
+    if (typeof value !== "string" || value.trim().length > 0) {
+      continue;
+    }
+
+    fieldErrors[fieldName] = requiredFieldMessage;
+  }
+
+  return fieldErrors;
+}
+
+function getRequiredArrayErrors(values: Record<string, FormDataEntryValue[]>) {
+  const fieldErrors: Record<string, string> = {};
+
+  for (const [fieldName, entries] of Object.entries(values)) {
+    const hasValue = entries.some(
+      (entry) => typeof entry === "string" && entry.trim().length > 0,
+    );
+
+    if (!hasValue) {
+      fieldErrors[fieldName] = requiredFieldMessage;
+    }
+  }
+
+  return fieldErrors;
 }
 
 function hasEventBaseRecord(

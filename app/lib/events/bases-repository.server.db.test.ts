@@ -339,7 +339,7 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       fieldErrors: {
-        modalityIds: "Elegí al menos una modalidad aceptada.",
+        modalityIds: "Este campo es obligatorio.",
       },
     });
     await expect(

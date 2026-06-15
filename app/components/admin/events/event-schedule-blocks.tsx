@@ -70,7 +70,11 @@ import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { formatGroupTypes, groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleBlockListItem } from "@/lib/events/bases.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
-import { useApplyServerFieldErrors } from "@/lib/shared/forms";
+import {
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 
 type EventBaseAreaProps = {
@@ -79,25 +83,23 @@ type EventBaseAreaProps = {
 };
 
 const scheduleBlockFormSchema = z.object({
-  name: z.string().trim().min(1, "Ingresá el nombre del bloque horario."),
-  scheduledDate: z.string().trim().min(1, "Ingresá una fecha válida."),
-  startTime: z.string().trim().min(1, "Ingresá una hora válida."),
+  name: z.string().trim().min(1, requiredFieldMessage),
+  scheduledDate: z.string().trim().min(1, requiredFieldMessage),
+  startTime: z.string().trim().min(1, requiredFieldMessage),
   totalCapacity: z
     .string()
     .trim()
-    .min(1, "Ingresá un cupo total mayor a cero.")
+    .min(1, requiredFieldMessage)
     .refine(isPositiveIntegerString, "Ingresá un cupo total mayor a cero."),
-  modalityIds: z
-    .array(z.string())
-    .min(1, "Elegí al menos una modalidad aceptada."),
+  modalityIds: z.array(z.string()).min(1, requiredFieldMessage),
 });
 
 const scheduleEntryFormSchema = z.object({
-  groupTypes: z.array(z.string()).min(1, "Elegí al menos un tipo de grupo."),
+  groupTypes: z.array(z.string()).min(1, requiredFieldMessage),
   capacity: z
     .string()
     .trim()
-    .min(1, "Ingresá un cupo mayor a cero.")
+    .min(1, requiredFieldMessage)
     .refine(isPositiveIntegerString, "Ingresá un cupo mayor a cero."),
 });
 
@@ -144,10 +146,11 @@ export function NewEventScheduleBlockRouteView({
   loaderData,
   actionData,
 }: EventBaseAreaProps) {
+  useServerActionToast(actionData);
+
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      actionData={actionData}
       breadcrumbItems={[
         {
           label: "Bloques horarios",
@@ -179,6 +182,8 @@ export function EventScheduleBlockDetailRouteView({
   loaderData,
   scheduleBlockId,
 }: EventBaseAreaProps & { scheduleBlockId: string }) {
+  useServerActionToast(actionData);
+
   const scheduleBlock = loaderData.scheduleBlocks.find(
     (block) => block.id === scheduleBlockId,
   );
@@ -187,7 +192,6 @@ export function EventScheduleBlockDetailRouteView({
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      actionData={actionData}
       breadcrumbItems={[
         {
           label: "Bloques horarios",
