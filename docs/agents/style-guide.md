@@ -185,6 +185,10 @@ control lo necesite y componentes `Field`.
 
 Reglas:
 
+- Todos los formularios React de la aplicación usan React Hook Form, Zod y
+  componentes shadcn/ui como patrón por defecto, sin importar la superficie
+  (`Panel de administración`, `Portal de academias`, auth, juzgamiento o vistas
+  públicas).
 - Definir el schema con Zod y pasarlo a `useForm` mediante `zodResolver`.
 - Reusar el mismo schema o reglas equivalentes en la acción server para no
   divergir entre cliente y servidor.
@@ -195,12 +199,40 @@ Reglas:
   en formularios simples donde no complique la consistencia.
 - Mostrar errores con `FieldError`; marcar `data-invalid` en `Field` y
   `aria-invalid` en el control.
+- Validar campos requeridos del lado del cliente. Para requeridos vacíos, usar
+  siempre el mensaje `Este campo es obligatorio.`, incluidos `Select`,
+  `Combobox`, checkboxes múltiples y arrays vacíos. Reservar mensajes
+  específicos para valores presentes pero inválidos.
+- No usar validación HTML (`required`, `minLength`, `pattern`) como UX
+  principal ni como sustituto de React Hook Form. Se permiten atributos
+  semánticos o de entrada como `type`, `min`, `max`, `step`, `maxLength`,
+  `autoComplete` y `aria-required` cuando aporten accesibilidad o restricciones
+  de entrada sin reemplazar la validación RHF/Zod.
+- No renderizar errores inline manuales con párrafos o clases rojas ad hoc. Usar
+  `FieldError` y los estados shadcn/ui del campo. Si un componente externo no
+  puede integrarse limpiamente con este patrón, documentar la excepción con un
+  comentario corto y crear deuda explícita para migrarlo.
 - Para `Select`, pasar `field.value` y `field.onChange` al componente `Select`,
   y poner `aria-invalid` en `SelectTrigger`.
 - Para arrays dinámicos, usar `useFieldArray`, `FieldSet`, `FieldLegend` y
   `FieldDescription`; usar `field.id` como key.
 - Integrar errores server con `form.setError` cuando la acción devuelve
   `fieldErrors`.
+- Mostrar feedback de acciones server con toasts:
+  - Éxito confirmado por el servidor: `toast.success`.
+  - Error no asociado a un campo concreto: `toast.error`.
+  - Error con `fieldErrors`: `form.setError` para cada campo y `toast.error`
+    como resumen de la acción fallida.
+  - Para éxitos después de un redirect, usar una notificación de ruta
+    centralizada mediante parámetro de búsqueda (`notificacion`) o el mecanismo
+    compartido que lo reemplace. Mantener los mensajes, IDs y variantes
+    `success | error` en un mapa común. No usar `toast.info` hasta que exista un
+    caso de producto concreto que lo necesite.
+  - No usar `Alert` o `Notice` inline para confirmaciones o errores server
+    salvo que el mensaje deba permanecer como estado persistente de la pantalla.
+    Usar alertas inline solo para condiciones actuales, advertencias previas a
+    actuar o restricciones visibles de la pantalla; no para resultados de una
+    acción ya enviada.
 - Tipar handlers de submit como `React.SubmitEvent<HTMLFormElement>` o
   `React.SubmitEventHandler<HTMLFormElement>`. No usar `React.FormEvent` ni
   `React.FormEventHandler` para formularios: en React 19 esos tipos están
@@ -304,6 +336,10 @@ Reglas:
 - En administración, usar términos canónicos del glosario como `Coreografía`,
   `Presentación` y `Estado financiero`.
 - En portal de academias, evitar jerga interna cuando no aporte a la acción.
+- Usar minúscula para términos de dominio dentro de frases (`Nuevo bailarín`,
+  `Editar profesor`, `Guardar coreografía`) salvo que estén al inicio de una
+  oración, en títulos/secciones, o sean nombres propios. Corregir
+  inconsistencias existentes cuando se toque la pantalla.
 
 ## Tema
 
