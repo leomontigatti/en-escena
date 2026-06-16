@@ -10,7 +10,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { AdminEventContext } from "@/lib/admin/event-context.server";
 
 export type EventBaseAreaKey =
   | "categorias"
@@ -19,8 +18,6 @@ export type EventBaseAreaKey =
   | "precios";
 
 type AdminResourceLayoutData = {
-  email: string;
-  events: AdminEventContext["events"];
   selectedEventId: string | null;
 };
 

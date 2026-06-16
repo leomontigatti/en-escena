@@ -379,8 +379,6 @@ export function AdministracionProfesorDetalleRouteView({
   return (
     <AdminResourceLayout
       loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
         selectedEventId: loaderData.selectedEventId,
       }}
       requireSelectedEvent={false}

@@ -194,8 +194,6 @@ export function AdministracionEventoDetalleRouteView({
   return (
     <AdminResourceLayout
       loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
         selectedEventId: loaderData.selectedEventId,
       }}
       title="Editar evento"

@@ -450,8 +450,6 @@ export function AdministracionBailarinDetalleRouteView({
   return (
     <AdminResourceLayout
       loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
         selectedEventId: loaderData.selectedEventId,
       }}
       title="Detalle bailarín"
