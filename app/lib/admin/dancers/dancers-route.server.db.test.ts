@@ -18,6 +18,11 @@ import {
   createScheduleBlock,
   createScheduleEntry,
 } from "@/lib/events/bases-repository.server";
+import {
+  toAdminDancerIdentificationSearchValue,
+  toAdminDancerParticipationSearchValue,
+  toAdminDancerStatusSearchValue,
+} from "@/lib/admin/dancers/dancers.shared";
 import { auth } from "@/lib/auth/auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -219,8 +224,15 @@ describe("administracion/bailarines route", () => {
     expect(pageTwoData.dancers).toHaveLength(3);
     expect(pageTwoData.filters.page).toBe(2);
     expect(pageTwoMarkup).toContain("53 resultados");
-    expect(pageTwoMarkup).toContain("Página 2 de 2");
-    expect(pageTwoMarkup).toContain("Página anterior");
+    expect(pageTwoMarkup).toContain("3 de 53 registros");
+    expect(pageTwoMarkup).toContain('aria-current="page"');
+    expect(pageTwoMarkup).toContain(">Anterior<");
+    expect(pageTwoMarkup).toContain(
+      'href="/administracion/bailarines?participando=todos"',
+    );
+    expect(pageTwoMarkup).toContain(
+      'href="/administracion/bailarines?participando=todos&amp;page=2"',
+    );
   });
 
   test("shows Sin evento badges when there is no Evento activo", async () => {
@@ -866,7 +878,7 @@ function renderRoute(
     createElement(
       MemoryRouter,
       {
-        initialEntries: ["/administracion/bailarines"],
+        initialEntries: [buildListInitialEntry(loaderData)],
       },
       createElement(AdministracionBailarinesRouteView, { loaderData }),
     ),
@@ -888,6 +900,50 @@ function renderDetailRoute(
       createElement(AdministracionBailarinDetalleRouteView, { loaderData }),
     ),
   );
+}
+
+function buildListInitialEntry(
+  loaderData: Parameters<
+    typeof AdministracionBailarinesRouteView
+  >[0]["loaderData"],
+) {
+  const searchParams = new URLSearchParams();
+
+  if (loaderData.filters.query.length > 0) {
+    searchParams.set("q", loaderData.filters.query);
+  }
+
+  if (
+    loaderData.filters.participation !== "yes" ||
+    !loaderData.selectedEventId
+  ) {
+    searchParams.set(
+      "participando",
+      toAdminDancerParticipationSearchValue(loaderData.filters.participation),
+    );
+  }
+
+  if (loaderData.filters.status !== "active") {
+    searchParams.set(
+      "estado",
+      toAdminDancerStatusSearchValue(loaderData.filters.status),
+    );
+  }
+
+  if (loaderData.filters.identification !== "all") {
+    searchParams.set(
+      "identificacion",
+      toAdminDancerIdentificationSearchValue(loaderData.filters.identification),
+    );
+  }
+
+  if (loaderData.filters.page > 1) {
+    searchParams.set("page", String(loaderData.filters.page));
+  }
+
+  const search = searchParams.toString();
+
+  return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
 }
 
 async function createSignedInRequest(input: {

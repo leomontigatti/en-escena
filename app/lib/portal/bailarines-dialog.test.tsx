@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import "@/test/react-test-env";
+
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
@@ -16,8 +18,6 @@ describe("PortalBailarinesRouteView dialog", () => {
   let PortalBailarinesRouteView: PortalBailarinesRouteViewComponent;
 
   beforeAll(async () => {
-    installReactTestEnvironment();
-
     ({ PortalBailarinesRouteView } =
       await import("@/routes/portal.bailarines"));
   });
@@ -80,31 +80,6 @@ describe("PortalBailarinesRouteView dialog", () => {
     ).toBe("2999-01-01");
   });
 });
-
-function installReactTestEnvironment() {
-  (
-    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
-  ).IS_REACT_ACT_ENVIRONMENT = true;
-
-  const testWindow = window as Window &
-    typeof globalThis & {
-      __vite_plugin_react_preamble_installed__?: boolean;
-    };
-  testWindow.__vite_plugin_react_preamble_installed__ = true;
-
-  window.matchMedia = (() => ({
-    addEventListener() {},
-    addListener() {},
-    dispatchEvent() {
-      return false;
-    },
-    matches: false,
-    media: "",
-    onchange: null,
-    removeEventListener() {},
-    removeListener() {},
-  })) as typeof window.matchMedia;
-}
 
 function createLoaderData(): PortalBailarinesRouteViewProps["loaderData"] {
   return {

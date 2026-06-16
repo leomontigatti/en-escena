@@ -18,6 +18,10 @@ import {
   createScheduleBlock,
   createScheduleEntry,
 } from "@/lib/events/bases-repository.server";
+import {
+  toAdminProfessorParticipationSearchValue,
+  toAdminProfessorStatusSearchValue,
+} from "@/lib/admin/professors/professors.shared";
 import { auth } from "@/lib/auth/auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -192,8 +196,15 @@ describe("administracion/profesores route", () => {
     expect(pageTwoData.professors).toHaveLength(3);
     expect(pageTwoData.filters.page).toBe(2);
     expect(pageTwoMarkup).toContain("53 resultados");
-    expect(pageTwoMarkup).toContain("Página 2 de 2");
-    expect(pageTwoMarkup).toContain("Página anterior");
+    expect(pageTwoMarkup).toContain("3 de 53 registros");
+    expect(pageTwoMarkup).toContain('aria-current="page"');
+    expect(pageTwoMarkup).toContain(">Anterior<");
+    expect(pageTwoMarkup).toContain(
+      'href="/administracion/profesores?participando=todos"',
+    );
+    expect(pageTwoMarkup).toContain(
+      'href="/administracion/profesores?participando=todos&amp;page=2"',
+    );
   });
 
   test("shows Sin evento badges when there is no Evento activo", async () => {
@@ -743,7 +754,7 @@ function renderRoute(
     createElement(
       MemoryRouter,
       {
-        initialEntries: ["/administracion/profesores"],
+        initialEntries: [buildListInitialEntry(loaderData)],
       },
       createElement(AdministracionProfesoresRouteView, { loaderData }),
     ),
@@ -765,6 +776,45 @@ function renderDetailRoute(
       createElement(AdministracionProfesorDetalleRouteView, { loaderData }),
     ),
   );
+}
+
+function buildListInitialEntry(
+  loaderData: Parameters<
+    typeof AdministracionProfesoresRouteView
+  >[0]["loaderData"],
+) {
+  const searchParams = new URLSearchParams();
+
+  if (loaderData.filters.query.length > 0) {
+    searchParams.set("q", loaderData.filters.query);
+  }
+
+  if (
+    loaderData.filters.participation !== "yes" ||
+    !loaderData.selectedEventId
+  ) {
+    searchParams.set(
+      "participando",
+      toAdminProfessorParticipationSearchValue(
+        loaderData.filters.participation,
+      ),
+    );
+  }
+
+  if (loaderData.filters.status !== "active") {
+    searchParams.set(
+      "estado",
+      toAdminProfessorStatusSearchValue(loaderData.filters.status),
+    );
+  }
+
+  if (loaderData.filters.page > 1) {
+    searchParams.set("page", String(loaderData.filters.page));
+  }
+
+  const search = searchParams.toString();
+
+  return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
 }
 
 async function createSignedInRequest(input: {
