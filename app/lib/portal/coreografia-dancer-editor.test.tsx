@@ -5,7 +5,7 @@ import "@/test/react-test-env";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 type PortalCoreografiaDetalleRouteViewComponent =
   typeof import("@/routes/portal.coreografias_.$choreographyId").PortalCoreografiaDetalleRouteView;
@@ -156,7 +156,7 @@ describe("coreografía dancer editor", () => {
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
   });
 
-  test("shows calculating state and disables save while recalculation is running", async () => {
+  test("shows schedule guidance from the initial dancer resolution", async () => {
     const router = createMemoryRouter(
       [
         {
@@ -164,12 +164,38 @@ describe("coreografía dancer editor", () => {
           action: async () => null,
           element: (
             <PortalCoreografiaDetalleRouteView
-              dancerResolutionFetcher={{
-                data: undefined,
-                state: "submitting",
-                submit: vi.fn(),
-              }}
               loaderData={buildLoaderData()}
+              initialDancerResolution={{
+                ok: true,
+                resolution: {
+                  groupType: "duo",
+                  categoryId: "category_2",
+                  categoryName: "Adultos",
+                  experienceLevel: {
+                    required: false,
+                    options: [],
+                  },
+                  schedule: {
+                    status: "auto",
+                    canSave: true,
+                    selectedScheduleEntryId: "schedule_2",
+                    options: [
+                      {
+                        id: "schedule_2",
+                        capacity: 3,
+                        groupTypes: ["duo"],
+                        groupTypeKey: "duo",
+                        scheduleBlock: {
+                          id: "block_2",
+                          name: "Bloque tarde",
+                          scheduledDate: "2026-05-01",
+                          startTime: "14:00",
+                        },
+                      },
+                    ],
+                  },
+                },
+              }}
             />
           ),
         },
@@ -185,16 +211,20 @@ describe("coreografía dancer editor", () => {
       root?.render(<RouterProvider router={router} />);
     });
 
-    const saveButtonWhileResolving = Array.from(
+    const saveButton = Array.from(
       document.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((node) => node.textContent?.includes("Calculando"));
+    ).find((node) => node.textContent?.includes("Guardar bailarines"));
 
-    expect(saveButtonWhileResolving).toBeInstanceOf(HTMLButtonElement);
-    expect(saveButtonWhileResolving?.disabled).toBe(true);
-    expect(document.body.textContent).toContain("Calculando");
+    expect(saveButton).toBeInstanceOf(HTMLButtonElement);
+    expect(saveButton?.disabled).toBe(false);
+    expect(document.body.textContent).toContain("Solo");
+    expect(document.body.textContent).toContain("Juvenil");
+    expect(document.body.textContent).toContain(
+      "El cronograma compatible se selecciona automáticamente.",
+    );
   });
 
-  test("shows recalculated data, clears stale level, focuses nivel and blocks submit until selected", async () => {
+  test("shows the required level field and blocks submit until selected", async () => {
     let saveCalls = 0;
     const router = createMemoryRouter(
       [
@@ -211,26 +241,17 @@ describe("coreografía dancer editor", () => {
           },
           element: (
             <PortalCoreografiaDetalleRouteView
-              dancerResolutionFetcher={{
-                data: {
-                  intent: "resolve-choreography-dancers",
-                  result: {
-                    ok: true,
-                    resolution: {
-                      groupType: "duo",
-                      categoryId: "category_2",
-                      categoryName: "Adultos",
-                      experienceLevel: {
-                        required: true,
-                        options: [{ id: "level_2", name: "Avanzado" }],
-                      },
-                    },
+              loaderData={buildLoaderData({
+                choreography: {
+                  ...buildLoaderData().choreography,
+                  experienceLevelId: null,
+                  experienceLevelName: null,
+                  operationalStatus: {
+                    code: "incomplete",
+                    pendingItems: ["experienceLevel"],
                   },
                 },
-                state: "idle",
-                submit: vi.fn(),
-              }}
-              loaderData={buildLoaderData()}
+              })}
             />
           ),
         },
@@ -246,10 +267,7 @@ describe("coreografía dancer editor", () => {
       root?.render(<RouterProvider router={router} />);
     });
 
-    expect(document.body.textContent).toContain("Dúo");
-    expect(document.body.textContent).toContain("Adultos");
     expect(document.body.textContent).toContain("Nivel de experiencia");
-    expect(document.body.textContent).toContain("Avanzado");
 
     const experienceLevelInput = document.querySelector<HTMLInputElement>(
       'input[name="experienceLevelId"]',
@@ -257,9 +275,6 @@ describe("coreografía dancer editor", () => {
     const form = document.querySelector("form");
 
     expect(experienceLevelInput?.value ?? "").toBe("");
-    expect(document.activeElement).toBe(
-      document.querySelector('[data-slot="select-trigger"]'),
-    );
 
     if (!(form instanceof HTMLFormElement)) {
       throw new Error("Expected dancer editor form to be rendered.");
@@ -310,6 +325,7 @@ function buildLoaderData(
         reasonCode: null,
         reasonText: null,
       },
+      scheduleEntryId: "schedule_1",
       scheduleBlockName: "Bloque mañana",
       scheduleLabel: "2026-05-01 · 10:00",
       dancers: [

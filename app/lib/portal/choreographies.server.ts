@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -31,6 +31,7 @@ export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
   dancerEditingEligibility: DancerEditingEligibility;
+  scheduleEntryId: string;
   scheduleBlockName: string;
   scheduleLabel: string;
   dancers: Array<{
@@ -93,7 +94,44 @@ export type UpdateChoreographyDancersResult =
       message: string;
       fieldErrors?: {
         experienceLevelId?: string;
+        scheduleEntryId?: string;
       };
+    };
+
+export type ChoreographyDancerScheduleOption =
+  ChoreographyRegistrationOperationResolution["schedule"] extends {
+    options: infer TOptions;
+  }
+    ? TOptions extends Array<infer TOption>
+      ? TOption
+      : never
+    : never;
+
+export type ChoreographyDancerScheduleResolution =
+  | {
+      status: "none";
+      canSave: false;
+      error: string;
+      options: [];
+      selectedScheduleEntryId: null;
+    }
+  | {
+      status: "keep-current";
+      canSave: true;
+      options: [ChoreographyDancerScheduleOption];
+      selectedScheduleEntryId: string;
+    }
+  | {
+      status: "auto";
+      canSave: true;
+      options: [ChoreographyDancerScheduleOption];
+      selectedScheduleEntryId: string;
+    }
+  | {
+      status: "multiple";
+      canSave: true;
+      options: ChoreographyDancerScheduleOption[];
+      selectedScheduleEntryId: null;
     };
 
 export type ResolveChoreographyDancersResult =
@@ -110,6 +148,7 @@ export type ResolveChoreographyDancersResult =
             name: string;
           }>;
         };
+        schedule: ChoreographyDancerScheduleResolution;
       };
     }
   | {
@@ -129,8 +168,8 @@ const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
 const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";
-const incompatibleCurrentScheduleMessage =
-  "La propuesta ya no es compatible con el cronograma actual de la coreografía.";
+const compatibleScheduleSelectionRequiredMessage =
+  "Elegí un Cronograma compatible para guardar los bailarines.";
 const closedRegistrationDeletionWarningMessage =
   "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
@@ -151,6 +190,7 @@ type ChoreographyDetailRow = ChoreographyRow & {
   hasPresentation: boolean;
   scheduleBlockName: string;
   scheduleDate: string;
+  scheduleEntryId: string;
   scheduleTime: string;
 };
 
@@ -214,6 +254,7 @@ export async function findChoreographyForAcademyEvent(
       experienceLevelName: experienceLevels.name,
       scheduleBlockName: scheduleBlocks.name,
       scheduleDate: scheduleBlocks.scheduledDate,
+      scheduleEntryId: scheduleEntries.id,
       scheduleTime: scheduleBlocks.startTime,
     })
     .from(choreographies)
@@ -284,6 +325,7 @@ export async function findChoreographyForAcademyEvent(
       isRegistrationOpen: options.isRegistrationOpen,
     }),
     experienceLevelId: row.experienceLevelId,
+    scheduleEntryId: row.scheduleEntryId,
     scheduleBlockName: row.scheduleBlockName,
     scheduleLabel: `${row.scheduleDate} · ${row.scheduleTime}`,
     dancers: dancerRows,
@@ -431,6 +473,7 @@ export async function updateChoreographyDancers(input: {
   choreographyId: string;
   dancerIds: string[];
   experienceLevelId: string | null;
+  scheduleEntryId?: string | null;
   isRegistrationOpen: boolean;
 }): Promise<UpdateChoreographyDancersResult> {
   const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
@@ -439,14 +482,8 @@ export async function updateChoreographyDancers(input: {
     return resolvedUpdate;
   }
 
-  const { choreography, resolvedDancers, resolution } = resolvedUpdate;
-
-  if (!isCompatibleScheduleEntry(choreography.scheduleEntryId, resolution)) {
-    return {
-      ok: false,
-      message: incompatibleCurrentScheduleMessage,
-    };
-  }
+  const { choreography, resolvedDancers, resolution, scheduleResolution } =
+    resolvedUpdate;
 
   const resolvedExperienceLevelId = resolveSelectedExperienceLevelId({
     currentCategoryId: choreography.categoryId,
@@ -463,33 +500,91 @@ export async function updateChoreographyDancers(input: {
     };
   }
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, input.choreographyId));
+  const resolvedScheduleEntryId = resolveSelectedScheduleEntryIdForDancerUpdate(
+    {
+      schedule: scheduleResolution,
+      scheduleEntryId: input.scheduleEntryId ?? null,
+    },
+  );
 
-    await tx.insert(choreographyDancers).values(
-      resolvedDancers.map((dancer) => ({
-        choreographyId: input.choreographyId,
-        dancerId: dancer.id,
-        ageAtEventStart: dancer.ageAtEventStart,
-      })),
-    );
+  if (!resolvedScheduleEntryId.ok) {
+    return {
+      ok: false,
+      message: resolvedScheduleEntryId.message,
+      fieldErrors: resolvedScheduleEntryId.fieldErrors,
+    };
+  }
 
-    await tx
-      .update(choreographies)
-      .set({
-        groupType: resolution.groupType,
-        categoryId:
-          resolution.category.status === "resolved"
-            ? resolution.category.id
-            : null,
-        categoryCalculationMode: resolution.categoryCalculationMode,
-        categoryAgeBasis: resolution.categoryAgeBasis,
-        experienceLevelId: resolvedExperienceLevelId.value,
-      })
-      .where(eq(choreographies.id, input.choreographyId));
-  });
+  try {
+    await db.transaction(async (tx) => {
+      const [lockedScheduleEntry] = await tx
+        .select({
+          id: scheduleEntries.id,
+          capacity: scheduleEntries.capacity,
+        })
+        .from(scheduleEntries)
+        .where(eq(scheduleEntries.id, resolvedScheduleEntryId.value))
+        .for("update");
+
+      if (!lockedScheduleEntry) {
+        throw new Error("Expected selected schedule entry to exist.");
+      }
+
+      const [occupancyRow] = await tx
+        .select({
+          occupiedCount: sql<number>`count(*)`,
+        })
+        .from(choreographies)
+        .where(
+          and(
+            eq(choreographies.scheduleEntryId, lockedScheduleEntry.id),
+            ne(choreographies.id, input.choreographyId),
+          ),
+        );
+
+      const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
+
+      if (occupiedCount >= lockedScheduleEntry.capacity) {
+        throw new Error("schedule-entry-full");
+      }
+
+      await tx
+        .delete(choreographyDancers)
+        .where(eq(choreographyDancers.choreographyId, input.choreographyId));
+
+      await tx.insert(choreographyDancers).values(
+        resolvedDancers.map((dancer) => ({
+          choreographyId: input.choreographyId,
+          dancerId: dancer.id,
+          ageAtEventStart: dancer.ageAtEventStart,
+        })),
+      );
+
+      await tx
+        .update(choreographies)
+        .set({
+          groupType: resolution.groupType,
+          categoryId:
+            resolution.category.status === "resolved"
+              ? resolution.category.id
+              : null,
+          categoryCalculationMode: resolution.categoryCalculationMode,
+          categoryAgeBasis: resolution.categoryAgeBasis,
+          experienceLevelId: resolvedExperienceLevelId.value,
+          scheduleEntryId: lockedScheduleEntry.id,
+        })
+        .where(eq(choreographies.id, input.choreographyId));
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "schedule-entry-full") {
+      return {
+        ok: false,
+        message: "El Cronograma seleccionado ya no tiene cupo disponible.",
+      };
+    }
+
+    throw error;
+  }
 
   return { ok: true };
 }
@@ -507,14 +602,7 @@ export async function resolveChoreographyDancers(input: {
     return resolvedUpdate;
   }
 
-  const { choreography, resolution } = resolvedUpdate;
-
-  if (!isCompatibleScheduleEntry(choreography.scheduleEntryId, resolution)) {
-    return {
-      ok: false,
-      message: incompatibleCurrentScheduleMessage,
-    };
-  }
+  const { resolution, scheduleResolution } = resolvedUpdate;
 
   return {
     ok: true,
@@ -529,6 +617,7 @@ export async function resolveChoreographyDancers(input: {
           ? resolution.category.name
           : null,
       experienceLevel: resolution.experienceLevel,
+      schedule: scheduleResolution,
     },
   };
 }
@@ -699,6 +788,119 @@ function isCompatibleScheduleEntry(
   );
 }
 
+function resolveDancerUpdateScheduleSelection(
+  currentScheduleEntryId: string,
+  resolution: ChoreographyRegistrationOperationResolution,
+): ChoreographyDancerScheduleResolution {
+  if (isCompatibleScheduleEntry(currentScheduleEntryId, resolution)) {
+    const currentOption =
+      resolution.schedule.status === "auto"
+        ? (resolution.schedule.options.find(
+            (option) => option.id === currentScheduleEntryId,
+          ) ?? resolution.schedule.options[0])
+        : resolution.schedule.options.find(
+            (option) => option.id === currentScheduleEntryId,
+          );
+
+    if (!currentOption) {
+      return {
+        status: "none",
+        canSave: false,
+        error:
+          "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+        options: [],
+        selectedScheduleEntryId: null,
+      };
+    }
+
+    return {
+      status: "keep-current",
+      canSave: true,
+      options: [currentOption],
+      selectedScheduleEntryId: currentOption.id,
+    };
+  }
+
+  if (resolution.schedule.status === "none") {
+    return {
+      status: "none",
+      canSave: false,
+      error: resolution.schedule.error,
+      options: [],
+      selectedScheduleEntryId: null,
+    };
+  }
+
+  if (resolution.schedule.status === "auto") {
+    return {
+      status: "auto",
+      canSave: true,
+      options: resolution.schedule.options,
+      selectedScheduleEntryId: resolution.schedule.scheduleEntryId,
+    };
+  }
+
+  return {
+    status: "multiple",
+    canSave: true,
+    options: resolution.schedule.options,
+    selectedScheduleEntryId: null,
+  };
+}
+
+function resolveSelectedScheduleEntryIdForDancerUpdate(input: {
+  schedule: ChoreographyDancerScheduleResolution;
+  scheduleEntryId: string | null;
+}):
+  | { ok: true; value: string }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: {
+        scheduleEntryId: string;
+      };
+    } {
+  if (
+    input.schedule.status === "keep-current" ||
+    input.schedule.status === "auto"
+  ) {
+    return {
+      ok: true,
+      value: input.schedule.selectedScheduleEntryId,
+    };
+  }
+
+  if (input.schedule.status === "none") {
+    return {
+      ok: false,
+      message: input.schedule.error,
+      fieldErrors: {
+        scheduleEntryId: input.schedule.error,
+      },
+    };
+  }
+
+  if (
+    !input.scheduleEntryId ||
+    !input.schedule.options.some(
+      (option) => option.id === input.scheduleEntryId,
+    )
+  ) {
+    return {
+      ok: false,
+      message: compatibleScheduleSelectionRequiredMessage,
+      fieldErrors: {
+        scheduleEntryId: compatibleScheduleSelectionRequiredMessage,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    value: input.scheduleEntryId,
+  };
+}
+
 function getLocalDateParts(date: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -731,6 +933,7 @@ type ResolvedChoreographyDancerUpdateContext =
       };
       resolvedDancers: ResolvedRegistrationDancer[];
       resolution: ChoreographyRegistrationOperationResolution;
+      scheduleResolution: ChoreographyDancerScheduleResolution;
     }
   | {
       ok: false;
@@ -872,6 +1075,10 @@ async function resolveChoreographyDancerUpdateContext(input: {
     choreography,
     resolvedDancers,
     resolution: resolution.resolution,
+    scheduleResolution: resolveDancerUpdateScheduleSelection(
+      choreography.scheduleEntryId,
+      resolution.resolution,
+    ),
   };
 }
 

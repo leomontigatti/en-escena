@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 const requireAcademyUserMock = vi.hoisted(() => vi.fn());
@@ -410,6 +410,186 @@ describe("portal route view", () => {
     expect(markup).toContain("Guardar bailarines");
     expect(markup).toContain("Buscar bailarines");
     expect(markup).toContain("Archivada, Mora");
+  });
+
+  test("shows the no-option cronograma state for dancer edits", () => {
+    const markup = renderCoreografiaDetalle({
+      initialDancerResolution: {
+        ok: true,
+        resolution: {
+          groupType: "trio",
+          categoryId: "category_1",
+          categoryName: "Juvenil",
+          experienceLevel: {
+            required: false,
+            options: [],
+          },
+          schedule: {
+            status: "none",
+            canSave: false,
+            error:
+              "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+            options: [],
+            selectedScheduleEntryId: null,
+          },
+        },
+      },
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+        choreography: choreographyDetailRow({
+          dancerEditingEligibility: {
+            canEdit: true,
+            reasonCode: null,
+            reasonText: null,
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain(
+      "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+    );
+  });
+
+  test("shows the auto cronograma state for dancer edits", () => {
+    const markup = renderCoreografiaDetalle({
+      initialDancerResolution: {
+        ok: true,
+        resolution: {
+          groupType: "trio",
+          categoryId: "category_1",
+          categoryName: "Juvenil",
+          experienceLevel: {
+            required: false,
+            options: [],
+          },
+          schedule: {
+            status: "auto",
+            canSave: true,
+            selectedScheduleEntryId: "schedule_auto",
+            options: [
+              {
+                id: "schedule_auto",
+                capacity: 5,
+                groupTypes: ["trio"],
+                groupTypeKey: "trio",
+                scheduleBlock: {
+                  id: "block_1",
+                  name: "Bloque tarde",
+                  scheduledDate: "2026-05-01",
+                  startTime: "14:00",
+                },
+              },
+            ],
+          },
+        },
+      },
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+        choreography: choreographyDetailRow({
+          dancerEditingEligibility: {
+            canEdit: true,
+            reasonCode: null,
+            reasonText: null,
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain(
+      "El cronograma compatible se selecciona automáticamente.",
+    );
+  });
+
+  test("shows the multiple cronograma state for dancer edits", () => {
+    const markup = renderCoreografiaDetalle({
+      initialDancerResolution: {
+        ok: true,
+        resolution: {
+          groupType: "trio",
+          categoryId: "category_1",
+          categoryName: "Juvenil",
+          experienceLevel: {
+            required: false,
+            options: [],
+          },
+          schedule: {
+            status: "multiple",
+            canSave: true,
+            selectedScheduleEntryId: null,
+            options: [
+              {
+                id: "schedule_1",
+                capacity: 5,
+                groupTypes: ["trio"],
+                groupTypeKey: "trio",
+                scheduleBlock: {
+                  id: "block_1",
+                  name: "Bloque mañana",
+                  scheduledDate: "2026-05-01",
+                  startTime: "10:00",
+                },
+              },
+              {
+                id: "schedule_2",
+                capacity: 3,
+                groupTypes: ["trio"],
+                groupTypeKey: "trio",
+                scheduleBlock: {
+                  id: "block_2",
+                  name: "Bloque tarde",
+                  scheduledDate: "2026-05-01",
+                  startTime: "14:00",
+                },
+              },
+            ],
+          },
+        },
+      },
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+        choreography: choreographyDetailRow({
+          dancerEditingEligibility: {
+            canEdit: true,
+            reasonCode: null,
+            reasonText: null,
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("Cronograma");
+    expect(markup).toContain(
+      "Elegí un cronograma compatible antes de guardar los bailarines.",
+    );
+    expect(markup).toContain('id="choreography-dancer-schedule"');
   });
 
   test("shows the primary blocked reason for dancer editing on coreografía detail", () => {
@@ -1127,19 +1307,28 @@ function renderCoreografiaDetalle(
     initialDeleteDialogOpen?: boolean;
   } = {},
 ) {
-  return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/portal/coreografias/choreo_1"]}>
-      {renderPortalShellForTest(
-        "/portal/coreografias",
-        <PortalCoreografiaDetalleRouteView
-          actionData={input.actionData}
-          initialDeleteDialogOpen={input.initialDeleteDialogOpen}
-          loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
-        />,
-        (input.loaderData ?? coreografiaDetalleLoaderData()).eventContext,
-      )}
-    </MemoryRouter>,
+  const loaderData = input.loaderData ?? coreografiaDetalleLoaderData();
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/portal/coreografias/choreo_1",
+        action: async () => null,
+        element: renderPortalShellForTest(
+          "/portal/coreografias",
+          <PortalCoreografiaDetalleRouteView
+            actionData={input.actionData}
+            initialDancerResolution={input.initialDancerResolution}
+            initialDeleteDialogOpen={input.initialDeleteDialogOpen}
+            loaderData={loaderData}
+          />,
+          loaderData.eventContext,
+        ),
+      },
+    ],
+    { initialEntries: ["/portal/coreografias/choreo_1"] },
   );
+
+  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 type ProfesorEditViewProps = Parameters<typeof PortalProfesorRouteView>[0];
@@ -1417,6 +1606,7 @@ function choreographyDetailRow(
         "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
     },
     experienceLevelId: "level_1",
+    scheduleEntryId: "schedule_1",
     scheduleBlockName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",
     dancers: [

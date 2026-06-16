@@ -5,7 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type SubmitEventHandler,
+  type SubmitEvent,
 } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -101,12 +101,14 @@ const rosterEditorReviewMessage = "Revisá los bailarines de la coreografía.";
 const dancerEditorSchema = z.object({
   dancerIds: z.array(z.string().trim().min(1)).min(1, requiredFieldMessage),
   experienceLevelId: z.string().trim().optional(),
+  scheduleEntryId: z.string().trim().optional(),
 });
 
 type DancerEditorValues = z.infer<typeof dancerEditorSchema>;
 type DancerEditorFieldErrors = {
   dancerIds?: string;
   experienceLevelId?: string;
+  scheduleEntryId?: string;
 };
 const emptyDancerEditorFieldErrors: DancerEditorFieldErrors = {};
 
@@ -122,6 +124,7 @@ type ActionData =
       message: string;
       selectedDancerIds: string[];
       selectedExperienceLevelId: string | null;
+      selectedScheduleEntryId?: string;
     }
   | {
       status: "professor-error";
@@ -133,11 +136,7 @@ type ActionData =
 type PortalCoreografiaDetalleRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
-  dancerResolutionFetcher?: {
-    data: DancerResolutionActionData | undefined;
-    state: "idle" | "loading" | "submitting";
-    submit: ReturnType<typeof useFetcher<typeof action>>["submit"];
-  };
+  initialDancerResolution?: ResolveChoreographyDancersResult;
   initialDeleteDialogOpen?: boolean;
 };
 
@@ -287,6 +286,7 @@ export async function action({
       eventId: selectedEventId,
       experienceLevelId: readOptionalFormString(formData, "experienceLevelId"),
       isRegistrationOpen: eventContext.isRegistrationOpen,
+      scheduleEntryId: readOptionalFormString(formData, "scheduleEntryId"),
     });
   }
 
@@ -306,13 +306,7 @@ export async function action({
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
   actionData,
-  dancerResolutionFetcher = {
-    data: undefined,
-    state: "idle" as const,
-    submit: (() => Promise.resolve()) as ReturnType<
-      typeof useFetcher<typeof action>
-    >["submit"],
-  },
+  initialDancerResolution,
   initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
@@ -460,7 +454,11 @@ export function PortalCoreografiaDetalleRouteView({
                 }
                 choreography={loaderData.choreography}
                 dancers={loaderData.availableDancers}
-                resolutionFetcher={dancerResolutionFetcher}
+                initialResolution={initialDancerResolution}
+                selectedDancers={loaderData.choreography.dancers}
+                selectedScheduleEntryId={
+                  loaderData.choreography.scheduleEntryId
+                }
               />
             ) : (
               <DancerReadonlyList dancers={loaderData.choreography.dancers} />
@@ -504,21 +502,11 @@ export function PortalCoreografiaDetalleRouteView({
 export default function PortalCoreografiaDetalleRoute({
   loaderData,
 }: PortalCoreografiaDetalleRouteProps) {
-  const rawActionData = useActionData<typeof action>();
-  const dancerResolutionFetcher = useFetcher<typeof action>();
+  const actionData = useActionData() as ActionData;
   const [searchParams] = useSearchParams();
-  const actionData =
-    rawActionData && "status" in rawActionData ? rawActionData : undefined;
 
   return (
     <PortalCoreografiaDetalleRouteView
-      dancerResolutionFetcher={{
-        data: dancerResolutionFetcher.data as
-          | DancerResolutionActionData
-          | undefined,
-        state: dancerResolutionFetcher.state,
-        submit: dancerResolutionFetcher.submit,
-      }}
       loaderData={{
         ...loaderData,
         successMessage:
@@ -544,16 +532,19 @@ function DancerEditor({
   actionData,
   choreography,
   dancers,
-  resolutionFetcher,
+  initialResolution,
+  selectedDancers,
+  selectedScheduleEntryId,
 }: {
   actionData: Extract<ActionData, { status: "dancer-error" }> | undefined;
   choreography: LoaderData["choreography"];
   dancers: ChoreographyDancerOption[];
-  resolutionFetcher: NonNullable<
-    PortalCoreografiaDetalleRouteProps["dancerResolutionFetcher"]
-  >;
+  initialResolution: ResolveChoreographyDancersResult | undefined;
+  selectedDancers: LoaderData["choreography"]["dancers"];
+  selectedScheduleEntryId: string;
 }) {
   const experienceLevelFieldId = useId();
+  const resolutionFetcher = useFetcher<DancerResolutionActionData>();
   const dancerOptions = useMemo(
     () =>
       dancers.map((dancer) => ({
@@ -571,13 +562,17 @@ function DancerEditor({
   const selectedDancerIds = useMemo(
     () =>
       actionData?.selectedDancerIds ??
-      choreography.dancers.map((dancer) => dancer.id),
-    [actionData?.selectedDancerIds, choreography.dancers],
+      selectedDancers.map((dancer) => dancer.id),
+    [actionData?.selectedDancerIds, selectedDancers],
   );
   const selectedExperienceLevelId =
     actionData?.selectedExperienceLevelId ??
     choreography.experienceLevelId ??
     "";
+  const initialDancerIds = useMemo(
+    () => selectedDancers.map((dancer) => dancer.id),
+    [selectedDancers],
+  );
   const initialSelectionKey = useMemo(
     () => getDancerSelectionKey(selectedDancerIds),
     [selectedDancerIds],
@@ -590,6 +585,10 @@ function DancerEditor({
     useState(persistedResolution);
   const [resolvedSelectionKey, setResolvedSelectionKey] =
     useState(initialSelectionKey);
+  const [resolution, setResolution] =
+    useState<ResolveChoreographyDancersResult | null>(
+      initialResolution ?? null,
+    );
   const [resolutionError, setResolutionError] = useState<string | null>(null);
   const submittedSelectionKeyRef = useRef<string | null>(null);
   const form = useForm<DancerEditorValues>({
@@ -597,33 +596,52 @@ function DancerEditor({
     defaultValues: {
       dancerIds: selectedDancerIds,
       experienceLevelId: selectedExperienceLevelId,
+      scheduleEntryId:
+        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
     },
   });
   const fieldErrors = actionData?.fieldErrors ?? emptyDancerEditorFieldErrors;
   const watchedDancerIds = form.watch("dancerIds");
   const watchedExperienceLevelId = form.watch("experienceLevelId") ?? "";
+  const watchedScheduleEntryId = form.watch("scheduleEntryId") ?? "";
   const dancerSelectionKey = useMemo(
     () => getDancerSelectionKey(watchedDancerIds),
     [watchedDancerIds],
   );
   const resolutionData = resolutionFetcher.data;
   const isResolving = resolutionFetcher.state !== "idle";
+  const hasRosterChanged = useMemo(
+    () => dancerSelectionKey !== getDancerSelectionKey(initialDancerIds),
+    [dancerSelectionKey, initialDancerIds],
+  );
+  const scheduleResolution = resolution?.ok
+    ? resolution.resolution.schedule
+    : null;
+  const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
+  const shouldShowScheduleResolution =
+    hasRosterChanged || initialResolution !== undefined;
 
   useEffect(() => {
     form.reset({
       dancerIds: selectedDancerIds,
       experienceLevelId: selectedExperienceLevelId,
+      scheduleEntryId:
+        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
     });
     setDerivedResolution(persistedResolution);
+    setResolution(initialResolution ?? null);
     setResolutionError(null);
     setResolvedSelectionKey(initialSelectionKey);
     submittedSelectionKeyRef.current = null;
   }, [
+    actionData?.selectedScheduleEntryId,
     form,
     initialSelectionKey,
+    initialResolution,
     persistedResolution,
     selectedDancerIds,
     selectedExperienceLevelId,
+    selectedScheduleEntryId,
   ]);
 
   useApplyServerFieldErrors(form, fieldErrors);
@@ -636,8 +654,16 @@ function DancerEditor({
 
     if (dancerSelectionKey === initialSelectionKey) {
       setDerivedResolution(persistedResolution);
+      setResolution(initialResolution ?? null);
       setResolutionError(null);
       setResolvedSelectionKey(initialSelectionKey);
+      form.setValue(
+        "scheduleEntryId",
+        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
+        {
+          shouldDirty: false,
+        },
+      );
       submittedSelectionKeyRef.current = null;
       return;
     }
@@ -657,9 +683,13 @@ function DancerEditor({
   }, [
     dancerSelectionKey,
     initialSelectionKey,
+    initialResolution,
     persistedResolution,
+    form,
     resolutionFetcher,
     resolvedSelectionKey,
+    actionData?.selectedScheduleEntryId,
+    selectedScheduleEntryId,
     watchedDancerIds,
   ]);
 
@@ -677,10 +707,13 @@ function DancerEditor({
     setResolvedSelectionKey(submittedSelectionKey);
 
     if (!resolutionData.result.ok) {
+      setResolution(resolutionData.result);
+      form.setValue("scheduleEntryId", "", { shouldDirty: true });
       setResolutionError(resolutionData.result.message);
       return;
     }
 
+    setResolution(resolutionData.result);
     const nextResolution = mapResolvedDancerResolutionState(
       resolutionData.result,
     );
@@ -708,6 +741,28 @@ function DancerEditor({
     }
 
     form.clearErrors("experienceLevelId");
+    const nextSchedule = resolutionData.result.resolution.schedule;
+
+    if (
+      nextSchedule.status === "keep-current" ||
+      nextSchedule.status === "auto"
+    ) {
+      form.setValue("scheduleEntryId", nextSchedule.selectedScheduleEntryId, {
+        shouldDirty: true,
+      });
+      form.clearErrors("scheduleEntryId");
+    } else if (nextSchedule.status === "multiple") {
+      if (
+        !nextSchedule.options.some(
+          (option) => option.id === watchedScheduleEntryId,
+        )
+      ) {
+        form.setValue("scheduleEntryId", "", { shouldDirty: true });
+      }
+    } else {
+      form.setValue("scheduleEntryId", "", { shouldDirty: true });
+    }
+
     setDerivedResolution(nextResolution);
     setResolutionError(null);
 
@@ -726,6 +781,7 @@ function DancerEditor({
     form,
     resolutionData,
     resolutionFetcher.state,
+    watchedScheduleEntryId,
   ]);
 
   const getDancerLabel = (value: string) =>
@@ -735,10 +791,15 @@ function DancerEditor({
     !isResolving &&
     !resolutionError &&
     dancerSelectionKey === resolvedSelectionKey &&
+    (!hasRosterChanged ||
+      (resolution?.ok === true &&
+        scheduleResolution?.status !== "none" &&
+        (scheduleResolution?.status !== "multiple" ||
+          watchedScheduleEntryId.length > 0))) &&
     (!derivedResolution.experienceLevelRequired ||
       watchedExperienceLevelId.length > 0);
 
-  const handleSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     void form.handleSubmit(() => {
@@ -756,6 +817,25 @@ function DancerEditor({
         });
         document.getElementById(experienceLevelFieldId)?.focus();
         return;
+      }
+
+      if (hasRosterChanged) {
+        if (!resolution?.ok || scheduleResolution?.status === "none") {
+          return;
+        }
+
+        if (
+          scheduleResolution?.status === "multiple" &&
+          watchedScheduleEntryId.length === 0
+        ) {
+          form.setError("scheduleEntryId", {
+            message: requiredFieldMessage,
+            type: "manual",
+          });
+          return;
+        }
+
+        form.clearErrors("scheduleEntryId");
       }
 
       event.currentTarget.submit();
@@ -917,6 +997,32 @@ function DancerEditor({
         />
       ) : null}
 
+      {watchedScheduleEntryId ? (
+        <input
+          type="hidden"
+          name="scheduleEntryId"
+          value={watchedScheduleEntryId}
+        />
+      ) : null}
+
+      {isResolving ? (
+        <AccessNotice variant="info">
+          Resolviendo cronograma compatible para este roster.
+        </AccessNotice>
+      ) : null}
+
+      {shouldShowScheduleResolution && resolution?.ok === false ? (
+        <AccessNotice variant="error">{resolution.message}</AccessNotice>
+      ) : null}
+
+      {shouldShowScheduleResolution ? (
+        <DancerScheduleResolutionFields
+          control={form.control}
+          resolution={scheduleResolution}
+          scheduleOptions={scheduleOptions}
+        />
+      ) : null}
+
       <Button type="submit" className="w-fit" disabled={!canSubmit}>
         {isResolving ? (
           <>
@@ -928,6 +1034,100 @@ function DancerEditor({
         )}
       </Button>
     </form>
+  );
+}
+
+function getSelectableScheduleOptions(
+  scheduleResolution:
+    | Extract<
+        ResolveChoreographyDancersResult,
+        { ok: true }
+      >["resolution"]["schedule"]
+    | null,
+) {
+  if (!scheduleResolution || scheduleResolution.status === "none") {
+    return [];
+  }
+
+  return scheduleResolution.options;
+}
+
+function DancerScheduleResolutionFields({
+  control,
+  resolution,
+  scheduleOptions,
+}: {
+  control: ReturnType<typeof useForm<DancerEditorValues>>["control"];
+  resolution:
+    | Extract<
+        ResolveChoreographyDancersResult,
+        { ok: true }
+      >["resolution"]["schedule"]
+    | null;
+  scheduleOptions: Array<{
+    id: string;
+    capacity: number;
+    groupTypeKey: string;
+    scheduleBlock: {
+      name: string;
+    };
+  }>;
+}) {
+  if (!resolution) {
+    return null;
+  }
+
+  if (resolution.status === "none") {
+    return <AccessNotice variant="error">{resolution.error}</AccessNotice>;
+  }
+
+  if (resolution.status === "keep-current") {
+    return (
+      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        El cronograma actual sigue siendo compatible y se conserva.
+      </p>
+    );
+  }
+
+  if (resolution.status === "auto") {
+    return (
+      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        El cronograma compatible se selecciona automáticamente.
+      </p>
+    );
+  }
+
+  return (
+    <Controller
+      control={control}
+      name="scheduleEntryId"
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error ? true : undefined}>
+          <FieldLegend variant="label">Cronograma</FieldLegend>
+          <FieldDescription>
+            Elegí un cronograma compatible antes de guardar los bailarines.
+          </FieldDescription>
+          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+            <SelectTrigger
+              aria-invalid={fieldState.error ? true : undefined}
+              id="choreography-dancer-schedule"
+            >
+              <SelectValue placeholder="Seleccionar cronograma" />
+            </SelectTrigger>
+            <SelectContent>
+              {scheduleOptions.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {formatScheduleOptionLabel(option)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldContent>
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }
 
@@ -1251,6 +1451,35 @@ function formatProfessorName(professor: {
   return `${professor.lastName}, ${professor.firstName}`;
 }
 
+function formatScheduleOptionLabel(option: {
+  scheduleBlock: {
+    name: string;
+  };
+  groupTypeKey: string;
+  capacity: number;
+}) {
+  return `${option.scheduleBlock.name} · ${formatScheduleGroupTypeLabel(option.groupTypeKey)} · Cupo ${option.capacity}`;
+}
+
+function formatScheduleGroupTypeLabel(groupTypeKey: string) {
+  if (isChoreographyGroupType(groupTypeKey)) {
+    return formatGroupTypeLabel(groupTypeKey);
+  }
+
+  return groupTypeKey;
+}
+
+function isChoreographyGroupType(
+  value: string,
+): value is Parameters<typeof formatGroupTypeLabel>[0] {
+  return (
+    value === "solo" ||
+    value === "duo" ||
+    value === "trio" ||
+    value === "grupal"
+  );
+}
+
 function readChoreographyId(params: { choreographyId?: string }) {
   if (!params.choreographyId) {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
@@ -1361,9 +1590,11 @@ async function handleUpdateChoreographyDancersAction(input: {
   eventId: string;
   experienceLevelId: string | null;
   isRegistrationOpen: boolean;
+  scheduleEntryId: string | null;
 }) {
   const parsed = dancerEditorSchema.safeParse({
     dancerIds: input.dancerIds,
+    scheduleEntryId: input.scheduleEntryId ?? "",
   });
 
   if (!parsed.success) {
@@ -1372,10 +1603,13 @@ async function handleUpdateChoreographyDancersAction(input: {
       fieldErrors: {
         dancerIds:
           parsed.error.flatten().fieldErrors.dancerIds?.[0] ?? undefined,
+        scheduleEntryId:
+          parsed.error.flatten().fieldErrors.scheduleEntryId?.[0] ?? undefined,
       },
       message: rosterEditorReviewMessage,
       selectedDancerIds: input.dancerIds,
       selectedExperienceLevelId: input.experienceLevelId,
+      selectedScheduleEntryId: input.scheduleEntryId ?? undefined,
     };
   }
 
@@ -1386,6 +1620,7 @@ async function handleUpdateChoreographyDancersAction(input: {
     eventId: input.eventId,
     experienceLevelId: input.experienceLevelId,
     isRegistrationOpen: input.isRegistrationOpen,
+    scheduleEntryId: parsed.data.scheduleEntryId,
   });
 
   if (!result.ok) {
@@ -1395,6 +1630,7 @@ async function handleUpdateChoreographyDancersAction(input: {
       message: result.message,
       selectedDancerIds: parsed.data.dancerIds,
       selectedExperienceLevelId: input.experienceLevelId,
+      selectedScheduleEntryId: parsed.data.scheduleEntryId,
     };
   }
 
