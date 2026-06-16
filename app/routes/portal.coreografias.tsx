@@ -1,7 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import {
+  Controller,
+  useForm,
+  type Control,
+  type UseFormReturn,
+} from "react-hook-form";
 import { Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { z } from "zod";
 import { clsx } from "clsx";
@@ -123,6 +128,11 @@ const createChoreographySchema = z.object({
 });
 
 type CreateChoreographyFormValues = z.infer<typeof createChoreographySchema>;
+type CreateChoreographyForm = UseFormReturn<CreateChoreographyFormValues>;
+type ManualRequiredFieldName =
+  | "experienceLevelId"
+  | "scheduleEntryId"
+  | "submodalityId";
 
 const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
   name: "",
@@ -585,11 +595,11 @@ function CreateChoreographyModal({
 }) {
   const calculationFetcher = useFetcher<typeof action>();
   const submissionFetcher = useFetcher<typeof action>();
-  const nameId = useId();
-  const modalityId = useId();
-  const submodalityId = useId();
-  const experienceLevelId = useId();
-  const scheduleEntryId = useId();
+  const nameFieldId = useId();
+  const modalityFieldId = useId();
+  const submodalityFieldId = useId();
+  const experienceLevelFieldId = useId();
+  const scheduleEntryFieldId = useId();
   const [currentStep, setCurrentStep] = useState(0);
   const [resolution, setResolution] = useState<RegistrationResolution | null>(
     null,
@@ -719,10 +729,7 @@ function CreateChoreographyModal({
     }
 
     if (canChooseSubmodality && !selectedSubmodalityId) {
-      form.setError("submodalityId", {
-        message: requiredFieldMessage,
-        type: "manual",
-      });
+      setRequiredFieldError(form, "submodalityId");
       return;
     }
 
@@ -749,20 +756,14 @@ function CreateChoreographyModal({
     }
 
     if (resolution.experienceLevel.required && !selectedExperienceLevelId) {
-      form.setError("experienceLevelId", {
-        message: requiredFieldMessage,
-        type: "manual",
-      });
+      setRequiredFieldError(form, "experienceLevelId");
       return;
     }
 
     form.clearErrors("experienceLevelId");
 
     if (resolution.schedule.status === "multiple" && !selectedScheduleEntryId) {
-      form.setError("scheduleEntryId", {
-        message: requiredFieldMessage,
-        type: "manual",
-      });
+      setRequiredFieldError(form, "scheduleEntryId");
       return;
     }
 
@@ -792,13 +793,17 @@ function CreateChoreographyModal({
     selectedModalityId.length > 0 &&
     (!canChooseSubmodality || selectedSubmodalityId.length > 0);
   const canResolve = selectedDancerIds.length > 0;
-  const canAdvanceFromResolution =
+  const hasRequiredExperienceLevel =
     resolution !== null &&
     (!resolution.experienceLevel.required ||
-      selectedExperienceLevelId.length > 0) &&
+      selectedExperienceLevelId.length > 0);
+  const hasRequiredSchedule =
+    resolution !== null &&
     (resolution.schedule.status === "auto" ||
       (resolution.schedule.status === "multiple" &&
         selectedScheduleEntryId.length > 0));
+  const canAdvanceFromResolution =
+    resolution !== null && hasRequiredExperienceLevel && hasRequiredSchedule;
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
@@ -841,7 +846,7 @@ function CreateChoreographyModal({
               <ChoreographyTextField
                 control={form.control}
                 fieldName="name"
-                id={nameId}
+                id={nameFieldId}
                 label="Nombre"
                 placeholder="Ej.: Danza de la luna"
               />
@@ -856,7 +861,7 @@ function CreateChoreographyModal({
               <ChoreographySelectField
                 control={form.control}
                 fieldName="modalityId"
-                id={modalityId}
+                id={modalityFieldId}
                 label="Modalidad"
                 onValueChange={() => {
                   form.setValue("submodalityId", "", { shouldDirty: true });
@@ -872,7 +877,7 @@ function CreateChoreographyModal({
                 <ChoreographySelectField
                   control={form.control}
                   fieldName="submodalityId"
-                  id={submodalityId}
+                  id={submodalityFieldId}
                   label="Submodalidad"
                   onValueChange={() => {
                     resetResolutionState();
@@ -962,7 +967,7 @@ function CreateChoreographyModal({
                 <ChoreographySelectField
                   control={form.control}
                   fieldName="experienceLevelId"
-                  id={experienceLevelId}
+                  id={experienceLevelFieldId}
                   label="Nivel de experiencia"
                   options={resolution.experienceLevel.options.map((option) => ({
                     value: option.id,
@@ -987,7 +992,7 @@ function CreateChoreographyModal({
                 <ChoreographySelectField
                   control={form.control}
                   fieldName="scheduleEntryId"
-                  id={scheduleEntryId}
+                  id={scheduleEntryFieldId}
                   label="Cronograma"
                   options={resolution.schedule.options.map((option) => ({
                     value: option.id,
@@ -1311,11 +1316,9 @@ function SelectionCheckboxField({
                 <Checkbox
                   checked={isChecked}
                   onCheckedChange={(checked) => {
-                    const nextValue =
-                      checked === true
-                        ? [...currentValue, optionId]
-                        : currentValue.filter((value) => value !== optionId);
-                    field.onChange(nextValue);
+                    field.onChange(
+                      toggleSelectedValue(currentValue, optionId, checked),
+                    );
                     onToggle?.();
                   }}
                   aria-invalid={isInvalid ? true : undefined}
@@ -1328,6 +1331,28 @@ function SelectionCheckboxField({
       }}
     />
   );
+}
+
+function setRequiredFieldError(
+  form: CreateChoreographyForm,
+  fieldName: ManualRequiredFieldName,
+) {
+  form.setError(fieldName, {
+    message: requiredFieldMessage,
+    type: "manual",
+  });
+}
+
+function toggleSelectedValue(
+  currentValue: string[],
+  optionId: string,
+  checked: boolean | "indeterminate",
+) {
+  if (checked === true) {
+    return [...currentValue, optionId];
+  }
+
+  return currentValue.filter((value) => value !== optionId);
 }
 
 function getCalculationError(data: CalculationActionData | undefined) {

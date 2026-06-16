@@ -75,6 +75,8 @@ describe("coreografía creation dialog render", () => {
 });
 
 function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
+  const eventSummary = buildEventSummary();
+
   return {
     choreographies: [],
     activeDancers: [
@@ -113,9 +115,9 @@ function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
       ],
     },
     eventContext: {
-      events: [buildEventSummary()],
-      selectedEvent: buildEventSummary(),
-      activeEvent: buildEventSummary(),
+      events: [eventSummary],
+      selectedEvent: eventSummary,
+      activeEvent: eventSummary,
       hasActiveEvent: true,
       activeEventRegistrationReadiness: {
         eventId: "event_1",
