@@ -28,6 +28,8 @@ import type {
 } from "@/lib/portal/choreographies";
 
 export type ChoreographyDetail = ChoreographyListItem & {
+  categoryId: string | null;
+  experienceLevelId: string | null;
   dancerEditingEligibility: DancerEditingEligibility;
   scheduleBlockName: string;
   scheduleLabel: string;
@@ -89,6 +91,30 @@ export type UpdateChoreographyDancersResult =
   | {
       ok: false;
       message: string;
+      fieldErrors?: {
+        experienceLevelId?: string;
+      };
+    };
+
+export type ResolveChoreographyDancersResult =
+  | {
+      ok: true;
+      resolution: {
+        groupType: ChoreographyListItem["groupType"];
+        categoryId: string | null;
+        categoryName: string | null;
+        experienceLevel: {
+          required: boolean;
+          options: Array<{
+            id: string;
+            name: string;
+          }>;
+        };
+      };
+    }
+  | {
+      ok: false;
+      message: string;
     };
 
 export type ChoreographyDeletionAvailability = {
@@ -99,10 +125,12 @@ export type ChoreographyDeletionAvailability = {
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const invalidProfessorSelectionMessage =
   "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
-const compatibleDancerRosterRequiredMessage =
-  "Esta propuesta cambia datos estructurales de la coreografía. En esta iteración solo podés guardar rosters compatibles.";
 const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
+const invalidExperienceLevelMessage =
+  "Elegí un nivel de experiencia válido para esta coreografía.";
+const incompatibleCurrentScheduleMessage =
+  "La propuesta ya no es compatible con el cronograma actual de la coreografía.";
 const closedRegistrationDeletionWarningMessage =
   "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
@@ -249,11 +277,13 @@ export async function findChoreographyForAcademyEvent(
 
   return {
     ...base,
+    categoryId: row.categoryId,
     dancerEditingEligibility: getDancerEditingEligibility({
       hasActiveFinancialLink: row.hasActiveFinancialLink,
       hasPresentation: row.hasPresentation,
       isRegistrationOpen: options.isRegistrationOpen,
     }),
+    experienceLevelId: row.experienceLevelId,
     scheduleBlockName: row.scheduleBlockName,
     scheduleLabel: `${row.scheduleDate} · ${row.scheduleTime}`,
     dancers: dancerRows,
@@ -400,14 +430,328 @@ export async function updateChoreographyDancers(input: {
   eventId: string;
   choreographyId: string;
   dancerIds: string[];
+  experienceLevelId: string | null;
   isRegistrationOpen: boolean;
 }): Promise<UpdateChoreographyDancersResult> {
+  const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
+
+  if (!resolvedUpdate.ok) {
+    return resolvedUpdate;
+  }
+
+  const { choreography, resolvedDancers, resolution } = resolvedUpdate;
+
+  if (!isCompatibleScheduleEntry(choreography.scheduleEntryId, resolution)) {
+    return {
+      ok: false,
+      message: incompatibleCurrentScheduleMessage,
+    };
+  }
+
+  const resolvedExperienceLevelId = resolveSelectedExperienceLevelId({
+    currentCategoryId: choreography.categoryId,
+    currentExperienceLevelId: choreography.experienceLevelId,
+    experienceLevelId: input.experienceLevelId,
+    resolution,
+  });
+
+  if (!resolvedExperienceLevelId.ok) {
+    return {
+      ok: false,
+      message: resolvedExperienceLevelId.message,
+      fieldErrors: resolvedExperienceLevelId.fieldErrors,
+    };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, input.choreographyId));
+
+    await tx.insert(choreographyDancers).values(
+      resolvedDancers.map((dancer) => ({
+        choreographyId: input.choreographyId,
+        dancerId: dancer.id,
+        ageAtEventStart: dancer.ageAtEventStart,
+      })),
+    );
+
+    await tx
+      .update(choreographies)
+      .set({
+        groupType: resolution.groupType,
+        categoryId:
+          resolution.category.status === "resolved"
+            ? resolution.category.id
+            : null,
+        categoryCalculationMode: resolution.categoryCalculationMode,
+        categoryAgeBasis: resolution.categoryAgeBasis,
+        experienceLevelId: resolvedExperienceLevelId.value,
+      })
+      .where(eq(choreographies.id, input.choreographyId));
+  });
+
+  return { ok: true };
+}
+
+export async function resolveChoreographyDancers(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  dancerIds: string[];
+  isRegistrationOpen: boolean;
+}): Promise<ResolveChoreographyDancersResult> {
+  const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
+
+  if (!resolvedUpdate.ok) {
+    return resolvedUpdate;
+  }
+
+  const { choreography, resolution } = resolvedUpdate;
+
+  if (!isCompatibleScheduleEntry(choreography.scheduleEntryId, resolution)) {
+    return {
+      ok: false,
+      message: incompatibleCurrentScheduleMessage,
+    };
+  }
+
+  return {
+    ok: true,
+    resolution: {
+      groupType: resolution.groupType,
+      categoryId:
+        resolution.category.status === "resolved"
+          ? resolution.category.id
+          : null,
+      categoryName:
+        resolution.category.status === "resolved"
+          ? resolution.category.name
+          : null,
+      experienceLevel: resolution.experienceLevel,
+    },
+  };
+}
+
+export async function deleteChoreography(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+}): Promise<void> {
+  const choreography = await db.query.choreographies.findFirst({
+    columns: {
+      id: true,
+      academyId: true,
+      eventId: true,
+    },
+    where: eq(choreographies.id, input.choreographyId),
+  });
+
+  if (!choreography) {
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
+  }
+
+  if (
+    choreography.academyId !== input.academyId ||
+    choreography.eventId !== input.eventId
+  ) {
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
+  }
+
+  await db
+    .delete(choreographies)
+    .where(eq(choreographies.id, input.choreographyId));
+}
+
+export function getChoreographyDeletionAvailability(input: {
+  isReadOnly: boolean;
+  isRegistrationOpen: boolean;
+}): ChoreographyDeletionAvailability {
+  if (input.isReadOnly) {
+    return {
+      canDelete: false,
+      warningMessage: null,
+    };
+  }
+
+  return {
+    canDelete: true,
+    warningMessage: input.isRegistrationOpen
+      ? null
+      : closedRegistrationDeletionWarningMessage,
+  };
+}
+
+export function getDancerEditingEligibility(input: {
+  hasActiveFinancialLink: boolean;
+  hasPresentation: boolean;
+  isRegistrationOpen: boolean;
+}): DancerEditingEligibility {
+  if (input.hasPresentation) {
+    return {
+      canEdit: false,
+      reasonCode: "presentation",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    };
+  }
+
+  if (input.hasActiveFinancialLink) {
+    return {
+      canEdit: false,
+      reasonCode: "active-financial-link",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+    };
+  }
+
+  if (!input.isRegistrationOpen) {
+    return {
+      canEdit: false,
+      reasonCode: "registration-closed",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
+    };
+  }
+
+  return {
+    canEdit: true,
+    reasonCode: null,
+    reasonText: null,
+  };
+}
+
+function resolveSelectedExperienceLevelId(input: {
+  currentCategoryId: string | null;
+  currentExperienceLevelId: string | null;
+  experienceLevelId: string | null;
+  resolution: ChoreographyRegistrationOperationResolution;
+}):
+  | { ok: true; value: string | null }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors: {
+        experienceLevelId: string;
+      };
+    } {
+  if (!input.resolution.experienceLevel.required) {
+    return { ok: true, value: null };
+  }
+
+  const resolvedCategoryId =
+    input.resolution.category.status === "resolved"
+      ? input.resolution.category.id
+      : null;
+  const categoryChanged = input.currentCategoryId !== resolvedCategoryId;
+
+  if (
+    !categoryChanged &&
+    input.currentExperienceLevelId &&
+    input.resolution.experienceLevel.options.some(
+      (option) => option.id === input.currentExperienceLevelId,
+    )
+  ) {
+    return { ok: true, value: input.currentExperienceLevelId };
+  }
+
+  if (!input.experienceLevelId) {
+    return {
+      ok: false,
+      message: invalidExperienceLevelMessage,
+      fieldErrors: {
+        experienceLevelId: "Este campo es obligatorio.",
+      },
+    };
+  }
+
+  const isValidLevel = input.resolution.experienceLevel.options.some(
+    (option) => option.id === input.experienceLevelId,
+  );
+
+  if (!isValidLevel) {
+    return {
+      ok: false,
+      message: invalidExperienceLevelMessage,
+      fieldErrors: {
+        experienceLevelId: invalidExperienceLevelMessage,
+      },
+    };
+  }
+
+  return { ok: true, value: input.experienceLevelId };
+}
+
+function isCompatibleScheduleEntry(
+  currentScheduleEntryId: string,
+  resolution: ChoreographyRegistrationOperationResolution,
+) {
+  if (resolution.schedule.status === "none") {
+    return false;
+  }
+
+  if (resolution.schedule.status === "auto") {
+    return resolution.schedule.scheduleEntryId === currentScheduleEntryId;
+  }
+
+  return resolution.schedule.options.some(
+    (option) => option.id === currentScheduleEntryId,
+  );
+}
+
+function getLocalDateParts(date: Date) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
+
+  return {
+    year: Number(partMap.get("year")),
+    month: Number(partMap.get("month")),
+    day: Number(partMap.get("day")),
+  };
+}
+
+type ResolvedChoreographyDancerUpdateContext =
+  | {
+      ok: true;
+      choreography: {
+        id: string;
+        modalityId: string;
+        submodalityId: string | null;
+        categoryId: string | null;
+        experienceLevelId: string | null;
+        scheduleEntryId: string;
+        hasActiveFinancialLink: boolean;
+        hasPresentation: boolean;
+      };
+      resolvedDancers: ResolvedRegistrationDancer[];
+      resolution: ChoreographyRegistrationOperationResolution;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors?: {
+        experienceLevelId?: string;
+      };
+    };
+
+async function resolveChoreographyDancerUpdateContext(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  dancerIds: string[];
+  isRegistrationOpen: boolean;
+}): Promise<ResolvedChoreographyDancerUpdateContext> {
   const choreography = await db.query.choreographies.findFirst({
     columns: {
       id: true,
       modalityId: true,
       submodalityId: true,
-      groupType: true,
       categoryId: true,
       experienceLevelId: true,
       scheduleEntryId: true,
@@ -516,198 +860,18 @@ export async function updateChoreographyDancers(input: {
       dancers: resolvedDancers,
     });
 
-  if (
-    !resolution.ok ||
-    !isCompatibleRosterResolution(choreography, resolution.resolution)
-  ) {
+  if (!resolution.ok) {
     return {
       ok: false,
-      message: compatibleDancerRosterRequiredMessage,
-    };
-  }
-
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, input.choreographyId));
-
-    await tx.insert(choreographyDancers).values(
-      resolvedDancers.map((dancer) => ({
-        choreographyId: input.choreographyId,
-        dancerId: dancer.id,
-        ageAtEventStart: dancer.ageAtEventStart,
-      })),
-    );
-  });
-
-  return { ok: true };
-}
-
-export async function deleteChoreography(input: {
-  academyId: string;
-  eventId: string;
-  choreographyId: string;
-}): Promise<void> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: {
-      id: true,
-      academyId: true,
-      eventId: true,
-    },
-    where: eq(choreographies.id, input.choreographyId),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (
-    choreography.academyId !== input.academyId ||
-    choreography.eventId !== input.eventId
-  ) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  await db
-    .delete(choreographies)
-    .where(eq(choreographies.id, input.choreographyId));
-}
-
-export function getChoreographyDeletionAvailability(input: {
-  isReadOnly: boolean;
-  isRegistrationOpen: boolean;
-}): ChoreographyDeletionAvailability {
-  if (input.isReadOnly) {
-    return {
-      canDelete: false,
-      warningMessage: null,
+      message: resolution.error,
     };
   }
 
   return {
-    canDelete: true,
-    warningMessage: input.isRegistrationOpen
-      ? null
-      : closedRegistrationDeletionWarningMessage,
-  };
-}
-
-export function getDancerEditingEligibility(input: {
-  hasActiveFinancialLink: boolean;
-  hasPresentation: boolean;
-  isRegistrationOpen: boolean;
-}): DancerEditingEligibility {
-  if (input.hasPresentation) {
-    return {
-      canEdit: false,
-      reasonCode: "presentation",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
-    };
-  }
-
-  if (input.hasActiveFinancialLink) {
-    return {
-      canEdit: false,
-      reasonCode: "active-financial-link",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
-    };
-  }
-
-  if (!input.isRegistrationOpen) {
-    return {
-      canEdit: false,
-      reasonCode: "registration-closed",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
-    };
-  }
-
-  return {
-    canEdit: true,
-    reasonCode: null,
-    reasonText: null,
-  };
-}
-
-function isCompatibleRosterResolution(
-  choreography: {
-    categoryId: string | null;
-    experienceLevelId: string | null;
-    groupType: "solo" | "duo" | "trio" | "grupal";
-    scheduleEntryId: string;
-  },
-  resolution: ChoreographyRegistrationOperationResolution,
-) {
-  if (choreography.groupType !== resolution.groupType) {
-    return false;
-  }
-
-  const resolvedCategoryId =
-    resolution.category.status === "resolved" ? resolution.category.id : null;
-
-  if (choreography.categoryId !== resolvedCategoryId) {
-    return false;
-  }
-
-  if (
-    !isCompatibleExperienceLevel(choreography.experienceLevelId, resolution)
-  ) {
-    return false;
-  }
-
-  return isCompatibleScheduleEntry(choreography.scheduleEntryId, resolution);
-}
-
-function isCompatibleExperienceLevel(
-  currentExperienceLevelId: string | null,
-  resolution: ChoreographyRegistrationOperationResolution,
-) {
-  if (!resolution.experienceLevel.required) {
-    return currentExperienceLevelId === null;
-  }
-
-  if (!currentExperienceLevelId) {
-    return false;
-  }
-
-  return resolution.experienceLevel.options.some(
-    (option) => option.id === currentExperienceLevelId,
-  );
-}
-
-function isCompatibleScheduleEntry(
-  currentScheduleEntryId: string,
-  resolution: ChoreographyRegistrationOperationResolution,
-) {
-  if (resolution.schedule.status === "none") {
-    return false;
-  }
-
-  if (resolution.schedule.status === "auto") {
-    return resolution.schedule.scheduleEntryId === currentScheduleEntryId;
-  }
-
-  return resolution.schedule.options.some(
-    (option) => option.id === currentScheduleEntryId,
-  );
-}
-
-function getLocalDateParts(date: Date) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(date);
-  const partMap = new Map(parts.map((part) => [part.type, part.value]));
-
-  return {
-    year: Number(partMap.get("year")),
-    month: Number(partMap.get("month")),
-    day: Number(partMap.get("day")),
+    ok: true,
+    choreography,
+    resolvedDancers,
+    resolution: resolution.resolution,
   };
 }
 

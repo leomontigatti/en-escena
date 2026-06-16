@@ -1,8 +1,20 @@
-import { Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { LoaderCircle, Trash2 } from "lucide-react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { redirect, useActionData, useSearchParams } from "react-router";
+import {
+  redirect,
+  useActionData,
+  useFetcher,
+  useSearchParams,
+} from "react-router";
 import { clsx } from "clsx";
 import { z } from "zod";
 
@@ -34,9 +46,17 @@ import {
   FieldContent,
   FieldDescription,
   FieldError,
+  FieldLabel,
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
@@ -44,6 +64,8 @@ import {
   getChoreographyDeletionAvailability,
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
+  resolveChoreographyDancers,
+  type ResolveChoreographyDancersResult,
   updateChoreographyDancers,
   updateChoreographyProfessors,
 } from "@/lib/portal/choreographies.server";
@@ -55,7 +77,6 @@ import {
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 import {
-  createValidatedNativeSubmitHandler,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -68,6 +89,7 @@ const choreographyDancersUpdatedSearchParam = "bailarines-actualizados";
 const choreographyDancersUpdatedSuccessMessage =
   "Bailarines actualizados correctamente.";
 const choreographyDeletedSearchParam = "eliminada";
+const resolveChoreographyDancersIntent = "resolve-choreography-dancers";
 const updateChoreographyDancersIntent = "update-choreography-dancers";
 const updateChoreographyProfessorsIntent = "update-choreography-professors";
 const deleteChoreographyIntent = "delete-choreography";
@@ -77,13 +99,20 @@ const rosterEditorReviewMessage = "Revisá los bailarines de la coreografía.";
 
 const dancerEditorSchema = z.object({
   dancerIds: z.array(z.string().trim().min(1)).min(1, requiredFieldMessage),
+  experienceLevelId: z.string().trim().optional(),
 });
 
 type DancerEditorValues = z.infer<typeof dancerEditorSchema>;
 type DancerEditorFieldErrors = {
   dancerIds?: string;
+  experienceLevelId?: string;
 };
 const emptyDancerEditorFieldErrors: DancerEditorFieldErrors = {};
+
+type DancerResolutionActionData = {
+  intent: typeof resolveChoreographyDancersIntent;
+  result: ResolveChoreographyDancersResult;
+};
 
 type ActionData =
   | {
@@ -91,6 +120,7 @@ type ActionData =
       fieldErrors?: DancerEditorFieldErrors;
       message: string;
       selectedDancerIds: string[];
+      selectedExperienceLevelId: string | null;
     }
   | {
       status: "professor-error";
@@ -102,6 +132,11 @@ type ActionData =
 type PortalCoreografiaDetalleRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
+  dancerResolutionFetcher?: {
+    data: DancerResolutionActionData | undefined;
+    state: "idle" | "loading" | "submitting";
+    submit: ReturnType<typeof useFetcher<typeof action>>["submit"];
+  };
   initialDeleteDialogOpen?: boolean;
 };
 
@@ -111,6 +146,16 @@ type ChoreographyProfessor = LoaderData["choreography"]["professors"][number];
 type ChoreographyProfessorOption = LoaderData["availableProfessors"][number];
 type ChoreographyOperationalStatus =
   LoaderData["choreography"]["operationalStatus"];
+type DancerResolutionState = {
+  groupType: LoaderData["choreography"]["groupType"];
+  categoryId: LoaderData["choreography"]["categoryId"];
+  categoryName: LoaderData["choreography"]["categoryName"];
+  experienceLevelRequired: boolean;
+  experienceLevelOptions: Array<{
+    id: string;
+    name: string;
+  }>;
+};
 
 export const meta = () => [
   { title: "Detalle de Coreografía | Portal de academias | En Escena" },
@@ -219,6 +264,19 @@ export async function action({
     });
   }
 
+  if (intent === resolveChoreographyDancersIntent) {
+    return {
+      intent,
+      result: await resolveChoreographyDancers({
+        academyId: academy.id,
+        choreographyId,
+        dancerIds: readFormStringArray(formData, "dancerIds"),
+        eventId: selectedEventId,
+        isRegistrationOpen: eventContext.isRegistrationOpen,
+      }),
+    } satisfies DancerResolutionActionData;
+  }
+
   if (intent === updateChoreographyDancersIntent) {
     const dancerIds = readFormStringArray(formData, "dancerIds");
     return await handleUpdateChoreographyDancersAction({
@@ -226,6 +284,7 @@ export async function action({
       choreographyId,
       dancerIds,
       eventId: selectedEventId,
+      experienceLevelId: readOptionalFormString(formData, "experienceLevelId"),
       isRegistrationOpen: eventContext.isRegistrationOpen,
     });
   }
@@ -246,6 +305,13 @@ export async function action({
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
   actionData,
+  dancerResolutionFetcher = {
+    data: undefined,
+    state: "idle" as const,
+    submit: (() => Promise.resolve()) as ReturnType<
+      typeof useFetcher<typeof action>
+    >["submit"],
+  },
   initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
@@ -391,8 +457,9 @@ export function PortalCoreografiaDetalleRouteView({
                 actionData={
                   actionData?.status === "dancer-error" ? actionData : undefined
                 }
+                choreography={loaderData.choreography}
                 dancers={loaderData.availableDancers}
-                selectedDancers={loaderData.choreography.dancers}
+                resolutionFetcher={dancerResolutionFetcher}
               />
             ) : (
               <DancerReadonlyList dancers={loaderData.choreography.dancers} />
@@ -436,11 +503,21 @@ export function PortalCoreografiaDetalleRouteView({
 export default function PortalCoreografiaDetalleRoute({
   loaderData,
 }: PortalCoreografiaDetalleRouteProps) {
-  const actionData = useActionData<typeof action>();
+  const rawActionData = useActionData<typeof action>();
+  const dancerResolutionFetcher = useFetcher<typeof action>();
   const [searchParams] = useSearchParams();
+  const actionData =
+    rawActionData && "status" in rawActionData ? rawActionData : undefined;
 
   return (
     <PortalCoreografiaDetalleRouteView
+      dancerResolutionFetcher={{
+        data: dancerResolutionFetcher.data as
+          | DancerResolutionActionData
+          | undefined,
+        state: dancerResolutionFetcher.state,
+        submit: dancerResolutionFetcher.submit,
+      }}
       loaderData={{
         ...loaderData,
         successMessage:
@@ -464,13 +541,18 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 
 function DancerEditor({
   actionData,
+  choreography,
   dancers,
-  selectedDancers,
+  resolutionFetcher,
 }: {
   actionData: Extract<ActionData, { status: "dancer-error" }> | undefined;
+  choreography: LoaderData["choreography"];
   dancers: ChoreographyDancerOption[];
-  selectedDancers: LoaderData["choreography"]["dancers"];
+  resolutionFetcher: NonNullable<
+    PortalCoreografiaDetalleRouteProps["dancerResolutionFetcher"]
+  >;
 }) {
+  const experienceLevelFieldId = useId();
   const dancerOptions = useMemo(
     () =>
       dancers.map((dancer) => ({
@@ -488,33 +570,202 @@ function DancerEditor({
   const selectedDancerIds = useMemo(
     () =>
       actionData?.selectedDancerIds ??
-      selectedDancers.map((dancer) => dancer.id),
-    [actionData?.selectedDancerIds, selectedDancers],
+      choreography.dancers.map((dancer) => dancer.id),
+    [actionData?.selectedDancerIds, choreography.dancers],
   );
+  const selectedExperienceLevelId =
+    actionData?.selectedExperienceLevelId ??
+    choreography.experienceLevelId ??
+    "";
+  const initialSelectionKey = useMemo(
+    () => getDancerSelectionKey(selectedDancerIds),
+    [selectedDancerIds],
+  );
+  const persistedResolution = useMemo(
+    () => getPersistedDancerResolutionState(choreography),
+    [choreography],
+  );
+  const [derivedResolution, setDerivedResolution] =
+    useState(persistedResolution);
+  const [resolvedSelectionKey, setResolvedSelectionKey] =
+    useState(initialSelectionKey);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const submittedSelectionKeyRef = useRef<string | null>(null);
   const form = useForm<DancerEditorValues>({
     resolver: zodResolver(dancerEditorSchema),
     defaultValues: {
       dancerIds: selectedDancerIds,
+      experienceLevelId: selectedExperienceLevelId,
     },
   });
   const fieldErrors = actionData?.fieldErrors ?? emptyDancerEditorFieldErrors;
+  const watchedDancerIds = form.watch("dancerIds");
+  const watchedExperienceLevelId = form.watch("experienceLevelId") ?? "";
+  const dancerSelectionKey = useMemo(
+    () => getDancerSelectionKey(watchedDancerIds),
+    [watchedDancerIds],
+  );
+  const resolutionData = resolutionFetcher.data;
+  const isResolving = resolutionFetcher.state !== "idle";
 
   useEffect(() => {
     form.reset({
       dancerIds: selectedDancerIds,
+      experienceLevelId: selectedExperienceLevelId,
     });
-  }, [form, selectedDancerIds]);
+    setDerivedResolution(persistedResolution);
+    setResolutionError(null);
+    setResolvedSelectionKey(initialSelectionKey);
+    submittedSelectionKeyRef.current = null;
+  }, [
+    form,
+    initialSelectionKey,
+    persistedResolution,
+    selectedDancerIds,
+    selectedExperienceLevelId,
+  ]);
 
   useApplyServerFieldErrors(form, fieldErrors);
 
+  useEffect(() => {
+    if (watchedDancerIds.length === 0) {
+      setResolutionError(null);
+      return;
+    }
+
+    if (dancerSelectionKey === initialSelectionKey) {
+      setDerivedResolution(persistedResolution);
+      setResolutionError(null);
+      setResolvedSelectionKey(initialSelectionKey);
+      submittedSelectionKeyRef.current = null;
+      return;
+    }
+
+    if (
+      dancerSelectionKey === resolvedSelectionKey ||
+      dancerSelectionKey === submittedSelectionKeyRef.current
+    ) {
+      return;
+    }
+
+    resolutionFetcher.submit(
+      buildResolveChoreographyDancersFormData(watchedDancerIds),
+      { method: "post" },
+    );
+    submittedSelectionKeyRef.current = dancerSelectionKey;
+  }, [
+    dancerSelectionKey,
+    initialSelectionKey,
+    persistedResolution,
+    resolutionFetcher,
+    resolvedSelectionKey,
+    watchedDancerIds,
+  ]);
+
+  useEffect(() => {
+    if (
+      resolutionFetcher.state !== "idle" ||
+      resolutionData?.intent !== resolveChoreographyDancersIntent
+    ) {
+      return;
+    }
+
+    const submittedSelectionKey =
+      submittedSelectionKeyRef.current ?? dancerSelectionKey;
+    submittedSelectionKeyRef.current = null;
+    setResolvedSelectionKey(submittedSelectionKey);
+
+    if (!resolutionData.result.ok) {
+      setResolutionError(resolutionData.result.message);
+      return;
+    }
+
+    const nextResolution = mapResolvedDancerResolutionState(
+      resolutionData.result,
+    );
+    const categoryChanged =
+      derivedResolution.categoryId !== nextResolution.categoryId;
+    const currentExperienceLevelValue =
+      form.getValues("experienceLevelId") ?? "";
+    let nextExperienceLevelValue = currentExperienceLevelValue;
+
+    if (!nextResolution.experienceLevelRequired || categoryChanged) {
+      nextExperienceLevelValue = "";
+    } else if (
+      currentExperienceLevelValue.length > 0 &&
+      !nextResolution.experienceLevelOptions.some(
+        (option) => option.id === currentExperienceLevelValue,
+      )
+    ) {
+      nextExperienceLevelValue = "";
+    }
+
+    if (nextExperienceLevelValue !== currentExperienceLevelValue) {
+      form.setValue("experienceLevelId", nextExperienceLevelValue, {
+        shouldDirty: true,
+      });
+    }
+
+    form.clearErrors("experienceLevelId");
+    setDerivedResolution(nextResolution);
+    setResolutionError(null);
+
+    if (
+      nextResolution.experienceLevelRequired &&
+      nextExperienceLevelValue.length === 0
+    ) {
+      queueMicrotask(() => {
+        document.getElementById(experienceLevelFieldId)?.focus();
+      });
+    }
+  }, [
+    dancerSelectionKey,
+    derivedResolution.categoryId,
+    experienceLevelFieldId,
+    form,
+    resolutionData,
+    resolutionFetcher.state,
+  ]);
+
   const getDancerLabel = (value: string) =>
     dancerOptionByValue.get(value)?.label ?? value;
+  const canSubmit =
+    watchedDancerIds.length > 0 &&
+    !isResolving &&
+    !resolutionError &&
+    dancerSelectionKey === resolvedSelectionKey &&
+    (!derivedResolution.experienceLevelRequired ||
+      watchedExperienceLevelId.length > 0);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    void form.handleSubmit(() => {
+      if (dancerSelectionKey !== resolvedSelectionKey || isResolving) {
+        return;
+      }
+
+      if (
+        derivedResolution.experienceLevelRequired &&
+        watchedExperienceLevelId.length === 0
+      ) {
+        form.setError("experienceLevelId", {
+          message: requiredFieldMessage,
+          type: "manual",
+        });
+        document.getElementById(experienceLevelFieldId)?.focus();
+        return;
+      }
+
+      event.currentTarget.submit();
+    })(event);
+  };
 
   return (
     <form
       method="post"
       className="mt-4 flex flex-col gap-4"
-      onSubmit={createValidatedNativeSubmitHandler(form)}
+      onSubmit={handleSubmit}
     >
       <input
         type="hidden"
@@ -596,8 +847,84 @@ function DancerEditor({
         />
       </FieldSet>
 
-      <Button type="submit" className="w-fit">
-        Guardar bailarines
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-950">
+            Datos recalculados
+          </p>
+          {isResolving ? (
+            <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+              <LoaderCircle className="size-4 animate-spin" />
+              Calculando
+            </span>
+          ) : null}
+        </div>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <DetailItem
+            label="Tipo de grupo"
+            value={formatGroupTypeLabel(derivedResolution.groupType)}
+          />
+          <DetailItem
+            label="Categoría"
+            value={derivedResolution.categoryName ?? "Categoría pendiente"}
+          />
+        </dl>
+      </div>
+
+      {resolutionError ? (
+        <AccessNotice variant="error">{resolutionError}</AccessNotice>
+      ) : null}
+
+      {derivedResolution.experienceLevelRequired ? (
+        <Controller
+          control={form.control}
+          name="experienceLevelId"
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.error ? true : undefined}>
+              <FieldLabel htmlFor={experienceLevelFieldId}>
+                Nivel de experiencia
+              </FieldLabel>
+              <FieldContent>
+                <Select
+                  name={field.name}
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id={experienceLevelFieldId}
+                    aria-invalid={fieldState.error ? true : undefined}
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {derivedResolution.experienceLevelOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Elegilo antes de guardar cuando la categoría resultante lo
+                  requiere.
+                </FieldDescription>
+                <FieldError>{fieldState.error?.message}</FieldError>
+              </FieldContent>
+            </Field>
+          )}
+        />
+      ) : null}
+
+      <Button type="submit" className="w-fit" disabled={!canSubmit}>
+        {isResolving ? (
+          <>
+            <LoaderCircle className="size-4 animate-spin" />
+            Calculando
+          </>
+        ) : (
+          "Guardar bailarines"
+        )}
       </Button>
     </form>
   );
@@ -791,7 +1118,7 @@ function getDancerSectionDescription(
   dancerEditingEligibility: LoaderData["choreography"]["dancerEditingEligibility"],
 ) {
   if (dancerEditingEligibility.canEdit) {
-    return "Actualizá el roster solo cuando la propuesta siga siendo compatible con el tipo de grupo, la categoría, el nivel y el cronograma actuales.";
+    return "Actualizá el roster y revisá cómo cambian tipo de grupo, categoría y nivel antes de guardar.";
   }
 
   return "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.";
@@ -943,6 +1270,63 @@ function readFormStringArray(formData: FormData, key: string) {
     .flatMap((value) => (typeof value === "string" && value ? [value] : []));
 }
 
+function readOptionalFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getDancerSelectionKey(dancerIds: string[]) {
+  return [...dancerIds].sort().join("|");
+}
+
+function getPersistedDancerResolutionState(
+  choreography: LoaderData["choreography"],
+): DancerResolutionState {
+  return {
+    groupType: choreography.groupType,
+    categoryId: choreography.categoryId,
+    categoryName: choreography.categoryName,
+    experienceLevelRequired:
+      choreography.experienceLevelId !== null ||
+      choreography.operationalStatus.pendingItems.includes("experienceLevel"),
+    experienceLevelOptions:
+      choreography.experienceLevelId && choreography.experienceLevelName
+        ? [
+            {
+              id: choreography.experienceLevelId,
+              name: choreography.experienceLevelName,
+            },
+          ]
+        : [],
+  };
+}
+
+function mapResolvedDancerResolutionState(
+  result: Extract<ResolveChoreographyDancersResult, { ok: true }>,
+): DancerResolutionState {
+  return {
+    groupType: result.resolution.groupType,
+    categoryId: result.resolution.categoryId,
+    categoryName: result.resolution.categoryName,
+    experienceLevelRequired: result.resolution.experienceLevel.required,
+    experienceLevelOptions: result.resolution.experienceLevel.options,
+  };
+}
+
+function buildResolveChoreographyDancersFormData(dancerIds: string[]) {
+  const UrlSearchParamsCtor =
+    typeof window !== "undefined" ? window.URLSearchParams : URLSearchParams;
+  const searchParams = new UrlSearchParamsCtor();
+  searchParams.set("intent", resolveChoreographyDancersIntent);
+
+  for (const dancerId of dancerIds) {
+    searchParams.append("dancerIds", dancerId);
+  }
+
+  return searchParams;
+}
+
 async function handleUpdateChoreographyProfessorsAction(input: {
   academyId: string;
   eventId: string;
@@ -974,6 +1358,7 @@ async function handleUpdateChoreographyDancersAction(input: {
   choreographyId: string;
   dancerIds: string[];
   eventId: string;
+  experienceLevelId: string | null;
   isRegistrationOpen: boolean;
 }) {
   const parsed = dancerEditorSchema.safeParse({
@@ -989,6 +1374,7 @@ async function handleUpdateChoreographyDancersAction(input: {
       },
       message: rosterEditorReviewMessage,
       selectedDancerIds: input.dancerIds,
+      selectedExperienceLevelId: input.experienceLevelId,
     };
   }
 
@@ -997,14 +1383,17 @@ async function handleUpdateChoreographyDancersAction(input: {
     choreographyId: input.choreographyId,
     dancerIds: parsed.data.dancerIds,
     eventId: input.eventId,
+    experienceLevelId: input.experienceLevelId,
     isRegistrationOpen: input.isRegistrationOpen,
   });
 
   if (!result.ok) {
     return {
       status: "dancer-error" as const,
+      fieldErrors: result.fieldErrors,
       message: result.message,
       selectedDancerIds: parsed.data.dancerIds,
+      selectedExperienceLevelId: input.experienceLevelId,
     };
   }
 
