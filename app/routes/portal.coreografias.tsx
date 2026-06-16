@@ -1,5 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, LoaderCircle } from "lucide-react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import {
+  Controller,
+  useForm,
+  type Control,
+  type UseFormReturn,
+} from "react-hook-form";
 import { Link, redirect, useFetcher, useSearchParams } from "react-router";
+import { z } from "zod";
 import { clsx } from "clsx";
 
 import { AccessNotice } from "@/components/auth/access-ui";
@@ -12,6 +21,34 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
@@ -36,11 +73,13 @@ import {
   getEventBases,
   type ChoreographyRegistrationBaseOptions,
 } from "@/lib/events/bases.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 
 type PortalCoreografiasRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   created?: boolean;
   deleted?: boolean;
+  initialCreateDialogOpen?: boolean;
 };
 
 type PortalCoreografiasLoaderData = PortalCoreografiasRouteProps["loaderData"];
@@ -70,6 +109,40 @@ const CHOREOGRAPHY_REGISTRATION_STEP_LABELS = [
   "Nivel y cronograma",
   "Resumen",
 ] as const;
+
+const createChoreographySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, requiredFieldMessage)
+    .max(
+      120,
+      "El nombre de la Coreografía no puede superar los 120 caracteres.",
+    ),
+  modalityId: z.string().trim().min(1, requiredFieldMessage),
+  submodalityId: z.string().trim().optional(),
+  dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
+  professorIds: z.array(z.string()),
+  experienceLevelId: z.string().trim().optional(),
+  scheduleEntryId: z.string().trim().optional(),
+});
+
+type CreateChoreographyFormValues = z.infer<typeof createChoreographySchema>;
+type CreateChoreographyForm = UseFormReturn<CreateChoreographyFormValues>;
+type ManualRequiredFieldName =
+  | "experienceLevelId"
+  | "scheduleEntryId"
+  | "submodalityId";
+
+const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
+  name: "",
+  modalityId: "",
+  submodalityId: "",
+  dancerIds: [],
+  professorIds: [],
+  experienceLevelId: "",
+  scheduleEntryId: "",
+};
 
 export const meta = () => [
   { title: "Coreografías | Portal de academias | En Escena" },
@@ -152,6 +225,7 @@ export function PortalCoreografiasRouteView({
   loaderData,
   created = false,
   deleted = false,
+  initialCreateDialogOpen = false,
 }: PortalCoreografiasRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const eventStatus = getEventStatus(loaderData.eventContext.isReadOnly);
@@ -159,7 +233,9 @@ export function PortalCoreografiasRouteView({
     loaderData.eventContext,
     loaderData.activeDancers.length,
   );
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(
+    initialCreateDialogOpen,
+  );
 
   return (
     <>
@@ -519,26 +595,34 @@ function CreateChoreographyModal({
 }) {
   const calculationFetcher = useFetcher<typeof action>();
   const submissionFetcher = useFetcher<typeof action>();
+  const nameFieldId = useId();
+  const modalityFieldId = useId();
+  const submodalityFieldId = useId();
+  const experienceLevelFieldId = useId();
+  const scheduleEntryFieldId = useId();
   const [currentStep, setCurrentStep] = useState(0);
-  const [name, setName] = useState("");
-  const [modalityId, setModalityId] = useState("");
-  const [submodalityId, setSubmodalityId] = useState("");
-  const [selectedDancerIds, setSelectedDancerIds] = useState<string[]>([]);
-  const [selectedProfessorIds, setSelectedProfessorIds] = useState<string[]>(
-    [],
-  );
-  const [experienceLevelId, setExperienceLevelId] = useState("");
-  const [scheduleEntryId, setScheduleEntryId] = useState("");
   const [resolution, setResolution] = useState<RegistrationResolution | null>(
     null,
   );
+  const form = useForm<CreateChoreographyFormValues>({
+    resolver: zodResolver(createChoreographySchema),
+    defaultValues: emptyCreateChoreographyValues,
+  });
+
+  const watchedValues = form.watch();
+  const selectedModalityId = watchedValues.modalityId;
+  const selectedSubmodalityId = watchedValues.submodalityId ?? "";
+  const selectedDancerIds = watchedValues.dancerIds;
+  const selectedProfessorIds = watchedValues.professorIds;
+  const selectedExperienceLevelId = watchedValues.experienceLevelId ?? "";
+  const selectedScheduleEntryId = watchedValues.scheduleEntryId ?? "";
 
   const selectedSubmodalities = useMemo(
     () =>
       baseOptions.submodalities.filter(
-        (submodality) => submodality.modalityId === modalityId,
+        (submodality) => submodality.modalityId === selectedModalityId,
       ),
-    [baseOptions.submodalities, modalityId],
+    [baseOptions.submodalities, selectedModalityId],
   );
   const selectedProfessors = useMemo(
     () =>
@@ -556,13 +640,7 @@ function CreateChoreographyModal({
   const isSubmitting = submissionFetcher.state !== "idle";
   const calculationError = getCalculationError(calculationData);
   const submissionError = getSubmissionError(submissionData);
-  const nameError = getNameError(name);
-  const isDirty =
-    name.length > 0 ||
-    modalityId.length > 0 ||
-    submodalityId.length > 0 ||
-    selectedDancerIds.length > 0 ||
-    selectedProfessorIds.length > 0;
+  const isDirty = form.formState.isDirty;
 
   useEffect(() => {
     if (
@@ -578,35 +656,47 @@ function CreateChoreographyModal({
     if (nextResolution.experienceLevel.required) {
       if (
         !nextResolution.experienceLevel.options.some(
-          (option) => option.id === experienceLevelId,
+          (option) => option.id === selectedExperienceLevelId,
         )
       ) {
-        setExperienceLevelId(
+        form.setValue(
+          "experienceLevelId",
           nextResolution.experienceLevel.options[0]?.id ?? "",
+          { shouldDirty: true },
         );
       }
     } else {
-      setExperienceLevelId("");
+      form.setValue("experienceLevelId", "", { shouldDirty: true });
     }
 
     if (nextResolution.schedule.status === "auto") {
-      setScheduleEntryId(nextResolution.schedule.scheduleEntryId);
+      form.setValue(
+        "scheduleEntryId",
+        nextResolution.schedule.scheduleEntryId,
+        { shouldDirty: true },
+      );
     } else if (
       nextResolution.schedule.status === "multiple" &&
       !nextResolution.schedule.options.some(
-        (option) => option.id === scheduleEntryId,
+        (option) => option.id === selectedScheduleEntryId,
       )
     ) {
-      setScheduleEntryId("");
+      form.setValue("scheduleEntryId", "", { shouldDirty: true });
     }
 
     setCurrentStep(3);
-  }, [calculationData, experienceLevelId, scheduleEntryId]);
+  }, [
+    calculationData,
+    form,
+    selectedExperienceLevelId,
+    selectedScheduleEntryId,
+  ]);
 
   function resetResolutionState() {
     setResolution(null);
-    setExperienceLevelId("");
-    setScheduleEntryId("");
+    form.setValue("experienceLevelId", "", { shouldDirty: true });
+    form.setValue("scheduleEntryId", "", { shouldDirty: true });
+    form.clearErrors(["experienceLevelId", "scheduleEntryId"]);
   }
 
   function handleClose() {
@@ -623,94 +713,120 @@ function CreateChoreographyModal({
     onClose();
   }
 
-  function toggleSelection(
-    currentValues: string[],
-    nextValue: string,
-    onChange: (values: string[]) => void,
-  ) {
-    onChange(
-      currentValues.includes(nextValue)
-        ? currentValues.filter((value) => value !== nextValue)
-        : [...currentValues, nextValue],
-    );
+  async function handleAdvanceFromName() {
+    const isValid = await form.trigger("name");
+
+    if (isValid) {
+      setCurrentStep(1);
+    }
+  }
+
+  async function handleAdvanceFromModality() {
+    const isValid = await form.trigger("modalityId");
+
+    if (!isValid) {
+      return;
+    }
+
+    if (canChooseSubmodality && !selectedSubmodalityId) {
+      setRequiredFieldError(form, "submodalityId");
+      return;
+    }
+
+    form.clearErrors("submodalityId");
+    setCurrentStep(2);
   }
 
   function handleResolveStep() {
     calculationFetcher.submit(
       buildResolveChoreographyFormData({
         eventId,
-        modalityId,
-        submodalityId,
+        modalityId: selectedModalityId,
+        submodalityId: selectedSubmodalityId,
         canChooseSubmodality,
         dancerIds: selectedDancerIds,
       }),
       { method: "post" },
     );
+  }
+
+  async function handleAdvanceFromResolution() {
+    if (!resolution) {
+      return;
+    }
+
+    if (resolution.experienceLevel.required && !selectedExperienceLevelId) {
+      setRequiredFieldError(form, "experienceLevelId");
+      return;
+    }
+
+    form.clearErrors("experienceLevelId");
+
+    if (resolution.schedule.status === "multiple" && !selectedScheduleEntryId) {
+      setRequiredFieldError(form, "scheduleEntryId");
+      return;
+    }
+
+    form.clearErrors("scheduleEntryId");
+    setCurrentStep(4);
   }
 
   function handleConfirm() {
     submissionFetcher.submit(
       buildCreateChoreographyFormData({
         eventId,
-        name,
-        modalityId,
-        submodalityId,
+        name: watchedValues.name,
+        modalityId: selectedModalityId,
+        submodalityId: selectedSubmodalityId,
         canChooseSubmodality,
         dancerIds: selectedDancerIds,
         professorIds: selectedProfessorIds,
-        experienceLevelId,
-        scheduleEntryId,
+        experienceLevelId: selectedExperienceLevelId,
+        scheduleEntryId: selectedScheduleEntryId,
       }),
       { method: "post" },
     );
   }
 
-  const canAdvanceFromName = nameError === null;
+  const canAdvanceFromName = watchedValues.name.trim().length > 0;
   const canAdvanceFromModality =
-    modalityId.length > 0 &&
-    (!canChooseSubmodality || submodalityId.length > 0);
+    selectedModalityId.length > 0 &&
+    (!canChooseSubmodality || selectedSubmodalityId.length > 0);
   const canResolve = selectedDancerIds.length > 0;
-  const canAdvanceFromResolution =
+  const hasRequiredExperienceLevel =
     resolution !== null &&
-    (!resolution.experienceLevel.required || experienceLevelId.length > 0) &&
+    (!resolution.experienceLevel.required ||
+      selectedExperienceLevelId.length > 0);
+  const hasRequiredSchedule =
+    resolution !== null &&
     (resolution.schedule.status === "auto" ||
       (resolution.schedule.status === "multiple" &&
-        scheduleEntryId.length > 0));
+        selectedScheduleEntryId.length > 0));
+  const canAdvanceFromResolution =
+    resolution !== null && hasRequiredExperienceLevel && hasRequiredSchedule;
 
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-      role="dialog"
-    >
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">
-              Registrar Coreografía
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {eventName}. El alta se confirma recién en el último paso.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-          >
-            Cerrar
-          </button>
-        </div>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
+      <DialogContent
+        className="max-h-[90vh] max-w-3xl overflow-y-auto"
+        overlayClassName="backdrop-blur-sm"
+      >
+        <DialogHeader>
+          <DialogTitle>Registrar Coreografía</DialogTitle>
+          <DialogDescription>
+            {eventName}. El alta se confirma recién en el último paso.
+          </DialogDescription>
+        </DialogHeader>
 
-        <ol className="mt-6 grid gap-2 text-sm text-slate-600 sm:grid-cols-5">
+        <ol className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-5">
           {CHOREOGRAPHY_REGISTRATION_STEP_LABELS.map((label, index) => (
             <li
               key={label}
               className={clsx(
                 "rounded-md border px-3 py-2",
                 currentStep === index
-                  ? "border-teal-200 bg-teal-50 text-teal-900"
-                  : "border-slate-200 bg-slate-50",
+                  ? "border-primary/30 bg-primary/5 text-foreground"
+                  : "bg-muted/50",
               )}
             >
               {index + 1}. {label}
@@ -724,34 +840,31 @@ function CreateChoreographyModal({
           </div>
         ) : null}
 
-        <div className="mt-6 space-y-6">
+        <div className="flex flex-col gap-6">
           {currentStep === 0 ? (
-            <section className="space-y-4">
-              <PortalField
-                id="coreografia-name"
+            <section className="flex flex-col gap-4">
+              <ChoreographyTextField
+                control={form.control}
+                fieldName="name"
+                id={nameFieldId}
                 label="Nombre"
-                value={name}
-                onChange={(value) => setName(value)}
                 placeholder="Ej.: Danza de la luna"
               />
-              <p className="text-xs text-slate-500">
+              <FieldDescription>
                 El nombre se normaliza al confirmar. Se permiten duplicados.
-              </p>
-              {nameError ? (
-                <p className="text-xs font-medium text-red-700">{nameError}</p>
-              ) : null}
+              </FieldDescription>
             </section>
           ) : null}
 
           {currentStep === 1 ? (
-            <section className="space-y-4">
-              <SelectField
-                id="coreografia-modality"
+            <section className="flex flex-col gap-4">
+              <ChoreographySelectField
+                control={form.control}
+                fieldName="modalityId"
+                id={modalityFieldId}
                 label="Modalidad"
-                value={modalityId}
-                onChange={(value) => {
-                  setModalityId(value);
-                  setSubmodalityId("");
+                onValueChange={() => {
+                  form.setValue("submodalityId", "", { shouldDirty: true });
                   resetResolutionState();
                 }}
                 options={baseOptions.modalities.map((modality) => ({
@@ -761,12 +874,12 @@ function CreateChoreographyModal({
               />
 
               {canChooseSubmodality ? (
-                <SelectField
-                  id="coreografia-submodality"
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="submodalityId"
+                  id={submodalityFieldId}
                   label="Submodalidad"
-                  value={submodalityId}
-                  onChange={(value) => {
-                    setSubmodalityId(value);
+                  onValueChange={() => {
                     resetResolutionState();
                   }}
                   options={selectedSubmodalities.map((submodality) => ({
@@ -779,78 +892,53 @@ function CreateChoreographyModal({
           ) : null}
 
           {currentStep === 2 ? (
-            <section className="space-y-6">
-              <fieldset>
-                <legend className="text-sm font-medium text-slate-800">
-                  Bailarines
-                </legend>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
+            <section className="flex flex-col gap-6">
+              <FieldSet>
+                <FieldLegend>Bailarines</FieldLegend>
+                <FieldDescription>
                   Elegí uno o más Bailarines activos. No se crean registros en
                   línea desde esta ficha.
-                </p>
-                <div className="mt-3 space-y-2">
+                </FieldDescription>
+                <FieldGroup>
                   {dancers.map((dancer) => (
-                    <label
+                    <SelectionCheckboxField
                       key={dancer.id}
-                      className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800"
-                    >
-                      <input
-                        checked={selectedDancerIds.includes(dancer.id)}
-                        onChange={() => {
-                          toggleSelection(
-                            selectedDancerIds,
-                            dancer.id,
-                            setSelectedDancerIds,
-                          );
-                          resetResolutionState();
-                        }}
-                        type="checkbox"
-                      />
-                      <span>
-                        {dancer.lastName}, {dancer.firstName}
-                      </span>
-                    </label>
+                      control={form.control}
+                      fieldName="dancerIds"
+                      label={`${dancer.lastName}, ${dancer.firstName}`}
+                      onToggle={resetResolutionState}
+                      optionId={dancer.id}
+                    />
                   ))}
-                </div>
-              </fieldset>
+                </FieldGroup>
+                <FieldError>
+                  {form.formState.errors.dancerIds?.message}
+                </FieldError>
+              </FieldSet>
 
-              <fieldset>
-                <legend className="text-sm font-medium text-slate-800">
-                  Profesores
-                </legend>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
+              <FieldSet>
+                <FieldLegend>Profesores</FieldLegend>
+                <FieldDescription>
                   La asignación es opcional y se puede dejar vacía.
-                </p>
-                <div className="mt-3 space-y-2">
+                </FieldDescription>
+                <FieldGroup>
                   {professors.length > 0 ? (
                     professors.map((professor) => (
-                      <label
+                      <SelectionCheckboxField
                         key={professor.id}
-                        className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800"
-                      >
-                        <input
-                          checked={selectedProfessorIds.includes(professor.id)}
-                          onChange={() =>
-                            toggleSelection(
-                              selectedProfessorIds,
-                              professor.id,
-                              setSelectedProfessorIds,
-                            )
-                          }
-                          type="checkbox"
-                        />
-                        <span>
-                          {professor.lastName}, {professor.firstName}
-                        </span>
-                      </label>
+                        control={form.control}
+                        fieldName="professorIds"
+                        label={`${professor.lastName}, ${professor.firstName}`}
+                        optionId={professor.id}
+                      />
                     ))
                   ) : (
-                    <p className="rounded-md border border-dashed border-slate-200 px-3 py-2 text-sm text-slate-600">
+                    <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
                       No hay Profesores activos para vincular.
                     </p>
                   )}
-                </div>
-              </fieldset>
+                </FieldGroup>
+              </FieldSet>
 
               {calculationError ? (
                 <AccessNotice variant="error">{calculationError}</AccessNotice>
@@ -876,18 +964,18 @@ function CreateChoreographyModal({
               </SummaryGrid>
 
               {resolution.experienceLevel.required ? (
-                <SelectField
-                  id="coreografia-experience-level"
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="experienceLevelId"
+                  id={experienceLevelFieldId}
                   label="Nivel de experiencia"
-                  value={experienceLevelId}
-                  onChange={setExperienceLevelId}
                   options={resolution.experienceLevel.options.map((option) => ({
                     value: option.id,
                     label: option.name,
                   }))}
                 />
               ) : (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   Esta selección no requiere Nivel de experiencia.
                 </p>
               )}
@@ -897,15 +985,15 @@ function CreateChoreographyModal({
                   {resolution.schedule.error}
                 </AccessNotice>
               ) : resolution.schedule.status === "auto" ? (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   El Cronograma compatible se selecciona automáticamente.
                 </p>
               ) : (
-                <SelectField
-                  id="coreografia-schedule-entry"
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="scheduleEntryId"
+                  id={scheduleEntryFieldId}
                   label="Cronograma"
-                  value={scheduleEntryId}
-                  onChange={setScheduleEntryId}
                   options={resolution.schedule.options.map((option) => ({
                     value: option.id,
                     label: `${option.scheduleBlock.name} · ${formatGroupTypeLabel(option.groupTypeKey)} · Cupo ${option.capacity}`,
@@ -920,14 +1008,14 @@ function CreateChoreographyModal({
               <SummaryGrid>
                 <SummaryItem
                   label="Nombre"
-                  value={name.trim() || "Sin nombre"}
+                  value={watchedValues.name.trim() || "Sin nombre"}
                 />
                 <SummaryItem
                   label="Modalidad"
                   value={formatModalitySummary(
                     baseOptions,
-                    modalityId,
-                    submodalityId,
+                    selectedModalityId,
+                    selectedSubmodalityId,
                   )}
                 />
                 <SummaryItem
@@ -947,27 +1035,28 @@ function CreateChoreographyModal({
                   value={
                     resolution.experienceLevel.required
                       ? (resolution.experienceLevel.options.find(
-                          (option) => option.id === experienceLevelId,
+                          (option) => option.id === selectedExperienceLevelId,
                         )?.name ?? "Pendiente")
                       : "No aplica"
                   }
                 />
                 <SummaryItem
                   label="Cronograma"
-                  value={formatScheduleSummary(resolution, scheduleEntryId)}
+                  value={formatScheduleSummary(
+                    resolution,
+                    selectedScheduleEntryId,
+                  )}
                 />
               </SummaryGrid>
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <h3 className="text-sm font-semibold text-slate-950">
-                  Bailarines
-                </h3>
+              <div className="rounded-lg border bg-muted/50 p-4">
+                <h3 className="text-sm font-semibold">Bailarines</h3>
                 {resolution.groupType === "grupal" ? (
-                  <p className="mt-2 text-sm text-slate-700">
+                  <p className="mt-2 text-sm">
                     {resolution.dancers.length} Bailarines seleccionados.
                   </p>
                 ) : (
-                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                  <ul className="mt-2 flex flex-col gap-1 text-sm">
                     {resolution.dancers.map((dancer) => (
                       <li key={dancer.id}>
                         {dancer.lastName}, {dancer.firstName} · Edad al inicio
@@ -978,12 +1067,10 @@ function CreateChoreographyModal({
                 )}
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <h3 className="text-sm font-semibold text-slate-950">
-                  Profesores
-                </h3>
+              <div className="rounded-lg border bg-muted/50 p-4">
+                <h3 className="text-sm font-semibold">Profesores</h3>
                 {selectedProfessors.length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                  <ul className="mt-2 flex flex-col gap-1 text-sm">
                     {selectedProfessors.map((professor) => (
                       <li key={professor.id}>
                         {professor.lastName}, {professor.firstName}
@@ -991,89 +1078,96 @@ function CreateChoreographyModal({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-700">
-                    No se asignaron Profesores.
-                  </p>
+                  <p className="mt-2 text-sm">No se asignaron Profesores.</p>
                 )}
               </div>
             </section>
           ) : null}
         </div>
 
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <button
+        <DialogFooter className="sm:justify-between">
+          <Button
             type="button"
+            variant="outline"
             onClick={
               currentStep === 0
                 ? handleClose
                 : () => setCurrentStep((step) => step - 1)
             }
-            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
           >
             {currentStep === 0 ? "Cancelar" : "Volver"}
-          </button>
+          </Button>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             {currentStep === 0 ? (
-              <button
+              <Button
                 type="button"
                 disabled={!canAdvanceFromName}
-                onClick={() => setCurrentStep(1)}
-                className={primaryModalButtonClassName(canAdvanceFromName)}
+                onClick={() => void handleAdvanceFromName()}
               >
                 Continuar
-              </button>
+              </Button>
             ) : null}
 
             {currentStep === 1 ? (
-              <button
+              <Button
                 type="button"
                 disabled={!canAdvanceFromModality}
-                onClick={() => setCurrentStep(2)}
-                className={primaryModalButtonClassName(canAdvanceFromModality)}
+                onClick={() => void handleAdvanceFromModality()}
               >
                 Continuar
-              </button>
+              </Button>
             ) : null}
 
             {currentStep === 2 ? (
-              <button
+              <Button
                 type="button"
                 disabled={!canResolve || isResolving}
                 onClick={handleResolveStep}
-                className={primaryModalButtonClassName(canResolve)}
               >
+                {isResolving ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon
+                  />
+                ) : null}
                 {isResolving ? "Resolviendo..." : "Continuar"}
-              </button>
+              </Button>
             ) : null}
 
             {currentStep === 3 ? (
-              <button
+              <Button
                 type="button"
                 disabled={!canAdvanceFromResolution}
-                onClick={() => setCurrentStep(4)}
-                className={primaryModalButtonClassName(
-                  canAdvanceFromResolution,
-                )}
+                onClick={() => void handleAdvanceFromResolution()}
               >
                 Continuar
-              </button>
+              </Button>
             ) : null}
 
             {currentStep === 4 ? (
-              <button
+              <Button
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleConfirm}
-                className={primaryModalButtonClassName(true)}
               >
+                {isSubmitting ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon
+                  />
+                ) : (
+                  <Check aria-hidden="true" data-icon />
+                )}
                 {isSubmitting ? "Confirmando..." : "Confirmar Coreografía"}
-              </button>
+              </Button>
             ) : null}
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1083,92 +1177,182 @@ function SummaryGrid({ children }: { children: ReactNode }) {
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border bg-muted/50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 text-sm text-slate-900">{value}</p>
+      <p className="mt-2 text-sm">{value}</p>
     </div>
   );
 }
 
-function PortalField({
+function ChoreographyTextField({
+  control,
+  fieldName,
   id,
   label,
-  onChange,
   placeholder,
-  value,
 }: {
+  control: Control<CreateChoreographyFormValues>;
+  fieldName: "name";
   id: string;
   label: string;
-  onChange: (value: string) => void;
   placeholder?: string;
-  value: string;
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        type="text"
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
-      />
-    </div>
+    <Controller
+      control={control}
+      name={fieldName}
+      render={({ field, fieldState }) => {
+        const isInvalid = Boolean(fieldState.error?.message);
+
+        return (
+          <Field data-invalid={isInvalid ? true : undefined}>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldContent>
+              <Input
+                {...field}
+                id={id}
+                placeholder={placeholder}
+                aria-invalid={isInvalid ? true : undefined}
+              />
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </FieldContent>
+          </Field>
+        );
+      }}
+    />
   );
 }
 
-function SelectField({
+function ChoreographySelectField({
+  control,
+  fieldName,
   id,
   label,
-  onChange,
+  onValueChange,
   options,
-  value,
 }: {
+  control: Control<CreateChoreographyFormValues>;
+  fieldName:
+    | "modalityId"
+    | "submodalityId"
+    | "experienceLevelId"
+    | "scheduleEntryId";
   id: string;
   label: string;
-  onChange: (value: string) => void;
+  onValueChange?: (value: string) => void;
   options: Array<{ value: string; label: string }>;
-  value: string;
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100"
-      >
-        <option value="">Seleccionar</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Controller
+      control={control}
+      name={fieldName}
+      render={({ field, fieldState }) => {
+        const isInvalid = Boolean(fieldState.error?.message);
+
+        return (
+          <Field data-invalid={isInvalid ? true : undefined}>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldContent>
+              <Select
+                name={field.name}
+                value={field.value ?? ""}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  onValueChange?.(value);
+                }}
+              >
+                <SelectTrigger
+                  id={id}
+                  aria-invalid={isInvalid ? true : undefined}
+                  className="w-full"
+                >
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </FieldContent>
+          </Field>
+        );
+      }}
+    />
   );
 }
 
-function getNameError(value: string) {
-  const collapsedValue = value.trim().replace(/\s+/g, " ");
+function SelectionCheckboxField({
+  control,
+  fieldName,
+  label,
+  onToggle,
+  optionId,
+}: {
+  control: Control<CreateChoreographyFormValues>;
+  fieldName: "dancerIds" | "professorIds";
+  label: string;
+  onToggle?: () => void;
+  optionId: string;
+}) {
+  return (
+    <Controller
+      control={control}
+      name={fieldName}
+      render={({ field, fieldState }) => {
+        const currentValue = field.value ?? [];
+        const isChecked = currentValue.includes(optionId);
+        const isInvalid = Boolean(fieldState.error?.message);
 
-  if (collapsedValue.length === 0) {
-    return "Ingresá el nombre de la Coreografía.";
+        return (
+          <Field data-invalid={isInvalid ? true : undefined}>
+            <FieldLabel>
+              <Field className="items-center gap-3 rounded-lg border px-3 py-2">
+                <Checkbox
+                  checked={isChecked}
+                  onCheckedChange={(checked) => {
+                    field.onChange(
+                      toggleSelectedValue(currentValue, optionId, checked),
+                    );
+                    onToggle?.();
+                  }}
+                  aria-invalid={isInvalid ? true : undefined}
+                />
+                <span className="text-sm">{label}</span>
+              </Field>
+            </FieldLabel>
+          </Field>
+        );
+      }}
+    />
+  );
+}
+
+function setRequiredFieldError(
+  form: CreateChoreographyForm,
+  fieldName: ManualRequiredFieldName,
+) {
+  form.setError(fieldName, {
+    message: requiredFieldMessage,
+    type: "manual",
+  });
+}
+
+function toggleSelectedValue(
+  currentValue: string[],
+  optionId: string,
+  checked: boolean | "indeterminate",
+) {
+  if (checked === true) {
+    return [...currentValue, optionId];
   }
 
-  if (collapsedValue.length > 120) {
-    return "El nombre de la Coreografía no puede superar los 120 caracteres.";
-  }
-
-  return null;
+  return currentValue.filter((value) => value !== optionId);
 }
 
 function getCalculationError(data: CalculationActionData | undefined) {
@@ -1180,15 +1364,6 @@ function getCalculationError(data: CalculationActionData | undefined) {
 
 function getSubmissionError(data: CreateActionData | undefined) {
   return data?.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
-}
-
-function primaryModalButtonClassName(enabled: boolean) {
-  return clsx(
-    "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-    enabled
-      ? "bg-teal-700 text-white hover:bg-teal-800"
-      : "cursor-not-allowed bg-slate-200 text-slate-500",
-  );
 }
 
 function formatGroupTypeLabel(
