@@ -78,7 +78,7 @@ export function readAdminDancerIdentificationFilter(
     case "todos":
       return "all";
     default:
-      return "incomplete";
+      return "all";
   }
 }
 

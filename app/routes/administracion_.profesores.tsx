@@ -1,7 +1,9 @@
 import { Link, redirect } from "react-router";
 
-import { AdminShell } from "@/components/admin/shell";
-import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  AdminEmptyState,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import {
   DataTable,
   type DataTableColumn,
@@ -30,33 +32,6 @@ type AdministracionProfesoresRouteProps = {
   loaderData: LoaderData;
 };
 
-const professorFacetedFilters: DataTableFacetedFilter[] = [
-  {
-    columnId: "filters",
-    label: "Filtros",
-    groups: [
-      {
-        id: "participando",
-        label: "Participación",
-        options: [
-          { label: "Sí", value: "si" },
-          { label: "No", value: "no" },
-          { label: "Todos", value: "todos" },
-        ],
-      },
-      {
-        id: "estado",
-        label: "Estado",
-        options: [
-          { label: "Activos", value: "activos" },
-          { label: "Archivados", value: "archivados" },
-          { label: "Todos", value: "todos" },
-        ],
-      },
-    ],
-  },
-];
-
 export const meta: Route.MetaFunction = () => [
   { title: "Profesores | Panel de administración | En Escena" },
 ];
@@ -82,7 +57,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   return {
     email: user.email,
-    eventOptions: eventContext.events,
+    events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     professors: listResult.items,
@@ -98,36 +73,25 @@ export function AdministracionProfesoresRouteView({
     loaderData.professors.length > 0 || hasActiveListFilters(loaderData);
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
+    <AdminResourceLayout
+      loaderData={loaderData}
       title="Profesores"
+      description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde un único listado."
+      requireSelectedEvent={false}
     >
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">Profesores</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Consultá la ficha administrativa de cada Profesor sin editar desde
-              el listado.
-            </p>
-          </div>
-          <p className="text-sm text-slate-600">
-            {formatResultCount(loaderData.totalCount)}
-          </p>
-        </div>
-
-        {shouldShowTable ? (
-          <ProfessorTable loaderData={loaderData} />
-        ) : (
-          <AdminEmptyState
-            title="Todavía no hay Profesores para mostrar."
-            description="Ajustá los filtros para revisar otros registros del Evento activo."
-          />
-        )}
-      </section>
-    </AdminShell>
+      {shouldShowTable ? (
+        <ProfessorTable loaderData={loaderData} />
+      ) : (
+        <AdminEmptyState
+          title="Todavía no hay Profesores para mostrar."
+          description={
+            loaderData.selectedEventId
+              ? "Ajustá los filtros para revisar otros registros del Evento activo."
+              : "Cuando haya profesores activos vas a poder revisarlos desde este listado."
+          }
+        />
+      )}
+    </AdminResourceLayout>
   );
 }
 
@@ -167,22 +131,23 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       header: "Estado",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
-          <Badge variant={professor.active ? "default" : "secondary"}>
-            {professor.active ? "Activo" : "Archivado"}
-          </Badge>
-          <ParticipationBadge
-            participationStatus={professor.participationStatus}
+          {loaderData.selectedEventId ? (
+            <ParticipationBadge
+              participationStatus={professor.participationStatus}
+            />
+          ) : null}
+          {!professor.active ? (
+            <Badge variant="secondary">Archivado</Badge>
+          ) : null}
+          <IdentificationBadge
+            identificationStatus={professor.identificationStatus}
           />
         </div>
       ),
       filterValue: (professor) =>
-        `${professor.active ? "Activo" : "Archivado"} ${getAdminProfessorParticipationLabel(
-          professor.participationStatus,
-        )}`,
+        buildProfessorStatusSummary(professor, loaderData.selectedEventId),
       sortValue: (professor) =>
-        `${professor.active ? "Activo" : "Archivado"} ${getAdminProfessorParticipationLabel(
-          professor.participationStatus,
-        )}`,
+        buildProfessorStatusSummary(professor, loaderData.selectedEventId),
     },
   ];
 
@@ -193,7 +158,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       getRowKey={(professor) => professor.id}
       searchPlaceholder="Buscar por nombre, documento o academia"
       initialSearchValue={loaderData.filters.query}
-      facetedFilters={professorFacetedFilters}
+      facetedFilters={buildProfessorFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
       emptyMessage="No hay Profesores que coincidan con la búsqueda."
       serverSide={{
@@ -218,6 +183,75 @@ function ParticipationBadge({
       {getAdminProfessorParticipationLabel(participationStatus)}
     </Badge>
   );
+}
+
+function IdentificationBadge({
+  identificationStatus,
+}: {
+  identificationStatus: ProfessorRow["identificationStatus"];
+}) {
+  return (
+    <Badge
+      variant={identificationStatus === "complete" ? "default" : "secondary"}
+    >
+      {identificationStatus === "complete"
+        ? "Identificación completa"
+        : "Identificación incompleta"}
+    </Badge>
+  );
+}
+
+function buildProfessorFacetedFilters(
+  loaderData: LoaderData,
+): DataTableFacetedFilter[] {
+  const groups = [];
+
+  if (loaderData.selectedEventId !== null) {
+    groups.push({
+      id: "participando",
+      label: "Participación",
+      options: [{ label: "No participando", value: "no" }],
+    });
+  }
+
+  groups.push({
+    id: "estado",
+    label: "Estado",
+    options: [{ label: "Archivados", value: "archivados" }],
+  });
+
+  return [
+    {
+      columnId: "filters",
+      label: "Filtros",
+      groups,
+    },
+  ];
+}
+
+function buildProfessorStatusSummary(
+  professor: ProfessorRow,
+  selectedEventId: string | null,
+) {
+  const values = [];
+
+  if (selectedEventId !== null) {
+    values.push(
+      getAdminProfessorParticipationLabel(professor.participationStatus),
+    );
+  }
+
+  if (!professor.active) {
+    values.push("Archivado");
+  }
+
+  values.push(
+    professor.identificationStatus === "complete"
+      ? "Identificación completa"
+      : "Identificación incompleta",
+  );
+
+  return values.join(" ");
 }
 
 function buildProfessorDetailHref(loaderData: LoaderData, professorId: string) {
@@ -255,10 +289,6 @@ function buildSearchParams(loaderData: LoaderData) {
   return searchParams;
 }
 
-function formatResultCount(count: number) {
-  return count === 1 ? "1 resultado" : `${count} resultados`;
-}
-
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
   return { filters: getSelectedFilterValues(loaderData) };
 }
@@ -272,11 +302,11 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.status,
   );
 
-  if (participationValue !== "si" || loaderData.selectedEventId === null) {
+  if (loaderData.selectedEventId !== null && participationValue === "no") {
     values.participando = participationValue;
   }
 
-  if (statusValue !== "activos") {
+  if (statusValue === "archivados") {
     values.estado = statusValue;
   }
 
@@ -284,8 +314,6 @@ function getSelectedFilterValues(loaderData: LoaderData) {
 }
 
 function hasActiveListFilters(loaderData: LoaderData) {
-  const defaultParticipationValue =
-    loaderData.selectedEventId === null ? "todos" : "si";
   const participationValue = toAdminProfessorParticipationSearchValue(
     loaderData.filters.participation,
   );
@@ -296,7 +324,7 @@ function hasActiveListFilters(loaderData: LoaderData) {
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    participationValue !== defaultParticipationValue ||
-    statusValue !== "activos"
+    (loaderData.selectedEventId !== null && participationValue === "no") ||
+    statusValue === "archivados"
   );
 }

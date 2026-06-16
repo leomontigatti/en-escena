@@ -1,7 +1,9 @@
 import { Link, redirect } from "react-router";
 
-import { AdminShell } from "@/components/admin/shell";
-import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  AdminEmptyState,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import {
   DataTable,
   type DataTableColumn,
@@ -9,8 +11,6 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import {
-  getAdminDancerIdentificationBadgeVariant,
-  getAdminDancerIdentificationLabel,
   getAdminDancerParticipationBadgeVariant,
   getAdminDancerParticipationLabel,
   toAdminDancerIdentificationSearchValue,
@@ -34,43 +34,6 @@ type DancerRow = LoaderData["dancers"][number];
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
 };
-
-const dancerFacetedFilters: DataTableFacetedFilter[] = [
-  {
-    columnId: "filters",
-    label: "Filtros",
-    groups: [
-      {
-        id: "participando",
-        label: "Participación",
-        options: [
-          { label: "Sí", value: "si" },
-          { label: "No", value: "no" },
-          { label: "Todos", value: "todos" },
-        ],
-      },
-      {
-        id: "estado",
-        label: "Estado",
-        options: [
-          { label: "Activos", value: "activos" },
-          { label: "Archivados", value: "archivados" },
-          { label: "Todos", value: "todos" },
-        ],
-      },
-      {
-        id: "identificacion",
-        label: "Identificación",
-        options: [
-          { label: "Incompleta", value: "incompleta" },
-          { label: "Para verificar", value: "para-verificar" },
-          { label: "Verificados", value: "verificados" },
-          { label: "Todos", value: "todos" },
-        ],
-      },
-    ],
-  },
-];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Bailarines | Panel de administración | En Escena" },
@@ -97,7 +60,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   return {
     email: user.email,
-    eventOptions: eventContext.events,
+    events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     dancers: listResult.items,
@@ -113,36 +76,25 @@ export function AdministracionBailarinesRouteView({
     loaderData.dancers.length > 0 || hasActiveListFilters(loaderData);
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
+    <AdminResourceLayout
+      loaderData={loaderData}
       title="Bailarines"
+      description="Consultá la ficha administrativa de cada bailarín y priorizá la revisión documental desde el listado."
+      requireSelectedEvent={false}
     >
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">Bailarines</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Consultá la ficha administrativa de cada Bailarín sin editar desde
-              el listado.
-            </p>
-          </div>
-          <p className="text-sm text-slate-600">
-            {formatResultCount(loaderData.totalCount)}
-          </p>
-        </div>
-
-        {shouldShowTable ? (
-          <DancerTable loaderData={loaderData} />
-        ) : (
-          <AdminEmptyState
-            title="Todavía no hay Bailarines para mostrar."
-            description="Ajustá los filtros para revisar otros registros del Evento activo."
-          />
-        )}
-      </section>
-    </AdminShell>
+      {shouldShowTable ? (
+        <DancerTable loaderData={loaderData} />
+      ) : (
+        <AdminEmptyState
+          title="Todavía no hay Bailarines para mostrar."
+          description={
+            loaderData.selectedEventId
+              ? "Ajustá los filtros para revisar otros registros del Evento activo."
+              : "Cuando haya bailarines activos vas a poder revisarlos desde este listado."
+          }
+        />
+      )}
+    </AdminResourceLayout>
   );
 }
 
@@ -151,6 +103,7 @@ export default function AdministracionBailarinesRoute({
 }: AdministracionBailarinesRouteProps) {
   return <AdministracionBailarinesRouteView loaderData={loaderData} />;
 }
+
 function DancerTable({ loaderData }: { loaderData: LoaderData }) {
   const columns: DataTableColumn<DancerRow>[] = [
     {
@@ -180,35 +133,21 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       header: "Estado",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
-          <Badge variant={dancer.active ? "default" : "secondary"}>
-            {dancer.active ? "Activo" : "Archivado"}
-          </Badge>
-          <ParticipationBadge
-            participationStatus={dancer.participationStatus}
+          {loaderData.selectedEventId ? (
+            <ParticipationBadge
+              participationStatus={dancer.participationStatus}
+            />
+          ) : null}
+          {!dancer.active ? <Badge variant="secondary">Archivado</Badge> : null}
+          <IdentificationBadge
+            identificationStatus={dancer.identificationStatus}
           />
         </div>
       ),
       filterValue: (dancer) =>
-        `${dancer.active ? "Activo" : "Archivado"} ${getAdminDancerParticipationLabel(
-          dancer.participationStatus,
-        )}`,
+        buildDancerStatusSummary(dancer, loaderData.selectedEventId),
       sortValue: (dancer) =>
-        `${dancer.active ? "Activo" : "Archivado"} ${getAdminDancerParticipationLabel(
-          dancer.participationStatus,
-        )}`,
-    },
-    {
-      id: "identification",
-      header: "Identificación",
-      cell: (dancer) => (
-        <IdentificationBadge
-          identificationStatus={dancer.identificationStatus}
-        />
-      ),
-      filterValue: (dancer) =>
-        getAdminDancerIdentificationLabel(dancer.identificationStatus),
-      sortValue: (dancer) =>
-        getAdminDancerIdentificationLabel(dancer.identificationStatus),
+        buildDancerStatusSummary(dancer, loaderData.selectedEventId),
     },
   ];
 
@@ -219,7 +158,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       getRowKey={(dancer) => dancer.id}
       searchPlaceholder="Buscar por nombre, documento o academia"
       initialSearchValue={loaderData.filters.query}
-      facetedFilters={dancerFacetedFilters}
+      facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
       emptyMessage="No hay Bailarines que coincidan con la búsqueda."
       serverSide={{
@@ -251,12 +190,95 @@ function IdentificationBadge({
   identificationStatus: AdminDancerIdentificationStatus;
 }) {
   return (
-    <Badge
-      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
-    >
-      {getAdminDancerIdentificationLabel(identificationStatus)}
+    <Badge variant={getIdentificationBadgeVariant(identificationStatus)}>
+      {getGroupedIdentificationLabel(identificationStatus)}
     </Badge>
   );
+}
+
+function getIdentificationBadgeVariant(
+  identificationStatus: AdminDancerIdentificationStatus,
+) {
+  if (identificationStatus === "verified") {
+    return "default";
+  }
+
+  if (identificationStatus === "pending-verification") {
+    return "outline";
+  }
+
+  return "secondary";
+}
+
+function getGroupedIdentificationLabel(
+  identificationStatus: AdminDancerIdentificationStatus,
+) {
+  switch (identificationStatus) {
+    case "pending-verification":
+      return "Para verificar";
+    case "verified":
+      return "Verificado";
+    default:
+      return "Incompleto";
+  }
+}
+
+function buildDancerFacetedFilters(
+  loaderData: LoaderData,
+): DataTableFacetedFilter[] {
+  const groups = [];
+
+  if (loaderData.selectedEventId !== null) {
+    groups.push({
+      id: "participando",
+      label: "Participación",
+      options: [{ label: "No participando", value: "no" }],
+    });
+  }
+
+  groups.push(
+    {
+      id: "estado",
+      label: "Estado",
+      options: [{ label: "Archivados", value: "archivados" }],
+    },
+    {
+      id: "identificacion",
+      label: "Identificación",
+      options: [
+        { label: "Incompletos", value: "incompleta" },
+        { label: "Para verificar", value: "para-verificar" },
+        { label: "Verificados", value: "verificados" },
+      ],
+    },
+  );
+
+  return [
+    {
+      columnId: "filters",
+      label: "Filtros",
+      groups,
+    },
+  ];
+}
+
+function buildDancerStatusSummary(
+  dancer: DancerRow,
+  selectedEventId: string | null,
+) {
+  const values = [];
+
+  if (selectedEventId !== null) {
+    values.push(getAdminDancerParticipationLabel(dancer.participationStatus));
+  }
+
+  if (!dancer.active) {
+    values.push("Archivado");
+  }
+
+  values.push(getGroupedIdentificationLabel(dancer.identificationStatus));
+
+  return values.join(" ");
 }
 
 function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
@@ -298,10 +320,6 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
   return searchParams;
 }
 
-function formatResultCount(totalCount: number) {
-  return `${totalCount} ${totalCount === 1 ? "resultado" : "resultados"}`;
-}
-
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
   return { filters: getSelectedFilterValues(loaderData) };
 }
@@ -316,11 +334,11 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.identification,
   );
 
-  if (participationValue !== "si" || loaderData.selectedEventId === null) {
+  if (loaderData.selectedEventId !== null && participationValue === "no") {
     values.participando = participationValue;
   }
 
-  if (statusValue !== "activos") {
+  if (statusValue === "archivados") {
     values.estado = statusValue;
   }
 
@@ -332,8 +350,6 @@ function getSelectedFilterValues(loaderData: LoaderData) {
 }
 
 function hasActiveListFilters(loaderData: LoaderData) {
-  const defaultParticipationValue =
-    loaderData.selectedEventId === null ? "todos" : "si";
   const participationValue = toAdminDancerParticipationSearchValue(
     loaderData.filters.participation,
   );
@@ -345,8 +361,8 @@ function hasActiveListFilters(loaderData: LoaderData) {
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    participationValue !== defaultParticipationValue ||
-    statusValue !== "activos" ||
+    (loaderData.selectedEventId !== null && participationValue === "no") ||
+    statusValue === "archivados" ||
     identificationValue !== "todos"
   );
 }
