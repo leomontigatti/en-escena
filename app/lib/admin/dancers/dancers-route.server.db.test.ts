@@ -398,8 +398,8 @@ describe.sequential("administracion/bailarines route", () => {
   });
 
   test("scopes inscription loader data to the Evento activo and resolves estimated values", async () => {
-    const event = await createSavedEvent();
-    const otherEvent = await createSavedEvent();
+    const activeEvent = await createSavedEvent();
+    const historicalEvent = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "inscripciones.detalle.academia@example.com",
       academyName: "Academia Inscripciones",
@@ -417,7 +417,7 @@ describe.sequential("administracion/bailarines route", () => {
       documentBackImageStorageKey: "back-inscripciones",
     });
     const activeEventChoreography = await linkDancerToEventChoreography({
-      eventId: event.id,
+      eventId: activeEvent.id,
       academyId: academy.academy.id,
       dancerId: dancer.id,
       choreographyName: "Finale",
@@ -425,7 +425,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
 
     await expectCreated(
-      createPrice(event.id, {
+      createPrice(activeEvent.id, {
         name: "Dúo general",
         groupType: "duo",
         amount: 1250000,
@@ -434,50 +434,23 @@ describe.sequential("administracion/bailarines route", () => {
     );
 
     await linkDancerToEventChoreography({
-      eventId: otherEvent.id,
+      eventId: historicalEvent.id,
       academyId: academy.academy.id,
       dancerId: dancer.id,
       choreographyName: "Histórica",
       groupType: "solo",
     });
 
-    const emptyEventAcademy = await createAcademyUser({
-      email: "sin.inscripciones.academia@example.com",
-      academyName: "Academia Vacía",
-      contactName: "Vera Vacia",
-      phone: "9999-1111",
-    });
-    const dancerWithoutActiveEventInscriptions = await createDancer({
-      academyId: emptyEventAcademy.academy.id,
-      firstName: "Tania",
-      lastName: "Sin Evento",
-      birthDate: "2012-02-02",
-    });
-
-    const { request: activeEventRequest } = await createSignedInRequest({
+    const { request } = await createSignedInRequest({
       email: "admin.con-inscripciones@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${activeEvent.id}`,
     });
-    const { request: noInscriptionsRequest } = await createSignedInRequest({
-      email: "admin.sin-inscripciones@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancerWithoutActiveEventInscriptions.id}?evento=${event.id}`,
-    });
-    const noInscriptionsData = await detailLoader(
-      detailRouteArgs(
-        noInscriptionsRequest,
-        dancerWithoutActiveEventInscriptions.id,
-      ),
-    );
-    const activeEventData = await detailLoader(
-      detailRouteArgs(activeEventRequest, dancer.id),
-    );
+    const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
 
-    expect(noInscriptionsData.selectedEventId).toBe(event.id);
-    expect(noInscriptionsData.dancer.inscriptions).toEqual([]);
+    expect(loaderData.selectedEventId).toBe(activeEvent.id);
 
-    expect(activeEventData.dancer.inscriptions).toEqual([
+    expect(loaderData.dancer.inscriptions).toEqual([
       expect.objectContaining({
         id: activeEventChoreography.id,
         choreographyName: "Finale",
@@ -487,13 +460,39 @@ describe.sequential("administracion/bailarines route", () => {
         estimatedSubtotalInCents: 1250000,
       }),
     ]);
-    expect(activeEventData.dancer.inscriptions).not.toEqual(
+    expect(loaderData.dancer.inscriptions).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           choreographyName: "Histórica",
         }),
       ]),
     );
+  });
+
+  test("returns empty inscription loader data when the Bailarín has no active-event inscriptions", async () => {
+    const activeEvent = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "sin.inscripciones.academia@example.com",
+      academyName: "Academia Vacía",
+      contactName: "Vera Vacia",
+      phone: "9999-1111",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Tania",
+      lastName: "Sin Evento",
+      birthDate: "2012-02-02",
+    });
+
+    const { request } = await createSignedInRequest({
+      email: "admin.sin-inscripciones@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${activeEvent.id}`,
+    });
+    const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
+
+    expect(loaderData.selectedEventId).toBe(activeEvent.id);
+    expect(loaderData.dancer.inscriptions).toEqual([]);
   });
 
   test("shows explicit edit controls only for admin users", async () => {

@@ -18,7 +18,10 @@ vi.mock("@/lib/auth/internal-access.server", () => ({
   requireInternalUser: vi.fn(),
 }));
 
-import { InscriptionsSection } from "@/routes/administracion_.bailarines_.$dancerId";
+import {
+  InscriptionsSection,
+  type InscriptionsSectionProps,
+} from "@/routes/administracion_.bailarines_.$dancerId";
 
 describe("InscriptionsSection", () => {
   test("shows an empty state when there is no Evento activo", () => {
@@ -74,7 +77,7 @@ describe("InscriptionsSection", () => {
   });
 });
 
-function renderSection(props: Parameters<typeof InscriptionsSection>[0]) {
+function renderSection(props: InscriptionsSectionProps) {
   return renderToStaticMarkup(
     <MemoryRouter>
       <InscriptionsSection {...props} />

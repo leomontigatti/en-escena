@@ -134,6 +134,10 @@ type AdministracionBailarinDetalleRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
+export type InscriptionsSectionProps = {
+  inscriptions: LoaderData["dancer"]["inscriptions"];
+  selectedEventId: string | null;
+};
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -1276,10 +1280,7 @@ function ReadOnlyField({ label, value }: { label: string; value: ReactNode }) {
 export function InscriptionsSection({
   inscriptions,
   selectedEventId,
-}: {
-  inscriptions: LoaderData["dancer"]["inscriptions"];
-  selectedEventId: string | null;
-}) {
+}: InscriptionsSectionProps) {
   if (!selectedEventId) {
     return (
       <AdminEmptyState
