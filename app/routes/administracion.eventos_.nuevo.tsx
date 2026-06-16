@@ -118,10 +118,6 @@ export function AdministracionEventoNuevoRouteView({
       title="Nuevo evento"
       description="Definí fechas, seña requerida y visibilidad inicial del evento."
       requireSelectedEvent={false}
-      breadcrumbItems={[
-        { label: "Eventos", to: "/administracion/eventos" },
-        { label: "Nuevo" },
-      ]}
     >
       <form
         method="post"

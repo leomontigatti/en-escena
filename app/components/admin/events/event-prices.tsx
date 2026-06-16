@@ -145,13 +145,6 @@ export function NewEventPriceRouteView({
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      breadcrumbItems={[
-        {
-          label: "Precios",
-          to: buildEventBasePath("precios", loaderData.selectedEventId),
-        },
-        { label: "Nuevo precio" },
-      ]}
       title="Nuevo precio"
       description="Configurá nombre, tipo de grupo, importe y si el precio aplica como base o para un bloque horario específico."
     >
@@ -181,13 +174,6 @@ export function EventPriceDetailRouteView({
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      breadcrumbItems={[
-        {
-          label: "Precios",
-          to: buildEventBasePath("precios", loaderData.selectedEventId),
-        },
-        { label: price?.name ?? "Precio" },
-      ]}
       title={price?.name ?? "Precio no encontrado"}
       description={
         price

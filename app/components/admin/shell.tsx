@@ -52,7 +52,7 @@ type AdminShellProps = {
   email: string;
   events: AdminEventOption[];
   selectedEventId: string | null;
-  children: ReactNode;
+  children?: ReactNode;
   breadcrumbItems?: AdminShellBreadcrumbItem[];
   showEventSelector?: boolean;
 };
@@ -62,8 +62,11 @@ export type AdminShellBreadcrumbItem = {
   to?: string;
 };
 
+type AdminRouteMatch = Partial<Pick<UIMatch, "data" | "handle">> &
+  Pick<UIMatch, "params">;
+
 type AdminBreadcrumbFactory = (
-  match: UIMatch,
+  match: AdminRouteMatch,
 ) => AdminShellBreadcrumbItem | null;
 
 export type AdminShellOptions = {
@@ -352,7 +355,7 @@ export function AdminShell({
 }
 
 export function getAdminBreadcrumbItems(
-  matches: UIMatch[],
+  matches: AdminRouteMatch[],
 ): AdminShellBreadcrumbItem[] {
   return matches.flatMap((match) => {
     const handle = match.handle as AdminRouteHandle | undefined;
@@ -367,7 +370,9 @@ export function getAdminBreadcrumbItems(
   });
 }
 
-export function getAdminShellOptions(matches: UIMatch[]): AdminShellOptions {
+export function getAdminShellOptions(
+  matches: AdminRouteMatch[],
+): AdminShellOptions {
   return matches.reduce<AdminShellOptions>((resolvedOptions, match) => {
     const handle = match.handle as AdminRouteHandle | undefined;
 

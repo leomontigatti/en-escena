@@ -207,10 +207,6 @@ export function AdministracionEventoDetalleRouteView({
           <EventActions event={loaderData.event} />
         </div>
       }
-      breadcrumbItems={[
-        { label: "Eventos", to: "/administracion/eventos" },
-        { label: "Editar" },
-      ]}
     >
       <EditEventPanel event={loaderData.event} actionData={actionData} />
     </AdminResourceLayout>

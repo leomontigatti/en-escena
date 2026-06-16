@@ -18,19 +18,13 @@ export type EventBaseAreaKey =
   | "bloques-horarios"
   | "precios";
 
-export type AdminResourceBreadcrumbItem = {
-  label: string;
-  to?: string;
-};
-
-type AdminResourceShellData = {
+type AdminResourceLayoutData = {
   email: string;
   events: AdminEventContext["events"];
   selectedEventId: string | null;
 };
 
 type AdminResourceLayoutViewProps = {
-  loaderData: AdminResourceShellData;
   children: ReactNode;
 };
 
@@ -39,11 +33,10 @@ type AdminResourceLayoutProps = {
     label: string;
     to: string;
   };
-  breadcrumbItems?: AdminResourceBreadcrumbItem[];
   children: ReactNode;
   description: string;
   headerAction?: ReactNode;
-  loaderData: AdminResourceShellData;
+  loaderData: AdminResourceLayoutData;
   requireSelectedEvent?: boolean;
   title: string;
 };
@@ -84,7 +77,6 @@ export function EventBasesLayoutView({
 
 export function AdminResourceLayout({
   action,
-  breadcrumbItems: _breadcrumbItems,
   loaderData,
   headerAction,
   requireSelectedEvent = true,

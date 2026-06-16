@@ -114,10 +114,6 @@ export function NewEventModalityRouteView({
       loaderData={loaderData}
       title="Nueva modalidad"
       description="Definí una modalidad para organizar las coreografías del evento activo."
-      breadcrumbItems={[
-        { label: "Modalidades", to: buildModalidadesListPath(null) },
-        { label: "Nueva" },
-      ]}
     >
       <ModalityFormPanel>
         <ModalityForm
@@ -158,10 +154,6 @@ export function EventModalityDetailRouteView({
           : "No encontramos esa modalidad dentro del evento activo."
       }
       headerAction={modality ? <ModalityActions modality={modality} /> : null}
-      breadcrumbItems={[
-        { label: "Modalidades", to: buildModalidadesListPath(null) },
-        { label: modality?.name ?? "Editar" },
-      ]}
     >
       {modality ? (
         <div className="flex flex-col gap-6">

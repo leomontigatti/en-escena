@@ -178,10 +178,6 @@ export function NewEventCategoryRouteView({
       loaderData={loaderData}
       title="Nueva categoría"
       description="Definí rango de edad, tipos de grupo, modalidades y niveles de experiencia."
-      breadcrumbItems={[
-        { label: "Categorías", to: buildCategoriasListPath(null) },
-        { label: "Nueva" },
-      ]}
     >
       <CategoryFormPanel>
         <CategoryForm
@@ -221,10 +217,6 @@ export function EventCategoryDetailRouteView({
           : "No encontramos esa categoría dentro del evento activo."
       }
       headerAction={category ? <CategoryActions category={category} /> : null}
-      breadcrumbItems={[
-        { label: "Categorías", to: buildCategoriasListPath(null) },
-        { label: category?.name ?? "Editar" },
-      ]}
     >
       {category ? (
         <div className="flex flex-col gap-6">

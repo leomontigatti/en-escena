@@ -8,6 +8,10 @@ import {
   getAdminShellOptions,
 } from "@/components/admin/shell";
 
+type AdminBreadcrumbTestMatch = Parameters<
+  typeof getAdminBreadcrumbItems
+>[0][number];
+
 describe("AdminShell", () => {
   test("renders administration navigation and the signed-in user context", () => {
     const markup = renderAdminShell();
@@ -70,8 +74,9 @@ describe("AdminShell", () => {
 
   test("collects static and dynamic breadcrumbs from route handles", () => {
     const breadcrumbItems = getAdminBreadcrumbItems([
-      {},
+      { params: {} },
       {
+        params: {},
         handle: {
           adminBreadcrumbs: [
             { label: "Profesores", to: "/administracion/profesores" },
@@ -79,23 +84,27 @@ describe("AdminShell", () => {
         },
       },
       {
+        params: {},
         data: {
           professor: { firstName: "Ana", lastName: "Pérez" },
         },
         handle: {
           adminBreadcrumbs: [
-            (match: {
-              data?: { professor?: { firstName: string; lastName: string } };
-            }) =>
-              match.data?.professor
+            (match: AdminBreadcrumbTestMatch) => {
+              const data = match.data as
+                | { professor?: { firstName: string; lastName: string } }
+                | undefined;
+
+              return data?.professor
                 ? {
-                    label: `${match.data.professor.lastName}, ${match.data.professor.firstName}`,
+                    label: `${data.professor.lastName}, ${data.professor.firstName}`,
                   }
-                : null,
+                : null;
+            },
           ],
         },
       },
-    ] as never);
+    ]);
 
     expect(breadcrumbItems).toEqual([
       { label: "Profesores", to: "/administracion/profesores" },
@@ -105,9 +114,9 @@ describe("AdminShell", () => {
 
   test("merges shell options from deeper route matches", () => {
     const shellOptions = getAdminShellOptions([
-      { handle: { adminShell: { showEventSelector: true } } },
-      { handle: { adminShell: { showEventSelector: false } } },
-    ] as never);
+      { params: {}, handle: { adminShell: { showEventSelector: true } } },
+      { params: {}, handle: { adminShell: { showEventSelector: false } } },
+    ]);
 
     expect(shellOptions).toEqual({ showEventSelector: false });
   });

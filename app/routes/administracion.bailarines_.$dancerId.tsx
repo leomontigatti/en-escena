@@ -454,10 +454,6 @@ export function AdministracionBailarinDetalleRouteView({
         events: loaderData.eventOptions,
         selectedEventId: loaderData.selectedEventId,
       }}
-      breadcrumbItems={[
-        { label: "Bailarines", to: "/administracion/bailarines" },
-        { label: `${dancer.lastName}, ${dancer.firstName}` },
-      ]}
       title="Detalle bailarín"
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}

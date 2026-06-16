@@ -5,10 +5,7 @@ import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import {
-  AdminResourceLayout,
-  type AdminResourceBreadcrumbItem,
-} from "@/components/admin/resource-layout";
+import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -360,11 +357,6 @@ export function AdministracionProfesorDetalleRouteView({
     active: professor.active,
     intent: dialogIntent,
   });
-  const breadcrumbItems: AdminResourceBreadcrumbItem[] = [
-    { label: "Profesores", to: loaderData.backToList },
-    { label: `${professor.lastName}, ${professor.firstName}` },
-  ];
-
   function handleEditSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -391,7 +383,6 @@ export function AdministracionProfesorDetalleRouteView({
         events: loaderData.eventOptions,
         selectedEventId: loaderData.selectedEventId,
       }}
-      breadcrumbItems={breadcrumbItems}
       requireSelectedEvent={false}
       title="Detalle profesor"
       description="Revisá la información administrativa de este profesor."

@@ -151,13 +151,6 @@ export function NewEventScheduleBlockRouteView({
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      breadcrumbItems={[
-        {
-          label: "Bloques horarios",
-          to: buildScheduleBlocksPath(loaderData.selectedEventId),
-        },
-        { label: "Nuevo bloque horario" },
-      ]}
       title="Nuevo bloque horario"
       description="Definí fecha, hora, cupo total y modalidades aceptadas para este bloque horario."
     >
@@ -192,13 +185,6 @@ export function EventScheduleBlockDetailRouteView({
   return (
     <AdminResourceLayout
       loaderData={loaderData}
-      breadcrumbItems={[
-        {
-          label: "Bloques horarios",
-          to: buildScheduleBlocksPath(loaderData.selectedEventId),
-        },
-        { label: scheduleBlockName },
-      ]}
       title={scheduleBlockName}
       description="Editá el bloque horario y gestioná sus cronogramas dentro del mismo detalle."
     >
