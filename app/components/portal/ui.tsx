@@ -71,6 +71,7 @@ type CoreographyCreationState = {
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
+  { to: "/portal/perfil", label: "Perfil", icon: User },
   { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
   { to: "/portal/bailarines", label: "Bailarines", icon: Users },
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },

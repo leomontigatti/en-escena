@@ -267,58 +267,11 @@ export async function findAdministrativeDancer(input: {
     return null;
   }
 
-  const choreographyRows =
-    input.selectedEventId === null
-      ? []
-      : await db
-          .select({
-            id: choreographies.id,
-            name: choreographies.name,
-            groupType: choreographies.groupType,
-            scheduleBlockId: scheduleEntries.scheduleBlockId,
-          })
-          .from(choreographyDancers)
-          .innerJoin(
-            choreographies,
-            eq(choreographies.id, choreographyDancers.choreographyId),
-          )
-          .innerJoin(
-            scheduleEntries,
-            eq(choreographies.scheduleEntryId, scheduleEntries.id),
-          )
-          .where(
-            and(
-              eq(choreographyDancers.dancerId, input.dancerId),
-              eq(choreographies.eventId, input.selectedEventId),
-            ),
-          )
-          .orderBy(asc(sql`lower(${choreographies.name})`));
-
-  const inscriptions =
-    input.selectedEventId === null
-      ? []
-      : await Promise.all(
-          choreographyRows.map(async (choreography) => {
-            const priceResult = await resolveApplicablePrice({
-              eventId: input.selectedEventId!,
-              groupType: choreography.groupType,
-              scheduleBlockId: choreography.scheduleBlockId,
-            });
-
-            return {
-              id: choreography.id,
-              choreographyName: choreography.name,
-              groupType: choreography.groupType,
-              basePriceInCents: priceResult.ok
-                ? priceResult.price.amount
-                : null,
-              discountInCents: 0,
-              estimatedSubtotalInCents: priceResult.ok
-                ? priceResult.price.amount
-                : null,
-            } satisfies AdministrativeDancerInscription;
-          }),
-        );
+  const { choreographyRows, inscriptions } =
+    await findAdministrativeDancerInscriptions({
+      dancerId: input.dancerId,
+      selectedEventId: input.selectedEventId,
+    });
 
   return {
     id: row.id,
@@ -362,6 +315,68 @@ export async function findAdministrativeDancer(input: {
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
+  };
+}
+
+async function findAdministrativeDancerInscriptions(input: {
+  dancerId: string;
+  selectedEventId: string | null;
+}) {
+  if (input.selectedEventId === null) {
+    return {
+      choreographyRows: [],
+      inscriptions: [],
+    };
+  }
+
+  const selectedEventId = input.selectedEventId;
+  const choreographyRows = await db
+    .select({
+      id: choreographies.id,
+      name: choreographies.name,
+      groupType: choreographies.groupType,
+      scheduleBlockId: scheduleEntries.scheduleBlockId,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .innerJoin(
+      scheduleEntries,
+      eq(choreographies.scheduleEntryId, scheduleEntries.id),
+    )
+    .where(
+      and(
+        eq(choreographyDancers.dancerId, input.dancerId),
+        eq(choreographies.eventId, selectedEventId),
+      ),
+    )
+    .orderBy(asc(sql`lower(${choreographies.name})`));
+
+  const inscriptions = await Promise.all(
+    choreographyRows.map(async (choreography) => {
+      const priceResult = await resolveApplicablePrice({
+        eventId: selectedEventId,
+        groupType: choreography.groupType,
+        scheduleBlockId: choreography.scheduleBlockId,
+      });
+      const priceInCents = priceResult.ok ? priceResult.price.amount : null;
+
+      return {
+        id: choreography.id,
+        choreographyName: choreography.name,
+        groupType: choreography.groupType,
+        basePriceInCents: priceInCents,
+        discountInCents: 0,
+        estimatedSubtotalInCents: priceInCents,
+      } satisfies AdministrativeDancerInscription;
+    }),
+  );
+
+  return {
+    choreographyRows,
+    inscriptions,
   };
 }
 

@@ -318,7 +318,7 @@ function ChoreographyTable({
               <td className="px-4 py-3 text-slate-700">
                 {formatPrimaryAndSecondaryValue(
                   choreography.categoryName ?? "Categoría pendiente",
-                  choreography.experienceLevelName,
+                  formatGroupTypeLabel(choreography.groupType),
                 )}
               </td>
               <td className="px-4 py-3">
@@ -367,7 +367,7 @@ const creationToneClassNames: Record<CreationState["tone"], string> = {
 const CHOREOGRAPHY_TABLE_HEADERS = [
   "Nombre",
   "Modalidad / Submodalidad",
-  "Categoría / Nivel",
+  "Categoría / Tipo de grupo",
   "Estado operativo",
 ] as const;
 

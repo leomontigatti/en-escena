@@ -114,6 +114,13 @@ type DancerStatusFormReturn = UseFormReturn<
   unknown,
   AdministrativeDancerStatusInput
 >;
+type DancerInscription = LoaderData["dancer"]["inscriptions"][number];
+type DancerDialogIntent =
+  | "archive-dancer"
+  | "reactivate-dancer"
+  | "save"
+  | "verify"
+  | null;
 type DancerRouteNotification = Extract<
   RouteNotificationKey,
   | "bailarin-archivado"
@@ -133,6 +140,35 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
   currency: "ARS",
   maximumFractionDigits: 0,
 });
+const inscriptionColumns: DataTableColumn<DancerInscription>[] = [
+  {
+    id: "choreography",
+    header: "Coreografía",
+    cell: (inscription) => inscription.choreographyName,
+    filterValue: (inscription) => inscription.choreographyName,
+  },
+  {
+    id: "groupType",
+    header: "Tipo grupal",
+    cell: (inscription) => formatGroupTypeLabel(inscription.groupType),
+    filterValue: (inscription) => formatGroupTypeLabel(inscription.groupType),
+  },
+  {
+    id: "basePrice",
+    header: "Precio base",
+    cell: (inscription) => formatMoney(inscription.basePriceInCents),
+  },
+  {
+    id: "discount",
+    header: "Descuento",
+    cell: (inscription) => formatMoney(inscription.discountInCents),
+  },
+  {
+    id: "estimatedSubtotal",
+    header: "Subtotal estimado",
+    cell: (inscription) => formatMoney(inscription.estimatedSubtotalInCents),
+  },
+];
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
@@ -379,15 +415,14 @@ export function AdministracionBailarinDetalleRouteView({
   const canVerifyIdentity =
     loaderData.canEdit &&
     dancer.identificationStatus === "pending-verification";
-  const initialDialogIntent =
-    submittedEditValues && dancer.correctionReasonRequired
-      ? "save"
-      : actionData && !submittedEditValues
-        ? statusAction.intent
-        : null;
-  const [dialogIntent, setDialogIntent] = useState<
-    "archive-dancer" | "reactivate-dancer" | "save" | "verify" | null
-  >(initialDialogIntent);
+  const initialDialogIntent = getInitialDialogIntent({
+    actionData,
+    correctionReasonRequired: dancer.correctionReasonRequired,
+    hasSubmittedEditValues: submittedEditValues !== null,
+    statusIntent: statusAction.intent,
+  });
+  const [dialogIntent, setDialogIntent] =
+    useState<DancerDialogIntent>(initialDialogIntent);
   const editFormId = "admin-dancer-edit-form";
   const statusFormId = "admin-dancer-status-form";
   const verifyFormId = "admin-dancer-verify-form";
@@ -449,65 +484,14 @@ export function AdministracionBailarinDetalleRouteView({
       <section className="flex flex-col gap-6">
         <Card>
           <CardContent className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              {!dancer.active ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Este bailarín está archivado.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {dancer.identificationStatus === "incomplete" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan datos de identificación para completar la
-                    verificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {dancer.identificationStatus === "missing-images" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan imágenes del documento para completar la
-                    verificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {dancer.identificationStatus === "pending-verification" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    La documentación está lista para revisión administrativa.
-                  </AlertDescription>
-                  {canVerifyIdentity ? (
-                    <AlertAction>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        onClick={() => {
-                          setDialogIntent("verify");
-                        }}
-                      >
-                        Verificar identidad
-                      </Button>
-                    </AlertAction>
-                  ) : null}
-                </Alert>
-              ) : null}
-              {dancer.identificationStatus === "verified" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    La identidad fue verificada. Si corregís datos o imágenes,
-                    este bailarín volverá a no verificado.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
+            <DancerStatusAlerts
+              active={dancer.active}
+              canVerifyIdentity={canVerifyIdentity}
+              identificationStatus={dancer.identificationStatus}
+              onVerifyIdentity={() => {
+                setDialogIntent("verify");
+              }}
+            />
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={dancer.active ? "default" : "secondary"}>
@@ -801,6 +785,113 @@ export default function AdministracionBailarinDetalleRoute({
       actionData={actionData}
     />
   );
+}
+
+function getInitialDialogIntent({
+  actionData,
+  correctionReasonRequired,
+  hasSubmittedEditValues,
+  statusIntent,
+}: {
+  actionData?: DancerActionError;
+  correctionReasonRequired: boolean;
+  hasSubmittedEditValues: boolean;
+  statusIntent: Exclude<DancerDialogIntent, "save" | "verify" | null>;
+}): DancerDialogIntent {
+  if (hasSubmittedEditValues && correctionReasonRequired) {
+    return "save";
+  }
+
+  if (actionData && !hasSubmittedEditValues) {
+    return statusIntent;
+  }
+
+  return null;
+}
+
+function DancerStatusAlerts({
+  active,
+  canVerifyIdentity,
+  identificationStatus,
+  onVerifyIdentity,
+}: {
+  active: boolean;
+  canVerifyIdentity: boolean;
+  identificationStatus: AdminDancerIdentificationStatus;
+  onVerifyIdentity: () => void;
+}) {
+  const identificationAlert = getIdentificationAlert(identificationStatus);
+
+  if (active && !identificationAlert) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {!active ? (
+        <DancerAlert>Este bailarín está archivado.</DancerAlert>
+      ) : null}
+      {identificationAlert ? (
+        <DancerAlert
+          action={
+            canVerifyIdentity && identificationStatus === "pending-verification"
+              ? {
+                  label: "Verificar identidad",
+                  onClick: onVerifyIdentity,
+                }
+              : undefined
+          }
+        >
+          {identificationAlert}
+        </DancerAlert>
+      ) : null}
+    </div>
+  );
+}
+
+function DancerAlert({
+  action,
+  children,
+}: {
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  children: ReactNode;
+}) {
+  return (
+    <Alert>
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>{children}</AlertDescription>
+      {action ? (
+        <AlertAction>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            onClick={action.onClick}
+          >
+            {action.label}
+          </Button>
+        </AlertAction>
+      ) : null}
+    </Alert>
+  );
+}
+
+function getIdentificationAlert(
+  identificationStatus: AdminDancerIdentificationStatus,
+) {
+  switch (identificationStatus) {
+    case "incomplete":
+      return "Faltan datos de identificación para completar la verificación.";
+    case "missing-images":
+      return "Faltan imágenes del documento para completar la verificación.";
+    case "pending-verification":
+      return "La documentación está lista para revisión administrativa.";
+    case "verified":
+      return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
+  }
 }
 
 function useDancerEditForm({
@@ -1207,42 +1298,10 @@ function InscriptionsSection({
     );
   }
 
-  const columns: DataTableColumn<
-    LoaderData["dancer"]["inscriptions"][number]
-  >[] = [
-    {
-      id: "choreography",
-      header: "Coreografía",
-      cell: (inscription) => inscription.choreographyName,
-      filterValue: (inscription) => inscription.choreographyName,
-    },
-    {
-      id: "groupType",
-      header: "Tipo grupal",
-      cell: (inscription) => formatGroupTypeLabel(inscription.groupType),
-      filterValue: (inscription) => formatGroupTypeLabel(inscription.groupType),
-    },
-    {
-      id: "basePrice",
-      header: "Precio base",
-      cell: (inscription) => formatMoney(inscription.basePriceInCents),
-    },
-    {
-      id: "discount",
-      header: "Descuento",
-      cell: (inscription) => formatMoney(inscription.discountInCents),
-    },
-    {
-      id: "estimatedSubtotal",
-      header: "Subtotal estimado",
-      cell: (inscription) => formatMoney(inscription.estimatedSubtotalInCents),
-    },
-  ];
-
   return (
     <DataTable
       rows={inscriptions}
-      columns={columns}
+      columns={inscriptionColumns}
       getRowKey={(inscription) => inscription.id}
       searchPlaceholder="Buscar coreografía"
       textFilterColumnId="choreography"
