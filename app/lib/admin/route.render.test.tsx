@@ -12,24 +12,34 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
 }));
 
 import { AdministracionRouteView } from "@/routes/administracion";
+import {
+  AdministracionUsuariosNuevoRouteView,
+  handle as createUserHandle,
+} from "@/routes/administracion.usuarios_.nuevo";
 
 describe("administracion layout route", () => {
-  test("renders the administrative shell around child outlet content", () => {
+  test("renders the administrative shell around the migrated Usuarios creation route", () => {
     const RoutesStub = createRoutesStub([
       {
         path: "/administracion",
-        Component: AdministracionRouteView,
+        Component: () => (
+          <AdministracionRouteView
+            loaderData={{
+              email: "admin@example.com",
+              events: [
+                { id: "evento_2026", name: "Evento 2026", active: true },
+              ],
+              selectedEventId: "evento_2026",
+            }}
+          />
+        ),
         children: [
           {
             path: "usuarios/nuevo",
-            handle: {
-              adminBreadcrumbs: [
-                { label: "Usuarios", to: "/administracion/usuarios" },
-                { label: "Crear Usuario interno" },
-              ],
-              adminShell: { showEventSelector: false },
-            },
-            Component: () => <h1>Crear Usuario interno</h1>,
+            handle: createUserHandle,
+            Component: () => (
+              <AdministracionUsuariosNuevoRouteView loaderData={{}} />
+            ),
           },
         ],
       },
@@ -38,17 +48,6 @@ describe("administracion layout route", () => {
     const markup = renderToStaticMarkup(
       createElement(RoutesStub, {
         initialEntries: ["/administracion/usuarios/nuevo"],
-        hydrationData: {
-          loaderData: {
-            "0": {
-              email: "admin@example.com",
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
-            },
-          },
-        },
       }),
     );
 

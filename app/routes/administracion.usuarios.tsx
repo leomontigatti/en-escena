@@ -20,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   listAdministrativeUsers,
   readAdministrativeUserFilters,
@@ -77,7 +76,6 @@ export const handle = {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const appUser = await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
   const filters = readAdministrativeUserFilters(
     new URL(request.url).searchParams,
   );
@@ -85,10 +83,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   return {
     canManage: appUser.role === "admin",
-    email: appUser.email,
-    eventOptions: eventContext.events,
     filters,
-    selectedEventId: eventContext.selectedEventId,
     users,
   };
 }

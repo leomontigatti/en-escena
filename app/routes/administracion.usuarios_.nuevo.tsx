@@ -29,10 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
@@ -114,11 +110,7 @@ type AdministracionUsuariosNuevoRouteProps = {
     fieldErrors: CreateInternalUserFieldErrors;
     values: CreateInternalUserFormValues;
   };
-  loaderData: {
-    email: string;
-    eventOptions: AdminEventContext["events"];
-    selectedEventId: AdminEventContext["selectedEventId"];
-  };
+  loaderData: Record<string, never>;
 };
 
 const defaultCreateInternalUserFormValues: CreateInternalUserFormValues = {
@@ -144,14 +136,8 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const appUser = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
-
-  return {
-    email: appUser.email,
-    eventOptions: eventContext.events,
-    selectedEventId: eventContext.selectedEventId,
-  };
+  await requireAdminPanelUser(request);
+  return {};
 }
 
 export async function action({ request }: Route.ActionArgs) {

@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { resetInternalUserPassword } from "@/lib/admin/users/internal-user-password-reset.server";
 import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-suspension.server";
@@ -186,7 +185,6 @@ export const handle = {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const appUser = await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
   const userId = params.userId;
 
   if (!userId) {
@@ -224,14 +222,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     cancelHref: buildModeHref(url, userId, null),
     editHref: buildModeHref(url, userId, "editar"),
     resetPasswordHref: buildModeHref(url, userId, "restablecer-contrasena"),
-    email: appUser.email,
-    eventOptions: eventContext.events,
     isEditing:
       appUser.role === "admin" && url.searchParams.get("modo") === "editar",
     isResettingPassword:
       appUser.role === "admin" &&
       url.searchParams.get("modo") === "restablecer-contrasena",
-    selectedEventId: eventContext.selectedEventId,
     user: buildDetailUser(savedUser),
   };
 }

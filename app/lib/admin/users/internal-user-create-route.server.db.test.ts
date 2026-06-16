@@ -37,7 +37,9 @@ describe("administracion/usuarios/nuevo route", () => {
     const loaderData = await loader(routeArgs(request));
     const markup = renderRoute(loaderData);
 
-    expect(loaderData.email).toBe("admin.usuarios@example.com");
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("eventOptions");
+    expect(loaderData).not.toHaveProperty("selectedEventId");
     expect(markup).toContain("Crear Usuario interno");
     expect(markup).toContain("Contraseña temporal");
     expect(markup).toContain("canal seguro");
@@ -96,9 +98,6 @@ function renderRoute(
       hydrationData: {
         loaderData: {
           "0": {
-            email: "admin@example.com",
-            eventOptions: [],
-            selectedEventId: null,
             ...loaderData,
           },
         },
