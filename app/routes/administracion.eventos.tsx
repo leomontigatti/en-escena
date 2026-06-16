@@ -23,11 +23,10 @@ type TemporalState = ReturnType<typeof getTemporalState>;
 type EventListRow = EventRow & {
   temporalState: TemporalState;
 };
+type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type AdministracionEventosRouteProps = {
-  loaderData: {
-    events: EventListRow[];
-  };
+  loaderData: LoaderData;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -93,14 +92,12 @@ function EventTable({ events }: { events: EventListRow[] }) {
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (event) => (
-        <>
-          <Link
-            to={`/administracion/eventos/${event.id}`}
-            className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            {event.name}
-          </Link>
-        </>
+        <Link
+          to={`/administracion/eventos/${event.id}`}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {event.name}
+        </Link>
       ),
       filterValue: (event) => event.name,
       sortValue: (event) => event.name,

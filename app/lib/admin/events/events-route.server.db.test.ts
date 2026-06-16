@@ -100,12 +100,8 @@ describe("administracion/eventos route", () => {
       detailRouteArgs(detailRequest, event.id),
     );
 
-    expect(listData).not.toHaveProperty("email");
-    expect(listData).not.toHaveProperty("eventOptions");
-    expect(listData).not.toHaveProperty("selectedEventId");
-    expect(detailData).not.toHaveProperty("email");
-    expect(detailData).not.toHaveProperty("eventOptions");
-    expect(detailData).not.toHaveProperty("selectedEventId");
+    expectShellDataNotReturned(listData);
+    expectShellDataNotReturned(detailData);
     expect(Object.hasOwn(newRouteModule, "loader")).toBe(false);
   });
 
@@ -368,6 +364,12 @@ function detailRouteArgs(request: Request, eventId: string) {
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };
+}
+
+function expectShellDataNotReturned(loaderData: object) {
+  expect(loaderData).not.toHaveProperty("email");
+  expect(loaderData).not.toHaveProperty("eventOptions");
+  expect(loaderData).not.toHaveProperty("selectedEventId");
 }
 
 function createRequestCookie(headers: Headers) {

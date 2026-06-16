@@ -54,6 +54,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { Route } from "./+types/administracion.eventos_.$eventId";
 
 type EventRow = typeof eventsTable.$inferSelect;
+type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type ActionData = {
   status: "error";
@@ -63,13 +64,11 @@ type ActionData = {
 };
 
 type AdministracionEventoDetalleRouteProps = {
-  loaderData: {
-    event: EventRow;
-  };
+  loaderData: LoaderData;
   actionData?: ActionData;
 };
 
-export const meta = () => [
+export const meta: Route.MetaFunction = () => [
   { title: "Editar evento | Panel de administración | En Escena" },
 ];
 
