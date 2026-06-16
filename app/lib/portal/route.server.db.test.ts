@@ -747,7 +747,7 @@ describe.sequential("portal Bailarines route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `/portal/bailarines/${dancer.id}?guardado=1`,
+      `/portal/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
     );
     await expect(
       db.query.dancers.findFirst({
@@ -793,8 +793,8 @@ describe.sequential("portal Bailarines route", () => {
     });
 
     expect(result).toMatchObject({
-      ok: false,
-      error: "Revisá los datos del Bailarín.",
+      status: "error",
+      message: "Revisá los datos del Bailarín.",
       fieldErrors: {
         documentType: "Seleccioná el tipo de documento.",
       },
@@ -860,7 +860,7 @@ describe.sequential("portal Bailarines route", () => {
     });
 
     expect(duplicateResult).toMatchObject({
-      ok: false,
+      status: "error",
       fieldErrors: {
         documentNumber:
           "Ya existe un Bailarín con ese documento en tu academia.",
@@ -894,7 +894,7 @@ describe.sequential("portal Bailarines route", () => {
     );
 
     expect(crossAcademyResponse.headers.get("location")).toBe(
-      `/portal/bailarines/${otherEditable.id}?guardado=1`,
+      `/portal/bailarines/${otherEditable.id}?notificacion=bailarin-guardado`,
     );
     await expect(
       db.query.dancers.findFirst({
@@ -995,7 +995,7 @@ describe.sequential("portal Bailarines route", () => {
     );
 
     expect(archiveResponse.headers.get("location")).toBe(
-      `/portal/bailarines/${activeDancer.id}?guardado=1`,
+      `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-archivado`,
     );
     await expect(
       db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
@@ -1038,7 +1038,7 @@ describe.sequential("portal Bailarines route", () => {
     );
 
     expect(reactivateResponse.headers.get("location")).toBe(
-      `/portal/bailarines/${activeDancer.id}?guardado=1`,
+      `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-reactivado`,
     );
     await expect(
       db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
@@ -1614,6 +1614,7 @@ function dancerEditFormData(input: {
   documentNumber: string;
 }) {
   const formData = dancerFormData(input);
+  formData.set("intent", "update-dancer");
   formData.set("documentType", input.documentType);
   formData.set("documentNumber", input.documentNumber);
 

@@ -1,45 +1,150 @@
-import { ArrowLeft } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Ellipsis, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
-import { clsx } from "clsx";
+import { z } from "zod";
 
-import { AccessNotice } from "@/components/auth/access-ui";
-import { DateOnlyField } from "@/components/shared/date-only-field";
 import { PortalShell } from "@/components/portal/ui";
+import { DateOnlyField } from "@/components/shared/date-only-field";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
-import {
-  getPortalRecordStatusSearch,
-  resolvePortalRecordStatusFilter,
-} from "@/lib/portal/route-state";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
   reactivateDancerForAcademy,
   updateDancerForAcademy,
-  type UpdateDancerInput,
+  type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
-
-type ActionData = Extract<
-  Awaited<ReturnType<typeof updateDancerForAcademy>>,
-  { ok: false }
->;
-
-type PortalBailarinDetalleRouteProps = {
-  loaderData: Awaited<ReturnType<typeof loader>>;
-  actionData?: ActionData;
-};
+import {
+  createValidatedNativeSubmitHandler,
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 const dancerNotFoundMessage = "No encontramos ese Bailarín.";
+const formId = "portal-bailarin-form";
+const noDocumentTypeSelectValue = "sin-documento";
 
-const documentTypeOptions = [
-  { value: "", label: "Seleccionar" },
-  { value: "dni", label: "DNI" },
-  { value: "passport", label: "Pasaporte" },
-  { value: "other", label: "Otro" },
-] as const;
+const dancerSchema = z
+  .object({
+    firstName: z.string().trim().min(1, requiredFieldMessage),
+    lastName: z.string().trim().min(1, requiredFieldMessage),
+    birthDate: z.string().trim().min(1, requiredFieldMessage),
+    documentType: z.string().trim(),
+    documentNumber: z.string().trim(),
+  })
+  .superRefine((values, context) => {
+    if (!values.documentType && !values.documentNumber) {
+      return;
+    }
+
+    if (!values.documentType) {
+      context.addIssue({
+        code: "custom",
+        message: "Seleccioná el tipo de documento.",
+        path: ["documentType"],
+      });
+    }
+
+    if (!values.documentNumber) {
+      context.addIssue({
+        code: "custom",
+        message: "Ingresá el número de documento.",
+        path: ["documentNumber"],
+      });
+    }
+  });
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
+type ActionData = Extract<
+  Awaited<ReturnType<typeof action>>,
+  { status: "error" }
+>;
+type DancerFormValues = z.infer<typeof dancerSchema>;
+type DancerFormReturn = UseFormReturn<
+  DancerFormValues,
+  unknown,
+  DancerFormValues
+>;
+type DancerFieldErrors = NonNullable<ActionData["fieldErrors"]>;
+type DancerStatusIntent = "archive-dancer" | "reactivate-dancer";
+type DancerStatusAction = {
+  intent: DancerStatusIntent;
+  label: string;
+  confirmTitle: string;
+  confirmDescription: string;
+  confirmButtonLabel: string;
+  confirmButtonVariant: "default" | "destructive";
+};
+
+const emptyDancerFieldErrors: DancerFieldErrors = {};
+
+const dancerStatusActions = {
+  "archive-dancer": {
+    intent: "archive-dancer",
+    label: "Archivar",
+    confirmTitle: "¿Archivar bailarín?",
+    confirmDescription:
+      "El bailarín dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmButtonLabel: "Archivar",
+    confirmButtonVariant: "destructive",
+  },
+  "reactivate-dancer": {
+    intent: "reactivate-dancer",
+    label: "Reactivar",
+    confirmTitle: "¿Reactivar bailarín?",
+    confirmDescription:
+      "El bailarín volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmButtonLabel: "Reactivar",
+    confirmButtonVariant: "default",
+  },
+} as const satisfies Record<DancerStatusIntent, DancerStatusAction>;
+
+type PortalBailarinDetalleRouteProps = {
+  loaderData: LoaderData;
+  actionData?: ActionData;
+  initialStatusDialogIntent?: DancerStatusIntent | null;
+};
+type DancerTextFieldName = "documentNumber" | "firstName" | "lastName";
 
 export const meta = () => [
-  { title: "Editar Bailarín | Portal de academias | En Escena" },
+  { title: "Editar bailarín | Portal de academias | En Escena" },
 ];
 
 export async function loader({
@@ -50,20 +155,11 @@ export async function loader({
   params: { dancerId?: string };
 }) {
   const { academy, user } = await requireAcademyUser(request);
-  const dancerId = params.dancerId;
-
-  if (!dancerId) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
-  }
-
+  const dancerId = readDancerId(params);
   const [eventContext, dancer] = await Promise.all([
     getPortalEventContext(request),
-    findDancerForAcademy(academy.id, dancerId),
+    requireDancer(academy.id, dancerId),
   ]);
-
-  if (!dancer) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
-  }
 
   return {
     email: user.email,
@@ -71,8 +167,6 @@ export async function loader({
     academy,
     eventContext,
     dancer,
-    saved: new URL(request.url).searchParams.get("guardado") === "1",
-    statusFilter: resolveDancerStatusFilter(request, dancer.active),
   };
 }
 
@@ -84,23 +178,27 @@ export async function action({
   params: { dancerId?: string };
 }) {
   const { academy } = await requireAcademyUser(request);
-  const dancerId = params.dancerId;
-
-  if (!dancerId) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
-  }
+  const dancerId = readDancerId(params);
 
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
   if (intent === "archive-dancer") {
     await archiveDancerForAcademy(academy.id, dancerId);
-    throw redirect(`/portal/bailarines/${dancerId}?guardado=1`);
+    throw redirect(
+      `/portal/bailarines/${dancerId}?notificacion=bailarin-archivado`,
+    );
   }
 
   if (intent === "reactivate-dancer") {
     await reactivateDancerForAcademy(academy.id, dancerId);
-    throw redirect(`/portal/bailarines/${dancerId}?guardado=1`);
+    throw redirect(
+      `/portal/bailarines/${dancerId}?notificacion=bailarin-reactivado`,
+    );
+  }
+
+  if (intent !== "" && intent !== "update-dancer") {
+    throw new Response("Acción no soportada.", { status: 400 });
   }
 
   const result = await updateDancerForAcademy(academy.id, dancerId, {
@@ -112,37 +210,49 @@ export async function action({
   });
 
   if (!result.ok) {
-    return result;
+    return {
+      status: "error" as const,
+      message: result.error,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
   }
 
-  throw redirect(`/portal/bailarines/${dancerId}?guardado=1`);
+  throw redirect(
+    `/portal/bailarines/${dancerId}?notificacion=bailarin-guardado`,
+  );
 }
 
 export function PortalBailarinDetalleRouteView({
   loaderData,
-  actionData,
+  actionData: actionDataOverride,
+  initialStatusDialogIntent = null,
 }: PortalBailarinDetalleRouteProps) {
-  const values = actionData?.values ?? buildDancerFormValues(loaderData.dancer);
-  const backToList = `/portal/bailarines${getPortalRecordStatusSearch(loaderData.statusFilter)}`;
-  const isIdentificationIncomplete =
-    loaderData.dancer.documentType === null ||
-    loaderData.dancer.documentNumber === null;
-  const statusAction = loaderData.dancer.active
-    ? {
-        description:
-          "Archivá este Bailarín para sacarlo de las listas activas y de los próximos selects de coreografías.",
-        intent: "archive-dancer" as const,
-        buttonLabel: "Archivar Bailarín",
-        buttonClassName:
-          "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100",
-      }
-    : {
-        description:
-          "Reactivá este Bailarín para que vuelva a aparecer en las listas activas y en los próximos selects de coreografías.",
-        intent: "reactivate-dancer" as const,
-        buttonLabel: "Reactivar Bailarín",
-        buttonClassName: "bg-teal-700 text-white hover:bg-teal-800",
-      };
+  const actionData =
+    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
+  const formValues = actionData?.values ?? {
+    firstName: loaderData.dancer.firstName,
+    lastName: loaderData.dancer.lastName,
+    birthDate: loaderData.dancer.birthDate,
+    documentType: loaderData.dancer.documentType ?? "",
+    documentNumber: loaderData.dancer.documentNumber ?? "",
+  };
+  const form = useDancerForm({
+    fieldErrors: actionData?.fieldErrors,
+    values: formValues,
+  });
+  const [statusDialogIntent, setStatusDialogIntent] =
+    useState<DancerStatusIntent | null>(initialStatusDialogIntent);
+  const statusAction = getDancerStatusAction(loaderData.dancer.active);
+  const hasDocumentData = Boolean(
+    loaderData.dancer.documentType && loaderData.dancer.documentNumber,
+  );
+  const showsIdentificationAlert = !hasDocumentData;
+  const showsMissingImagesAlert = hasDocumentData;
+
+  useServerActionToast(getGeneralActionError(actionData), {
+    toastId: "portal-bailarin-detail:error",
+  });
 
   return (
     <PortalShell
@@ -159,254 +269,427 @@ export function PortalBailarinDetalleRouteView({
       ]}
     >
       <section
-        className="mt-8 space-y-6"
-        aria-labelledby="bailarin-detalle-title"
+        className="flex flex-col gap-6"
+        aria-labelledby="bailarin-detail-title"
       >
-        <Link
-          to={backToList}
-          className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Volver a Bailarines
-        </Link>
-
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2
-              id="bailarin-detalle-title"
-              className="text-xl font-semibold text-slate-950"
-            >
-              {loaderData.dancer.lastName}, {loaderData.dancer.firstName}
-            </h2>
-            {!loaderData.dancer.active ? (
-              <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                Archivado
-              </span>
-            ) : null}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 id="bailarin-detail-title" className="text-xl font-semibold">
+              Editar bailarín
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Actualizá los datos de este bailarín.
+            </p>
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Actualizá los datos de identidad y documento del Bailarín.
-          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="lg">
+                <Ellipsis aria-hidden="true" data-icon />
+                Acciones
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                variant={statusAction.confirmButtonVariant}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setStatusDialogIntent(statusAction.intent);
+                }}
+              >
+                {statusAction.label}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {loaderData.saved ? (
-          <AccessNotice variant="success">
-            El Bailarín se guardó correctamente.
-          </AccessNotice>
-        ) : null}
-
-        {isIdentificationIncomplete ? (
-          <AccessNotice variant="info">
-            Faltan datos para poder validar la identificación.
-          </AccessNotice>
-        ) : null}
-
-        {actionData ? (
-          <AccessNotice variant="error">{actionData.error}</AccessNotice>
-        ) : null}
-
-        <form
-          method="post"
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-6"
-        >
-          <input type="hidden" name="intent" value="update-dancer" />
-          <FormField
-            id="bailarin-nombre"
-            label="Nombre"
-            name="firstName"
-            type="text"
-            defaultValue={values.firstName}
-            error={actionData?.fieldErrors.firstName}
-          />
-          <FormField
-            id="bailarin-apellido"
-            label="Apellido"
-            name="lastName"
-            type="text"
-            defaultValue={values.lastName}
-            error={actionData?.fieldErrors.lastName}
-          />
-          <DateOnlyField
-            id="bailarin-fecha-nacimiento"
-            label="Fecha de nacimiento"
-            name="birthDate"
-            defaultValue={values.birthDate}
-            error={actionData?.fieldErrors.birthDate}
-            labelClassName="text-slate-800"
-            buttonClassName="mt-0 h-10 w-full border-slate-300 bg-white text-slate-950 hover:bg-slate-50 focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-            errorClassName="mt-0 font-medium"
-          />
-          <SelectField
-            id="bailarin-tipo-documento"
-            label="Tipo de documento"
-            name="documentType"
-            defaultValue={values.documentType}
-            error={actionData?.fieldErrors.documentType}
-            options={documentTypeOptions}
-          />
-          <FormField
-            id="bailarin-numero-documento"
-            label="Número de documento"
-            name="documentNumber"
-            type="text"
-            defaultValue={values.documentNumber}
-            error={actionData?.fieldErrors.documentNumber}
-          />
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-            >
-              Guardar cambios
-            </button>
-          </div>
-        </form>
-
-        <form
-          method="post"
-          className="rounded-lg border border-slate-200 bg-slate-50 p-6"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-950">Estado</h3>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                {statusAction.description}
-              </p>
+        <Card>
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              {!loaderData.dancer.active ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Este bailarín está archivado. Reactivalo para que vuelva a
+                    aparecer en las listas activas y en próximas selecciones de
+                    coreografías.
+                  </AlertDescription>
+                  <AlertAction>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      onClick={() => {
+                        setStatusDialogIntent("reactivate-dancer");
+                      }}
+                    >
+                      Reactivar
+                    </Button>
+                  </AlertAction>
+                </Alert>
+              ) : null}
+              {showsIdentificationAlert ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan datos de identificación para completar la
+                    verificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {showsMissingImagesAlert ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan imágenes del documento para completar la
+                    verificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </div>
-            <button
-              type="submit"
-              name="intent"
-              value={statusAction.intent}
-              className={clsx(
-                "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100",
-                statusAction.buttonClassName,
-              )}
+
+            <form
+              id={formId}
+              method="post"
+              noValidate
+              onSubmit={form.handleSubmit}
             >
-              {statusAction.buttonLabel}
-            </button>
-          </div>
-        </form>
+              <input type="hidden" name="intent" value="update-dancer" />
+              <FieldGroup className="grid gap-5 md:grid-cols-2">
+                <DancerTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.firstName}
+                  label="Nombre"
+                  name="firstName"
+                />
+                <DancerTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.lastName}
+                  label="Apellido"
+                  name="lastName"
+                />
+                <DancerBirthDateField
+                  form={form.form}
+                  error={actionData?.fieldErrors.birthDate}
+                />
+                <div className="hidden md:block" aria-hidden="true" />
+                <DancerDocumentTypeField
+                  form={form.form}
+                  error={actionData?.fieldErrors.documentType}
+                />
+                <DancerTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.documentNumber}
+                  label="Número de documento"
+                  name="documentNumber"
+                />
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <Button asChild variant="outline" size="lg">
+            <Link to="/portal/bailarines">Volver</Link>
+          </Button>
+          <Button type="submit" form={formId} size="lg">
+            Guardar
+          </Button>
+        </div>
       </section>
+
+      <DancerStatusDialog
+        intent={statusDialogIntent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusDialogIntent(null);
+          }
+        }}
+      />
     </PortalShell>
   );
 }
 
-export default function PortalBailarinDetalleRoute(
-  props: PortalBailarinDetalleRouteProps,
-) {
+export default function PortalBailarinDetalleRoute({
+  loaderData,
+}: PortalBailarinDetalleRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
     <PortalBailarinDetalleRouteView
-      loaderData={props.loaderData}
+      loaderData={loaderData}
       actionData={actionData}
     />
   );
 }
 
-function FormField({
-  defaultValue,
+function useDancerForm({
+  fieldErrors = emptyDancerFieldErrors,
+  values,
+}: {
+  fieldErrors?: DancerFieldErrors;
+  values: DancerFormValues;
+}) {
+  const form = useForm<DancerFormValues, unknown, DancerFormValues>({
+    defaultValues: values,
+    mode: "onSubmit",
+    resolver: zodResolver(dancerSchema),
+  });
+
+  useEffect(() => {
+    form.reset(values);
+  }, [
+    form,
+    values.birthDate,
+    values.documentNumber,
+    values.documentType,
+    values.firstName,
+    values.lastName,
+  ]);
+
+  useApplyServerFieldErrors(form, fieldErrors);
+
+  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+}
+
+function DancerTextField({
   error,
-  id,
+  form,
   label,
   name,
-  type,
 }: {
-  defaultValue: string;
   error?: string;
-  id: string;
+  form: DancerFormReturn;
   label: string;
-  name: keyof UpdateDancerInput;
-  type: "text";
+  name: DancerTextFieldName;
 }) {
-  const errorId = error ? `${id}-error` : undefined;
+  const id = useId();
+  const errorId = `${id}-error`;
+  const autoComplete = getDancerFieldAutoComplete(name);
 
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        aria-describedby={errorId}
-        aria-invalid={error ? true : undefined}
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-      />
-      {error ? (
-        <p id={errorId} className="mt-2 text-xs font-medium text-red-700">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error || error ? true : undefined}>
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Input
+              id={id}
+              autoComplete={autoComplete}
+              aria-invalid={fieldState.error || error ? true : undefined}
+              aria-describedby={fieldState.error || error ? errorId : undefined}
+              {...field}
+            />
+            <FieldError id={errorId}>
+              {fieldState.error?.message ?? error}
+            </FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }
 
-function SelectField({
-  defaultValue,
+function DancerBirthDateField({
   error,
-  id,
-  label,
-  name,
-  options,
+  form,
 }: {
-  defaultValue: string;
   error?: string;
-  id: string;
-  label: string;
-  name: keyof UpdateDancerInput;
-  options: ReadonlyArray<{ value: string; label: string }>;
+  form: DancerFormReturn;
 }) {
-  const errorId = error ? `${id}-error` : undefined;
+  const id = useId();
 
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
-        {label}
-      </label>
-      <select
-        id={id}
-        name={name}
-        defaultValue={defaultValue}
-        aria-describedby={errorId}
-        aria-invalid={error ? true : undefined}
-        className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-4 focus:ring-teal-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:border-red-600 aria-[invalid=true]:focus:ring-red-100"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {error ? (
-        <p id={errorId} className="mt-2 text-xs font-medium text-red-700">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Controller
+      control={form.control}
+      name="birthDate"
+      render={({ field, fieldState }) => (
+        <DateOnlyField
+          id={id}
+          label="Fecha de nacimiento"
+          name={field.name}
+          defaultValue={field.value ?? ""}
+          value={field.value ?? ""}
+          onBlur={field.onBlur}
+          onValueChange={field.onChange}
+          error={fieldState.error?.message ?? error}
+          buttonClassName="mt-0 h-10 w-full justify-start font-normal"
+        />
+      )}
+    />
   );
 }
 
-function readFormString(formData: FormData, key: string) {
+function DancerDocumentTypeField({
+  error,
+  form,
+}: {
+  error?: string;
+  form: DancerFormReturn;
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller
+      control={form.control}
+      name="documentType"
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error || error ? true : undefined}>
+          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
+          <FieldContent>
+            <Select
+              value={field.value || noDocumentTypeSelectValue}
+              onValueChange={(value) => {
+                field.onChange(
+                  value === noDocumentTypeSelectValue ? "" : value,
+                );
+              }}
+            >
+              <input type="hidden" name={field.name} value={field.value} />
+              <SelectTrigger
+                id={id}
+                aria-invalid={fieldState.error || error ? true : undefined}
+                aria-describedby={
+                  fieldState.error || error ? errorId : undefined
+                }
+                className="h-10 w-full"
+              >
+                <SelectValue placeholder="Sin documento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={noDocumentTypeSelectValue}>
+                  Sin documento
+                </SelectItem>
+                <SelectItem value="dni">DNI</SelectItem>
+                <SelectItem value="passport">Pasaporte</SelectItem>
+                <SelectItem value="other">Otro</SelectItem>
+              </SelectContent>
+            </Select>
+            <FieldError id={errorId}>
+              {fieldState.error?.message ?? error}
+            </FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function DancerStatusDialog({
+  intent,
+  onOpenChange,
+}: {
+  intent: DancerStatusIntent | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const action = intent ? dancerStatusActions[intent] : null;
+  const isOpen = action !== null;
+  const dialogFormId = getDancerStatusFormId(intent);
+
+  return (
+    <>
+      {action ? (
+        <div className="sr-only">
+          <p>{action.confirmTitle}</p>
+          <p>{action.confirmDescription}</p>
+        </div>
+      ) : null}
+      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+        {action ? (
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {action.confirmDescription}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <form id={dialogFormId} method="post">
+              <input type="hidden" name="intent" value={action.intent} />
+            </form>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                form={dialogFormId}
+                type="submit"
+                variant={action.confirmButtonVariant}
+              >
+                {action.confirmButtonLabel}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        ) : null}
+      </AlertDialog>
+    </>
+  );
+}
+
+function getDancerStatusAction(isActive: boolean) {
+  if (isActive) {
+    return dancerStatusActions["archive-dancer"];
+  }
+
+  return dancerStatusActions["reactivate-dancer"];
+}
+
+function getDancerFieldAutoComplete(name: DancerTextFieldName) {
+  switch (name) {
+    case "firstName":
+      return "given-name";
+    case "lastName":
+      return "family-name";
+    case "documentNumber":
+      return "off";
+  }
+}
+
+function getDancerStatusFormId(intent: DancerStatusIntent | null) {
+  switch (intent) {
+    case "archive-dancer":
+      return "portal-bailarin-archive-form";
+    case "reactivate-dancer":
+      return "portal-bailarin-reactivate-form";
+    case null:
+      return "portal-bailarin-status-form";
+  }
+}
+
+function getGeneralActionError(actionData?: ActionData) {
+  if (!actionData || hasFieldErrors(actionData.fieldErrors)) {
+    return null;
+  }
+
+  return {
+    status: "error" as const,
+    message: actionData.message,
+  };
+}
+
+function hasFieldErrors(fieldErrors: DancerFieldErrors) {
+  return Object.values(fieldErrors).some(Boolean);
+}
+
+function readDancerId(params: { dancerId?: string }) {
+  if (!params.dancerId) {
+    throw new Response(dancerNotFoundMessage, { status: 404 });
+  }
+
+  return params.dancerId;
+}
+
+async function requireDancer(academyId: string, dancerId: string) {
+  const dancer = await findDancerForAcademy(academyId, dancerId);
+
+  if (!dancer) {
+    throw new Response(dancerNotFoundMessage, { status: 404 });
+  }
+
+  return dancer;
+}
+
+function readFormString(formData: FormData, key: UpdateDancerField | "intent") {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
-}
-
-function resolveDancerStatusFilter(request: Request, isActive: boolean) {
-  return resolvePortalRecordStatusFilter(request, isActive);
-}
-
-function buildDancerFormValues(
-  dancer: Awaited<ReturnType<typeof loader>>["dancer"],
-): UpdateDancerInput {
-  return {
-    firstName: dancer.firstName,
-    lastName: dancer.lastName,
-    birthDate: dancer.birthDate,
-    documentType: dancer.documentType ?? "",
-    documentNumber: dancer.documentNumber ?? "",
-  };
 }
