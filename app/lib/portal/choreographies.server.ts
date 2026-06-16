@@ -134,6 +134,11 @@ export type ChoreographyDancerScheduleResolution =
       selectedScheduleEntryId: null;
     };
 
+export type ChoreographyCategoryCalculationMode =
+  | "oldest"
+  | "group_tolerance"
+  | "group_average";
+
 export type ResolveChoreographyDancersResult =
   | {
       ok: true;
@@ -141,6 +146,8 @@ export type ResolveChoreographyDancersResult =
         groupType: ChoreographyListItem["groupType"];
         categoryId: string | null;
         categoryName: string | null;
+        categoryCalculationMode?: ChoreographyCategoryCalculationMode;
+        categoryAgeBasis?: number | null;
         experienceLevel: {
           required: boolean;
           options: Array<{
@@ -616,6 +623,8 @@ export async function resolveChoreographyDancers(input: {
         resolution.category.status === "resolved"
           ? resolution.category.name
           : null,
+      categoryCalculationMode: resolution.categoryCalculationMode,
+      categoryAgeBasis: resolution.categoryAgeBasis,
       experienceLevel: resolution.experienceLevel,
       schedule: scheduleResolution,
     },

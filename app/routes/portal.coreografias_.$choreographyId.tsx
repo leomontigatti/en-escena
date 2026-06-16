@@ -150,6 +150,18 @@ type DancerResolutionState = {
   groupType: LoaderData["choreography"]["groupType"];
   categoryId: LoaderData["choreography"]["categoryId"];
   categoryName: LoaderData["choreography"]["categoryName"];
+  categoryCalculationMode:
+    | Extract<
+        ResolveChoreographyDancersResult,
+        { ok: true }
+      >["resolution"]["categoryCalculationMode"]
+    | null;
+  categoryAgeBasis:
+    | Extract<
+        ResolveChoreographyDancersResult,
+        { ok: true }
+      >["resolution"]["categoryAgeBasis"]
+    | null;
   experienceLevelRequired: boolean;
   experienceLevelOptions: Array<{
     id: string;
@@ -577,14 +589,30 @@ function DancerEditor({
     () => getDancerSelectionKey(selectedDancerIds),
     [selectedDancerIds],
   );
+  const persistedSelectionKey = useMemo(
+    () => getDancerSelectionKey(initialDancerIds),
+    [initialDancerIds],
+  );
   const persistedResolution = useMemo(
     () => getPersistedDancerResolutionState(choreography),
     [choreography],
   );
-  const [derivedResolution, setDerivedResolution] =
-    useState(persistedResolution);
-  const [resolvedSelectionKey, setResolvedSelectionKey] =
-    useState(initialSelectionKey);
+  const hasInitialResolution = initialResolution !== undefined;
+  const hasInitialResolvedSelection =
+    hasInitialResolution && initialSelectionKey !== persistedSelectionKey;
+  const initialDerivedResolution = useMemo(
+    () =>
+      hasInitialResolvedSelection && initialResolution?.ok
+        ? mapResolvedDancerResolutionState(initialResolution)
+        : persistedResolution,
+    [hasInitialResolvedSelection, initialResolution, persistedResolution],
+  );
+  const [derivedResolution, setDerivedResolution] = useState(
+    initialDerivedResolution,
+  );
+  const [resolvedSelectionKey, setResolvedSelectionKey] = useState(
+    hasInitialResolvedSelection ? initialSelectionKey : persistedSelectionKey,
+  );
   const [resolution, setResolution] =
     useState<ResolveChoreographyDancersResult | null>(
       initialResolution ?? null,
@@ -611,15 +639,22 @@ function DancerEditor({
   const resolutionData = resolutionFetcher.data;
   const isResolving = resolutionFetcher.state !== "idle";
   const hasRosterChanged = useMemo(
-    () => dancerSelectionKey !== getDancerSelectionKey(initialDancerIds),
-    [dancerSelectionKey, initialDancerIds],
+    () => dancerSelectionKey !== persistedSelectionKey,
+    [dancerSelectionKey, persistedSelectionKey],
   );
   const scheduleResolution = resolution?.ok
     ? resolution.resolution.schedule
     : null;
   const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
-  const shouldShowScheduleResolution =
-    hasRosterChanged || initialResolution !== undefined;
+  const shouldShowScheduleResolution = hasRosterChanged || hasInitialResolution;
+  const changeExplanations = useMemo(
+    () =>
+      getDancerChangeExplanations({
+        currentResolution: persistedResolution,
+        nextResolution: derivedResolution,
+      }),
+    [derivedResolution, persistedResolution],
+  );
 
   useEffect(() => {
     form.reset({
@@ -628,17 +663,22 @@ function DancerEditor({
       scheduleEntryId:
         actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
     });
-    setDerivedResolution(persistedResolution);
+    setDerivedResolution(initialDerivedResolution);
     setResolution(initialResolution ?? null);
     setResolutionError(null);
-    setResolvedSelectionKey(initialSelectionKey);
+    setResolvedSelectionKey(
+      hasInitialResolvedSelection ? initialSelectionKey : persistedSelectionKey,
+    );
     submittedSelectionKeyRef.current = null;
   }, [
     actionData?.selectedScheduleEntryId,
     form,
+    hasInitialResolution,
+    hasInitialResolvedSelection,
+    initialDerivedResolution,
     initialSelectionKey,
     initialResolution,
-    persistedResolution,
+    persistedSelectionKey,
     selectedDancerIds,
     selectedExperienceLevelId,
     selectedScheduleEntryId,
@@ -652,18 +692,26 @@ function DancerEditor({
       return;
     }
 
-    if (dancerSelectionKey === initialSelectionKey) {
+    if (dancerSelectionKey === persistedSelectionKey) {
       setDerivedResolution(persistedResolution);
+      setResolution(hasInitialResolution ? (initialResolution ?? null) : null);
+      setResolutionError(null);
+      setResolvedSelectionKey(persistedSelectionKey);
+      form.setValue("scheduleEntryId", selectedScheduleEntryId, {
+        shouldDirty: false,
+      });
+      submittedSelectionKeyRef.current = null;
+      return;
+    }
+
+    if (
+      hasInitialResolvedSelection &&
+      dancerSelectionKey === initialSelectionKey
+    ) {
+      setDerivedResolution(initialDerivedResolution);
       setResolution(initialResolution ?? null);
       setResolutionError(null);
       setResolvedSelectionKey(initialSelectionKey);
-      form.setValue(
-        "scheduleEntryId",
-        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
-        {
-          shouldDirty: false,
-        },
-      );
       submittedSelectionKeyRef.current = null;
       return;
     }
@@ -682,9 +730,13 @@ function DancerEditor({
     submittedSelectionKeyRef.current = dancerSelectionKey;
   }, [
     dancerSelectionKey,
+    hasInitialResolution,
     initialSelectionKey,
+    hasInitialResolvedSelection,
+    initialDerivedResolution,
     initialResolution,
     persistedResolution,
+    persistedSelectionKey,
     form,
     resolutionFetcher,
     resolvedSelectionKey,
@@ -949,6 +1001,15 @@ function DancerEditor({
               value={derivedResolution.categoryName ?? "Categoría pendiente"}
             />
           </dl>
+          <div className="flex flex-col gap-2 rounded-md border bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
+            {changeExplanations.map((explanation) => (
+              <p key={explanation}>{explanation}</p>
+            ))}
+            <p>
+              El precio se recalcula al confirmar los bailarines. Este paso no
+              muestra importes.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -1517,6 +1578,8 @@ function getPersistedDancerResolutionState(
     groupType: choreography.groupType,
     categoryId: choreography.categoryId,
     categoryName: choreography.categoryName,
+    categoryCalculationMode: null,
+    categoryAgeBasis: null,
     experienceLevelRequired:
       choreography.experienceLevelId !== null ||
       choreography.operationalStatus.pendingItems.includes("experienceLevel"),
@@ -1539,9 +1602,58 @@ function mapResolvedDancerResolutionState(
     groupType: result.resolution.groupType,
     categoryId: result.resolution.categoryId,
     categoryName: result.resolution.categoryName,
+    categoryCalculationMode: result.resolution.categoryCalculationMode ?? null,
+    categoryAgeBasis: result.resolution.categoryAgeBasis ?? null,
     experienceLevelRequired: result.resolution.experienceLevel.required,
     experienceLevelOptions: result.resolution.experienceLevel.options,
   };
+}
+
+function getDancerChangeExplanations(input: {
+  currentResolution: DancerResolutionState;
+  nextResolution: DancerResolutionState;
+}) {
+  const explanations: string[] = [];
+
+  if (input.currentResolution.groupType !== input.nextResolution.groupType) {
+    explanations.push(
+      "El tipo de grupo cambió porque depende de la cantidad de bailarines seleccionados.",
+    );
+  }
+
+  if (input.currentResolution.categoryId !== input.nextResolution.categoryId) {
+    explanations.push(
+      getCategoryChangeExplanation(
+        input.nextResolution.categoryCalculationMode,
+        input.nextResolution.categoryAgeBasis,
+      ),
+    );
+  }
+
+  return explanations;
+}
+
+function getCategoryChangeExplanation(
+  categoryCalculationMode: DancerResolutionState["categoryCalculationMode"],
+  categoryAgeBasis: DancerResolutionState["categoryAgeBasis"],
+) {
+  if (categoryCalculationMode === "group_tolerance") {
+    return "La categoría cambió según la tolerancia de edades permitida para el grupo.";
+  }
+
+  if (categoryCalculationMode === "group_average") {
+    if (typeof categoryAgeBasis === "number") {
+      return `La categoría cambió según la edad promedio del grupo: ${categoryAgeBasis} años.`;
+    }
+
+    return "La categoría cambió según la edad promedio del grupo.";
+  }
+
+  if (typeof categoryAgeBasis === "number") {
+    return `La categoría cambió según la mayor edad del grupo: ${categoryAgeBasis} años.`;
+  }
+
+  return "La categoría cambió según el criterio de edad aplicable al grupo.";
 }
 
 function buildResolveChoreographyDancersFormData(dancerIds: string[]) {

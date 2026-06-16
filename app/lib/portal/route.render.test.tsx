@@ -412,6 +412,111 @@ describe("portal route view", () => {
     expect(markup).toContain("Archivada, Mora");
   });
 
+  test("explains recalculated dancer changes without exposing financial amounts", () => {
+    const markup = renderCoreografiaDetalle({
+      actionData: {
+        status: "dancer-error",
+        message: "Revisá los bailarines de la coreografía.",
+        selectedDancerIds: ["dancer_1", "dancer_2", "dancer_3", "dancer_4"],
+        selectedExperienceLevelId: null,
+        selectedScheduleEntryId: "schedule_auto",
+      },
+      initialDancerResolution: {
+        ok: true,
+        resolution: {
+          groupType: "grupal",
+          categoryId: "category_2",
+          categoryName: "Adultos",
+          categoryCalculationMode: "group_average",
+          categoryAgeBasis: 13,
+          experienceLevel: {
+            required: false,
+            options: [],
+          },
+          schedule: {
+            status: "auto",
+            canSave: true,
+            selectedScheduleEntryId: "schedule_auto",
+            options: [
+              {
+                id: "schedule_auto",
+                capacity: 5,
+                groupTypes: ["grupal"],
+                groupTypeKey: "grupal",
+                scheduleBlock: {
+                  id: "block_1",
+                  name: "Bloque tarde",
+                  scheduledDate: "2026-05-01",
+                  startTime: "14:00",
+                },
+              },
+            ],
+          },
+        },
+      },
+      loaderData: coreografiaDetalleLoaderData({
+        availableDancers: [
+          {
+            id: "dancer_1",
+            firstName: "Ana",
+            lastName: "Paz",
+            active: true,
+          },
+          {
+            id: "dancer_2",
+            firstName: "Luz",
+            lastName: "Mar",
+            active: true,
+          },
+          {
+            id: "dancer_3",
+            firstName: "Mora",
+            lastName: "Sol",
+            active: true,
+          },
+          {
+            id: "dancer_4",
+            firstName: "Eva",
+            lastName: "Río",
+            active: true,
+          },
+        ],
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+        choreography: choreographyDetailRow({
+          categoryId: "category_1",
+          categoryName: "Juvenil",
+          dancerEditingEligibility: {
+            canEdit: true,
+            reasonCode: null,
+            reasonText: null,
+          },
+          groupType: "solo",
+        }),
+      }),
+    });
+
+    expect(markup).toContain(
+      "El tipo de grupo cambió porque depende de la cantidad de bailarines seleccionados.",
+    );
+    expect(markup).toContain(
+      "La categoría cambió según la edad promedio del grupo: 13 años.",
+    );
+    expect(markup).toContain(
+      "El precio se recalcula al confirmar los bailarines. Este paso no muestra importes.",
+    );
+    expect(markup).not.toContain("$");
+    expect(markup).not.toContain("Desglose");
+  });
+
   test("shows the no-option cronograma state for dancer edits", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
