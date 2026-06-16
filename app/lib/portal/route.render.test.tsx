@@ -404,8 +404,9 @@ describe("portal route view", () => {
 
     expect(markup).toContain("Edición disponible");
     expect(markup).toContain(
-      "Actualizá el roster solo cuando la propuesta siga siendo compatible con el tipo de grupo, la categoría, el nivel y el cronograma actuales.",
+      "Actualizá el roster y revisá cómo cambian tipo de grupo, categoría y nivel antes de guardar.",
     );
+    expect(markup).toContain("Datos recalculados");
     expect(markup).toContain("Guardar bailarines");
     expect(markup).toContain("Buscar bailarines");
     expect(markup).toContain("Archivada, Mora");
@@ -1408,12 +1409,14 @@ function choreographyDetailRow(
 ) {
   return {
     ...choreographyListItem(),
+    categoryId: "category_1",
     dancerEditingEligibility: {
       canEdit: false as const,
       reasonCode: "registration-closed" as const,
       reasonText:
         "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
     },
+    experienceLevelId: "level_1",
     scheduleBlockName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",
     dancers: [

@@ -5,7 +5,7 @@ import "@/test/react-test-env";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeAll, describe, expect, test } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 
 type PortalCoreografiaDetalleRouteViewComponent =
   typeof import("@/routes/portal.coreografias_.$choreographyId").PortalCoreografiaDetalleRouteView;
@@ -155,6 +155,125 @@ describe("coreografía dancer editor", () => {
 
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
   });
+
+  test("shows calculating state and disables save while recalculation is running", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/portal/coreografias/choreo_1",
+          action: async () => null,
+          element: (
+            <PortalCoreografiaDetalleRouteView
+              dancerResolutionFetcher={{
+                data: undefined,
+                state: "submitting",
+                submit: vi.fn(),
+              }}
+              loaderData={buildLoaderData()}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(<RouterProvider router={router} />);
+    });
+
+    const saveButtonWhileResolving = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((node) => node.textContent?.includes("Calculando"));
+
+    expect(saveButtonWhileResolving).toBeInstanceOf(HTMLButtonElement);
+    expect(saveButtonWhileResolving?.disabled).toBe(true);
+    expect(document.body.textContent).toContain("Calculando");
+  });
+
+  test("shows recalculated data, clears stale level, focuses nivel and blocks submit until selected", async () => {
+    let saveCalls = 0;
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/portal/coreografias/choreo_1",
+          action: async ({ request }) => {
+            const formData = await request.formData();
+
+            if (formData.get("intent") === "update-choreography-dancers") {
+              saveCalls += 1;
+            }
+
+            return null;
+          },
+          element: (
+            <PortalCoreografiaDetalleRouteView
+              dancerResolutionFetcher={{
+                data: {
+                  intent: "resolve-choreography-dancers",
+                  result: {
+                    ok: true,
+                    resolution: {
+                      groupType: "duo",
+                      categoryId: "category_2",
+                      categoryName: "Adultos",
+                      experienceLevel: {
+                        required: true,
+                        options: [{ id: "level_2", name: "Avanzado" }],
+                      },
+                    },
+                  },
+                },
+                state: "idle",
+                submit: vi.fn(),
+              }}
+              loaderData={buildLoaderData()}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(<RouterProvider router={router} />);
+    });
+
+    expect(document.body.textContent).toContain("Dúo");
+    expect(document.body.textContent).toContain("Adultos");
+    expect(document.body.textContent).toContain("Nivel de experiencia");
+    expect(document.body.textContent).toContain("Avanzado");
+
+    const experienceLevelInput = document.querySelector<HTMLInputElement>(
+      'input[name="experienceLevelId"]',
+    );
+    const form = document.querySelector("form");
+
+    expect(experienceLevelInput?.value ?? "").toBe("");
+    expect(document.activeElement).toBe(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+
+    if (!(form instanceof HTMLFormElement)) {
+      throw new Error("Expected dancer editor form to be rendered.");
+    }
+
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(document.body.textContent).toContain("Este campo es obligatorio.");
+    expect(saveCalls).toBe(0);
+  });
 });
 
 function buildLoaderData(
@@ -178,7 +297,9 @@ function buildLoaderData(
       modalityName: "Jazz",
       submodalityName: "Lyrical",
       groupType: "solo",
+      categoryId: "category_1",
       categoryName: "Juvenil",
+      experienceLevelId: "level_1",
       experienceLevelName: "Inicial",
       operationalStatus: {
         code: "complete",
