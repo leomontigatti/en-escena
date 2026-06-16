@@ -77,7 +77,7 @@ export function AdminResourceLayout({
   headerAction,
   loaderData,
   requireSelectedEvent = true,
-  selectedEventId,
+  selectedEventId = null,
   title,
   description,
   children,

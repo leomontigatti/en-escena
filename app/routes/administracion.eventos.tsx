@@ -5,6 +5,7 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   DataTable,
   type DataTableColumn,
@@ -12,11 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
-import type { AdminRouteHandle } from "@/components/admin/shell";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -27,14 +23,10 @@ type TemporalState = ReturnType<typeof getTemporalState>;
 type EventListRow = EventRow & {
   temporalState: TemporalState;
 };
+type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type AdministracionEventosRouteProps = {
-  loaderData: {
-    email: string;
-    eventOptions: AdminEventContext["events"];
-    events: EventListRow[];
-    selectedEventId: AdminEventContext["selectedEventId"];
-  };
+  loaderData: LoaderData;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -51,21 +43,17 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  await requireAdminPanelUser(request);
   const eventRows = await db.query.events.findMany({
     orderBy: [desc(eventsTable.startsAt)],
   });
   const now = new Date();
 
   return {
-    email: user.email,
-    eventOptions: eventContext.events,
     events: eventRows.map((event) => ({
       ...event,
       temporalState: getTemporalState(event, now),
     })),
-    selectedEventId: eventContext.selectedEventId,
   };
 }
 
@@ -74,7 +62,6 @@ export function AdministracionEventosRouteView({
 }: AdministracionEventosRouteProps) {
   return (
     <AdminResourceLayout
-      selectedEventId={loaderData.selectedEventId}
       title="Eventos"
       description="Gestioná las fechas principales y estado de cada evento."
       action={{ label: "Nuevo evento", to: "/administracion/eventos/nuevo" }}
@@ -105,14 +92,12 @@ function EventTable({ events }: { events: EventListRow[] }) {
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (event) => (
-        <>
-          <Link
-            to={`/administracion/eventos/${event.id}`}
-            className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            {event.name}
-          </Link>
-        </>
+        <Link
+          to={`/administracion/eventos/${event.id}`}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {event.name}
+        </Link>
       ),
       filterValue: (event) => event.name,
       sortValue: (event) => event.name,
