@@ -7,9 +7,11 @@ import {
   choreographies,
   choreographyDancers,
   dancers,
+  scheduleEntries,
   user,
 } from "@/db/schema";
 import { getDancerVerificationStatus } from "@/lib/dancers/verification";
+import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
 import {
   adminDancerCorrectionReasonMessage,
   adminDancerPageSize,
@@ -69,7 +71,17 @@ export type AdministrativeDancerDetail = {
   identificationStatus: AdminDancerIdentificationStatus;
   participatedInAnyEvent: boolean;
   correctionReasonRequired: boolean;
+  inscriptions: AdministrativeDancerInscription[];
   choreographyNames: string[];
+};
+
+export type AdministrativeDancerInscription = {
+  id: string;
+  choreographyName: string;
+  groupType: "solo" | "duo" | "trio" | "grupal";
+  basePriceInCents: number | null;
+  discountInCents: number;
+  estimatedSubtotalInCents: number | null;
 };
 
 export type AdministrativeDancerUpdateInput = {
@@ -105,6 +117,7 @@ export type AdministrativeDancerMutationResult =
   | {
       ok: true;
       dancer: DancerEditableSnapshot;
+      verificationInvalidated: boolean;
     }
   | {
       ok: false;
@@ -259,12 +272,19 @@ export async function findAdministrativeDancer(input: {
       ? []
       : await db
           .select({
+            id: choreographies.id,
             name: choreographies.name,
+            groupType: choreographies.groupType,
+            scheduleBlockId: scheduleEntries.scheduleBlockId,
           })
           .from(choreographyDancers)
           .innerJoin(
             choreographies,
             eq(choreographies.id, choreographyDancers.choreographyId),
+          )
+          .innerJoin(
+            scheduleEntries,
+            eq(choreographies.scheduleEntryId, scheduleEntries.id),
           )
           .where(
             and(
@@ -273,6 +293,32 @@ export async function findAdministrativeDancer(input: {
             ),
           )
           .orderBy(asc(sql`lower(${choreographies.name})`));
+
+  const inscriptions =
+    input.selectedEventId === null
+      ? []
+      : await Promise.all(
+          choreographyRows.map(async (choreography) => {
+            const priceResult = await resolveApplicablePrice({
+              eventId: input.selectedEventId!,
+              groupType: choreography.groupType,
+              scheduleBlockId: choreography.scheduleBlockId,
+            });
+
+            return {
+              id: choreography.id,
+              choreographyName: choreography.name,
+              groupType: choreography.groupType,
+              basePriceInCents: priceResult.ok
+                ? priceResult.price.amount
+                : null,
+              discountInCents: 0,
+              estimatedSubtotalInCents: priceResult.ok
+                ? priceResult.price.amount
+                : null,
+            } satisfies AdministrativeDancerInscription;
+          }),
+        );
 
   return {
     id: row.id,
@@ -312,6 +358,7 @@ export async function findAdministrativeDancer(input: {
       hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
       isVerified: row.identityVerifiedAt !== null,
     }),
+    inscriptions,
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
@@ -437,6 +484,7 @@ export async function updateAdministrativeDancer(input: {
   return {
     ok: true,
     dancer: afterValues,
+    verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };
 }
 

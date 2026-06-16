@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Ellipsis, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   Controller,
   type FieldPath,
@@ -11,10 +11,35 @@ import {
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AdminShell } from "@/components/admin/shell";
+import {
+  AdminResourceLayout,
+  AdminEmptyState,
+} from "@/components/admin/resource-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -31,6 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   adminDancerCorrectionReasonMessage,
@@ -41,10 +67,10 @@ import {
   getAdminDancerIdentificationLabel,
   getAdminDancerParticipationBadgeVariant,
   getAdminDancerParticipationLabel,
-  getAdminDancerParticipationSummary,
   type AdminDancerIdentificationStatus,
   type AdminDancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
+import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import {
   findAdministrativeDancer,
   type AdministrativeDancerFieldErrors,
@@ -92,6 +118,7 @@ type DancerRouteNotification = Extract<
   RouteNotificationKey,
   | "bailarin-archivado"
   | "bailarin-guardado"
+  | "bailarin-guardado-requiere-verificacion"
   | "bailarin-reactivado"
   | "bailarin-verificado"
 >;
@@ -101,10 +128,10 @@ type AdministracionBailarinDetalleRouteProps = {
   actionData?: ActionData;
 };
 
-const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
-  timeStyle: "short",
-  timeZone: "America/Argentina/Buenos_Aires",
+const moneyFormatter = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
 });
 
 const correctionReasonMaxLength = 500;
@@ -268,7 +295,13 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   throw redirect(
-    buildDetailNotificationHref(request.url, dancerId, "bailarin-guardado"),
+    buildDetailNotificationHref(
+      request.url,
+      dancerId,
+      result.verificationInvalidated
+        ? "bailarin-guardado-requiere-verificacion"
+        : "bailarin-guardado",
+    ),
   );
 }
 
@@ -330,8 +363,6 @@ export function AdministracionBailarinDetalleRouteView({
     fieldErrors: statusFieldErrors,
     values: statusValues,
   });
-  const birthDateMayNeedRecalculation =
-    isEditing && dancer.participatedInAnyEvent;
   const statusAction = dancer.active
     ? {
         description:
@@ -348,225 +379,414 @@ export function AdministracionBailarinDetalleRouteView({
   const canVerifyIdentity =
     loaderData.canEdit &&
     dancer.identificationStatus === "pending-verification";
+  const initialDialogIntent =
+    submittedEditValues && dancer.correctionReasonRequired
+      ? "save"
+      : actionData && !submittedEditValues
+        ? statusAction.intent
+        : null;
+  const [dialogIntent, setDialogIntent] = useState<
+    "archive-dancer" | "reactivate-dancer" | "save" | "verify" | null
+  >(initialDialogIntent);
+  const editFormId = "admin-dancer-edit-form";
+  const statusFormId = "admin-dancer-status-form";
+  const verifyFormId = "admin-dancer-verify-form";
+  const birthDateMayNeedRecalculation =
+    isEditing && dancer.participatedInAnyEvent;
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
-      title="Bailarín"
+    <AdminResourceLayout
+      loaderData={{
+        email: loaderData.email,
+        events: loaderData.eventOptions,
+        selectedEventId: loaderData.selectedEventId,
+      }}
+      breadcrumbItems={[
+        { label: "Bailarines", to: "/administracion/bailarines" },
+        { label: `${dancer.lastName}, ${dancer.firstName}` },
+      ]}
+      title="Detalle bailarín"
+      description="Consultá y corregí la información administrativa de este bailarín."
+      requireSelectedEvent={false}
+      headerAction={
+        loaderData.canEdit ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="lg">
+                <Ellipsis aria-hidden="true" data-icon />
+                Acciones
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {canVerifyIdentity ? (
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setDialogIntent("verify");
+                  }}
+                >
+                  Verificar identidad
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                variant={
+                  statusAction.intent === "archive-dancer"
+                    ? "destructive"
+                    : "default"
+                }
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setDialogIntent(statusAction.intent);
+                }}
+              >
+                {statusAction.label}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null
+      }
     >
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild variant="outline">
+      <section className="flex flex-col gap-6">
+        <Card>
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              {!dancer.active ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Este bailarín está archivado.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {dancer.identificationStatus === "incomplete" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan datos de identificación para completar la
+                    verificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {dancer.identificationStatus === "missing-images" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan imágenes del documento para completar la
+                    verificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {dancer.identificationStatus === "pending-verification" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    La documentación está lista para revisión administrativa.
+                  </AlertDescription>
+                  {canVerifyIdentity ? (
+                    <AlertAction>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        onClick={() => {
+                          setDialogIntent("verify");
+                        }}
+                      >
+                        Verificar identidad
+                      </Button>
+                    </AlertAction>
+                  ) : null}
+                </Alert>
+              ) : null}
+              {dancer.identificationStatus === "verified" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    La identidad fue verificada. Si corregís datos o imágenes,
+                    este bailarín volverá a no verificado.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={dancer.active ? "default" : "secondary"}>
+                {dancer.active ? "Activo" : "Archivado"}
+              </Badge>
+              <ParticipationBadge
+                participationStatus={dancer.participationStatus}
+              />
+              <IdentificationBadge
+                identificationStatus={dancer.identificationStatus}
+              />
+            </div>
+
+            <form
+              id={editFormId}
+              method="post"
+              noValidate
+              onSubmit={editForm.handleSubmit}
+              className="flex flex-col gap-6"
+            >
+              <input type="hidden" name="intent" value="update-dancer" />
+              <FieldGroup className="grid gap-5 md:grid-cols-3">
+                <ReadOnlyField label="Academia" value={dancer.academy.name} />
+                {isEditing ? (
+                  <>
+                    <DancerTextField
+                      form={editForm.form}
+                      label="Nombre"
+                      name="firstName"
+                    />
+                    <DancerTextField
+                      form={editForm.form}
+                      label="Apellido"
+                      name="lastName"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ReadOnlyField label="Nombre" value={dancer.firstName} />
+                    <ReadOnlyField label="Apellido" value={dancer.lastName} />
+                  </>
+                )}
+              </FieldGroup>
+
+              <Tabs defaultValue="identificacion">
+                <TabsList variant="line">
+                  <TabsTrigger value="identificacion">
+                    Identificación
+                  </TabsTrigger>
+                  <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+                </TabsList>
+                <TabsContent value="identificacion" className="pt-2">
+                  <FieldGroup className="grid gap-5 md:grid-cols-2">
+                    {isEditing ? (
+                      <>
+                        <DancerBirthDateField form={editForm.form} />
+                        <div className="hidden md:block" aria-hidden="true" />
+                        <DancerDocumentTypeField form={editForm.form} />
+                        <DancerTextField
+                          form={editForm.form}
+                          label="Número de documento"
+                          name="documentNumber"
+                        />
+                        <DancerTextField
+                          form={editForm.form}
+                          label="Imagen frente del documento"
+                          name="documentFrontImageStorageKey"
+                        />
+                        <DancerTextField
+                          form={editForm.form}
+                          label="Imagen dorso del documento"
+                          name="documentBackImageStorageKey"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <ReadOnlyField
+                          label="Fecha de nacimiento"
+                          value={formatAdminDancerBirthDate(dancer.birthDate)}
+                        />
+                        <ReadOnlyField
+                          label="Documento"
+                          value={formatAdminDancerDocument(dancer)}
+                        />
+                        <ReadOnlyField
+                          label="Imagen frente del documento"
+                          value={
+                            dancer.documentFrontImageStorageKey ??
+                            "Sin imagen cargada"
+                          }
+                        />
+                        <ReadOnlyField
+                          label="Imagen dorso del documento"
+                          value={
+                            dancer.documentBackImageStorageKey ??
+                            "Sin imagen cargada"
+                          }
+                        />
+                      </>
+                    )}
+                  </FieldGroup>
+                  {birthDateMayNeedRecalculation ? (
+                    <Alert className="mt-5">
+                      <TriangleAlert aria-hidden="true" />
+                      <AlertDescription>
+                        Si cambiás la fecha de nacimiento, las coreografías
+                        vinculadas pueden requerir recalcular categoría desde el
+                        flujo de Coreografías.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                </TabsContent>
+                <TabsContent value="inscripciones" className="pt-2">
+                  <InscriptionsSection
+                    inscriptions={dancer.inscriptions}
+                    selectedEventId={loaderData.selectedEventId}
+                  />
+                </TabsContent>
+              </Tabs>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <Button asChild variant="outline" size="lg">
             <Link to={loaderData.backToList}>
               <ArrowLeft data-icon="inline-start" />
               Volver a Bailarines
             </Link>
           </Button>
-          {loaderData.canEdit && !isEditing ? (
-            <div className="flex flex-wrap gap-3">
-              {canVerifyIdentity ? (
-                <form method="post">
-                  <input
-                    type="hidden"
-                    name="intent"
-                    value="verify-dancer-identity"
-                  />
-                  <Button type="submit" variant="outline">
-                    Verificar identidad
+          {loaderData.canEdit ? (
+            isEditing ? (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild variant="outline" size="lg">
+                  <Link to={loaderData.cancelHref}>Cancelar</Link>
+                </Button>
+                {dancer.correctionReasonRequired ? (
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => {
+                      setDialogIntent("save");
+                    }}
+                  >
+                    Guardar
                   </Button>
-                </form>
-              ) : null}
-              <Button asChild>
+                ) : (
+                  <Button type="submit" form={editFormId} size="lg">
+                    Guardar
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button asChild size="lg">
                 <Link to={loaderData.editHref}>Editar</Link>
               </Button>
-            </div>
+            )
           ) : null}
         </div>
 
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl font-semibold text-slate-950">
-              {dancer.lastName}, {dancer.firstName}
-            </h2>
-            <Badge variant={dancer.active ? "default" : "secondary"}>
-              {dancer.active ? "Activo" : "Archivado"}
-            </Badge>
-            <ParticipationBadge
-              participationStatus={dancer.participationStatus}
+        <AlertDialog
+          open={dialogIntent === "save"}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDialogIntent(null);
+            }
+          }}
+        >
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Guardar cambios?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Este bailarín requiere un motivo de corrección para guardar los
+                cambios.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <DancerCorrectionReasonField
+              form={editForm.form}
+              formId={editFormId}
+              required={dancer.correctionReasonRequired}
             />
-            <IdentificationBadge
-              identificationStatus={dancer.identificationStatus}
-            />
-          </div>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {loaderData.canEdit
-              ? "Ficha administrativa con corrección auditada para soporte."
-              : "Ficha administrativa de solo lectura para soporte y auditoría."}
-          </p>
-        </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button type="submit" form={editFormId}>
+                  Guardar
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {isEditing ? (
-            <section className="rounded-lg border bg-white p-6">
-              <h3 className="text-base font-semibold text-slate-950">
-                Editar identidad
-              </h3>
-              <form
-                method="post"
-                noValidate
-                className="mt-4"
-                onSubmit={editForm.handleSubmit}
-              >
-                <input type="hidden" name="intent" value="update-dancer" />
-                <FieldGroup>
-                  <DancerTextField
-                    form={editForm.form}
-                    label="Nombre"
-                    name="firstName"
-                  />
-                  <DancerTextField
-                    form={editForm.form}
-                    label="Apellido"
-                    name="lastName"
-                  />
-                  <DancerBirthDateField form={editForm.form} />
-                  <DancerDocumentTypeField form={editForm.form} />
-                  <DancerTextField
-                    form={editForm.form}
-                    label="Número de documento"
-                    name="documentNumber"
-                  />
-                  <DancerTextField
-                    form={editForm.form}
-                    label="Imagen frente del documento"
-                    name="documentFrontImageStorageKey"
-                  />
-                  <DancerTextField
-                    form={editForm.form}
-                    label="Imagen dorso del documento"
-                    name="documentBackImageStorageKey"
-                  />
-                  <DancerCorrectionReasonField
-                    form={editForm.form}
-                    required={dancer.correctionReasonRequired}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <Button type="submit">Guardar cambios</Button>
-                    <Button asChild variant="outline">
-                      <Link to={loaderData.cancelHref}>Cancelar</Link>
-                    </Button>
-                  </div>
-                </FieldGroup>
-              </form>
-            </section>
-          ) : (
-            <ReadOnlyCard title="Identidad">
-              <DetailRow label="Nombre">{dancer.firstName}</DetailRow>
-              <DetailRow label="Apellido">{dancer.lastName}</DetailRow>
-              <DetailRow label="Fecha de nacimiento">
-                {formatAdminDancerBirthDate(dancer.birthDate)}
-              </DetailRow>
-              <DetailRow label="Documento">
-                {formatAdminDancerDocument(dancer)}
-              </DetailRow>
-              <DetailRow label="Imagen frente del documento">
-                {dancer.documentFrontImageStorageKey ?? "Sin imagen cargada"}
-              </DetailRow>
-              <DetailRow label="Imagen dorso del documento">
-                {dancer.documentBackImageStorageKey ?? "Sin imagen cargada"}
-              </DetailRow>
-              <DetailRow label="Estado de identificación">
-                {getAdminDancerIdentificationLabel(dancer.identificationStatus)}
-              </DetailRow>
-            </ReadOnlyCard>
-          )}
-
-          <ReadOnlyCard title="Academia">
-            <DetailRow label="Academia">{dancer.academy.name}</DetailRow>
-            <DetailRow label="Contacto">{dancer.academy.contactName}</DetailRow>
-            <DetailRow label="Email">{dancer.academy.email}</DetailRow>
-            <DetailRow label="Teléfono">{dancer.academy.phone}</DetailRow>
-          </ReadOnlyCard>
-        </div>
-
-        <ReadOnlyCard title="Participación">
-          <DetailRow label="Evento activo">
-            {getAdminDancerParticipationSummary(dancer.participationStatus)}
-          </DetailRow>
-          {dancer.choreographyNames.length > 0 ? (
-            <DetailRow label="Coreografías">
-              <ul className="space-y-1">
-                {dancer.choreographyNames.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </DetailRow>
-          ) : null}
-          {isEditing && dancer.correctionReasonRequired ? (
-            <p className="mt-4 text-sm leading-6 text-amber-700">
-              Este Bailarín ya participó y requiere un motivo de corrección para
-              guardar cambios o cambiar su estado.
-            </p>
-          ) : null}
-          {birthDateMayNeedRecalculation ? (
-            <p className="mt-4 text-sm leading-6 text-amber-700">
-              Si cambiás la fecha de nacimiento, las coreografías vinculadas
-              pueden requerir recalcular categoría desde el flujo de
-              Coreografías.
-            </p>
-          ) : null}
-        </ReadOnlyCard>
-
-        {loaderData.canEdit && isEditing ? (
-          <section className="rounded-lg border bg-white p-6">
-            <h3 className="text-base font-semibold text-slate-950">Estado</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              {statusAction.description}
-            </p>
+        <AlertDialog
+          open={dialogIntent === statusAction.intent}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDialogIntent(null);
+            }
+          }}
+        >
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {statusAction.intent === "archive-dancer"
+                  ? "¿Archivar bailarín?"
+                  : "¿Reactivar bailarín?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {statusAction.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
             <form
+              id={statusFormId}
               method="post"
               noValidate
-              className="mt-4"
               onSubmit={statusForm.handleSubmit}
             >
               <input type="hidden" name="intent" value={statusAction.intent} />
-              <FieldGroup>
+              {dancer.correctionReasonRequired ? (
                 <DancerCorrectionReasonField
                   form={statusForm.form}
-                  required={dancer.correctionReasonRequired}
+                  formId={statusFormId}
+                  required={true}
                 />
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="submit"
-                    variant={
-                      statusAction.intent === "archive-dancer"
-                        ? "outline"
-                        : "default"
-                    }
-                  >
-                    {statusAction.label}
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link to={loaderData.cancelHref}>Cancelar</Link>
-                  </Button>
-                </div>
-              </FieldGroup>
+              ) : null}
             </form>
-          </section>
-        ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                asChild
+                variant={
+                  statusAction.intent === "archive-dancer"
+                    ? "destructive"
+                    : "default"
+                }
+              >
+                <Button type="submit" form={statusFormId}>
+                  {statusAction.label}
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        <ReadOnlyCard title="Trazabilidad">
-          <DetailRow label="Creado">
-            {dateTimeFormatter.format(dancer.createdAt)}
-          </DetailRow>
-          <DetailRow label="Actualizado">
-            {dateTimeFormatter.format(dancer.updatedAt)}
-          </DetailRow>
-        </ReadOnlyCard>
+        <AlertDialog
+          open={dialogIntent === "verify"}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDialogIntent(null);
+            }
+          }}
+        >
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Verificar identidad?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirmá la verificación administrativa de la identidad de este
+                bailarín.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <form id={verifyFormId} method="post">
+              <input
+                type="hidden"
+                name="intent"
+                value="verify-dancer-identity"
+              />
+            </form>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button type="submit" form={verifyFormId}>
+                  Verificar identidad
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </section>
-    </AdminShell>
+    </AdminResourceLayout>
   );
 }
 
@@ -762,9 +982,11 @@ function DancerCorrectionReasonField<
   TFieldValues extends AdministrativeDancerStatusInput,
 >({
   form,
+  formId,
   required,
 }: {
   form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
+  formId?: string;
   required: boolean;
 }) {
   const id = useId();
@@ -785,6 +1007,7 @@ function DancerCorrectionReasonField<
               aria-describedby={
                 fieldState.error ? `${hintId} ${errorId}` : hintId
               }
+              form={formId}
               {...field}
             />
             <FieldDescription id={hintId}>
@@ -948,34 +1171,91 @@ function isFutureDateOnly(value: string) {
   return value > today;
 }
 
-function ReadOnlyCard({
-  children,
-  title,
-}: {
-  children: ReactNode;
-  title: string;
-}) {
+function ReadOnlyField({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <section className="rounded-lg border bg-white p-6">
-      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
-      <dl className="mt-4 space-y-4">{children}</dl>
-    </section>
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+        {value}
+      </div>
+    </div>
   );
 }
 
-function DetailRow({
-  children,
-  label,
+function InscriptionsSection({
+  inscriptions,
+  selectedEventId,
 }: {
-  children: ReactNode;
-  label: string;
+  inscriptions: LoaderData["dancer"]["inscriptions"];
+  selectedEventId: string | null;
 }) {
+  if (!selectedEventId) {
+    return (
+      <AdminEmptyState
+        title="Sin evento activo"
+        description="Elegí un evento activo para revisar las inscripciones de este bailarín."
+      />
+    );
+  }
+
+  if (inscriptions.length === 0) {
+    return (
+      <AdminEmptyState
+        title="Sin inscripciones en el evento activo"
+        description="Este bailarín no tiene inscripciones activas para mostrar."
+      />
+    );
+  }
+
+  const columns: DataTableColumn<
+    LoaderData["dancer"]["inscriptions"][number]
+  >[] = [
+    {
+      id: "choreography",
+      header: "Coreografía",
+      cell: (inscription) => inscription.choreographyName,
+      filterValue: (inscription) => inscription.choreographyName,
+    },
+    {
+      id: "groupType",
+      header: "Tipo grupal",
+      cell: (inscription) => formatGroupTypeLabel(inscription.groupType),
+      filterValue: (inscription) => formatGroupTypeLabel(inscription.groupType),
+    },
+    {
+      id: "basePrice",
+      header: "Precio base",
+      cell: (inscription) => formatMoney(inscription.basePriceInCents),
+    },
+    {
+      id: "discount",
+      header: "Descuento",
+      cell: (inscription) => formatMoney(inscription.discountInCents),
+    },
+    {
+      id: "estimatedSubtotal",
+      header: "Subtotal estimado",
+      cell: (inscription) => formatMoney(inscription.estimatedSubtotalInCents),
+    },
+  ];
+
   return (
-    <div>
-      <dt className="text-sm font-medium text-slate-600">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-950">{children}</dd>
-    </div>
+    <DataTable
+      rows={inscriptions}
+      columns={columns}
+      getRowKey={(inscription) => inscription.id}
+      searchPlaceholder="Buscar coreografía"
+      textFilterColumnId="choreography"
+    />
   );
+}
+
+function formatMoney(valueInCents: number | null) {
+  if (valueInCents === null) {
+    return "Sin precio";
+  }
+
+  return moneyFormatter.format(valueInCents / 100);
 }
 
 function ParticipationBadge({
