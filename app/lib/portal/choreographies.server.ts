@@ -156,6 +156,8 @@ const compatibleDancerRosterRequiredMessage =
   "Esta propuesta cambia datos estructurales de la coreografía. En esta iteración solo podés guardar rosters compatibles.";
 const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
+const compatibleScheduleSelectionRequiredMessage =
+  "Elegí un Cronograma compatible para guardar los bailarines.";
 const closedRegistrationDeletionWarningMessage =
   "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
@@ -1008,10 +1010,9 @@ function resolveSelectedScheduleEntryIdForDancerUpdate(input: {
     return {
       ok: false,
       fieldErrors: {
-        scheduleEntryId:
-          "Elegí un Cronograma compatible para guardar los bailarines.",
+        scheduleEntryId: compatibleScheduleSelectionRequiredMessage,
       },
-      message: "Elegí un Cronograma compatible para guardar los bailarines.",
+      message: compatibleScheduleSelectionRequiredMessage,
     };
   }
 

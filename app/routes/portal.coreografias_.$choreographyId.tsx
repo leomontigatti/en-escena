@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type SubmitEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -104,6 +104,11 @@ type ResolveDancersActionData = {
   intent: typeof resolveChoreographyDancersIntent;
   result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
 };
+type DancerResolutionResult = ResolveDancersActionData["result"];
+type DancerScheduleResolution = Extract<
+  DancerResolutionResult,
+  { ok: true }
+>["resolution"]["schedule"];
 
 type ActionData =
   | {
@@ -630,13 +635,7 @@ function DancerEditor({
   const scheduleResolution = resolution?.ok
     ? resolution.resolution.schedule
     : null;
-  const scheduleOptions =
-    scheduleResolution &&
-    (scheduleResolution.status === "keep-current" ||
-      scheduleResolution.status === "auto" ||
-      scheduleResolution.status === "multiple")
-      ? scheduleResolution.options
-      : [];
+  const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
 
   useEffect(() => {
     if (!hasRosterChanged) {
@@ -678,37 +677,34 @@ function DancerEditor({
   const getDancerLabel = (value: string) =>
     dancerOptionByValue.get(value)?.label ?? value;
 
-  const canSave =
-    watchedDancerIds.length > 0 &&
-    !isResolving &&
-    (!hasRosterChanged ||
-      (resolution?.ok === true &&
-        resolution.resolution.schedule.status !== "none" &&
-        (resolution.resolution.schedule.status !== "multiple" ||
-          watchedScheduleEntryId.length > 0)));
+  const canSave = canSaveDancerSelection({
+    hasRosterChanged,
+    isResolving,
+    resolution,
+    selectedDancerIds: watchedDancerIds,
+    selectedScheduleEntryId: watchedScheduleEntryId,
+  });
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     void form.handleSubmit(() => {
-      if (hasRosterChanged) {
-        if (
-          !resolution?.ok ||
-          resolution.resolution.schedule.status === "none"
-        ) {
-          return;
-        }
+      const submitBlockReason = getDancerScheduleSubmitBlockReason({
+        hasRosterChanged,
+        resolution,
+        selectedScheduleEntryId: form.getValues("scheduleEntryId") ?? "",
+      });
 
-        if (
-          resolution.resolution.schedule.status === "multiple" &&
-          !form.getValues("scheduleEntryId")
-        ) {
-          form.setError("scheduleEntryId", {
-            message: requiredFieldMessage,
-            type: "manual",
-          });
-          return;
-        }
+      if (submitBlockReason === "unresolved") {
+        return;
+      }
+
+      if (submitBlockReason === "missing-schedule") {
+        form.setError("scheduleEntryId", {
+          message: requiredFieldMessage,
+          type: "manual",
+        });
+        return;
       }
 
       form.clearErrors("scheduleEntryId");
@@ -802,11 +798,11 @@ function DancerEditor({
         />
       </FieldSet>
 
-      {form.getValues("scheduleEntryId") ? (
+      {watchedScheduleEntryId ? (
         <input
           type="hidden"
           name="scheduleEntryId"
-          value={form.getValues("scheduleEntryId")}
+          value={watchedScheduleEntryId}
         />
       ) : null}
 
@@ -833,6 +829,71 @@ function DancerEditor({
       </Button>
     </form>
   );
+}
+
+function getSelectableScheduleOptions(
+  scheduleResolution: DancerScheduleResolution | null,
+) {
+  if (!scheduleResolution || scheduleResolution.status === "none") {
+    return [];
+  }
+
+  return scheduleResolution.options;
+}
+
+function canSaveDancerSelection(input: {
+  hasRosterChanged: boolean;
+  isResolving: boolean;
+  resolution: DancerResolutionResult | null;
+  selectedDancerIds: string[];
+  selectedScheduleEntryId: string;
+}) {
+  if (input.selectedDancerIds.length === 0 || input.isResolving) {
+    return false;
+  }
+
+  if (!input.hasRosterChanged) {
+    return true;
+  }
+
+  if (
+    !input.resolution?.ok ||
+    input.resolution.resolution.schedule.status === "none"
+  ) {
+    return false;
+  }
+
+  if (input.resolution.resolution.schedule.status === "multiple") {
+    return input.selectedScheduleEntryId.length > 0;
+  }
+
+  return true;
+}
+
+function getDancerScheduleSubmitBlockReason(input: {
+  hasRosterChanged: boolean;
+  resolution: DancerResolutionResult | null;
+  selectedScheduleEntryId: string;
+}): "missing-schedule" | "unresolved" | null {
+  if (!input.hasRosterChanged) {
+    return null;
+  }
+
+  if (
+    !input.resolution?.ok ||
+    input.resolution.resolution.schedule.status === "none"
+  ) {
+    return "unresolved";
+  }
+
+  if (
+    input.resolution.resolution.schedule.status === "multiple" &&
+    !input.selectedScheduleEntryId
+  ) {
+    return "missing-schedule";
+  }
+
+  return null;
 }
 
 function DancerReadonlyList({
@@ -1241,7 +1302,26 @@ function formatScheduleOptionLabel(option: {
   groupTypeKey: string;
   capacity: number;
 }) {
-  return `${option.scheduleBlock.name} · ${formatGroupTypeLabel(option.groupTypeKey as Parameters<typeof formatGroupTypeLabel>[0])} · Cupo ${option.capacity}`;
+  return `${option.scheduleBlock.name} · ${formatScheduleGroupTypeLabel(option.groupTypeKey)} · Cupo ${option.capacity}`;
+}
+
+function formatScheduleGroupTypeLabel(groupTypeKey: string) {
+  if (isChoreographyGroupType(groupTypeKey)) {
+    return formatGroupTypeLabel(groupTypeKey);
+  }
+
+  return groupTypeKey;
+}
+
+function isChoreographyGroupType(
+  value: string,
+): value is Parameters<typeof formatGroupTypeLabel>[0] {
+  return (
+    value === "solo" ||
+    value === "duo" ||
+    value === "trio" ||
+    value === "grupal"
+  );
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {
