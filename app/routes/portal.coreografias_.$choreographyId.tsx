@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { redirect, useActionData, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
@@ -15,6 +15,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
@@ -377,23 +388,79 @@ function ProfessorEditor({
   professors: ChoreographyProfessorOption[];
   selectedProfessorIds: Set<string>;
 }) {
+  const professorOptions = useMemo(
+    () =>
+      professors.map((professor) => ({
+        value: professor.id,
+        label: formatProfessorName(professor),
+        description: getProfessorAvailabilityCopy(professor.active),
+        active: professor.active,
+      })),
+    [professors],
+  );
+  const [currentProfessorIds, setCurrentProfessorIds] = useState(
+    Array.from(selectedProfessorIds),
+  );
+
+  const getProfessorLabel = (value: string) =>
+    professorOptions.find((option) => option.value === value)?.label ?? value;
+
   return (
-    <form method="post" className="mt-4 space-y-4">
+    <form method="post" className="mt-4 flex flex-col gap-4">
       <input
         type="hidden"
         name="intent"
         value={updateChoreographyProfessorsIntent}
       />
-      {professors.length > 0 ? (
-        <ul className="space-y-3">
-          {professors.map((professor) => (
-            <ProfessorOptionRow
-              key={professor.id}
-              professor={professor}
-              selected={selectedProfessorIds.has(professor.id)}
-            />
-          ))}
-        </ul>
+      {currentProfessorIds.map((professorId) => (
+        <input
+          key={professorId}
+          type="hidden"
+          name="professorIds"
+          value={professorId}
+        />
+      ))}
+      {professorOptions.length > 0 ? (
+        <Combobox
+          items={professorOptions.map((option) => option.value)}
+          itemToStringValue={getProfessorLabel}
+          multiple
+          value={currentProfessorIds}
+          onValueChange={setCurrentProfessorIds}
+        >
+          <ComboboxChips>
+            <ComboboxValue>
+              {currentProfessorIds.map((value) => (
+                <ComboboxChip key={value}>
+                  {getProfessorLabel(value)}
+                </ComboboxChip>
+              ))}
+            </ComboboxValue>
+            <ComboboxChipsInput placeholder="Buscar profesores" />
+          </ComboboxChips>
+          <ComboboxContent>
+            <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+            <ComboboxList>
+              {(value) => {
+                const option = professorOptions.find(
+                  (professorOption) => professorOption.value === value,
+                );
+
+                return (
+                  <ComboboxItem key={value} value={value}>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span>{option?.label ?? value}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {option?.description}
+                      </span>
+                    </span>
+                    {option?.active === false ? <ArchivedBadge /> : null}
+                  </ComboboxItem>
+                );
+              }}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       ) : (
         <p className="text-sm leading-6 text-slate-600">
           No hay Profesores activos o vinculados para editar en esta
@@ -401,46 +468,10 @@ function ProfessorEditor({
         </p>
       )}
 
-      <button
-        type="submit"
-        className="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-      >
+      <Button type="submit" className="w-fit">
         Guardar Profesores
-      </button>
+      </Button>
     </form>
-  );
-}
-
-function ProfessorOptionRow({
-  professor,
-  selected,
-}: {
-  professor: ChoreographyProfessorOption;
-  selected: boolean;
-}) {
-  return (
-    <li className="rounded-md border border-slate-200 px-3 py-3">
-      <label className="flex items-start justify-between gap-4">
-        <span className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            name="professorIds"
-            value={professor.id}
-            defaultChecked={selected}
-            className="mt-0.5 size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-100"
-          />
-          <span>
-            <span className="block text-sm font-medium text-slate-950">
-              {professor.lastName}, {professor.firstName}
-            </span>
-            <span className="block text-sm text-slate-600">
-              {getProfessorAvailabilityCopy(professor.active)}
-            </span>
-          </span>
-        </span>
-        {!professor.active ? <ArchivedBadge /> : null}
-      </label>
-    </li>
   );
 }
 
@@ -605,6 +636,13 @@ function getProfessorAvailabilityCopy(isActive: boolean) {
   return isActive
     ? "Disponible para nuevas asignaciones."
     : "Archivado pero conservado por vínculo existente.";
+}
+
+function formatProfessorName(professor: {
+  firstName: string;
+  lastName: string;
+}) {
+  return `${professor.lastName}, ${professor.firstName}`;
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

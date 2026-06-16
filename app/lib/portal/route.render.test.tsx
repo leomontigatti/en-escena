@@ -152,16 +152,20 @@ describe("portal route view", () => {
     for (const columnLabel of [
       "Nombre",
       "Modalidad / Submodalidad",
-      "Categoría / Nivel",
-      "Estado operativo",
+      "Categoría / Tipo de grupo",
+      "Estado",
     ]) {
       expect(markup).toContain(columnLabel);
     }
 
     expect(markup).not.toContain("Evento consultado");
     expect(markup).toContain("Mi Pieza");
+    expect(markup).toContain(
+      "Buscar coreografía por nombre, modalidad o categoría",
+    );
+    expect(markup).toContain("Filtros");
     expect(markup).toContain("Jazz · Lyrical");
-    expect(markup).toContain("Juvenil · Inicial");
+    expect(markup).toContain("Juvenil · Grupal");
     expect(markup).toContain("Pendiente: Música");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
@@ -341,8 +345,9 @@ describe("portal route view", () => {
     expect(markup).toContain("Editable");
     expect(markup).toContain("Profesores actualizados correctamente.");
     expect(markup).toContain("Guardar Profesores");
+    expect(markup).toContain("Buscar profesores");
     expect(markup).toContain("Archivada, Mora");
-    expect(markup).toContain('name="professorIds" checked="" value="prof_2"');
+    expect(markup).toContain('name="professorIds" value="prof_2"');
     expect(markup).toContain("Estado operativo al día.");
     expect(markup).toContain('value="update-choreography-professors"');
     expect(markup).toContain("Eliminar Coreografía");

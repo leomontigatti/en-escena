@@ -7,8 +7,14 @@ import {
   PortalEmptyList,
   type PortalRouteHandle,
 } from "@/components/portal/ui";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { Badge } from "@/components/ui/badge";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
+  formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
   formatOperationalStatusLabel,
   type ChoreographyListItem,
 } from "@/lib/portal/choreographies";
@@ -284,48 +290,106 @@ function ChoreographyTable({
 }: {
   choreographies: PortalCoreografiasRouteProps["loaderData"]["choreographies"];
 }) {
+  const columns: DataTableColumn<ChoreographyListItem>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "font-medium",
+      cell: (choreography) => (
+        <Link
+          to={`/portal/coreografias/${choreography.id}`}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {choreography.name}
+        </Link>
+      ),
+      filterValue: (choreography) =>
+        [
+          choreography.name,
+          choreography.modalityName,
+          choreography.submodalityName,
+          choreography.categoryName,
+          formatChoreographyGroupTypeLabel(choreography.groupType),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      sortValue: (choreography) => choreography.name,
+    },
+    {
+      id: "modality",
+      header: "Modalidad / Submodalidad",
+      cell: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.modalityName,
+          choreography.submodalityName,
+        ),
+      filterValue: (choreography) =>
+        [choreography.modalityName, choreography.submodalityName]
+          .filter(Boolean)
+          .join(" "),
+      sortValue: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.modalityName,
+          choreography.submodalityName,
+        ),
+    },
+    {
+      id: "categoryGroup",
+      header: "Categoría / Tipo de grupo",
+      cell: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.categoryName ?? "Categoría pendiente",
+          formatChoreographyGroupTypeLabel(choreography.groupType),
+        ),
+      filterValue: (choreography) =>
+        [
+          choreography.categoryName ?? "Categoría pendiente",
+          formatChoreographyGroupTypeLabel(choreography.groupType),
+        ].join(" "),
+      sortValue: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.categoryName ?? "Categoría pendiente",
+          formatChoreographyGroupTypeLabel(choreography.groupType),
+        ),
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (choreography) => (
+        <OperationalStatusBadge choreography={choreography} />
+      ),
+      filterValues: (choreography) => [choreography.operationalStatus.code],
+      sortValue: (choreography) =>
+        formatOperationalStatusLabel(choreography.operationalStatus),
+    },
+  ];
+
   return (
-    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <thead className="bg-slate-50">
-          <tr>
-            {CHOREOGRAPHY_TABLE_HEADERS.map((header) => (
-              <th key={header} className={CHOREOGRAPHY_TABLE_HEADER_CLASS_NAME}>
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200">
-          {choreographies.map((choreography) => (
-            <tr key={choreography.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 font-medium text-slate-950">
-                <Link
-                  to={`/portal/coreografias/${choreography.id}`}
-                  className="rounded-sm underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                >
-                  {choreography.name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-slate-700">
-                {formatPrimaryAndSecondaryValue(
-                  choreography.modalityName,
-                  choreography.submodalityName,
-                )}
-              </td>
-              <td className="px-4 py-3 text-slate-700">
-                {formatPrimaryAndSecondaryValue(
-                  choreography.categoryName ?? "Categoría pendiente",
-                  choreography.experienceLevelName,
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <OperationalStatusBadge choreography={choreography} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="mt-4">
+      <DataTable
+        rows={choreographies}
+        columns={columns}
+        getRowKey={(choreography) => choreography.id}
+        searchPlaceholder="Buscar coreografía por nombre, modalidad o categoría"
+        textFilterColumnId="name"
+        facetedFilters={[
+          {
+            columnId: "status",
+            label: "Filtros",
+            groups: [
+              {
+                label: "Estado",
+                options: [
+                  { label: "Completa", value: "complete" },
+                  { label: "Pendiente", value: "incomplete" },
+                ],
+              },
+            ],
+          },
+        ]}
+        emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
+        initialSort={{ columnId: "name", direction: "asc" }}
+      />
     </div>
   );
 }
@@ -336,17 +400,13 @@ function OperationalStatusBadge({
   choreography: ChoreographyListItem;
 }) {
   if (choreography.operationalStatus.code === "complete") {
-    return (
-      <span className="inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-        Completa
-      </span>
-    );
+    return <Badge variant="secondary">Completa</Badge>;
   }
 
   return (
-    <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+    <Badge variant="outline">
       {formatOperationalStatusLabel(choreography.operationalStatus)}
-    </span>
+    </Badge>
   );
 }
 
@@ -361,16 +421,6 @@ const creationToneClassNames: Record<CreationState["tone"], string> = {
   blocked: "bg-amber-50 text-amber-900",
   info: "bg-slate-50 text-slate-700",
 };
-
-const CHOREOGRAPHY_TABLE_HEADERS = [
-  "Nombre",
-  "Modalidad / Submodalidad",
-  "Categoría / Nivel",
-  "Estado operativo",
-] as const;
-
-const CHOREOGRAPHY_TABLE_HEADER_CLASS_NAME =
-  "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600";
 
 const EVENT_STATUS_BADGE_CLASS_NAME =
   "inline-flex w-fit rounded-md px-2.5 py-1 text-xs font-semibold";
