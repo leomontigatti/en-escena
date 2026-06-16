@@ -6,6 +6,7 @@ import {
   academies,
   categories,
   categoryExperienceLevels,
+  categoryModalities,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
@@ -13,6 +14,7 @@ import {
   events,
   experienceLevels,
   modalities,
+  prices,
   professors,
   scheduleBlockModalities,
   scheduleBlocks,
@@ -651,7 +653,7 @@ describe.sequential("portal choreographies reads", () => {
     });
 
     expect(rejectedResult).toMatchObject({
-      status: "error",
+      status: "professor-error",
       message:
         "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.",
     });
@@ -694,6 +696,182 @@ describe.sequential("portal choreographies reads", () => {
       code: "incomplete",
       pendingItems: ["professors"],
     });
+  });
+
+  test("updates linked bailarines for eligible compatible roster changes, preserves profesores, and rejects later ineligible saves", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster",
+      email: "coreografias.detail.dancers.owner@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const archivedLinkedDancer = await createDancer(owner.academyId, {
+      active: false,
+      firstName: "Mora",
+      lastName: "Archivada",
+      birthDate: "2011-04-05",
+    });
+    const activeReplacementDancer = await createDancer(owner.academyId, {
+      firstName: "Luz",
+      lastName: "Activa",
+      birthDate: "2011-05-05",
+    });
+    const archivedUnlinkedDancer = await createDancer(owner.academyId, {
+      active: false,
+      firstName: "Nora",
+      lastName: "Oculta",
+      birthDate: "2011-06-05",
+    });
+    const professor = await createProfessor(owner.academyId, {
+      firstName: "Profe",
+      lastName: "Quieta",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/dancers-update.mp3",
+      name: "Editable",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: archivedLinkedDancer.id,
+      ageAtEventStart: 15,
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: choreography.id,
+      professorId: professor.id,
+    });
+
+    const initialDetail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(initialDetail.dancerEditingEligibility).toEqual({
+      canEdit: true,
+      reasonCode: null,
+      reasonText: null,
+    });
+    expect(initialDetail.availableDancers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: archivedLinkedDancer.id,
+          active: false,
+        }),
+        expect.objectContaining({
+          id: activeReplacementDancer.id,
+          active: true,
+        }),
+      ]),
+    );
+    expect(
+      initialDetail.availableDancers.map((dancer) => dancer.id),
+    ).not.toContain(archivedUnlinkedDancer.id);
+
+    const updateResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData([activeReplacementDancer.id]),
+      ),
+    });
+
+    expect(updateResponse).toBeInstanceOf(Response);
+    if (!(updateResponse instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(updateResponse.status).toBe(302);
+    expect(updateResponse.headers.get("location")).toBe(
+      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+    );
+
+    await expect(
+      db.query.choreographyDancers.findMany({
+        where: eq(choreographyDancers.choreographyId, choreography.id),
+      }),
+    ).resolves.toMatchObject([{ dancerId: activeReplacementDancer.id }]);
+    await expect(
+      db.query.choreographyProfessors.findMany({
+        where: eq(choreographyProfessors.choreographyId, choreography.id),
+      }),
+    ).resolves.toMatchObject([{ professorId: professor.id }]);
+
+    const updatedDetail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(updatedDetail.choreography.dancers).toMatchObject([
+      {
+        id: activeReplacementDancer.id,
+        active: true,
+      },
+    ]);
+    expect(updatedDetail.availableDancers.map((dancer) => dancer.id)).toEqual([
+      activeReplacementDancer.id,
+    ]);
+
+    const rejectedArchivedReuse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData([archivedLinkedDancer.id]),
+      ),
+    });
+
+    expect(rejectedArchivedReuse).toMatchObject({
+      status: "dancer-error",
+      message:
+        "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.",
+    });
+
+    await db
+      .update(choreographies)
+      .set({ hasPresentation: true })
+      .where(eq(choreographies.id, choreography.id));
+
+    const rejectedIneligibleSave = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData([activeReplacementDancer.id]),
+      ),
+    });
+
+    expect(rejectedIneligibleSave).toMatchObject({
+      status: "dancer-error",
+      message:
+        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    });
+
+    await expect(
+      db.query.choreographyDancers.findMany({
+        where: eq(choreographyDancers.choreographyId, choreography.id),
+      }),
+    ).resolves.toMatchObject([{ dancerId: activeReplacementDancer.id }]);
   });
 
   test("does not load historical Evento detail in V1 active-event context", async () => {
@@ -1094,6 +1272,16 @@ async function createEventCatalog(eventId: string) {
       experienceLevelKey: "",
     })
     .returning();
+  await db.insert(categoryModalities).values([
+    {
+      categoryId: categoryWithLevel.id,
+      modalityId: modality.id,
+    },
+    {
+      categoryId: categoryWithoutLevel.id,
+      modalityId: modality.id,
+    },
+  ]);
   await db.insert(categoryExperienceLevels).values({
     categoryId: categoryWithLevel.id,
     experienceLevelId: level.id,
@@ -1111,6 +1299,13 @@ async function createEventCatalog(eventId: string) {
   await db.insert(scheduleBlockModalities).values({
     scheduleBlockId: scheduleBlock.id,
     modalityId: modality.id,
+  });
+  await db.insert(prices).values({
+    eventId,
+    name: `Solo ${eventId}`,
+    groupType: "solo",
+    amount: 10000,
+    scheduleBlockId: null,
   });
   const [scheduleEntry] = await db
     .insert(scheduleEntries)
@@ -1238,6 +1433,17 @@ function professorLinkFormData(professorIds: string[]) {
 
   for (const professorId of professorIds) {
     formData.append("professorIds", professorId);
+  }
+
+  return formData;
+}
+
+function dancerLinkFormData(dancerIds: string[]) {
+  const formData = new FormData();
+  formData.set("intent", "update-choreography-dancers");
+
+  for (const dancerId of dancerIds) {
+    formData.append("dancerIds", dancerId);
   }
 
   return formData;

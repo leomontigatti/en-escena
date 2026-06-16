@@ -1,7 +1,10 @@
 import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { redirect, useActionData, useSearchParams } from "react-router";
 import { clsx } from "clsx";
+import { z } from "zod";
 
 import { AccessNotice } from "@/components/auth/access-ui";
 import type { PortalRouteHandle } from "@/components/portal/ui";
@@ -26,12 +29,20 @@ import {
   ComboboxList,
   ComboboxValue,
 } from "@/components/ui/combobox";
+import {
+  FieldDescription,
+  FieldError,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
   findChoreographyForAcademyEvent,
   getChoreographyDeletionAvailability,
+  listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
+  updateChoreographyDancers,
   updateChoreographyProfessors,
 } from "@/lib/portal/choreographies.server";
 import {
@@ -43,18 +54,39 @@ import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
-const choreographyUpdatedSearchParam = "actualizado";
-const choreographyUpdatedSuccessMessage =
+const choreographyProfessorsUpdatedSearchParam = "actualizado";
+const choreographyProfessorsUpdatedSuccessMessage =
   "Profesores actualizados correctamente.";
+const choreographyDancersUpdatedSearchParam = "bailarines-actualizados";
+const choreographyDancersUpdatedSuccessMessage =
+  "Bailarines actualizados correctamente.";
 const choreographyDeletedSearchParam = "eliminada";
+const updateChoreographyDancersIntent = "update-choreography-dancers";
 const updateChoreographyProfessorsIntent = "update-choreography-professors";
 const deleteChoreographyIntent = "delete-choreography";
 const readOnlyEventMessage = "Este Evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
+const rosterEditorReviewMessage = "Revisá los bailarines de la coreografía.";
+
+const dancerEditorSchema = z.object({
+  dancerIds: z
+    .array(z.string().trim().min(1))
+    .min(1, "Este campo es obligatorio."),
+});
+
+type DancerEditorValues = z.infer<typeof dancerEditorSchema>;
 
 type ActionData =
   | {
-      status: "error";
+      status: "dancer-error";
+      fieldErrors?: {
+        dancerIds?: string;
+      };
+      message: string;
+      selectedDancerIds: string[];
+    }
+  | {
+      status: "professor-error";
       message: string;
       selectedProfessorIds: string[];
     }
@@ -67,6 +99,7 @@ type PortalCoreografiaDetalleRouteProps = {
 };
 
 type LoaderData = PortalCoreografiaDetalleRouteProps["loaderData"];
+type ChoreographyDancerOption = LoaderData["availableDancers"][number];
 type ChoreographyProfessor = LoaderData["choreography"]["professors"][number];
 type ChoreographyProfessorOption = LoaderData["availableProfessors"][number];
 type ChoreographyOperationalStatus =
@@ -125,10 +158,15 @@ export async function loader({
     academy.id,
     choreography.professors.map((professor) => professor.id),
   );
+  const availableDancers = await listDancerOptionsForChoreography(
+    academy.id,
+    choreography.dancers.map((dancer) => dancer.id),
+  );
 
   return {
     choreography,
     dancerEditingEligibility: choreography.dancerEditingEligibility,
+    availableDancers,
     availableProfessors,
     deletionAvailability: getChoreographyDeletionAvailability({
       isReadOnly: eventContext.isReadOnly,
@@ -174,6 +212,17 @@ export async function action({
     });
   }
 
+  if (intent === updateChoreographyDancersIntent) {
+    const dancerIds = readFormStringArray(formData, "dancerIds");
+    return await handleUpdateChoreographyDancersAction({
+      academyId: academy.id,
+      choreographyId,
+      dancerIds,
+      eventId: selectedEventId,
+      isRegistrationOpen: eventContext.isRegistrationOpen,
+    });
+  }
+
   if (intent === deleteChoreographyIntent) {
     assertDeleteConfirmationMatches(formData, choreographyId);
 
@@ -200,7 +249,9 @@ export function PortalCoreografiaDetalleRouteView({
     initialDeleteDialogOpen,
   );
   const selectedProfessorIds = new Set(
-    actionData?.selectedProfessorIds ??
+    (actionData?.status === "professor-error"
+      ? actionData.selectedProfessorIds
+      : undefined) ??
       loaderData.choreography.professors.map((professor) => professor.id),
   );
 
@@ -328,24 +379,17 @@ export function PortalCoreografiaDetalleRouteView({
                 </AccessNotice>
               </div>
             ) : null}
-            <ul className="mt-4 space-y-3">
-              {loaderData.choreography.dancers.map((dancer) => (
-                <li
-                  key={dancer.id}
-                  className="flex items-center justify-between gap-4 rounded-md border border-slate-100 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-slate-950">
-                      {dancer.lastName}, {dancer.firstName}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Edad al inicio del Evento: {dancer.ageAtEventStart}
-                    </p>
-                  </div>
-                  {!dancer.active ? <ArchivedBadge /> : null}
-                </li>
-              ))}
-            </ul>
+            {dancerEditingAvailability.canEdit ? (
+              <DancerEditor
+                actionData={
+                  actionData?.status === "dancer-error" ? actionData : undefined
+                }
+                dancers={loaderData.availableDancers}
+                selectedDancers={loaderData.choreography.dancers}
+              />
+            ) : (
+              <DancerReadonlyList dancers={loaderData.choreography.dancers} />
+            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-6">
@@ -408,6 +452,181 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       </dt>
       <dd className="mt-1 text-sm text-slate-950">{value}</dd>
     </div>
+  );
+}
+
+function DancerEditor({
+  actionData,
+  dancers,
+  selectedDancers,
+}: {
+  actionData: Extract<ActionData, { status: "dancer-error" }> | undefined;
+  dancers: ChoreographyDancerOption[];
+  selectedDancers: LoaderData["choreography"]["dancers"];
+}) {
+  const dancerOptions = useMemo(
+    () =>
+      dancers.map((dancer) => ({
+        value: dancer.id,
+        label: formatDancerName(dancer),
+        description: getDancerAvailabilityCopy(dancer.active),
+        active: dancer.active,
+      })),
+    [dancers],
+  );
+  const selectedDancerIds = useMemo(
+    () =>
+      actionData?.selectedDancerIds ??
+      selectedDancers.map((dancer) => dancer.id),
+    [actionData?.selectedDancerIds, selectedDancers],
+  );
+  const form = useForm<DancerEditorValues>({
+    resolver: zodResolver(dancerEditorSchema),
+    defaultValues: {
+      dancerIds: selectedDancerIds,
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      dancerIds: selectedDancerIds,
+    });
+  }, [form, selectedDancerIds]);
+
+  useEffect(() => {
+    if (actionData?.fieldErrors?.dancerIds) {
+      form.setError("dancerIds", {
+        message: actionData.fieldErrors.dancerIds,
+      });
+    }
+  }, [actionData?.fieldErrors?.dancerIds, form]);
+
+  const getDancerLabel = (value: string) =>
+    dancerOptions.find((option) => option.value === value)?.label ?? value;
+
+  return (
+    <form
+      method="post"
+      className="mt-4 flex flex-col gap-4"
+      onSubmit={form.handleSubmit((_, event) => {
+        const formElement = event?.target;
+
+        if (formElement instanceof HTMLFormElement) {
+          HTMLFormElement.prototype.submit.call(formElement);
+        }
+      })}
+    >
+      <input
+        type="hidden"
+        name="intent"
+        value={updateChoreographyDancersIntent}
+      />
+      <FieldSet>
+        <FieldLegend variant="label">Bailarines</FieldLegend>
+        <FieldDescription>
+          Elegí bailarines activos de tu academia. Los archivados solo pueden
+          mantenerse o quitarse mientras ya sigan vinculados.
+        </FieldDescription>
+        <Controller
+          control={form.control}
+          name="dancerIds"
+          render={({ field, fieldState }) => (
+            <FieldSet data-invalid={fieldState.error ? true : undefined}>
+              {field.value.map((dancerId) => (
+                <input
+                  key={dancerId}
+                  type="hidden"
+                  name="dancerIds"
+                  value={dancerId}
+                />
+              ))}
+              <Combobox
+                items={dancerOptions.map((option) => option.value)}
+                itemToStringValue={getDancerLabel}
+                multiple
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <ComboboxChips
+                  aria-invalid={fieldState.error ? true : undefined}
+                >
+                  <ComboboxValue>
+                    {field.value.map((value) => (
+                      <ComboboxChip key={value}>
+                        {getDancerLabel(value)}
+                      </ComboboxChip>
+                    ))}
+                  </ComboboxValue>
+                  <ComboboxChipsInput
+                    disabled={dancerOptions.length === 0}
+                    onBlur={field.onBlur}
+                    placeholder={
+                      dancerOptions.length > 0
+                        ? "Buscar bailarines"
+                        : "Sin bailarines disponibles"
+                    }
+                  />
+                </ComboboxChips>
+                <ComboboxContent>
+                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(value) => {
+                      const option = dancerOptions.find(
+                        (dancerOption) => dancerOption.value === value,
+                      );
+
+                      return (
+                        <ComboboxItem key={value} value={value}>
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span>{option?.label ?? value}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {option?.description}
+                            </span>
+                          </span>
+                          {option?.active === false ? <ArchivedBadge /> : null}
+                        </ComboboxItem>
+                      );
+                    }}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </FieldSet>
+          )}
+        />
+      </FieldSet>
+
+      <Button type="submit" className="w-fit">
+        Guardar bailarines
+      </Button>
+    </form>
+  );
+}
+
+function DancerReadonlyList({
+  dancers,
+}: {
+  dancers: LoaderData["choreography"]["dancers"];
+}) {
+  return (
+    <ul className="mt-4 space-y-3">
+      {dancers.map((dancer) => (
+        <li
+          key={dancer.id}
+          className="flex items-center justify-between gap-4 rounded-md border border-slate-100 px-3 py-2"
+        >
+          <div>
+            <p className="text-sm font-medium text-slate-950">
+              {dancer.lastName}, {dancer.firstName}
+            </p>
+            <p className="text-sm text-slate-600">
+              Edad al inicio del Evento: {dancer.ageAtEventStart}
+            </p>
+          </div>
+          {!dancer.active ? <ArchivedBadge /> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -570,7 +789,7 @@ function getDancerSectionDescription(
   dancerEditingEligibility: LoaderData["choreography"]["dancerEditingEligibility"],
 ) {
   if (dancerEditingEligibility.canEdit) {
-    return "La edición de bailarines para esta coreografía está disponible. En esta iteración el roster todavía se muestra en solo lectura.";
+    return "Actualizá el roster solo cuando la propuesta siga siendo compatible con el tipo de grupo, la categoría, el nivel y el cronograma actuales.";
   }
 
   return "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.";
@@ -685,6 +904,16 @@ function getProfessorAvailabilityCopy(isActive: boolean) {
     : "Archivado pero conservado por vínculo existente.";
 }
 
+function getDancerAvailabilityCopy(isActive: boolean) {
+  return isActive
+    ? "Disponible para nuevas asignaciones."
+    : "Archivado pero conservado por vínculo existente.";
+}
+
+function formatDancerName(dancer: { firstName: string; lastName: string }) {
+  return `${dancer.lastName}, ${dancer.firstName}`;
+}
+
 function formatProfessorName(professor: {
   firstName: string;
   lastName: string;
@@ -727,14 +956,58 @@ async function handleUpdateChoreographyProfessorsAction(input: {
 
   if (!result.ok) {
     return {
-      status: "error" as const,
+      status: "professor-error" as const,
       message: result.message,
       selectedProfessorIds: input.professorIds,
     };
   }
 
   return redirect(
-    `/portal/coreografias/${input.choreographyId}?${choreographyUpdatedSearchParam}=1`,
+    `/portal/coreografias/${input.choreographyId}?${choreographyProfessorsUpdatedSearchParam}=1`,
+  );
+}
+
+async function handleUpdateChoreographyDancersAction(input: {
+  academyId: string;
+  choreographyId: string;
+  dancerIds: string[];
+  eventId: string;
+  isRegistrationOpen: boolean;
+}) {
+  const parsed = dancerEditorSchema.safeParse({
+    dancerIds: input.dancerIds,
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "dancer-error" as const,
+      fieldErrors: {
+        dancerIds:
+          parsed.error.flatten().fieldErrors.dancerIds?.[0] ?? undefined,
+      },
+      message: rosterEditorReviewMessage,
+      selectedDancerIds: input.dancerIds,
+    };
+  }
+
+  const result = await updateChoreographyDancers({
+    academyId: input.academyId,
+    choreographyId: input.choreographyId,
+    dancerIds: parsed.data.dancerIds,
+    eventId: input.eventId,
+    isRegistrationOpen: input.isRegistrationOpen,
+  });
+
+  if (!result.ok) {
+    return {
+      status: "dancer-error" as const,
+      message: result.message,
+      selectedDancerIds: parsed.data.dancerIds,
+    };
+  }
+
+  return redirect(
+    `/portal/coreografias/${input.choreographyId}?${choreographyDancersUpdatedSearchParam}=1`,
   );
 }
 
@@ -762,7 +1035,11 @@ function assertDeleteConfirmationMatches(
 }
 
 function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
-  return searchParams.get(choreographyUpdatedSearchParam) === "1"
-    ? choreographyUpdatedSuccessMessage
+  if (searchParams.get(choreographyDancersUpdatedSearchParam) === "1") {
+    return choreographyDancersUpdatedSuccessMessage;
+  }
+
+  return searchParams.get(choreographyProfessorsUpdatedSearchParam) === "1"
+    ? choreographyProfessorsUpdatedSuccessMessage
     : null;
 }
