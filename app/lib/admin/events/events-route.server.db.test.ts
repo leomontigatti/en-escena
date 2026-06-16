@@ -13,6 +13,7 @@ import {
   AdministracionEventosRouteView,
   loader,
 } from "@/routes/administracion.eventos";
+import { loader as detailLoader } from "@/routes/administracion.eventos_.$eventId";
 import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -33,7 +34,6 @@ describe("administracion/eventos route", () => {
     });
 
     await expect(loader(routeArgs(request))).resolves.toMatchObject({
-      email: "admin.eventos@example.com",
       events: [],
     });
   });
@@ -66,7 +66,6 @@ describe("administracion/eventos route", () => {
       "Final 2027",
       "Regional 2026",
     ]);
-    expect(data.selectedEventId).toBe(finalEvent.id);
     expect(markup).toContain(finalEvent.id);
     expect(markup).toContain("Evento activo");
     expect(markup).toContain("Regional 2026");
@@ -79,6 +78,35 @@ describe("administracion/eventos route", () => {
     expect(markup).not.toContain("Resultados ocultos");
     expect(markup).toContain("Final 2027");
     expect(markup).toContain("No iniciado");
+  });
+
+  test("keeps Eventos child route data focused on resource content", async () => {
+    const event = await createSavedEvent({ name: "Regional 2026" });
+    const { request: listRequest } = await createSignedInRequest({
+      email: "admin.route-contract.list@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/eventos",
+    });
+    const { request: detailRequest } = await createSignedInRequest({
+      email: "admin.route-contract.detail@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+    });
+    const newRouteModule =
+      await import("@/routes/administracion.eventos_.nuevo");
+
+    const listData = await loader(routeArgs(listRequest));
+    const detailData = await detailLoader(
+      detailRouteArgs(detailRequest, event.id),
+    );
+
+    expect(listData).not.toHaveProperty("email");
+    expect(listData).not.toHaveProperty("eventOptions");
+    expect(listData).not.toHaveProperty("selectedEventId");
+    expect(detailData).not.toHaveProperty("email");
+    expect(detailData).not.toHaveProperty("eventOptions");
+    expect(detailData).not.toHaveProperty("selectedEventId");
+    expect(Object.hasOwn(newRouteModule, "loader")).toBe(false);
   });
 
   test("creates an inactive Evento from the new route and redirects to detail", async () => {
@@ -245,10 +273,7 @@ function renderRoute(
   >,
 ) {
   const resolvedLoaderData = {
-    email: "admin@example.com",
-    eventOptions: [],
     events: [],
-    selectedEventId: null,
     ...loaderData,
   };
 
@@ -259,9 +284,9 @@ function renderRoute(
       createElement(
         AdminShell,
         {
-          email: resolvedLoaderData.email,
-          events: resolvedLoaderData.eventOptions,
-          selectedEventId: resolvedLoaderData.selectedEventId,
+          email: "admin@example.com",
+          events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+          selectedEventId: "evento_2026",
         },
         createElement(AdministracionEventosRouteView, {
           loaderData: resolvedLoaderData,
@@ -332,6 +357,16 @@ function newRouteArgs(request: Request) {
     context: {},
     url: new URL(request.url),
     pattern: "/administracion/eventos/nuevo",
+  };
+}
+
+function detailRouteArgs(request: Request, eventId: string) {
+  return {
+    request,
+    params: { eventId },
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/eventos/:eventId",
   };
 }
 

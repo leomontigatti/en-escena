@@ -37,10 +37,6 @@ import {
   type FieldErrors,
 } from "@/lib/admin/events/form-values";
 import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
-import {
   activateEvent,
   deactivateEvent,
   deleteEvent,
@@ -68,9 +64,6 @@ type ActionData = {
 
 type AdministracionEventoDetalleRouteProps = {
   loaderData: {
-    email: string;
-    eventOptions: AdminEventContext["events"];
-    selectedEventId: AdminEventContext["selectedEventId"];
     event: EventRow;
   };
   actionData?: ActionData;
@@ -93,14 +86,10 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  await requireAdminPanelUser(request);
   const event = await loadEvent(params.eventId);
 
   return {
-    email: user.email,
-    eventOptions: eventContext.events,
-    selectedEventId: eventContext.selectedEventId,
     event,
   };
 }
@@ -193,11 +182,6 @@ export function AdministracionEventoDetalleRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
       title="Editar evento"
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}

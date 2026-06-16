@@ -5,6 +5,7 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   DataTable,
   type DataTableColumn,
@@ -12,11 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
-import type { AdminRouteHandle } from "@/components/admin/shell";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -30,10 +26,7 @@ type EventListRow = EventRow & {
 
 type AdministracionEventosRouteProps = {
   loaderData: {
-    email: string;
-    eventOptions: AdminEventContext["events"];
     events: EventListRow[];
-    selectedEventId: AdminEventContext["selectedEventId"];
   };
 };
 
@@ -51,21 +44,17 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  await requireAdminPanelUser(request);
   const eventRows = await db.query.events.findMany({
     orderBy: [desc(eventsTable.startsAt)],
   });
   const now = new Date();
 
   return {
-    email: user.email,
-    eventOptions: eventContext.events,
     events: eventRows.map((event) => ({
       ...event,
       temporalState: getTemporalState(event, now),
     })),
-    selectedEventId: eventContext.selectedEventId,
   };
 }
 
@@ -74,11 +63,6 @@ export function AdministracionEventosRouteView({
 }: AdministracionEventosRouteProps) {
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
       title="Eventos"
       description="Gestioná las fechas principales y estado de cada evento."
       action={{ label: "Nuevo evento", to: "/administracion/eventos/nuevo" }}

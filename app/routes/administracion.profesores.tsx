@@ -81,7 +81,7 @@ export function AdministracionProfesoresRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Profesores"
       description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde un único listado."
       requireSelectedEvent={false}

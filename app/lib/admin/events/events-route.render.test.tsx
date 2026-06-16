@@ -13,7 +13,6 @@ import { AdministracionEventoNuevoRouteView } from "@/routes/administracion.even
 describe("administracion/eventos route rendering", () => {
   test("renders an empty Eventos state with a link to create a new Evento", () => {
     const markup = renderRoute({
-      email: "admin@example.com",
       events: [],
     });
 
@@ -25,24 +24,19 @@ describe("administracion/eventos route rendering", () => {
   });
 
   test("shows a non-blocking warning when registration starts after the Evento starts", () => {
-    const markup = renderCreateRoute(
-      {
-        eventOptions: [],
+    const markup = renderCreateRoute({
+      status: "error",
+      message: "Revisá los datos del Evento.",
+      fieldErrors: {},
+      values: {
+        name: "Evento con inscripción tardía",
+        registrationStartsAt: "2027-05-02",
+        registrationEndsAt: "2027-05-03",
+        startsAt: "2027-05-01",
+        endsAt: "2027-05-03",
+        requiredDepositPercentage: "30",
       },
-      {
-        status: "error",
-        message: "Revisá los datos del Evento.",
-        fieldErrors: {},
-        values: {
-          name: "Evento con inscripción tardía",
-          registrationStartsAt: "2027-05-02",
-          registrationEndsAt: "2027-05-03",
-          startsAt: "2027-05-01",
-          endsAt: "2027-05-03",
-          requiredDepositPercentage: "30",
-        },
-      },
-    );
+    });
 
     expect(markup).toContain(
       "La inscripción empieza después del inicio del evento.",
@@ -62,10 +56,7 @@ function renderRoute(
       { initialEntries: ["/administracion/eventos"] },
       createElement(AdministracionEventosRouteView, {
         loaderData: {
-          email: "admin@example.com",
-          eventOptions: [],
           events: [],
-          selectedEventId: null,
           ...loaderData,
         },
       }),
@@ -74,9 +65,6 @@ function renderRoute(
 }
 
 function renderCreateRoute(
-  loaderData: Partial<
-    Parameters<typeof AdministracionEventoNuevoRouteView>[0]["loaderData"]
-  >,
   actionData?: Parameters<
     typeof AdministracionEventoNuevoRouteView
   >[0]["actionData"],
@@ -86,12 +74,6 @@ function renderCreateRoute(
       MemoryRouter,
       { initialEntries: ["/administracion/eventos/nuevo"] },
       createElement(AdministracionEventoNuevoRouteView, {
-        loaderData: {
-          email: "admin@example.com",
-          eventOptions: [],
-          selectedEventId: null,
-          ...loaderData,
-        },
         actionData,
       }),
     ),

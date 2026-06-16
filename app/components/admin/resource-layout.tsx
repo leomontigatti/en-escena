@@ -10,19 +10,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { AdminEventContext } from "@/lib/admin/event-context.server";
 
 export type EventBaseAreaKey =
   | "categorias"
   | "modalidades"
   | "bloques-horarios"
   | "precios";
-
-type AdminResourceLayoutData = {
-  email: string;
-  events: AdminEventContext["events"];
-  selectedEventId: string | null;
-};
 
 type AdminResourceLayoutViewProps = {
   children: ReactNode;
@@ -36,8 +29,8 @@ type AdminResourceLayoutProps = {
   children: ReactNode;
   description: string;
   headerAction?: ReactNode;
-  loaderData: AdminResourceLayoutData;
   requireSelectedEvent?: boolean;
+  selectedEventId?: string | null;
   title: string;
 };
 
@@ -77,14 +70,14 @@ export function EventBasesLayoutView({
 
 export function AdminResourceLayout({
   action,
-  loaderData,
   headerAction,
   requireSelectedEvent = true,
+  selectedEventId = null,
   title,
   description,
   children,
 }: AdminResourceLayoutProps) {
-  return requireSelectedEvent && !loaderData.selectedEventId ? (
+  return requireSelectedEvent && !selectedEventId ? (
     <AdminEventRequiredEmptyState />
   ) : (
     <div className="flex flex-col gap-6">

@@ -13,10 +13,6 @@ import {
   type EventFormValues,
   type FieldErrors,
 } from "@/lib/admin/events/form-values";
-import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
 import { createEvent } from "@/lib/events/management.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
@@ -32,11 +28,6 @@ type ActionData = {
 };
 
 type AdministracionEventoNuevoRouteProps = {
-  loaderData: {
-    email: string;
-    eventOptions: AdminEventContext["events"];
-    selectedEventId: AdminEventContext["selectedEventId"];
-  };
   actionData?: ActionData;
 };
 
@@ -50,17 +41,6 @@ export const handle = {
     { label: "Nuevo" },
   ],
 } satisfies AdminRouteHandle;
-
-export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
-
-  return {
-    email: user.email,
-    eventOptions: eventContext.events,
-    selectedEventId: eventContext.selectedEventId,
-  };
-}
 
 export async function action({ request }: Route.ActionArgs) {
   await requireAdminPanelUser(request);
@@ -95,7 +75,6 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export function AdministracionEventoNuevoRouteView({
-  loaderData,
   actionData,
 }: AdministracionEventoNuevoRouteProps) {
   const defaultValues = actionData?.values ?? defaultEventFormValues();
@@ -110,11 +89,6 @@ export function AdministracionEventoNuevoRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
       title="Nuevo evento"
       description="Definí fechas, seña requerida y visibilidad inicial del evento."
       requireSelectedEvent={false}
@@ -144,15 +118,8 @@ export function AdministracionEventoNuevoRouteView({
   );
 }
 
-export default function AdministracionEventoNuevoRoute({
-  loaderData,
-}: AdministracionEventoNuevoRouteProps) {
+export default function AdministracionEventoNuevoRoute() {
   const actionData = useActionData<typeof action>();
 
-  return (
-    <AdministracionEventoNuevoRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <AdministracionEventoNuevoRouteView actionData={actionData} />;
 }
