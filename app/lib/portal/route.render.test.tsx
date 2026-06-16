@@ -181,11 +181,8 @@ describe("portal route view", () => {
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Inicial");
     expect(markup).toContain("Pendiente: Música");
-    expect(markup).toContain('href="/portal"');
-    expect(markup).toContain('href="/portal/profesores"');
-    expect(markup).toContain('href="/portal/bailarines"');
-    expect(markup).toContain('href="/portal/coreografias"');
-    expect(markup).toContain('aria-current="page"');
+    expectPortalNavigation(markup);
+    expectActivePortalNavigationItem(markup, "/portal/coreografias");
     expect(markup).toContain("Crear Coreografía");
     expect(markup).toContain("disabled");
     expect(markup).toContain(
@@ -227,9 +224,8 @@ describe("portal route view", () => {
     expect(markup).toContain("Sin evento");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Coreografías");
-    expect(markup).toContain('href="/portal"');
-    expect(markup).toContain('href="/portal/coreografias"');
-    expect(markup).toContain('aria-current="page"');
+    expectPortalNavigation(markup);
+    expectActivePortalNavigationItem(markup, "/portal/coreografias");
     expect(markup).toContain("Todavía no hay Eventos configurados");
   });
 
@@ -300,8 +296,8 @@ describe("portal route view", () => {
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Evento activo");
     expect(markup).toContain("Inicio");
-    expect(markup).toContain('href="/portal"');
-    expect(markup).toContain('href="/portal/coreografias"');
+    expectPortalNavigation(markup);
+    expectActivePortalNavigationItem(markup, "/portal/coreografias");
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
@@ -829,6 +825,24 @@ describe("portal Profesor edit view", () => {
 });
 
 type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
+
+const portalNavigationPaths = [
+  "/portal",
+  "/portal/profesores",
+  "/portal/bailarines",
+  "/portal/coreografias",
+] as const;
+
+function expectPortalNavigation(markup: string) {
+  for (const path of portalNavigationPaths) {
+    expect(markup).toContain(`href="${path}"`);
+  }
+}
+
+function expectActivePortalNavigationItem(markup: string, path: string) {
+  expect(markup).toContain(`href="${path}"`);
+  expect(markup).toContain('aria-current="page"');
+}
 
 function renderPortal(input: {
   eventContext: PortalLoaderData["eventContext"];
