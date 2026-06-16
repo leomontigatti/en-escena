@@ -30,6 +30,8 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox";
 import {
+  Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldLegend,
@@ -52,6 +54,11 @@ import {
 } from "@/lib/portal/choreographies";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
+import {
+  createValidatedNativeSubmitHandler,
+  requiredFieldMessage,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyProfessorsUpdatedSearchParam = "actualizado";
@@ -69,19 +76,19 @@ const unsupportedActionMessage = "Acción no soportada.";
 const rosterEditorReviewMessage = "Revisá los bailarines de la coreografía.";
 
 const dancerEditorSchema = z.object({
-  dancerIds: z
-    .array(z.string().trim().min(1))
-    .min(1, "Este campo es obligatorio."),
+  dancerIds: z.array(z.string().trim().min(1)).min(1, requiredFieldMessage),
 });
 
 type DancerEditorValues = z.infer<typeof dancerEditorSchema>;
+type DancerEditorFieldErrors = {
+  dancerIds?: string;
+};
+const emptyDancerEditorFieldErrors: DancerEditorFieldErrors = {};
 
 type ActionData =
   | {
       status: "dancer-error";
-      fieldErrors?: {
-        dancerIds?: string;
-      };
+      fieldErrors?: DancerEditorFieldErrors;
       message: string;
       selectedDancerIds: string[];
     }
@@ -248,12 +255,12 @@ export function PortalCoreografiaDetalleRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  const selectedProfessorIds = new Set(
-    (actionData?.status === "professor-error"
-      ? actionData.selectedProfessorIds
-      : undefined) ??
-      loaderData.choreography.professors.map((professor) => professor.id),
-  );
+  const selectedProfessorIds =
+    actionData?.status === "professor-error"
+      ? new Set(actionData.selectedProfessorIds)
+      : new Set(
+          loaderData.choreography.professors.map((professor) => professor.id),
+        );
 
   return (
     <>
@@ -474,6 +481,10 @@ function DancerEditor({
       })),
     [dancers],
   );
+  const dancerOptionByValue = useMemo(
+    () => new Map(dancerOptions.map((option) => [option.value, option])),
+    [dancerOptions],
+  );
   const selectedDancerIds = useMemo(
     () =>
       actionData?.selectedDancerIds ??
@@ -486,6 +497,7 @@ function DancerEditor({
       dancerIds: selectedDancerIds,
     },
   });
+  const fieldErrors = actionData?.fieldErrors ?? emptyDancerEditorFieldErrors;
 
   useEffect(() => {
     form.reset({
@@ -493,28 +505,16 @@ function DancerEditor({
     });
   }, [form, selectedDancerIds]);
 
-  useEffect(() => {
-    if (actionData?.fieldErrors?.dancerIds) {
-      form.setError("dancerIds", {
-        message: actionData.fieldErrors.dancerIds,
-      });
-    }
-  }, [actionData?.fieldErrors?.dancerIds, form]);
+  useApplyServerFieldErrors(form, fieldErrors);
 
   const getDancerLabel = (value: string) =>
-    dancerOptions.find((option) => option.value === value)?.label ?? value;
+    dancerOptionByValue.get(value)?.label ?? value;
 
   return (
     <form
       method="post"
       className="mt-4 flex flex-col gap-4"
-      onSubmit={form.handleSubmit((_, event) => {
-        const formElement = event?.target;
-
-        if (formElement instanceof HTMLFormElement) {
-          HTMLFormElement.prototype.submit.call(formElement);
-        }
-      })}
+      onSubmit={createValidatedNativeSubmitHandler(form)}
     >
       <input
         type="hidden"
@@ -531,7 +531,7 @@ function DancerEditor({
           control={form.control}
           name="dancerIds"
           render={({ field, fieldState }) => (
-            <FieldSet data-invalid={fieldState.error ? true : undefined}>
+            <Field data-invalid={fieldState.error ? true : undefined}>
               {field.value.map((dancerId) => (
                 <input
                   key={dancerId}
@@ -571,9 +571,7 @@ function DancerEditor({
                   <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
                   <ComboboxList>
                     {(value) => {
-                      const option = dancerOptions.find(
-                        (dancerOption) => dancerOption.value === value,
-                      );
+                      const option = dancerOptionByValue.get(value);
 
                       return (
                         <ComboboxItem key={value} value={value}>
@@ -590,8 +588,10 @@ function DancerEditor({
                   </ComboboxList>
                 </ComboboxContent>
               </Combobox>
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </FieldSet>
+              <FieldContent>
+                <FieldError>{fieldState.error?.message}</FieldError>
+              </FieldContent>
+            </Field>
           )}
         />
       </FieldSet>
@@ -609,7 +609,7 @@ function DancerReadonlyList({
   dancers: LoaderData["choreography"]["dancers"];
 }) {
   return (
-    <ul className="mt-4 space-y-3">
+    <ul className="mt-4 flex flex-col gap-3">
       {dancers.map((dancer) => (
         <li
           key={dancer.id}
@@ -647,12 +647,16 @@ function ProfessorEditor({
       })),
     [professors],
   );
+  const professorOptionByValue = useMemo(
+    () => new Map(professorOptions.map((option) => [option.value, option])),
+    [professorOptions],
+  );
   const [currentProfessorIds, setCurrentProfessorIds] = useState(
     Array.from(selectedProfessorIds),
   );
 
   const getProfessorLabel = (value: string) =>
-    professorOptions.find((option) => option.value === value)?.label ?? value;
+    professorOptionByValue.get(value)?.label ?? value;
 
   return (
     <form method="post" className="mt-4 flex flex-col gap-4">
@@ -691,9 +695,7 @@ function ProfessorEditor({
             <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
             <ComboboxList>
               {(value) => {
-                const option = professorOptions.find(
-                  (professorOption) => professorOption.value === value,
-                );
+                const option = professorOptionByValue.get(value);
 
                 return (
                   <ComboboxItem key={value} value={value}>
@@ -738,7 +740,7 @@ function ProfessorReadonlyList({
   }
 
   return (
-    <ul className="mt-4 space-y-3">
+    <ul className="mt-4 flex flex-col gap-3">
       {professors.map((professor) => (
         <li
           key={professor.id}
@@ -1039,7 +1041,9 @@ function readUpdatedSuccessMessage(searchParams: URLSearchParams) {
     return choreographyDancersUpdatedSuccessMessage;
   }
 
-  return searchParams.get(choreographyProfessorsUpdatedSearchParam) === "1"
-    ? choreographyProfessorsUpdatedSuccessMessage
-    : null;
+  if (searchParams.get(choreographyProfessorsUpdatedSearchParam) === "1") {
+    return choreographyProfessorsUpdatedSuccessMessage;
+  }
+
+  return null;
 }

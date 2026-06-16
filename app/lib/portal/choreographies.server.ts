@@ -439,7 +439,6 @@ export async function updateChoreographyDancers(input: {
   }
 
   const requestedDancerIds = [...new Set(input.dancerIds)];
-  const requestedDancerIdsSet = new Set(requestedDancerIds);
   const currentLinks = await db
     .select({
       dancerId: choreographyDancers.dancerId,
