@@ -264,39 +264,45 @@ async function validateUpdateDancerInput(
     documentType: values.documentType,
     documentNumber: values.documentNumber,
   });
-  let normalizedDocument: NormalizedUpdateDancerInput | null = null;
 
   if (!document.ok) {
     Object.assign(fieldErrors, document.fieldErrors);
-  } else {
-    normalizedDocument = {
-      firstName: toSpanishTitleCase(values.firstName),
-      lastName: toSpanishTitleCase(values.lastName),
-      birthDate: values.birthDate,
-      documentType: document.documentType,
-      documentNumber: document.documentNumber,
-      ...normalizeDancerDocumentImages(
-        {
-          documentFrontImageStorageKey: values.documentFrontImageStorageKey,
-          documentBackImageStorageKey: values.documentBackImageStorageKey,
-        },
-        document.documentType !== null && document.documentNumber !== null,
-      ),
-    };
 
-    if (
-      normalizedDocument.documentType !== null &&
-      normalizedDocument.documentNumber !== null &&
-      (await hasDuplicateDancerDocument({
-        academyId: dancer.academyId,
-        dancerId: dancer.id,
-        documentType: normalizedDocument.documentType,
-        documentNumber: normalizedDocument.documentNumber,
-      }))
-    ) {
-      fieldErrors.documentNumber =
-        "Ya existe un Bailarín con ese documento en tu academia.";
-    }
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  const normalizedDocument: NormalizedUpdateDancerInput = {
+    firstName: toSpanishTitleCase(values.firstName),
+    lastName: toSpanishTitleCase(values.lastName),
+    birthDate: values.birthDate,
+    documentType: document.documentType,
+    documentNumber: document.documentNumber,
+    ...normalizeDancerDocumentImages(
+      {
+        documentFrontImageStorageKey: values.documentFrontImageStorageKey,
+        documentBackImageStorageKey: values.documentBackImageStorageKey,
+      },
+      document.documentType !== null && document.documentNumber !== null,
+    ),
+  };
+
+  if (
+    normalizedDocument.documentType !== null &&
+    normalizedDocument.documentNumber !== null &&
+    (await hasDuplicateDancerDocument({
+      academyId: dancer.academyId,
+      dancerId: dancer.id,
+      documentType: normalizedDocument.documentType,
+      documentNumber: normalizedDocument.documentNumber,
+    }))
+  ) {
+    fieldErrors.documentNumber =
+      "Ya existe un Bailarín con ese documento en tu academia.";
   }
 
   if (hasFieldErrors(fieldErrors)) {
@@ -310,7 +316,7 @@ async function validateUpdateDancerInput(
 
   return {
     ok: true,
-    input: normalizedDocument!,
+    input: normalizedDocument,
   };
 }
 

@@ -608,6 +608,8 @@ function useDancerEditForm({
     form,
     values.birthDate,
     values.correctionReason,
+    values.documentBackImageStorageKey,
+    values.documentFrontImageStorageKey,
     values.documentNumber,
     values.documentType,
     values.firstName,

@@ -15,15 +15,12 @@ describe("PortalBailarinesRouteView dialog", () => {
   let root: ReturnType<typeof createRoot> | null = null;
   let PortalBailarinesRouteView: PortalBailarinesRouteViewComponent;
 
-  beforeAll(
-    async () => {
-      installReactTestEnvironment();
+  beforeAll(async () => {
+    installReactTestEnvironment();
 
-      ({ PortalBailarinesRouteView } =
-        await import("@/routes/portal.bailarines"));
-    },
-    20_000,
-  );
+    ({ PortalBailarinesRouteView } =
+      await import("@/routes/portal.bailarines"));
+  }, 20_000);
 
   afterEach(() => {
     if (root) {
