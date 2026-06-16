@@ -173,7 +173,7 @@ describe("administracion/bailarines route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=todos&estado=todos&identificacion=sin-imagenes&q=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=todos&estado=todos&identificacion=incompleta&q=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -190,7 +190,7 @@ describe("administracion/bailarines route", () => {
     );
     expect(searchMarkup).toContain("participando=todos");
     expect(searchMarkup).toContain("estado=todos");
-    expect(searchMarkup).toContain("identificacion=sin-imagenes");
+    expect(searchMarkup).toContain("identificacion=incompleta");
     expect(searchMarkup).toContain("q=Academia+Sur");
 
     const { request: archivedRequest } = await createSignedInRequest({
@@ -421,22 +421,22 @@ describe("administracion/bailarines route", () => {
           eventId: event.id,
           action: "update",
           reason: null,
-          beforeValues: {
+          beforeValues: expect.objectContaining({
             firstName: "ana",
             lastName: "perez",
             birthDate: "2013-01-10",
             documentType: null,
             documentNumber: null,
             active: true,
-          },
-          afterValues: {
+          }),
+          afterValues: expect.objectContaining({
             firstName: "María del Carmen",
             lastName: "de la Cruz",
             birthDate: "2012-05-06",
             documentType: "dni",
             documentNumber: "12345678",
             active: true,
-          },
+          }),
         }),
       ],
     );
@@ -749,6 +749,138 @@ describe("administracion/bailarines route", () => {
     ]);
   });
 
+  test("verifies a pending Bailarín and returns it to pending verification after an administrative edit", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.verificacion.bailarines.academia@example.com",
+      academyName: "Academia Verificable",
+      contactName: "Violeta Verificable",
+      phone: "1414-1414",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Paula",
+      lastName: "Pendiente",
+      birthDate: "2012-06-12",
+      documentType: "dni",
+      documentNumber: "12345678",
+      documentFrontImageStorageKey: "dancers/paula-front.jpg",
+      documentBackImageStorageKey: "dancers/paula-back.jpg",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.verificacion.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+    });
+
+    const readOnlyMarkup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(request, dancer.id)),
+      dancer.id,
+    );
+    expect(readOnlyMarkup).toContain("Para verificar");
+    expect(readOnlyMarkup).toContain("Verificar identidad");
+
+    const verifyResponse = await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "verify-dancer-identity",
+          }),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    expect(verifyResponse.headers.get("location")).toBe(
+      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-verificado`,
+    );
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      identityVerifiedAt: expect.any(Date),
+    });
+
+    const verifiedRequestUrl = `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`;
+    const verifiedMarkup = renderDetailRoute(
+      await detailLoader(
+        detailRouteArgs(
+          new Request(verifiedRequestUrl, {
+            headers: { cookie: request.headers.get("cookie") ?? "" },
+          }),
+          dancer.id,
+        ),
+      ),
+      dancer.id,
+    );
+    expect(verifiedMarkup).toContain("Verificado");
+
+    const missingReasonResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          verifiedRequestUrl,
+          request.headers.get("cookie") ?? "",
+          {
+            intent: "update-dancer",
+            firstName: "Paula",
+            lastName: "Pendiente",
+            birthDate: "2012-06-12",
+            documentType: "dni",
+            documentNumber: "12345678",
+            documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
+            documentBackImageStorageKey: "dancers/paula-back.jpg",
+            correctionReason: "",
+          },
+        ),
+        dancer.id,
+      ),
+    );
+
+    expect(missingReasonResult).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        correctionReason:
+          "Ingresá un motivo de corrección para guardar este cambio.",
+      },
+    });
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(
+            verifiedRequestUrl,
+            request.headers.get("cookie") ?? "",
+            {
+              intent: "update-dancer",
+              firstName: "Paula",
+              lastName: "Pendiente",
+              birthDate: "2012-06-12",
+              documentType: "dni",
+              documentNumber: "12345678",
+              documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
+              documentBackImageStorageKey: "dancers/paula-back.jpg",
+              correctionReason:
+                "Reemplazo administrativo del frente del documento.",
+            },
+          ),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
+      identityVerifiedAt: null,
+    });
+  });
+
   test("archives and reactivates a participating Bailarín without unlinking coreografias and persists audit entries", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
@@ -1002,6 +1134,9 @@ async function createDancer(input: {
   active?: boolean;
   documentType?: "dni" | "passport" | "other" | null;
   documentNumber?: string | null;
+  documentFrontImageStorageKey?: string | null;
+  documentBackImageStorageKey?: string | null;
+  identityVerifiedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }) {
@@ -1015,6 +1150,9 @@ async function createDancer(input: {
       active: input.active ?? true,
       documentType: input.documentType ?? null,
       documentNumber: input.documentNumber ?? null,
+      documentFrontImageStorageKey: input.documentFrontImageStorageKey ?? null,
+      documentBackImageStorageKey: input.documentBackImageStorageKey ?? null,
+      identityVerifiedAt: input.identityVerifiedAt ?? null,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
     })

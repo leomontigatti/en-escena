@@ -14,6 +14,8 @@ export type DancerNameInput = {
 export type DancerDocumentInput = {
   documentType: string;
   documentNumber: string;
+  documentFrontImageStorageKey: string;
+  documentBackImageStorageKey: string;
 };
 
 export type DancerEditableSnapshot = {
@@ -22,6 +24,9 @@ export type DancerEditableSnapshot = {
   birthDate: string;
   documentType: (typeof dancers.$inferSelect)["documentType"];
   documentNumber: string | null;
+  documentFrontImageStorageKey: string | null;
+  documentBackImageStorageKey: string | null;
+  identityVerifiedAt: string | null;
   active: boolean;
 };
 

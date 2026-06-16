@@ -326,6 +326,8 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
               options: [
                 { label: "Incompleto", value: "incomplete" },
                 { label: "Faltan imágenes", value: "missingImages" },
+                { label: "Para verificar", value: "unverified" },
+                { label: "Verificado", value: "verified" },
               ],
             },
           ],
@@ -491,6 +493,10 @@ function getDancerVerificationLabel(
   status: DancerListItem["verificationStatus"],
 ) {
   switch (status) {
+    case "verified":
+      return "Verificado";
+    case "unverified":
+      return "Para verificar";
     case "missingImages":
       return "Faltan imágenes";
     case "incomplete":

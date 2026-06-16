@@ -607,6 +607,8 @@ describe("portal route view", () => {
           birthDate: "2014-02-01",
           documentType: "",
           documentNumber: "",
+          documentFrontImageStorageKey: "",
+          documentBackImageStorageKey: "",
         },
       },
     });
@@ -1190,6 +1192,9 @@ function dancerDetailRow(
     active: true,
     documentType: null,
     documentNumber: null,
+    documentFrontImageStorageKey: null,
+    documentBackImageStorageKey: null,
+    identityVerifiedAt: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     updatedAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,

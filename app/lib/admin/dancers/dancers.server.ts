@@ -9,6 +9,7 @@ import {
   dancers,
   user,
 } from "@/db/schema";
+import { getDancerVerificationStatus } from "@/lib/dancers/verification";
 import {
   adminDancerCorrectionReasonMessage,
   adminDancerPageSize,
@@ -52,6 +53,9 @@ export type AdministrativeDancerDetail = {
   active: boolean;
   documentType: (typeof dancers.$inferSelect)["documentType"];
   documentNumber: string | null;
+  documentFrontImageStorageKey: string | null;
+  documentBackImageStorageKey: string | null;
+  identityVerifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   academy: {
@@ -74,6 +78,8 @@ export type AdministrativeDancerUpdateInput = {
   birthDate: string;
   documentType: string;
   documentNumber: string;
+  documentFrontImageStorageKey: string;
+  documentBackImageStorageKey: string;
   correctionReason: string;
 };
 
@@ -88,6 +94,8 @@ export type AdministrativeDancerFieldErrors = Partial<
     | "birthDate"
     | "documentType"
     | "documentNumber"
+    | "documentFrontImageStorageKey"
+    | "documentBackImageStorageKey"
     | "correctionReason",
     string
   >
@@ -163,6 +171,9 @@ export async function listAdministrativeDancers(input: {
       academyName: academies.name,
       documentType: dancers.documentType,
       documentNumber: dancers.documentNumber,
+      documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
+      documentBackImageStorageKey: dancers.documentBackImageStorageKey,
+      identityVerifiedAt: dancers.identityVerifiedAt,
       isParticipating: participationSql,
     })
     .from(dancers)
@@ -194,6 +205,9 @@ export async function listAdministrativeDancers(input: {
       identificationStatus: toIdentificationStatus({
         documentType: row.documentType,
         documentNumber: row.documentNumber,
+        documentFrontImageStorageKey: row.documentFrontImageStorageKey,
+        documentBackImageStorageKey: row.documentBackImageStorageKey,
+        identityVerifiedAt: row.identityVerifiedAt,
       }),
     })),
     totalCount,
@@ -216,6 +230,9 @@ export async function findAdministrativeDancer(input: {
       active: dancers.active,
       documentType: dancers.documentType,
       documentNumber: dancers.documentNumber,
+      documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
+      documentBackImageStorageKey: dancers.documentBackImageStorageKey,
+      identityVerifiedAt: dancers.identityVerifiedAt,
       createdAt: dancers.createdAt,
       updatedAt: dancers.updatedAt,
       academyId: academies.id,
@@ -265,6 +282,9 @@ export async function findAdministrativeDancer(input: {
     active: row.active,
     documentType: row.documentType,
     documentNumber: row.documentNumber,
+    documentFrontImageStorageKey: row.documentFrontImageStorageKey,
+    documentBackImageStorageKey: row.documentBackImageStorageKey,
+    identityVerifiedAt: row.identityVerifiedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     academy: {
@@ -281,12 +301,16 @@ export async function findAdministrativeDancer(input: {
     identificationStatus: toIdentificationStatus({
       documentType: row.documentType,
       documentNumber: row.documentNumber,
+      documentFrontImageStorageKey: row.documentFrontImageStorageKey,
+      documentBackImageStorageKey: row.documentBackImageStorageKey,
+      identityVerifiedAt: row.identityVerifiedAt,
     }),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
     correctionReasonRequired: isCorrectionReasonRequired({
       selectedEventId: input.selectedEventId,
       isParticipating: row.isParticipating,
       hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+      isVerified: row.identityVerifiedAt !== null,
     }),
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
@@ -318,6 +342,12 @@ export async function updateAdministrativeDancer(input: {
   const normalizedDocument = normalizeDancerDocumentPair(
     input.values.documentType,
     input.values.documentNumber,
+  );
+  const normalizedDocumentFrontImageStorageKey = normalizeOptionalStorageKey(
+    input.values.documentFrontImageStorageKey,
+  );
+  const normalizedDocumentBackImageStorageKey = normalizeOptionalStorageKey(
+    input.values.documentBackImageStorageKey,
   );
 
   if (!normalizedDocument.ok) {
@@ -378,6 +408,15 @@ export async function updateAdministrativeDancer(input: {
       birthDate: normalizedValues.birthDate,
       documentType: normalizedDocument.documentType,
       documentNumber: normalizedDocument.documentNumber,
+      documentFrontImageStorageKey:
+        normalizedDocument.documentType === null
+          ? null
+          : normalizedDocumentFrontImageStorageKey,
+      documentBackImageStorageKey:
+        normalizedDocument.documentType === null
+          ? null
+          : normalizedDocumentBackImageStorageKey,
+      identityVerifiedAt: existingDancer.identityVerifiedAt ? null : undefined,
       updatedAt: new Date(),
     })
     .where(eq(dancers.id, existingDancer.id))
@@ -397,6 +436,51 @@ export async function updateAdministrativeDancer(input: {
 
   return {
     ok: true,
+    dancer: afterValues,
+  };
+}
+
+export async function verifyAdministrativeDancerIdentity(input: {
+  adminUserId: string;
+  dancerId: string;
+  selectedEventId: string | null;
+}) {
+  const existingDancer = await findAdministrativeDancerForMutation({
+    dancerId: input.dancerId,
+    selectedEventId: input.selectedEventId,
+  });
+
+  if (!existingDancer) {
+    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+  }
+
+  if (existingDancer.identificationStatus !== "pending-verification") {
+    throw new Response("Acción no soportada.", { status: 400 });
+  }
+
+  const beforeValues = toDancerSnapshot(existingDancer);
+  const [updatedDancer] = await db
+    .update(dancers)
+    .set({
+      identityVerifiedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(dancers.id, existingDancer.id))
+    .returning();
+  const afterValues = toDancerSnapshot(updatedDancer);
+
+  await insertAdministrativeDancerAuditEntry({
+    action: "verify-identity",
+    adminUserId: input.adminUserId,
+    afterValues,
+    beforeValues,
+    dancerId: existingDancer.id,
+    eventId: input.selectedEventId,
+    reason: null,
+  });
+
+  return {
+    ok: true as const,
     dancer: afterValues,
   };
 }
@@ -489,19 +573,30 @@ function buildAdministrativeDancerWhere(input: {
   }
 
   if (input.filters.identification === "incomplete") {
-    conditions.push(
-      or(
-        sql`${dancers.documentType} is null`,
-        sql`${dancers.documentNumber} is null`,
-      )!,
-    );
-  } else if (input.filters.identification === "missing-images") {
-    conditions.push(
-      and(
-        sql`${dancers.documentType} is not null`,
-        sql`${dancers.documentNumber} is not null`,
-      )!,
-    );
+    conditions.push(sql`
+      (
+        ${dancers.documentType} is null
+        or ${dancers.documentNumber} is null
+        or ${dancers.documentFrontImageStorageKey} is null
+        or ${dancers.documentBackImageStorageKey} is null
+      )
+    `);
+  } else if (input.filters.identification === "pending-verification") {
+    conditions.push(sql`
+      ${dancers.documentType} is not null
+      and ${dancers.documentNumber} is not null
+      and ${dancers.documentFrontImageStorageKey} is not null
+      and ${dancers.documentBackImageStorageKey} is not null
+      and ${dancers.identityVerifiedAt} is null
+    `);
+  } else if (input.filters.identification === "verified") {
+    conditions.push(sql`
+      ${dancers.documentType} is not null
+      and ${dancers.documentNumber} is not null
+      and ${dancers.documentFrontImageStorageKey} is not null
+      and ${dancers.documentBackImageStorageKey} is not null
+      and ${dancers.identityVerifiedAt} is not null
+    `);
   }
 
   if (input.filters.query.length > 0) {
@@ -576,6 +671,9 @@ async function findAdministrativeDancerForMutation(input: {
       active: dancers.active,
       documentType: dancers.documentType,
       documentNumber: dancers.documentNumber,
+      documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
+      documentBackImageStorageKey: dancers.documentBackImageStorageKey,
+      identityVerifiedAt: dancers.identityVerifiedAt,
       isParticipating: participationSql,
       hasParticipatedInAnyEvent: anyEventParticipationSql,
     })
@@ -594,7 +692,9 @@ async function findAdministrativeDancerForMutation(input: {
           selectedEventId: input.selectedEventId,
           isParticipating: row.isParticipating,
           hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+          isVerified: row.identityVerifiedAt !== null,
         }),
+        identificationStatus: toIdentificationStatus(row),
       };
     });
 }
@@ -603,7 +703,12 @@ function isCorrectionReasonRequired(input: {
   selectedEventId: string | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
+  isVerified: boolean;
 }) {
+  if (input.isVerified) {
+    return true;
+  }
+
   if (input.selectedEventId !== null) {
     return input.isParticipating || input.hasParticipatedInAnyEvent;
   }
@@ -645,6 +750,9 @@ function toDancerSnapshot(
     | "birthDate"
     | "documentType"
     | "documentNumber"
+    | "documentFrontImageStorageKey"
+    | "documentBackImageStorageKey"
+    | "identityVerifiedAt"
     | "active"
   >,
 ): DancerEditableSnapshot {
@@ -654,6 +762,9 @@ function toDancerSnapshot(
     birthDate: dancer.birthDate,
     documentType: dancer.documentType,
     documentNumber: dancer.documentNumber,
+    documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+    documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+    identityVerifiedAt: dancer.identityVerifiedAt?.toISOString() ?? null,
     active: dancer.active,
   };
 }
@@ -682,12 +793,20 @@ async function insertAdministrativeDancerAuditEntry(input: {
 function toIdentificationStatus(input: {
   documentType: (typeof dancers.$inferSelect)["documentType"];
   documentNumber: string | null;
+  documentFrontImageStorageKey: string | null;
+  documentBackImageStorageKey: string | null;
+  identityVerifiedAt: Date | null;
 }): AdminDancerIdentificationStatus {
-  if (!input.documentType || !input.documentNumber) {
-    return "incomplete";
-  }
+  const verificationStatus = getDancerVerificationStatus(input);
 
-  return "missing-images";
+  switch (verificationStatus) {
+    case "missingImages":
+      return "missing-images";
+    case "unverified":
+      return "pending-verification";
+    default:
+      return verificationStatus;
+  }
 }
 
 function readPage(searchParams: URLSearchParams) {
@@ -705,4 +824,10 @@ function escapeForLike(value: string) {
     .replaceAll("\\", "\\\\")
     .replaceAll("%", "\\%")
     .replaceAll("_", "\\_");
+}
+
+function normalizeOptionalStorageKey(value: string) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  return normalized.length > 0 ? normalized : null;
 }

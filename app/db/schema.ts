@@ -47,7 +47,14 @@ export const administrativeAuditEntityType = pgEnum(
 
 export const administrativeAuditAction = pgEnum(
   "en_escena_administrative_audit_action",
-  ["create", "update", "archive", "reactivate", "reset-password"],
+  [
+    "create",
+    "update",
+    "archive",
+    "reactivate",
+    "reset-password",
+    "verify-identity",
+  ],
 );
 
 export const user = createTable("user", {
@@ -227,6 +234,12 @@ export const dancers = createTable(
     active: boolean("active").notNull().default(true),
     documentType: documentType("document_type"),
     documentNumber: text("document_number"),
+    documentFrontImageStorageKey: text("document_front_image_storage_key"),
+    documentBackImageStorageKey: text("document_back_image_storage_key"),
+    identityVerifiedAt: timestamp("identity_verified_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

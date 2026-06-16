@@ -14,6 +14,7 @@ export const routeNotificationToastIds = {
   "bailarin-guardado": "route-notification:bailarin-guardado",
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
+  "bailarin-verificado": "route-notification:bailarin-verificado",
   "user-form-error": "route-notification:user-form-error",
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
@@ -86,6 +87,11 @@ export const routeNotificationToasts = {
   "bailarin-reactivado": {
     id: routeNotificationToastIds["bailarin-reactivado"],
     message: "Bailarín reactivado.",
+    variant: "success",
+  },
+  "bailarin-verificado": {
+    id: routeNotificationToastIds["bailarin-verificado"],
+    message: "Bailarín verificado.",
     variant: "success",
   },
   "evento-activado": {

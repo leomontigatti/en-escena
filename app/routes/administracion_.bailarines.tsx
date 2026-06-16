@@ -172,8 +172,9 @@ function DancerFilters({ loaderData }: { loaderData: LoaderData }) {
           )}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
         >
-          <option value="incompleta">Incompleta</option>
-          <option value="sin-imagenes">Sin imágenes</option>
+          <option value="incompleta">Incompletos</option>
+          <option value="para-verificar">Para verificar</option>
+          <option value="verificados">Verificados</option>
           <option value="todos">Todos</option>
         </select>
       </label>

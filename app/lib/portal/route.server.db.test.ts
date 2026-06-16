@@ -762,6 +762,116 @@ describe.sequential("portal Bailarines route", () => {
     });
   });
 
+  test("loads the four verification states and blocks academy edits after verification", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.verification@example.com",
+      academyName: "Academia Verificacion",
+    });
+    const [
+      incompleteDancer,
+      missingImagesDancer,
+      unverifiedDancer,
+      verifiedDancer,
+    ] = await db
+      .insert(dancers)
+      .values([
+        {
+          academyId: session.academyId,
+          firstName: "Ines",
+          lastName: "Incompleta",
+          birthDate: "2014-02-01",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Mica",
+          lastName: "Sin Imagenes",
+          birthDate: "2013-03-02",
+          documentType: "dni",
+          documentNumber: "11111111",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Nora",
+          lastName: "Pendiente",
+          birthDate: "2012-04-03",
+          documentType: "dni",
+          documentNumber: "22222222",
+          documentFrontImageStorageKey: "dancers/nora-front.jpg",
+          documentBackImageStorageKey: "dancers/nora-back.jpg",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Vera",
+          lastName: "Verificada",
+          birthDate: "2011-05-04",
+          documentType: "dni",
+          documentNumber: "33333333",
+          documentFrontImageStorageKey: "dancers/vera-front.jpg",
+          documentBackImageStorageKey: "dancers/vera-back.jpg",
+          identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
+        },
+      ])
+      .returning();
+
+    const loaderData = await bailarinesLoader({
+      request: new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+
+    expect(loaderData.dancers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: incompleteDancer.id,
+          verificationStatus: "incomplete",
+        }),
+        expect.objectContaining({
+          id: missingImagesDancer.id,
+          verificationStatus: "missingImages",
+        }),
+        expect.objectContaining({
+          id: unverifiedDancer.id,
+          verificationStatus: "unverified",
+        }),
+        expect.objectContaining({
+          id: verifiedDancer.id,
+          verificationStatus: "verified",
+        }),
+      ]),
+    );
+
+    const result = await bailarinesDetalleAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${verifiedDancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Vera",
+          lastName: "Verificada",
+          birthDate: "2011-05-04",
+          documentType: "dni",
+          documentNumber: "33333333",
+          documentFrontImageStorageKey: "dancers/vera-front-v2.jpg",
+          documentBackImageStorageKey: "dancers/vera-back.jpg",
+        }),
+      ),
+      params: { dancerId: verifiedDancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      message:
+        "La identidad verificada solo puede corregirse desde administración.",
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, verifiedDancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentFrontImageStorageKey: "dancers/vera-front.jpg",
+      identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
+    });
+  });
+
   test("keeps submitted values and field errors when the document pair is partial", async () => {
     const session = await createAcademySession({
       email: "bailarines.partial@example.com",
@@ -1612,11 +1722,21 @@ function dancerEditFormData(input: {
   birthDate: string;
   documentType: string;
   documentNumber: string;
+  documentFrontImageStorageKey?: string;
+  documentBackImageStorageKey?: string;
 }) {
   const formData = dancerFormData(input);
   formData.set("intent", "update-dancer");
   formData.set("documentType", input.documentType);
   formData.set("documentNumber", input.documentNumber);
+  formData.set(
+    "documentFrontImageStorageKey",
+    input.documentFrontImageStorageKey ?? "",
+  );
+  formData.set(
+    "documentBackImageStorageKey",
+    input.documentBackImageStorageKey ?? "",
+  );
 
   return formData;
 }

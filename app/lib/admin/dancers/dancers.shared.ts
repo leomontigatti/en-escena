@@ -10,17 +10,23 @@ export type AdminDancerParticipationFilter = "yes" | "no" | "all";
 export type AdminDancerStatusFilter = "active" | "archived" | "all";
 export type AdminDancerIdentificationFilter =
   | "incomplete"
-  | "missing-images"
+  | "pending-verification"
+  | "verified"
   | "all";
 export type AdminDancerParticipationStatus =
   | "participating"
   | "not-participating"
   | "no-event";
-export type AdminDancerIdentificationStatus = "incomplete" | "missing-images";
+export type AdminDancerIdentificationStatus =
+  | "incomplete"
+  | "missing-images"
+  | "pending-verification"
+  | "verified";
 export type AdministrativeDancerAuditAction =
   | "update"
   | "archive"
-  | "reactivate";
+  | "reactivate"
+  | "verify-identity";
 
 export type AdministrativeDancerListFilters = {
   participation: AdminDancerParticipationFilter;
@@ -64,11 +70,15 @@ export function readAdminDancerIdentificationFilter(
 ): AdminDancerIdentificationFilter {
   switch (value) {
     case "sin-imagenes":
-      return "missing-images";
+      return "incomplete";
+    case "para-verificar":
+      return "pending-verification";
+    case "verificados":
+      return "verified";
     case "todos":
       return "all";
     default:
-      return "all";
+      return "incomplete";
   }
 }
 
@@ -100,8 +110,10 @@ export function toAdminDancerIdentificationSearchValue(
   value: AdminDancerIdentificationFilter,
 ) {
   switch (value) {
-    case "missing-images":
-      return "sin-imagenes";
+    case "pending-verification":
+      return "para-verificar";
+    case "verified":
+      return "verificados";
     case "all":
       return "todos";
     default:
@@ -141,6 +153,10 @@ export function getAdminDancerIdentificationLabel(
   switch (identificationStatus) {
     case "missing-images":
       return "Sin imágenes";
+    case "pending-verification":
+      return "Para verificar";
+    case "verified":
+      return "Verificado";
     default:
       return "Incompleta";
   }
@@ -173,7 +189,15 @@ export function getAdminDancerParticipationBadgeVariant(
 export function getAdminDancerIdentificationBadgeVariant(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
-  return identificationStatus === "missing-images" ? "outline" : "secondary";
+  if (identificationStatus === "verified") {
+    return "default";
+  }
+
+  if (identificationStatus === "pending-verification") {
+    return "outline";
+  }
+
+  return "secondary";
 }
 
 export function formatAdminDancerBirthDate(value: string) {

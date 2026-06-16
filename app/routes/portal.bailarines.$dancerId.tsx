@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getDancerVerificationStatus } from "@/lib/dancers/verification";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
@@ -68,6 +69,8 @@ const dancerSchema = z
     birthDate: z.string().trim().min(1, requiredFieldMessage),
     documentType: z.string().trim(),
     documentNumber: z.string().trim(),
+    documentFrontImageStorageKey: z.string().trim(),
+    documentBackImageStorageKey: z.string().trim(),
   })
   .superRefine((values, context) => {
     if (!values.documentType && !values.documentNumber) {
@@ -141,7 +144,12 @@ type PortalBailarinDetalleRouteProps = {
   actionData?: ActionData;
   initialStatusDialogIntent?: DancerStatusIntent | null;
 };
-type DancerTextFieldName = "documentNumber" | "firstName" | "lastName";
+type DancerTextFieldName =
+  | "documentBackImageStorageKey"
+  | "documentFrontImageStorageKey"
+  | "documentNumber"
+  | "firstName"
+  | "lastName";
 
 export const meta = () => [
   { title: "Editar bailarín | Portal de academias | En Escena" },
@@ -207,6 +215,14 @@ export async function action({
     birthDate: readFormString(formData, "birthDate"),
     documentType: readFormString(formData, "documentType"),
     documentNumber: readFormString(formData, "documentNumber"),
+    documentFrontImageStorageKey: readFormString(
+      formData,
+      "documentFrontImageStorageKey",
+    ),
+    documentBackImageStorageKey: readFormString(
+      formData,
+      "documentBackImageStorageKey",
+    ),
   });
 
   if (!result.ok) {
@@ -236,6 +252,10 @@ export function PortalBailarinDetalleRouteView({
     birthDate: loaderData.dancer.birthDate,
     documentType: loaderData.dancer.documentType ?? "",
     documentNumber: loaderData.dancer.documentNumber ?? "",
+    documentFrontImageStorageKey:
+      loaderData.dancer.documentFrontImageStorageKey ?? "",
+    documentBackImageStorageKey:
+      loaderData.dancer.documentBackImageStorageKey ?? "",
   };
   const form = useDancerForm({
     fieldErrors: actionData?.fieldErrors,
@@ -244,11 +264,10 @@ export function PortalBailarinDetalleRouteView({
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);
-  const hasDocumentData = Boolean(
-    loaderData.dancer.documentType && loaderData.dancer.documentNumber,
-  );
-  const showsIdentificationAlert = !hasDocumentData;
-  const showsMissingImagesAlert = hasDocumentData;
+  const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
+  const showsIdentificationAlert = verificationStatus === "incomplete";
+  const showsMissingImagesAlert = verificationStatus === "missingImages";
+  const isIdentityLocked = verificationStatus === "verified";
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -345,6 +364,23 @@ export function PortalBailarinDetalleRouteView({
                   </AlertDescription>
                 </Alert>
               ) : null}
+              {verificationStatus === "unverified" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    La documentación está lista para revisión administrativa.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {verificationStatus === "verified" ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    La identidad ya fue verificada por administración. Solo
+                    administración puede corregir estos datos.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </div>
 
             <form
@@ -358,12 +394,14 @@ export function PortalBailarinDetalleRouteView({
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.firstName}
+                  disabled={isIdentityLocked}
                   label="Nombre"
                   name="firstName"
                 />
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.lastName}
+                  disabled={isIdentityLocked}
                   label="Apellido"
                   name="lastName"
                 />
@@ -375,12 +413,28 @@ export function PortalBailarinDetalleRouteView({
                 <DancerDocumentTypeField
                   form={form.form}
                   error={actionData?.fieldErrors.documentType}
+                  disabled={isIdentityLocked}
                 />
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.documentNumber}
+                  disabled={isIdentityLocked}
                   label="Número de documento"
                   name="documentNumber"
+                />
+                <DancerTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.documentFrontImageStorageKey}
+                  disabled={isIdentityLocked}
+                  label="Imagen frente del documento"
+                  name="documentFrontImageStorageKey"
+                />
+                <DancerTextField
+                  form={form.form}
+                  error={actionData?.fieldErrors.documentBackImageStorageKey}
+                  disabled={isIdentityLocked}
+                  label="Imagen dorso del documento"
+                  name="documentBackImageStorageKey"
                 />
               </FieldGroup>
             </form>
@@ -391,7 +445,12 @@ export function PortalBailarinDetalleRouteView({
           <Button asChild variant="outline" size="lg">
             <Link to="/portal/bailarines">Volver</Link>
           </Button>
-          <Button type="submit" form={formId} size="lg">
+          <Button
+            type="submit"
+            form={formId}
+            size="lg"
+            disabled={isIdentityLocked}
+          >
             Guardar
           </Button>
         </div>
@@ -440,6 +499,8 @@ function useDancerForm({
   }, [
     form,
     values.birthDate,
+    values.documentBackImageStorageKey,
+    values.documentFrontImageStorageKey,
     values.documentNumber,
     values.documentType,
     values.firstName,
@@ -452,11 +513,13 @@ function useDancerForm({
 }
 
 function DancerTextField({
+  disabled = false,
   error,
   form,
   label,
   name,
 }: {
+  disabled?: boolean;
   error?: string;
   form: DancerFormReturn;
   label: string;
@@ -477,6 +540,7 @@ function DancerTextField({
             <Input
               id={id}
               autoComplete={autoComplete}
+              disabled={disabled}
               aria-invalid={fieldState.error || error ? true : undefined}
               aria-describedby={fieldState.error || error ? errorId : undefined}
               {...field}
@@ -522,9 +586,11 @@ function DancerBirthDateField({
 }
 
 function DancerDocumentTypeField({
+  disabled = false,
   error,
   form,
 }: {
+  disabled?: boolean;
   error?: string;
   form: DancerFormReturn;
 }) {
@@ -540,6 +606,7 @@ function DancerDocumentTypeField({
           <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
           <FieldContent>
             <Select
+              disabled={disabled}
               value={field.value || noDocumentTypeSelectValue}
               onValueChange={(value) => {
                 field.onChange(
@@ -639,6 +706,8 @@ function getDancerFieldAutoComplete(name: DancerTextFieldName) {
       return "given-name";
     case "lastName":
       return "family-name";
+    case "documentBackImageStorageKey":
+    case "documentFrontImageStorageKey":
     case "documentNumber":
       return "off";
   }

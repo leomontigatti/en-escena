@@ -2,6 +2,10 @@ import { and, asc, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
+import {
+  getDancerVerificationStatus,
+  type DancerVerificationStatus,
+} from "@/lib/dancers/verification";
 
 export type DancerListItem = {
   id: string;
@@ -11,7 +15,7 @@ export type DancerListItem = {
   birthDate: string;
   documentType: string | null;
   documentNumber: string | null;
-  verificationStatus: "incomplete" | "missingImages";
+  verificationStatus: DancerVerificationStatus;
 };
 
 export type CreateDancerInput = {
@@ -25,6 +29,8 @@ export type DancerDocumentType = "dni" | "passport" | "other";
 export type UpdateDancerInput = CreateDancerInput & {
   documentType: string;
   documentNumber: string;
+  documentFrontImageStorageKey: string;
+  documentBackImageStorageKey: string;
 };
 
 type DancerNameAndBirthDateValues = {
@@ -47,7 +53,13 @@ type NormalizedDancerDocument =
 type NormalizedUpdateDancerInput = DancerNameAndBirthDateValues & {
   documentType: DancerDocumentType | null;
   documentNumber: string | null;
+  documentFrontImageStorageKey: string | null;
+  documentBackImageStorageKey: string | null;
 };
+
+type DancerImageField =
+  | "documentFrontImageStorageKey"
+  | "documentBackImageStorageKey";
 
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
@@ -92,10 +104,7 @@ export async function listDancersForAcademy(
     birthDate: dancer.birthDate,
     documentType: dancer.documentType,
     documentNumber: dancer.documentNumber,
-    verificationStatus:
-      dancer.documentType && dancer.documentNumber
-        ? "missingImages"
-        : "incomplete",
+    verificationStatus: getDancerVerificationStatus(dancer),
   }));
 }
 
@@ -154,11 +163,7 @@ export async function updateDancerForAcademy(
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
   }
 
-  const validation = await validateUpdateDancerInput(
-    academyId,
-    dancerId,
-    input,
-  );
+  const validation = await validateUpdateDancerInput(dancer, input);
 
   if (!validation.ok) {
     return validation;
@@ -172,6 +177,10 @@ export async function updateDancerForAcademy(
       birthDate: validation.input.birthDate,
       documentType: validation.input.documentType,
       documentNumber: validation.input.documentNumber,
+      documentFrontImageStorageKey:
+        validation.input.documentFrontImageStorageKey,
+      documentBackImageStorageKey: validation.input.documentBackImageStorageKey,
+      identityVerifiedAt: null,
       updatedAt: new Date(),
     })
     .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
@@ -222,8 +231,7 @@ function validateCreateDancerInput(
 }
 
 async function validateUpdateDancerInput(
-  academyId: string,
-  dancerId: string,
+  dancer: typeof dancers.$inferSelect,
   input: UpdateDancerInput,
 ): Promise<
   | {
@@ -236,9 +244,21 @@ async function validateUpdateDancerInput(
     ...normalizeDancerNameAndBirthDateValues(input),
     documentType: input.documentType.trim(),
     documentNumber: input.documentNumber,
+    documentFrontImageStorageKey: input.documentFrontImageStorageKey.trim(),
+    documentBackImageStorageKey: input.documentBackImageStorageKey.trim(),
   } satisfies UpdateDancerInput;
   const fieldErrors: Partial<Record<UpdateDancerField, string>> =
     validateDancerNameAndBirthDateValues(values);
+
+  if (getDancerVerificationStatus(dancer) === "verified") {
+    return {
+      ok: false,
+      error:
+        "La identidad verificada solo puede corregirse desde administración.",
+      fieldErrors,
+      values,
+    };
+  }
 
   const document = normalizeDancerDocumentPair({
     documentType: values.documentType,
@@ -255,14 +275,21 @@ async function validateUpdateDancerInput(
       birthDate: values.birthDate,
       documentType: document.documentType,
       documentNumber: document.documentNumber,
+      ...normalizeDancerDocumentImages(
+        {
+          documentFrontImageStorageKey: values.documentFrontImageStorageKey,
+          documentBackImageStorageKey: values.documentBackImageStorageKey,
+        },
+        document.documentType !== null && document.documentNumber !== null,
+      ),
     };
 
     if (
       normalizedDocument.documentType !== null &&
       normalizedDocument.documentNumber !== null &&
       (await hasDuplicateDancerDocument({
-        academyId,
-        dancerId,
+        academyId: dancer.academyId,
+        dancerId: dancer.id,
         documentType: normalizedDocument.documentType,
         documentNumber: normalizedDocument.documentNumber,
       }))
@@ -372,6 +399,33 @@ function normalizeDancerDocumentPair(input: {
     documentType,
     documentNumber: rawDocumentNumber.trim().replace(/\s+/g, " "),
   };
+}
+
+function normalizeDancerDocumentImages(
+  input: Record<DancerImageField, string>,
+  hasDocumentPair: boolean,
+) {
+  if (!hasDocumentPair) {
+    return {
+      documentFrontImageStorageKey: null,
+      documentBackImageStorageKey: null,
+    };
+  }
+
+  return {
+    documentFrontImageStorageKey: normalizeOptionalStorageKey(
+      input.documentFrontImageStorageKey,
+    ),
+    documentBackImageStorageKey: normalizeOptionalStorageKey(
+      input.documentBackImageStorageKey,
+    ),
+  };
+}
+
+function normalizeOptionalStorageKey(value: string) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  return normalized.length > 0 ? normalized : null;
 }
 
 async function hasDuplicateDancerDocument(input: {

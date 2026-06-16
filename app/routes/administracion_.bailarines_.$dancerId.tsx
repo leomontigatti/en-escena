@@ -52,6 +52,7 @@ import {
   type AdministrativeDancerUpdateInput,
   setAdministrativeDancerActiveState,
   updateAdministrativeDancer,
+  verifyAdministrativeDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
@@ -89,7 +90,10 @@ type DancerStatusFormReturn = UseFormReturn<
 >;
 type DancerRouteNotification = Extract<
   RouteNotificationKey,
-  "bailarin-archivado" | "bailarin-guardado" | "bailarin-reactivado"
+  | "bailarin-archivado"
+  | "bailarin-guardado"
+  | "bailarin-reactivado"
+  | "bailarin-verificado"
 >;
 
 type AdministracionBailarinDetalleRouteProps = {
@@ -112,6 +116,8 @@ const dancerFieldNames = [
   "birthDate",
   "documentType",
   "documentNumber",
+  "documentFrontImageStorageKey",
+  "documentBackImageStorageKey",
   "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeDancerFieldErrors>;
 const emptyDancerFieldErrors: AdministrativeDancerFieldErrors = {};
@@ -221,6 +227,18 @@ export async function action({ request, params }: Route.ActionArgs) {
     );
   }
 
+  if (intent === "verify-dancer-identity") {
+    await verifyAdministrativeDancerIdentity({
+      adminUserId: adminUser.id,
+      dancerId,
+      selectedEventId: eventContext.selectedEventId,
+    });
+
+    throw redirect(
+      buildDetailNotificationHref(request.url, dancerId, "bailarin-verificado"),
+    );
+  }
+
   const values = readDancerUpdateValues(formData);
   const parsed = buildDancerUpdateSchema(
     dancer.correctionReasonRequired,
@@ -286,6 +304,14 @@ export function AdministracionBailarinDetalleRouteView({
       submittedEditValues?.documentType ?? dancer.documentType ?? "",
     documentNumber:
       submittedEditValues?.documentNumber ?? dancer.documentNumber ?? "",
+    documentFrontImageStorageKey:
+      submittedEditValues?.documentFrontImageStorageKey ??
+      dancer.documentFrontImageStorageKey ??
+      "",
+    documentBackImageStorageKey:
+      submittedEditValues?.documentBackImageStorageKey ??
+      dancer.documentBackImageStorageKey ??
+      "",
     correctionReason: submittedEditValues?.correctionReason ?? "",
   };
   const statusValues = {
@@ -319,6 +345,9 @@ export function AdministracionBailarinDetalleRouteView({
         intent: "reactivate-dancer" as const,
         label: "Reactivar Bailarín",
       };
+  const canVerifyIdentity =
+    loaderData.canEdit &&
+    dancer.identificationStatus === "pending-verification";
 
   return (
     <AdminShell
@@ -336,9 +365,23 @@ export function AdministracionBailarinDetalleRouteView({
             </Link>
           </Button>
           {loaderData.canEdit && !isEditing ? (
-            <Button asChild>
-              <Link to={loaderData.editHref}>Editar</Link>
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              {canVerifyIdentity ? (
+                <form method="post">
+                  <input
+                    type="hidden"
+                    name="intent"
+                    value="verify-dancer-identity"
+                  />
+                  <Button type="submit" variant="outline">
+                    Verificar identidad
+                  </Button>
+                </form>
+              ) : null}
+              <Button asChild>
+                <Link to={loaderData.editHref}>Editar</Link>
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -395,6 +438,16 @@ export function AdministracionBailarinDetalleRouteView({
                     label="Número de documento"
                     name="documentNumber"
                   />
+                  <DancerTextField
+                    form={editForm.form}
+                    label="Imagen frente del documento"
+                    name="documentFrontImageStorageKey"
+                  />
+                  <DancerTextField
+                    form={editForm.form}
+                    label="Imagen dorso del documento"
+                    name="documentBackImageStorageKey"
+                  />
                   <DancerCorrectionReasonField
                     form={editForm.form}
                     required={dancer.correctionReasonRequired}
@@ -417,6 +470,12 @@ export function AdministracionBailarinDetalleRouteView({
               </DetailRow>
               <DetailRow label="Documento">
                 {formatAdminDancerDocument(dancer)}
+              </DetailRow>
+              <DetailRow label="Imagen frente del documento">
+                {dancer.documentFrontImageStorageKey ?? "Sin imagen cargada"}
+              </DetailRow>
+              <DetailRow label="Imagen dorso del documento">
+                {dancer.documentBackImageStorageKey ?? "Sin imagen cargada"}
               </DetailRow>
               <DetailRow label="Estado de identificación">
                 {getAdminDancerIdentificationLabel(dancer.identificationStatus)}
@@ -595,7 +654,12 @@ function DancerTextField({
 }: {
   form: DancerFormReturn;
   label: string;
-  name: "documentNumber" | "firstName" | "lastName";
+  name:
+    | "documentBackImageStorageKey"
+    | "documentFrontImageStorageKey"
+    | "documentNumber"
+    | "firstName"
+    | "lastName";
 }) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -765,6 +829,8 @@ function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
         }),
       documentType: z.string().trim(),
       documentNumber: z.string().trim(),
+      documentFrontImageStorageKey: z.string().trim(),
+      documentBackImageStorageKey: z.string().trim(),
       correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
     })
     .superRefine((values, context) => {
@@ -1002,6 +1068,14 @@ function readDancerUpdateValues(
     birthDate: readFormString(formData, "birthDate"),
     documentType: readFormString(formData, "documentType"),
     documentNumber: readFormString(formData, "documentNumber"),
+    documentFrontImageStorageKey: readFormString(
+      formData,
+      "documentFrontImageStorageKey",
+    ),
+    documentBackImageStorageKey: readFormString(
+      formData,
+      "documentBackImageStorageKey",
+    ),
     correctionReason: readFormString(formData, "correctionReason"),
   };
 }
@@ -1028,7 +1102,9 @@ function isDancerUpdateValues(
     "lastName" in values &&
     "birthDate" in values &&
     "documentType" in values &&
-    "documentNumber" in values
+    "documentNumber" in values &&
+    "documentFrontImageStorageKey" in values &&
+    "documentBackImageStorageKey" in values
   );
 }
 
