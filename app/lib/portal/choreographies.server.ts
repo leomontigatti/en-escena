@@ -87,13 +87,19 @@ type ChoreographyRow = {
   groupType: "solo" | "duo" | "trio" | "grupal";
   categoryId: string | null;
   experienceLevelId: string | null;
-  hasActiveFinancialLink: boolean;
-  hasPresentation: boolean;
   musicStorageKey: string | null;
   modalityName: string;
   submodalityName: string | null;
   categoryName: string | null;
   experienceLevelName: string | null;
+};
+
+type ChoreographyDetailRow = ChoreographyRow & {
+  hasActiveFinancialLink: boolean;
+  hasPresentation: boolean;
+  scheduleBlockName: string;
+  scheduleDate: string;
+  scheduleTime: string;
 };
 
 export async function listChoreographiesForAcademyEvent(
@@ -107,8 +113,6 @@ export async function listChoreographiesForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
-      hasActiveFinancialLink: choreographies.hasActiveFinancialLink,
-      hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
       submodalityName: submodalities.name,
@@ -142,7 +146,7 @@ export async function findChoreographyForAcademyEvent(
     isRegistrationOpen: boolean;
   },
 ): Promise<ChoreographyDetail | null> {
-  const [row] = await db
+  const rows: ChoreographyDetailRow[] = await db
     .select({
       id: choreographies.id,
       name: choreographies.name,
@@ -183,6 +187,7 @@ export async function findChoreographyForAcademyEvent(
         eq(choreographies.eventId, eventId),
       ),
     );
+  const [row] = rows;
 
   if (!row) {
     return null;

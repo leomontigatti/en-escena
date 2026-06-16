@@ -366,14 +366,14 @@ describe.sequential("portal choreographies reads", () => {
       birthDate: "2011-04-05",
     });
 
-    const eligibleChoreography = await createChoreographyRecord({
+    const registrationClosedChoreography = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
       modalityId: catalog.modality.id,
-      musicStorageKey: "music/detail-eligible.mp3",
-      name: "Editable",
+      musicStorageKey: "music/detail-registration-closed.mp3",
+      name: "Inscripción cerrada",
       scheduleEntryId: catalog.scheduleEntry.id,
       submodalityId: catalog.submodality.id,
     });
@@ -405,7 +405,7 @@ describe.sequential("portal choreographies reads", () => {
 
     await db.insert(choreographyDancers).values([
       {
-        choreographyId: eligibleChoreography.id,
+        choreographyId: registrationClosedChoreography.id,
         dancerId: dancer.id,
         ageAtEventStart: 15,
       },
@@ -421,10 +421,10 @@ describe.sequential("portal choreographies reads", () => {
       },
     ]);
 
-    const eligibleDetail = await choreographyDetailLoader({
-      params: { choreographyId: eligibleChoreography.id },
+    const registrationClosedDetail = await choreographyDetailLoader({
+      params: { choreographyId: registrationClosedChoreography.id },
       request: new Request(
-        `http://localhost/portal/coreografias/${eligibleChoreography.id}?evento=${event.id}`,
+        `http://localhost/portal/coreografias/${registrationClosedChoreography.id}?evento=${event.id}`,
         {
           headers: { cookie: owner.cookie },
         },
@@ -449,7 +449,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(eligibleDetail.dancerEditingEligibility).toEqual({
+    expect(registrationClosedDetail.dancerEditingEligibility).toEqual({
       canEdit: false,
       reasonCode: "registration-closed",
       reasonText:
