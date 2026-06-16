@@ -785,6 +785,10 @@ export const choreographies = createTable(
     }),
     scheduleEntryId: varchar("schedule_entry_id", { length: 255 }).notNull(),
     musicStorageKey: text("music_storage_key"),
+    hasPresentation: boolean("has_presentation").notNull().default(false),
+    hasActiveFinancialLink: boolean("has_active_financial_link")
+      .notNull()
+      .default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

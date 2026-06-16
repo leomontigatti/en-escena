@@ -112,6 +112,9 @@ export async function loader({
     academy.id,
     selectedEventId,
     choreographyId,
+    {
+      isRegistrationOpen: eventContext.isRegistrationOpen,
+    },
   );
 
   if (!choreography) {
@@ -125,6 +128,7 @@ export async function loader({
 
   return {
     choreography,
+    dancerEditingEligibility: choreography.dancerEditingEligibility,
     availableProfessors,
     deletionAvailability: getChoreographyDeletionAvailability({
       isReadOnly: eventContext.isReadOnly,
@@ -191,6 +195,7 @@ export function PortalCoreografiaDetalleRouteView({
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
+  const dancerEditingAvailability = loaderData.dancerEditingEligibility;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
@@ -297,7 +302,32 @@ export function PortalCoreografiaDetalleRouteView({
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-lg border border-slate-200 bg-white p-6">
-            <h3 className="text-sm font-semibold text-slate-950">Bailarines</h3>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">
+                  Bailarines
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {getDancerSectionDescription(dancerEditingAvailability)}
+                </p>
+              </div>
+              <span
+                className={getDancerSectionBadgeClassName(
+                  dancerEditingAvailability.canEdit,
+                )}
+              >
+                {dancerEditingAvailability.canEdit
+                  ? "Edición disponible"
+                  : "Edición no disponible"}
+              </span>
+            </div>
+            {dancerEditingAvailability.reasonText ? (
+              <div className="mt-4">
+                <AccessNotice variant="info">
+                  {dancerEditingAvailability.reasonText}
+                </AccessNotice>
+              </div>
+            ) : null}
             <ul className="mt-4 space-y-3">
               {loaderData.choreography.dancers.map((dancer) => (
                 <li
@@ -533,6 +563,23 @@ function ArchivedBadge() {
     <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
       Archivado
     </span>
+  );
+}
+
+function getDancerSectionDescription(
+  dancerEditingEligibility: LoaderData["choreography"]["dancerEditingEligibility"],
+) {
+  if (dancerEditingEligibility.canEdit) {
+    return "La edición de bailarines para esta coreografía está disponible. En esta iteración el roster todavía se muestra en solo lectura.";
+  }
+
+  return "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.";
+}
+
+function getDancerSectionBadgeClassName(canEdit: boolean) {
+  return clsx(
+    "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
+    canEdit ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800",
   );
 }
 
