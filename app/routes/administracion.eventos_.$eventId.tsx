@@ -193,9 +193,7 @@ export function AdministracionEventoDetalleRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       title="Editar evento"
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}

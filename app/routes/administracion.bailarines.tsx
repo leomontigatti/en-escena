@@ -84,7 +84,7 @@ export function AdministracionBailarinesRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Bailarines"
       description="Consultá la ficha administrativa de cada bailarín y priorizá la revisión documental desde el listado."
       requireSelectedEvent={false}

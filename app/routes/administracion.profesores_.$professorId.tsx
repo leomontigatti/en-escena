@@ -378,9 +378,7 @@ export function AdministracionProfesorDetalleRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       requireSelectedEvent={false}
       title="Detalle profesor"
       description="Revisá la información administrativa de este profesor."

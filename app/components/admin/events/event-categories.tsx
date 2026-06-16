@@ -143,7 +143,7 @@ export function EventCategoriesRouteView({
 }) {
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Categorías"
       description="Gestioná las categorías, tipos de grupo, modalidades y niveles de experiencia del evento activo."
       action={{
@@ -175,7 +175,7 @@ export function NewEventCategoryRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Nueva categoría"
       description="Definí rango de edad, tipos de grupo, modalidades y niveles de experiencia."
     >
@@ -209,7 +209,7 @@ export function EventCategoryDetailRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title={category ? "Editar categoría" : "Categoría no encontrada"}
       description={
         category

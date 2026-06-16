@@ -449,9 +449,7 @@ export function AdministracionBailarinDetalleRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       title="Detalle bailarín"
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
