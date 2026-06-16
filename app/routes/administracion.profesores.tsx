@@ -44,7 +44,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 
   if (eventContext.redirectTo) {

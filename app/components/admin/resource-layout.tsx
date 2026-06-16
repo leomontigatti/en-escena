@@ -16,8 +16,7 @@ export type EventBaseAreaKey =
   | "bloques-horarios"
   | "precios";
 
-type AdminResourceLayoutEventContext = {
-  [key: string]: unknown;
+type AdminResourceLayoutSelectedEvent = {
   selectedEventId: string | null;
 };
 
@@ -33,7 +32,7 @@ type AdminResourceLayoutProps = {
   children: ReactNode;
   description: string;
   headerAction?: ReactNode;
-  loaderData?: AdminResourceLayoutEventContext;
+  loaderData?: AdminResourceLayoutSelectedEvent;
   requireSelectedEvent?: boolean;
   selectedEventId?: string | null;
   title: string;

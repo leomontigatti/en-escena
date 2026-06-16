@@ -74,11 +74,7 @@ export function AdministracionEventosRouteView({
 }: AdministracionEventosRouteProps) {
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       title="Eventos"
       description="Gestioná las fechas principales y estado de cada evento."
       action={{ label: "Nuevo evento", to: "/administracion/eventos/nuevo" }}

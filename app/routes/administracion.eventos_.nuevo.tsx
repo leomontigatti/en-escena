@@ -110,11 +110,7 @@ export function AdministracionEventoNuevoRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       title="Nuevo evento"
       description="Definí fechas, seña requerida y visibilidad inicial del evento."
       requireSelectedEvent={false}
