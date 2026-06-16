@@ -134,6 +134,10 @@ type AdministracionBailarinDetalleRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
+export type InscriptionsSectionProps = {
+  inscriptions: LoaderData["dancer"]["inscriptions"];
+  selectedEventId: string | null;
+};
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -143,13 +147,13 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
 const inscriptionColumns: DataTableColumn<DancerInscription>[] = [
   {
     id: "choreography",
-    header: "Coreografía",
+    header: "Nombre coreografía",
     cell: (inscription) => inscription.choreographyName,
     filterValue: (inscription) => inscription.choreographyName,
   },
   {
     id: "groupType",
-    header: "Tipo grupal",
+    header: "Tipo de grupo",
     cell: (inscription) => formatGroupTypeLabel(inscription.groupType),
     filterValue: (inscription) => formatGroupTypeLabel(inscription.groupType),
   },
@@ -1273,18 +1277,15 @@ function ReadOnlyField({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function InscriptionsSection({
+export function InscriptionsSection({
   inscriptions,
   selectedEventId,
-}: {
-  inscriptions: LoaderData["dancer"]["inscriptions"];
-  selectedEventId: string | null;
-}) {
+}: InscriptionsSectionProps) {
   if (!selectedEventId) {
     return (
       <AdminEmptyState
         title="Sin evento activo"
-        description="Elegí un evento activo para revisar las inscripciones de este bailarín."
+        description="No hay un evento activo seleccionado para revisar inscripciones."
       />
     );
   }
@@ -1293,7 +1294,7 @@ function InscriptionsSection({
     return (
       <AdminEmptyState
         title="Sin inscripciones en el evento activo"
-        description="Este bailarín no tiene inscripciones activas para mostrar."
+        description="Este bailarín no tiene inscripciones en el evento activo."
       />
     );
   }
