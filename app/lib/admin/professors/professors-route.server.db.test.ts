@@ -170,6 +170,23 @@ describe("administracion/profesores route", () => {
     expect(searchMarkup).toContain("estado=todos");
     expect(searchMarkup).toContain("q=Academia+Sur");
 
+    const { request: emptySearchRequest } = await createSignedInRequest({
+      email: "admin.busqueda.vacia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=todos&q=No+existe`,
+    });
+    const emptySearchData = await loader(routeArgs(emptySearchRequest));
+    const emptySearchMarkup = renderRoute(emptySearchData);
+
+    expect(emptySearchData.professors).toHaveLength(0);
+    expect(emptySearchMarkup).toContain('value="No existe"');
+    expect(emptySearchMarkup).toContain(
+      "No hay Profesores que coincidan con la búsqueda.",
+    );
+    expect(emptySearchMarkup).not.toContain(
+      "Todavía no hay Profesores para mostrar.",
+    );
+
     const { request: archivedRequest } = await createSignedInRequest({
       email: "admin.archivados@example.com",
       role: "admin",

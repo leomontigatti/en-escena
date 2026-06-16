@@ -84,7 +84,7 @@ export type DataTableColumn<TData> = {
   sortValue?: (row: TData) => SortValue;
 };
 
-type DataTableFacetedFilter = {
+export type DataTableFacetedFilter = {
   columnId: string;
   label: string;
   groups: DataTableFacetedFilterGroup[];
@@ -103,6 +103,16 @@ type DataTableFacetedFilterOption = {
 
 type DataTableFacetedFilterValue = Record<string, string>;
 
+type DataTableServerSideState = {
+  currentPage: number;
+  totalPages: number;
+  totalRows: number;
+  basePath?: string;
+  loading?: boolean;
+  pageParamName?: string;
+  searchParamName?: string;
+};
+
 type DataTableProps<TData> = {
   rows: TData[];
   columns: DataTableColumn<TData>[];
@@ -118,15 +128,7 @@ type DataTableProps<TData> = {
     columnId: string;
     direction: SortDirection;
   };
-  serverSide?: {
-    currentPage: number;
-    totalPages: number;
-    totalRows: number;
-    basePath?: string;
-    loading?: boolean;
-    pageParamName?: string;
-    searchParamName?: string;
-  };
+  serverSide?: DataTableServerSideState;
 };
 
 export function DataTable<TData>({
@@ -161,6 +163,14 @@ export function DataTable<TData>({
   );
   const lastAppliedSearchValueRef = useRef(initialSearchValue);
   const isServerSide = serverSide !== undefined;
+  const tableGlobalFilter =
+    isServerSide || textFilterColumnId ? "" : searchQuery;
+  const tablePagination = isServerSide
+    ? {
+        pageIndex: serverSide.currentPage - 1,
+        pageSize: rows.length,
+      }
+    : pagination;
 
   useEffect(() => {
     setSearchQuery(initialSearchValue);
@@ -231,13 +241,8 @@ export function DataTable<TData>({
     columns: tableColumns,
     state: {
       columnFilters: isServerSide ? [] : columnFilters,
-      globalFilter: isServerSide ? "" : textFilterColumnId ? "" : searchQuery,
-      pagination: isServerSide
-        ? {
-            pageIndex: serverSide.currentPage - 1,
-            pageSize: rows.length,
-          }
-        : pagination,
+      globalFilter: tableGlobalFilter,
+      pagination: tablePagination,
       sorting,
     },
     onColumnFiltersChange: isServerSide ? undefined : setColumnFilters,
@@ -342,6 +347,13 @@ export function DataTable<TData>({
     setSearchFilter("");
   };
 
+  const setClientFilterValue = (
+    filter: DataTableFacetedFilter,
+    values: DataTableFacetedFilterValue,
+  ) => {
+    table.getColumn(filter.columnId)?.setFilterValue(values);
+  };
+
   const setServerFilterValue = (
     filter: DataTableFacetedFilter,
     values: DataTableFacetedFilterValue,
@@ -364,6 +376,18 @@ export function DataTable<TData>({
     if (nextHref !== currentHref) {
       void navigate(nextHref);
     }
+  };
+
+  const setFacetedFilterValue = (
+    filter: DataTableFacetedFilter,
+    values: DataTableFacetedFilterValue,
+  ) => {
+    if (isServerSide) {
+      setServerFilterValue(filter, values);
+      return;
+    }
+
+    setClientFilterValue(filter, values);
   };
 
   return (
@@ -409,13 +433,7 @@ export function DataTable<TData>({
                       columnFilters,
                       isServerSide,
                     )}
-                    onChange={(values) =>
-                      isServerSide
-                        ? setServerFilterValue(filter, values)
-                        : table
-                            .getColumn(filter.columnId)
-                            ?.setFilterValue(values)
-                    }
+                    onChange={(values) => setFacetedFilterValue(filter, values)}
                   />
                 ))}
               </div>
@@ -780,12 +798,12 @@ function getSelectedFilterValues<TData>(
 }
 
 function getPaginationPages(pageCount: number, currentPage: number) {
-  if (pageCount <= 7) {
-    return Array.from({ length: pageCount }, (_, index) => index + 1);
-  }
-
   if (pageCount <= 1) {
     return [1];
+  }
+
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
   }
 
   const pages = new Set([

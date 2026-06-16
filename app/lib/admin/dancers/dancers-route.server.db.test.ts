@@ -198,6 +198,23 @@ describe("administracion/bailarines route", () => {
     expect(searchMarkup).toContain("identificacion=sin-imagenes");
     expect(searchMarkup).toContain("q=Academia+Sur");
 
+    const { request: emptySearchRequest } = await createSignedInRequest({
+      email: "admin.empty.search.dancers@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=todos&identificacion=todos&q=No+existe`,
+    });
+    const emptySearchData = await loader(routeArgs(emptySearchRequest));
+    const emptySearchMarkup = renderRoute(emptySearchData);
+
+    expect(emptySearchData.dancers).toHaveLength(0);
+    expect(emptySearchMarkup).toContain('value="No existe"');
+    expect(emptySearchMarkup).toContain(
+      "No hay Bailarines que coincidan con la búsqueda.",
+    );
+    expect(emptySearchMarkup).not.toContain(
+      "Todavía no hay Bailarines para mostrar.",
+    );
+
     const { request: archivedRequest } = await createSignedInRequest({
       email: "admin.archived.dancers@example.com",
       role: "admin",

@@ -5,6 +5,7 @@ import { AdminEmptyState } from "@/components/admin/resource-layout";
 import {
   DataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +34,42 @@ type DancerRow = LoaderData["dancers"][number];
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
 };
+
+const dancerFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    columnId: "filters",
+    label: "Filtros",
+    groups: [
+      {
+        id: "participando",
+        label: "Participación",
+        options: [
+          { label: "Sí", value: "si" },
+          { label: "No", value: "no" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+      {
+        id: "estado",
+        label: "Estado",
+        options: [
+          { label: "Activos", value: "activos" },
+          { label: "Archivados", value: "archivados" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+      {
+        id: "identificacion",
+        label: "Identificación",
+        options: [
+          { label: "Incompleta", value: "incompleta" },
+          { label: "Sin imágenes", value: "sin-imagenes" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+    ],
+  },
+];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Bailarines | Panel de administración | En Escena" },
@@ -71,6 +108,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 export function AdministracionBailarinesRouteView({
   loaderData,
 }: AdministracionBailarinesRouteProps) {
+  const shouldShowTable =
+    loaderData.dancers.length > 0 || hasActiveListFilters(loaderData);
+
   return (
     <AdminShell
       email={loaderData.email}
@@ -92,7 +132,7 @@ export function AdministracionBailarinesRouteView({
           </p>
         </div>
 
-        {loaderData.dancers.length > 0 ? (
+        {shouldShowTable ? (
           <DancerTable loaderData={loaderData} />
         ) : (
           <AdminEmptyState
@@ -179,41 +219,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       getRowKey={(dancer) => dancer.id}
       searchPlaceholder="Buscar por nombre, documento o academia"
       initialSearchValue={loaderData.filters.query}
-      facetedFilters={[
-        {
-          columnId: "filters",
-          label: "Filtros",
-          groups: [
-            {
-              id: "participando",
-              label: "Participación",
-              options: [
-                { label: "Sí", value: "si" },
-                { label: "No", value: "no" },
-                { label: "Todos", value: "todos" },
-              ],
-            },
-            {
-              id: "estado",
-              label: "Estado",
-              options: [
-                { label: "Activos", value: "activos" },
-                { label: "Archivados", value: "archivados" },
-                { label: "Todos", value: "todos" },
-              ],
-            },
-            {
-              id: "identificacion",
-              label: "Identificación",
-              options: [
-                { label: "Incompleta", value: "incompleta" },
-                { label: "Sin imágenes", value: "sin-imagenes" },
-                { label: "Todos", value: "todos" },
-              ],
-            },
-          ],
-        },
-      ]}
+      facetedFilters={dancerFacetedFilters}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
       emptyMessage="No hay Bailarines que coincidan con la búsqueda."
       serverSide={{
@@ -271,24 +277,18 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
     searchParams.set("q", loaderData.filters.query);
   }
 
-  const participationValue = toAdminDancerParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
-  const identificationValue = toAdminDancerIdentificationSearchValue(
-    loaderData.filters.identification,
-  );
+  const values = getSelectedFilterValues(loaderData);
 
-  if (participationValue !== "si" || loaderData.selectedEventId === null) {
-    searchParams.set("participando", participationValue);
+  if (values.participando) {
+    searchParams.set("participando", values.participando);
   }
 
-  if (statusValue !== "activos") {
-    searchParams.set("estado", statusValue);
+  if (values.estado) {
+    searchParams.set("estado", values.estado);
   }
 
-  if (identificationValue !== "todos") {
-    searchParams.set("identificacion", identificationValue);
+  if (values.identificacion) {
+    searchParams.set("identificacion", values.identificacion);
   }
 
   if (page > 1) {
@@ -303,6 +303,10 @@ function formatResultCount(totalCount: number) {
 }
 
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
+  return { filters: getSelectedFilterValues(loaderData) };
+}
+
+function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
   const participationValue = toAdminDancerParticipationSearchValue(
     loaderData.filters.participation,
@@ -324,5 +328,25 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
     values.identificacion = identificationValue;
   }
 
-  return { filters: values };
+  return values;
+}
+
+function hasActiveListFilters(loaderData: LoaderData) {
+  const defaultParticipationValue =
+    loaderData.selectedEventId === null ? "todos" : "si";
+  const participationValue = toAdminDancerParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
+  const identificationValue = toAdminDancerIdentificationSearchValue(
+    loaderData.filters.identification,
+  );
+
+  return (
+    loaderData.filters.query.length > 0 ||
+    loaderData.filters.page > 1 ||
+    participationValue !== defaultParticipationValue ||
+    statusValue !== "activos" ||
+    identificationValue !== "todos"
+  );
 }
