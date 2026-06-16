@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { AdminShell } from "@/components/admin/shell";
 import { db } from "@/db";
 import { events, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
@@ -11,8 +12,8 @@ import { createEvent } from "@/lib/events/management.server";
 import {
   AdministracionEventosRouteView,
   loader,
-} from "@/routes/administracion_.eventos";
-import { action as createAction } from "@/routes/administracion_.eventos_.nuevo";
+} from "@/routes/administracion.eventos";
+import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -243,19 +244,29 @@ function renderRoute(
     Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
   >,
 ) {
+  const resolvedLoaderData = {
+    email: "admin@example.com",
+    eventOptions: [],
+    events: [],
+    selectedEventId: null,
+    ...loaderData,
+  };
+
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       { initialEntries: ["/administracion/eventos"] },
-      createElement(AdministracionEventosRouteView, {
-        loaderData: {
-          email: "admin@example.com",
-          eventOptions: [],
-          events: [],
-          selectedEventId: null,
-          ...loaderData,
+      createElement(
+        AdminShell,
+        {
+          email: resolvedLoaderData.email,
+          events: resolvedLoaderData.eventOptions,
+          selectedEventId: resolvedLoaderData.selectedEventId,
         },
-      }),
+        createElement(AdministracionEventosRouteView, {
+          loaderData: resolvedLoaderData,
+        }),
+      ),
     ),
   );
 }

@@ -21,7 +21,7 @@ vi.mock("@/lib/auth/internal-access.server", () => ({
 import {
   InscriptionsSection,
   type InscriptionsSectionProps,
-} from "@/routes/administracion_.bailarines_.$dancerId";
+} from "@/routes/administracion.bailarines_.$dancerId";
 
 describe("InscriptionsSection", () => {
   test("shows an empty state when there is no Evento activo", () => {

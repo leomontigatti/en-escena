@@ -29,12 +29,12 @@ import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionBailarinesRouteView,
   loader,
-} from "@/routes/administracion_.bailarines";
+} from "@/routes/administracion.bailarines";
 import {
   AdministracionBailarinDetalleRouteView,
   action as detailAction,
   loader as detailLoader,
-} from "@/routes/administracion_.bailarines_.$dancerId";
+} from "@/routes/administracion.bailarines_.$dancerId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

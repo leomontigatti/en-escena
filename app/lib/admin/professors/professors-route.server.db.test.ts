@@ -27,12 +27,12 @@ import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionProfesoresRouteView,
   loader,
-} from "@/routes/administracion_.profesores";
+} from "@/routes/administracion.profesores";
 import {
   AdministracionProfesorDetalleRouteView,
   action as detailAction,
   loader as detailLoader,
-} from "@/routes/administracion_.profesores_.$professorId";
+} from "@/routes/administracion.profesores_.$professorId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

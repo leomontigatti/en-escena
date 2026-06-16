@@ -12,7 +12,7 @@ import {
   action,
   AdministracionEventoDetalleRouteView,
   loader,
-} from "@/routes/administracion_.eventos_.$eventId";
+} from "@/routes/administracion.eventos_.$eventId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

@@ -17,12 +17,12 @@ import { auth } from "@/lib/auth/auth.server";
 import {
   loader as listLoader,
   AdministracionUsuariosRouteView,
-} from "@/routes/administracion_.usuarios";
+} from "@/routes/administracion.usuarios";
 import {
   action as detailAction,
   AdministracionUsuarioDetalleRouteView,
   loader as detailLoader,
-} from "@/routes/administracion_.usuarios_.$userId";
+} from "@/routes/administracion.usuarios_.$userId";
 import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";

@@ -2,7 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdminShell } from "@/components/admin/shell";
+import {
+  AdminShell,
+  getAdminBreadcrumbItems,
+  getAdminShellOptions,
+} from "@/components/admin/shell";
 
 describe("AdminShell", () => {
   test("renders administration navigation and the signed-in user context", () => {
@@ -63,6 +67,50 @@ describe("AdminShell", () => {
     expect(markup).toContain("Sin evento activo");
     expect(markup).not.toContain("No hay Evento activo");
   });
+
+  test("collects static and dynamic breadcrumbs from route handles", () => {
+    const breadcrumbItems = getAdminBreadcrumbItems([
+      {},
+      {
+        handle: {
+          adminBreadcrumbs: [
+            { label: "Profesores", to: "/administracion/profesores" },
+          ],
+        },
+      },
+      {
+        data: {
+          professor: { firstName: "Ana", lastName: "Pérez" },
+        },
+        handle: {
+          adminBreadcrumbs: [
+            (match: {
+              data?: { professor?: { firstName: string; lastName: string } };
+            }) =>
+              match.data?.professor
+                ? {
+                    label: `${match.data.professor.lastName}, ${match.data.professor.firstName}`,
+                  }
+                : null,
+          ],
+        },
+      },
+    ] as never);
+
+    expect(breadcrumbItems).toEqual([
+      { label: "Profesores", to: "/administracion/profesores" },
+      { label: "Pérez, Ana" },
+    ]);
+  });
+
+  test("merges shell options from deeper route matches", () => {
+    const shellOptions = getAdminShellOptions([
+      { handle: { adminShell: { showEventSelector: true } } },
+      { handle: { adminShell: { showEventSelector: false } } },
+    ] as never);
+
+    expect(shellOptions).toEqual({ showEventSelector: false });
+  });
 });
 
 function renderAdminShell(
@@ -75,7 +123,6 @@ function renderAdminShell(
         email="admin@example.com"
         events={[{ id: "evento_2026", name: "Evento 2026", active: true }]}
         selectedEventId="evento_2026"
-        title="Inicio"
         {...props}
       >
         <p>Contenido administrativo</p>

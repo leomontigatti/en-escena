@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +55,7 @@ import {
 } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion_.eventos_.$eventId";
+import type { Route } from "./+types/administracion.eventos_.$eventId";
 
 type EventRow = typeof eventsTable.$inferSelect;
 
@@ -78,6 +79,18 @@ type AdministracionEventoDetalleRouteProps = {
 export const meta = () => [
   { title: "Editar evento | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Eventos", to: "/administracion/eventos" },
+    (match) => {
+      const data = match.data as
+        | AdministracionEventoDetalleRouteProps["loaderData"]
+        | undefined;
+      return data ? { label: data.event.name } : null;
+    },
+  ],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);

@@ -9,7 +9,7 @@ import {
   NewEventCategoryRouteView,
   EventCategoriesRouteView,
 } from "@/components/admin/events/event-categories";
-import { EventBasesLayoutView } from "@/components/admin/resource-layout";
+import { AdminShell } from "@/components/admin/shell";
 import {
   EventModalityDetailRouteView,
   EventModalitiesRouteView,
@@ -56,6 +56,8 @@ import {
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+let createdEventOffset = 0;
 
 describe.sequential("administracion Bases del evento routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
@@ -1807,12 +1809,21 @@ describe.sequential("administracion Bases del evento routes", () => {
 });
 
 async function createSavedEvent(name: string) {
+  const eventOffset = createdEventOffset++;
+  const registrationStartsAt = new Date(
+    Date.UTC(2030 + eventOffset, 2, 1, 12, 0, 0),
+  );
+  const registrationEndsAt = new Date(
+    Date.UTC(2030 + eventOffset, 3, 30, 12, 0, 0),
+  );
+  const startsAt = new Date(Date.UTC(2030 + eventOffset, 4, 1, 12, 0, 0));
+  const endsAt = new Date(Date.UTC(2030 + eventOffset, 4, 3, 12, 0, 0));
   const result = await createEvent({
     name,
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+    registrationStartsAt,
+    registrationEndsAt,
+    startsAt,
+    endsAt,
   });
 
   if (!result.ok) {
@@ -1848,10 +1859,15 @@ function renderRoute(
     createElement(
       MemoryRouter,
       { initialEntries: [path] },
-      createElement(EventBasesLayoutView, {
-        loaderData,
-        children: child,
-      }),
+      createElement(
+        AdminShell,
+        {
+          email: loaderData.email,
+          events: loaderData.events,
+          selectedEventId: loaderData.selectedEventId,
+        },
+        child,
+      ),
     ),
   );
 }

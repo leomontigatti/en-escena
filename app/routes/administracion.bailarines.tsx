@@ -25,9 +25,10 @@ import {
   listAdministrativeDancers,
   readAdministrativeDancerFilters,
 } from "@/lib/admin/dancers/dancers.server";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-import type { Route } from "./+types/administracion_.bailarines";
+import type { Route } from "./+types/administracion.bailarines";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DancerRow = LoaderData["dancers"][number];
@@ -40,6 +41,10 @@ type AdministracionBailarinesRouteProps = {
 export const meta: Route.MetaFunction = () => [
   { title: "Bailarines | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [{ label: "Bailarines" }],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);

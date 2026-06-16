@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
-import type { Route } from "./+types/administracion_.usuarios.invitaciones";
+import type { Route } from "./+types/administracion.usuarios_.invitaciones";
 
 export const internalInvitationRedirectPath = "/administracion/usuarios/nuevo";
 

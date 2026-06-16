@@ -16,10 +16,11 @@ import {
   loadAdminEventContext,
   type AdminEventContext,
 } from "@/lib/admin/event-context.server";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
-import type { Route } from "./+types/administracion_.eventos";
+import type { Route } from "./+types/administracion.eventos";
 
 type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState = ReturnType<typeof getTemporalState>;
@@ -44,6 +45,10 @@ const dateFormatter = new Intl.DateTimeFormat("es-AR", {
 export const meta: Route.MetaFunction = () => [
   { title: "Eventos | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [{ label: "Eventos" }],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);

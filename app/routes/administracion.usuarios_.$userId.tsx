@@ -11,7 +11,7 @@ import {
 import { Form, Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AdminShell } from "@/components/admin/shell";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +58,7 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 
-import type { Route } from "./+types/administracion_.usuarios_.$userId";
+import type { Route } from "./+types/administracion.usuarios_.$userId";
 
 const internalUserRoles = ["admin", "auditor", "judge"] as const;
 const routeNotificationSearchParam = "notificacion";
@@ -172,6 +172,17 @@ const emptyResetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>();
 export const meta: Route.MetaFunction = () => [
   { title: "Usuario | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Usuarios", to: "/administracion/usuarios" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      return data ? { label: data.user.name } : null;
+    },
+  ],
+  adminShell: { showEventSelector: false },
+} satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const appUser = await requireInternalUser(request, ["admin", "auditor"]);
@@ -352,89 +363,74 @@ export function AdministracionUsuarioDetalleRouteView({
     loaderData.canManage &&
     savedUser.userType === "internal" &&
     (loaderData.isResettingPassword || actionData?.form === "reset-password");
-  const breadcrumbItems = [
-    { label: "Usuarios", to: loaderData.backToList },
-    { label: savedUser.name },
-  ];
 
   useServerActionToast(actionData, {
     toastId: routeNotificationToastIds["user-form-error"],
   });
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
-      title="Usuario"
-      showEventSelector={false}
-      breadcrumbItems={breadcrumbItems}
-    >
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            to={loaderData.backToList}
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            Volver a Usuarios
-          </Link>
-          {loaderData.canManage &&
-          savedUser.userType === "internal" &&
-          !isEditing &&
-          !isResettingPassword ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusActionButton user={savedUser} />
-              <Button asChild variant="outline">
-                <Link to={loaderData.resetPasswordHref}>
-                  Restablecer contraseña
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link to={loaderData.editHref}>Editar datos</Link>
-              </Button>
-            </div>
-          ) : null}
-        </div>
-
-        <header className="flex flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-semibold">{savedUser.name}</h2>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                {getRoleLabel(savedUser.mainRole)}
-              </Badge>
-              <Badge variant="outline">
-                {getTypeLabel(savedUser.userType)}
-              </Badge>
-              <Badge variant={getStateBadgeVariant(savedUser.state)}>
-                {getStateLabel(savedUser.state)}
-              </Badge>
-            </div>
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          to={loaderData.backToList}
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Volver a Usuarios
+        </Link>
+        {loaderData.canManage &&
+        savedUser.userType === "internal" &&
+        !isEditing &&
+        !isResettingPassword ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusActionButton user={savedUser} />
+            <Button asChild variant="outline">
+              <Link to={loaderData.resetPasswordHref}>
+                Restablecer contraseña
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to={loaderData.editHref}>Editar datos</Link>
+            </Button>
           </div>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            {getDetailDescription(savedUser.userType, loaderData.canManage)}
-          </p>
-        </header>
+        ) : null}
+      </div>
 
-        {savedUser.userType === "academy" ? (
-          <AcademyUserDetailCard user={savedUser} />
-        ) : isResettingPassword ? (
-          <InternalUserResetPasswordCard
-            actionData={actionData}
-            cancelHref={loaderData.cancelHref}
-          />
-        ) : isEditing ? (
-          <InternalUserEditCard
-            actionData={actionData}
-            cancelHref={loaderData.cancelHref}
-            user={savedUser}
-          />
-        ) : (
-          <InternalUserDetailCard user={savedUser} />
-        )}
-      </section>
-    </AdminShell>
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-semibold">{savedUser.name}</h2>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              {getRoleLabel(savedUser.mainRole)}
+            </Badge>
+            <Badge variant="outline">{getTypeLabel(savedUser.userType)}</Badge>
+            <Badge variant={getStateBadgeVariant(savedUser.state)}>
+              {getStateLabel(savedUser.state)}
+            </Badge>
+          </div>
+        </div>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          {getDetailDescription(savedUser.userType, loaderData.canManage)}
+        </p>
+      </header>
+
+      {savedUser.userType === "academy" ? (
+        <AcademyUserDetailCard user={savedUser} />
+      ) : isResettingPassword ? (
+        <InternalUserResetPasswordCard
+          actionData={actionData}
+          cancelHref={loaderData.cancelHref}
+        />
+      ) : isEditing ? (
+        <InternalUserEditCard
+          actionData={actionData}
+          cancelHref={loaderData.cancelHref}
+          user={savedUser}
+        />
+      ) : (
+        <InternalUserDetailCard user={savedUser} />
+      )}
+    </section>
   );
 }
 

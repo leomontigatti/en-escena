@@ -10,7 +10,7 @@ import {
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AdminShell } from "@/components/admin/shell";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +46,7 @@ import {
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion_.usuarios.nuevo";
+import type { Route } from "./+types/administracion.usuarios_.nuevo";
 
 const internalUserRoles = ["admin", "auditor", "judge"] as const;
 
@@ -134,6 +134,14 @@ const emptyCreateInternalUserFieldErrors =
 export const meta: Route.MetaFunction = () => [
   { title: "Crear Usuario interno | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Usuarios", to: "/administracion/usuarios" },
+    { label: "Crear Usuario interno" },
+  ],
+  adminShell: { showEventSelector: false },
+} satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const appUser = await requireAdminPanelUser(request);
@@ -238,90 +246,78 @@ export function AdministracionUsuariosNuevoRouteView({
   }
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
-      title="Crear Usuario interno"
-      showEventSelector={false}
-      breadcrumbItems={[
-        { label: "Usuarios" },
-        { label: "Crear Usuario interno" },
-      ]}
-    >
-      <div className="flex max-w-3xl flex-col gap-6">
-        <section className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Crear Usuario interno</h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Creá accesos internos con nombre de usuario propio y cambio
-            obligatorio de contraseña en el primer ingreso.
-          </p>
-        </section>
+    <div className="flex max-w-3xl flex-col gap-6">
+      <section className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold">Crear Usuario interno</h1>
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          Creá accesos internos con nombre de usuario propio y cambio
+          obligatorio de contraseña en el primer ingreso.
+        </p>
+      </section>
 
-        <Alert>
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>
-            Compartí la contraseña temporal por un canal seguro
-          </AlertTitle>
-          <AlertDescription>
-            La contraseña temporal no vuelve a mostrarse después de guardar y no
-            se registra en auditoría.
-          </AlertDescription>
-        </Alert>
+      <Alert>
+        <CircleAlert aria-hidden="true" />
+        <AlertTitle>
+          Compartí la contraseña temporal por un canal seguro
+        </AlertTitle>
+        <AlertDescription>
+          La contraseña temporal no vuelve a mostrarse después de guardar y no
+          se registra en auditoría.
+        </AlertDescription>
+      </Alert>
 
-        <form
-          method="post"
-          noValidate
-          className="rounded-lg border bg-card p-6 shadow-sm"
-          onSubmit={handleSubmit}
-        >
-          <FieldGroup>
-            <CreateInternalUserTextField
-              autoComplete="name"
-              control={form.control}
-              label="Nombre visible"
-              name="name"
-            />
+      <form
+        method="post"
+        noValidate
+        className="rounded-lg border bg-card p-6 shadow-sm"
+        onSubmit={handleSubmit}
+      >
+        <FieldGroup>
+          <CreateInternalUserTextField
+            autoComplete="name"
+            control={form.control}
+            label="Nombre visible"
+            name="name"
+          />
 
-            <CreateInternalUserTextField
-              autoComplete="username"
-              control={form.control}
-              description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
-              label="Nombre de usuario interno"
-              name="internalUsername"
-              spellCheck={false}
-            />
+          <CreateInternalUserTextField
+            autoComplete="username"
+            control={form.control}
+            description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
+            label="Nombre de usuario interno"
+            name="internalUsername"
+            spellCheck={false}
+          />
 
-            <CreateInternalUserRoleField control={form.control} />
+          <CreateInternalUserRoleField control={form.control} />
 
-            <CreateInternalUserTextField
-              autoComplete="new-password"
-              control={form.control}
-              description="Debe tener al menos 8 caracteres."
-              label="Contraseña temporal"
-              name="temporaryPassword"
-              type="password"
-            />
+          <CreateInternalUserTextField
+            autoComplete="new-password"
+            control={form.control}
+            description="Debe tener al menos 8 caracteres."
+            label="Contraseña temporal"
+            name="temporaryPassword"
+            type="password"
+          />
 
-            <CreateInternalUserTextField
-              autoComplete="email"
-              control={form.control}
-              description="Opcional. No se verifica ni se usa para ingresar."
-              label="Correo"
-              name="email"
-              type="email"
-            />
+          <CreateInternalUserTextField
+            autoComplete="email"
+            control={form.control}
+            description="Opcional. No se verifica ni se usa para ingresar."
+            label="Correo"
+            name="email"
+            type="email"
+          />
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button type="submit">Crear Usuario interno</Button>
-              <Button asChild variant="outline">
-                <Link to="/administracion">Volver al panel</Link>
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-      </div>
-    </AdminShell>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button type="submit">Crear Usuario interno</Button>
+            <Button asChild variant="outline">
+              <Link to="/administracion">Volver al panel</Link>
+            </Button>
+          </div>
+        </FieldGroup>
+      </form>
+    </div>
   );
 }
 

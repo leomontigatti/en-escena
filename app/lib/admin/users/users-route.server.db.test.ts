@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth/auth.server";
 import {
   AdministracionUsuariosRouteView,
   loader,
-} from "@/routes/administracion_.usuarios";
+} from "@/routes/administracion.usuarios";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

@@ -8,7 +8,7 @@ import {
   action,
   internalInvitationRedirectPath,
   loader,
-} from "@/routes/administracion_.usuarios.invitaciones";
+} from "@/routes/administracion.usuarios_.invitaciones";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

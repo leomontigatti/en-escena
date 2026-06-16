@@ -15,6 +15,7 @@ import {
   AdminResourceLayout,
   AdminEmptyState,
 } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   DataTable,
   type DataTableColumn,
@@ -94,7 +95,7 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 
-import type { Route } from "./+types/administracion_.bailarines_.$dancerId";
+import type { Route } from "./+types/administracion.bailarines_.$dancerId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -192,6 +193,19 @@ const emptyDancerFieldErrors: AdministrativeDancerFieldErrors = {};
 export const meta: Route.MetaFunction = () => [
   { title: "Bailarín | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Bailarines", to: "/administracion/bailarines" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      const dancer = data?.dancer;
+      return dancer
+        ? { label: `${dancer.lastName}, ${dancer.firstName}` }
+        : null;
+    },
+  ],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);

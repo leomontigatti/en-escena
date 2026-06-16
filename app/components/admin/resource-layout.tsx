@@ -2,7 +2,6 @@ import { Inbox, Plus, Settings, type LucideIcon } from "lucide-react";
 import { type ReactNode } from "react";
 import { Link } from "react-router";
 
-import { AdminShell } from "@/components/admin/shell";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -78,24 +77,14 @@ export const eventBaseAreas: Array<{
 ];
 
 export function EventBasesLayoutView({
-  loaderData,
   children,
 }: AdminResourceLayoutViewProps) {
-  return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.events}
-      selectedEventId={loaderData.selectedEventId}
-      title="Bases del evento"
-    >
-      {children}
-    </AdminShell>
-  );
+  return <>{children}</>;
 }
 
 export function AdminResourceLayout({
   action,
-  breadcrumbItems,
+  breadcrumbItems: _breadcrumbItems,
   loaderData,
   headerAction,
   requireSelectedEvent = true,
@@ -103,28 +92,18 @@ export function AdminResourceLayout({
   description,
   children,
 }: AdminResourceLayoutProps) {
-  return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.events}
-      selectedEventId={loaderData.selectedEventId}
-      title={title}
-      breadcrumbItems={breadcrumbItems}
-    >
-      {requireSelectedEvent && !loaderData.selectedEventId ? (
-        <AdminEventRequiredEmptyState />
-      ) : (
-        <div className="flex flex-col gap-6">
-          <AdminResourceHeader
-            title={title}
-            description={description}
-            action={action}
-            headerAction={headerAction}
-          />
-          {children}
-        </div>
-      )}
-    </AdminShell>
+  return requireSelectedEvent && !loaderData.selectedEventId ? (
+    <AdminEventRequiredEmptyState />
+  ) : (
+    <div className="flex flex-col gap-6">
+      <AdminResourceHeader
+        title={title}
+        description={description}
+        action={action}
+        headerAction={headerAction}
+      />
+      {children}
+    </div>
   );
 }
 

@@ -11,7 +11,7 @@ import {
   AdministracionUsuariosNuevoRouteView,
   action,
   loader,
-} from "@/routes/administracion_.usuarios.nuevo";
+} from "@/routes/administracion.usuarios_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

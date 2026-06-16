@@ -21,9 +21,10 @@ import {
   listAdministrativeProfessors,
   readAdministrativeProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-import type { Route } from "./+types/administracion_.profesores";
+import type { Route } from "./+types/administracion.profesores";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ProfessorRow = LoaderData["professors"][number];
@@ -37,6 +38,10 @@ type AdministracionProfesoresRouteProps = {
 export const meta: Route.MetaFunction = () => [
   { title: "Profesores | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [{ label: "Profesores" }],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);

@@ -3,6 +3,7 @@ import { Save } from "lucide-react";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,7 +22,7 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion_.eventos_.nuevo";
+import type { Route } from "./+types/administracion.eventos_.nuevo";
 
 type ActionData = {
   status: "error";
@@ -42,6 +43,13 @@ type AdministracionEventoNuevoRouteProps = {
 export const meta: Route.MetaFunction = () => [
   { title: "Crear Evento | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Eventos", to: "/administracion/eventos" },
+    { label: "Nuevo" },
+  ],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);

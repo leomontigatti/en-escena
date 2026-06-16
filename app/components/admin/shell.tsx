@@ -11,7 +11,7 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
-import { Link, NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation, type UIMatch } from "react-router";
 
 import type { AdminEventOption } from "@/lib/admin/event-context.shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,15 +52,27 @@ type AdminShellProps = {
   email: string;
   events: AdminEventOption[];
   selectedEventId: string | null;
-  title: string;
   children: ReactNode;
   breadcrumbItems?: AdminShellBreadcrumbItem[];
   showEventSelector?: boolean;
 };
 
-type AdminShellBreadcrumbItem = {
+export type AdminShellBreadcrumbItem = {
   label: string;
   to?: string;
+};
+
+type AdminBreadcrumbFactory = (
+  match: UIMatch,
+) => AdminShellBreadcrumbItem | null;
+
+export type AdminShellOptions = {
+  showEventSelector?: boolean;
+};
+
+export type AdminRouteHandle = {
+  adminBreadcrumbs?: Array<AdminShellBreadcrumbItem | AdminBreadcrumbFactory>;
+  adminShell?: AdminShellOptions;
 };
 
 const eventBaseNavigationItems = [
@@ -133,14 +145,13 @@ export function AdminShell({
   email,
   events,
   selectedEventId,
-  title,
   children,
   breadcrumbItems,
   showEventSelector = true,
 }: AdminShellProps) {
   const location = useLocation();
   const isHome = location.pathname === "/administracion";
-  const resolvedBreadcrumbItems = breadcrumbItems ?? [{ label: title }];
+  const resolvedBreadcrumbItems = breadcrumbItems ?? [];
 
   return (
     <>
@@ -338,6 +349,33 @@ export function AdminShell({
       </SidebarProvider>
     </>
   );
+}
+
+export function getAdminBreadcrumbItems(
+  matches: UIMatch[],
+): AdminShellBreadcrumbItem[] {
+  return matches.flatMap((match) => {
+    const handle = match.handle as AdminRouteHandle | undefined;
+
+    return (handle?.adminBreadcrumbs ?? []).flatMap((breadcrumb) => {
+      if (typeof breadcrumb === "function") {
+        return breadcrumb(match) ?? [];
+      }
+
+      return breadcrumb;
+    });
+  });
+}
+
+export function getAdminShellOptions(matches: UIMatch[]): AdminShellOptions {
+  return matches.reduce<AdminShellOptions>((resolvedOptions, match) => {
+    const handle = match.handle as AdminRouteHandle | undefined;
+
+    return {
+      ...resolvedOptions,
+      ...handle?.adminShell,
+    };
+  }, {});
 }
 
 function BreadcrumbSegment({

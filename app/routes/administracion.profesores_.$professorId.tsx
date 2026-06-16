@@ -9,6 +9,7 @@ import {
   AdminResourceLayout,
   type AdminResourceBreadcrumbItem,
 } from "@/components/admin/resource-layout";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ import {
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion_.profesores_.$professorId";
+import type { Route } from "./+types/administracion.profesores_.$professorId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -137,6 +138,19 @@ const emptyProfessorFieldErrors: AdministrativeProfessorFieldErrors = {};
 export const meta: Route.MetaFunction = () => [
   { title: "Detalle profesor | Panel de administración | En Escena" },
 ];
+
+export const handle = {
+  adminBreadcrumbs: [
+    { label: "Profesores", to: "/administracion/profesores" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      const professor = data?.professor;
+      return professor
+        ? { label: `${professor.lastName}, ${professor.firstName}` }
+        : null;
+    },
+  ],
+} satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);

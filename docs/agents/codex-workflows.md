@@ -12,7 +12,7 @@ Do not run `npx tsc` directly. `npm run typecheck` runs `react-router typegen &&
 
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
-`sed -n '1,220p' 'app/routes/administracion_.eventos_.$eventId.tsx'`.
+`sed -n '1,220p' 'app/routes/administracion.eventos_.$eventId.tsx'`.
 
 Recommended validation order after code changes:
 
@@ -37,13 +37,13 @@ sibling of the list route unless the list component intentionally renders an
 Use a trailing underscore on the list segment in child filenames to avoid
 accidental parent/child nesting:
 
-- List: `administracion_.eventos.tsx`
-- Detail sibling: `administracion_.eventos_.$eventId.tsx`
-- New-form sibling: `administracion_.eventos_.nuevo.tsx`
+- List: `administracion.eventos.tsx`
+- Detail sibling: `administracion.eventos_.$eventId.tsx`
+- New-form sibling: `administracion.eventos_.nuevo.tsx`
 
-Do not use `administracion_.eventos.$eventId.tsx` or
-`administracion_.eventos.nuevo.tsx` unless
-`administracion_.eventos.tsx` renders `<Outlet />`. Without an outlet,
+Do not use `administracion.eventos.$eventId.tsx` or
+`administracion.eventos.nuevo.tsx` unless
+`administracion.eventos.tsx` renders `<Outlet />`. Without an outlet,
 the child route matches but the user keeps seeing the parent list instead of the
 detail or form screen.
 
@@ -77,6 +77,38 @@ Do not reintroduce `portal.profesores.$professorId.tsx`,
 `portal.bailarines.$dancerId.tsx`, or
 `portal.coreografias.$choreographyId.tsx` unless the corresponding list route
 renders an `<Outlet />`; otherwise React Router will match a child URL while the
+screen keeps rendering the list.
+
+## Admin Layout Routes
+
+The Panel de administración also uses a React Router layout route:
+
+- `administracion.tsx` owns `AdminShell`, loads shell-wide user and Evento
+  activo context, and renders `<Outlet />`.
+- `administracion._index.tsx` owns the `/administracion` dashboard content.
+- Administration child screens render only screen content. Do not render
+  `AdminShell` again from `administracion.profesores.tsx`,
+  `administracion.bailarines.tsx`, `administracion.eventos.tsx`,
+  `administracion.usuarios.tsx`, detail routes, or event-base children.
+- Administration route metadata comes from `handle.adminBreadcrumbs` and
+  `handle.adminShell`. Collect it in `administracion.tsx` with
+  `getAdminBreadcrumbItems(matches)` and `getAdminShellOptions(matches)`.
+- Use `handle.adminShell.showEventSelector = false` for global user-management
+  screens that should not show the active-event summary.
+- List/detail/form routes that should share the administration shell but not
+  nest inside the list component use trailing-underscore sibling filenames:
+  `administracion.profesores_.$professorId.tsx`,
+  `administracion.bailarines_.$dancerId.tsx`,
+  `administracion.eventos_.$eventId.tsx`,
+  `administracion.eventos_.nuevo.tsx`,
+  `administracion.usuarios_.$userId.tsx`, and
+  `administracion.usuarios_.nuevo.tsx`.
+
+Do not reintroduce `administracion.eventos.$eventId.tsx`,
+`administracion.eventos.nuevo.tsx`,
+`administracion.usuarios.$userId.tsx`, or
+`administracion.usuarios.nuevo.tsx` unless the corresponding list route renders
+an `<Outlet />`; otherwise React Router will match the child URL while the
 screen keeps rendering the list.
 
 ## Do Work

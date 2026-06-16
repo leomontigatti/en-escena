@@ -7,8 +7,8 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));
 
-import { AdministracionEventosRouteView } from "@/routes/administracion_.eventos";
-import { AdministracionEventoNuevoRouteView } from "@/routes/administracion_.eventos_.nuevo";
+import { AdministracionEventosRouteView } from "@/routes/administracion.eventos";
+import { AdministracionEventoNuevoRouteView } from "@/routes/administracion.eventos_.nuevo";
 
 describe("administracion/eventos route rendering", () => {
   test("renders an empty Eventos state with a link to create a new Evento", () => {

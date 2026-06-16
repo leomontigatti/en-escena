@@ -1,6 +1,6 @@
 import { Form, Link } from "react-router";
 
-import { AdminShell } from "@/components/admin/shell";
+import type { AdminRouteHandle } from "@/components/admin/shell";
 import { AdminEmptyState } from "@/components/admin/resource-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,15 +32,13 @@ import {
 } from "@/lib/admin/users/users-list.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-import type { Route } from "./+types/administracion_.usuarios";
+import type { Route } from "./+types/administracion.usuarios";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type AdministracionUsuariosRouteProps = {
   loaderData: LoaderData;
 };
-
-const breadcrumbItems = [{ label: "Usuarios" }];
 
 type FilterSelectOption = {
   label: string;
@@ -72,6 +70,11 @@ export const meta: Route.MetaFunction = () => [
   { title: "Usuarios | Panel de administración | En Escena" },
 ];
 
+export const handle = {
+  adminBreadcrumbs: [{ label: "Usuarios" }],
+  adminShell: { showEventSelector: false },
+} satisfies AdminRouteHandle;
+
 export async function loader({ request }: Route.LoaderArgs) {
   const appUser = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
@@ -94,50 +97,41 @@ export function AdministracionUsuariosRouteView({
   loaderData,
 }: AdministracionUsuariosRouteProps) {
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
-      title="Usuarios"
-      showEventSelector={false}
-      breadcrumbItems={breadcrumbItems}
-    >
-      <section className="flex flex-col gap-6">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-semibold">Usuarios</h2>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Consultá accesos internos y de academia con filtros por permiso,
-              tipo y estado. El alta de Usuarios internos se hace desde Crear
-              Usuario interno.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-muted-foreground">
-              {formatResultCount(loaderData.users.length)}
-            </p>
-            {loaderData.canManage ? (
-              <Button asChild>
-                <Link to="/administracion/usuarios/nuevo">
-                  Crear Usuario interno
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </header>
+    <section className="flex flex-col gap-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold">Usuarios</h1>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            Consultá accesos internos y de academia con filtros por permiso,
+            tipo y estado. El alta de Usuarios internos se hace desde Crear
+            Usuario interno.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            {formatResultCount(loaderData.users.length)}
+          </p>
+          {loaderData.canManage ? (
+            <Button asChild>
+              <Link to="/administracion/usuarios/nuevo">
+                Crear Usuario interno
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      </header>
 
-        <UserFilters loaderData={loaderData} />
+      <UserFilters loaderData={loaderData} />
 
-        {loaderData.users.length > 0 ? (
-          <UsersTable filters={loaderData.filters} users={loaderData.users} />
-        ) : (
-          <AdminEmptyState
-            title="No hay Usuarios para mostrar."
-            description="Probá con otra búsqueda o ajustá los filtros para revisar otros accesos."
-          />
-        )}
-      </section>
-    </AdminShell>
+      {loaderData.users.length > 0 ? (
+        <UsersTable filters={loaderData.filters} users={loaderData.users} />
+      ) : (
+        <AdminEmptyState
+          title="No hay Usuarios para mostrar."
+          description="Probá con otra búsqueda o ajustá los filtros para revisar otros accesos."
+        />
+      )}
+    </section>
   );
 }
 

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router";
+import { createElement, type ReactElement } from "react";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 import { PortalShell } from "@/components/portal/ui";
@@ -64,14 +64,27 @@ describe("private route headers", () => {
   );
 
   test("panel de administración renders session context in the sidebar dropdown trigger", () => {
-    const markup = renderPrivateRoute(
-      <AdministracionRouteView
-        loaderData={{
-          email: "admin@example.com",
-          events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
-          selectedEventId: "evento_2026",
-        }}
-      />,
+    const RoutesStub = createRoutesStub([
+      {
+        path: "/administracion",
+        Component: AdministracionRouteView,
+      },
+    ]);
+    const markup = renderToStaticMarkup(
+      createElement(RoutesStub, {
+        initialEntries: ["/administracion"],
+        hydrationData: {
+          loaderData: {
+            "0": {
+              email: "admin@example.com",
+              events: [
+                { id: "evento_2026", name: "Evento 2026", active: true },
+              ],
+              selectedEventId: "evento_2026",
+            },
+          },
+        },
+      }),
     );
 
     expect(markup).toContain("admin@example.com");
