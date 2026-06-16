@@ -135,9 +135,7 @@ export type ChoreographyDancerScheduleResolution =
     };
 
 export type ChoreographyCategoryCalculationMode =
-  | "oldest"
-  | "group_tolerance"
-  | "group_average";
+  ChoreographyRegistrationOperationResolution["categoryCalculationMode"];
 
 export type ResolveChoreographyDancersResult =
   | {
@@ -147,7 +145,7 @@ export type ResolveChoreographyDancersResult =
         categoryId: string | null;
         categoryName: string | null;
         categoryCalculationMode?: ChoreographyCategoryCalculationMode;
-        categoryAgeBasis?: number | null;
+        categoryAgeBasis?: ChoreographyRegistrationOperationResolution["categoryAgeBasis"];
         experienceLevel: {
           required: boolean;
           options: Array<{

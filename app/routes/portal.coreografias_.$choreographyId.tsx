@@ -146,22 +146,18 @@ type ChoreographyProfessor = LoaderData["choreography"]["professors"][number];
 type ChoreographyProfessorOption = LoaderData["availableProfessors"][number];
 type ChoreographyOperationalStatus =
   LoaderData["choreography"]["operationalStatus"];
+type ResolvedDancerResolution = Extract<
+  ResolveChoreographyDancersResult,
+  { ok: true }
+>["resolution"];
 type DancerResolutionState = {
   groupType: LoaderData["choreography"]["groupType"];
   categoryId: LoaderData["choreography"]["categoryId"];
   categoryName: LoaderData["choreography"]["categoryName"];
   categoryCalculationMode:
-    | Extract<
-        ResolveChoreographyDancersResult,
-        { ok: true }
-      >["resolution"]["categoryCalculationMode"]
+    | ResolvedDancerResolution["categoryCalculationMode"]
     | null;
-  categoryAgeBasis:
-    | Extract<
-        ResolveChoreographyDancersResult,
-        { ok: true }
-      >["resolution"]["categoryAgeBasis"]
-    | null;
+  categoryAgeBasis: ResolvedDancerResolution["categoryAgeBasis"] | null;
   experienceLevelRequired: boolean;
   experienceLevelOptions: Array<{
     id: string;
@@ -740,7 +736,6 @@ function DancerEditor({
     form,
     resolutionFetcher,
     resolvedSelectionKey,
-    actionData?.selectedScheduleEntryId,
     selectedScheduleEntryId,
     watchedDancerIds,
   ]);
