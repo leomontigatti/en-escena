@@ -1,19 +1,24 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdminShell } from "@/components/admin/shell";
 import { db } from "@/db";
 import { events, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
 import { createEvent } from "@/lib/events/management.server";
 import {
   AdministracionEventosRouteView,
+  handle as eventosHandle,
   loader,
 } from "@/routes/administracion.eventos";
-import { loader as detailLoader } from "@/routes/administracion.eventos_.$eventId";
+import {
+  handle as eventoDetalleHandle,
+  loader as detailLoader,
+} from "@/routes/administracion.eventos_.$eventId";
+import { AdministracionRouteView } from "@/routes/administracion";
+import { handle as eventoNuevoHandle } from "@/routes/administracion.eventos_.nuevo";
 import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -268,27 +273,51 @@ function renderRoute(
     Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
   >,
 ) {
-  const resolvedLoaderData = {
-    events: [],
-    ...loaderData,
-  };
+  const RoutesStub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/administracion",
+      Component: AdministracionRouteView,
+      children: [
+        {
+          id: "events",
+          path: "eventos",
+          Component: AdministracionEventosRouteView,
+          handle: eventosHandle,
+        },
+        {
+          id: "event-detail",
+          path: "eventos/:eventId",
+          Component: () => createElement("h1", null, "Detalle evento"),
+          handle: eventoDetalleHandle,
+        },
+        {
+          id: "event-new",
+          path: "eventos/nuevo",
+          Component: () => createElement("h1", null, "Nuevo evento"),
+          handle: eventoNuevoHandle,
+        },
+      ],
+    },
+  ]);
 
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: ["/administracion/eventos"] },
-      createElement(
-        AdminShell,
-        {
-          email: "admin@example.com",
-          events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
-          selectedEventId: "evento_2026",
+    createElement(RoutesStub, {
+      initialEntries: ["/administracion/eventos"],
+      hydrationData: {
+        loaderData: {
+          admin: {
+            email: "admin@example.com",
+            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+            selectedEventId: "evento_2026",
+          },
+          events: {
+            events: [],
+            ...loaderData,
+          },
         },
-        createElement(AdministracionEventosRouteView, {
-          loaderData: resolvedLoaderData,
-        }),
-      ),
-    ),
+      },
+    }),
   );
 }
 

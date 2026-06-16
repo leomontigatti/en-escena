@@ -101,8 +101,22 @@ The Panel de administración also uses a React Router layout route:
   `administracion.bailarines_.$dancerId.tsx`,
   `administracion.eventos_.$eventId.tsx`,
   `administracion.eventos_.nuevo.tsx`,
+  `administracion.modalidades_.$modalityId.tsx`,
+  `administracion.modalidades_.nueva.tsx`,
+  `administracion.categorias_.$categoryId.tsx`,
+  `administracion.categorias_.nueva.tsx`,
+  `administracion.bloques-horarios_.$scheduleBlockId.tsx`,
+  `administracion.bloques-horarios_.nuevo.tsx`,
+  `administracion.precios_.$priceId.tsx`,
+  `administracion.precios_.nuevo.tsx`,
   `administracion.usuarios_.$userId.tsx`, and
   `administracion.usuarios_.nuevo.tsx`.
+
+After adding or renaming administration route files, run `npm run typecheck`
+and inspect `.react-router/types/+routes.ts` when parentage matters. Child
+administration routes should list `administracion` as their layout parent, and
+list/detail/form routes should stay siblings of the list route unless the list
+intentionally renders an outlet.
 
 Do not reintroduce `administracion.eventos.$eventId.tsx`,
 `administracion.eventos.nuevo.tsx`,

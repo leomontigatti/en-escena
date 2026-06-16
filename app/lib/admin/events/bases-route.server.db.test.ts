@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import {
@@ -9,7 +9,6 @@ import {
   NewEventCategoryRouteView,
   EventCategoriesRouteView,
 } from "@/components/admin/events/event-categories";
-import { AdminShell } from "@/components/admin/shell";
 import {
   EventModalityDetailRouteView,
   EventModalitiesRouteView,
@@ -52,6 +51,19 @@ import {
   type EventBasesLoaderData,
   loader,
 } from "@/lib/admin/events/bases-route.server";
+import { AdministracionRouteView } from "@/routes/administracion";
+import { handle as bloquesHorariosHandle } from "@/routes/administracion.bloques-horarios";
+import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.bloques-horarios_.$scheduleBlockId";
+import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.bloques-horarios_.nuevo";
+import { handle as categoriasHandle } from "@/routes/administracion.categorias";
+import { handle as categoriaDetalleHandle } from "@/routes/administracion.categorias_.$categoryId";
+import { handle as categoriaNuevaHandle } from "@/routes/administracion.categorias_.nueva";
+import { handle as modalidadesHandle } from "@/routes/administracion.modalidades";
+import { handle as modalidadDetalleHandle } from "@/routes/administracion.modalidades_.$modalityId";
+import { handle as modalidadNuevaHandle } from "@/routes/administracion.modalidades_.nueva";
+import { handle as preciosHandle } from "@/routes/administracion.precios";
+import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
+import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -88,6 +100,8 @@ describe.sequential("administracion Bases del evento routes", () => {
       data,
       "/administracion/eventos",
       createElement("div"),
+      "event-bases-overview",
+      "eventos",
     );
 
     expect(data.selectedEventId).toBe(event.id);
@@ -1770,6 +1784,9 @@ describe.sequential("administracion Bases del evento routes", () => {
           },
         },
       }),
+      "price-new-error",
+      "precios/nuevo",
+      precioNuevoHandle,
     );
     const scheduleMarkup = renderRoute(
       data,
@@ -1787,6 +1804,9 @@ describe.sequential("administracion Bases del evento routes", () => {
           },
         },
       }),
+      "schedule-block-detail-error",
+      "bloques-horarios/:scheduleBlockId",
+      bloqueHorarioDetalleHandle,
     );
     const updateScheduleMarkup = renderBloqueHorarioDetailRoute(
       refreshedData,
@@ -1856,21 +1876,40 @@ function renderRoute(
   loaderData: EventBasesLoaderData,
   path: string,
   child: ReactElement,
+  childId: string,
+  childPath: string,
+  childHandle?: unknown,
 ) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: [path] },
-      createElement(
-        AdminShell,
+  const RoutesStub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/administracion",
+      Component: AdministracionRouteView,
+      children: [
         {
-          email: "admin@example.com",
-          events: [{ active: true, id: "event_1", name: "Evento 2026" }],
-          selectedEventId: loaderData.selectedEventId,
+          id: childId,
+          path: childPath,
+          Component: () => child,
+          handle: childHandle,
         },
-        child,
-      ),
-    ),
+      ],
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: [path],
+      hydrationData: {
+        loaderData: {
+          admin: {
+            email: "admin@example.com",
+            events: [{ active: true, id: "event_1", name: "Evento 2026" }],
+            selectedEventId: loaderData.selectedEventId,
+          },
+          [childId]: loaderData,
+        },
+      },
+    }),
   );
 }
 
@@ -1879,6 +1918,9 @@ function renderCategoriasRoute(loaderData: EventBasesLoaderData) {
     loaderData,
     "/administracion/categorias",
     createElement(EventCategoriesRouteView, { loaderData }),
+    "categories",
+    "categorias",
+    categoriasHandle,
   );
 }
 
@@ -1887,6 +1929,9 @@ function renderCategoriaNuevaRoute(loaderData: EventBasesLoaderData) {
     loaderData,
     "/administracion/categorias/nueva",
     createElement(NewEventCategoryRouteView, { loaderData }),
+    "category-new",
+    "categorias/nueva",
+    categoriaNuevaHandle,
   );
 }
 
@@ -1901,6 +1946,9 @@ function renderCategoriaDetalleRoute(
       loaderData,
       categoryId,
     }),
+    "category-detail",
+    "categorias/:categoryId",
+    categoriaDetalleHandle,
   );
 }
 
@@ -1911,6 +1959,9 @@ function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
     createElement(EventModalitiesRouteView, {
       loaderData,
     }),
+    "modalities",
+    "modalidades",
+    modalidadesHandle,
   );
 }
 
@@ -1925,6 +1976,9 @@ function renderNuevaModalidadRoute(
       loaderData,
       actionData,
     }),
+    "modality-new",
+    "modalidades/nueva",
+    modalidadNuevaHandle,
   );
 }
 
@@ -1941,6 +1995,9 @@ function renderModalidadDetalleRoute(
       modalityId,
       actionData,
     }),
+    "modality-detail",
+    "modalidades/:modalityId",
+    modalidadDetalleHandle,
   );
 }
 
@@ -1951,6 +2008,9 @@ function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
     createElement(EventScheduleBlocksRouteView, {
       loaderData,
     }),
+    "schedule-blocks",
+    "bloques-horarios",
+    bloquesHorariosHandle,
   );
 }
 
@@ -1961,6 +2021,9 @@ function renderNuevoBloqueHorarioRoute(loaderData: EventBasesLoaderData) {
     createElement(NewEventScheduleBlockRouteView, {
       loaderData,
     }),
+    "schedule-block-new",
+    "bloques-horarios/nuevo",
+    bloqueHorarioNuevoHandle,
   );
 }
 
@@ -1977,6 +2040,9 @@ function renderBloqueHorarioDetailRoute(
       scheduleBlockId,
       actionData,
     }),
+    "schedule-block-detail",
+    "bloques-horarios/:scheduleBlockId",
+    bloqueHorarioDetalleHandle,
   );
 }
 
@@ -1985,6 +2051,9 @@ function renderPreciosRoute(loaderData: EventBasesLoaderData) {
     loaderData,
     "/administracion/precios",
     createElement(EventPricesRouteView, { loaderData }),
+    "prices",
+    "precios",
+    preciosHandle,
   );
 }
 
@@ -1993,6 +2062,9 @@ function renderPrecioNuevoRoute(loaderData: EventBasesLoaderData) {
     loaderData,
     "/administracion/precios/nuevo",
     createElement(NewEventPriceRouteView, { loaderData }),
+    "price-new",
+    "precios/nuevo",
+    precioNuevoHandle,
   );
 }
 
@@ -2007,6 +2079,9 @@ function renderPrecioDetalleRoute(
       loaderData,
       priceId,
     }),
+    "price-detail",
+    "precios/:priceId",
+    precioDetalleHandle,
   );
 }
 
