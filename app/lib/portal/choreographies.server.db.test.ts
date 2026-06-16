@@ -783,6 +783,28 @@ describe.sequential("portal choreographies reads", () => {
       initialDetail.availableDancers.map((dancer) => dancer.id),
     ).not.toContain(archivedUnlinkedDancer.id);
 
+    const resolutionResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        resolveDancerLinkFormData([activeReplacementDancer.id]),
+      ),
+    });
+
+    expect(resolutionResponse).toMatchObject({
+      intent: "resolve-choreography-dancers",
+      result: {
+        ok: true,
+        resolution: {
+          schedule: {
+            status: "keep-current",
+            selectedScheduleEntryId: catalog.scheduleEntry.id,
+          },
+        },
+      },
+    });
+
     const updateResponse = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
       request: createPortalPostRequest(
@@ -872,6 +894,534 @@ describe.sequential("portal choreographies reads", () => {
         where: eq(choreographyDancers.choreographyId, choreography.id),
       }),
     ).resolves.toMatchObject([{ dancerId: activeReplacementDancer.id }]);
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      groupType: "solo",
+      scheduleEntryId: catalog.scheduleEntry.id,
+    });
+  });
+
+  test("autoassigns the only compatible cronograma when a roster edit changes the tipo de grupo", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Cronograma",
+      email: "coreografias.detail.dancers.schedule-auto@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const [duoScheduleEntry, trioScheduleEntry] = await db
+      .insert(scheduleEntries)
+      .values([
+        {
+          scheduleBlockId: catalog.scheduleBlock.id,
+          groupTypes: ["duo"],
+          groupTypeKey: "duo",
+          capacity: 5,
+        },
+        {
+          scheduleBlockId: catalog.scheduleBlock.id,
+          groupTypes: ["trio"],
+          groupTypeKey: "trio",
+          capacity: 5,
+        },
+      ])
+      .returning();
+    const [linkedDancer, secondLinkedDancer, addedDancer] = await Promise.all([
+      createDancer(owner.academyId, {
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2012-04-05",
+      }),
+      createDancer(owner.academyId, {
+        firstName: "Luz",
+        lastName: "Roa",
+        birthDate: "2012-05-05",
+      }),
+      createDancer(owner.academyId, {
+        firstName: "Mora",
+        lastName: "Díaz",
+        birthDate: "2012-06-05",
+      }),
+    ]);
+
+    await db
+      .update(categories)
+      .set({
+        groupTypes: ["solo", "duo", "trio"],
+        groupTypeKey: "duo|solo|trio",
+      })
+      .where(eq(categories.id, catalog.categoryWithLevel.id));
+
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Editable con cronograma",
+      scheduleEntryId: duoScheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: choreography.id,
+        dancerId: linkedDancer.id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: choreography.id,
+        dancerId: secondLinkedDancer.id,
+        ageAtEventStart: 14,
+      },
+    ]);
+
+    const updateResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData([
+          linkedDancer.id,
+          secondLinkedDancer.id,
+          addedDancer.id,
+        ]),
+      ),
+    });
+
+    expect(updateResponse).toBeInstanceOf(Response);
+    if (!(updateResponse instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(updateResponse.status).toBe(302);
+    expect(updateResponse.headers.get("location")).toBe(
+      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+    );
+
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      groupType: "trio",
+      categoryId: catalog.categoryWithLevel.id,
+      experienceLevelId: catalog.level.id,
+      scheduleEntryId: trioScheduleEntry.id,
+    });
+    await expect(
+      db.query.choreographyDancers.findMany({
+        where: eq(choreographyDancers.choreographyId, choreography.id),
+      }),
+    ).resolves.toHaveLength(3);
+  });
+
+  test("requires academy selection when multiple compatible cronogramas exist for the edited roster", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Cronograma Múltiple",
+      email: "coreografias.detail.dancers.schedule-multiple@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const [alternateScheduleBlock] = await db
+      .insert(scheduleBlocks)
+      .values({
+        eventId: event.id,
+        name: `Bloque alternativo ${event.id}`,
+        scheduledDate: "2026-05-02",
+        startTime: "14:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleBlockModalities).values({
+      scheduleBlockId: alternateScheduleBlock.id,
+      modalityId: catalog.modality.id,
+    });
+    const [duoScheduleEntry, firstTrioScheduleEntry, secondTrioScheduleEntry] =
+      await db
+        .insert(scheduleEntries)
+        .values([
+          {
+            scheduleBlockId: catalog.scheduleBlock.id,
+            groupTypes: ["duo"],
+            groupTypeKey: "duo",
+            capacity: 5,
+          },
+          {
+            scheduleBlockId: catalog.scheduleBlock.id,
+            groupTypes: ["trio"],
+            groupTypeKey: "trio",
+            capacity: 5,
+          },
+          {
+            scheduleBlockId: alternateScheduleBlock.id,
+            groupTypes: ["trio"],
+            groupTypeKey: "trio",
+            capacity: 3,
+          },
+        ])
+        .returning();
+    const dancers = await Promise.all([
+      createDancer(owner.academyId, { birthDate: "2012-04-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-05-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-06-05" }),
+    ]);
+
+    await db
+      .update(categories)
+      .set({
+        groupTypes: ["solo", "duo", "trio"],
+        groupTypeKey: "duo|solo|trio",
+      })
+      .where(eq(categories.id, catalog.categoryWithLevel.id));
+
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Editable con selección",
+      scheduleEntryId: duoScheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[0].id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[1].id,
+        ageAtEventStart: 14,
+      },
+    ]);
+
+    const resolutionResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        resolveDancerLinkFormData(dancers.map((dancer) => dancer.id)),
+      ),
+    });
+
+    expect(resolutionResponse).toMatchObject({
+      intent: "resolve-choreography-dancers",
+      result: {
+        ok: true,
+        resolution: {
+          schedule: {
+            status: "multiple",
+            options: [
+              { id: firstTrioScheduleEntry.id },
+              { id: secondTrioScheduleEntry.id },
+            ],
+          },
+        },
+      },
+    });
+
+    const blockedResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData(dancers.map((dancer) => dancer.id)),
+      ),
+    });
+
+    expect(blockedResponse).toMatchObject({
+      status: "dancer-error",
+      fieldErrors: {
+        scheduleEntryId:
+          "Elegí un Cronograma compatible para guardar los bailarines.",
+      },
+    });
+
+    const saveResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData(
+          dancers.map((dancer) => dancer.id),
+          firstTrioScheduleEntry.id,
+        ),
+      ),
+    });
+
+    expect(saveResponse).toBeInstanceOf(Response);
+    if (!(saveResponse instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(saveResponse.headers.get("location")).toBe(
+      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+    );
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      groupType: "trio",
+      scheduleEntryId: firstTrioScheduleEntry.id,
+    });
+  });
+
+  test("blocks roster save with a clear error when no compatible cronograma exists", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Sin Cronograma",
+      email: "coreografias.detail.dancers.schedule-none@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const [duoScheduleEntry] = await db
+      .insert(scheduleEntries)
+      .values({
+        scheduleBlockId: catalog.scheduleBlock.id,
+        groupTypes: ["duo"],
+        groupTypeKey: "duo",
+        capacity: 5,
+      })
+      .returning();
+    const dancers = await Promise.all([
+      createDancer(owner.academyId, { birthDate: "2012-04-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-05-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-06-05" }),
+    ]);
+
+    await db
+      .update(categories)
+      .set({
+        groupTypes: ["solo", "duo", "trio"],
+        groupTypeKey: "duo|solo|trio",
+      })
+      .where(eq(categories.id, catalog.categoryWithLevel.id));
+
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Editable sin cronograma",
+      scheduleEntryId: duoScheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[0].id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[1].id,
+        ageAtEventStart: 14,
+      },
+    ]);
+
+    const response = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData(dancers.map((dancer) => dancer.id)),
+      ),
+    });
+
+    expect(response).toMatchObject({
+      status: "dancer-error",
+      message:
+        "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      groupType: "duo",
+      scheduleEntryId: duoScheduleEntry.id,
+    });
+    await expect(
+      db.query.choreographyDancers.findMany({
+        where: eq(choreographyDancers.choreographyId, choreography.id),
+      }),
+    ).resolves.toHaveLength(2);
+  });
+
+  test("revalidates cronograma cupo on confirmation and keeps the original roster when capacity is lost concurrently", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Cupo Concurrente",
+      email: "coreografias.detail.dancers.schedule-cupo@example.com",
+    });
+    const other = await createAcademySession({
+      academyName: "Academia Cupo Competidora",
+      email: "coreografias.detail.dancers.schedule-cupo-other@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const [duoScheduleEntry, trioScheduleEntry] = await db
+      .insert(scheduleEntries)
+      .values([
+        {
+          scheduleBlockId: catalog.scheduleBlock.id,
+          groupTypes: ["duo"],
+          groupTypeKey: "duo",
+          capacity: 5,
+        },
+        {
+          scheduleBlockId: catalog.scheduleBlock.id,
+          groupTypes: ["trio"],
+          groupTypeKey: "trio",
+          capacity: 1,
+        },
+      ])
+      .returning();
+    const dancers = await Promise.all([
+      createDancer(owner.academyId, { birthDate: "2012-04-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-05-05" }),
+      createDancer(owner.academyId, { birthDate: "2012-06-05" }),
+    ]);
+    const otherDancers = await Promise.all([
+      createDancer(other.academyId, { birthDate: "2012-04-05" }),
+      createDancer(other.academyId, { birthDate: "2012-05-05" }),
+      createDancer(other.academyId, { birthDate: "2012-06-05" }),
+    ]);
+
+    await db
+      .update(categories)
+      .set({
+        groupTypes: ["solo", "duo", "trio"],
+        groupTypeKey: "duo|solo|trio",
+      })
+      .where(eq(categories.id, catalog.categoryWithLevel.id));
+
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Editable con cupo concurrente",
+      scheduleEntryId: duoScheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[0].id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: choreography.id,
+        dancerId: dancers[1].id,
+        ageAtEventStart: 14,
+      },
+    ]);
+
+    const resolutionResponse = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        resolveDancerLinkFormData(dancers.map((dancer) => dancer.id)),
+      ),
+    });
+
+    expect(resolutionResponse).toMatchObject({
+      intent: "resolve-choreography-dancers",
+      result: {
+        ok: true,
+        resolution: {
+          schedule: {
+            status: "auto",
+            selectedScheduleEntryId: trioScheduleEntry.id,
+          },
+        },
+      },
+    });
+
+    const occupiedChoreography = await createChoreographyRecord({
+      academyId: other.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "trio",
+      modalityId: catalog.modality.id,
+      name: "Ocupa el cupo",
+      scheduleEntryId: trioScheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: occupiedChoreography.id,
+        dancerId: otherDancers[0].id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: occupiedChoreography.id,
+        dancerId: otherDancers[1].id,
+        ageAtEventStart: 14,
+      },
+      {
+        choreographyId: occupiedChoreography.id,
+        dancerId: otherDancers[2].id,
+        ageAtEventStart: 14,
+      },
+    ]);
+
+    const response = await choreographyDetailAction({
+      params: { choreographyId: choreography.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        owner.cookie,
+        dancerLinkFormData(dancers.map((dancer) => dancer.id)),
+      ),
+    });
+
+    expect(response).toMatchObject({
+      status: "dancer-error",
+      message: "El Cronograma seleccionado ya no tiene cupo disponible.",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      groupType: "duo",
+      scheduleEntryId: duoScheduleEntry.id,
+    });
+    await expect(
+      db.query.choreographyDancers.findMany({
+        where: eq(choreographyDancers.choreographyId, choreography.id),
+      }),
+    ).resolves.toHaveLength(2);
   });
 
   test("does not load historical Evento detail in V1 active-event context", async () => {
@@ -1438,12 +1988,27 @@ function professorLinkFormData(professorIds: string[]) {
   return formData;
 }
 
-function dancerLinkFormData(dancerIds: string[]) {
+function resolveDancerLinkFormData(dancerIds: string[]) {
+  const formData = new FormData();
+  formData.set("intent", "resolve-choreography-dancers");
+
+  for (const dancerId of dancerIds) {
+    formData.append("dancerIds", dancerId);
+  }
+
+  return formData;
+}
+
+function dancerLinkFormData(dancerIds: string[], scheduleEntryId?: string) {
   const formData = new FormData();
   formData.set("intent", "update-choreography-dancers");
 
   for (const dancerId of dancerIds) {
     formData.append("dancerIds", dancerId);
+  }
+
+  if (scheduleEntryId) {
+    formData.set("scheduleEntryId", scheduleEntryId);
   }
 
   return formData;

@@ -189,6 +189,7 @@ function buildLoaderData(
         reasonCode: null,
         reasonText: null,
       },
+      scheduleEntryId: "schedule_1",
       scheduleBlockName: "Bloque mañana",
       scheduleLabel: "2026-05-01 · 10:00",
       dancers: [

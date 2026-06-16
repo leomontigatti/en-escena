@@ -1,8 +1,13 @@
 import { Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { redirect, useActionData, useSearchParams } from "react-router";
+import {
+  redirect,
+  useActionData,
+  useFetcher,
+  useSearchParams,
+} from "react-router";
 import { clsx } from "clsx";
 import { z } from "zod";
 
@@ -37,6 +42,13 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
@@ -44,6 +56,7 @@ import {
   getChoreographyDeletionAvailability,
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
+  resolveChoreographyDancers,
   updateChoreographyDancers,
   updateChoreographyProfessors,
 } from "@/lib/portal/choreographies.server";
@@ -55,7 +68,6 @@ import {
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 import {
-  createValidatedNativeSubmitHandler,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -68,6 +80,7 @@ const choreographyDancersUpdatedSearchParam = "bailarines-actualizados";
 const choreographyDancersUpdatedSuccessMessage =
   "Bailarines actualizados correctamente.";
 const choreographyDeletedSearchParam = "eliminada";
+const resolveChoreographyDancersIntent = "resolve-choreography-dancers";
 const updateChoreographyDancersIntent = "update-choreography-dancers";
 const updateChoreographyProfessorsIntent = "update-choreography-professors";
 const deleteChoreographyIntent = "delete-choreography";
@@ -77,13 +90,20 @@ const rosterEditorReviewMessage = "Revisá los bailarines de la coreografía.";
 
 const dancerEditorSchema = z.object({
   dancerIds: z.array(z.string().trim().min(1)).min(1, requiredFieldMessage),
+  scheduleEntryId: z.string().trim().optional(),
 });
 
 type DancerEditorValues = z.infer<typeof dancerEditorSchema>;
 type DancerEditorFieldErrors = {
   dancerIds?: string;
+  scheduleEntryId?: string;
 };
 const emptyDancerEditorFieldErrors: DancerEditorFieldErrors = {};
+
+type ResolveDancersActionData = {
+  intent: typeof resolveChoreographyDancersIntent;
+  result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
+};
 
 type ActionData =
   | {
@@ -91,6 +111,7 @@ type ActionData =
       fieldErrors?: DancerEditorFieldErrors;
       message: string;
       selectedDancerIds: string[];
+      selectedScheduleEntryId?: string;
     }
   | {
       status: "professor-error";
@@ -102,6 +123,7 @@ type ActionData =
 type PortalCoreografiaDetalleRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
+  initialDancerResolution?: ResolveDancersActionData["result"];
   initialDeleteDialogOpen?: boolean;
 };
 
@@ -219,6 +241,19 @@ export async function action({
     });
   }
 
+  if (intent === resolveChoreographyDancersIntent) {
+    return {
+      intent,
+      result: await resolveChoreographyDancers({
+        academyId: academy.id,
+        choreographyId,
+        dancerIds: readFormStringArray(formData, "dancerIds"),
+        eventId: selectedEventId,
+        isRegistrationOpen: eventContext.isRegistrationOpen,
+      }),
+    } satisfies ResolveDancersActionData;
+  }
+
   if (intent === updateChoreographyDancersIntent) {
     const dancerIds = readFormStringArray(formData, "dancerIds");
     return await handleUpdateChoreographyDancersAction({
@@ -227,6 +262,7 @@ export async function action({
       dancerIds,
       eventId: selectedEventId,
       isRegistrationOpen: eventContext.isRegistrationOpen,
+      scheduleEntryId: readOptionalFormString(formData, "scheduleEntryId"),
     });
   }
 
@@ -246,6 +282,7 @@ export async function action({
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
   actionData,
+  initialDancerResolution,
   initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
@@ -392,7 +429,11 @@ export function PortalCoreografiaDetalleRouteView({
                   actionData?.status === "dancer-error" ? actionData : undefined
                 }
                 dancers={loaderData.availableDancers}
+                initialResolution={initialDancerResolution}
                 selectedDancers={loaderData.choreography.dancers}
+                selectedScheduleEntryId={
+                  loaderData.choreography.scheduleEntryId
+                }
               />
             ) : (
               <DancerReadonlyList dancers={loaderData.choreography.dancers} />
@@ -436,7 +477,7 @@ export function PortalCoreografiaDetalleRouteView({
 export default function PortalCoreografiaDetalleRoute({
   loaderData,
 }: PortalCoreografiaDetalleRouteProps) {
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData() as ActionData;
   const [searchParams] = useSearchParams();
 
   return (
@@ -465,12 +506,17 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 function DancerEditor({
   actionData,
   dancers,
+  initialResolution,
   selectedDancers,
+  selectedScheduleEntryId,
 }: {
   actionData: Extract<ActionData, { status: "dancer-error" }> | undefined;
   dancers: ChoreographyDancerOption[];
+  initialResolution: ResolveDancersActionData["result"] | undefined;
   selectedDancers: LoaderData["choreography"]["dancers"];
+  selectedScheduleEntryId: string;
 }) {
+  const resolutionFetcher = useFetcher<ResolveDancersActionData>();
   const dancerOptions = useMemo(
     () =>
       dancers.map((dancer) => ({
@@ -491,30 +537,190 @@ function DancerEditor({
       selectedDancers.map((dancer) => dancer.id),
     [actionData?.selectedDancerIds, selectedDancers],
   );
+  const initialDancerIds = useMemo(
+    () => selectedDancers.map((dancer) => dancer.id),
+    [selectedDancers],
+  );
   const form = useForm<DancerEditorValues>({
     resolver: zodResolver(dancerEditorSchema),
     defaultValues: {
       dancerIds: selectedDancerIds,
+      scheduleEntryId:
+        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
     },
   });
   const fieldErrors = actionData?.fieldErrors ?? emptyDancerEditorFieldErrors;
+  const watchedDancerIds = form.watch("dancerIds");
+  const watchedScheduleEntryId = form.watch("scheduleEntryId") ?? "";
+  const [resolution, setResolution] = useState<
+    ResolveDancersActionData["result"] | null
+  >(initialResolution ?? null);
+  const lastResolvedKeyRef = useRef<string | null>(null);
+  const fetchedResolution = resolutionFetcher.data?.intent
+    ? resolutionFetcher.data.result
+    : null;
 
   useEffect(() => {
     form.reset({
       dancerIds: selectedDancerIds,
+      scheduleEntryId:
+        actionData?.selectedScheduleEntryId ?? selectedScheduleEntryId,
     });
-  }, [form, selectedDancerIds]);
+  }, [
+    actionData?.selectedScheduleEntryId,
+    form,
+    selectedDancerIds,
+    selectedScheduleEntryId,
+  ]);
 
   useApplyServerFieldErrors(form, fieldErrors);
 
+  useEffect(() => {
+    if (!fetchedResolution) {
+      return;
+    }
+
+    setResolution(fetchedResolution);
+
+    if (!fetchedResolution.ok) {
+      form.setValue("scheduleEntryId", "", { shouldDirty: true });
+      return;
+    }
+
+    const nextSchedule = fetchedResolution.resolution.schedule;
+
+    if (
+      nextSchedule.status === "keep-current" ||
+      nextSchedule.status === "auto"
+    ) {
+      form.setValue("scheduleEntryId", nextSchedule.selectedScheduleEntryId, {
+        shouldDirty: true,
+      });
+      form.clearErrors("scheduleEntryId");
+      return;
+    }
+
+    if (nextSchedule.status === "multiple") {
+      if (
+        !nextSchedule.options.some(
+          (option) => option.id === watchedScheduleEntryId,
+        )
+      ) {
+        form.setValue("scheduleEntryId", "", { shouldDirty: true });
+      }
+
+      return;
+    }
+
+    form.setValue("scheduleEntryId", "", { shouldDirty: true });
+  }, [fetchedResolution, form, watchedScheduleEntryId]);
+
+  const dancerSelectionKey = useMemo(
+    () => [...watchedDancerIds].sort().join("|"),
+    [watchedDancerIds],
+  );
+  const initialDancerSelectionKey = useMemo(
+    () => [...initialDancerIds].sort().join("|"),
+    [initialDancerIds],
+  );
+  const hasRosterChanged = dancerSelectionKey !== initialDancerSelectionKey;
+  const shouldShowResolution =
+    hasRosterChanged || initialResolution !== undefined;
+  const isResolving = resolutionFetcher.state !== "idle" && hasRosterChanged;
+  const scheduleResolution = resolution?.ok
+    ? resolution.resolution.schedule
+    : null;
+  const scheduleOptions =
+    scheduleResolution &&
+    (scheduleResolution.status === "keep-current" ||
+      scheduleResolution.status === "auto" ||
+      scheduleResolution.status === "multiple")
+      ? scheduleResolution.options
+      : [];
+
+  useEffect(() => {
+    if (!hasRosterChanged) {
+      lastResolvedKeyRef.current = null;
+      setResolution(initialResolution ?? null);
+      form.setValue("scheduleEntryId", selectedScheduleEntryId, {
+        shouldDirty: false,
+      });
+      form.clearErrors("scheduleEntryId");
+      return;
+    }
+
+    if (
+      watchedDancerIds.length === 0 ||
+      lastResolvedKeyRef.current === dancerSelectionKey
+    ) {
+      return;
+    }
+
+    lastResolvedKeyRef.current = dancerSelectionKey;
+    const formData = new FormData();
+    formData.set("intent", resolveChoreographyDancersIntent);
+
+    for (const dancerId of watchedDancerIds) {
+      formData.append("dancerIds", dancerId);
+    }
+
+    resolutionFetcher.submit(formData, { method: "post" });
+  }, [
+    dancerSelectionKey,
+    form,
+    hasRosterChanged,
+    initialResolution,
+    resolutionFetcher,
+    selectedScheduleEntryId,
+    watchedDancerIds,
+  ]);
+
   const getDancerLabel = (value: string) =>
     dancerOptionByValue.get(value)?.label ?? value;
+
+  const canSave =
+    watchedDancerIds.length > 0 &&
+    !isResolving &&
+    (!hasRosterChanged ||
+      (resolution?.ok === true &&
+        resolution.resolution.schedule.status !== "none" &&
+        (resolution.resolution.schedule.status !== "multiple" ||
+          watchedScheduleEntryId.length > 0)));
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    void form.handleSubmit(() => {
+      if (hasRosterChanged) {
+        if (
+          !resolution?.ok ||
+          resolution.resolution.schedule.status === "none"
+        ) {
+          return;
+        }
+
+        if (
+          resolution.resolution.schedule.status === "multiple" &&
+          !form.getValues("scheduleEntryId")
+        ) {
+          form.setError("scheduleEntryId", {
+            message: requiredFieldMessage,
+            type: "manual",
+          });
+          return;
+        }
+      }
+
+      form.clearErrors("scheduleEntryId");
+      event.currentTarget.submit();
+    })(event);
+  }
 
   return (
     <form
       method="post"
       className="mt-4 flex flex-col gap-4"
-      onSubmit={createValidatedNativeSubmitHandler(form)}
+      onSubmit={handleSubmit}
     >
       <input
         type="hidden"
@@ -596,7 +802,33 @@ function DancerEditor({
         />
       </FieldSet>
 
-      <Button type="submit" className="w-fit">
+      {form.getValues("scheduleEntryId") ? (
+        <input
+          type="hidden"
+          name="scheduleEntryId"
+          value={form.getValues("scheduleEntryId")}
+        />
+      ) : null}
+
+      {isResolving ? (
+        <AccessNotice variant="info">
+          Resolviendo cronograma compatible para este roster.
+        </AccessNotice>
+      ) : null}
+
+      {shouldShowResolution && resolution?.ok === false ? (
+        <AccessNotice variant="error">{resolution.message}</AccessNotice>
+      ) : null}
+
+      {shouldShowResolution ? (
+        <DancerScheduleResolutionFields
+          control={form.control}
+          resolution={scheduleResolution}
+          scheduleOptions={scheduleOptions}
+        />
+      ) : null}
+
+      <Button type="submit" className="w-fit" disabled={!canSave}>
         Guardar bailarines
       </Button>
     </form>
@@ -627,6 +859,85 @@ function DancerReadonlyList({
         </li>
       ))}
     </ul>
+  );
+}
+
+function DancerScheduleResolutionFields({
+  control,
+  resolution,
+  scheduleOptions,
+}: {
+  control: ReturnType<typeof useForm<DancerEditorValues>>["control"];
+  resolution:
+    | Extract<
+        ResolveDancersActionData["result"],
+        { ok: true }
+      >["resolution"]["schedule"]
+    | null;
+  scheduleOptions: Array<{
+    id: string;
+    capacity: number;
+    groupTypeKey: string;
+    scheduleBlock: {
+      name: string;
+    };
+  }>;
+}) {
+  if (!resolution) {
+    return null;
+  }
+
+  if (resolution.status === "none") {
+    return <AccessNotice variant="error">{resolution.error}</AccessNotice>;
+  }
+
+  if (resolution.status === "keep-current") {
+    return (
+      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        El cronograma actual sigue siendo compatible y se conserva.
+      </p>
+    );
+  }
+
+  if (resolution.status === "auto") {
+    return (
+      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        El cronograma compatible se selecciona automáticamente.
+      </p>
+    );
+  }
+
+  return (
+    <Controller
+      control={control}
+      name="scheduleEntryId"
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.error ? true : undefined}>
+          <FieldLegend variant="label">Cronograma</FieldLegend>
+          <FieldDescription>
+            Elegí un cronograma compatible antes de guardar los bailarines.
+          </FieldDescription>
+          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+            <SelectTrigger
+              aria-invalid={fieldState.error ? true : undefined}
+              id="choreography-dancer-schedule"
+            >
+              <SelectValue placeholder="Seleccionar cronograma" />
+            </SelectTrigger>
+            <SelectContent>
+              {scheduleOptions.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {formatScheduleOptionLabel(option)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldContent>
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }
 
@@ -923,6 +1234,16 @@ function formatProfessorName(professor: {
   return `${professor.lastName}, ${professor.firstName}`;
 }
 
+function formatScheduleOptionLabel(option: {
+  scheduleBlock: {
+    name: string;
+  };
+  groupTypeKey: string;
+  capacity: number;
+}) {
+  return `${option.scheduleBlock.name} · ${formatGroupTypeLabel(option.groupTypeKey as Parameters<typeof formatGroupTypeLabel>[0])} · Cupo ${option.capacity}`;
+}
+
 function readChoreographyId(params: { choreographyId?: string }) {
   if (!params.choreographyId) {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
@@ -935,6 +1256,12 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+function readOptionalFormString(formData: FormData, key: string) {
+  const value = readFormString(formData, key).trim();
+
+  return value.length > 0 ? value : null;
 }
 
 function readFormStringArray(formData: FormData, key: string) {
@@ -975,9 +1302,11 @@ async function handleUpdateChoreographyDancersAction(input: {
   dancerIds: string[];
   eventId: string;
   isRegistrationOpen: boolean;
+  scheduleEntryId: string | null;
 }) {
   const parsed = dancerEditorSchema.safeParse({
     dancerIds: input.dancerIds,
+    scheduleEntryId: input.scheduleEntryId ?? "",
   });
 
   if (!parsed.success) {
@@ -989,6 +1318,7 @@ async function handleUpdateChoreographyDancersAction(input: {
       },
       message: rosterEditorReviewMessage,
       selectedDancerIds: input.dancerIds,
+      selectedScheduleEntryId: input.scheduleEntryId ?? undefined,
     };
   }
 
@@ -998,13 +1328,16 @@ async function handleUpdateChoreographyDancersAction(input: {
     dancerIds: parsed.data.dancerIds,
     eventId: input.eventId,
     isRegistrationOpen: input.isRegistrationOpen,
+    scheduleEntryId: parsed.data.scheduleEntryId,
   });
 
   if (!result.ok) {
     return {
       status: "dancer-error" as const,
+      fieldErrors: result.fieldErrors,
       message: result.message,
       selectedDancerIds: parsed.data.dancerIds,
+      selectedScheduleEntryId: parsed.data.scheduleEntryId,
     };
   }
 
