@@ -507,7 +507,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Bailarín creado.");
   });
 
-  test("shows the Bailarín edit alert, fields and success banner", () => {
+  test("renders the redesigned bailarín editable ficha", () => {
     const markup = renderBailarinDetalle({
       loaderData: {
         ...academyLoaderData(),
@@ -516,51 +516,58 @@ describe("portal route view", () => {
           firstName: "Ana",
           lastName: "Alvarez",
           birthDate: "2014-02-01",
+          active: false,
         }),
-        saved: true,
       },
     });
 
+    expect(markup).toContain("Editar bailarín");
+    expect(markup).not.toContain("Editar Bailarín");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Alvarez, Ana");
+    expect(markup).toContain("Acciones");
+    expect(markup).toContain("Este bailarín está archivado");
+    expect(markup).toContain("Reactivar");
     expect(markup).toContain(
-      "Faltan datos para poder validar la identificación.",
+      "Faltan datos de identificación para completar la verificación.",
     );
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Apellido");
     expect(markup).toContain("Fecha de nacimiento");
     expect(markup).toContain("Tipo de documento");
     expect(markup).toContain("Número de documento");
-    expect(markup).toContain("DNI");
-    expect(markup).toContain("Pasaporte");
-    expect(markup).toContain("Otro");
-    expect(markup).toContain("El Bailarín se guardó correctamente.");
+    expect(markup).toContain('name="documentType" value=""');
+    expect(markup).toContain("Volver");
+    expect(markup).toContain("Guardar");
+    expect(markup).toContain('form="portal-bailarin-form"');
+    expect(markup).toContain('href="/portal/bailarines"');
+    expect(markup).not.toContain("Archivado");
+    expect(markup).not.toContain("Activo");
   });
 
-  test("shows the Bailarín archived badge and reactivate action by direct URL", () => {
+  test("shows missing images alert when document data is complete", () => {
     const markup = renderBailarinDetalle({
       loaderData: {
         ...academyLoaderData(),
         dancer: dancerDetailRow({
-          id: "dancer_archived",
-          firstName: "Ana",
-          lastName: "Archivada",
-          active: false,
+          documentType: "dni",
+          documentNumber: "12345678",
         }),
-        saved: false,
-        statusFilter: "archived",
       },
     });
 
-    expect(markup).toContain("Archivado");
-    expect(markup).toContain("Reactivar Bailarín");
-    expect(markup).toContain('href="/portal/bailarines?estado=archivados"');
-    expect(markup).not.toContain("Archivar Bailarín");
+    expect(markup).toContain("Faltan imágenes");
+    expect(markup).not.toContain(
+      "Faltan datos de identificación para completar la verificación.",
+    );
   });
 
-  test("shows Bailarín edit field errors while preserving submitted values", () => {
+  test("shows field errors and preserves submitted values", () => {
     const markup = renderBailarinDetalle({
       actionData: {
-        ok: false,
-        error: "Revisá los datos del Bailarín.",
+        status: "error",
+        message: "Revisá los campos marcados.",
         fieldErrors: {
           documentType: "Seleccioná el tipo de documento.",
           documentNumber: "Ingresá el número de documento.",
@@ -575,11 +582,28 @@ describe("portal route view", () => {
       },
     });
 
-    expect(markup).toContain("Revisá los datos del Bailarín.");
     expect(markup).toContain("Seleccioná el tipo de documento.");
     expect(markup).toContain("Ingresá el número de documento.");
     expect(markup).toContain('name="firstName" value="Ana"');
     expect(markup).toContain('name="birthDate" value="2014-02-01"');
+  });
+
+  test("shows the same reactivation confirmation from the alert shortcut and actions menu", () => {
+    const markup = renderBailarinDetalle({
+      loaderData: {
+        ...academyLoaderData(),
+        dancer: dancerDetailRow({
+          active: false,
+        }),
+      },
+      initialStatusDialogIntent: "reactivate-dancer",
+    });
+
+    expect(markup).toContain("Acciones");
+    expect(markup).toContain("¿Reactivar bailarín?");
+    expect(markup).toContain(
+      "El bailarín volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    );
   });
 
   test("shows the Profesores empty list surface", () => {
@@ -835,6 +859,7 @@ function renderBailarinDetalle(input: Partial<BailarinDetalleViewProps>) {
       <PortalBailarinDetalleRouteView
         loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
         actionData={input.actionData}
+        initialStatusDialogIntent={input.initialStatusDialogIntent}
       />
     </MemoryRouter>,
   );
@@ -1022,7 +1047,6 @@ function bailarinDetalleLoaderData() {
   return {
     ...academyLoaderData(),
     dancer: dancerDetailRow(),
-    saved: false,
   };
 }
 
