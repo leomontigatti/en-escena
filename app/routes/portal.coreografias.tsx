@@ -3,7 +3,10 @@ import { Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
 import { AccessNotice } from "@/components/auth/access-ui";
-import { PortalEmptyList, PortalShell } from "@/components/portal/ui";
+import {
+  PortalEmptyList,
+  type PortalRouteHandle,
+} from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   formatOperationalStatusLabel,
@@ -66,8 +69,12 @@ export const meta = () => [
   { title: "Coreografías | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [{ label: "Coreografías" }],
+} satisfies PortalRouteHandle;
+
 export async function loader({ request }: { request: Request }) {
-  const { user, academy } = await requireAcademyUser(request);
+  const { academy } = await requireAcademyUser(request);
   const eventContext = await getPortalEventContext(request);
   const selectedEventId = eventContext.selectedEvent?.id ?? null;
   const [choreographies, activeDancers, activeProfessors, baseOptions] =
@@ -81,9 +88,6 @@ export async function loader({ request }: { request: Request }) {
     ]);
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
     choreographies,
     eventContext,
     activeDancers,
@@ -152,13 +156,7 @@ export function PortalCoreografiasRouteView({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Coreografías"
-    >
+    <>
       <section className="mt-8" aria-labelledby="coreografias-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -261,7 +259,7 @@ export function PortalCoreografiasRouteView({
           onClose={() => setIsCreateModalOpen(false)}
         />
       ) : null}
-    </PortalShell>
+    </>
   );
 }
 

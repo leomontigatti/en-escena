@@ -9,7 +9,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Link, NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation, type UIMatch } from "react-router";
 import { clsx } from "clsx";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -53,14 +53,23 @@ type PortalShellProps = {
   userName: string | null;
   academyName: string;
   eventContext: PortalEventContext;
-  title: string;
   children: ReactNode;
   breadcrumbItems?: PortalShellBreadcrumbItem[];
 };
 
-type PortalShellBreadcrumbItem = {
+export type PortalShellBreadcrumbItem = {
   label: string;
   to?: string;
+};
+
+type PortalBreadcrumbFactory = (
+  match: UIMatch,
+) => PortalShellBreadcrumbItem | null;
+
+export type PortalRouteHandle = {
+  portalBreadcrumbs?: Array<
+    PortalShellBreadcrumbItem | PortalBreadcrumbFactory
+  >;
 };
 
 type CoreographyCreationState = {
@@ -71,6 +80,7 @@ type CoreographyCreationState = {
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
+  { to: "/portal/perfil", label: "Perfil", icon: User },
   { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
   { to: "/portal/bailarines", label: "Bailarines", icon: Users },
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
@@ -90,13 +100,12 @@ export function PortalShell({
   userName,
   academyName,
   eventContext,
-  title,
   children,
   breadcrumbItems,
 }: PortalShellProps) {
   const location = useLocation();
   const isHome = location.pathname === "/portal";
-  const resolvedBreadcrumbItems = breadcrumbItems ?? [{ label: title }];
+  const resolvedBreadcrumbItems = breadcrumbItems ?? [];
   const displayName = getPortalUserDisplayName(userName, userEmail);
 
   return (
@@ -218,6 +227,22 @@ export function PortalShell({
       </SidebarProvider>
     </>
   );
+}
+
+export function getPortalBreadcrumbItems(
+  matches: UIMatch[],
+): PortalShellBreadcrumbItem[] {
+  return matches.flatMap((match) => {
+    const handle = match.handle as PortalRouteHandle | undefined;
+
+    return (handle?.portalBreadcrumbs ?? []).flatMap((breadcrumb) => {
+      if (typeof breadcrumb === "function") {
+        return breadcrumb(match) ?? [];
+      }
+
+      return breadcrumb;
+    });
+  });
 }
 
 function PortalBreadcrumbs({

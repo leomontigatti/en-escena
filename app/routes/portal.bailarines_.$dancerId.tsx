@@ -1,16 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Ellipsis, TriangleAlert } from "lucide-react";
+import {
+  Archive,
+  Check,
+  Ellipsis,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { PortalShell } from "@/components/portal/ui";
+import type { PortalRouteHandle } from "@/components/portal/ui";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -19,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,9 +46,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getDancerVerificationStatus } from "@/lib/dancers/verification";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
@@ -155,6 +164,20 @@ export const meta = () => [
   { title: "Editar bailarín | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [
+    { label: "Bailarines", to: "/portal/bailarines" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      const dancer = data?.dancer;
+
+      return dancer
+        ? { label: `${dancer.firstName} ${dancer.lastName}` }
+        : null;
+    },
+  ],
+} satisfies PortalRouteHandle;
+
 export async function loader({
   request,
   params,
@@ -162,18 +185,11 @@ export async function loader({
   request: Request;
   params: { dancerId?: string };
 }) {
-  const { academy, user } = await requireAcademyUser(request);
+  const { academy } = await requireAcademyUser(request);
   const dancerId = readDancerId(params);
-  const [eventContext, dancer] = await Promise.all([
-    getPortalEventContext(request),
-    requireDancer(academy.id, dancerId),
-  ]);
+  const dancer = await requireDancer(academy.id, dancerId);
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
-    eventContext,
     dancer,
   };
 }
@@ -264,29 +280,18 @@ export function PortalBailarinDetalleRouteView({
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);
-  const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
-  const showsIdentificationAlert = verificationStatus === "incomplete";
-  const showsMissingImagesAlert = verificationStatus === "missingImages";
-  const isIdentityLocked = verificationStatus === "verified";
+  const hasDocumentData = Boolean(
+    loaderData.dancer.documentType && loaderData.dancer.documentNumber,
+  );
+  const showsIdentificationAlert = !hasDocumentData;
+  const showsMissingImagesAlert = hasDocumentData;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
   });
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Bailarines"
-      breadcrumbItems={[
-        { label: "Bailarines", to: "/portal/bailarines" },
-        {
-          label: `${loaderData.dancer.lastName}, ${loaderData.dancer.firstName}`,
-        },
-      ]}
-    >
+    <>
       <section
         className="flex flex-col gap-6"
         aria-labelledby="bailarin-detail-title"
@@ -301,12 +306,23 @@ export function PortalBailarinDetalleRouteView({
             </p>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="lg">
-                <Ellipsis aria-hidden="true" data-icon />
-                Acciones
-              </Button>
-            </DropdownMenuTrigger>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-lg"
+                      aria-label="Acciones"
+                    >
+                      <Ellipsis aria-hidden="true" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="left">Acciones</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
                 variant={statusAction.confirmButtonVariant}
@@ -321,68 +337,49 @@ export function PortalBailarinDetalleRouteView({
           </DropdownMenu>
         </div>
 
-        <Card>
-          <CardContent className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              {!loaderData.dancer.active ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Este bailarín está archivado. Reactivalo para que vuelva a
-                    aparecer en las listas activas y en próximas selecciones de
-                    coreografías.
-                  </AlertDescription>
-                  <AlertAction>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      onClick={() => {
-                        setStatusDialogIntent("reactivate-dancer");
-                      }}
-                    >
-                      Reactivar
-                    </Button>
-                  </AlertAction>
-                </Alert>
-              ) : null}
-              {showsIdentificationAlert ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan datos de identificación para completar la
-                    verificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {showsMissingImagesAlert ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan imágenes del documento para completar la
-                    verificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {verificationStatus === "unverified" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    La documentación está lista para revisión administrativa.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {verificationStatus === "verified" ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    La identidad ya fue verificada por administración. Solo
-                    administración puede corregir estos datos.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
+        <div className="flex flex-col gap-3">
+          {!loaderData.dancer.active ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Este bailarín está archivado. Reactivalo para que vuelva a
+                aparecer en las listas activas y en próximas selecciones de
+                coreografías.
+              </AlertDescription>
+              <AlertAction className="top-1/2 -translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setStatusDialogIntent("reactivate-dancer");
+                  }}
+                >
+                  Reactivar
+                </Button>
+              </AlertAction>
+            </Alert>
+          ) : null}
+          {showsIdentificationAlert ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Faltan datos de identificación para completar la verificación.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {showsMissingImagesAlert ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Faltan imágenes del documento para completar la verificación.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
 
+        <Card>
+          <CardContent>
             <form
               id={formId}
               method="post"
@@ -390,18 +387,26 @@ export function PortalBailarinDetalleRouteView({
               onSubmit={form.handleSubmit}
             >
               <input type="hidden" name="intent" value="update-dancer" />
+              <input
+                type="hidden"
+                name="documentFrontImageStorageKey"
+                defaultValue={formValues.documentFrontImageStorageKey}
+              />
+              <input
+                type="hidden"
+                name="documentBackImageStorageKey"
+                defaultValue={formValues.documentBackImageStorageKey}
+              />
               <FieldGroup className="grid gap-5 md:grid-cols-2">
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.firstName}
-                  disabled={isIdentityLocked}
                   label="Nombre"
                   name="firstName"
                 />
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.lastName}
-                  disabled={isIdentityLocked}
                   label="Apellido"
                   name="lastName"
                 />
@@ -413,47 +418,26 @@ export function PortalBailarinDetalleRouteView({
                 <DancerDocumentTypeField
                   form={form.form}
                   error={actionData?.fieldErrors.documentType}
-                  disabled={isIdentityLocked}
                 />
                 <DancerTextField
                   form={form.form}
                   error={actionData?.fieldErrors.documentNumber}
-                  disabled={isIdentityLocked}
                   label="Número de documento"
                   name="documentNumber"
-                />
-                <DancerTextField
-                  form={form.form}
-                  error={actionData?.fieldErrors.documentFrontImageStorageKey}
-                  disabled={isIdentityLocked}
-                  label="Imagen frente del documento"
-                  name="documentFrontImageStorageKey"
-                />
-                <DancerTextField
-                  form={form.form}
-                  error={actionData?.fieldErrors.documentBackImageStorageKey}
-                  disabled={isIdentityLocked}
-                  label="Imagen dorso del documento"
-                  name="documentBackImageStorageKey"
                 />
               </FieldGroup>
             </form>
           </CardContent>
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            <Button asChild variant="outline" size="lg">
+              <Link to="/portal/bailarines">Volver</Link>
+            </Button>
+            <Button type="submit" form={formId} size="lg">
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar
+            </Button>
+          </CardFooter>
         </Card>
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <Button asChild variant="outline" size="lg">
-            <Link to="/portal/bailarines">Volver</Link>
-          </Button>
-          <Button
-            type="submit"
-            form={formId}
-            size="lg"
-            disabled={isIdentityLocked}
-          >
-            Guardar
-          </Button>
-        </div>
       </section>
 
       <DancerStatusDialog
@@ -464,7 +448,7 @@ export function PortalBailarinDetalleRouteView({
           }
         }}
       />
-    </PortalShell>
+    </>
   );
 }
 
@@ -513,13 +497,11 @@ function useDancerForm({
 }
 
 function DancerTextField({
-  disabled = false,
   error,
   form,
   label,
   name,
 }: {
-  disabled?: boolean;
   error?: string;
   form: DancerFormReturn;
   label: string;
@@ -540,7 +522,6 @@ function DancerTextField({
             <Input
               id={id}
               autoComplete={autoComplete}
-              disabled={disabled}
               aria-invalid={fieldState.error || error ? true : undefined}
               aria-describedby={fieldState.error || error ? errorId : undefined}
               {...field}
@@ -578,7 +559,7 @@ function DancerBirthDateField({
           onBlur={field.onBlur}
           onValueChange={field.onChange}
           error={fieldState.error?.message ?? error}
-          buttonClassName="mt-0 h-10 w-full justify-start font-normal"
+          buttonClassName="mt-0 h-8 w-full justify-start font-normal"
         />
       )}
     />
@@ -586,11 +567,9 @@ function DancerBirthDateField({
 }
 
 function DancerDocumentTypeField({
-  disabled = false,
   error,
   form,
 }: {
-  disabled?: boolean;
   error?: string;
   form: DancerFormReturn;
 }) {
@@ -606,7 +585,6 @@ function DancerDocumentTypeField({
           <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
           <FieldContent>
             <Select
-              disabled={disabled}
               value={field.value || noDocumentTypeSelectValue}
               onValueChange={(value) => {
                 field.onChange(
@@ -665,31 +643,39 @@ function DancerStatusDialog({
       ) : null}
       <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
         {action ? (
-          <AlertDialogContent forceMount>
-            <AlertDialogHeader>
+          <AlertDialogContent
+            forceMount
+            className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
+          >
+            <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
               <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
               <AlertDialogDescription>
                 {action.confirmDescription}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <form id={dialogFormId} method="post">
-              <input type="hidden" name="intent" value={action.intent} />
-            </form>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                form={dialogFormId}
-                type="submit"
-                variant={action.confirmButtonVariant}
-              >
-                {action.confirmButtonLabel}
-              </AlertDialogAction>
+              <form id={dialogFormId} method="post">
+                <input type="hidden" name="intent" value={action.intent} />
+                <Button type="submit" variant={action.confirmButtonVariant}>
+                  <DancerStatusActionIcon intent={action.intent} />
+                  {action.confirmButtonLabel}
+                </Button>
+              </form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}
       </AlertDialog>
     </>
   );
+}
+
+function DancerStatusActionIcon({ intent }: { intent: DancerStatusIntent }) {
+  if (intent === "archive-dancer") {
+    return <Archive aria-hidden="true" data-icon="inline-start" />;
+  }
+
+  return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
 }
 
 function getDancerStatusAction(isActive: boolean) {

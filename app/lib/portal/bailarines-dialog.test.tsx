@@ -83,55 +83,6 @@ describe("PortalBailarinesRouteView dialog", () => {
 
 function createLoaderData(): PortalBailarinesRouteViewProps["loaderData"] {
   return {
-    email: "portal@example.com",
-    userName: "Portal User",
-    academy: {
-      id: "academy_1",
-      userId: "user_1",
-      name: "Academia de Prueba",
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-    },
-    eventContext: {
-      events: [
-        {
-          id: "event_1",
-          name: "Regional 2026",
-          active: true,
-          registrationStartsAt: new Date("2026-03-01T12:00:00.000Z"),
-          registrationEndsAt: new Date("2026-04-30T12:00:00.000Z"),
-          startsAt: new Date("2026-05-01T12:00:00.000Z"),
-          endsAt: new Date("2026-05-03T12:00:00.000Z"),
-        },
-      ],
-      selectedEvent: {
-        id: "event_1",
-        name: "Regional 2026",
-        active: true,
-        registrationStartsAt: new Date("2026-03-01T12:00:00.000Z"),
-        registrationEndsAt: new Date("2026-04-30T12:00:00.000Z"),
-        startsAt: new Date("2026-05-01T12:00:00.000Z"),
-        endsAt: new Date("2026-05-03T12:00:00.000Z"),
-      },
-      activeEvent: {
-        id: "event_1",
-        name: "Regional 2026",
-        active: true,
-        registrationStartsAt: new Date("2026-03-01T12:00:00.000Z"),
-        registrationEndsAt: new Date("2026-04-30T12:00:00.000Z"),
-        startsAt: new Date("2026-05-01T12:00:00.000Z"),
-        endsAt: new Date("2026-05-03T12:00:00.000Z"),
-      },
-      hasActiveEvent: true,
-      activeEventRegistrationReadiness: {
-        eventId: "event_1",
-        isReady: true,
-        missingItems: [],
-      },
-      hasEvents: true,
-      isReadOnly: false,
-      isRegistrationOpen: true,
-    },
     dancers: [],
   };
 }

@@ -52,6 +52,33 @@ After adding or renaming route files, run `npm run typecheck` and inspect
 form/detail route should not list the list route as its parent unless nesting is
 intentional.
 
+## Portal Layout Routes
+
+The academy portal intentionally uses a React Router layout route:
+
+- `portal.tsx` owns `PortalShell`, loads shell-wide data, and renders
+  `<Outlet />`.
+- `portal._index.tsx` owns the `/portal` dashboard content.
+- Portal child screens render only their screen content. Do not render
+  `PortalShell` again from `portal.profesores.tsx`,
+  `portal.bailarines.tsx`, `portal.coreografias.tsx`, detail routes, or other
+  portal children.
+- List/detail routes that should share the portal shell but not nest inside the
+  list component use trailing-underscore sibling filenames:
+  `portal.profesores_.$professorId.tsx`,
+  `portal.bailarines_.$dancerId.tsx`, and
+  `portal.coreografias_.$choreographyId.tsx`.
+- Child loaders/actions still call `requireAcademyUser(request)` for
+  authorization, even when they do not need shell data in their return value.
+- Portal breadcrumbs come from `handle.portalBreadcrumbs` on child routes and
+  are collected by `getPortalBreadcrumbItems(matches)` in `portal.tsx`.
+
+Do not reintroduce `portal.profesores.$professorId.tsx`,
+`portal.bailarines.$dancerId.tsx`, or
+`portal.coreografias.$choreographyId.tsx` unless the corresponding list route
+renders an `<Outlet />`; otherwise React Router will match a child URL while the
+screen keeps rendering the list.
+
 ## Do Work
 
 Use this workflow when implementing a feature, fixing a bug, or changing code.

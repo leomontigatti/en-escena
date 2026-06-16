@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
@@ -6,17 +7,18 @@ vi.mock("@/lib/auth/internal-access.server", () => ({
   requireAcademyUser: vi.fn(),
 }));
 
+import { PortalShell } from "@/components/portal/ui";
 import { PortalRouteView } from "@/routes/portal";
-import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines.$dancerId";
+import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
-import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias.$choreographyId";
+import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias_.$choreographyId";
 import { PortalCoreografiasRouteView } from "@/routes/portal.coreografias";
 import { PortalPerfilRouteView } from "@/routes/portal.perfil";
-import { PortalProfesorRouteView } from "@/routes/portal.profesores.$professorId";
+import { PortalProfesorRouteView } from "@/routes/portal.profesores_.$professorId";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
 describe("portal route view", () => {
-  test("renders the portal shell and dashboard summary cards", () => {
+  test("renders the portal shell", () => {
     const markup = renderPortal({
       eventContext: {
         events: [eventSummary({ name: "Regional 2026" })],
@@ -27,11 +29,6 @@ describe("portal route view", () => {
         hasEvents: true,
         isReadOnly: false,
         isRegistrationOpen: true,
-      },
-      summary: {
-        professors: { activeCount: 4, incompleteCount: 1 },
-        dancers: { activeCount: 7, incompleteCount: 3 },
-        choreographies: { registeredCount: 5, incompleteCount: 2 },
       },
     });
 
@@ -52,19 +49,6 @@ describe("portal route view", () => {
     );
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain("Inicio");
-    expect(markup).toContain("Revisá el estado de los datos de tu academia.");
-    expect(markup).toContain("Activos");
-    expect(markup).toContain("4");
-    expect(markup).toContain("Incompletos");
-    expect(markup).toContain("1");
-    expect(markup).toContain("Ver profesores");
-    expect(markup).toContain("7");
-    expect(markup).toContain("3");
-    expect(markup).toContain("Ver bailarines");
-    expect(markup).toContain("Registradas");
-    expect(markup).toContain("5");
-    expect(markup).toContain("2");
-    expect(markup).toContain("Ver coreografías");
     expect(markup).toContain("Portal User");
     expect(markup).toContain("Academia de Prueba");
     expect(markup).toContain('href="/portal/perfil"');
@@ -72,7 +56,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Teléfono");
   });
 
-  test("shows a no-active-event dashboard state for the shell and choreographies card", () => {
+  test("shows the shell no-active-event state", () => {
     const markup = renderPortal({
       eventContext: {
         events: [],
@@ -84,19 +68,12 @@ describe("portal route view", () => {
         isReadOnly: true,
         isRegistrationOpen: false,
       },
-      summary: {
-        professors: { activeCount: 0, incompleteCount: 0 },
-        dancers: { activeCount: 0, incompleteCount: 0 },
-        choreographies: null,
-      },
     });
 
     expect(markup).toContain("Sin evento");
-    expect(markup).toContain("Sin evento activo");
-    expect(markup).toContain("Ver coreografías");
   });
 
-  test("keeps the dashboard focused on summary cards even when the active event is not ready", () => {
+  test("keeps the shell usable when the active event is not ready", () => {
     const selectedEvent = eventSummary({
       id: "event_active",
       name: "Regional 2026",
@@ -123,17 +100,10 @@ describe("portal route view", () => {
         isReadOnly: false,
         isRegistrationOpen: true,
       },
-      summary: {
-        professors: { activeCount: 2, incompleteCount: 1 },
-        dancers: { activeCount: 3, incompleteCount: 3 },
-        choreographies: { registeredCount: 0, incompleteCount: 0 },
-      },
     });
 
+    expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Coreografías");
-    expect(markup).toContain("Registradas");
-    expect(markup).toContain("Ver coreografías");
-    expect(markup).not.toContain("Precios aplicables");
   });
 
   test("shows the coreografías list with the agreed columns for the active event", () => {
@@ -175,7 +145,7 @@ describe("portal route view", () => {
     for (const columnLabel of [
       "Nombre",
       "Modalidad / Submodalidad",
-      "Categoría / Tipo de grupo",
+      "Categoría / Nivel",
       "Estado operativo",
     ]) {
       expect(markup).toContain(columnLabel);
@@ -184,7 +154,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Evento consultado");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Jazz · Lyrical");
-    expect(markup).toContain("Juvenil · Grupal");
+    expect(markup).toContain("Juvenil · Inicial");
     expect(markup).toContain("Pendiente: Música");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
@@ -364,12 +334,8 @@ describe("portal route view", () => {
     expect(markup).toContain("Editable");
     expect(markup).toContain("Profesores actualizados correctamente.");
     expect(markup).toContain("Guardar Profesores");
-    expect(markup).toContain("Buscar profesores");
     expect(markup).toContain("Archivada, Mora");
-    expect(markup).toContain(
-      'type="hidden" name="professorIds" value="prof_2"',
-    );
-    expect(markup).not.toContain('type="checkbox" name="professorIds"');
+    expect(markup).toContain('name="professorIds" checked="" value="prof_2"');
     expect(markup).toContain("Estado operativo al día.");
     expect(markup).toContain('value="update-choreography-professors"');
     expect(markup).toContain("Eliminar Coreografía");
@@ -566,7 +532,8 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Editar Bailarín");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Alvarez, Ana");
+    expect(markup).toContain('name="firstName" value="Ana"');
+    expect(markup).toContain('name="lastName" value="Alvarez"');
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Este bailarín está archivado");
     expect(markup).toContain("Reactivar");
@@ -742,7 +709,8 @@ describe("portal Profesor edit view", () => {
     expect(markup).not.toContain("Editar Profesor");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Profesores");
-    expect(markup).toContain("Perez, Ana");
+    expect(markup).toContain('name="firstName" value="Ana"');
+    expect(markup).toContain('name="lastName" value="Perez"');
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Este profesor está archivado");
     expect(markup).toContain("Reactivar");
@@ -885,7 +853,6 @@ function expectActivePortalNavigationItem(markup: string, path: string) {
 
 function renderPortal(input: {
   eventContext: PortalLoaderData["eventContext"];
-  summary?: PortalLoaderData["dashboardSummary"];
 }) {
   const loaderData = {
     email: "portal@example.com",
@@ -898,16 +865,19 @@ function renderPortal(input: {
       phone: "11 1234-5678",
     },
     eventContext: input.eventContext,
-    dashboardSummary: input.summary ?? {
-      professors: { activeCount: 0, incompleteCount: 0 },
-      dancers: { activeCount: 0, incompleteCount: 0 },
-      choreographies: null,
-    },
   } satisfies PortalLoaderData;
 
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal"]}>
-      <PortalRouteView loaderData={loaderData} />
+      <PortalShell
+        userEmail={loaderData.email}
+        userName={loaderData.userName}
+        academyName={loaderData.academy.name}
+        eventContext={loaderData.eventContext}
+        breadcrumbItems={[{ label: "Inicio" }]}
+      >
+        <></>
+      </PortalShell>
     </MemoryRouter>,
   );
 }
@@ -921,16 +891,19 @@ function renderBailarines(
 ) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/bailarines"]}>
-      <PortalBailarinesRouteView
-        actionData={input.actionData}
-        loaderData={
-          input.loaderData ??
-          academyLoaderData({
-            dancers: input.dancers ?? [],
-            statusFilter: "active",
-          })
-        }
-      />
+      {renderPortalShellForTest(
+        "/portal/bailarines",
+        <PortalBailarinesRouteView
+          actionData={input.actionData}
+          loaderData={
+            input.loaderData ??
+            academyLoaderData({
+              dancers: input.dancers ?? [],
+              statusFilter: "active",
+            })
+          }
+        />,
+      )}
     </MemoryRouter>,
   );
 }
@@ -942,11 +915,14 @@ type BailarinDetalleViewProps = Parameters<
 function renderBailarinDetalle(input: Partial<BailarinDetalleViewProps>) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/bailarines/dancer_edit_1"]}>
-      <PortalBailarinDetalleRouteView
-        loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
-        actionData={input.actionData}
-        initialStatusDialogIntent={input.initialStatusDialogIntent}
-      />
+      {renderPortalShellForTest(
+        "/portal/bailarines",
+        <PortalBailarinDetalleRouteView
+          loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
+          actionData={input.actionData}
+          initialStatusDialogIntent={input.initialStatusDialogIntent}
+        />,
+      )}
     </MemoryRouter>,
   );
 }
@@ -957,10 +933,13 @@ type PerfilViewProps = Parameters<typeof PortalPerfilRouteView>[0];
 function renderPerfil(input: Partial<PerfilViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/perfil"]}>
-      <PortalPerfilRouteView
-        loaderData={input.loaderData ?? academyLoaderData()}
-        actionData={input.actionData}
-      />
+      {renderPortalShellForTest(
+        "/portal/perfil",
+        <PortalPerfilRouteView
+          loaderData={input.loaderData ?? academyLoaderData()}
+          actionData={input.actionData}
+        />,
+      )}
     </MemoryRouter>,
   );
 }
@@ -968,10 +947,13 @@ function renderPerfil(input: Partial<PerfilViewProps> = {}) {
 function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/profesores"]}>
-      <PortalProfesoresRouteView
-        loaderData={input.loaderData ?? academyLoaderData()}
-        actionData={input.actionData}
-      />
+      {renderPortalShellForTest(
+        "/portal/profesores",
+        <PortalProfesoresRouteView
+          loaderData={input.loaderData ?? academyLoaderData()}
+          actionData={input.actionData}
+        />,
+      )}
     </MemoryRouter>,
   );
 }
@@ -981,11 +963,15 @@ type CoreografiasViewProps = Parameters<typeof PortalCoreografiasRouteView>[0];
 function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias"]}>
-      <PortalCoreografiasRouteView
-        created={input.created}
-        deleted={input.deleted}
-        loaderData={input.loaderData ?? coreografiasLoaderData()}
-      />
+      {renderPortalShellForTest(
+        "/portal/coreografias",
+        <PortalCoreografiasRouteView
+          created={input.created}
+          deleted={input.deleted}
+          loaderData={input.loaderData ?? coreografiasLoaderData()}
+        />,
+        (input.loaderData ?? coreografiasLoaderData()).eventContext,
+      )}
     </MemoryRouter>,
   );
 }
@@ -1001,11 +987,15 @@ function renderCoreografiaDetalle(
 ) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias/choreo_1"]}>
-      <PortalCoreografiaDetalleRouteView
-        actionData={input.actionData}
-        initialDeleteDialogOpen={input.initialDeleteDialogOpen}
-        loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
-      />
+      {renderPortalShellForTest(
+        "/portal/coreografias",
+        <PortalCoreografiaDetalleRouteView
+          actionData={input.actionData}
+          initialDeleteDialogOpen={input.initialDeleteDialogOpen}
+          loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
+        />,
+        (input.loaderData ?? coreografiaDetalleLoaderData()).eventContext,
+      )}
     </MemoryRouter>,
   );
 }
@@ -1015,20 +1005,70 @@ type ProfesorEditViewProps = Parameters<typeof PortalProfesorRouteView>[0];
 function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/profesores/profesor_1"]}>
-      <PortalProfesorRouteView
-        loaderData={{
-          ...academyLoaderData(),
-          professor: {
-            ...professorListItem(),
-            isIncomplete: true,
-          },
-          ...input.loaderData,
-        }}
-        actionData={input.actionData}
-        initialStatusDialogIntent={input.initialStatusDialogIntent}
-      />
+      {renderPortalShellForTest(
+        "/portal/profesores",
+        <PortalProfesorRouteView
+          loaderData={{
+            ...academyLoaderData(),
+            professor: {
+              ...professorListItem(),
+              isIncomplete: true,
+            },
+            ...input.loaderData,
+          }}
+          actionData={input.actionData}
+          initialStatusDialogIntent={input.initialStatusDialogIntent}
+        />,
+      )}
     </MemoryRouter>,
   );
+}
+
+function renderPortalShellForTest(
+  activePath: string,
+  children: ReactNode,
+  eventContext: PortalLoaderData["eventContext"] = {
+    events: [eventSummary()],
+    selectedEvent: eventSummary(),
+    activeEvent: eventSummary(),
+    hasActiveEvent: true,
+    activeEventRegistrationReadiness: readiness(true),
+    hasEvents: true,
+    isReadOnly: false,
+    isRegistrationOpen: true,
+  },
+) {
+  return (
+    <PortalShell
+      userEmail="portal@example.com"
+      userName="Portal User"
+      academyName="Academia de Prueba"
+      eventContext={eventContext}
+      breadcrumbItems={[{ label: getPortalBreadcrumbLabel(activePath) }]}
+    >
+      {children}
+    </PortalShell>
+  );
+}
+
+function getPortalBreadcrumbLabel(path: string) {
+  if (path.includes("bailarines")) {
+    return "Bailarines";
+  }
+
+  if (path.includes("coreografias")) {
+    return "Coreografías";
+  }
+
+  if (path.includes("perfil")) {
+    return "Perfil";
+  }
+
+  if (path.includes("profesores")) {
+    return "Profesores";
+  }
+
+  return "Inicio";
 }
 
 function academyLoaderData({

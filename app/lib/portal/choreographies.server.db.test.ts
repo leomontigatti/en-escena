@@ -21,8 +21,8 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
-import { action as choreographyDetailAction } from "@/routes/portal.coreografias.$choreographyId";
-import { loader as choreographyDetailLoader } from "@/routes/portal.coreografias.$choreographyId";
+import { action as choreographyDetailAction } from "@/routes/portal.coreografias_.$choreographyId";
+import { loader as choreographyDetailLoader } from "@/routes/portal.coreografias_.$choreographyId";
 import { loader as choreographiesLoader } from "@/routes/portal.coreografias";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";

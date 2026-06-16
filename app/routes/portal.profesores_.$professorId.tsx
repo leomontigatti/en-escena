@@ -1,5 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Ellipsis, TriangleAlert } from "lucide-react";
+import {
+  Archive,
+  Check,
+  Ellipsis,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   Controller,
@@ -10,11 +16,10 @@ import {
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { PortalShell } from "@/components/portal/ui";
+import type { PortalRouteHandle } from "@/components/portal/ui";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -23,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,8 +50,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   archiveAcademyProfessor,
   findAcademyProfessor,
@@ -149,6 +159,20 @@ export const meta = () => [
   { title: "Editar profesor | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [
+    { label: "Profesores", to: "/portal/profesores" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      const professor = data?.professor;
+
+      return professor
+        ? { label: `${professor.firstName} ${professor.lastName}` }
+        : null;
+    },
+  ],
+} satisfies PortalRouteHandle;
+
 export async function loader({
   request,
   params,
@@ -156,18 +180,11 @@ export async function loader({
   request: Request;
   params: { professorId?: string };
 }) {
-  const { user, academy } = await requireAcademyUser(request);
+  const { academy } = await requireAcademyUser(request);
   const professorId = readProfessorId(params);
-  const [eventContext, professor] = await Promise.all([
-    getPortalEventContext(request),
-    requireProfessor(academy.id, professorId),
-  ]);
+  const professor = await requireProfessor(academy.id, professorId);
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
-    eventContext,
     professor,
   };
 }
@@ -250,22 +267,13 @@ export function PortalProfesorRouteView({
   });
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Profesores"
-      breadcrumbItems={[
-        { label: "Profesores", to: "/portal/profesores" },
-        {
-          label: `${loaderData.professor.lastName}, ${loaderData.professor.firstName}`,
-        },
-      ]}
-    >
-      <section className="space-y-6" aria-labelledby="profesor-detail-title">
+    <>
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="profesor-detail-title"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <h1 id="profesor-detail-title" className="text-xl font-semibold">
               Editar profesor
             </h1>
@@ -274,12 +282,24 @@ export function PortalProfesorRouteView({
             </p>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="lg">
-                <Ellipsis aria-hidden="true" data-icon />
-                Acciones
-              </Button>
-            </DropdownMenuTrigger>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-lg"
+                      aria-label="Acciones"
+                    >
+                      <Ellipsis aria-hidden="true" />
+                      <span className="sr-only">Acciones</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="left">Acciones</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
                 variant={statusAction.confirmButtonVariant}
@@ -294,41 +314,41 @@ export function PortalProfesorRouteView({
           </DropdownMenu>
         </div>
 
-        <Card>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              {!loaderData.professor.active ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Este profesor está archivado. Reactivalo para que vuelva a
-                    aparecer en las listas activas y en próximas selecciones de
-                    coreografías.
-                  </AlertDescription>
-                  <AlertAction>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      onClick={() => {
-                        setStatusDialogIntent("reactivate-professor");
-                      }}
-                    >
-                      Reactivar
-                    </Button>
-                  </AlertAction>
-                </Alert>
-              ) : null}
-              {loaderData.professor.isIncomplete ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan datos de identificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
+        <div className="flex flex-col gap-3">
+          {!loaderData.professor.active ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Este profesor está archivado. Reactivalo para que vuelva a
+                aparecer en las listas activas y en próximas selecciones de
+                coreografías.
+              </AlertDescription>
+              <AlertAction className="top-1/2 -translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setStatusDialogIntent("reactivate-professor");
+                  }}
+                >
+                  Reactivar
+                </Button>
+              </AlertAction>
+            </Alert>
+          ) : null}
+          {loaderData.professor.isIncomplete ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Faltan datos de identificación.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
 
+        <Card>
+          <CardContent>
             <form
               id={formId}
               method="post"
@@ -362,16 +382,16 @@ export function PortalProfesorRouteView({
               </FieldGroup>
             </form>
           </CardContent>
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            <Button asChild variant="outline" size="lg">
+              <Link to="/portal/profesores">Volver</Link>
+            </Button>
+            <Button type="submit" form={formId} size="lg">
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar
+            </Button>
+          </CardFooter>
         </Card>
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <Button asChild variant="outline" size="lg">
-            <Link to="/portal/profesores">Volver</Link>
-          </Button>
-          <Button type="submit" form={formId} size="lg">
-            Guardar
-          </Button>
-        </div>
       </section>
 
       <ProfessorStatusDialog
@@ -382,7 +402,7 @@ export function PortalProfesorRouteView({
           }
         }}
       />
-    </PortalShell>
+    </>
   );
 }
 
@@ -541,31 +561,43 @@ function ProfessorStatusDialog({
       ) : null}
       <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
         {action ? (
-          <AlertDialogContent forceMount>
-            <AlertDialogHeader>
+          <AlertDialogContent
+            forceMount
+            className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
+          >
+            <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
               <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
               <AlertDialogDescription>
                 {action.confirmDescription}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <form id={dialogFormId} method="post">
-              <input type="hidden" name="intent" value={action.intent} />
-            </form>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                form={dialogFormId}
-                type="submit"
-                variant={action.confirmButtonVariant}
-              >
-                {action.confirmButtonLabel}
-              </AlertDialogAction>
+              <form id={dialogFormId} method="post">
+                <input type="hidden" name="intent" value={action.intent} />
+                <Button type="submit" variant={action.confirmButtonVariant}>
+                  <ProfessorStatusActionIcon intent={action.intent} />
+                  {action.confirmButtonLabel}
+                </Button>
+              </form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}
       </AlertDialog>
     </>
   );
+}
+
+function ProfessorStatusActionIcon({
+  intent,
+}: {
+  intent: ProfessorStatusIntent;
+}) {
+  if (intent === "archive-professor") {
+    return <Archive aria-hidden="true" data-icon="inline-start" />;
+  }
+
+  return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
 }
 
 function getProfessorStatusAction(isActive: boolean) {

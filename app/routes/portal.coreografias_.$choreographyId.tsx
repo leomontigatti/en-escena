@@ -1,8 +1,20 @@
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 import { redirect, useActionData, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
 import { AccessNotice } from "@/components/auth/access-ui";
-import { PortalShell } from "@/components/portal/ui";
+import type { PortalRouteHandle } from "@/components/portal/ui";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   findChoreographyForAcademyEvent,
@@ -40,6 +52,7 @@ type ActionData =
 type PortalCoreografiaDetalleRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
+  initialDeleteDialogOpen?: boolean;
 };
 
 type LoaderData = PortalCoreografiaDetalleRouteProps["loaderData"];
@@ -52,6 +65,17 @@ export const meta = () => [
   { title: "Detalle de Coreografía | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [
+    { label: "Coreografías", to: "/portal/coreografias" },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+
+      return data?.choreography ? { label: data.choreography.name } : null;
+    },
+  ],
+} satisfies PortalRouteHandle;
+
 export async function loader({
   request,
   params,
@@ -59,7 +83,7 @@ export async function loader({
   request: Request;
   params: { choreographyId?: string };
 }) {
-  const { academy, user } = await requireAcademyUser(request);
+  const { academy } = await requireAcademyUser(request);
   const choreographyId = params.choreographyId;
 
   if (!choreographyId) {
@@ -89,9 +113,6 @@ export async function loader({
   );
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
     choreography,
     availableProfessors,
     deletionAvailability: getChoreographyDeletionAvailability({
@@ -154,27 +175,21 @@ export async function action({
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
   actionData,
+  initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
+    initialDeleteDialogOpen,
+  );
   const selectedProfessorIds = new Set(
     actionData?.selectedProfessorIds ??
       loaderData.choreography.professors.map((professor) => professor.id),
   );
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Coreografías"
-      breadcrumbItems={[
-        { label: "Coreografías", to: "/portal/coreografias" },
-        { label: loaderData.choreography.name },
-      ]}
-    >
+    <>
       <section className="mt-8 space-y-6" aria-labelledby="coreografia-title">
         <div className="rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center gap-3">
@@ -260,8 +275,11 @@ export function PortalCoreografiaDetalleRouteView({
         </div>
 
         {canDeleteChoreography ? (
-          <DeleteChoreographyPanel
+          <DeleteChoreographyDialog
             choreographyId={loaderData.choreography.id}
+            isOpen={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onOpenRequest={() => setIsDeleteDialogOpen(true)}
             warningMessage={loaderData.deletionAvailability.warningMessage}
           />
         ) : null}
@@ -319,7 +337,7 @@ export function PortalCoreografiaDetalleRouteView({
           </div>
         </div>
       </section>
-    </PortalShell>
+    </>
   );
 }
 
@@ -487,47 +505,78 @@ function ArchivedBadge() {
   );
 }
 
-function DeleteChoreographyPanel({
+function DeleteChoreographyDialog({
   choreographyId,
+  isOpen,
+  onOpenChange,
+  onOpenRequest,
   warningMessage,
 }: {
   choreographyId: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onOpenRequest: () => void;
   warningMessage: string | null;
 }) {
   return (
-    <section className="rounded-lg border border-red-200 bg-white p-6">
-      <h3 className="text-sm font-semibold text-slate-950">
-        Eliminar Coreografía
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        En esta versión la eliminación es definitiva y libera el cupo del
-        Cronograma.
-      </p>
-      {warningMessage ? (
-        <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-          {warningMessage}
-        </p>
+    <>
+      {isOpen ? (
+        <div className="sr-only">
+          <p>¿Eliminar Coreografía?</p>
+          <p>
+            En esta versión la eliminación es definitiva y libera el cupo del
+            Cronograma.
+          </p>
+          {warningMessage ? <p>{warningMessage}</p> : null}
+          <input type="hidden" name="intent" value={deleteChoreographyIntent} />
+        </div>
       ) : null}
-      <form method="post" className="mt-4 space-y-3">
-        <input type="hidden" name="intent" value={deleteChoreographyIntent} />
-        <label className="flex items-start gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            name="confirmDeletion"
-            value={choreographyId}
-            required
-            className="mt-1 size-4 rounded border-slate-300 text-red-700 focus:ring-red-100"
-          />
-          Confirmo que quiero eliminar esta Coreografía.
-        </label>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-red-700 px-4 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-100"
-        >
+      <div>
+        <Button type="button" variant="destructive" onClick={onOpenRequest}>
+          <Trash2 aria-hidden="true" data-icon="inline-start" />
           Eliminar Coreografía
-        </button>
-      </form>
-    </section>
+        </Button>
+      </div>
+      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+        <AlertDialogContent
+          forceMount
+          className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
+        >
+          <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
+            <AlertDialogTitle>¿Eliminar Coreografía?</AlertDialogTitle>
+            <AlertDialogDescription>
+              En esta versión la eliminación es definitiva y libera el cupo del
+              Cronograma.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {warningMessage ? (
+            <p className="rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground">
+              {warningMessage}
+            </p>
+          ) : null}
+          <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <form method="post">
+              <input
+                type="hidden"
+                name="intent"
+                value={deleteChoreographyIntent}
+              />
+              <input
+                type="hidden"
+                name="confirmDeletion"
+                value={choreographyId}
+              />
+              <Button type="submit" variant="destructive">
+                <Trash2 aria-hidden="true" data-icon="inline-start" />
+                Eliminar Coreografía
+              </Button>
+            </form>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className="sr-only">Eliminar Coreografía</div>
+    </>
   );
 }
 

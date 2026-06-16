@@ -6,7 +6,7 @@ import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { PortalShell } from "@/components/portal/ui";
+import type { PortalRouteHandle } from "@/components/portal/ui";
 import {
   DataTable,
   type DataTableColumn,
@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createDancerForAcademy,
   listDancersForAcademy,
@@ -92,18 +91,15 @@ export const meta = () => [
   { title: "Bailarines | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [{ label: "Bailarines" }],
+} satisfies PortalRouteHandle;
+
 export async function loader({ request }: { request: Request }) {
-  const { user, academy } = await requireAcademyUser(request);
-  const [eventContext, dancers] = await Promise.all([
-    getPortalEventContext(request),
-    listDancersForAcademy(academy.id, { status: "all" }),
-  ]);
+  const { academy } = await requireAcademyUser(request);
+  const dancers = await listDancersForAcademy(academy.id, { status: "all" });
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
-    eventContext,
     dancers,
   };
 }
@@ -171,13 +167,7 @@ export function PortalBailarinesRouteView({
   const visibleActionData = dismissServerState ? undefined : actionData;
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Bailarines"
-    >
+    <>
       <section
         className="flex flex-col gap-6"
         aria-labelledby="bailarines-title"
@@ -235,7 +225,7 @@ export function PortalBailarinesRouteView({
           }
         }}
       />
-    </PortalShell>
+    </>
   );
 }
 
@@ -362,7 +352,7 @@ function CreateDancerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent forceMount>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo bailarín</DialogTitle>
           <DialogDescription>

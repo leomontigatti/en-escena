@@ -5,7 +5,7 @@ import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { PortalShell } from "@/components/portal/ui";
+import type { PortalRouteHandle } from "@/components/portal/ui";
 import {
   DataTable,
   type DataTableColumn,
@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createAcademyProfessor,
   listAcademyProfessors,
@@ -79,18 +78,15 @@ export const meta = () => [
   { title: "Profesores | Portal de academias | En Escena" },
 ];
 
+export const handle = {
+  portalBreadcrumbs: [{ label: "Profesores" }],
+} satisfies PortalRouteHandle;
+
 export async function loader({ request }: { request: Request }) {
-  const { user, academy } = await requireAcademyUser(request);
-  const [eventContext, professors] = await Promise.all([
-    getPortalEventContext(request),
-    listAcademyProfessors(academy.id),
-  ]);
+  const { academy } = await requireAcademyUser(request);
+  const professors = await listAcademyProfessors(academy.id);
 
   return {
-    email: user.email,
-    userName: user.name ?? "",
-    academy,
-    eventContext,
     professors,
   };
 }
@@ -160,13 +156,7 @@ export function PortalProfesoresRouteView({
   const visibleActionData = dismissServerState ? undefined : actionData;
 
   return (
-    <PortalShell
-      userEmail={loaderData.email}
-      userName={loaderData.userName}
-      academyName={loaderData.academy.name}
-      eventContext={loaderData.eventContext}
-      title="Profesores"
-    >
+    <>
       <section
         className="flex flex-col gap-6"
         aria-labelledby="profesores-title"
@@ -224,7 +214,7 @@ export function PortalProfesoresRouteView({
           }
         }}
       />
-    </PortalShell>
+    </>
   );
 }
 
@@ -344,7 +334,7 @@ function CreateProfessorDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent forceMount>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo profesor</DialogTitle>
           <DialogDescription>
