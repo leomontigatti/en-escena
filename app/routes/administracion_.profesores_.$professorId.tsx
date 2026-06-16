@@ -14,13 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -802,13 +804,15 @@ function ProfessorConfirmationDialog({
   const formId = getProfessorDialogFormId(intent);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       {intent ? (
-        <DialogContent forceMount showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{action.confirmTitle}</DialogTitle>
-            <DialogDescription>{action.description}</DialogDescription>
-          </DialogHeader>
+        <AlertDialogContent forceMount size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {action.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <form
             id={formId}
             method="post"
@@ -850,28 +854,23 @@ function ProfessorConfirmationDialog({
               />
             ) : null}
           </form>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              form={formId}
-              type="submit"
-              variant={action.variant}
-              disabled={
-                intent === "update-professor" && pendingUpdateValues === null
-              }
-            >
-              {action.confirmLabel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction asChild variant={action.variant}>
+              <Button
+                form={formId}
+                type="submit"
+                disabled={
+                  intent === "update-professor" && pendingUpdateValues === null
+                }
+              >
+                {action.confirmLabel}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       ) : null}
-    </Dialog>
+    </AlertDialog>
   );
 }
 

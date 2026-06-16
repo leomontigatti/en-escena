@@ -29,6 +29,16 @@ describe("route notification toasts", () => {
       message: "Profesor guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["profesor-archivado"]).toEqual({
+      id: "route-notification:profesor-archivado",
+      message: "Profesor archivado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["profesor-reactivado"]).toEqual({
+      id: "route-notification:profesor-reactivado",
+      message: "Profesor reactivado.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["perfil-guardado"]).toEqual({
       id: "route-notification:perfil-guardado",
       message: "Perfil guardado.",
@@ -44,11 +54,26 @@ describe("route notification toasts", () => {
       message: "Bailarín creado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["bailarin-guardado"]).toEqual({
+      id: "route-notification:bailarin-guardado",
+      message: "Bailarín guardado.",
+      variant: "success",
+    });
     expect(
       routeNotificationToasts["bailarin-guardado-requiere-verificacion"],
     ).toEqual({
       id: "route-notification:bailarin-guardado-requiere-verificacion",
       message: "Bailarín guardado. La identidad volvió a no verificado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["bailarin-reactivado"]).toEqual({
+      id: "route-notification:bailarin-reactivado",
+      message: "Bailarín reactivado.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["bailarin-verificado"]).toEqual({
+      id: "route-notification:bailarin-verificado",
+      message: "Bailarín verificado.",
       variant: "success",
     });
     expect(routeNotificationToasts["evento-guardado"]).toEqual({
