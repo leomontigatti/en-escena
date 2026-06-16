@@ -535,6 +535,9 @@ describe("administracion/usuarios/:userId route", () => {
       ),
     );
     const listMarkup = renderListRoute(listData);
+    const internalDetailData = await detailLoader(
+      detailRouteArgs(adminRequest, internalUser.userId),
+    );
 
     expect(listMarkup).toContain(
       `/administracion/usuarios/${internalUser.userId}`,
@@ -543,9 +546,7 @@ describe("administracion/usuarios/:userId route", () => {
       `/administracion/usuarios/${academyUser.userId}`,
     );
 
-    await expect(
-      detailLoader(detailRouteArgs(adminRequest, internalUser.userId)),
-    ).resolves.toMatchObject({
+    expect(internalDetailData).toMatchObject({
       user: {
         id: internalUser.userId,
         userType: "internal",
@@ -569,7 +570,7 @@ describe("administracion/usuarios/:userId route", () => {
     );
 
     const internalMarkup = renderDetailRoute(
-      await detailLoader(detailRouteArgs(adminRequest, internalUser.userId)),
+      internalDetailData,
       internalUser.userId,
     );
     const auditorInternalMarkup = renderDetailRoute(
@@ -618,6 +619,12 @@ describe("administracion/usuarios/:userId route", () => {
     expect(academyMarkup).not.toContain("Suspender Usuario");
     expect(academyMarkup).not.toContain("Restablecer contraseña");
     expect(academyMarkup).not.toContain("Cambiar contraseña");
+    expect(listData).not.toHaveProperty("email");
+    expect(listData).not.toHaveProperty("eventOptions");
+    expect(listData).not.toHaveProperty("selectedEventId");
+    expect(internalDetailData).not.toHaveProperty("email");
+    expect(internalDetailData).not.toHaveProperty("eventOptions");
+    expect(internalDetailData).not.toHaveProperty("selectedEventId");
   });
 });
 
@@ -640,9 +647,6 @@ function renderListRoute(
         loaderData: {
           "0": {
             canManage: true,
-            email: "admin@example.com",
-            eventOptions: [],
-            selectedEventId: null,
             filters: {
               query: "",
               role: "all",
@@ -679,9 +683,6 @@ function renderDetailRoute(
           "0": {
             canManage: false,
             backToList: "/administracion/usuarios",
-            email: "admin@example.com",
-            eventOptions: [],
-            selectedEventId: null,
             user: {
               id: userId,
               academyId: null,

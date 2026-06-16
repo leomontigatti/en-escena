@@ -69,10 +69,10 @@ describe("administracion/usuarios route", () => {
     });
 
     await expect(loader(routeArgs(admin.request))).resolves.toMatchObject({
-      email: "admin.usuarios.lista@example.com",
+      canManage: true,
     });
     await expect(loader(routeArgs(auditor.request))).resolves.toMatchObject({
-      email: "auditor.usuarios.lista@example.com",
+      canManage: false,
     });
     await expectThrownResponse(loader(routeArgs(academyUser.request)), 403);
 
@@ -89,6 +89,9 @@ describe("administracion/usuarios route", () => {
     const defaultData = await loader(routeArgs(admin.request));
     const defaultMarkup = renderRoute(defaultData);
 
+    expect(defaultData).not.toHaveProperty("email");
+    expect(defaultData).not.toHaveProperty("eventOptions");
+    expect(defaultData).not.toHaveProperty("selectedEventId");
     expect(defaultMarkup).toContain("Usuarios");
     expect(defaultMarkup).toContain("Nombre");
     expect(defaultMarkup).toContain("Identificador");
@@ -220,7 +223,6 @@ function renderRoute(
       hydrationData: {
         loaderData: {
           "0": {
-            email: "admin@example.com",
             users: [],
             filters: {
               query: "",

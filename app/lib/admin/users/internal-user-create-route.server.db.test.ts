@@ -35,9 +35,11 @@ describe("administracion/usuarios/nuevo route", () => {
     });
 
     const loaderData = await loader(routeArgs(request));
-    const markup = renderRoute(loaderData);
+    const markup = renderRoute();
 
-    expect(loaderData.email).toBe("admin.usuarios@example.com");
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("eventOptions");
+    expect(loaderData).not.toHaveProperty("selectedEventId");
     expect(markup).toContain("Crear Usuario interno");
     expect(markup).toContain("Contraseña temporal");
     expect(markup).toContain("canal seguro");
@@ -78,11 +80,7 @@ describe("administracion/usuarios/nuevo route", () => {
   });
 });
 
-function renderRoute(
-  loaderData: Partial<
-    Parameters<typeof AdministracionUsuariosNuevoRouteView>[0]["loaderData"]
-  >,
-) {
+function renderRoute() {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios/nuevo",
@@ -94,14 +92,7 @@ function renderRoute(
     createElement(RoutesStub, {
       initialEntries: ["/administracion/usuarios/nuevo"],
       hydrationData: {
-        loaderData: {
-          "0": {
-            email: "admin@example.com",
-            eventOptions: [],
-            selectedEventId: null,
-            ...loaderData,
-          },
-        },
+        loaderData: { "0": {} },
       },
     }),
   );
