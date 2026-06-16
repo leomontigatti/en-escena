@@ -82,7 +82,7 @@ describe("administracion/profesores route", () => {
     await expectThrownResponse(loader(routeArgs(judgeRequest)), 403);
   });
 
-  test("filters by participation and search, paginates server-side, and renders readonly badges", async () => {
+  test("uses the admin resource list behavior for participation, search, filters, and pagination", async () => {
     const event = await createSavedEvent();
     const northAcademy = await createAcademyUser({
       email: "academia.norte@example.com",
@@ -152,7 +152,7 @@ describe("administracion/profesores route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.busqueda@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=todos&estado=todos&q=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&estado=todos&q=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -161,19 +161,20 @@ describe("administracion/profesores route", () => {
       nonParticipatingProfessor.id,
     ]);
     expect(searchMarkup).toContain("No participando");
-    expect(searchMarkup).toContain("Activo");
+    expect(searchMarkup).toContain("Identificación incompleta");
     expect(searchMarkup).not.toContain("Acciones");
     expect(searchMarkup).toContain(
       `/administracion/profesores/${nonParticipatingProfessor.id}?q=Academia+Sur`,
     );
-    expect(searchMarkup).toContain("participando=todos");
+    expect(searchMarkup).toContain("participando=no");
     expect(searchMarkup).toContain("estado=todos");
     expect(searchMarkup).toContain("q=Academia+Sur");
+    expect(searchMarkup).not.toContain(">Todos<");
 
     const { request: emptySearchRequest } = await createSignedInRequest({
       email: "admin.busqueda.vacia@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=todos&q=No+existe`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&q=No+existe`,
     });
     const emptySearchData = await loader(routeArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
@@ -204,37 +205,62 @@ describe("administracion/profesores route", () => {
     const { request: pageTwoRequest } = await createSignedInRequest({
       email: "admin.paginacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=todos&page=2`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&page=2`,
     });
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
 
-    expect(pageTwoData.totalCount).toBe(53);
-    expect(pageTwoData.professors).toHaveLength(3);
+    expect(pageTwoData.totalCount).toBe(52);
+    expect(pageTwoData.professors).toHaveLength(2);
     expect(pageTwoData.filters.page).toBe(2);
-    expect(pageTwoMarkup).toContain("53 resultados");
-    expect(pageTwoMarkup).toContain("3 de 53 registros");
+    expect(pageTwoMarkup).toContain("2 de 52 registros");
     expect(pageTwoMarkup).toContain('aria-current="page"');
     expect(pageTwoMarkup).toContain(">Anterior<");
     expect(pageTwoMarkup).toContain(
-      'href="/administracion/profesores?participando=todos"',
+      'href="/administracion/profesores?participando=no"',
     );
     expect(pageTwoMarkup).toContain(
-      'href="/administracion/profesores?participando=todos&amp;page=2"',
+      'href="/administracion/profesores?participando=no&amp;page=2"',
     );
   });
 
-  test("shows Sin evento badges when there is no Evento activo", async () => {
-    const academy = await createAcademyUser({
-      email: "sin.evento@example.com",
-      academyName: "Academia Base",
-      contactName: "Ceci Base",
+  test("shows active records without participation filters or badges when there is no Evento activo", async () => {
+    const participatingAcademy = await createAcademyUser({
+      email: "sin.evento.participa@example.com",
+      academyName: "Academia Participa",
+      contactName: "Ceci Participa",
       phone: "3333-3333",
     });
-    const professor = await createProfessor({
-      academyId: academy.academy.id,
+    const otherAcademy = await createAcademyUser({
+      email: "sin.evento.base@example.com",
+      academyName: "Academia Base",
+      contactName: "Diego Base",
+      phone: "4444-4444",
+    });
+    const event = await createInactiveEvent({
+      name: "Evento histórico profesores",
+    });
+    const participatingProfessor = await createProfessor({
+      academyId: participatingAcademy.academy.id,
       firstName: "Diego",
+      lastName: "Participa",
+    });
+    const activeProfessor = await createProfessor({
+      academyId: otherAcademy.academy.id,
+      firstName: "Elena",
       lastName: "Base",
+    });
+    await createProfessor({
+      academyId: otherAcademy.academy.id,
+      firstName: "Fiona",
+      lastName: "Archivada",
+      active: false,
+    });
+    await linkProfessorToEventChoreography({
+      eventId: event.id,
+      academyId: participatingAcademy.academy.id,
+      professorId: participatingProfessor.id,
+      choreographyName: "Amanecer",
     });
     const { request } = await createSignedInRequest({
       email: "admin.sin-evento@example.com",
@@ -247,10 +273,15 @@ describe("administracion/profesores route", () => {
 
     expect(loaderData.selectedEventId).toBeNull();
     expect(loaderData.filters.participation).toBe("all");
+    expect(loaderData.filters.status).toBe("active");
     expect(loaderData.professors.map((item) => item.id)).toEqual([
-      professor.id,
+      activeProfessor.id,
+      participatingProfessor.id,
     ]);
-    expect(markup).toContain("Sin evento");
+    expect(markup).not.toContain("Participando");
+    expect(markup).not.toContain("No participando");
+    expect(markup).not.toContain("Participación");
+    expect(markup).toContain("Filtros");
   });
 
   test("renders a readonly Profesor ficha with academy contact and participation data", async () => {
@@ -997,6 +1028,22 @@ async function createSavedEvent() {
   }
 
   await activateEvent(result.event.id);
+
+  return result.event;
+}
+
+async function createInactiveEvent(input: { name: string }) {
+  const result = await createEvent({
+    name: input.name,
+    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
+    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
+    startsAt: new Date("2026-05-01T12:00:00Z"),
+    endsAt: new Date("2026-05-03T12:00:00Z"),
+  });
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
 
   return result.event;
 }

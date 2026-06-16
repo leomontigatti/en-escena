@@ -32,6 +32,7 @@ export type AdministrativeProfessorListItem = {
   active: boolean;
   academyName: string;
   participationStatus: AdminProfessorParticipationStatus;
+  identificationStatus: "complete" | "incomplete";
 };
 
 export type AdministrativeProfessorListResult = {
@@ -149,6 +150,8 @@ export async function listAdministrativeProfessors(input: {
       lastName: professors.lastName,
       active: professors.active,
       academyName: academies.name,
+      documentType: professors.documentType,
+      documentNumber: professors.documentNumber,
       isParticipating: participationSql,
     })
     .from(professors)
@@ -177,6 +180,8 @@ export async function listAdministrativeProfessors(input: {
         input.selectedEventId,
         row.isParticipating,
       ),
+      identificationStatus:
+        row.documentType && row.documentNumber ? "complete" : "incomplete",
     })),
     totalCount,
     totalPages,
