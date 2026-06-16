@@ -270,7 +270,6 @@ export function AdminShell({
                     align="end"
                     className="w-(--radix-dropdown-menu-trigger-width)"
                   >
-                    <DropdownMenuLabel>Sesión</DropdownMenuLabel>
                     <DropdownMenuGroup>
                       <DropdownMenuItem disabled>{email}</DropdownMenuItem>
                     </DropdownMenuGroup>

@@ -480,7 +480,7 @@ describe.sequential("portal Perfil route", () => {
     });
   });
 
-  test("updates the current academy profile and redirects with notification", async () => {
+  test("updates the current academy contact profile and redirects with notification", async () => {
     const session = await createAcademySession({
       email: "perfil.update@example.com",
       academyName: "Academia Original",
@@ -492,8 +492,8 @@ describe.sequential("portal Perfil route", () => {
           "http://localhost/portal/perfil",
           session.cookie,
           academyProfileFormData({
-            name: " Academia Actualizada ",
-            contactName: " Responsable Nueva ",
+            name: " Academia Manipulada ",
+            contactName: " responsable nueva ",
             phone: " 11 9999-0000 ",
           }),
         ),
@@ -510,7 +510,7 @@ describe.sequential("portal Perfil route", () => {
         where: eq(academies.id, session.academyId),
       }),
     ).resolves.toMatchObject({
-      name: "Academia Actualizada",
+      name: "Academia Original",
       contactName: "Responsable Nueva",
       phone: "11 9999-0000",
     });

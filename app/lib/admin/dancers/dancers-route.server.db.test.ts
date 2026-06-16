@@ -39,7 +39,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/bailarines route", () => {
+describe.sequential("administracion/bailarines route", () => {
   test("allows admin access and renders an empty readonly Bailarines list", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.bailarines@example.com",
@@ -52,7 +52,9 @@ describe("administracion/bailarines route", () => {
 
     expect(loaderData.email).toBe("admin.bailarines@example.com");
     expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Todavía no hay Bailarines para mostrar.");
+    expect(markup).toContain(
+      "No hay Bailarines que coincidan con la búsqueda.",
+    );
     expect(markup).not.toContain("Acciones");
   });
 
@@ -332,7 +334,7 @@ describe("administracion/bailarines route", () => {
     expect(markup).toContain("Para verificar");
   });
 
-  test("renders a readonly Bailarín ficha with academy contact and participation data", async () => {
+  test("renders a readonly Bailarín ficha with alerts, base context, tabs, and active-event inscriptions", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "ficha.dancer.academia@example.com",
@@ -367,15 +369,23 @@ describe("administracion/bailarines route", () => {
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
     const markup = renderDetailRoute(loaderData, dancer.id);
 
+    expect(loaderData.dancer.inscriptions).toEqual([
+      expect.objectContaining({
+        choreographyName: "Raíz",
+        groupType: "solo",
+      }),
+    ]);
+    expect(markup).toContain("Detalle bailarín");
     expect(markup).toContain("Academia Ficha");
-    expect(markup).toContain("Elena Ficha");
-    expect(markup).toContain("ficha.dancer.academia@example.com");
-    expect(markup).toContain("4444-4444");
+    expect(markup).toContain("Julia");
+    expect(markup).toContain("Detalle");
     expect(markup).toContain("12/07/2012");
     expect(markup).toContain("Pasaporte AA123456");
-    expect(markup).toContain("Sin imágenes");
-    expect(markup).toContain("Participando en el Evento activo.");
-    expect(markup).toContain("Raíz");
+    expect(markup).toContain(
+      "Faltan imágenes del documento para completar la verificación.",
+    );
+    expect(markup).toContain("Identificación");
+    expect(markup).toContain("Inscripciones");
     expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).toContain("estado=todos");
     expect(markup).toContain("participando=todos");
@@ -383,7 +393,7 @@ describe("administracion/bailarines route", () => {
     expect(markup).toContain("page=2");
     expect(markup).toContain("q=Julia");
     expect(markup).not.toContain("Editar");
-    expect(markup).not.toContain("Archivar Bailarín");
+    expect(markup).not.toContain("Acciones");
   });
 
   test("shows explicit edit controls only for admin users", async () => {
@@ -429,14 +439,14 @@ describe("administracion/bailarines route", () => {
     );
 
     expect(adminMarkup).toContain("Editar");
-    expect(adminMarkup).not.toContain("Guardar cambios");
-    expect(adminEditMarkup).toContain("Guardar cambios");
+    expect(adminMarkup).toContain("Acciones");
+    expect(adminMarkup).not.toContain("Guardar");
+    expect(adminEditMarkup).toContain("Guardar");
     expect(adminEditMarkup).toContain("Cancelar");
-    expect(adminEditMarkup).toContain("Archivar Bailarín");
+    expect(adminEditMarkup).toContain("Acciones");
     expect(auditorMarkup).not.toContain("Editar");
-    expect(auditorMarkup).not.toContain("Guardar cambios");
-    expect(auditorMarkup).not.toContain("Archivar Bailarín");
-    expect(auditorMarkup).not.toContain("Reactivar Bailarín");
+    expect(auditorMarkup).not.toContain("Guardar");
+    expect(auditorMarkup).not.toContain("Acciones");
   });
 
   test("updates a Bailarín in explicit edit mode and persists an administrative audit entry", async () => {
@@ -749,7 +759,7 @@ describe("administracion/bailarines route", () => {
       dancer.id,
     );
 
-    expect(markup).toContain("Guardar cambios");
+    expect(markup).toContain("Guardar");
     expect(markup).toContain(
       "Si cambiás la fecha de nacimiento, las coreografías vinculadas pueden requerir recalcular categoría desde el flujo de Coreografías.",
     );
@@ -895,7 +905,7 @@ describe("administracion/bailarines route", () => {
       ),
       dancer.id,
     );
-    expect(verifiedMarkup).toContain("Verificado");
+    expect(verifiedMarkup).toContain("La identidad fue verificada.");
 
     const missingReasonResult = await detailAction(
       detailActionArgs(
@@ -926,7 +936,7 @@ describe("administracion/bailarines route", () => {
       },
     });
 
-    await expectThrownResponse(
+    const editResponse = await expectThrownResponse(
       detailAction(
         detailActionArgs(
           createPostRequest(
@@ -949,6 +959,9 @@ describe("administracion/bailarines route", () => {
         ),
       ),
       302,
+    );
+    expect(editResponse.headers.get("location")).toBe(
+      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado-requiere-verificacion`,
     );
 
     await expect(

@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
+import { PortalShell } from "@/components/portal/ui";
+
 vi.mock("@/lib/auth/internal-access.server", () => ({
   requireAcademyUser: vi.fn(),
 }));
@@ -16,14 +18,13 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
 import { AdministracionRouteView } from "@/routes/administracion";
 import { AuditoriaRouteView } from "@/routes/auditoria";
 import { JuzgamientoRouteView } from "@/routes/juzgamiento";
-import { PortalRouteView } from "@/routes/portal";
 
 describe("private route headers", () => {
   test.each([
     [
       "portal de academias",
       renderPortal("portal@example.com"),
-      "portal@example.com",
+      "Contacto",
       false,
     ],
     [
@@ -46,8 +47,8 @@ describe("private route headers", () => {
     ],
   ])(
     "%s renders the expected signed-in session context",
-    (_name, markup, email, usesLegacyHeader) => {
-      expect(markup).toContain(email);
+    (_name, markup, sessionLabel, usesLegacyHeader) => {
+      expect(markup).toContain(sessionLabel);
 
       if (usesLegacyHeader) {
         expect(markup).toContain("Sesión activa para");
@@ -100,7 +101,6 @@ describe("private route headers", () => {
 function renderPortal(email: string) {
   const loaderData = {
     email,
-    userName: "",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -118,13 +118,18 @@ function renderPortal(email: string) {
       isReadOnly: true,
       isRegistrationOpen: false,
     },
-    dashboardSummary: {
-      professors: { activeCount: 0, incompleteCount: 0 },
-      dancers: { activeCount: 0, incompleteCount: 0 },
-      choreographies: null,
-    },
   };
-  return renderPrivateRoute(<PortalRouteView loaderData={loaderData} />);
+  return renderPrivateRoute(
+    <PortalShell
+      userEmail={loaderData.email}
+      contactName={loaderData.academy.contactName}
+      academyName={loaderData.academy.name}
+      eventContext={loaderData.eventContext}
+      breadcrumbItems={[{ label: "Inicio" }]}
+    >
+      <></>
+    </PortalShell>,
+  );
 }
 
 function renderPrivateRoute(route: ReactElement) {

@@ -57,7 +57,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion Bases del evento routes", () => {
+describe.sequential("administracion Bases del evento routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
     const event = await createSavedEvent("Regional 2026");
     await activateEvent(event.id);

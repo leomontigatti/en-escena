@@ -9,6 +9,7 @@ import {
 } from "@/lib/academies/registration-token.server";
 import { signUpAcademyUser } from "@/lib/academies/registration-auth.server";
 import { sendEmail } from "@/lib/shared/email.server";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -113,8 +114,8 @@ export async function completeAcademyRegistration(input: {
 
     await tx.insert(academies).values({
       userId: signUpResult.userId,
-      name: input.academyName.trim(),
-      contactName: input.contactName.trim(),
+      name: toTitleCase(input.academyName),
+      contactName: toTitleCase(input.contactName),
       phone: input.phone.trim(),
     });
 

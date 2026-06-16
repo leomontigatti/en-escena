@@ -3,8 +3,15 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
+const requireAcademyUserMock = vi.hoisted(() => vi.fn());
+const requestAccessRecoveryEmailMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/auth/internal-access.server", () => ({
-  requireAcademyUser: vi.fn(),
+  requireAcademyUser: requireAcademyUserMock,
+}));
+
+vi.mock("@/lib/auth/access-recovery.server", () => ({
+  requestAccessRecoveryEmail: requestAccessRecoveryEmailMock,
 }));
 
 import { PortalShell } from "@/components/portal/ui";
@@ -13,7 +20,10 @@ import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dan
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
 import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias_.$choreographyId";
 import { PortalCoreografiasRouteView } from "@/routes/portal.coreografias";
-import { PortalPerfilRouteView } from "@/routes/portal.perfil";
+import {
+  action as perfilAction,
+  PortalPerfilRouteView,
+} from "@/routes/portal.perfil";
 import { PortalProfesorRouteView } from "@/routes/portal.profesores_.$professorId";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
@@ -35,12 +45,11 @@ describe("portal route view", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Portal de academias");
     expect(markup).toContain("Inicio");
-    expect(markup).toContain("Perfil");
+    expect(markup).not.toContain("Perfil");
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Bailarines");
     expect(markup).toContain("Coreografías");
-    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Perfil"));
-    expect(markup.indexOf("Perfil")).toBeLessThan(markup.indexOf("Profesores"));
+    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Profesores"));
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
@@ -49,10 +58,8 @@ describe("portal route view", () => {
     );
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain("Inicio");
-    expect(markup).toContain("Portal User");
+    expect(markup).toContain("Contacto");
     expect(markup).toContain("Academia de Prueba");
-    expect(markup).toContain('href="/portal/perfil"');
-    expect(markup).not.toContain("Contacto");
     expect(markup).not.toContain("Teléfono");
   });
 
@@ -811,12 +818,14 @@ describe("portal Perfil view", () => {
     const markup = renderPerfil();
 
     expect(markup).toContain("Perfil");
-    expect(markup).toContain("Datos de la academia");
     expect(markup).toContain("Nombre de la academia");
-    expect(markup).toContain('name="name" value="Academia de Prueba"');
+    expect(markup).toContain('value="Academia de Prueba"');
+    expect(markup).toContain(
+      "Para cambiar el nombre de la academia, contactá a administración.",
+    );
     expect(markup).toContain("Nombre de contacto");
     expect(markup).toContain('name="contactName" value="Contacto"');
-    expect(markup).toContain("Teléfono");
+    expect(markup).toContain("Teléfono de contacto");
     expect(markup).toContain('name="phone" value="11 1234-5678"');
     expect(markup).toContain("Email de acceso");
     expect(markup).toContain('value="portal@example.com"');
@@ -824,9 +833,48 @@ describe("portal Perfil view", () => {
     expect(markup).toContain(
       "Para cambiar el email de acceso, contactá a administración.",
     );
-    expect(markup).toContain("Guardar cambios");
+    expect(markup).toContain("Guardar");
+    expect(markup).toContain("Acciones");
     expect(markup).toContain('form="portal-perfil-form"');
-    expectActivePortalNavigationItem(markup, "/portal/perfil");
+  });
+});
+
+describe("portal Perfil action", () => {
+  test("requests password recovery for the signed-in academy user email", async () => {
+    requestAccessRecoveryEmailMock.mockResolvedValue({
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    });
+    requireAcademyUserMock.mockResolvedValue({
+      user: { email: "portal@example.com" },
+      academy: {
+        id: "academy_1",
+        name: "Academia de Prueba",
+        contactName: "Contacto",
+        phone: "11 1234-5678",
+      },
+    });
+
+    const formData = new FormData();
+    formData.set("intent", "request-password-recovery");
+    formData.set("email", "otro@example.com");
+
+    const result = await perfilAction({
+      request: new Request("http://localhost/portal/perfil", {
+        method: "POST",
+        body: formData,
+      }),
+    });
+
+    expect(requestAccessRecoveryEmailMock).toHaveBeenCalledWith({
+      email: "portal@example.com",
+      requestUrl: "http://localhost/portal/perfil",
+    });
+    expect(result).toEqual({
+      status: "success",
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    });
   });
 });
 
@@ -834,7 +882,6 @@ type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
 
 const portalNavigationPaths = [
   "/portal",
-  "/portal/perfil",
   "/portal/profesores",
   "/portal/bailarines",
   "/portal/coreografias",
@@ -856,7 +903,6 @@ function renderPortal(input: {
 }) {
   const loaderData = {
     email: "portal@example.com",
-    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -871,7 +917,7 @@ function renderPortal(input: {
     <MemoryRouter initialEntries={["/portal"]}>
       <PortalShell
         userEmail={loaderData.email}
-        userName={loaderData.userName}
+        contactName={loaderData.academy.contactName}
         academyName={loaderData.academy.name}
         eventContext={loaderData.eventContext}
         breadcrumbItems={[{ label: "Inicio" }]}
@@ -1041,7 +1087,7 @@ function renderPortalShellForTest(
   return (
     <PortalShell
       userEmail="portal@example.com"
-      userName="Portal User"
+      contactName="Contacto"
       academyName="Academia de Prueba"
       eventContext={eventContext}
       breadcrumbItems={[{ label: getPortalBreadcrumbLabel(activePath) }]}
@@ -1097,7 +1143,6 @@ function academyLoaderData({
 } = {}) {
   return {
     email: "portal@example.com",
-    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",
@@ -1152,7 +1197,6 @@ function coreografiasLoaderData({
 } = {}) {
   return {
     email: "portal@example.com",
-    userName: "Portal User",
     academy: {
       id: "academy_1",
       userId: "user_1",

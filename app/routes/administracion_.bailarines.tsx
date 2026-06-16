@@ -88,7 +88,7 @@ export function AdministracionBailarinesRouteView({
         <DancerTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay Bailarines para mostrar."
+          title="No hay Bailarines que coincidan con la búsqueda."
           description={
             loaderData.selectedEventId
               ? "Ajustá los filtros para revisar otros registros del Evento activo."

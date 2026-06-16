@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 
 export type AcademyProfileInput = {
   name: string;
@@ -33,8 +34,8 @@ export async function updateAcademyProfile(
     phone: input.phone,
   };
   const normalizedValues = {
-    name: input.name.trim(),
-    contactName: input.contactName.trim(),
+    name: toTitleCase(input.name),
+    contactName: toTitleCase(input.contactName),
     phone: input.phone.trim(),
   };
   const fieldErrors = getAcademyProfileFieldErrors(normalizedValues);

@@ -18,7 +18,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   return {
     email: user.email,
-    userName: user.name ?? "",
     academy,
     eventContext,
   };
@@ -30,7 +29,7 @@ export function PortalRouteView({ loaderData }: PortalRouteProps) {
   return (
     <PortalShell
       userEmail={loaderData.email}
-      userName={loaderData.userName}
+      contactName={loaderData.academy.contactName}
       academyName={loaderData.academy.name}
       eventContext={loaderData.eventContext}
       breadcrumbItems={getPortalBreadcrumbItems(matches)}

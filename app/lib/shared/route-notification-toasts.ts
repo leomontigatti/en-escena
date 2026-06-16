@@ -13,6 +13,8 @@ export const routeNotificationToastIds = {
   "profesor-reactivado": "route-notification:profesor-reactivado",
   "bailarin-creado": "route-notification:bailarin-creado",
   "bailarin-guardado": "route-notification:bailarin-guardado",
+  "bailarin-guardado-requiere-verificacion":
+    "route-notification:bailarin-guardado-requiere-verificacion",
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
   "bailarin-verificado": "route-notification:bailarin-verificado",
@@ -83,6 +85,11 @@ export const routeNotificationToasts = {
   "bailarin-guardado": {
     id: routeNotificationToastIds["bailarin-guardado"],
     message: "Bailarín guardado.",
+    variant: "success",
+  },
+  "bailarin-guardado-requiere-verificacion": {
+    id: routeNotificationToastIds["bailarin-guardado-requiere-verificacion"],
+    message: "Bailarín guardado. La identidad volvió a no verificado.",
     variant: "success",
   },
   "bailarin-archivado": {

@@ -44,6 +44,13 @@ describe("route notification toasts", () => {
       message: "Bailarín creado.",
       variant: "success",
     });
+    expect(
+      routeNotificationToasts["bailarin-guardado-requiere-verificacion"],
+    ).toEqual({
+      id: "route-notification:bailarin-guardado-requiere-verificacion",
+      message: "Bailarín guardado. La identidad volvió a no verificado.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["evento-guardado"]).toEqual({
       id: "route-notification:evento-guardado",
       message: "Evento guardado.",

@@ -26,7 +26,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -50,7 +49,7 @@ import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 type PortalShellProps = {
   userEmail: string;
-  userName: string | null;
+  contactName: string | null;
   academyName: string;
   eventContext: PortalEventContext;
   children: ReactNode;
@@ -80,7 +79,6 @@ type CoreographyCreationState = {
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
-  { to: "/portal/perfil", label: "Perfil", icon: User },
   { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
   { to: "/portal/bailarines", label: "Bailarines", icon: Users },
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
@@ -97,7 +95,7 @@ const creationAvailabilityToneClassNames: Record<
 
 export function PortalShell({
   userEmail,
-  userName,
+  contactName,
   academyName,
   eventContext,
   children,
@@ -106,7 +104,7 @@ export function PortalShell({
   const location = useLocation();
   const isHome = location.pathname === "/portal";
   const resolvedBreadcrumbItems = breadcrumbItems ?? [];
-  const displayName = getPortalUserDisplayName(userName, userEmail);
+  const displayName = getPortalContactDisplayName(contactName, userEmail);
 
   return (
     <>
@@ -176,11 +174,12 @@ export function PortalShell({
                     align="end"
                     className="w-(--radix-dropdown-menu-trigger-width)"
                   >
-                    <DropdownMenuLabel>Sesión</DropdownMenuLabel>
                     <DropdownMenuGroup>
-                      <DropdownMenuItem disabled>
-                        <User aria-hidden="true" />
-                        Perfil
+                      <DropdownMenuItem asChild>
+                        <Link to="/portal/perfil">
+                          <User aria-hidden="true" />
+                          Perfil
+                        </Link>
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
@@ -451,8 +450,11 @@ export function PortalCoreographiesSection({
   );
 }
 
-function getPortalUserDisplayName(userName: string | null, userEmail: string) {
-  const trimmedName = userName?.trim();
+function getPortalContactDisplayName(
+  contactName: string | null,
+  userEmail: string,
+) {
+  const trimmedName = contactName?.trim();
 
   if (trimmedName && trimmedName !== userEmail) {
     return trimmedName;

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check } from "lucide-react";
-import { useEffect, useId } from "react";
+import { Check, Ellipsis, KeyRound } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import {
   Controller,
   useForm,
@@ -11,15 +11,23 @@ import { redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -29,6 +37,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   updateAcademyProfile,
@@ -42,6 +57,9 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 const profileFormId = "portal-perfil-form";
+const passwordRecoveryFormId = "portal-password-recovery-form";
+const updateAcademyProfileIntent = "update-academy-profile";
+const requestPasswordRecoveryIntent = "request-password-recovery";
 
 const academyProfileSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
@@ -52,7 +70,7 @@ const academyProfileSchema = z.object({
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Extract<
   Awaited<ReturnType<typeof action>>,
-  { status: "error" }
+  { status: "error" | "success" }
 >;
 type AcademyProfileFormValues = z.infer<typeof academyProfileSchema>;
 type AcademyProfileFormReturn = UseFormReturn<
@@ -82,11 +100,23 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export async function action({ request }: { request: Request }) {
-  const { academy } = await requireAcademyUser(request);
+  const { academy, user } = await requireAcademyUser(request);
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
-  if (intent !== "" && intent !== "update-academy-profile") {
+  if (intent === requestPasswordRecoveryIntent) {
+    const result = await requestAccessRecoveryEmail({
+      email: user.email,
+      requestUrl: request.url,
+    });
+
+    return {
+      status: "success" as const,
+      message: result.message,
+    };
+  }
+
+  if (intent !== "" && intent !== updateAcademyProfileIntent) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
@@ -112,7 +142,10 @@ export async function action({ request }: { request: Request }) {
     };
   }
 
-  const result = await updateAcademyProfile(academy.id, parsed.data);
+  const result = await updateAcademyProfile(academy.id, {
+    ...parsed.data,
+    name: academy.name,
+  });
 
   if (!result.ok) {
     return {
@@ -135,6 +168,8 @@ export function PortalPerfilRouteView({
 }) {
   const actionData =
     actionDataOverride?.status === "error" ? actionDataOverride : undefined;
+  const passwordRecoveryResult =
+    actionDataOverride?.status === "success" ? actionDataOverride : undefined;
   const values = actionData?.values ?? {
     name: loaderData.academy.name,
     contactName: loaderData.academy.contactName,
@@ -148,26 +183,26 @@ export function PortalPerfilRouteView({
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-perfil:error",
   });
+  useServerActionToast(passwordRecoveryResult, {
+    toastId: "portal-perfil:password-recovery",
+  });
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="perfil-title">
-      <div className="flex flex-col gap-1">
-        <h1 id="perfil-title" className="text-xl font-semibold">
-          Perfil
-        </h1>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Actualizá los datos principales de tu academia.
-        </p>
-      </div>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 id="perfil-title" className="text-xl font-semibold">
+            Perfil
+          </h1>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            Actualizá los datos para identificar a tu academia y contactar a la
+            persona responsable.
+          </p>
+        </div>
+        <ProfileActionsMenu />
+      </header>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Datos de la academia</CardTitle>
-          <CardDescription>
-            Esta información se usa para identificar a la academia y contactar a
-            la persona responsable.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <form
             id={profileFormId}
@@ -175,15 +210,19 @@ export function PortalPerfilRouteView({
             noValidate
             onSubmit={form.handleSubmit}
           >
-            <input type="hidden" name="intent" value="update-academy-profile" />
+            <input
+              type="hidden"
+              name="intent"
+              value={updateAcademyProfileIntent}
+            />
             <FieldGroup className="grid gap-5 md:grid-cols-2">
-              <AcademyProfileTextField
+              <ReadOnlyTextField
                 autoComplete="organization"
-                error={actionData?.fieldErrors.name}
-                form={form.form}
+                description="Para cambiar el nombre de la academia, contactá a administración."
                 label="Nombre de la academia"
-                name="name"
+                value={values.name}
               />
+              <ReadOnlyEmailField email={loaderData.email} />
               <AcademyProfileTextField
                 autoComplete="name"
                 error={actionData?.fieldErrors.contactName}
@@ -196,37 +235,22 @@ export function PortalPerfilRouteView({
                 error={actionData?.fieldErrors.phone}
                 form={form.form}
                 inputMode="tel"
-                label="Teléfono"
+                label="Teléfono de contacto"
                 name="phone"
                 type="tel"
               />
-              <Field data-disabled>
-                <FieldLabel htmlFor="portal-perfil-email">
-                  Email de acceso
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    id="portal-perfil-email"
-                    autoComplete="email"
-                    disabled
-                    type="email"
-                    value={loaderData.email}
-                  />
-                  <FieldDescription>
-                    Para cambiar el email de acceso, contactá a administración.
-                  </FieldDescription>
-                </FieldContent>
-              </Field>
             </FieldGroup>
           </form>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
           <Button type="submit" form={profileFormId} size="lg">
             <Check aria-hidden="true" data-icon="inline-start" />
-            Guardar cambios
+            Guardar
           </Button>
         </CardFooter>
       </Card>
+
+      <PasswordRecoveryForm email={loaderData.email} />
     </section>
   );
 }
@@ -316,13 +340,139 @@ function AcademyProfileTextField({
   );
 }
 
+function ReadOnlyTextField({
+  autoComplete,
+  description,
+  label,
+  value,
+}: {
+  autoComplete: string;
+  description?: string;
+  label: string;
+  value: string;
+}) {
+  const id = useId();
+
+  return (
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input id={id} autoComplete={autoComplete} disabled value={value} />
+        {description ? (
+          <FieldDescription>{description}</FieldDescription>
+        ) : null}
+      </FieldContent>
+    </Field>
+  );
+}
+
+function ReadOnlyEmailField({ email }: { email: string }) {
+  const id = useId();
+
+  return (
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>Email de acceso</FieldLabel>
+      <FieldContent>
+        <Input
+          id={id}
+          autoComplete="email"
+          disabled
+          type="email"
+          value={email}
+        />
+        <FieldDescription>
+          Para cambiar el email de acceso, contactá a administración.
+        </FieldDescription>
+      </FieldContent>
+    </Field>
+  );
+}
+
+function ProfileActionsMenu() {
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-lg"
+                  aria-label="Acciones"
+                >
+                  <Ellipsis aria-hidden="true" />
+                  <span className="sr-only">Acciones</span>
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="left">Acciones</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setIsPasswordDialogOpen(true);
+            }}
+          >
+            <KeyRound aria-hidden="true" />
+            Cambiar contraseña
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AlertDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Enviar email para cambiar contraseña?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Te vamos a enviar un enlace al email de acceso de la academia para
+              definir una nueva contraseña.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
+            <Button type="submit" form={passwordRecoveryFormId}>
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Enviar email
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function PasswordRecoveryForm({ email }: { email: string }) {
+  return (
+    <form id={passwordRecoveryFormId} method="post">
+      <input
+        type="hidden"
+        name="intent"
+        value={requestPasswordRecoveryIntent}
+      />
+      <input type="hidden" name="email" value={email} />
+    </form>
+  );
+}
+
 function readFormString(formData: FormData, name: string) {
   const value = formData.get(name);
 
   return typeof value === "string" ? value : "";
 }
 
-function getGeneralActionError(actionData?: ActionData) {
+function getGeneralActionError(
+  actionData?: Extract<ActionData, { status: "error" }>,
+) {
   if (!actionData?.message) {
     return undefined;
   }

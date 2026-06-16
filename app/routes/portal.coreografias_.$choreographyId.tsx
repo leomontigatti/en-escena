@@ -17,19 +17,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
+  deleteChoreography,
   findChoreographyForAcademyEvent,
   getChoreographyDeletionAvailability,
   listProfessorOptionsForChoreography,
   updateChoreographyProfessors,
-  deleteChoreography,
 } from "@/lib/portal/choreographies.server";
-import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 import {
   formatGroupTypeLabel,
   formatOperationalPendingItemLabel,
   formatOperationalStatusLabel,
 } from "@/lib/portal/choreographies";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
+import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyUpdatedSearchParam = "actualizado";

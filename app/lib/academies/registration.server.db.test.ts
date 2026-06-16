@@ -134,8 +134,8 @@ describe("academy registration", () => {
 
     const result = await completeAcademyRegistration(
       createCompleteRegistrationInput("valid-token", {
-        academyName: " Academia En Escena ",
-        contactName: " Contacto ",
+        academyName: " academia en escena ",
+        contactName: " contacto responsable ",
         phone: " 11 1234-5678 ",
       }),
     );
@@ -164,7 +164,7 @@ describe("academy registration", () => {
       {
         userId: savedUsers[0]?.id,
         name: "Academia En Escena",
-        contactName: "Contacto",
+        contactName: "Contacto Responsable",
         phone: "11 1234-5678",
       },
     ]);
