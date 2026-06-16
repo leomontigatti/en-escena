@@ -14,13 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -230,14 +232,13 @@ export async function action({ request, params }: Route.ActionArgs) {
       );
     }
 
+    const notification =
+      intent === "archive-professor"
+        ? "profesor-archivado"
+        : "profesor-reactivado";
+
     throw redirect(
-      buildDetailNotificationHref(
-        request.url,
-        professorId,
-        intent === "archive-professor"
-          ? "profesor-archivado"
-          : "profesor-reactivado",
-      ),
+      buildDetailNotificationHref(request.url, professorId, notification),
     );
   }
 
@@ -800,15 +801,20 @@ function ProfessorConfirmationDialog({
 }) {
   const isOpen = intent !== null;
   const formId = getProfessorDialogFormId(intent);
+  const isUpdateIntent = intent === "update-professor";
+  const canSubmitUpdate = !isUpdateIntent || pendingUpdateValues !== null;
+  const pendingUpdateFields = isUpdateIntent ? pendingUpdateValues : null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       {intent ? (
-        <DialogContent forceMount showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{action.confirmTitle}</DialogTitle>
-            <DialogDescription>{action.description}</DialogDescription>
-          </DialogHeader>
+        <AlertDialogContent forceMount size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {action.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <form
             id={formId}
             method="post"
@@ -819,27 +825,27 @@ function ProfessorConfirmationDialog({
             className="grid gap-4"
           >
             <input type="hidden" name="intent" value={action.intent} />
-            {intent === "update-professor" && pendingUpdateValues ? (
+            {pendingUpdateFields ? (
               <>
                 <input
                   type="hidden"
                   name="firstName"
-                  value={pendingUpdateValues.firstName}
+                  value={pendingUpdateFields.firstName}
                 />
                 <input
                   type="hidden"
                   name="lastName"
-                  value={pendingUpdateValues.lastName}
+                  value={pendingUpdateFields.lastName}
                 />
                 <input
                   type="hidden"
                   name="documentType"
-                  value={pendingUpdateValues.documentType}
+                  value={pendingUpdateFields.documentType}
                 />
                 <input
                   type="hidden"
                   name="documentNumber"
-                  value={pendingUpdateValues.documentNumber}
+                  value={pendingUpdateFields.documentNumber}
                 />
               </>
             ) : null}
@@ -850,28 +856,17 @@ function ProfessorConfirmationDialog({
               />
             ) : null}
           </form>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              form={formId}
-              type="submit"
-              variant={action.variant}
-              disabled={
-                intent === "update-professor" && pendingUpdateValues === null
-              }
-            >
-              {action.confirmLabel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction asChild variant={action.variant}>
+              <Button form={formId} type="submit" disabled={!canSubmitUpdate}>
+                {action.confirmLabel}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       ) : null}
-    </Dialog>
+    </AlertDialog>
   );
 }
 
