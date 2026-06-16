@@ -1,7 +1,7 @@
-import { Link, redirect, useActionData, useSearchParams } from "react-router";
+import { redirect, useActionData, useSearchParams } from "react-router";
 import { clsx } from "clsx";
 
-import { AccessNotice, AccessSecondaryLink } from "@/components/auth/access-ui";
+import { AccessNotice } from "@/components/auth/access-ui";
 import { PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
@@ -156,7 +156,6 @@ export function PortalCoreografiaDetalleRouteView({
   actionData,
 }: PortalCoreografiaDetalleRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
-  const backToList = "/portal/coreografias";
   const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const selectedProfessorIds = new Set(
@@ -177,13 +176,6 @@ export function PortalCoreografiaDetalleRouteView({
       ]}
     >
       <section className="mt-8 space-y-6" aria-labelledby="coreografia-title">
-        <Link
-          to={backToList}
-          className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-        >
-          Volver a Coreografías
-        </Link>
-
         <div className="rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center gap-3">
             <h2
@@ -327,10 +319,6 @@ export function PortalCoreografiaDetalleRouteView({
           </div>
         </div>
       </section>
-
-      <AccessSecondaryLink to={backToList} className="mt-8">
-        Volver a Coreografías
-      </AccessSecondaryLink>
     </PortalShell>
   );
 }

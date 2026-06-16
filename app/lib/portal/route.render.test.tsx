@@ -181,6 +181,11 @@ describe("portal route view", () => {
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Inicial");
     expect(markup).toContain("Pendiente: Música");
+    expect(markup).toContain('href="/portal"');
+    expect(markup).toContain('href="/portal/profesores"');
+    expect(markup).toContain('href="/portal/bailarines"');
+    expect(markup).toContain('href="/portal/coreografias"');
+    expect(markup).toContain('aria-current="page"');
     expect(markup).toContain("Crear Coreografía");
     expect(markup).toContain("disabled");
     expect(markup).toContain(
@@ -201,6 +206,31 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "Necesitás al menos un Bailarín activo para registrar una Coreografía.",
     );
+  });
+
+  test("keeps Coreografías visible in the shell without an active event", () => {
+    const markup = renderCoreografias({
+      loaderData: coreografiasLoaderData({
+        eventContext: {
+          events: [],
+          selectedEvent: null,
+          activeEvent: null,
+          hasActiveEvent: false,
+          activeEventRegistrationReadiness: null,
+          hasEvents: false,
+          isReadOnly: true,
+          isRegistrationOpen: false,
+        },
+      }),
+    });
+
+    expect(markup).toContain("Sin evento");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain("Coreografías");
+    expect(markup).toContain('href="/portal"');
+    expect(markup).toContain('href="/portal/coreografias"');
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain("Todavía no hay Eventos configurados");
   });
 
   test("shows the enabled Crear Coreografía button for the active editable Evento", () => {
@@ -269,6 +299,9 @@ describe("portal route view", () => {
 
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Evento activo");
+    expect(markup).toContain("Inicio");
+    expect(markup).toContain('href="/portal"');
+    expect(markup).toContain('href="/portal/coreografias"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
@@ -277,7 +310,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Pendientes operativos: Categoría, Profesores");
     expect(markup).toContain("Edad al inicio del Evento: 14");
     expect(markup).toContain("Archivado");
-    expect(markup).toContain("Volver a Coreografías");
+    expect(markup).not.toContain("Volver a Coreografías");
     expect(markup).not.toContain("Eliminar Coreografía");
   });
 
