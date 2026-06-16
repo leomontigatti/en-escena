@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import {
   createModality,
+  createPrice,
   createScheduleBlock,
   createScheduleEntry,
 } from "@/lib/events/bases-repository.server";
@@ -394,6 +395,105 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("q=Julia");
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Acciones");
+  });
+
+  test("scopes inscription loader data to the Evento activo and resolves estimated values", async () => {
+    const event = await createSavedEvent();
+    const otherEvent = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "inscripciones.detalle.academia@example.com",
+      academyName: "Academia Inscripciones",
+      contactName: "Ines Inscripciones",
+      phone: "1234-5678",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Noelia",
+      lastName: "Inscripta",
+      birthDate: "2011-08-08",
+      documentType: "dni",
+      documentNumber: "22333444",
+      documentFrontImageStorageKey: "front-inscripciones",
+      documentBackImageStorageKey: "back-inscripciones",
+    });
+    const activeEventChoreography = await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Finale",
+      groupType: "duo",
+    });
+
+    await expectCreated(
+      createPrice(event.id, {
+        name: "Dúo general",
+        groupType: "duo",
+        amount: 1250000,
+        scheduleBlockId: null,
+      }),
+    );
+
+    await linkDancerToEventChoreography({
+      eventId: otherEvent.id,
+      academyId: academy.academy.id,
+      dancerId: dancer.id,
+      choreographyName: "Histórica",
+      groupType: "solo",
+    });
+
+    const emptyEventAcademy = await createAcademyUser({
+      email: "sin.inscripciones.academia@example.com",
+      academyName: "Academia Vacía",
+      contactName: "Vera Vacia",
+      phone: "9999-1111",
+    });
+    const dancerWithoutActiveEventInscriptions = await createDancer({
+      academyId: emptyEventAcademy.academy.id,
+      firstName: "Tania",
+      lastName: "Sin Evento",
+      birthDate: "2012-02-02",
+    });
+
+    const { request: activeEventRequest } = await createSignedInRequest({
+      email: "admin.con-inscripciones@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+    });
+    const { request: noInscriptionsRequest } = await createSignedInRequest({
+      email: "admin.sin-inscripciones@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancerWithoutActiveEventInscriptions.id}?evento=${event.id}`,
+    });
+    const noInscriptionsData = await detailLoader(
+      detailRouteArgs(
+        noInscriptionsRequest,
+        dancerWithoutActiveEventInscriptions.id,
+      ),
+    );
+    const activeEventData = await detailLoader(
+      detailRouteArgs(activeEventRequest, dancer.id),
+    );
+
+    expect(noInscriptionsData.selectedEventId).toBe(event.id);
+    expect(noInscriptionsData.dancer.inscriptions).toEqual([]);
+
+    expect(activeEventData.dancer.inscriptions).toEqual([
+      expect.objectContaining({
+        id: activeEventChoreography.id,
+        choreographyName: "Finale",
+        groupType: "duo",
+        basePriceInCents: 1250000,
+        discountInCents: 0,
+        estimatedSubtotalInCents: 1250000,
+      }),
+    ]);
+    expect(activeEventData.dancer.inscriptions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          choreographyName: "Histórica",
+        }),
+      ]),
+    );
   });
 
   test("shows explicit edit controls only for admin users", async () => {
@@ -1337,7 +1437,9 @@ async function linkDancerToEventChoreography(input: {
   academyId: string;
   dancerId: string;
   choreographyName: string;
+  groupType?: "solo" | "duo" | "trio" | "grupal";
 }) {
+  const groupType = input.groupType ?? "solo";
   const modality = await expectCreated(
     createModality(input.eventId, {
       name: `${input.choreographyName} Mod`,
@@ -1354,7 +1456,7 @@ async function linkDancerToEventChoreography(input: {
   );
   const entry = await expectCreated(
     createScheduleEntry(block.id, {
-      groupTypes: ["solo"],
+      groupTypes: [groupType],
       capacity: 10,
     }),
   );
@@ -1365,7 +1467,7 @@ async function linkDancerToEventChoreography(input: {
       academyId: input.academyId,
       name: input.choreographyName,
       modalityId: modality.id,
-      groupType: "solo",
+      groupType,
       categoryCalculationMode: "oldest",
       scheduleEntryId: entry.id,
     })
