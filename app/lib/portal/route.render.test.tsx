@@ -356,6 +356,70 @@ describe("portal route view", () => {
     );
   });
 
+  test("shows dancer editing as available on coreografía detail without enabling mutation yet", () => {
+    const markup = renderCoreografiaDetalle({
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+        choreography: choreographyDetailRow({
+          dancerEditingEligibility: {
+            canEdit: true,
+            reasonCode: null,
+            reasonText: null,
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("Edición disponible");
+    expect(markup).toContain(
+      "La edición de bailarines para esta coreografía está disponible. En esta iteración el roster todavía se muestra en solo lectura.",
+    );
+    expect(markup).not.toContain("Edición no disponible");
+    expect(markup).not.toContain("Guardar bailarines");
+  });
+
+  test("shows the primary blocked reason for dancer editing on coreografía detail", () => {
+    const markup = renderCoreografiaDetalle({
+      loaderData: coreografiaDetalleLoaderData({
+        eventContext: {
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: false,
+        },
+        choreography: choreographyDetailRow({
+          dancerEditingEligibility: {
+            canEdit: false,
+            reasonCode: "presentation",
+            reasonText:
+              "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("Edición no disponible");
+    expect(markup).toContain(
+      "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.",
+    );
+    expect(markup).toContain(
+      "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    );
+  });
+
   test("shows the delete warning on editable detail when registration is closed", () => {
     const markup = renderCoreografiaDetalle({
       initialDeleteDialogOpen: true,
@@ -1221,10 +1285,15 @@ function coreografiasLoaderData({
 function coreografiaDetalleLoaderData(
   overrides: Partial<CoreografiaDetalleViewProps["loaderData"]> = {},
 ) {
+  const choreography = overrides.choreography ?? choreographyDetailRow();
+
   return {
     ...coreografiasLoaderData(),
     availableProfessors: [],
-    choreography: choreographyDetailRow(),
+    choreography,
+    dancerEditingEligibility:
+      overrides.dancerEditingEligibility ??
+      choreography.dancerEditingEligibility,
     deletionAvailability: {
       canDelete: true,
       warningMessage: null,
@@ -1308,6 +1377,12 @@ function choreographyDetailRow(
 ) {
   return {
     ...choreographyListItem(),
+    dancerEditingEligibility: {
+      canEdit: false as const,
+      reasonCode: "registration-closed" as const,
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
+    },
     scheduleBlockName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",
     dancers: [

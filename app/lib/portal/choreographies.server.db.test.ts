@@ -349,6 +349,176 @@ describe.sequential("portal choreographies reads", () => {
     });
   });
 
+  test("derives dancer editing eligibility for detail with priority: presentación, vínculo financiero activo, inscripción cerrada", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "coreografias.detail.dancer-eligibility@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationEndsAt: date("2000-04-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2011-04-05",
+    });
+
+    const eligibleChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-eligible.mp3",
+      name: "Editable",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const financialBlockedChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-financial.mp3",
+      name: "Financiera",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const presentationBlockedChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      hasPresentation: true,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-presentation.mp3",
+      name: "Presentada",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: eligibleChoreography.id,
+        dancerId: dancer.id,
+        ageAtEventStart: 15,
+      },
+      {
+        choreographyId: financialBlockedChoreography.id,
+        dancerId: dancer.id,
+        ageAtEventStart: 15,
+      },
+      {
+        choreographyId: presentationBlockedChoreography.id,
+        dancerId: dancer.id,
+        ageAtEventStart: 15,
+      },
+    ]);
+
+    const eligibleDetail = await choreographyDetailLoader({
+      params: { choreographyId: eligibleChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${eligibleChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+    const financialBlockedDetail = await choreographyDetailLoader({
+      params: { choreographyId: financialBlockedChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${financialBlockedChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+    const presentationBlockedDetail = await choreographyDetailLoader({
+      params: { choreographyId: presentationBlockedChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${presentationBlockedChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(eligibleDetail.dancerEditingEligibility).toEqual({
+      canEdit: false,
+      reasonCode: "registration-closed",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
+    });
+    expect(financialBlockedDetail.dancerEditingEligibility).toEqual({
+      canEdit: false,
+      reasonCode: "active-financial-link",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+    });
+    expect(presentationBlockedDetail.dancerEditingEligibility).toEqual({
+      canEdit: false,
+      reasonCode: "presentation",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    });
+  });
+
+  test("marks dancer editing as available while registration is open and there are no blockers", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "coreografias.detail.dancer-eligibility-open@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+      registrationEndsAt: date("2100-04-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2011-04-05",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-open.mp3",
+      name: "Abierta",
+      scheduleEntryId: catalog.scheduleEntry.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 15,
+    });
+
+    const detail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(detail.dancerEditingEligibility).toEqual({
+      canEdit: true,
+      reasonCode: null,
+      reasonText: null,
+    });
+  });
+
   test("updates linked Profesores for active Evento detail, keeps archived linked rows visible, and blocks re-adding archived removals", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
@@ -1024,6 +1194,8 @@ async function createChoreographyRecord(
       experienceLevelId: overrides.experienceLevelId ?? null,
       scheduleEntryId: overrides.scheduleEntryId,
       musicStorageKey: overrides.musicStorageKey ?? null,
+      hasPresentation: overrides.hasPresentation ?? false,
+      hasActiveFinancialLink: overrides.hasActiveFinancialLink ?? false,
       createdAt: overrides.createdAt,
       updatedAt: overrides.updatedAt,
     })

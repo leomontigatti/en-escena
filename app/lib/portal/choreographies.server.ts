@@ -22,6 +22,7 @@ import type {
 } from "@/lib/portal/choreographies";
 
 export type ChoreographyDetail = ChoreographyListItem & {
+  dancerEditingEligibility: DancerEditingEligibility;
   scheduleBlockName: string;
   scheduleLabel: string;
   dancers: Array<{
@@ -46,6 +47,23 @@ export type ChoreographyProfessorOption = {
   active: boolean;
 };
 
+export type DancerEditingBlockReason =
+  | "presentation"
+  | "active-financial-link"
+  | "registration-closed";
+
+export type DancerEditingEligibility =
+  | {
+      canEdit: true;
+      reasonCode: null;
+      reasonText: null;
+    }
+  | {
+      canEdit: false;
+      reasonCode: DancerEditingBlockReason;
+      reasonText: string;
+    };
+
 export type UpdateChoreographyProfessorsResult =
   | { ok: true }
   | {
@@ -69,6 +87,8 @@ type ChoreographyRow = {
   groupType: "solo" | "duo" | "trio" | "grupal";
   categoryId: string | null;
   experienceLevelId: string | null;
+  hasActiveFinancialLink: boolean;
+  hasPresentation: boolean;
   musicStorageKey: string | null;
   modalityName: string;
   submodalityName: string | null;
@@ -87,6 +107,8 @@ export async function listChoreographiesForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
+      hasActiveFinancialLink: choreographies.hasActiveFinancialLink,
+      hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
       submodalityName: submodalities.name,
@@ -116,6 +138,9 @@ export async function findChoreographyForAcademyEvent(
   academyId: string,
   eventId: string,
   choreographyId: string,
+  options: {
+    isRegistrationOpen: boolean;
+  },
 ): Promise<ChoreographyDetail | null> {
   const [row] = await db
     .select({
@@ -124,6 +149,8 @@ export async function findChoreographyForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
+      hasActiveFinancialLink: choreographies.hasActiveFinancialLink,
+      hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
       submodalityName: submodalities.name,
@@ -193,6 +220,11 @@ export async function findChoreographyForAcademyEvent(
 
   return {
     ...base,
+    dancerEditingEligibility: getDancerEditingEligibility({
+      hasActiveFinancialLink: row.hasActiveFinancialLink,
+      hasPresentation: row.hasPresentation,
+      isRegistrationOpen: options.isRegistrationOpen,
+    }),
     scheduleBlockName: row.scheduleBlockName,
     scheduleLabel: `${row.scheduleDate} · ${row.scheduleTime}`,
     dancers: dancerRows,
@@ -359,6 +391,45 @@ export function getChoreographyDeletionAvailability(input: {
     warningMessage: input.isRegistrationOpen
       ? null
       : closedRegistrationDeletionWarningMessage,
+  };
+}
+
+export function getDancerEditingEligibility(input: {
+  hasActiveFinancialLink: boolean;
+  hasPresentation: boolean;
+  isRegistrationOpen: boolean;
+}): DancerEditingEligibility {
+  if (input.hasPresentation) {
+    return {
+      canEdit: false,
+      reasonCode: "presentation",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    };
+  }
+
+  if (input.hasActiveFinancialLink) {
+    return {
+      canEdit: false,
+      reasonCode: "active-financial-link",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+    };
+  }
+
+  if (!input.isRegistrationOpen) {
+    return {
+      canEdit: false,
+      reasonCode: "registration-closed",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
+    };
+  }
+
+  return {
+    canEdit: true,
+    reasonCode: null,
+    reasonText: null,
   };
 }
 
