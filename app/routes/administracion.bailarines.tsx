@@ -66,8 +66,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   });
 
   return {
-    email: user.email,
-    events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     dancers: listResult.items,
@@ -84,7 +82,7 @@ export function AdministracionBailarinesRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Bailarines"
       description="Consultá la ficha administrativa de cada bailarín y priorizá la revisión documental desde el listado."
       requireSelectedEvent={false}

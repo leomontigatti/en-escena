@@ -51,7 +51,8 @@ describe.sequential("administracion/bailarines route", () => {
     const loaderData = await loader(routeArgs(request));
     const markup = renderRoute(loaderData);
 
-    expect(loaderData.email).toBe("admin.bailarines@example.com");
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("events");
     expect(markup).toContain("Bailarines");
     expect(markup).toContain(
       "No hay Bailarines que coincidan con la búsqueda.",
@@ -80,7 +81,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
 
     await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
-      email: "auditor.bailarines@example.com",
+      selectedEventId: event.id,
     });
 
     const { request: academyRequest } = await createSignedInRequest({
@@ -370,6 +371,8 @@ describe.sequential("administracion/bailarines route", () => {
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
     const markup = renderDetailRoute(loaderData, dancer.id);
 
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("eventOptions");
     expect(loaderData.dancer.inscriptions).toEqual([
       expect.objectContaining({
         choreographyName: "Raíz",

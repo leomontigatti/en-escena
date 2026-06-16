@@ -63,8 +63,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   });
 
   return {
-    email: user.email,
-    events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     professors: listResult.items,
@@ -81,7 +79,7 @@ export function AdministracionProfesoresRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Profesores"
       description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde un único listado."
       requireSelectedEvent={false}

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -26,13 +26,16 @@ import { auth } from "@/lib/auth/auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionProfesoresRouteView,
+  handle as profesoresHandle,
   loader,
 } from "@/routes/administracion.profesores";
 import {
   AdministracionProfesorDetalleRouteView,
   action as detailAction,
+  handle as profesorDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.profesores_.$professorId";
+import { AdministracionRouteView } from "@/routes/administracion";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -49,7 +52,8 @@ describe("administracion/profesores route", () => {
     const loaderData = await loader(routeArgs(request));
     const markup = renderRoute(loaderData);
 
-    expect(loaderData.email).toBe("admin.profesores@example.com");
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("events");
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Todavía no hay Profesores para mostrar.");
     expect(markup).not.toContain("Acciones");
@@ -64,7 +68,7 @@ describe("administracion/profesores route", () => {
     });
 
     await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
-      email: "auditor.profesores@example.com",
+      selectedEventId: event.id,
     });
 
     const { request: academyRequest } = await createSignedInRequest({
@@ -320,6 +324,8 @@ describe("administracion/profesores route", () => {
     );
     const markup = renderDetailRoute(loaderData, professor.id);
 
+    expect(loaderData).not.toHaveProperty("email");
+    expect(loaderData).not.toHaveProperty("eventOptions");
     expect(markup).toContain("Detalle profesor");
     expect(markup).toContain(
       "Revisá la información administrativa de este profesor.",
@@ -341,6 +347,69 @@ describe("administracion/profesores route", () => {
     expect(markup).not.toContain("4444-4444");
     expect(markup).not.toContain("Participación");
     expect(markup).not.toContain("Trazabilidad");
+  });
+
+  test("renders migrated Profesores list and detail screens inside the shared administration shell", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "layout.academia@example.com",
+      academyName: "Academia Layout",
+      contactName: "Laura Layout",
+      phone: "4545-2323",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Julia",
+      lastName: "Pérez",
+    });
+    const { request: listRequest } = await createSignedInRequest({
+      email: "admin.layout.list@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+    });
+    const { request: detailRequest } = await createSignedInRequest({
+      email: "admin.layout.detail@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
+    });
+    const listLoaderData = await loader(routeArgs(listRequest));
+    const detailLoaderData = await detailLoader(
+      detailRouteArgs(detailRequest, professor.id),
+    );
+    const listMarkup = renderRouteInAdminLayout({
+      childId: "profesores",
+      childLoaderData: listLoaderData,
+      childPath: "profesores",
+      childComponent: AdministracionProfesoresRouteView,
+      childHandle: profesoresHandle,
+      initialEntry: "/administracion/profesores",
+      parentLoaderData: {
+        email: "admin@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+    const detailMarkup = renderRouteInAdminLayout({
+      childId: "profesor-detalle",
+      childLoaderData: detailLoaderData,
+      childPath: "profesores/:professorId",
+      childComponent: AdministracionProfesorDetalleRouteView,
+      childHandle: profesorDetalleHandle,
+      initialEntry: `/administracion/profesores/${professor.id}`,
+      parentLoaderData: {
+        email: "admin@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+
+    expect(listMarkup).toContain("Saltar al contenido principal");
+    expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
+    expect(listMarkup).toContain("Profesores");
+    expect(listMarkup).toContain("Evento activo");
+    expect(detailMarkup).toContain("Detalle profesor");
+    expect(detailMarkup).toContain('href="/administracion/profesores"');
+    expect(detailMarkup).toContain("Pérez, Julia");
   });
 
   test("shows archived and incomplete identification alerts in the administrative detail", async () => {
@@ -859,6 +928,58 @@ function renderDetailRoute(
       },
       createElement(AdministracionProfesorDetalleRouteView, { loaderData }),
     ),
+  );
+}
+
+function renderRouteInAdminLayout({
+  childComponent,
+  childHandle,
+  childId,
+  childLoaderData,
+  childPath,
+  initialEntry,
+  parentLoaderData,
+}: {
+  childComponent:
+    | typeof AdministracionProfesoresRouteView
+    | typeof AdministracionProfesorDetalleRouteView;
+  childHandle: unknown;
+  childId: string;
+  childLoaderData: unknown;
+  childPath: string;
+  initialEntry: string;
+  parentLoaderData: {
+    email: string;
+    events: Array<{ active: boolean; id: string; name: string }>;
+    selectedEventId: string | null;
+  };
+}) {
+  const RoutesStub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/administracion",
+      Component: AdministracionRouteView,
+      children: [
+        {
+          id: childId,
+          path: childPath,
+          Component: childComponent,
+          handle: childHandle,
+        },
+      ],
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: [initialEntry],
+      hydrationData: {
+        loaderData: {
+          admin: parentLoaderData,
+          [childId]: childLoaderData,
+        },
+      },
+    }),
   );
 }
 

@@ -234,8 +234,6 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   return {
     canEdit: user.role === "admin",
-    email: user.email,
-    eventOptions: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
     dancer,
     backToList: buildBackToListHref(request.url),
@@ -449,11 +447,7 @@ export function AdministracionBailarinDetalleRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={{
-        email: loaderData.email,
-        events: loaderData.eventOptions,
-        selectedEventId: loaderData.selectedEventId,
-      }}
+      selectedEventId={loaderData.selectedEventId}
       title="Detalle bailarín"
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
