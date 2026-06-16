@@ -232,14 +232,13 @@ export async function action({ request, params }: Route.ActionArgs) {
       );
     }
 
+    const notification =
+      intent === "archive-professor"
+        ? "profesor-archivado"
+        : "profesor-reactivado";
+
     throw redirect(
-      buildDetailNotificationHref(
-        request.url,
-        professorId,
-        intent === "archive-professor"
-          ? "profesor-archivado"
-          : "profesor-reactivado",
-      ),
+      buildDetailNotificationHref(request.url, professorId, notification),
     );
   }
 
@@ -802,6 +801,9 @@ function ProfessorConfirmationDialog({
 }) {
   const isOpen = intent !== null;
   const formId = getProfessorDialogFormId(intent);
+  const isUpdateIntent = intent === "update-professor";
+  const canSubmitUpdate = !isUpdateIntent || pendingUpdateValues !== null;
+  const pendingUpdateFields = isUpdateIntent ? pendingUpdateValues : null;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -823,27 +825,27 @@ function ProfessorConfirmationDialog({
             className="grid gap-4"
           >
             <input type="hidden" name="intent" value={action.intent} />
-            {intent === "update-professor" && pendingUpdateValues ? (
+            {pendingUpdateFields ? (
               <>
                 <input
                   type="hidden"
                   name="firstName"
-                  value={pendingUpdateValues.firstName}
+                  value={pendingUpdateFields.firstName}
                 />
                 <input
                   type="hidden"
                   name="lastName"
-                  value={pendingUpdateValues.lastName}
+                  value={pendingUpdateFields.lastName}
                 />
                 <input
                   type="hidden"
                   name="documentType"
-                  value={pendingUpdateValues.documentType}
+                  value={pendingUpdateFields.documentType}
                 />
                 <input
                   type="hidden"
                   name="documentNumber"
-                  value={pendingUpdateValues.documentNumber}
+                  value={pendingUpdateFields.documentNumber}
                 />
               </>
             ) : null}
@@ -857,13 +859,7 @@ function ProfessorConfirmationDialog({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild variant={action.variant}>
-              <Button
-                form={formId}
-                type="submit"
-                disabled={
-                  intent === "update-professor" && pendingUpdateValues === null
-                }
-              >
+              <Button form={formId} type="submit" disabled={!canSubmitUpdate}>
                 {action.confirmLabel}
               </Button>
             </AlertDialogAction>
