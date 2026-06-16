@@ -1,12 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Ellipsis, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
-import {
-  Controller,
-  type FieldPath,
-  useForm,
-  type UseFormReturn,
-} from "react-hook-form";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
@@ -52,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   adminProfessorCorrectionReasonMessage,
   adminProfessorNotFoundMessage,
+  getAdminProfessorParticipationLabel,
   type AdminProfessorParticipationStatus,
 } from "@/lib/admin/professors/professors.shared";
 import {
@@ -345,34 +341,10 @@ export function AdministracionProfesorDetalleRouteView({
     }
   }, [actionData, professor.correctionReasonRequired, submittedUpdateValues]);
 
-  const statusAction = professor.active
-    ? {
-        confirmLabel: "Archivar",
-        confirmTitle: "¿Archivar profesor?",
-        description:
-          "El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. Sus participaciones históricas se mantienen.",
-        intent: "archive-professor" as const,
-        variant: "destructive" as const,
-      }
-    : {
-        confirmLabel: "Reactivar",
-        confirmTitle: "¿Reactivar profesor?",
-        description:
-          "El profesor volverá a aparecer en las vistas activas y en próximas selecciones del portal.",
-        intent: "reactivate-professor" as const,
-        variant: "default" as const,
-      };
-  const confirmationAction =
-    dialogIntent === "update-professor"
-      ? ({
-          confirmLabel: "Guardar",
-          confirmTitle: "Confirmar guardado",
-          description:
-            "Este profesor tiene participación actual o histórica. Ingresá el motivo de corrección para guardar los cambios.",
-          intent: "update-professor",
-          variant: "default",
-        } satisfies ProfessorConfirmationAction)
-      : statusAction;
+  const confirmationAction = getProfessorConfirmationAction({
+    active: professor.active,
+    intent: dialogIntent,
+  });
   const breadcrumbItems: AdminResourceBreadcrumbItem[] = [
     { label: "Profesores", to: loaderData.backToList },
     { label: `${professor.lastName}, ${professor.firstName}` },
@@ -763,13 +735,11 @@ function ProfessorDocumentTypeField({
   );
 }
 
-function ProfessorCorrectionReasonField<
-  TFieldValues extends ProfessorReasonFormValues,
->({
+function ProfessorCorrectionReasonField({
   form,
   required,
 }: {
-  form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
+  form: ProfessorReasonFormReturn;
   required: boolean;
 }) {
   const id = useId();
@@ -779,7 +749,7 @@ function ProfessorCorrectionReasonField<
   return (
     <Controller
       control={form.control}
-      name={"correctionReason" as FieldPath<TFieldValues>}
+      name="correctionReason"
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.error ? true : undefined}>
           <FieldLabel htmlFor={id}>Motivo de corrección</FieldLabel>
@@ -800,11 +770,7 @@ function ProfessorCorrectionReasonField<
             <input
               type="hidden"
               name="statusIntent"
-              value={
-                (form.getValues(
-                  "statusIntent" as FieldPath<TFieldValues>,
-                ) as string) ?? ""
-              }
+              value={form.getValues("statusIntent") ?? ""}
             />
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
           </FieldContent>
@@ -932,13 +898,48 @@ function ParticipationBadge({
 
   return (
     <Badge variant={variant}>
-      {participationStatus === "participating"
-        ? "Participando"
-        : participationStatus === "not-participating"
-          ? "No participando"
-          : "Sin evento"}
+      {getAdminProfessorParticipationLabel(participationStatus)}
     </Badge>
   );
+}
+
+function getProfessorConfirmationAction({
+  active,
+  intent,
+}: {
+  active: boolean;
+  intent: ProfessorDialogIntent | null;
+}): ProfessorConfirmationAction {
+  if (intent === "update-professor") {
+    return {
+      confirmLabel: "Guardar",
+      confirmTitle: "Confirmar guardado",
+      description:
+        "Este profesor tiene participación actual o histórica. Ingresá el motivo de corrección para guardar los cambios.",
+      intent: "update-professor",
+      variant: "default",
+    };
+  }
+
+  if (active) {
+    return {
+      confirmLabel: "Archivar",
+      confirmTitle: "¿Archivar profesor?",
+      description:
+        "El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. Sus participaciones históricas se mantienen.",
+      intent: "archive-professor",
+      variant: "destructive",
+    };
+  }
+
+  return {
+    confirmLabel: "Reactivar",
+    confirmTitle: "¿Reactivar profesor?",
+    description:
+      "El profesor volverá a aparecer en las vistas activas y en próximas selecciones del portal.",
+    intent: "reactivate-professor",
+    variant: "default",
+  };
 }
 
 function buildProfessorEditSchema() {
