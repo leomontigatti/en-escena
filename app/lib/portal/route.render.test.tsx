@@ -11,6 +11,7 @@ import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines.$danc
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
 import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias.$choreographyId";
 import { PortalCoreografiasRouteView } from "@/routes/portal.coreografias";
+import { PortalPerfilRouteView } from "@/routes/portal.perfil";
 import { PortalProfesorRouteView } from "@/routes/portal.profesores.$professorId";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
@@ -37,10 +38,12 @@ describe("portal route view", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Portal de academias");
     expect(markup).toContain("Inicio");
+    expect(markup).toContain("Perfil");
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Bailarines");
     expect(markup).toContain("Coreografías");
-    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Profesores"));
+    expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Perfil"));
+    expect(markup.indexOf("Perfil")).toBeLessThan(markup.indexOf("Profesores"));
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
@@ -64,6 +67,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Ver coreografías");
     expect(markup).toContain("Portal User");
     expect(markup).toContain("Academia de Prueba");
+    expect(markup).toContain('href="/portal/perfil"');
     expect(markup).not.toContain("Contacto");
     expect(markup).not.toContain("Teléfono");
   });
@@ -146,6 +150,7 @@ describe("portal route view", () => {
             id: "choreo_1",
             name: "Mi Pieza",
             submodalityName: "Lyrical",
+            groupType: "grupal",
             categoryName: "Juvenil",
             experienceLevelName: "Inicial",
             operationalStatus: {
@@ -170,7 +175,7 @@ describe("portal route view", () => {
     for (const columnLabel of [
       "Nombre",
       "Modalidad / Submodalidad",
-      "Categoría / Nivel",
+      "Categoría / Tipo de grupo",
       "Estado operativo",
     ]) {
       expect(markup).toContain(columnLabel);
@@ -179,7 +184,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Evento consultado");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain("Jazz · Lyrical");
-    expect(markup).toContain("Juvenil · Inicial");
+    expect(markup).toContain("Juvenil · Grupal");
     expect(markup).toContain("Pendiente: Música");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
@@ -359,20 +364,23 @@ describe("portal route view", () => {
     expect(markup).toContain("Editable");
     expect(markup).toContain("Profesores actualizados correctamente.");
     expect(markup).toContain("Guardar Profesores");
-    expect(markup).toContain("Disponible para nuevas asignaciones.");
+    expect(markup).toContain("Buscar profesores");
+    expect(markup).toContain("Archivada, Mora");
     expect(markup).toContain(
-      "Archivado pero conservado por vínculo existente.",
+      'type="hidden" name="professorIds" value="prof_2"',
     );
+    expect(markup).not.toContain('type="checkbox" name="professorIds"');
     expect(markup).toContain("Estado operativo al día.");
     expect(markup).toContain('value="update-choreography-professors"');
     expect(markup).toContain("Eliminar Coreografía");
-    expect(markup).toContain(
-      "En esta versión la eliminación es definitiva y libera el cupo del Cronograma.",
+    expect(markup).not.toContain(
+      "Confirmo que quiero eliminar esta Coreografía.",
     );
   });
 
   test("shows the delete warning on editable detail when registration is closed", () => {
     const markup = renderCoreografiaDetalle({
+      initialDeleteDialogOpen: true,
       loaderData: coreografiaDetalleLoaderData({
         deletionAvailability: {
           canDelete: true,
@@ -396,7 +404,11 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
     );
+    expect(markup).toContain("¿Eliminar Coreografía?");
     expect(markup).toContain('value="delete-choreography"');
+    expect(markup).not.toContain(
+      "Confirmo que quiero eliminar esta Coreografía.",
+    );
   });
 
   test("shows the Bailarines empty list surface", () => {
@@ -826,10 +838,35 @@ describe("portal Profesor edit view", () => {
   });
 });
 
+describe("portal Perfil view", () => {
+  test("renders the academy profile form with access email as read-only", () => {
+    const markup = renderPerfil();
+
+    expect(markup).toContain("Perfil");
+    expect(markup).toContain("Datos de la academia");
+    expect(markup).toContain("Nombre de la academia");
+    expect(markup).toContain('name="name" value="Academia de Prueba"');
+    expect(markup).toContain("Nombre de contacto");
+    expect(markup).toContain('name="contactName" value="Contacto"');
+    expect(markup).toContain("Teléfono");
+    expect(markup).toContain('name="phone" value="11 1234-5678"');
+    expect(markup).toContain("Email de acceso");
+    expect(markup).toContain('value="portal@example.com"');
+    expect(markup).toContain("disabled");
+    expect(markup).toContain(
+      "Para cambiar el email de acceso, contactá a administración.",
+    );
+    expect(markup).toContain("Guardar cambios");
+    expect(markup).toContain('form="portal-perfil-form"');
+    expectActivePortalNavigationItem(markup, "/portal/perfil");
+  });
+});
+
 type PortalLoaderData = Parameters<typeof PortalRouteView>[0]["loaderData"];
 
 const portalNavigationPaths = [
   "/portal",
+  "/portal/perfil",
   "/portal/profesores",
   "/portal/bailarines",
   "/portal/coreografias",
@@ -915,6 +952,18 @@ function renderBailarinDetalle(input: Partial<BailarinDetalleViewProps>) {
 }
 
 type ProfesoresViewProps = Parameters<typeof PortalProfesoresRouteView>[0];
+type PerfilViewProps = Parameters<typeof PortalPerfilRouteView>[0];
+
+function renderPerfil(input: Partial<PerfilViewProps> = {}) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/portal/perfil"]}>
+      <PortalPerfilRouteView
+        loaderData={input.loaderData ?? academyLoaderData()}
+        actionData={input.actionData}
+      />
+    </MemoryRouter>,
+  );
+}
 
 function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
   return renderToStaticMarkup(
@@ -946,12 +995,15 @@ type CoreografiaDetalleViewProps = Parameters<
 >[0];
 
 function renderCoreografiaDetalle(
-  input: Partial<CoreografiaDetalleViewProps> = {},
+  input: Partial<CoreografiaDetalleViewProps> & {
+    initialDeleteDialogOpen?: boolean;
+  } = {},
 ) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias/choreo_1"]}>
       <PortalCoreografiaDetalleRouteView
         actionData={input.actionData}
+        initialDeleteDialogOpen={input.initialDeleteDialogOpen}
         loaderData={input.loaderData ?? coreografiaDetalleLoaderData()}
       />
     </MemoryRouter>,

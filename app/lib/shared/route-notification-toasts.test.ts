@@ -29,6 +29,11 @@ describe("route notification toasts", () => {
       message: "Profesor guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["perfil-guardado"]).toEqual({
+      id: "route-notification:perfil-guardado",
+      message: "Perfil guardado.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["bailarin-archivado"]).toEqual({
       id: "route-notification:bailarin-archivado",
       message: "Bailarín archivado.",

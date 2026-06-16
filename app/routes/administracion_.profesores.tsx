@@ -5,11 +5,10 @@ import { AdminEmptyState } from "@/components/admin/resource-layout";
 import {
   DataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  adminProfessorPageSize,
   getAdminProfessorParticipationLabel,
   type AdminProfessorParticipationStatus,
   toAdminProfessorParticipationSearchValue,
@@ -30,6 +29,33 @@ type ProfessorRow = LoaderData["professors"][number];
 type AdministracionProfesoresRouteProps = {
   loaderData: LoaderData;
 };
+
+const professorFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    columnId: "filters",
+    label: "Filtros",
+    groups: [
+      {
+        id: "participando",
+        label: "Participación",
+        options: [
+          { label: "Sí", value: "si" },
+          { label: "No", value: "no" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+      {
+        id: "estado",
+        label: "Estado",
+        options: [
+          { label: "Activos", value: "activos" },
+          { label: "Archivados", value: "archivados" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+    ],
+  },
+];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Profesores | Panel de administración | En Escena" },
@@ -68,6 +94,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 export function AdministracionProfesoresRouteView({
   loaderData,
 }: AdministracionProfesoresRouteProps) {
+  const shouldShowTable =
+    loaderData.professors.length > 0 || hasActiveListFilters(loaderData);
+
   return (
     <AdminShell
       email={loaderData.email}
@@ -86,17 +115,11 @@ export function AdministracionProfesoresRouteView({
           </div>
           <p className="text-sm text-slate-600">
             {formatResultCount(loaderData.totalCount)}
-            {renderPageSummary(loaderData)}
           </p>
         </div>
 
-        <ProfessorFilters loaderData={loaderData} />
-
-        {loaderData.professors.length > 0 ? (
-          <>
-            <ProfessorTable loaderData={loaderData} />
-            <ProfessorPagination loaderData={loaderData} />
-          </>
+        {shouldShowTable ? (
+          <ProfessorTable loaderData={loaderData} />
         ) : (
           <AdminEmptyState
             title="Todavía no hay Profesores para mostrar."
@@ -112,59 +135,6 @@ export default function AdministracionProfesoresRoute({
   loaderData,
 }: AdministracionProfesoresRouteProps) {
   return <AdministracionProfesoresRouteView loaderData={loaderData} />;
-}
-
-function ProfessorFilters({ loaderData }: { loaderData: LoaderData }) {
-  return (
-    <form
-      method="get"
-      className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]"
-    >
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Buscar
-        <input
-          type="search"
-          name="q"
-          defaultValue={loaderData.filters.query}
-          placeholder="Nombre, documento o academia"
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        />
-      </label>
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Participando
-        <select
-          name="participando"
-          defaultValue={toAdminProfessorParticipationSearchValue(
-            loaderData.filters.participation,
-          )}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        >
-          <option value="si">Sí</option>
-          <option value="no">No</option>
-          <option value="todos">Todos</option>
-        </select>
-      </label>
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Estado
-        <select
-          name="estado"
-          defaultValue={toAdminProfessorStatusSearchValue(
-            loaderData.filters.status,
-          )}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        >
-          <option value="activos">Activos</option>
-          <option value="archivados">Archivados</option>
-          <option value="todos">Todos</option>
-        </select>
-      </label>
-      <div className="flex items-end">
-        <Button type="submit" className="w-full sm:w-auto">
-          Aplicar filtros
-        </Button>
-      </div>
-    </form>
-  );
 }
 
 function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
@@ -221,47 +191,17 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
-      searchPlaceholder="Filtrar esta página"
+      searchPlaceholder="Buscar por nombre, documento o academia"
+      initialSearchValue={loaderData.filters.query}
+      facetedFilters={professorFacetedFilters}
+      initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
       emptyMessage="No hay Profesores que coincidan con la búsqueda."
-      initialSort={{ columnId: "professor", direction: "asc" }}
+      serverSide={{
+        currentPage: loaderData.filters.page,
+        totalPages: loaderData.totalPages,
+        totalRows: loaderData.totalCount,
+      }}
     />
-  );
-}
-
-function ProfessorPagination({ loaderData }: { loaderData: LoaderData }) {
-  if (loaderData.totalPages <= 1) {
-    return null;
-  }
-
-  const previousPage = loaderData.filters.page - 1;
-  const nextPage = loaderData.filters.page + 1;
-
-  return (
-    <nav
-      className="flex items-center justify-between gap-3"
-      aria-label="Paginación de Profesores"
-    >
-      {previousPage >= 1 ? (
-        <Button asChild variant="outline">
-          <Link to={buildListHref(loaderData, previousPage)}>
-            Página anterior
-          </Link>
-        </Button>
-      ) : (
-        <span />
-      )}
-      <span className="text-sm text-slate-600">
-        Mostrando {loaderData.professors.length} de {loaderData.totalCount}{" "}
-        resultados
-      </span>
-      {nextPage <= loaderData.totalPages ? (
-        <Button asChild variant="outline">
-          <Link to={buildListHref(loaderData, nextPage)}>Página siguiente</Link>
-        </Button>
-      ) : (
-        <span />
-      )}
-    </nav>
   );
 }
 
@@ -291,13 +231,6 @@ function buildDetailSearch(loaderData: LoaderData) {
   return search.length > 0 ? `?${search}` : "";
 }
 
-function buildListHref(loaderData: LoaderData, page: number) {
-  const searchParams = buildSearchParams(loaderData);
-  searchParams.set("page", String(page));
-
-  return `/administracion/profesores?${searchParams.toString()}`;
-}
-
 function buildSearchParams(loaderData: LoaderData) {
   const searchParams = new URLSearchParams();
 
@@ -305,14 +238,15 @@ function buildSearchParams(loaderData: LoaderData) {
     searchParams.set("q", loaderData.filters.query);
   }
 
-  searchParams.set(
-    "participando",
-    toAdminProfessorParticipationSearchValue(loaderData.filters.participation),
-  );
-  searchParams.set(
-    "estado",
-    toAdminProfessorStatusSearchValue(loaderData.filters.status),
-  );
+  const values = getSelectedFilterValues(loaderData);
+
+  if (values.participando) {
+    searchParams.set("participando", values.participando);
+  }
+
+  if (values.estado) {
+    searchParams.set("estado", values.estado);
+  }
 
   if (loaderData.filters.page > 1) {
     searchParams.set("page", String(loaderData.filters.page));
@@ -325,10 +259,44 @@ function formatResultCount(count: number) {
   return count === 1 ? "1 resultado" : `${count} resultados`;
 }
 
-function renderPageSummary(loaderData: LoaderData) {
-  if (loaderData.totalCount <= adminProfessorPageSize) {
-    return "";
+function buildInitialFacetedFilterValues(loaderData: LoaderData) {
+  return { filters: getSelectedFilterValues(loaderData) };
+}
+
+function getSelectedFilterValues(loaderData: LoaderData) {
+  const values: Record<string, string> = {};
+  const participationValue = toAdminProfessorParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+  const statusValue = toAdminProfessorStatusSearchValue(
+    loaderData.filters.status,
+  );
+
+  if (participationValue !== "si" || loaderData.selectedEventId === null) {
+    values.participando = participationValue;
   }
 
-  return ` · Página ${loaderData.filters.page} de ${loaderData.totalPages}`;
+  if (statusValue !== "activos") {
+    values.estado = statusValue;
+  }
+
+  return values;
+}
+
+function hasActiveListFilters(loaderData: LoaderData) {
+  const defaultParticipationValue =
+    loaderData.selectedEventId === null ? "todos" : "si";
+  const participationValue = toAdminProfessorParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+  const statusValue = toAdminProfessorStatusSearchValue(
+    loaderData.filters.status,
+  );
+
+  return (
+    loaderData.filters.query.length > 0 ||
+    loaderData.filters.page > 1 ||
+    participationValue !== defaultParticipationValue ||
+    statusValue !== "activos"
+  );
 }

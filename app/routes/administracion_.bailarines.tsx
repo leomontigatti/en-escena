@@ -5,11 +5,10 @@ import { AdminEmptyState } from "@/components/admin/resource-layout";
 import {
   DataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  adminDancerPageSize,
   getAdminDancerIdentificationBadgeVariant,
   getAdminDancerIdentificationLabel,
   getAdminDancerParticipationBadgeVariant,
@@ -35,6 +34,43 @@ type DancerRow = LoaderData["dancers"][number];
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
 };
+
+const dancerFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    columnId: "filters",
+    label: "Filtros",
+    groups: [
+      {
+        id: "participando",
+        label: "Participación",
+        options: [
+          { label: "Sí", value: "si" },
+          { label: "No", value: "no" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+      {
+        id: "estado",
+        label: "Estado",
+        options: [
+          { label: "Activos", value: "activos" },
+          { label: "Archivados", value: "archivados" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+      {
+        id: "identificacion",
+        label: "Identificación",
+        options: [
+          { label: "Incompleta", value: "incompleta" },
+          { label: "Para verificar", value: "para-verificar" },
+          { label: "Verificados", value: "verificados" },
+          { label: "Todos", value: "todos" },
+        ],
+      },
+    ],
+  },
+];
 
 export const meta: Route.MetaFunction = () => [
   { title: "Bailarines | Panel de administración | En Escena" },
@@ -73,6 +109,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 export function AdministracionBailarinesRouteView({
   loaderData,
 }: AdministracionBailarinesRouteProps) {
+  const shouldShowTable =
+    loaderData.dancers.length > 0 || hasActiveListFilters(loaderData);
+
   return (
     <AdminShell
       email={loaderData.email}
@@ -91,17 +130,11 @@ export function AdministracionBailarinesRouteView({
           </div>
           <p className="text-sm text-slate-600">
             {formatResultCount(loaderData.totalCount)}
-            {renderPageSummary(loaderData)}
           </p>
         </div>
 
-        <DancerFilters loaderData={loaderData} />
-
-        {loaderData.dancers.length > 0 ? (
-          <>
-            <DancerTable loaderData={loaderData} />
-            <DancerPagination loaderData={loaderData} />
-          </>
+        {shouldShowTable ? (
+          <DancerTable loaderData={loaderData} />
         ) : (
           <AdminEmptyState
             title="Todavía no hay Bailarines para mostrar."
@@ -118,75 +151,6 @@ export default function AdministracionBailarinesRoute({
 }: AdministracionBailarinesRouteProps) {
   return <AdministracionBailarinesRouteView loaderData={loaderData} />;
 }
-
-function DancerFilters({ loaderData }: { loaderData: LoaderData }) {
-  return (
-    <form
-      method="get"
-      className="grid gap-4 rounded-lg border bg-background p-4 xl:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto]"
-    >
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Buscar
-        <input
-          type="search"
-          name="q"
-          defaultValue={loaderData.filters.query}
-          placeholder="Nombre, documento o academia"
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        />
-      </label>
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Participando
-        <select
-          name="participando"
-          defaultValue={toAdminDancerParticipationSearchValue(
-            loaderData.filters.participation,
-          )}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        >
-          <option value="si">Sí</option>
-          <option value="no">No</option>
-          <option value="todos">Todos</option>
-        </select>
-      </label>
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Estado
-        <select
-          name="estado"
-          defaultValue={toAdminDancerStatusSearchValue(
-            loaderData.filters.status,
-          )}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        >
-          <option value="activos">Activos</option>
-          <option value="archivados">Archivados</option>
-          <option value="todos">Todos</option>
-        </select>
-      </label>
-      <label className="grid gap-2 text-sm font-medium text-slate-900">
-        Identificación
-        <select
-          name="identificacion"
-          defaultValue={toAdminDancerIdentificationSearchValue(
-            loaderData.filters.identification,
-          )}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-4 focus:ring-ring"
-        >
-          <option value="incompleta">Incompletos</option>
-          <option value="para-verificar">Para verificar</option>
-          <option value="verificados">Verificados</option>
-          <option value="todos">Todos</option>
-        </select>
-      </label>
-      <div className="flex items-end">
-        <Button type="submit" className="w-full sm:w-auto">
-          Aplicar filtros
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 function DancerTable({ loaderData }: { loaderData: LoaderData }) {
   const columns: DataTableColumn<DancerRow>[] = [
     {
@@ -253,47 +217,17 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
-      searchPlaceholder="Filtrar esta página"
+      searchPlaceholder="Buscar por nombre, documento o academia"
+      initialSearchValue={loaderData.filters.query}
+      facetedFilters={dancerFacetedFilters}
+      initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
       emptyMessage="No hay Bailarines que coincidan con la búsqueda."
-      initialSort={{ columnId: "dancer", direction: "asc" }}
+      serverSide={{
+        currentPage: loaderData.filters.page,
+        totalPages: loaderData.totalPages,
+        totalRows: loaderData.totalCount,
+      }}
     />
-  );
-}
-
-function DancerPagination({ loaderData }: { loaderData: LoaderData }) {
-  if (loaderData.totalPages <= 1) {
-    return null;
-  }
-
-  const previousPage = loaderData.filters.page - 1;
-  const nextPage = loaderData.filters.page + 1;
-
-  return (
-    <nav
-      className="flex items-center justify-between gap-3"
-      aria-label="Paginación de Bailarines"
-    >
-      {previousPage >= 1 ? (
-        <Button asChild variant="outline">
-          <Link to={buildListHref(loaderData, previousPage)}>
-            Página anterior
-          </Link>
-        </Button>
-      ) : (
-        <span />
-      )}
-      <span className="text-sm text-slate-600">
-        Mostrando {loaderData.dancers.length} de {loaderData.totalCount}{" "}
-        resultados
-      </span>
-      {nextPage <= loaderData.totalPages ? (
-        <Button asChild variant="outline">
-          <Link to={buildListHref(loaderData, nextPage)}>Página siguiente</Link>
-        </Button>
-      ) : (
-        <span />
-      )}
-    </nav>
   );
 }
 
@@ -325,13 +259,6 @@ function IdentificationBadge({
   );
 }
 
-function buildListHref(loaderData: LoaderData, page: number) {
-  const searchParams = buildSearchParams(loaderData, page);
-  const search = searchParams.toString();
-
-  return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
-}
-
 function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
   return `/administracion/bailarines/${dancerId}${buildDetailSearch(loaderData)}`;
 }
@@ -350,18 +277,19 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
     searchParams.set("q", loaderData.filters.query);
   }
 
-  searchParams.set(
-    "participando",
-    toAdminDancerParticipationSearchValue(loaderData.filters.participation),
-  );
-  searchParams.set(
-    "estado",
-    toAdminDancerStatusSearchValue(loaderData.filters.status),
-  );
-  searchParams.set(
-    "identificacion",
-    toAdminDancerIdentificationSearchValue(loaderData.filters.identification),
-  );
+  const values = getSelectedFilterValues(loaderData);
+
+  if (values.participando) {
+    searchParams.set("participando", values.participando);
+  }
+
+  if (values.estado) {
+    searchParams.set("estado", values.estado);
+  }
+
+  if (values.identificacion) {
+    searchParams.set("identificacion", values.identificacion);
+  }
 
   if (page > 1) {
     searchParams.set("page", String(page));
@@ -374,13 +302,51 @@ function formatResultCount(totalCount: number) {
   return `${totalCount} ${totalCount === 1 ? "resultado" : "resultados"}`;
 }
 
-function renderPageSummary(loaderData: LoaderData) {
-  if (loaderData.totalCount === 0) {
-    return null;
+function buildInitialFacetedFilterValues(loaderData: LoaderData) {
+  return { filters: getSelectedFilterValues(loaderData) };
+}
+
+function getSelectedFilterValues(loaderData: LoaderData) {
+  const values: Record<string, string> = {};
+  const participationValue = toAdminDancerParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
+  const identificationValue = toAdminDancerIdentificationSearchValue(
+    loaderData.filters.identification,
+  );
+
+  if (participationValue !== "si" || loaderData.selectedEventId === null) {
+    values.participando = participationValue;
   }
 
-  const pageStart = (loaderData.filters.page - 1) * adminDancerPageSize + 1;
-  const pageEnd = pageStart + loaderData.dancers.length - 1;
+  if (statusValue !== "activos") {
+    values.estado = statusValue;
+  }
 
-  return ` · Página ${loaderData.filters.page} de ${loaderData.totalPages} (${pageStart}-${pageEnd})`;
+  if (identificationValue !== "todos") {
+    values.identificacion = identificationValue;
+  }
+
+  return values;
+}
+
+function hasActiveListFilters(loaderData: LoaderData) {
+  const defaultParticipationValue =
+    loaderData.selectedEventId === null ? "todos" : "si";
+  const participationValue = toAdminDancerParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
+  const identificationValue = toAdminDancerIdentificationSearchValue(
+    loaderData.filters.identification,
+  );
+
+  return (
+    loaderData.filters.query.length > 0 ||
+    loaderData.filters.page > 1 ||
+    participationValue !== defaultParticipationValue ||
+    statusValue !== "activos" ||
+    identificationValue !== "todos"
+  );
 }

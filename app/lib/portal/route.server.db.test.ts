@@ -36,6 +36,10 @@ import {
   loader as coreografiasLoader,
 } from "@/routes/portal.coreografias";
 import {
+  action as perfilAction,
+  loader as perfilLoader,
+} from "@/routes/portal.perfil";
+import {
   action as profesoresAction,
   loader as profesoresLoader,
 } from "@/routes/portal.profesores";
@@ -409,6 +413,7 @@ describe.sequential("portal loader Evento activo", () => {
 
 describe.sequential("portal people list loaders", () => {
   test.each([
+    ["Perfil", perfilLoader, "http://localhost/portal/perfil"],
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
     [
       "Coreografías",
@@ -431,6 +436,7 @@ describe.sequential("portal people list loaders", () => {
   );
 
   test.each([
+    ["Perfil", perfilLoader, "http://localhost/portal/perfil"],
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
     [
       "Coreografías",
@@ -449,6 +455,109 @@ describe.sequential("portal people list loaders", () => {
     await expect(response.text()).resolves.toBe(
       "Los usuarios internos no pueden acceder al portal.",
     );
+  });
+});
+
+describe.sequential("portal Perfil route", () => {
+  test("loads the current academy profile for the signed-in Academia", async () => {
+    const session = await createAcademySession({
+      email: "perfil.loader@example.com",
+      academyName: "Academia Perfil",
+    });
+
+    const loaderData = await perfilLoader({
+      request: new Request("http://localhost/portal/perfil", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+
+    expect(loaderData).toMatchObject({
+      email: "perfil.loader@example.com",
+      academy: {
+        id: session.academyId,
+        name: "Academia Perfil",
+        contactName: "Contacto",
+        phone: "11 1234-5678",
+      },
+    });
+  });
+
+  test("updates the current academy profile and redirects with notification", async () => {
+    const session = await createAcademySession({
+      email: "perfil.update@example.com",
+      academyName: "Academia Original",
+    });
+
+    const response = await expectThrownResponse(
+      perfilAction({
+        request: createPortalPostRequest(
+          "http://localhost/portal/perfil",
+          session.cookie,
+          academyProfileFormData({
+            name: " Academia Actualizada ",
+            contactName: " Responsable Nueva ",
+            phone: " 11 9999-0000 ",
+          }),
+        ),
+      }),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/portal/perfil?notificacion=perfil-guardado",
+    );
+
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      name: "Academia Actualizada",
+      contactName: "Responsable Nueva",
+      phone: "11 9999-0000",
+    });
+  });
+
+  test("returns field errors without persisting empty profile fields", async () => {
+    const session = await createAcademySession({
+      email: "perfil.validation@example.com",
+      academyName: "Academia Sin Cambios",
+    });
+
+    const result = await perfilAction({
+      request: createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "",
+          contactName: "Responsable",
+          phone: "   ",
+        }),
+      ),
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        name: "Este campo es obligatorio.",
+        phone: "Este campo es obligatorio.",
+      },
+      values: {
+        name: "",
+        contactName: "Responsable",
+        phone: "   ",
+      },
+    });
+
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      name: "Academia Sin Cambios",
+      contactName: "Contacto",
+      phone: "11 1234-5678",
+    });
   });
 });
 
@@ -1700,6 +1809,20 @@ function createPortalPostRequest(
     headers: { cookie },
     body,
   });
+}
+
+function academyProfileFormData(input: {
+  name: string;
+  contactName: string;
+  phone: string;
+}) {
+  const formData = new FormData();
+  formData.set("intent", "update-academy-profile");
+  formData.set("name", input.name);
+  formData.set("contactName", input.contactName);
+  formData.set("phone", input.phone);
+
+  return formData;
 }
 
 function dancerFormData(input: {
