@@ -356,9 +356,23 @@ describe("portal route view", () => {
     );
   });
 
-  test("shows dancer editing as available on coreografía detail without enabling mutation yet", () => {
+  test("shows editable bailarines on coreografía detail with active and linked archived options", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
+        availableDancers: [
+          {
+            id: "dancer_1",
+            firstName: "Luz",
+            lastName: "Activa",
+            active: true,
+          },
+          {
+            id: "dancer_2",
+            firstName: "Mora",
+            lastName: "Archivada",
+            active: false,
+          },
+        ],
         eventContext: {
           events: [eventSummary()],
           selectedEvent: eventSummary(),
@@ -375,16 +389,26 @@ describe("portal route view", () => {
             reasonCode: null,
             reasonText: null,
           },
+          dancers: [
+            {
+              id: "dancer_2",
+              firstName: "Mora",
+              lastName: "Archivada",
+              active: false,
+              ageAtEventStart: 14,
+            },
+          ],
         }),
       }),
     });
 
     expect(markup).toContain("Edición disponible");
     expect(markup).toContain(
-      "La edición de bailarines para esta coreografía está disponible. En esta iteración el roster todavía se muestra en solo lectura.",
+      "Actualizá el roster solo cuando la propuesta siga siendo compatible con el tipo de grupo, la categoría, el nivel y el cronograma actuales.",
     );
-    expect(markup).not.toContain("Edición no disponible");
-    expect(markup).not.toContain("Guardar bailarines");
+    expect(markup).toContain("Guardar bailarines");
+    expect(markup).toContain("Buscar bailarines");
+    expect(markup).toContain("Archivada, Mora");
   });
 
   test("shows the primary blocked reason for dancer editing on coreografía detail", () => {
@@ -1290,6 +1314,12 @@ function coreografiaDetalleLoaderData(
 
   return {
     ...coreografiasLoaderData(),
+    availableDancers: choreography.dancers.map((dancer) => ({
+      id: dancer.id,
+      firstName: dancer.firstName,
+      lastName: dancer.lastName,
+      active: dancer.active,
+    })),
     availableProfessors: [],
     choreography,
     dancerEditingEligibility:

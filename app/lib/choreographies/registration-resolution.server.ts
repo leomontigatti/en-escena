@@ -52,6 +52,8 @@ type DancerAgeSummary = {
   ageAtEventStart: number;
 };
 
+export type ResolvedRegistrationDancer = DancerAgeSummary;
+
 type LocalDateParts = {
   year: number;
   month: number;
@@ -181,44 +183,27 @@ export async function resolveChoreographyRegistrationOperation(
   });
 }
 
+export async function resolveChoreographyRegistrationOperationForResolvedDancers(input: {
+  eventId: string;
+  modalityId: string;
+  submodalityId: string | null;
+  dancers: ResolvedRegistrationDancer[];
+}): Promise<ChoreographyRegistrationOperationResult> {
+  const eventBases = await getEventBases(input.eventId);
+
+  return await resolveRegistrationFromResolvedDancers({
+    eventBases,
+    eventId: input.eventId,
+    modalityId: input.modalityId,
+    skipReadinessCheck: true,
+    submodalityId: input.submodalityId,
+    dancers: input.dancers,
+  });
+}
+
 async function resolveRegistrationBases(
   input: RegistrationBaseResolutionInput,
 ): Promise<ChoreographyRegistrationOperationResult> {
-  const readiness = await getEventRegistrationReadinessForBases(
-    input.event.id,
-    input.eventBases,
-  );
-
-  if (!readiness.isReady) {
-    return failure(
-      "event-not-ready",
-      "El Evento activo todavía no tiene las bases mínimas para registrar Coreografías.",
-    );
-  }
-
-  const modality = input.eventBases.modalities.find(
-    (record) => record.id === input.modalityId,
-  );
-
-  if (!modality) {
-    return failure(
-      "invalid-modality",
-      "Elegí una Modalidad válida del Evento activo.",
-    );
-  }
-
-  const modalitySubmodalities = input.eventBases.submodalities.filter(
-    (record) => record.modalityId === modality.id,
-  );
-  const submodalityValidation = validateSubmodalitySelection({
-    availableSubmodalities: modalitySubmodalities,
-    submodalityId: input.submodalityId,
-  });
-
-  if (!submodalityValidation.ok) {
-    return submodalityValidation.failure;
-  }
-
   const uniqueDancerIds = [...new Set(input.dancerIds)];
 
   if (
@@ -248,7 +233,74 @@ async function resolveRegistrationBases(
     );
   }
 
-  const groupType = deriveGroupType(resolvedDancers.length);
+  return await resolveRegistrationFromResolvedDancers({
+    eventBases: input.eventBases,
+    eventId: input.event.id,
+    modalityId: input.modalityId,
+    skipReadinessCheck: false,
+    submodalityId: input.submodalityId,
+    dancers: resolvedDancers,
+  });
+}
+
+async function resolveRegistrationFromResolvedDancers(input: {
+  eventBases: EventBases;
+  eventId: string;
+  modalityId: string;
+  skipReadinessCheck: boolean;
+  submodalityId: string | null;
+  dancers: ResolvedRegistrationDancer[];
+}): Promise<ChoreographyRegistrationOperationResult> {
+  if (!input.skipReadinessCheck) {
+    const readiness = await getEventRegistrationReadinessForBases(
+      input.eventId,
+      input.eventBases,
+    );
+
+    if (!readiness.isReady) {
+      return failure(
+        "event-not-ready",
+        "El Evento activo todavía no tiene las bases mínimas para registrar Coreografías.",
+      );
+    }
+  }
+
+  const modality = input.eventBases.modalities.find(
+    (record) => record.id === input.modalityId,
+  );
+
+  if (!modality) {
+    return failure(
+      "invalid-modality",
+      "Elegí una Modalidad válida del Evento activo.",
+    );
+  }
+
+  const modalitySubmodalities = input.eventBases.submodalities.filter(
+    (record) => record.modalityId === modality.id,
+  );
+  const submodalityValidation = validateSubmodalitySelection({
+    availableSubmodalities: modalitySubmodalities,
+    submodalityId: input.submodalityId,
+  });
+
+  if (!submodalityValidation.ok) {
+    return submodalityValidation.failure;
+  }
+
+  const uniqueDancerIds = new Set(input.dancers.map((dancer) => dancer.id));
+
+  if (
+    input.dancers.length === 0 ||
+    uniqueDancerIds.size !== input.dancers.length
+  ) {
+    return failure(
+      "invalid-dancers",
+      "Elegí uno o más Bailarines válidos para resolver la Coreografía.",
+    );
+  }
+
+  const groupType = deriveGroupType(input.dancers.length);
   const categoryCandidates = input.eventBases.categories
     .filter(
       (category) =>
@@ -258,7 +310,7 @@ async function resolveRegistrationBases(
     .map(toCategoryCandidate);
 
   const categoryResolution = resolveCategory({
-    dancers: resolvedDancers,
+    dancers: input.dancers,
     categories: categoryCandidates,
   });
 
@@ -269,7 +321,7 @@ async function resolveRegistrationBases(
   });
 
   const compatibleScheduleEntries = await resolveEventBasesScheduleOptions({
-    eventId: input.event.id,
+    eventId: input.eventId,
     modalityId: modality.id,
     groupType,
   });
@@ -284,7 +336,7 @@ async function resolveRegistrationBases(
       categoryAgeBasis: categoryResolution.categoryAgeBasis,
       experienceLevel,
       schedule,
-      dancers: resolvedDancers,
+      dancers: input.dancers,
     },
   };
 }
