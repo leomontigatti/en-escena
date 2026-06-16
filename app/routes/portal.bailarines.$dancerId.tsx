@@ -1,12 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ellipsis, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import {
-  Controller,
-  useForm,
-  type FieldPath,
-  type UseFormReturn,
-} from "react-hook-form";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
@@ -53,7 +48,7 @@ import {
   findDancerForAcademy,
   reactivateDancerForAcademy,
   updateDancerForAcademy,
-  type UpdateDancerInput,
+  type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
 import {
   createValidatedNativeSubmitHandler,
@@ -146,6 +141,7 @@ type PortalBailarinDetalleRouteProps = {
   actionData?: ActionData;
   initialStatusDialogIntent?: DancerStatusIntent | null;
 };
+type DancerTextFieldName = "documentNumber" | "firstName" | "lastName";
 
 export const meta = () => [
   { title: "Editar bailarín | Portal de academias | En Escena" },
@@ -248,12 +244,11 @@ export function PortalBailarinDetalleRouteView({
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);
-  const showsIdentificationAlert =
-    !loaderData.dancer.documentType || !loaderData.dancer.documentNumber;
-  const showsMissingImagesAlert =
-    !showsIdentificationAlert &&
-    loaderData.dancer.documentType !== null &&
-    loaderData.dancer.documentNumber !== null;
+  const hasDocumentData = Boolean(
+    loaderData.dancer.documentType && loaderData.dancer.documentNumber,
+  );
+  const showsIdentificationAlert = !hasDocumentData;
+  const showsMissingImagesAlert = hasDocumentData;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -273,9 +268,12 @@ export function PortalBailarinDetalleRouteView({
         },
       ]}
     >
-      <section className="space-y-6" aria-labelledby="bailarin-detail-title">
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="bailarin-detail-title"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <h1 id="bailarin-detail-title" className="text-xl font-semibold">
               Editar bailarín
             </h1>
@@ -305,8 +303,8 @@ export function PortalBailarinDetalleRouteView({
         </div>
 
         <Card>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
               {!loaderData.dancer.active ? (
                 <Alert>
                   <TriangleAlert aria-hidden="true" />
@@ -462,7 +460,7 @@ function DancerTextField({
   error?: string;
   form: DancerFormReturn;
   label: string;
-  name: FieldPath<DancerFormValues>;
+  name: DancerTextFieldName;
 }) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -635,15 +633,13 @@ function getDancerStatusAction(isActive: boolean) {
   return dancerStatusActions["reactivate-dancer"];
 }
 
-function getDancerFieldAutoComplete(name: FieldPath<DancerFormValues>) {
+function getDancerFieldAutoComplete(name: DancerTextFieldName) {
   switch (name) {
     case "firstName":
       return "given-name";
     case "lastName":
       return "family-name";
-    case "birthDate":
     case "documentNumber":
-    case "documentType":
       return "off";
   }
 }
@@ -692,7 +688,7 @@ async function requireDancer(academyId: string, dancerId: string) {
   return dancer;
 }
 
-function readFormString(formData: FormData, key: string) {
+function readFormString(formData: FormData, key: UpdateDancerField | "intent") {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
