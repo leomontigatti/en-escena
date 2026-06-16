@@ -35,7 +35,7 @@ describe("administracion/usuarios/nuevo route", () => {
     });
 
     const loaderData = await loader(routeArgs(request));
-    const markup = renderRoute(loaderData);
+    const markup = renderRoute();
 
     expect(loaderData).not.toHaveProperty("email");
     expect(loaderData).not.toHaveProperty("eventOptions");
@@ -80,11 +80,7 @@ describe("administracion/usuarios/nuevo route", () => {
   });
 });
 
-function renderRoute(
-  loaderData: Partial<
-    Parameters<typeof AdministracionUsuariosNuevoRouteView>[0]["loaderData"]
-  >,
-) {
+function renderRoute() {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios/nuevo",
@@ -96,11 +92,7 @@ function renderRoute(
     createElement(RoutesStub, {
       initialEntries: ["/administracion/usuarios/nuevo"],
       hydrationData: {
-        loaderData: {
-          "0": {
-            ...loaderData,
-          },
-        },
+        loaderData: { "0": {} },
       },
     }),
   );

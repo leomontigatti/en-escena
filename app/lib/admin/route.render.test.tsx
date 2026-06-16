@@ -37,9 +37,7 @@ describe("administracion layout route", () => {
           {
             path: "usuarios/nuevo",
             handle: createUserHandle,
-            Component: () => (
-              <AdministracionUsuariosNuevoRouteView loaderData={{}} />
-            ),
+            Component: AdministracionUsuariosNuevoRouteView,
           },
         ],
       },

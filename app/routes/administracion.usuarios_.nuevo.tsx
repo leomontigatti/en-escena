@@ -110,7 +110,6 @@ type AdministracionUsuariosNuevoRouteProps = {
     fieldErrors: CreateInternalUserFieldErrors;
     values: CreateInternalUserFormValues;
   };
-  loaderData: Record<string, never>;
 };
 
 const defaultCreateInternalUserFormValues: CreateInternalUserFormValues = {
@@ -185,7 +184,6 @@ export async function action({ request }: Route.ActionArgs) {
 
 export function AdministracionUsuariosNuevoRouteView({
   actionData,
-  loaderData,
 }: AdministracionUsuariosNuevoRouteProps) {
   const formValues = actionData?.values ?? defaultCreateInternalUserFormValues;
   const form = useForm<
@@ -433,15 +431,8 @@ function getCreateInternalUserServerFieldErrors(
   return getEmptyFieldErrors<CreateInternalUserField>();
 }
 
-export default function AdministracionUsuariosNuevoRoute({
-  loaderData,
-}: AdministracionUsuariosNuevoRouteProps) {
+export default function AdministracionUsuariosNuevoRoute() {
   const actionData = useActionData<typeof action>();
 
-  return (
-    <AdministracionUsuariosNuevoRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
-  );
+  return <AdministracionUsuariosNuevoRouteView actionData={actionData} />;
 }
