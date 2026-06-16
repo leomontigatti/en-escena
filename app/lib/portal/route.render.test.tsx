@@ -1020,6 +1020,7 @@ function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
         <PortalCoreografiasRouteView
           created={input.created}
           deleted={input.deleted}
+          initialCreateDialogOpen={input.initialCreateDialogOpen}
           loaderData={input.loaderData ?? coreografiasLoaderData()}
         />,
         (input.loaderData ?? coreografiasLoaderData()).eventContext,
