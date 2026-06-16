@@ -1,7 +1,11 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { professors } from "@/db/schema";
+import {
+  choreographies,
+  choreographyProfessors,
+  professors,
+} from "@/db/schema";
 import {
   findDuplicateProfessorDocument,
   normalizeProfessorDocumentPair,
@@ -22,6 +26,7 @@ export type ProfessorListItem = Pick<
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
 > & {
   isIncomplete: boolean;
+  participationStatus: PortalParticipationStatus;
 };
 
 export type CreateProfessorResult =
@@ -45,6 +50,10 @@ export type UpdateProfessorResult =
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
 type ProfessorStatusFilter = "active" | "archived";
+export type PortalParticipationStatus =
+  | "participating"
+  | "not-participating"
+  | "no-event";
 
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
@@ -54,32 +63,37 @@ type ProfessorIdentityRow = Pick<
 export async function listAcademyProfessors(
   academyId: string,
   options: {
+    selectedEventId?: string | null;
     status?: ProfessorStatusFilter;
   } = {},
 ): Promise<ProfessorListItem[]> {
   const status = options.status;
+  const selectedEventId = options.selectedEventId ?? null;
   const statusFilter =
     status === undefined
       ? undefined
       : eq(professors.active, status === "active");
 
-  const rows = await db.query.professors.findMany({
-    columns: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      active: true,
-      documentType: true,
-      documentNumber: true,
-    },
-    where: and(eq(professors.academyId, academyId), statusFilter),
-    orderBy: [
+  const rows = await db
+    .select({
+      id: professors.id,
+      firstName: professors.firstName,
+      lastName: professors.lastName,
+      active: professors.active,
+      documentType: professors.documentType,
+      documentNumber: professors.documentNumber,
+      isParticipating: buildParticipationSql(selectedEventId),
+    })
+    .from(professors)
+    .where(and(eq(professors.academyId, academyId), statusFilter))
+    .orderBy(
       asc(sql`lower(${professors.lastName})`),
       asc(sql`lower(${professors.firstName})`),
-    ],
-  });
+    );
 
-  return rows.map(toProfessorListItem);
+  return rows.map((professor) =>
+    toProfessorListItem(professor, selectedEventId),
+  );
 }
 
 export async function createAcademyProfessor(
@@ -137,7 +151,7 @@ export async function findAcademyProfessor(
     return null;
   }
 
-  return toProfessorListItem(professor);
+  return toProfessorListItem(professor, null);
 }
 
 export async function updateAcademyProfessor(
@@ -248,13 +262,44 @@ export async function reactivateAcademyProfessor(
 }
 
 function toProfessorListItem(
-  professor: ProfessorIdentityRow,
+  professor: ProfessorIdentityRow & { isParticipating?: boolean },
+  selectedEventId: string | null,
 ): ProfessorListItem {
   return {
     ...professor,
     isIncomplete:
       professor.documentType === null || professor.documentNumber === null,
+    participationStatus: toParticipationStatus(
+      selectedEventId,
+      professor.isParticipating ?? false,
+    ),
   };
+}
+
+function buildParticipationSql(selectedEventId: string | null) {
+  if (selectedEventId === null) {
+    return sql<boolean>`false`;
+  }
+
+  return sql<boolean>`exists (
+    select 1
+    from ${choreographyProfessors}
+    inner join ${choreographies}
+      on ${choreographies.id} = ${choreographyProfessors.choreographyId}
+    where ${choreographyProfessors.professorId} = ${professors.id}
+      and ${choreographies.eventId} = ${selectedEventId}
+  )`;
+}
+
+function toParticipationStatus(
+  selectedEventId: string | null,
+  isParticipating: boolean,
+): PortalParticipationStatus {
+  if (selectedEventId === null) {
+    return "no-event";
+  }
+
+  return isParticipating ? "participating" : "not-participating";
 }
 
 function normalizeProfessorNames(input: CreateProfessorInput) {

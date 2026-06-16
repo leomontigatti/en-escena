@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Inbox, Plus } from "lucide-react";
+import { Check, Inbox, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
@@ -44,6 +44,7 @@ import {
   type CreateDancerInput,
   type DancerListItem,
 } from "@/lib/portal/dancers.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createValidatedNativeSubmitHandler,
   requiredFieldMessage,
@@ -97,7 +98,11 @@ export const handle = {
 
 export async function loader({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
-  const dancers = await listDancersForAcademy(academy.id, { status: "all" });
+  const eventContext = await getPortalEventContext(request);
+  const dancers = await listDancersForAcademy(academy.id, {
+    selectedEventId: eventContext.activeEvent?.id ?? null,
+    status: "all",
+  });
 
   return {
     dancers,
@@ -255,12 +260,12 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
           to={`/portal/bailarines/${dancer.id}`}
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {dancer.lastName}, {dancer.firstName}
+          {dancer.firstName} {dancer.lastName}
         </Link>
       ),
       filterValue: (dancer) =>
-        `${dancer.lastName} ${dancer.firstName} ${dancer.documentNumber ?? ""}`,
-      sortValue: (dancer) => `${dancer.lastName}, ${dancer.firstName}`,
+        `${dancer.firstName} ${dancer.lastName} ${dancer.documentNumber ?? ""}`,
+      sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
     },
     {
       id: "birthDate",
@@ -287,6 +292,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       ),
       filterValues: (dancer) => [
         dancer.active ? "active" : "archived",
+        dancer.participationStatus,
         dancer.verificationStatus,
       ],
     },
@@ -312,11 +318,18 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
               ],
             },
             {
+              label: "Participación",
+              options: [
+                { label: "Participando", value: "participating" },
+                { label: "No participando", value: "not-participating" },
+              ],
+            },
+            {
               label: "Completitud",
               options: [
                 { label: "Incompleto", value: "incomplete" },
                 { label: "Faltan imágenes", value: "missingImages" },
-                { label: "Para verificar", value: "unverified" },
+                { label: "Sin verificar", value: "unverified" },
                 { label: "Verificado", value: "verified" },
               ],
             },
@@ -352,7 +365,7 @@ function CreateDancerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle>Nuevo bailarín</DialogTitle>
           <DialogDescription>
@@ -402,6 +415,8 @@ function CreateDancerDialog({
                     onBlur={field.onBlur}
                     onValueChange={field.onChange}
                     error={errorMessage}
+                    endMonth={new Date()}
+                    startMonth={new Date(1900, 0)}
                   />
                 );
               }}
@@ -414,7 +429,10 @@ function CreateDancerDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">Guardar bailarín</Button>
+            <Button type="submit">
+              <Check aria-hidden="true" data-icon />
+              Guardar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -472,11 +490,27 @@ function getDancerStateBadges(dancer: DancerRow) {
   }
 
   badges.push({
+    label: getDancerParticipationLabel(dancer.participationStatus),
+    variant:
+      dancer.participationStatus === "participating" ? "outline" : "secondary",
+  });
+
+  badges.push({
     label: getDancerVerificationLabel(dancer.verificationStatus),
-    variant: "secondary",
+    variant: dancer.verificationStatus === "verified" ? "default" : "secondary",
   });
 
   return badges;
+}
+
+function getDancerParticipationLabel(
+  status: DancerListItem["participationStatus"],
+) {
+  if (status === "participating") {
+    return "Participando";
+  }
+
+  return "No participando";
 }
 
 function getDancerVerificationLabel(
@@ -486,7 +520,7 @@ function getDancerVerificationLabel(
     case "verified":
       return "Verificado";
     case "unverified":
-      return "Para verificar";
+      return "Sin verificar";
     case "missingImages":
       return "Faltan imágenes";
     case "incomplete":
@@ -502,7 +536,7 @@ function formatDateOnly(value: string) {
 
 function formatDocument(dancer: DancerRow) {
   if (!dancer.documentType || !dancer.documentNumber) {
-    return "Sin documento";
+    return <span className="text-muted-foreground">Sin documento</span>;
   }
 
   switch (dancer.documentType) {

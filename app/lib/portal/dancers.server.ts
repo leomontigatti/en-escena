@@ -1,7 +1,7 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { dancers } from "@/db/schema";
+import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import {
   getDancerVerificationStatus,
   type DancerVerificationStatus,
@@ -16,6 +16,7 @@ export type DancerListItem = {
   documentType: string | null;
   documentNumber: string | null;
   verificationStatus: DancerVerificationStatus;
+  participationStatus: PortalParticipationStatus;
 };
 
 export type CreateDancerInput = {
@@ -72,6 +73,10 @@ export type CreateDancerResult =
 
 export type UpdateDancerField = keyof UpdateDancerInput;
 type DancerStatusFilter = "active" | "archived" | "all";
+export type PortalParticipationStatus =
+  | "participating"
+  | "not-participating"
+  | "no-event";
 
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
@@ -87,14 +92,29 @@ const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 export async function listDancersForAcademy(
   academyId: string,
   options: {
+    selectedEventId?: string | null;
     status?: DancerStatusFilter;
   } = {},
 ): Promise<DancerListItem[]> {
   const status = options.status ?? "active";
-  const rows = await db.query.dancers.findMany({
-    where: getDancerListWhere(academyId, status),
-    orderBy: [asc(dancers.lastName), asc(dancers.firstName)],
-  });
+  const selectedEventId = options.selectedEventId ?? null;
+  const rows = await db
+    .select({
+      id: dancers.id,
+      firstName: dancers.firstName,
+      lastName: dancers.lastName,
+      active: dancers.active,
+      birthDate: dancers.birthDate,
+      documentType: dancers.documentType,
+      documentNumber: dancers.documentNumber,
+      documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
+      documentBackImageStorageKey: dancers.documentBackImageStorageKey,
+      identityVerifiedAt: dancers.identityVerifiedAt,
+      isParticipating: buildParticipationSql(selectedEventId),
+    })
+    .from(dancers)
+    .where(getDancerListWhere(academyId, status))
+    .orderBy(asc(dancers.lastName), asc(dancers.firstName));
 
   return rows.map((dancer) => ({
     id: dancer.id,
@@ -105,7 +125,37 @@ export async function listDancersForAcademy(
     documentType: dancer.documentType,
     documentNumber: dancer.documentNumber,
     verificationStatus: getDancerVerificationStatus(dancer),
+    participationStatus: toParticipationStatus(
+      selectedEventId,
+      dancer.isParticipating,
+    ),
   }));
+}
+
+function buildParticipationSql(selectedEventId: string | null) {
+  if (selectedEventId === null) {
+    return sql<boolean>`false`;
+  }
+
+  return sql<boolean>`exists (
+    select 1
+    from ${choreographyDancers}
+    inner join ${choreographies}
+      on ${choreographies.id} = ${choreographyDancers.choreographyId}
+    where ${choreographyDancers.dancerId} = ${dancers.id}
+      and ${choreographies.eventId} = ${selectedEventId}
+  )`;
+}
+
+function toParticipationStatus(
+  selectedEventId: string | null,
+  isParticipating: boolean,
+): PortalParticipationStatus {
+  if (selectedEventId === null) {
+    return "no-event";
+  }
+
+  return isParticipating ? "participating" : "not-participating";
 }
 
 function getDancerListWhere(academyId: string, status: DancerStatusFilter) {

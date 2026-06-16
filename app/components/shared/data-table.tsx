@@ -394,7 +394,7 @@ export function DataTable<TData>({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <label className="relative block sm:max-w-sm sm:flex-1">
+          <label className="relative block sm:max-w-md sm:flex-1 lg:max-w-xl">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -464,7 +464,7 @@ export function DataTable<TData>({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="-ml-2"
+                        className="-ml-2 text-sm"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(

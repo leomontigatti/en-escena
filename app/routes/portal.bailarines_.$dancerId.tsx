@@ -560,6 +560,8 @@ function DancerBirthDateField({
           onValueChange={field.onChange}
           error={fieldState.error?.message ?? error}
           buttonClassName="mt-0 h-8 w-full justify-start font-normal"
+          endMonth={new Date()}
+          startMonth={new Date(1900, 0)}
         />
       )}
     />

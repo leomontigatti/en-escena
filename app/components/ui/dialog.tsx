@@ -49,17 +49,19 @@ function DialogContent({
   className,
   children,
   forceMount,
+  overlayClassName,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   forceMount?: true;
+  overlayClassName?: string;
   showCloseButton?: boolean;
 }) {
   const forceMountProps = forceMount ? { forceMount: true as const } : {};
 
   return (
     <DialogPortal {...forceMountProps}>
-      <DialogOverlay {...forceMountProps} />
+      <DialogOverlay {...forceMountProps} className={overlayClassName} />
       <DialogPrimitive.Content
         {...forceMountProps}
         data-slot="dialog-content"

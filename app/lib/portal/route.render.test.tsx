@@ -464,17 +464,18 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Alvarez, Ana");
+    expect(markup).toContain("Ana Alvarez");
     expect(markup).toContain("01/02/2014");
-    expect(markup).toContain("Cruz de la Torre, Juan Manuel");
+    expect(markup).toContain("Juan Manuel Cruz de la Torre");
     expect(markup).toContain("03/04/2015");
     expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Sin documento");
+    expect(markup).toContain("No participando");
     expect(markup).toContain("Faltan imágenes");
     expect(markup).toContain("Incompleto");
     expect(markup).toContain('href="/portal/bailarines/dancer_ana"');
-    expect(markup.indexOf("Alvarez, Ana")).toBeLessThan(
-      markup.indexOf("Cruz de la Torre, Juan Manuel"),
+    expect(markup.indexOf("Ana Alvarez")).toBeLessThan(
+      markup.indexOf("Juan Manuel Cruz de la Torre"),
     );
   });
 
@@ -1256,6 +1257,7 @@ function dancerListItem(
     documentType: null,
     documentNumber: null,
     verificationStatus: "incomplete" as const,
+    participationStatus: "not-participating" as const,
     ...overrides,
   };
 }
@@ -1273,6 +1275,7 @@ function professorListItem(
     documentType: null,
     documentNumber: null,
     isIncomplete: true,
+    participationStatus: "not-participating" as const,
     ...overrides,
   } satisfies ProfesoresViewProps["loaderData"]["professors"][number];
 }

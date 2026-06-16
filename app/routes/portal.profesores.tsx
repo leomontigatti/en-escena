@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Inbox, Plus } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Check, Inbox, Plus } from "lucide-react";
+import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
@@ -42,6 +42,7 @@ import {
   listAcademyProfessors,
   type CreateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
   createValidatedNativeSubmitHandler,
   requiredFieldMessage,
@@ -51,6 +52,10 @@ import {
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 type ProfessorRow = LoaderData["professors"][number];
+type ProfessorBadge = {
+  label: string;
+  variant: ComponentProps<typeof Badge>["variant"];
+};
 
 const createProfessorSchema = z.object({
   firstName: z.string().trim().min(1, requiredFieldMessage),
@@ -84,7 +89,10 @@ export const handle = {
 
 export async function loader({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
-  const professors = await listAcademyProfessors(academy.id);
+  const eventContext = await getPortalEventContext(request);
+  const professors = await listAcademyProfessors(academy.id, {
+    selectedEventId: eventContext.activeEvent?.id ?? null,
+  });
 
   return {
     professors,
@@ -244,12 +252,12 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
           to={`/portal/profesores/${professor.id}`}
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {professor.lastName}, {professor.firstName}
+          {professor.firstName} {professor.lastName}
         </Link>
       ),
       filterValue: (professor) =>
-        `${professor.lastName} ${professor.firstName} ${professor.documentNumber ?? ""}`,
-      sortValue: (professor) => `${professor.lastName}, ${professor.firstName}`,
+        `${professor.firstName} ${professor.lastName} ${professor.documentNumber ?? ""}`,
+      sortValue: (professor) => `${professor.firstName} ${professor.lastName}`,
     },
     {
       id: "document",
@@ -271,6 +279,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       ),
       filterValues: (professor) => [
         professor.active ? "active" : "archived",
+        professor.participationStatus,
         professor.isIncomplete ? "incomplete" : "complete",
       ],
     },
@@ -293,6 +302,13 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
               options: [
                 { label: "Activo", value: "active" },
                 { label: "Archivado", value: "archived" },
+              ],
+            },
+            {
+              label: "Participación",
+              options: [
+                { label: "Participando", value: "participating" },
+                { label: "No participando", value: "not-participating" },
               ],
             },
             {
@@ -334,7 +350,7 @@ function CreateProfessorDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle>Nuevo profesor</DialogTitle>
           <DialogDescription>
@@ -374,7 +390,10 @@ function CreateProfessorDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">Guardar profesor</Button>
+            <Button type="submit">
+              <Check aria-hidden="true" data-icon />
+              Guardar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -426,7 +445,7 @@ function ProfessorTextField({
 
 function formatProfessorDocument(professor: ProfessorRow) {
   if (!professor.documentType || !professor.documentNumber) {
-    return "Sin documento";
+    return <span className="text-muted-foreground">Sin documento</span>;
   }
 
   if (professor.documentType === "dni") {
@@ -441,22 +460,37 @@ function formatProfessorDocument(professor: ProfessorRow) {
 }
 
 function getProfessorStateBadges(professor: ProfessorRow) {
-  if (professor.active && professor.isIncomplete) {
-    return [{ label: "Incompleto", variant: "secondary" as const }];
+  const badges: ProfessorBadge[] = [
+    {
+      label: getProfessorParticipationLabel(professor.participationStatus),
+      variant:
+        professor.participationStatus === "participating"
+          ? ("outline" as const)
+          : ("secondary" as const),
+    },
+  ];
+
+  if (!professor.active) {
+    badges.unshift({ label: "Archivado", variant: "outline" as const });
   }
 
-  if (professor.active) {
-    return [{ label: "Completo", variant: "default" as const }];
+  badges.push(
+    professor.isIncomplete
+      ? { label: "Incompleto", variant: "secondary" as const }
+      : { label: "Completo", variant: "default" as const },
+  );
+
+  return badges;
+}
+
+function getProfessorParticipationLabel(
+  status: ProfessorRow["participationStatus"],
+) {
+  if (status === "participating") {
+    return "Participando";
   }
 
-  if (professor.isIncomplete) {
-    return [
-      { label: "Archivado", variant: "outline" as const },
-      { label: "Incompleto", variant: "secondary" as const },
-    ];
-  }
-
-  return [{ label: "Archivado", variant: "outline" as const }];
+  return "No participando";
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateProfessorInput) {

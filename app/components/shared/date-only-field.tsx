@@ -25,6 +25,8 @@ type DateOnlyFieldProps = {
   name: string;
   onBlur?: () => void;
   onValueChange?: (value: string) => void;
+  startMonth?: Date;
+  endMonth?: Date;
   value?: string;
 };
 
@@ -40,6 +42,8 @@ export function DateOnlyField({
   name,
   onBlur,
   onValueChange,
+  startMonth,
+  endMonth,
   value,
 }: DateOnlyFieldProps) {
   const errorId = `${id}-error`;
@@ -81,6 +85,9 @@ export function DateOnlyField({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
+            captionLayout="dropdown"
+            startMonth={startMonth}
+            endMonth={endMonth}
             mode="single"
             selected={selectedDate}
             onSelect={(date) => {
