@@ -90,11 +90,17 @@ describe("academy registration", () => {
     const registrableEmailResult =
       await requestRegistrationEmail("nueva@example.com");
 
-    expect(existingEmailResult).toEqual(registrableEmailResult);
     expect(existingEmailResult).toMatchObject({
       status: "success",
       message:
         "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
+      values: { email: "existente@example.com" },
+    });
+    expect(registrableEmailResult).toMatchObject({
+      status: "success",
+      message:
+        "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
+      values: { email: "nueva@example.com" },
     });
 
     const tokens = await db.query.academyRegistrationTokens.findMany({
