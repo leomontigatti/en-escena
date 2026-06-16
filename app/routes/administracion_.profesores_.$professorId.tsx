@@ -1,19 +1,32 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
-import type { ReactNode } from "react";
-import { useEffect, useId } from "react";
-import {
-  Controller,
-  type FieldPath,
-  useForm,
-  type UseFormReturn,
-} from "react-hook-form";
+import { ArrowLeft, Ellipsis, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AdminShell } from "@/components/admin/shell";
+import {
+  AdminResourceLayout,
+  type AdminResourceBreadcrumbItem,
+} from "@/components/admin/resource-layout";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -34,9 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   adminProfessorCorrectionReasonMessage,
   adminProfessorNotFoundMessage,
-  formatAdminProfessorDocument,
   getAdminProfessorParticipationLabel,
-  getAdminProfessorParticipationSummary,
   type AdminProfessorParticipationStatus,
 } from "@/lib/admin/professors/professors.shared";
 import {
@@ -57,48 +68,57 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
-import { type RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/administracion_.profesores_.$professorId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
-type ProfessorFormValues = AdministrativeProfessorUpdateInput;
-type ProfessorStatusFormValues = {
+type ProfessorEditFormValues = Omit<
+  AdministrativeProfessorUpdateInput,
+  "correctionReason"
+>;
+type ProfessorReasonFormValues = {
   correctionReason: string;
+  statusIntent: "" | "archive-professor" | "reactivate-professor";
 };
 type ProfessorActionError = {
   status: "error";
   message: string;
   fieldErrors: AdministrativeProfessorFieldErrors;
-  values: ProfessorFormValues | ProfessorStatusFormValues;
+  values: AdministrativeProfessorUpdateInput | ProfessorReasonFormValues;
 };
-type ProfessorFormReturn = UseFormReturn<
-  ProfessorFormValues,
+type ProfessorEditFormReturn = UseFormReturn<
+  ProfessorEditFormValues,
   unknown,
-  ProfessorFormValues
+  ProfessorEditFormValues
 >;
-type ProfessorStatusFormReturn = UseFormReturn<
-  ProfessorStatusFormValues,
+type ProfessorReasonFormReturn = UseFormReturn<
+  ProfessorReasonFormValues,
   unknown,
-  ProfessorStatusFormValues
+  ProfessorReasonFormValues
 >;
 type ProfessorRouteNotification = Extract<
   RouteNotificationKey,
   "profesor-archivado" | "profesor-guardado" | "profesor-reactivado"
 >;
+type ProfessorDialogIntent =
+  | "archive-professor"
+  | "reactivate-professor"
+  | "update-professor";
+type ProfessorConfirmationAction = {
+  confirmLabel: string;
+  confirmTitle: string;
+  description: string;
+  intent: ProfessorDialogIntent;
+  variant: "default" | "destructive";
+};
 
 type AdministracionProfesorDetalleRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
-
-const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
-  timeStyle: "short",
-  timeZone: "America/Argentina/Buenos_Aires",
-});
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
@@ -113,7 +133,7 @@ const professorFieldNames = [
 const emptyProfessorFieldErrors: AdministrativeProfessorFieldErrors = {};
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Profesor | Panel de administración | En Escena" },
+  { title: "Detalle profesor | Panel de administración | En Escena" },
 ];
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -181,8 +201,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    const values = readProfessorStatusValues(formData);
-    const parsed = buildProfessorStatusSchema(
+    const values = readProfessorReasonValues(formData);
+    const parsed = buildProfessorReasonSchema(
       professor.correctionReasonRequired,
     ).safeParse(values);
 
@@ -268,230 +288,255 @@ export function AdministracionProfesorDetalleRouteView({
   const professor = loaderData.professor;
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
-  const submittedEditValues = isProfessorUpdateValues(actionData?.values)
+  const submittedUpdateValues = isProfessorUpdateValues(actionData?.values)
     ? actionData.values
     : null;
-  const editFieldErrors = submittedEditValues
-    ? actionData?.fieldErrors
-    : emptyProfessorFieldErrors;
-  const statusFieldErrors =
-    !submittedEditValues && actionData?.fieldErrors
-      ? actionData.fieldErrors
-      : emptyProfessorFieldErrors;
-  const editValues = {
-    firstName: submittedEditValues?.firstName ?? professor.firstName,
-    lastName: submittedEditValues?.lastName ?? professor.lastName,
+  const editValues: ProfessorEditFormValues = {
+    firstName: submittedUpdateValues?.firstName ?? professor.firstName,
+    lastName: submittedUpdateValues?.lastName ?? professor.lastName,
     documentType:
-      submittedEditValues?.documentType ?? professor.documentType ?? "",
+      submittedUpdateValues?.documentType ?? professor.documentType ?? "",
     documentNumber:
-      submittedEditValues?.documentNumber ?? professor.documentNumber ?? "",
-    correctionReason: submittedEditValues?.correctionReason ?? "",
+      submittedUpdateValues?.documentNumber ?? professor.documentNumber ?? "",
   };
-  const statusValues = {
-    correctionReason:
-      !submittedEditValues && actionData?.values.correctionReason
-        ? actionData.values.correctionReason
-        : "",
+  const reasonValues = {
+    correctionReason: actionData?.values.correctionReason ?? "",
+    statusIntent: isProfessorStatusValues(actionData?.values)
+      ? actionData.values.statusIntent
+      : "",
   };
   const editForm = useProfessorEditForm({
-    correctionReasonRequired: professor.correctionReasonRequired,
-    fieldErrors: editFieldErrors,
+    fieldErrors: getProfessorEditFieldErrors(actionData?.fieldErrors),
     values: editValues,
   });
-  const statusForm = useProfessorStatusForm({
+  const reasonForm = useProfessorReasonForm({
     correctionReasonRequired: professor.correctionReasonRequired,
-    fieldErrors: statusFieldErrors,
-    values: statusValues,
+    fieldErrors: getProfessorReasonFieldErrors(actionData?.fieldErrors),
+    values: reasonValues,
   });
-  const statusAction = professor.active
-    ? {
-        description:
-          "Archivá este Profesor para que deje de aparecer en futuras selecciones del portal sin desvincular sus coreografías existentes.",
-        intent: "archive-professor" as const,
-        label: "Archivar Profesor",
-      }
-    : {
-        description:
-          "Reactivá este Profesor para que vuelva a aparecer en futuras selecciones del portal.",
-        intent: "reactivate-professor" as const,
-        label: "Reactivar Profesor",
-      };
+  const [dialogIntent, setDialogIntent] =
+    useState<ProfessorDialogIntent | null>(
+      getInitialDialogIntent(actionData, professor.correctionReasonRequired),
+    );
+  const [pendingUpdateValues, setPendingUpdateValues] =
+    useState<ProfessorEditFormValues | null>(
+      submittedUpdateValues
+        ? toProfessorEditValues(submittedUpdateValues)
+        : null,
+    );
+
+  useEffect(() => {
+    const nextIntent = getInitialDialogIntent(
+      actionData,
+      professor.correctionReasonRequired,
+    );
+    if (!nextIntent) {
+      return;
+    }
+
+    setDialogIntent(nextIntent);
+
+    if (submittedUpdateValues) {
+      setPendingUpdateValues(toProfessorEditValues(submittedUpdateValues));
+    }
+  }, [actionData, professor.correctionReasonRequired, submittedUpdateValues]);
+
+  const confirmationAction = getProfessorConfirmationAction({
+    active: professor.active,
+    intent: dialogIntent,
+  });
+  const breadcrumbItems: AdminResourceBreadcrumbItem[] = [
+    { label: "Profesores", to: loaderData.backToList },
+    { label: `${professor.lastName}, ${professor.firstName}` },
+  ];
+
+  function handleEditSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const submitNative = () => {
+      event.currentTarget.submit();
+    };
+    const openDialog = (values: ProfessorEditFormValues) => {
+      setPendingUpdateValues(values);
+      setDialogIntent("update-professor");
+    };
+
+    if (!professor.correctionReasonRequired) {
+      void editForm.form.handleSubmit(submitNative)(event);
+      return;
+    }
+
+    void editForm.form.handleSubmit(openDialog)(event);
+  }
 
   return (
-    <AdminShell
-      email={loaderData.email}
-      events={loaderData.eventOptions}
-      selectedEventId={loaderData.selectedEventId}
-      title="Profesor"
+    <AdminResourceLayout
+      loaderData={{
+        email: loaderData.email,
+        events: loaderData.eventOptions,
+        selectedEventId: loaderData.selectedEventId,
+      }}
+      breadcrumbItems={breadcrumbItems}
+      requireSelectedEvent={false}
+      title="Detalle profesor"
+      description="Revisá la información administrativa de este profesor."
+      headerAction={
+        loaderData.canEdit ? (
+          <ProfessorActionsMenu
+            active={professor.active}
+            onSelect={(intent) => {
+              reasonForm.form.reset({
+                correctionReason: actionData?.values.correctionReason ?? "",
+              });
+              setDialogIntent(intent);
+              reasonForm.form.setValue("statusIntent", intent);
+            }}
+          />
+        ) : null
+      }
     >
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild variant="outline">
-            <Link to={loaderData.backToList}>
-              <ArrowLeft data-icon="inline-start" />
-              Volver a Profesores
-            </Link>
-          </Button>
-          {loaderData.canEdit && !isEditing ? (
-            <Button asChild>
-              <Link to={loaderData.editHref}>Editar</Link>
-            </Button>
-          ) : null}
-        </div>
+      <section className="flex flex-col gap-6">
+        <Card>
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              {!professor.active ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Este profesor está archivado. Reactivalo para que vuelva a
+                    aparecer en las vistas activas y en próximas selecciones del
+                    portal.
+                  </AlertDescription>
+                  {loaderData.canEdit ? (
+                    <AlertAction>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        onClick={() => {
+                          reasonForm.form.reset({
+                            correctionReason:
+                              actionData?.values.correctionReason ?? "",
+                            statusIntent: "reactivate-professor",
+                          });
+                          setDialogIntent("reactivate-professor");
+                        }}
+                      >
+                        Reactivar
+                      </Button>
+                    </AlertAction>
+                  ) : null}
+                </Alert>
+              ) : null}
+              {professor.isIncomplete ? (
+                <Alert>
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertDescription>
+                    Faltan datos de identificación.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={professor.active ? "default" : "secondary"}>
+                  {professor.active ? "Activo" : "Archivado"}
+                </Badge>
+                <ParticipationBadge
+                  participationStatus={professor.participationStatus}
+                />
+                {professor.isIncomplete ? (
+                  <Badge variant="secondary">Identificación incompleta</Badge>
+                ) : (
+                  <Badge variant="outline">Identificación completa</Badge>
+                )}
+              </div>
+            </div>
 
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl font-semibold text-slate-950">
-              {professor.lastName}, {professor.firstName}
-            </h2>
-            <Badge variant={professor.active ? "default" : "secondary"}>
-              {professor.active ? "Activo" : "Archivado"}
-            </Badge>
-            <ParticipationBadge
-              participationStatus={professor.participationStatus}
-            />
-          </div>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {loaderData.canEdit
-              ? "Ficha administrativa con corrección auditada para soporte."
-              : "Ficha administrativa de solo lectura para soporte y auditoría."}
-          </p>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {isEditing ? (
-            <section className="rounded-lg border bg-white p-6">
-              <h3 className="text-base font-semibold text-slate-950">
-                Editar identidad
-              </h3>
-              <form
-                method="post"
-                noValidate
-                className="mt-4"
-                onSubmit={editForm.handleSubmit}
-              >
-                <input type="hidden" name="intent" value="update-professor" />
-                <FieldGroup>
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Nombre"
-                    name="firstName"
-                  />
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Apellido"
-                    name="lastName"
-                  />
-                  <ProfessorDocumentTypeField form={editForm.form} />
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Número de documento"
-                    name="documentNumber"
-                  />
-                  <ProfessorCorrectionReasonField
-                    form={editForm.form}
-                    required={professor.correctionReasonRequired}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <Button type="submit">Guardar cambios</Button>
-                    <Button asChild variant="outline">
-                      <Link to={loaderData.cancelHref}>Cancelar</Link>
-                    </Button>
-                  </div>
-                </FieldGroup>
-              </form>
-            </section>
-          ) : (
-            <ReadOnlyCard title="Identidad">
-              <DetailRow label="Nombre">{professor.firstName}</DetailRow>
-              <DetailRow label="Apellido">{professor.lastName}</DetailRow>
-              <DetailRow label="Documento">
-                {formatAdminProfessorDocument(professor)}
-              </DetailRow>
-            </ReadOnlyCard>
-          )}
-
-          <ReadOnlyCard title="Academia">
-            <DetailRow label="Academia">{professor.academy.name}</DetailRow>
-            <DetailRow label="Contacto">
-              {professor.academy.contactName}
-            </DetailRow>
-            <DetailRow label="Email">{professor.academy.email}</DetailRow>
-            <DetailRow label="Teléfono">{professor.academy.phone}</DetailRow>
-          </ReadOnlyCard>
-        </div>
-
-        <ReadOnlyCard title="Participación">
-          <DetailRow label="Evento activo">
-            {getAdminProfessorParticipationSummary(
-              professor.participationStatus,
-            )}
-          </DetailRow>
-          {professor.choreographyNames.length > 0 ? (
-            <DetailRow label="Coreografías">
-              <ul className="space-y-1">
-                {professor.choreographyNames.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </DetailRow>
-          ) : null}
-          {isEditing && professor.correctionReasonRequired ? (
-            <p className="mt-4 text-sm leading-6 text-amber-700">
-              Este Profesor ya participó y requiere un motivo de corrección para
-              guardar cambios o cambiar su estado.
-            </p>
-          ) : null}
-        </ReadOnlyCard>
-
-        {loaderData.canEdit && isEditing ? (
-          <section className="rounded-lg border bg-white p-6">
-            <h3 className="text-base font-semibold text-slate-950">Estado</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              {statusAction.description}
-            </p>
             <form
+              id="administracion-profesor-form"
               method="post"
               noValidate
-              className="mt-4"
-              onSubmit={statusForm.handleSubmit}
+              onSubmit={handleEditSubmit}
             >
-              <input type="hidden" name="intent" value={statusAction.intent} />
-              <FieldGroup>
-                <ProfessorCorrectionReasonField
-                  form={statusForm.form}
-                  required={professor.correctionReasonRequired}
+              <input type="hidden" name="intent" value="update-professor" />
+              <FieldGroup className="grid gap-5 md:grid-cols-2">
+                <ReadOnlyField
+                  label="Academia"
+                  value={professor.academy.name}
                 />
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="submit"
-                    variant={
-                      statusAction.intent === "archive-professor"
-                        ? "outline"
-                        : "default"
-                    }
-                  >
-                    {statusAction.label}
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link to={loaderData.cancelHref}>Cancelar</Link>
-                  </Button>
-                </div>
+                <ProfessorTextField
+                  disabled={!isEditing}
+                  form={editForm.form}
+                  label="Nombre"
+                  name="firstName"
+                />
+                <ProfessorTextField
+                  disabled={!isEditing}
+                  form={editForm.form}
+                  label="Apellido"
+                  name="lastName"
+                />
+                <ProfessorDocumentTypeField
+                  disabled={!isEditing}
+                  form={editForm.form}
+                />
+                <ProfessorTextField
+                  disabled={!isEditing}
+                  form={editForm.form}
+                  label="Número de documento"
+                  name="documentNumber"
+                />
               </FieldGroup>
             </form>
-          </section>
-        ) : null}
+          </CardContent>
+        </Card>
 
-        <ReadOnlyCard title="Trazabilidad">
-          <DetailRow label="Creado">
-            {dateTimeFormatter.format(professor.createdAt)}
-          </DetailRow>
-          <DetailRow label="Actualizado">
-            {dateTimeFormatter.format(professor.updatedAt)}
-          </DetailRow>
-        </ReadOnlyCard>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          {isEditing ? (
+            <Button asChild variant="outline" size="lg">
+              <Link to={loaderData.cancelHref}>Cancelar</Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" size="lg">
+              <Link to={loaderData.backToList}>
+                <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+                Volver
+              </Link>
+            </Button>
+          )}
+          {loaderData.canEdit ? (
+            isEditing ? (
+              <Button
+                type="submit"
+                form="administracion-profesor-form"
+                size="lg"
+              >
+                Guardar
+              </Button>
+            ) : (
+              <Button asChild size="lg">
+                <Link to={loaderData.editHref}>Editar</Link>
+              </Button>
+            )
+          ) : null}
+        </div>
       </section>
-    </AdminShell>
+
+      <ProfessorConfirmationDialog
+        action={confirmationAction}
+        correctionReasonRequired={
+          dialogIntent === "update-professor" ||
+          professor.correctionReasonRequired
+        }
+        intent={dialogIntent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogIntent(null);
+          }
+        }}
+        pendingUpdateValues={pendingUpdateValues}
+        reasonForm={reasonForm}
+      />
+    </AdminResourceLayout>
   );
 }
 
@@ -509,25 +554,26 @@ export default function AdministracionProfesorDetalleRoute({
 }
 
 function useProfessorEditForm({
-  correctionReasonRequired,
   fieldErrors = emptyProfessorFieldErrors,
   values,
 }: {
-  correctionReasonRequired: boolean;
   fieldErrors?: AdministrativeProfessorFieldErrors;
-  values: ProfessorFormValues;
+  values: ProfessorEditFormValues;
 }) {
-  const form = useForm<ProfessorFormValues, unknown, ProfessorFormValues>({
+  const form = useForm<
+    ProfessorEditFormValues,
+    unknown,
+    ProfessorEditFormValues
+  >({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildProfessorUpdateSchema(correctionReasonRequired)),
+    resolver: zodResolver(buildProfessorEditSchema()),
   });
 
   useEffect(() => {
     form.reset(values);
   }, [
     form,
-    values.correctionReason,
     values.documentNumber,
     values.documentType,
     values.firstName,
@@ -536,43 +582,75 @@ function useProfessorEditForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+  return { form };
 }
 
-function useProfessorStatusForm({
+function useProfessorReasonForm({
   correctionReasonRequired,
   fieldErrors = emptyProfessorFieldErrors,
   values,
 }: {
   correctionReasonRequired: boolean;
   fieldErrors?: AdministrativeProfessorFieldErrors;
-  values: ProfessorStatusFormValues;
+  values: ProfessorReasonFormValues;
 }) {
   const form = useForm<
-    ProfessorStatusFormValues,
+    ProfessorReasonFormValues,
     unknown,
-    ProfessorStatusFormValues
+    ProfessorReasonFormValues
   >({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildProfessorStatusSchema(correctionReasonRequired)),
+    resolver: zodResolver(buildProfessorReasonSchema(correctionReasonRequired)),
   });
 
   useEffect(() => {
     form.reset(values);
-  }, [form, values.correctionReason]);
+  }, [form, values.correctionReason, values.statusIntent]);
 
   useApplyServerFieldErrors(form, fieldErrors);
 
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
+function ProfessorActionsMenu({
+  active,
+  onSelect,
+}: {
+  active: boolean;
+  onSelect: (intent: "archive-professor" | "reactivate-professor") => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="lg">
+          <Ellipsis aria-hidden="true" data-icon />
+          Acciones
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem
+          variant={active ? "destructive" : "default"}
+          onSelect={(event) => {
+            event.preventDefault();
+            onSelect(active ? "archive-professor" : "reactivate-professor");
+          }}
+        >
+          {active ? "Archivar" : "Reactivar"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ProfessorTextField({
+  disabled,
   form,
   label,
   name,
 }: {
-  form: ProfessorFormReturn;
+  disabled: boolean;
+  form: ProfessorEditFormReturn;
   label: string;
   name: "documentNumber" | "firstName" | "lastName";
 }) {
@@ -592,6 +670,8 @@ function ProfessorTextField({
               aria-invalid={fieldState.error ? true : undefined}
               aria-describedby={fieldState.error ? errorId : undefined}
               autoComplete="off"
+              disabled={disabled}
+              readOnly={disabled}
               {...field}
             />
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
@@ -602,7 +682,13 @@ function ProfessorTextField({
   );
 }
 
-function ProfessorDocumentTypeField({ form }: { form: ProfessorFormReturn }) {
+function ProfessorDocumentTypeField({
+  disabled,
+  form,
+}: {
+  disabled: boolean;
+  form: ProfessorEditFormReturn;
+}) {
   const id = useId();
   const errorId = `${id}-error`;
 
@@ -615,6 +701,7 @@ function ProfessorDocumentTypeField({ form }: { form: ProfessorFormReturn }) {
           <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
           <FieldContent>
             <Select
+              disabled={disabled}
               value={field.value || noDocumentTypeSelectValue}
               onValueChange={(value) => {
                 field.onChange(
@@ -648,13 +735,11 @@ function ProfessorDocumentTypeField({ form }: { form: ProfessorFormReturn }) {
   );
 }
 
-function ProfessorCorrectionReasonField<
-  TFieldValues extends ProfessorStatusFormValues,
->({
+function ProfessorCorrectionReasonField({
   form,
   required,
 }: {
-  form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
+  form: ProfessorReasonFormReturn;
   required: boolean;
 }) {
   const id = useId();
@@ -664,7 +749,7 @@ function ProfessorCorrectionReasonField<
   return (
     <Controller
       control={form.control}
-      name={"correctionReason" as FieldPath<TFieldValues>}
+      name="correctionReason"
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.error ? true : undefined}>
           <FieldLabel htmlFor={id}>Motivo de corrección</FieldLabel>
@@ -679,9 +764,14 @@ function ProfessorCorrectionReasonField<
             />
             <FieldDescription id={hintId}>
               {required
-                ? "Obligatorio entre 10 y 500 caracteres para este Profesor."
+                ? "Obligatorio entre 10 y 500 caracteres para este profesor."
                 : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."}
             </FieldDescription>
+            <input
+              type="hidden"
+              name="statusIntent"
+              value={form.getValues("statusIntent") ?? ""}
+            />
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
           </FieldContent>
         </Field>
@@ -690,23 +780,195 @@ function ProfessorCorrectionReasonField<
   );
 }
 
-function buildProfessorUpdateSchema(correctionReasonRequired: boolean) {
+function ProfessorConfirmationDialog({
+  action,
+  correctionReasonRequired,
+  intent,
+  onOpenChange,
+  pendingUpdateValues,
+  reasonForm,
+}: {
+  action: ProfessorConfirmationAction;
+  correctionReasonRequired: boolean;
+  intent: ProfessorDialogIntent | null;
+  onOpenChange: (open: boolean) => void;
+  pendingUpdateValues: ProfessorEditFormValues | null;
+  reasonForm: {
+    form: ProfessorReasonFormReturn;
+    handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
+  };
+}) {
+  const isOpen = intent !== null;
+  const formId = getProfessorDialogFormId(intent);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      {intent ? (
+        <DialogContent forceMount showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{action.confirmTitle}</DialogTitle>
+            <DialogDescription>{action.description}</DialogDescription>
+          </DialogHeader>
+          <form
+            id={formId}
+            method="post"
+            noValidate
+            onSubmit={
+              correctionReasonRequired ? reasonForm.handleSubmit : undefined
+            }
+            className="grid gap-4"
+          >
+            <input type="hidden" name="intent" value={action.intent} />
+            {intent === "update-professor" && pendingUpdateValues ? (
+              <>
+                <input
+                  type="hidden"
+                  name="firstName"
+                  value={pendingUpdateValues.firstName}
+                />
+                <input
+                  type="hidden"
+                  name="lastName"
+                  value={pendingUpdateValues.lastName}
+                />
+                <input
+                  type="hidden"
+                  name="documentType"
+                  value={pendingUpdateValues.documentType}
+                />
+                <input
+                  type="hidden"
+                  name="documentNumber"
+                  value={pendingUpdateValues.documentNumber}
+                />
+              </>
+            ) : null}
+            {correctionReasonRequired ? (
+              <ProfessorCorrectionReasonField
+                form={reasonForm.form}
+                required={correctionReasonRequired}
+              />
+            ) : null}
+          </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              form={formId}
+              type="submit"
+              variant={action.variant}
+              disabled={
+                intent === "update-professor" && pendingUpdateValues === null
+              }
+            >
+              {action.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
+    </Dialog>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  const id = useId();
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input id={id} value={value} disabled readOnly />
+      </FieldContent>
+    </Field>
+  );
+}
+
+function ParticipationBadge({
+  participationStatus,
+}: {
+  participationStatus: AdminProfessorParticipationStatus;
+}) {
+  const variant =
+    participationStatus === "participating" ? "outline" : "secondary";
+
+  return (
+    <Badge variant={variant}>
+      {getAdminProfessorParticipationLabel(participationStatus)}
+    </Badge>
+  );
+}
+
+function getProfessorConfirmationAction({
+  active,
+  intent,
+}: {
+  active: boolean;
+  intent: ProfessorDialogIntent | null;
+}): ProfessorConfirmationAction {
+  if (intent === "update-professor") {
+    return {
+      confirmLabel: "Guardar",
+      confirmTitle: "Confirmar guardado",
+      description:
+        "Este profesor tiene participación actual o histórica. Ingresá el motivo de corrección para guardar los cambios.",
+      intent: "update-professor",
+      variant: "default",
+    };
+  }
+
+  if (active) {
+    return {
+      confirmLabel: "Archivar",
+      confirmTitle: "¿Archivar profesor?",
+      description:
+        "El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. Sus participaciones históricas se mantienen.",
+      intent: "archive-professor",
+      variant: "destructive",
+    };
+  }
+
+  return {
+    confirmLabel: "Reactivar",
+    confirmTitle: "¿Reactivar profesor?",
+    description:
+      "El profesor volverá a aparecer en las vistas activas y en próximas selecciones del portal.",
+    intent: "reactivate-professor",
+    variant: "default",
+  };
+}
+
+function buildProfessorEditSchema() {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),
       lastName: z.string().trim().min(1, requiredFieldMessage),
       documentType: z.string().trim(),
       documentNumber: z.string().trim(),
-      correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
     })
     .superRefine((values, context) => {
       validateDocumentPair(values.documentType, values.documentNumber, context);
     });
 }
 
-function buildProfessorStatusSchema(correctionReasonRequired: boolean) {
+function buildProfessorUpdateSchema(correctionReasonRequired: boolean) {
+  return buildProfessorEditSchema().extend({
+    correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
+  });
+}
+
+function buildProfessorReasonSchema(correctionReasonRequired: boolean) {
   return z.object({
     correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
+    statusIntent: z.union([
+      z.literal(""),
+      z.literal("archive-professor"),
+      z.literal("reactivate-professor"),
+    ]),
   });
 }
 
@@ -796,51 +1058,6 @@ function isDocumentType(value: string): value is "dni" | "other" | "passport" {
   return value === "dni" || value === "passport" || value === "other";
 }
 
-function ReadOnlyCard({
-  children,
-  title,
-}: {
-  children: ReactNode;
-  title: string;
-}) {
-  return (
-    <section className="rounded-lg border bg-white p-6">
-      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
-      <dl className="mt-4 space-y-4">{children}</dl>
-    </section>
-  );
-}
-
-function DetailRow({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label: string;
-}) {
-  return (
-    <div>
-      <dt className="text-sm font-medium text-slate-600">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-950">{children}</dd>
-    </div>
-  );
-}
-
-function ParticipationBadge({
-  participationStatus,
-}: {
-  participationStatus: AdminProfessorParticipationStatus;
-}) {
-  const variant =
-    participationStatus === "participating" ? "outline" : "secondary";
-
-  return (
-    <Badge variant={variant}>
-      {getAdminProfessorParticipationLabel(participationStatus)}
-    </Badge>
-  );
-}
-
 function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
@@ -893,15 +1110,18 @@ function readProfessorIdFromPath(pathname: string) {
   return segments.at(-1) ?? "";
 }
 
-function readProfessorStatusValues(
+function readProfessorReasonValues(
   formData: FormData,
-): ProfessorStatusFormValues {
+): ProfessorReasonFormValues {
   return {
     correctionReason: readFormString(formData, "correctionReason"),
+    statusIntent: readProfessorStatusIntent(formData),
   };
 }
 
-function readProfessorUpdateValues(formData: FormData): ProfessorFormValues {
+function readProfessorUpdateValues(
+  formData: FormData,
+): AdministrativeProfessorUpdateInput {
   return {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -926,7 +1146,7 @@ function buildProfessorActionError(
 
 function isProfessorUpdateValues(
   values: ProfessorActionError["values"] | undefined,
-): values is ProfessorFormValues {
+): values is AdministrativeProfessorUpdateInput {
   return (
     values !== undefined &&
     "firstName" in values &&
@@ -936,7 +1156,92 @@ function isProfessorUpdateValues(
   );
 }
 
+function isProfessorStatusValues(
+  values: ProfessorActionError["values"] | undefined,
+): values is ProfessorReasonFormValues {
+  return values !== undefined && "statusIntent" in values;
+}
+
+function getProfessorEditFieldErrors(
+  fieldErrors: AdministrativeProfessorFieldErrors | undefined,
+): AdministrativeProfessorFieldErrors {
+  if (!fieldErrors) {
+    return emptyProfessorFieldErrors;
+  }
+
+  const { correctionReason: _correctionReason, ...editFieldErrors } =
+    fieldErrors;
+  return editFieldErrors;
+}
+
+function getProfessorReasonFieldErrors(
+  fieldErrors: AdministrativeProfessorFieldErrors | undefined,
+): AdministrativeProfessorFieldErrors {
+  if (!fieldErrors?.correctionReason) {
+    return emptyProfessorFieldErrors;
+  }
+
+  return {
+    correctionReason: fieldErrors.correctionReason,
+  };
+}
+
+function getInitialDialogIntent(
+  actionData: ProfessorActionError | undefined,
+  correctionReasonRequired: boolean,
+): ProfessorDialogIntent | null {
+  if (!actionData || !actionData.fieldErrors.correctionReason) {
+    return null;
+  }
+
+  if (isProfessorUpdateValues(actionData.values) && correctionReasonRequired) {
+    return "update-professor";
+  }
+
+  if (isProfessorStatusValues(actionData.values)) {
+    return actionData.values.statusIntent || "archive-professor";
+  }
+
+  return null;
+}
+
+function toProfessorEditValues(
+  values: AdministrativeProfessorUpdateInput,
+): ProfessorEditFormValues {
+  return {
+    firstName: values.firstName,
+    lastName: values.lastName,
+    documentType: values.documentType,
+    documentNumber: values.documentNumber,
+  };
+}
+
+function getProfessorDialogFormId(intent: ProfessorDialogIntent | null) {
+  switch (intent) {
+    case "archive-professor":
+      return "administracion-profesor-archive-form";
+    case "reactivate-professor":
+      return "administracion-profesor-reactivate-form";
+    case "update-professor":
+      return "administracion-profesor-save-form";
+    case null:
+      return "administracion-profesor-dialog-form";
+  }
+}
+
 function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function readProfessorStatusIntent(
+  formData: FormData,
+): ProfessorReasonFormValues["statusIntent"] {
+  const value = readFormString(formData, "statusIntent");
+
+  if (value === "archive-professor" || value === "reactivate-professor") {
+    return value;
+  }
+
+  return "";
 }

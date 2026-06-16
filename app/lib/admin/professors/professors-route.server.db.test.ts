@@ -284,7 +284,7 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain("Filtros");
   });
 
-  test("renders a readonly Profesor ficha with academy contact and participation data", async () => {
+  test("renders a readonly Profesor detail with the single-card administrative layout", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "ficha.academia@example.com",
@@ -320,20 +320,56 @@ describe("administracion/profesores route", () => {
     );
     const markup = renderDetailRoute(loaderData, professor.id);
 
+    expect(markup).toContain("Detalle profesor");
+    expect(markup).toContain(
+      "Revisá la información administrativa de este profesor.",
+    );
     expect(markup).toContain("Academia Ficha");
-    expect(markup).toContain("Elena Ficha");
-    expect(markup).toContain("ficha.academia@example.com");
-    expect(markup).toContain("4444-4444");
-    expect(markup).toContain("Pasaporte AA123456");
-    expect(markup).toContain("Participando en el Evento activo.");
-    expect(markup).toContain("Raíz");
+    expect(markup).toContain("Julia");
+    expect(markup).toContain("Detalle");
+    expect(markup).toContain('name="documentType" value="passport"');
+    expect(markup).toContain("AA123456");
     expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).toContain("estado=todos");
     expect(markup).toContain("participando=todos");
     expect(markup).toContain("page=2");
     expect(markup).toContain("q=Julia");
     expect(markup).not.toContain("Editar");
-    expect(markup).not.toContain("Archivar Profesor");
+    expect(markup).not.toContain("Acciones");
+    expect(markup).not.toContain("Elena Ficha");
+    expect(markup).not.toContain("ficha.academia@example.com");
+    expect(markup).not.toContain("4444-4444");
+    expect(markup).not.toContain("Participación");
+    expect(markup).not.toContain("Trazabilidad");
+  });
+
+  test("shows archived and incomplete identification alerts in the administrative detail", async () => {
+    const academy = await createAcademyUser({
+      email: "alertas.academia@example.com",
+      academyName: "Academia Alertas",
+      contactName: "Alicia Alertas",
+      phone: "4545-9898",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rita",
+      lastName: "Alerta",
+      active: false,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.alertas@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
+    });
+
+    const markup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(request, professor.id)),
+      professor.id,
+    );
+
+    expect(markup).toContain("Este profesor está archivado.");
+    expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).toContain("Reactivar");
   });
 
   test("shows explicit edit controls only for admin users", async () => {
@@ -378,17 +414,17 @@ describe("administracion/profesores route", () => {
     );
 
     expect(adminMarkup).toContain("Editar");
-    expect(adminMarkup).not.toContain("Guardar cambios");
-    expect(adminEditMarkup).toContain("Guardar cambios");
+    expect(adminMarkup).toContain("Acciones");
+    expect(adminMarkup).not.toContain("Guardar");
+    expect(adminEditMarkup).toContain("Guardar");
     expect(adminEditMarkup).toContain("Cancelar");
-    expect(adminEditMarkup).toContain("Archivar Profesor");
+    expect(adminEditMarkup).toContain("Acciones");
     expect(auditorMarkup).not.toContain("Editar");
-    expect(auditorMarkup).not.toContain("Guardar cambios");
-    expect(auditorMarkup).not.toContain("Archivar Profesor");
-    expect(auditorMarkup).not.toContain("Reactivar Profesor");
+    expect(auditorMarkup).not.toContain("Guardar");
+    expect(auditorMarkup).not.toContain("Acciones");
   });
 
-  test("renders the Profesor edit forms with RHF validation instead of native required attributes", async () => {
+  test("renders the Profesor edit form without inline audit-reason fields or native required attributes", async () => {
     const academy = await createAcademyUser({
       email: "admin.render.rhf.profesores.academia@example.com",
       academyName: "Academia Render RHF",
@@ -413,10 +449,10 @@ describe("administracion/profesores route", () => {
 
     expect(markup).toContain('name="firstName"');
     expect(markup).toContain('name="lastName"');
-    expect(markup).toContain('name="correctionReason"');
     expect(markup).toContain('noValidate=""');
     expect(markup).not.toContain("required");
     expect(markup).not.toContain("minlength");
+    expect(markup).not.toContain('name="correctionReason"');
   });
 
   test("updates a Profesor in explicit edit mode and persists an administrative audit entry", async () => {

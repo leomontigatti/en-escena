@@ -47,6 +47,7 @@ export type AdministrativeProfessorDetail = {
   firstName: string;
   lastName: string;
   active: boolean;
+  isIncomplete: boolean;
   documentType: (typeof professors.$inferSelect)["documentType"];
   documentNumber: string | null;
   createdAt: Date;
@@ -248,6 +249,7 @@ export async function findAdministrativeProfessor(input: {
     firstName: row.firstName,
     lastName: row.lastName,
     active: row.active,
+    isIncomplete: row.documentType === null || row.documentNumber === null,
     documentType: row.documentType,
     documentNumber: row.documentNumber,
     createdAt: row.createdAt,
