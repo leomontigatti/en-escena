@@ -186,13 +186,11 @@ describe("coreografía dancer editor", () => {
     });
 
     const saveButtonWhileResolving = Array.from(
-      document.querySelectorAll("button"),
+      document.querySelectorAll<HTMLButtonElement>("button"),
     ).find((node) => node.textContent?.includes("Calculando"));
 
     expect(saveButtonWhileResolving).toBeInstanceOf(HTMLButtonElement);
-    expect(
-      (saveButtonWhileResolving as HTMLButtonElement | undefined)?.disabled,
-    ).toBe(true);
+    expect(saveButtonWhileResolving?.disabled).toBe(true);
     expect(document.body.textContent).toContain("Calculando");
   });
 
@@ -253,9 +251,9 @@ describe("coreografía dancer editor", () => {
     expect(document.body.textContent).toContain("Nivel de experiencia");
     expect(document.body.textContent).toContain("Avanzado");
 
-    const experienceLevelInput = document.querySelector(
+    const experienceLevelInput = document.querySelector<HTMLInputElement>(
       'input[name="experienceLevelId"]',
-    ) as HTMLInputElement | null;
+    );
     const form = document.querySelector("form");
 
     expect(experienceLevelInput?.value ?? "").toBe("");

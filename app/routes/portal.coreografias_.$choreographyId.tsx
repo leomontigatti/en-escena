@@ -5,7 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
+  type SubmitEventHandler,
 } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,6 +50,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -737,7 +738,7 @@ function DancerEditor({
     (!derivedResolution.experienceLevelRequired ||
       watchedExperienceLevelId.length > 0);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
     void form.handleSubmit(() => {
@@ -847,29 +848,29 @@ function DancerEditor({
         />
       </FieldSet>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-950">
-            Datos recalculados
-          </p>
-          {isResolving ? (
-            <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
-              <LoaderCircle className="size-4 animate-spin" />
-              Calculando
-            </span>
-          ) : null}
-        </div>
-        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <DetailItem
-            label="Tipo de grupo"
-            value={formatGroupTypeLabel(derivedResolution.groupType)}
-          />
-          <DetailItem
-            label="Categoría"
-            value={derivedResolution.categoryName ?? "Categoría pendiente"}
-          />
-        </dl>
-      </div>
+      <Card size="sm">
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Datos recalculados</p>
+            {isResolving ? (
+              <span className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin" />
+                Calculando
+              </span>
+            ) : null}
+          </div>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <DetailItem
+              label="Tipo de grupo"
+              value={formatGroupTypeLabel(derivedResolution.groupType)}
+            />
+            <DetailItem
+              label="Categoría"
+              value={derivedResolution.categoryName ?? "Categoría pendiente"}
+            />
+          </dl>
+        </CardContent>
+      </Card>
 
       {resolutionError ? (
         <AccessNotice variant="error">{resolutionError}</AccessNotice>
