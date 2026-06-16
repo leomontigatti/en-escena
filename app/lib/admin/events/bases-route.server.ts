@@ -32,8 +32,6 @@ type CategoryRow = typeof categories.$inferSelect & {
 };
 
 export type EventBasesLoaderData = {
-  email: string;
-  events: AdminEventContext["events"];
   selectedEventId: string | null;
   modalities: ModalityRow[];
   submodalities: SubmodalityRow[];
@@ -44,7 +42,7 @@ export type EventBasesLoaderData = {
 };
 
 export async function loadEventBasesRouteData(request: Request) {
-  const user = await requireAdminPanelUser(request);
+  await requireAdminPanelUser(request);
   const eventContext = await loadAdminEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -64,8 +62,6 @@ export async function loadEventBasesRouteData(request: Request) {
       };
 
   return {
-    email: user.email,
-    events: eventContext.events,
     selectedEventId,
     ...eventBases,
   } satisfies EventBasesLoaderData;

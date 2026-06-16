@@ -146,8 +146,6 @@ function createLoaderData({
   prices: PriceListItem[];
 }): EventBasesLoaderData {
   return {
-    email: "admin@example.com",
-    events: [{ active: true, id: "event_1", name: "Evento 2026" }],
     selectedEventId: "event_1",
     modalities: [],
     submodalities: [],

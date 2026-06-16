@@ -10,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+
 export type EventBaseAreaKey =
   | "categorias"
   | "modalidades"
@@ -19,7 +20,6 @@ export type EventBaseAreaKey =
 type AdminResourceLayoutSelectedEvent = {
   selectedEventId: string | null;
 };
-
 type AdminResourceLayoutViewProps = {
   children: ReactNode;
 };

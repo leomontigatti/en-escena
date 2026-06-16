@@ -79,7 +79,7 @@ export function EventModalitiesRouteView({
 }) {
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Modalidades"
       description="Gestioná las modalidades y submodalidades del evento activo."
       action={{
@@ -111,7 +111,7 @@ export function NewEventModalityRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Nueva modalidad"
       description="Definí una modalidad para organizar las coreografías del evento activo."
     >
@@ -146,7 +146,7 @@ export function EventModalityDetailRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title={modality ? "Editar modalidad" : "Modalidad no encontrada"}
       description={
         modality

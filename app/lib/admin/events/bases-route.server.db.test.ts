@@ -91,6 +91,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
 
     expect(data.selectedEventId).toBe(event.id);
+    expect(data).not.toHaveProperty("email");
+    expect(data).not.toHaveProperty("events");
     expect(markup).toContain("Bases del evento");
     expect(markup).toContain("/administracion/modalidades");
     expect(markup).toContain("/administracion/categorias");
@@ -1862,8 +1864,8 @@ function renderRoute(
       createElement(
         AdminShell,
         {
-          email: loaderData.email,
-          events: loaderData.events,
+          email: "admin@example.com",
+          events: [{ active: true, id: "event_1", name: "Evento 2026" }],
           selectedEventId: loaderData.selectedEventId,
         },
         child,

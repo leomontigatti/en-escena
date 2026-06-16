@@ -119,7 +119,7 @@ export function EventScheduleBlocksRouteView({
 }) {
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Bloques horarios"
       description="Consultá capacidad, modalidades aceptadas y ocupación reservada por cronogramas."
       action={{
@@ -150,7 +150,7 @@ export function NewEventScheduleBlockRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Nuevo bloque horario"
       description="Definí fecha, hora, cupo total y modalidades aceptadas para este bloque horario."
     >
@@ -184,7 +184,7 @@ export function EventScheduleBlockDetailRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title={scheduleBlockName}
       description="Editá el bloque horario y gestioná sus cronogramas dentro del mismo detalle."
     >

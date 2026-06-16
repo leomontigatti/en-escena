@@ -113,7 +113,7 @@ export function EventPricesRouteView({
 }) {
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Precios"
       description="Revisá el alcance y el importe de cada precio del evento activo."
       action={{
@@ -144,7 +144,7 @@ export function NewEventPriceRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title="Nuevo precio"
       description="Configurá nombre, tipo de grupo, importe y si el precio aplica como base o para un bloque horario específico."
     >
@@ -173,7 +173,7 @@ export function EventPriceDetailRouteView({
 
   return (
     <AdminResourceLayout
-      loaderData={loaderData}
+      selectedEventId={loaderData.selectedEventId}
       title={price?.name ?? "Precio no encontrado"}
       description={
         price
