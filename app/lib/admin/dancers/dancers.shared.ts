@@ -69,6 +69,7 @@ export function readAdminDancerIdentificationFilter(
   value: string | null,
 ): AdminDancerIdentificationFilter {
   switch (value) {
+    case "incompleta":
     case "sin-imagenes":
       return "incomplete";
     case "para-verificar":

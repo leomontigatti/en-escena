@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import {
+  getAdminDancerIdentificationBadgeVariant,
   getAdminDancerParticipationBadgeVariant,
   getAdminDancerParticipationLabel,
   toAdminDancerIdentificationSearchValue,
@@ -30,6 +31,7 @@ import type { Route } from "./+types/administracion_.bailarines";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type DancerRow = LoaderData["dancers"][number];
+type FacetedFilterGroup = DataTableFacetedFilter["groups"][number];
 
 type AdministracionBailarinesRouteProps = {
   loaderData: LoaderData;
@@ -191,7 +193,7 @@ function IdentificationBadge({
 }) {
   return (
     <Badge variant={getIdentificationBadgeVariant(identificationStatus)}>
-      {getGroupedIdentificationLabel(identificationStatus)}
+      {getGroupedDancerIdentificationLabel(identificationStatus)}
     </Badge>
   );
 }
@@ -199,18 +201,10 @@ function IdentificationBadge({
 function getIdentificationBadgeVariant(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
-  if (identificationStatus === "verified") {
-    return "default";
-  }
-
-  if (identificationStatus === "pending-verification") {
-    return "outline";
-  }
-
-  return "secondary";
+  return getAdminDancerIdentificationBadgeVariant(identificationStatus);
 }
 
-function getGroupedIdentificationLabel(
+function getGroupedDancerIdentificationLabel(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
   switch (identificationStatus) {
@@ -226,7 +220,7 @@ function getGroupedIdentificationLabel(
 function buildDancerFacetedFilters(
   loaderData: LoaderData,
 ): DataTableFacetedFilter[] {
-  const groups = [];
+  const groups: FacetedFilterGroup[] = [];
 
   if (loaderData.selectedEventId !== null) {
     groups.push({
@@ -266,7 +260,7 @@ function buildDancerStatusSummary(
   dancer: DancerRow,
   selectedEventId: string | null,
 ) {
-  const values = [];
+  const values: string[] = [];
 
   if (selectedEventId !== null) {
     values.push(getAdminDancerParticipationLabel(dancer.participationStatus));
@@ -276,7 +270,7 @@ function buildDancerStatusSummary(
     values.push("Archivado");
   }
 
-  values.push(getGroupedIdentificationLabel(dancer.identificationStatus));
+  values.push(getGroupedDancerIdentificationLabel(dancer.identificationStatus));
 
   return values.join(" ");
 }

@@ -131,6 +131,18 @@ describe("administracion/bailarines route", () => {
       documentType: "dni",
       documentNumber: "2002",
     });
+    await createDancer({
+      academyId: southAcademy.academy.id,
+      firstName: "Beto",
+      lastName: "Verificado",
+      birthDate: "2011-02-21",
+      active: false,
+      documentType: "dni",
+      documentNumber: "2003",
+      documentFrontImageStorageKey: "front-verified",
+      documentBackImageStorageKey: "back-verified",
+      identityVerifiedAt: new Date("2026-04-01T12:00:00Z"),
+    });
     const archivedDancer = await createDancer({
       academyId: northAcademy.academy.id,
       firstName: "Carla",
@@ -184,6 +196,7 @@ describe("administracion/bailarines route", () => {
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
 
+    expect(searchData.filters.identification).toBe("incomplete");
     expect(searchData.dancers.map((dancer) => dancer.id)).toEqual([
       identifiedDancer.id,
     ]);

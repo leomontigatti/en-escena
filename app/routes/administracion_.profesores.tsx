@@ -27,6 +27,8 @@ import type { Route } from "./+types/administracion_.profesores";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ProfessorRow = LoaderData["professors"][number];
+type FacetedFilterGroup = DataTableFacetedFilter["groups"][number];
+type ProfessorIdentificationStatus = ProfessorRow["identificationStatus"];
 
 type AdministracionProfesoresRouteProps = {
   loaderData: LoaderData;
@@ -188,23 +190,37 @@ function ParticipationBadge({
 function IdentificationBadge({
   identificationStatus,
 }: {
-  identificationStatus: ProfessorRow["identificationStatus"];
+  identificationStatus: ProfessorIdentificationStatus;
 }) {
   return (
     <Badge
-      variant={identificationStatus === "complete" ? "default" : "secondary"}
+      variant={getProfessorIdentificationBadgeVariant(identificationStatus)}
     >
-      {identificationStatus === "complete"
-        ? "Identificación completa"
-        : "Identificación incompleta"}
+      {getProfessorIdentificationLabel(identificationStatus)}
     </Badge>
   );
+}
+
+function getProfessorIdentificationBadgeVariant(
+  identificationStatus: ProfessorIdentificationStatus,
+) {
+  return identificationStatus === "complete" ? "default" : "secondary";
+}
+
+function getProfessorIdentificationLabel(
+  identificationStatus: ProfessorIdentificationStatus,
+) {
+  if (identificationStatus === "complete") {
+    return "Identificación completa";
+  }
+
+  return "Identificación incompleta";
 }
 
 function buildProfessorFacetedFilters(
   loaderData: LoaderData,
 ): DataTableFacetedFilter[] {
-  const groups = [];
+  const groups: FacetedFilterGroup[] = [];
 
   if (loaderData.selectedEventId !== null) {
     groups.push({
@@ -233,7 +249,7 @@ function buildProfessorStatusSummary(
   professor: ProfessorRow,
   selectedEventId: string | null,
 ) {
-  const values = [];
+  const values: string[] = [];
 
   if (selectedEventId !== null) {
     values.push(
@@ -245,11 +261,7 @@ function buildProfessorStatusSummary(
     values.push("Archivado");
   }
 
-  values.push(
-    professor.identificationStatus === "complete"
-      ? "Identificación completa"
-      : "Identificación incompleta",
-  );
+  values.push(getProfessorIdentificationLabel(professor.identificationStatus));
 
   return values.join(" ");
 }
