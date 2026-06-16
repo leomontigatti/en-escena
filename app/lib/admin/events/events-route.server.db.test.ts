@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { events, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
 import { createEvent } from "@/lib/events/management.server";
+import { AdministracionRouteView } from "@/routes/administracion";
 import {
   AdministracionEventosRouteView,
   handle as eventosHandle,
@@ -17,7 +18,6 @@ import {
   handle as eventoDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.eventos_.$eventId";
-import { AdministracionRouteView } from "@/routes/administracion";
 import { handle as eventoNuevoHandle } from "@/routes/administracion.eventos_.nuevo";
 import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
 
@@ -273,6 +273,10 @@ function renderRoute(
     Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
   >,
 ) {
+  const eventsLoaderData = {
+    events: [],
+    ...loaderData,
+  };
   const RoutesStub = createRoutesStub([
     {
       id: "admin",
@@ -306,19 +310,20 @@ function renderRoute(
       initialEntries: ["/administracion/eventos"],
       hydrationData: {
         loaderData: {
-          admin: {
-            email: "admin@example.com",
-            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
-            selectedEventId: "evento_2026",
-          },
-          events: {
-            events: [],
-            ...loaderData,
-          },
+          admin: adminLoaderData(),
+          events: eventsLoaderData,
         },
       },
     }),
   );
+}
+
+function adminLoaderData() {
+  return {
+    email: "admin@example.com",
+    events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+    selectedEventId: "evento_2026",
+  };
 }
 
 async function createSignedInRequest(input: {

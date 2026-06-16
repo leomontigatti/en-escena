@@ -96,13 +96,12 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/eventos?evento=${event.id}`,
     });
     const data = await loader(routeArgs(selectedRequest.request));
-    const markup = renderRoute(
-      data,
-      "/administracion/eventos",
-      createElement("div"),
-      "event-bases-overview",
-      "eventos",
-    );
+    const markup = renderRoute(data, {
+      id: "event-bases-overview",
+      path: "eventos",
+      url: "/administracion/eventos",
+      element: createElement("div"),
+    });
 
     expect(data.selectedEventId).toBe(event.id);
     expect(data).not.toHaveProperty("email");
@@ -1770,10 +1769,12 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const refreshedData = await loader(routeArgs(request.request));
 
-    const priceMarkup = renderRoute(
-      data,
-      "/administracion/precios/nuevo",
-      createElement(NewEventPriceRouteView, {
+    const priceMarkup = renderRoute(data, {
+      id: "price-new-error",
+      path: "precios/nuevo",
+      url: "/administracion/precios/nuevo",
+      handle: precioNuevoHandle,
+      element: createElement(NewEventPriceRouteView, {
         loaderData: data,
         actionData: {
           status: "error",
@@ -1784,14 +1785,13 @@ describe.sequential("administracion Bases del evento routes", () => {
           },
         },
       }),
-      "price-new-error",
-      "precios/nuevo",
-      precioNuevoHandle,
-    );
-    const scheduleMarkup = renderRoute(
-      data,
-      `/administracion/bloques-horarios/${scheduleBlock.id}`,
-      createElement(EventScheduleBlockDetailRouteView, {
+    });
+    const scheduleMarkup = renderRoute(data, {
+      id: "schedule-block-detail-error",
+      path: "bloques-horarios/:scheduleBlockId",
+      url: `/administracion/bloques-horarios/${scheduleBlock.id}`,
+      handle: bloqueHorarioDetalleHandle,
+      element: createElement(EventScheduleBlockDetailRouteView, {
         loaderData: data,
         scheduleBlockId: scheduleBlock.id,
         actionData: {
@@ -1804,10 +1804,7 @@ describe.sequential("administracion Bases del evento routes", () => {
           },
         },
       }),
-      "schedule-block-detail-error",
-      "bloques-horarios/:scheduleBlockId",
-      bloqueHorarioDetalleHandle,
-    );
+    });
     const updateScheduleMarkup = renderBloqueHorarioDetailRoute(
       refreshedData,
       scheduleBlock.id,
@@ -1874,11 +1871,7 @@ async function expectCreated(
 
 function renderRoute(
   loaderData: EventBasesLoaderData,
-  path: string,
-  child: ReactElement,
-  childId: string,
-  childPath: string,
-  childHandle?: unknown,
+  childRoute: AdminChildRouteFixture,
 ) {
   const RoutesStub = createRoutesStub([
     {
@@ -1887,10 +1880,10 @@ function renderRoute(
       Component: AdministracionRouteView,
       children: [
         {
-          id: childId,
-          path: childPath,
-          Component: () => child,
-          handle: childHandle,
+          id: childRoute.id,
+          path: childRoute.path,
+          Component: () => childRoute.element,
+          handle: childRoute.handle,
         },
       ],
     },
@@ -1898,88 +1891,95 @@ function renderRoute(
 
   return renderToStaticMarkup(
     createElement(RoutesStub, {
-      initialEntries: [path],
+      initialEntries: [childRoute.url],
       hydrationData: {
         loaderData: {
-          admin: {
-            email: "admin@example.com",
-            events: [{ active: true, id: "event_1", name: "Evento 2026" }],
-            selectedEventId: loaderData.selectedEventId,
-          },
-          [childId]: loaderData,
+          admin: adminLoaderData(loaderData),
+          [childRoute.id]: loaderData,
         },
       },
     }),
   );
 }
 
+type AdminChildRouteFixture = {
+  element: ReactElement;
+  handle?: unknown;
+  id: string;
+  path: string;
+  url: string;
+};
+
+function adminLoaderData(loaderData: EventBasesLoaderData) {
+  return {
+    email: "admin@example.com",
+    events: [{ active: true, id: "event_1", name: "Evento 2026" }],
+    selectedEventId: loaderData.selectedEventId,
+  };
+}
+
 function renderCategoriasRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/categorias",
-    createElement(EventCategoriesRouteView, { loaderData }),
-    "categories",
-    "categorias",
-    categoriasHandle,
-  );
+  return renderRoute(loaderData, {
+    id: "categories",
+    path: "categorias",
+    url: "/administracion/categorias",
+    handle: categoriasHandle,
+    element: createElement(EventCategoriesRouteView, { loaderData }),
+  });
 }
 
 function renderCategoriaNuevaRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/categorias/nueva",
-    createElement(NewEventCategoryRouteView, { loaderData }),
-    "category-new",
-    "categorias/nueva",
-    categoriaNuevaHandle,
-  );
+  return renderRoute(loaderData, {
+    id: "category-new",
+    path: "categorias/nueva",
+    url: "/administracion/categorias/nueva",
+    handle: categoriaNuevaHandle,
+    element: createElement(NewEventCategoryRouteView, { loaderData }),
+  });
 }
 
 function renderCategoriaDetalleRoute(
   loaderData: EventBasesLoaderData,
   categoryId: string,
 ) {
-  return renderRoute(
-    loaderData,
-    `/administracion/categorias/${categoryId}`,
-    createElement(EventCategoryDetailRouteView, {
+  return renderRoute(loaderData, {
+    id: "category-detail",
+    path: "categorias/:categoryId",
+    url: `/administracion/categorias/${categoryId}`,
+    handle: categoriaDetalleHandle,
+    element: createElement(EventCategoryDetailRouteView, {
       loaderData,
       categoryId,
     }),
-    "category-detail",
-    "categorias/:categoryId",
-    categoriaDetalleHandle,
-  );
+  });
 }
 
 function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/modalidades",
-    createElement(EventModalitiesRouteView, {
+  return renderRoute(loaderData, {
+    id: "modalities",
+    path: "modalidades",
+    url: "/administracion/modalidades",
+    handle: modalidadesHandle,
+    element: createElement(EventModalitiesRouteView, {
       loaderData,
     }),
-    "modalities",
-    "modalidades",
-    modalidadesHandle,
-  );
+  });
 }
 
 function renderNuevaModalidadRoute(
   loaderData: EventBasesLoaderData,
   actionData?: ActionData,
 ) {
-  return renderRoute(
-    loaderData,
-    "/administracion/modalidades/nueva",
-    createElement(NewEventModalityRouteView, {
+  return renderRoute(loaderData, {
+    id: "modality-new",
+    path: "modalidades/nueva",
+    url: "/administracion/modalidades/nueva",
+    handle: modalidadNuevaHandle,
+    element: createElement(NewEventModalityRouteView, {
       loaderData,
       actionData,
     }),
-    "modality-new",
-    "modalidades/nueva",
-    modalidadNuevaHandle,
-  );
+  });
 }
 
 function renderModalidadDetalleRoute(
@@ -1987,44 +1987,41 @@ function renderModalidadDetalleRoute(
   modalityId: string,
   actionData?: ActionData,
 ) {
-  return renderRoute(
-    loaderData,
-    `/administracion/modalidades/${modalityId}`,
-    createElement(EventModalityDetailRouteView, {
+  return renderRoute(loaderData, {
+    id: "modality-detail",
+    path: "modalidades/:modalityId",
+    url: `/administracion/modalidades/${modalityId}`,
+    handle: modalidadDetalleHandle,
+    element: createElement(EventModalityDetailRouteView, {
       loaderData,
       modalityId,
       actionData,
     }),
-    "modality-detail",
-    "modalidades/:modalityId",
-    modalidadDetalleHandle,
-  );
+  });
 }
 
 function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/bloques-horarios",
-    createElement(EventScheduleBlocksRouteView, {
+  return renderRoute(loaderData, {
+    id: "schedule-blocks",
+    path: "bloques-horarios",
+    url: "/administracion/bloques-horarios",
+    handle: bloquesHorariosHandle,
+    element: createElement(EventScheduleBlocksRouteView, {
       loaderData,
     }),
-    "schedule-blocks",
-    "bloques-horarios",
-    bloquesHorariosHandle,
-  );
+  });
 }
 
 function renderNuevoBloqueHorarioRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/bloques-horarios/nuevo",
-    createElement(NewEventScheduleBlockRouteView, {
+  return renderRoute(loaderData, {
+    id: "schedule-block-new",
+    path: "bloques-horarios/nuevo",
+    url: "/administracion/bloques-horarios/nuevo",
+    handle: bloqueHorarioNuevoHandle,
+    element: createElement(NewEventScheduleBlockRouteView, {
       loaderData,
     }),
-    "schedule-block-new",
-    "bloques-horarios/nuevo",
-    bloqueHorarioNuevoHandle,
-  );
+  });
 }
 
 function renderBloqueHorarioDetailRoute(
@@ -2032,57 +2029,53 @@ function renderBloqueHorarioDetailRoute(
   scheduleBlockId: string,
   actionData?: ActionData,
 ) {
-  return renderRoute(
-    loaderData,
-    `/administracion/bloques-horarios/${scheduleBlockId}`,
-    createElement(EventScheduleBlockDetailRouteView, {
+  return renderRoute(loaderData, {
+    id: "schedule-block-detail",
+    path: "bloques-horarios/:scheduleBlockId",
+    url: `/administracion/bloques-horarios/${scheduleBlockId}`,
+    handle: bloqueHorarioDetalleHandle,
+    element: createElement(EventScheduleBlockDetailRouteView, {
       loaderData,
       scheduleBlockId,
       actionData,
     }),
-    "schedule-block-detail",
-    "bloques-horarios/:scheduleBlockId",
-    bloqueHorarioDetalleHandle,
-  );
+  });
 }
 
 function renderPreciosRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/precios",
-    createElement(EventPricesRouteView, { loaderData }),
-    "prices",
-    "precios",
-    preciosHandle,
-  );
+  return renderRoute(loaderData, {
+    id: "prices",
+    path: "precios",
+    url: "/administracion/precios",
+    handle: preciosHandle,
+    element: createElement(EventPricesRouteView, { loaderData }),
+  });
 }
 
 function renderPrecioNuevoRoute(loaderData: EventBasesLoaderData) {
-  return renderRoute(
-    loaderData,
-    "/administracion/precios/nuevo",
-    createElement(NewEventPriceRouteView, { loaderData }),
-    "price-new",
-    "precios/nuevo",
-    precioNuevoHandle,
-  );
+  return renderRoute(loaderData, {
+    id: "price-new",
+    path: "precios/nuevo",
+    url: "/administracion/precios/nuevo",
+    handle: precioNuevoHandle,
+    element: createElement(NewEventPriceRouteView, { loaderData }),
+  });
 }
 
 function renderPrecioDetalleRoute(
   loaderData: EventBasesLoaderData,
   priceId: string,
 ) {
-  return renderRoute(
-    loaderData,
-    `/administracion/precios/${priceId}`,
-    createElement(EventPriceDetailRouteView, {
+  return renderRoute(loaderData, {
+    id: "price-detail",
+    path: "precios/:priceId",
+    url: `/administracion/precios/${priceId}`,
+    handle: precioDetalleHandle,
+    element: createElement(EventPriceDetailRouteView, {
       loaderData,
       priceId,
     }),
-    "price-detail",
-    "precios/:priceId",
-    precioDetalleHandle,
-  );
+  });
 }
 
 async function createSignedInRequest(input: {
