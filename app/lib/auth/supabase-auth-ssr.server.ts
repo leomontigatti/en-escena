@@ -1,17 +1,12 @@
 import {
   createServerClient,
   type CookieMethodsServer,
-  type CookieOptions,
+  type SetAllCookies,
 } from "@supabase/ssr";
 import { parse, serialize } from "cookie";
 
-type SupabaseCookie = {
-  name: string;
-  options: CookieOptions;
-  value: string;
-};
-
-type SupabaseNoCacheHeaders = Record<string, string>;
+type SupabaseCookiesToSet = Parameters<SetAllCookies>[0];
+type SupabaseResponseHeaderMap = Parameters<SetAllCookies>[1];
 
 export function createSupabaseServerClientForRequest(request: Request) {
   const { cookies, responseHeaders } =
@@ -33,14 +28,9 @@ export function createSupabaseServerCookieBridge(request: Request) {
     getAll() {
       return parseRequestCookies(request.headers.get("cookie"));
     },
-    setAll(cookiesToSet: SupabaseCookie[], headers: SupabaseNoCacheHeaders) {
-      for (const { name, value, options } of cookiesToSet) {
-        responseHeaders.append("set-cookie", serialize(name, value, options));
-      }
-
-      for (const [name, value] of Object.entries(headers)) {
-        responseHeaders.set(name, value);
-      }
+    setAll(cookiesToSet, headers) {
+      appendSerializedCookies(responseHeaders, cookiesToSet);
+      applySupabaseResponseHeaders(responseHeaders, headers);
     },
   };
 
@@ -66,19 +56,48 @@ function mergeHeaders(
 ) {
   const mergedHeaders = new Headers(baseHeaders);
 
-  for (const [name, value] of supabaseHeaders) {
-    if (name.toLowerCase() === "set-cookie") {
+  mergeNonCookieHeaders(mergedHeaders, supabaseHeaders);
+  appendSetCookieValues(mergedHeaders, getSetCookieValues(supabaseHeaders));
+
+  return mergedHeaders;
+}
+
+function appendSerializedCookies(
+  headers: Headers,
+  cookiesToSet: SupabaseCookiesToSet,
+) {
+  for (const { name, value, options } of cookiesToSet) {
+    headers.append("set-cookie", serialize(name, value, options));
+  }
+}
+
+function appendSetCookieValues(headers: Headers, values: string[]) {
+  for (const value of values) {
+    headers.append("set-cookie", value);
+  }
+}
+
+function applySupabaseResponseHeaders(
+  headers: Headers,
+  responseHeaderMap: SupabaseResponseHeaderMap,
+) {
+  for (const [name, value] of Object.entries(responseHeaderMap)) {
+    headers.set(name, value);
+  }
+}
+
+function mergeNonCookieHeaders(targetHeaders: Headers, sourceHeaders: Headers) {
+  for (const [name, value] of sourceHeaders) {
+    if (isSetCookieHeader(name)) {
       continue;
     }
 
-    mergedHeaders.set(name, value);
+    targetHeaders.set(name, value);
   }
+}
 
-  for (const value of getSetCookieValues(supabaseHeaders)) {
-    mergedHeaders.append("set-cookie", value);
-  }
-
-  return mergedHeaders;
+function isSetCookieHeader(name: string) {
+  return name.toLowerCase() === "set-cookie";
 }
 
 function parseRequestCookies(cookieHeader: string | null) {
