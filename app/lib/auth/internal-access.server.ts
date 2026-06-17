@@ -3,9 +3,9 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, session as sessionTable, user } from "@/db/schema";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
-import { auth } from "@/lib/auth/auth.server";
 import {
   INTERNAL_USER_ROLES,
   isInternalUserRole,
@@ -26,9 +26,7 @@ export async function requireSignedInUser(
   request: Request,
   options?: { allowMandatoryPasswordChange?: boolean },
 ) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  const session = await accessAuthProvider.getAccessSession(request);
 
   if (!session) {
     redirectToLoginForRequest(request);

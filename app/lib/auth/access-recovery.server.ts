@@ -1,5 +1,5 @@
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
-import { auth } from "@/lib/auth/auth.server";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 
 const RECOVERY_REQUEST_MESSAGE =
   "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.";
@@ -14,14 +14,10 @@ export async function requestAccessRecoveryEmail(input: {
   ).toString();
   const requestOrigin = new URL(input.requestUrl).origin;
 
-  await auth.api.requestPasswordReset({
-    body: {
-      email: normalizeEmail(input.email),
-      redirectTo: recoveryPageUrl,
-    },
-    headers: new Headers({
-      origin: requestOrigin,
-    }),
+  await accessAuthProvider.requestPasswordReset({
+    email: normalizeEmail(input.email),
+    redirectTo: recoveryPageUrl,
+    requestOrigin,
   });
 
   return { message: RECOVERY_REQUEST_MESSAGE };
@@ -33,12 +29,10 @@ export async function resetAccessPassword(input: {
   request: Request;
 }) {
   try {
-    await auth.api.resetPassword({
-      body: {
-        token: input.token,
-        newPassword: input.newPassword,
-      },
-      headers: input.request.headers,
+    await accessAuthProvider.resetPassword({
+      token: input.token,
+      newPassword: input.newPassword,
+      request: input.request,
     });
 
     return { ok: true as const };

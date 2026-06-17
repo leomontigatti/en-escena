@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 
-import { auth } from "@/lib/auth/auth.server";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/_index";
@@ -14,9 +14,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  const session = await accessAuthProvider.getAccessSession(request);
 
   if (!session) {
     throw redirect("/ingresar");

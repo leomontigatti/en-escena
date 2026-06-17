@@ -17,9 +17,9 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
-import { auth } from "@/lib/auth/auth.server";
 import {
   authToastIds,
   loginNotices,
@@ -105,18 +105,15 @@ export async function action({ request }: Route.ActionArgs) {
       return genericLoginError(values);
     }
 
-    const result = await auth.api.signInEmail({
-      body: {
-        email: credentialUser.email,
-        password: parsed.data.password,
-      },
-      headers: request.headers,
-      returnHeaders: true,
+    const result = await accessAuthProvider.signInCredentialUser({
+      email: credentialUser.email,
+      password: parsed.data.password,
+      request,
     });
 
     throw redirect(
       await getPostLoginPathForUserId(
-        result.response.user.id,
+        result.userId,
         getSafeRedirectTo(request),
       ),
       {

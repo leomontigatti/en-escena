@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 
-import { auth } from "@/lib/auth/auth.server";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 
 import type { Route } from "./+types/salir";
 
@@ -13,10 +13,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw redirect("/ingresar");
   }
 
-  const result = await auth.api.signOut({
-    headers: request.headers,
-    returnHeaders: true,
-  });
+  const result = await accessAuthProvider.signOutCurrentSession(request);
 
   throw redirect("/ingresar?sesion=cerrada", {
     headers: result.headers,

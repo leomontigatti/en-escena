@@ -8,7 +8,7 @@ import {
   hashRegistrationToken,
   normalizeEmail,
 } from "@/lib/academies/registration-token.server";
-import { auth } from "@/lib/auth/auth.server";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
 import {
   INTERNAL_USER_ROLES,
@@ -185,33 +185,26 @@ async function createBetterAuthCredentialUser(input: {
   if (input.existingUserId) {
     await setExistingUserPassword(input.existingUserId, input.password);
 
-    const signInResult = await auth.api.signInEmail({
-      body: {
-        email: input.email,
-        password: input.password,
-      },
-      headers: input.request.headers,
-      returnHeaders: true,
+    const signInResult = await accessAuthProvider.signInCredentialUser({
+      email: input.email,
+      password: input.password,
+      request: input.request,
     });
 
     return {
-      userId: signInResult.response.user.id,
+      userId: signInResult.userId,
       headers: signInResult.headers,
     };
   }
 
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: input.password,
-    },
-    headers: input.request.headers,
-    returnHeaders: true,
+  const signUpResult = await accessAuthProvider.signUpCredentialUser({
+    email: input.email,
+    password: input.password,
+    request: input.request,
   });
 
   return {
-    userId: signUpResult.response.user.id,
+    userId: signUpResult.userId,
     headers: signUpResult.headers,
   };
 }

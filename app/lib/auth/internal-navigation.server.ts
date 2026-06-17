@@ -3,8 +3,8 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
-import { auth } from "@/lib/auth/auth.server";
 import {
   requireInternalUser,
   requireSignedInUser,
@@ -56,9 +56,7 @@ export async function getPostLoginPathForUserId(
 }
 
 export async function redirectSignedInUserFromPublicRoute(request: Request) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  const session = await accessAuthProvider.getAccessSession(request);
 
   if (!session) {
     return null;

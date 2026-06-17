@@ -3,12 +3,10 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 const resetPassword = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/auth/auth.server", () => ({
-  auth: {
-    api: {
-      requestPasswordReset,
-      resetPassword,
-    },
+vi.mock("@/lib/auth/access-auth-provider.server", () => ({
+  accessAuthProvider: {
+    requestPasswordReset,
+    resetPassword,
   },
 }));
 
@@ -36,13 +34,9 @@ describe("access recovery", () => {
         "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
     });
     expect(requestPasswordReset).toHaveBeenCalledWith({
-      body: {
-        email: "usuario@example.com",
-        redirectTo: "http://localhost:3000/recuperar-acceso/nueva",
-      },
-      headers: new Headers({
-        origin: "http://localhost:3000",
-      }),
+      email: "usuario@example.com",
+      redirectTo: "http://localhost:3000/recuperar-acceso/nueva",
+      requestOrigin: "http://localhost:3000",
     });
   });
 
@@ -58,11 +52,9 @@ describe("access recovery", () => {
 
     expect(result).toEqual({ ok: true });
     expect(resetPassword).toHaveBeenCalledWith({
-      body: {
-        token: "reset-token",
-        newPassword: "nuevo1234",
-      },
-      headers: request.headers,
+      token: "reset-token",
+      newPassword: "nuevo1234",
+      request,
     });
   });
 

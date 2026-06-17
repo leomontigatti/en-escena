@@ -4,8 +4,8 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { account, session, user } from "@/db/schema";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
-import { auth } from "@/lib/auth/auth.server";
 import { getLandingPathForUserId } from "@/lib/auth/internal-navigation.server";
 import {
   requireSignedInUser,
@@ -92,9 +92,7 @@ export async function completeMandatoryPasswordChange(input: {
 }
 
 async function getRequiredSession(appUser: AppUser, request: Request) {
-  const activeSession = await auth.api.getSession({
-    headers: request.headers,
-  });
+  const activeSession = await accessAuthProvider.getAccessSession(request);
 
   if (!activeSession?.session.id || activeSession.user.id !== appUser.id) {
     throw redirect(MANDATORY_PASSWORD_CHANGE_PATH);
