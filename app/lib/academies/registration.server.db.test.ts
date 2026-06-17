@@ -53,46 +53,7 @@ describe("academy registration", () => {
     sentEmails.length = 0;
     signUpAcademyUserMock.mockReset();
     deleteAcademyUserAccessMock.mockReset();
-
-    signUpAcademyUserMock.mockImplementation(
-      async (input: { email: string }) => {
-        const [{ db }, { session, user }] = await Promise.all([
-          import("@/db"),
-          import("@/db/schema"),
-        ]);
-        const userId = crypto.randomUUID();
-        const sessionToken = crypto.randomUUID();
-
-        await db.insert(user).values({
-          id: userId,
-          name: input.email,
-          email: input.email,
-        });
-        await db.insert(session).values({
-          id: crypto.randomUUID(),
-          token: sessionToken,
-          userId,
-          expiresAt: new Date(Date.now() + SESSION_TTL_MS),
-        });
-
-        return {
-          userId,
-          headers: new Headers({
-            "set-cookie": `better-auth.session_token=${sessionToken}; Path=/; HttpOnly`,
-          }),
-        };
-      },
-    );
-
-    deleteAcademyUserAccessMock.mockImplementation(async (userId: string) => {
-      const [{ db }, { session, user }] = await Promise.all([
-        import("@/db"),
-        import("@/db/schema"),
-      ]);
-
-      await db.delete(session).where(eq(session.userId, userId));
-      await db.delete(user).where(eq(user.id, userId));
-    });
+    installDefaultAcademyAuthMocks();
   });
 
   test("only registrable emails create tokens while existing users receive guidance", async () => {
@@ -363,6 +324,49 @@ describe("academy registration", () => {
     expect(pendingToken?.consumedAt).toBeNull();
   });
 });
+
+function installDefaultAcademyAuthMocks() {
+  signUpAcademyUserMock.mockImplementation(createTestAcademyAccessUser);
+  deleteAcademyUserAccessMock.mockImplementation(deleteTestAcademyAccessUser);
+}
+
+async function createTestAcademyAccessUser(input: { email: string }) {
+  const [{ db }, { session, user }] = await Promise.all([
+    import("@/db"),
+    import("@/db/schema"),
+  ]);
+  const userId = crypto.randomUUID();
+  const sessionToken = crypto.randomUUID();
+
+  await db.insert(user).values({
+    id: userId,
+    name: input.email,
+    email: input.email,
+  });
+  await db.insert(session).values({
+    id: crypto.randomUUID(),
+    token: sessionToken,
+    userId,
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+  });
+
+  return {
+    userId,
+    headers: new Headers({
+      "set-cookie": `better-auth.session_token=${sessionToken}; Path=/; HttpOnly`,
+    }),
+  };
+}
+
+async function deleteTestAcademyAccessUser(userId: string) {
+  const [{ db }, { session, user }] = await Promise.all([
+    import("@/db"),
+    import("@/db/schema"),
+  ]);
+
+  await db.delete(session).where(eq(session.userId, userId));
+  await db.delete(user).where(eq(user.id, userId));
+}
 
 async function insertRegistrationToken(input: {
   email: string;

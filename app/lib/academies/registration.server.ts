@@ -174,50 +174,49 @@ export async function completeAcademyRegistration(input: {
   return { ok: true as const, headers: signUpResult.headers };
 }
 
+type ErrorPropertyKey = "code" | "constraint_name" | "detail" | "message";
+
 function isRegistrationEmailConflict(error: unknown): boolean {
-  const authCode = readErrorProperty(error, "code");
+  const code = readErrorProperty(error, "code");
 
   if (
-    authCode === "conflict" ||
-    authCode === "email_exists" ||
-    authCode === "user_already_exists"
+    code === "conflict" ||
+    code === "email_exists" ||
+    code === "user_already_exists"
   ) {
     return true;
   }
 
-  const dbCode = readErrorProperty(error, "code");
   const constraintName = readErrorProperty(error, "constraint_name");
   const detail = readErrorProperty(error, "detail");
   const message = readErrorProperty(error, "message");
 
   return (
-    dbCode === "23505" &&
+    code === "23505" &&
     (constraintName === "en_escena_user_email_unique" ||
       detail?.includes("(email)=") === true ||
       message?.includes("email") === true)
   );
 }
 
-function readErrorProperty(
-  error: unknown,
-  key: "code" | "constraint_name" | "detail" | "message" | "status",
-) {
+function readErrorProperty(error: unknown, key: ErrorPropertyKey) {
   let current: unknown = error;
 
   while (current && typeof current === "object") {
-    const value =
-      key in current && typeof current[key as keyof typeof current] !== "object"
-        ? String(current[key as keyof typeof current])
-        : null;
+    if (key in current) {
+      const propertyValue = current[key as keyof typeof current];
 
-    if (value) {
-      return value;
+      if (propertyValue !== null && typeof propertyValue !== "object") {
+        const stringValue = String(propertyValue);
+
+        if (stringValue) {
+          return stringValue;
+        }
+      }
     }
 
-    current =
-      "cause" in current && current.cause && typeof current.cause === "object"
-        ? current.cause
-        : null;
+    const cause = "cause" in current ? current.cause : null;
+    current = cause && typeof cause === "object" ? cause : null;
   }
 
   return null;
