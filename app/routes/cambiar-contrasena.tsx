@@ -214,14 +214,13 @@ function MandatoryPasswordChangeForm({
 }: {
   actionData: ReturnType<typeof useActionData<typeof action>>;
 }) {
+  const mandatoryActionData = isMandatoryActionData(actionData)
+    ? actionData
+    : null;
   const form = useAccessForm({
     schema: changePasswordSchema,
-    values: isMandatoryActionData(actionData)
-      ? actionData.values
-      : emptyMandatoryChangeValues,
-    fieldErrors: isMandatoryActionData(actionData)
-      ? actionData.fieldErrors
-      : undefined,
+    values: mandatoryActionData?.values ?? emptyMandatoryChangeValues,
+    fieldErrors: mandatoryActionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {
@@ -283,14 +282,13 @@ function RecoveryPasswordChangeForm({
 }: {
   actionData: ReturnType<typeof useActionData<typeof action>>;
 }) {
+  const recoveryActionData = isRecoveryActionData(actionData)
+    ? actionData
+    : null;
   const form = useAccessForm({
     schema: passwordConfirmationSchema,
-    values: isRecoveryActionData(actionData)
-      ? actionData.values
-      : emptyRecoveryChangeValues,
-    fieldErrors: isRecoveryActionData(actionData)
-      ? actionData.fieldErrors
-      : undefined,
+    values: recoveryActionData?.values ?? emptyRecoveryChangeValues,
+    fieldErrors: recoveryActionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

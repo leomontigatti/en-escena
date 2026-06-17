@@ -472,52 +472,39 @@ function readTestRecoveryUserId(request: Request) {
 }
 
 function signTestSupabaseSessionToken(sessionToken: string | null) {
-  if (!sessionToken) {
-    return "";
-  }
-
-  return `${sessionToken}.${signTestSupabaseSession(sessionToken)}`;
+  return signTestCookieValue(sessionToken);
 }
 
 function verifySignedTestSupabaseSessionToken(signedToken: string) {
-  const separatorIndex = signedToken.lastIndexOf(".");
-
-  if (separatorIndex <= 0) {
-    return null;
-  }
-
-  const sessionToken = signedToken.slice(0, separatorIndex);
-  const signature = signedToken.slice(separatorIndex + 1);
-  const expectedSignature = signTestSupabaseSession(sessionToken);
-
-  if (
-    signature.length !== expectedSignature.length ||
-    !timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))
-  ) {
-    return null;
-  }
-
-  return sessionToken;
+  return verifySignedTestCookieValue(signedToken);
 }
 
 function signTestRecoveryUserId(userId: string | null) {
-  if (!userId) {
-    return "";
-  }
-
-  return `${userId}.${signTestSupabaseSession(userId)}`;
+  return signTestCookieValue(userId);
 }
 
 function verifySignedTestRecoveryUserId(signedUserId: string) {
-  const separatorIndex = signedUserId.lastIndexOf(".");
+  return verifySignedTestCookieValue(signedUserId);
+}
+
+function signTestCookieValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  return `${value}.${signTestSupabaseSession(value)}`;
+}
+
+function verifySignedTestCookieValue(signedValue: string) {
+  const separatorIndex = signedValue.lastIndexOf(".");
 
   if (separatorIndex <= 0) {
     return null;
   }
 
-  const userId = signedUserId.slice(0, separatorIndex);
-  const signature = signedUserId.slice(separatorIndex + 1);
-  const expectedSignature = signTestSupabaseSession(userId);
+  const value = signedValue.slice(0, separatorIndex);
+  const signature = signedValue.slice(separatorIndex + 1);
+  const expectedSignature = signTestSupabaseSession(value);
 
   if (
     signature.length !== expectedSignature.length ||
@@ -526,7 +513,7 @@ function verifySignedTestRecoveryUserId(signedUserId: string) {
     return null;
   }
 
-  return userId;
+  return value;
 }
 
 function getTestAccessAuthSecret() {

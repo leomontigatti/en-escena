@@ -293,25 +293,33 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
 }
 
 function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = readSetCookieValue(
+    headers,
+    /better-auth\.session_token=([^;]+)/,
+  );
 
-  if (!sessionCookie?.[1]) {
+  if (!sessionCookie) {
     throw new Error("Expected Better Auth to return a session cookie.");
   }
 
-  return `better-auth.session_token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie}`;
 }
 
 function createRecoveryCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const recoveryCookie = setCookie?.match(/sb-recovery-user=([^;]+)/);
+  const recoveryCookie = readSetCookieValue(
+    headers,
+    /sb-recovery-user=([^;]+)/,
+  );
 
-  if (!recoveryCookie?.[1]) {
+  if (!recoveryCookie) {
     throw new Error(
       "Expected recovery exchange to return a test recovery cookie.",
     );
   }
 
-  return `sb-recovery-user=${recoveryCookie[1]}`;
+  return `sb-recovery-user=${recoveryCookie}`;
+}
+
+function readSetCookieValue(headers: Headers, pattern: RegExp) {
+  return headers.get("set-cookie")?.match(pattern)?.[1] ?? null;
 }
