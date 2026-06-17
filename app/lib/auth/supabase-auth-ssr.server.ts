@@ -110,8 +110,11 @@ function parseRequestCookies(cookieHeader: string | null) {
   );
 }
 
-function getRequiredSupabaseEnv(
-  name: "SUPABASE_PUBLISHABLE_KEY" | "SUPABASE_URL",
+export function getRequiredSupabaseEnv(
+  name:
+    | "SUPABASE_PUBLISHABLE_KEY"
+    | "SUPABASE_SERVICE_ROLE_KEY"
+    | "SUPABASE_URL",
 ) {
   const value = process.env[name];
 

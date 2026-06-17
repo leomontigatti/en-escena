@@ -2,11 +2,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt } from "drizzle-orm";
 import { parse, serialize } from "cookie";
+import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { session as sessionTable, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
-import { createSupabaseServerClientForRequest } from "@/lib/auth/supabase-auth-ssr.server";
+import {
+  createSupabaseServerClientForRequest,
+  getRequiredSupabaseEnv,
+} from "@/lib/auth/supabase-auth-ssr.server";
 
 type CredentialUserInput = {
   email: string;
@@ -109,6 +113,31 @@ export const accessAuthProvider = {
     }
 
     return await signUpSupabaseCredentialUser(input);
+  },
+
+  async registerAcademyAccessUser(
+    input: CredentialUserInput,
+  ): Promise<AccessCredentialUser> {
+    if (isTestAccessAuthMode()) {
+      return await signUpTestCredentialUser(input);
+    }
+
+    return await registerAcademySupabaseAccessUser(input);
+  },
+
+  async deleteAccessUser(userId: string) {
+    if (isTestAccessAuthMode()) {
+      await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
+      await db.delete(user).where(eq(user.id, userId));
+      return;
+    }
+
+    const { error } =
+      await createSupabaseAdminClient().auth.admin.deleteUser(userId);
+
+    if (error) {
+      throw error;
+    }
   },
 
   async requestPasswordReset(input: {
@@ -226,6 +255,44 @@ async function signUpSupabaseCredentialUser(
 
   return {
     userId: await findOrCreateAppUserForAccessUser(data.user),
+    headers: responseHeaders,
+  };
+}
+
+async function registerAcademySupabaseAccessUser(
+  input: CredentialUserInput,
+): Promise<AccessCredentialUser> {
+  const adminClient = createSupabaseAdminClient();
+  const { data: createdUserData, error: createUserError } =
+    await adminClient.auth.admin.createUser({
+      email: input.email,
+      email_confirm: true,
+      password: input.password,
+      user_metadata: {
+        name: input.email,
+      },
+    });
+
+  if (createUserError || !createdUserData.user?.id) {
+    throw createUserError ?? new Error("Supabase academy registration failed.");
+  }
+
+  const { client, responseHeaders } = createSupabaseServerClientForRequest(
+    input.request,
+  );
+  const { data: signInData, error: signInError } =
+    await client.auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
+
+  if (signInError || !signInData.user?.id) {
+    await adminClient.auth.admin.deleteUser(createdUserData.user.id);
+    throw signInError ?? new Error("Supabase academy sign-in failed.");
+  }
+
+  return {
+    userId: createdUserData.user.id,
     headers: responseHeaders,
   };
 }
@@ -356,6 +423,19 @@ function verifySignedTestSupabaseSessionToken(signedToken: string) {
 
 function getTestAccessAuthSecret() {
   return process.env.BETTER_AUTH_SECRET ?? "test-access-auth-secret";
+}
+
+function createSupabaseAdminClient() {
+  return createClient(
+    getRequiredSupabaseEnv("SUPABASE_URL"),
+    getRequiredSupabaseEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
 }
 
 function signTestSupabaseSession(sessionToken: string) {

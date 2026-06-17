@@ -5,5 +5,9 @@ export async function signUpAcademyUser(input: {
   password: string;
   request: Request;
 }) {
-  return accessAuthProvider.signUpCredentialUser(input);
+  return accessAuthProvider.registerAcademyAccessUser(input);
+}
+
+export async function deleteAcademyUserAccess(userId: string) {
+  await accessAuthProvider.deleteAccessUser(userId);
 }

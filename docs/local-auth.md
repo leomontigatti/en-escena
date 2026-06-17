@@ -16,6 +16,7 @@ BETTER_AUTH_SECRET="<local-random-secret>"
 BETTER_AUTH_URL="http://localhost:5173"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
+SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
 RESEND_API_KEY=""
 EMAIL_FROM="En Escena <acceso@example.com>"
 ```
@@ -35,8 +36,10 @@ openssl rand -base64 32
   dev server on another port.
 - `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` configure the server-side
   Supabase Auth SSR client for per-request cookie handling inside the access
-  boundary. Use the project URL and publishable key from the target Supabase
-  project, even before any user-facing flow switches to Supabase.
+  boundary.
+- `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
+  must create or delete confirmed access users without sending extra Supabase
+  confirmation emails during public academy registration. Keep it server-only.
 - `RESEND_API_KEY` and `EMAIL_FROM` are only required when
   `NODE_ENV=production`. Leave `RESEND_API_KEY` empty for local development.
 

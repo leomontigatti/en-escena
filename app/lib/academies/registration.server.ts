@@ -3,15 +3,22 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, academyRegistrationTokens, user } from "@/db/schema";
 import {
+  deleteAcademyUserAccess,
+  signUpAcademyUser,
+} from "@/lib/academies/registration-auth.server";
+import {
   createRegistrationToken,
   hashRegistrationToken,
   normalizeEmail,
 } from "@/lib/academies/registration-token.server";
-import { signUpAcademyUser } from "@/lib/academies/registration-auth.server";
 import { sendEmail } from "@/lib/shared/email.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const REGISTRATION_EMAIL_CONFLICT_ERROR =
+  "Ese correo ya tiene un usuario en En Escena.";
+const REGISTRATION_GENERIC_ERROR =
+  "No pudimos completar el registro. Intentá nuevamente.";
 
 export type RegistrationTokenStatus = "valid" | "invalid";
 
@@ -104,26 +111,114 @@ export async function completeAcademyRegistration(input: {
     email: registrationToken.email,
     password: input.password,
     request: input.request,
+  }).catch((error: unknown) => {
+    if (isRegistrationEmailConflict(error)) {
+      return null;
+    }
+
+    throw error;
   });
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(user)
-      .set({ emailVerified: true })
-      .where(eq(user.id, signUpResult.userId));
+  if (!signUpResult) {
+    return {
+      ok: false as const,
+      error: REGISTRATION_EMAIL_CONFLICT_ERROR,
+    };
+  }
 
-    await tx.insert(academies).values({
-      userId: signUpResult.userId,
-      name: toTitleCase(input.academyName),
-      contactName: toTitleCase(input.contactName),
-      phone: input.phone.trim(),
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(user)
+        .values({
+          id: signUpResult.userId,
+          name: registrationToken.email,
+          email: registrationToken.email,
+          emailVerified: true,
+          role: "academy",
+        })
+        .onConflictDoUpdate({
+          target: user.id,
+          set: {
+            email: registrationToken.email,
+            emailVerified: true,
+            name: registrationToken.email,
+            role: "academy",
+            updatedAt: new Date(),
+          },
+        });
+
+      await tx.insert(academies).values({
+        userId: signUpResult.userId,
+        name: toTitleCase(input.academyName),
+        contactName: toTitleCase(input.contactName),
+        phone: input.phone.trim(),
+      });
+
+      await tx
+        .update(academyRegistrationTokens)
+        .set({ consumedAt: now })
+        .where(eq(academyRegistrationTokens.id, registrationToken.id));
     });
+  } catch (error) {
+    await deleteAcademyUserAccess(signUpResult.userId);
 
-    await tx
-      .update(academyRegistrationTokens)
-      .set({ consumedAt: now })
-      .where(eq(academyRegistrationTokens.id, registrationToken.id));
-  });
+    return {
+      ok: false as const,
+      error: isRegistrationEmailConflict(error)
+        ? REGISTRATION_EMAIL_CONFLICT_ERROR
+        : REGISTRATION_GENERIC_ERROR,
+    };
+  }
 
   return { ok: true as const, headers: signUpResult.headers };
+}
+
+function isRegistrationEmailConflict(error: unknown): boolean {
+  const authCode = readErrorProperty(error, "code");
+
+  if (
+    authCode === "conflict" ||
+    authCode === "email_exists" ||
+    authCode === "user_already_exists"
+  ) {
+    return true;
+  }
+
+  const dbCode = readErrorProperty(error, "code");
+  const constraintName = readErrorProperty(error, "constraint_name");
+  const detail = readErrorProperty(error, "detail");
+  const message = readErrorProperty(error, "message");
+
+  return (
+    dbCode === "23505" &&
+    (constraintName === "en_escena_user_email_unique" ||
+      detail?.includes("(email)=") === true ||
+      message?.includes("email") === true)
+  );
+}
+
+function readErrorProperty(
+  error: unknown,
+  key: "code" | "constraint_name" | "detail" | "message" | "status",
+) {
+  let current: unknown = error;
+
+  while (current && typeof current === "object") {
+    const value =
+      key in current && typeof current[key as keyof typeof current] !== "object"
+        ? String(current[key as keyof typeof current])
+        : null;
+
+    if (value) {
+      return value;
+    }
+
+    current =
+      "cause" in current && current.cause && typeof current.cause === "object"
+        ? current.cause
+        : null;
+  }
+
+  return null;
 }

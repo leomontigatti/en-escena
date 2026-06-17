@@ -32,6 +32,8 @@ const sentEmails = vi.hoisted(
       text: string;
     }>,
 );
+const signUpAcademyUserMock = vi.hoisted(() => vi.fn());
+const deleteAcademyUserAccessMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/shared/email.server", () => ({
   sendEmail: vi.fn(async (input) => {
@@ -40,33 +42,8 @@ vi.mock("@/lib/shared/email.server", () => ({
 }));
 
 vi.mock("@/lib/academies/registration-auth.server", () => ({
-  signUpAcademyUser: vi.fn(async (input: { email: string }) => {
-    const [{ db }, { session, user }] = await Promise.all([
-      import("@/db"),
-      import("@/db/schema"),
-    ]);
-    const userId = crypto.randomUUID();
-    const sessionToken = crypto.randomUUID();
-
-    await db.insert(user).values({
-      id: userId,
-      name: input.email,
-      email: input.email,
-    });
-    await db.insert(session).values({
-      id: crypto.randomUUID(),
-      token: sessionToken,
-      userId,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
-    });
-
-    return {
-      userId,
-      headers: new Headers({
-        "set-cookie": `better-auth.session_token=${sessionToken}; Path=/; HttpOnly`,
-      }),
-    };
-  }),
+  signUpAcademyUser: signUpAcademyUserMock,
+  deleteAcademyUserAccess: deleteAcademyUserAccessMock,
 }));
 
 installDatabaseTestHooks();
@@ -74,6 +51,48 @@ installDatabaseTestHooks();
 describe("academy registration", () => {
   beforeEach(() => {
     sentEmails.length = 0;
+    signUpAcademyUserMock.mockReset();
+    deleteAcademyUserAccessMock.mockReset();
+
+    signUpAcademyUserMock.mockImplementation(
+      async (input: { email: string }) => {
+        const [{ db }, { session, user }] = await Promise.all([
+          import("@/db"),
+          import("@/db/schema"),
+        ]);
+        const userId = crypto.randomUUID();
+        const sessionToken = crypto.randomUUID();
+
+        await db.insert(user).values({
+          id: userId,
+          name: input.email,
+          email: input.email,
+        });
+        await db.insert(session).values({
+          id: crypto.randomUUID(),
+          token: sessionToken,
+          userId,
+          expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        });
+
+        return {
+          userId,
+          headers: new Headers({
+            "set-cookie": `better-auth.session_token=${sessionToken}; Path=/; HttpOnly`,
+          }),
+        };
+      },
+    );
+
+    deleteAcademyUserAccessMock.mockImplementation(async (userId: string) => {
+      const [{ db }, { session, user }] = await Promise.all([
+        import("@/db"),
+        import("@/db/schema"),
+      ]);
+
+      await db.delete(session).where(eq(session.userId, userId));
+      await db.delete(user).where(eq(user.id, userId));
+    });
   });
 
   test("only registrable emails create tokens while existing users receive guidance", async () => {
@@ -299,6 +318,49 @@ describe("academy registration", () => {
     expect(await db.query.user.findMany()).toHaveLength(1);
     expect(await db.query.academies.findMany()).toHaveLength(1);
     expect(await db.query.session.findMany()).toHaveLength(1);
+  });
+
+  test("compensates auth creation and reports email conflicts without consuming the token", async () => {
+    await insertRegistrationToken({
+      email: "conflicto@example.com",
+      token: "conflict-token",
+    });
+    await db.insert(user).values({
+      id: "existing_conflict_user",
+      name: "Existente",
+      email: "conflicto@example.com",
+      emailVerified: true,
+    });
+
+    signUpAcademyUserMock.mockImplementationOnce(
+      async (input: { email: string }) => ({
+        userId: "supabase-conflict-user",
+        headers: new Headers({
+          "set-cookie": `sb-access-token=${input.email}; Path=/; HttpOnly`,
+        }),
+      }),
+    );
+
+    const result = await completeAcademyRegistration(
+      createCompleteRegistrationInput("conflict-token"),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Ese correo ya tiene un usuario en En Escena.",
+    });
+    expect(deleteAcademyUserAccessMock).toHaveBeenCalledWith(
+      "supabase-conflict-user",
+    );
+    expect(await db.query.academies.findMany()).toEqual([]);
+    expect(await db.query.session.findMany()).toEqual([]);
+
+    const pendingToken = await db.query.academyRegistrationTokens.findFirst({
+      columns: { consumedAt: true },
+      where: eq(academyRegistrationTokens.email, "conflicto@example.com"),
+    });
+
+    expect(pendingToken?.consumedAt).toBeNull();
   });
 });
 
