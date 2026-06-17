@@ -283,7 +283,7 @@ function expectResponseToSetSessionCookie(response: Response) {
 }
 
 function expectHeadersToSetSessionCookie(headers: Headers) {
-  expect(headers.get("set-cookie")).toContain("better-auth.session_token");
+  expect(headers.get("set-cookie")).toContain("sb-access-token");
 }
 
 async function findSessionByUserId(userId: string) {

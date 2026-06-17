@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, session, user } from "@/db/schema";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { auth } from "@/lib/auth/auth.server";
 import {
   requireAcademyUser,
@@ -35,7 +36,7 @@ describe("internal access authorization", () => {
       requireSignedInUser(
         new Request("http://localhost/administracion", {
           headers: {
-            cookie: "better-auth.session_token=sesion-invalida",
+            cookie: "sb-access-token=sesion-invalida",
           },
         }),
       ),
@@ -210,7 +211,17 @@ async function createSignedInRequest(input: {
   return {
     request: new Request("http://localhost/protected", {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createRequestCookie(
+          (
+            await accessAuthProvider.signInCredentialUser({
+              email: input.email,
+              password: "password-segura",
+              request: new Request("http://localhost/ingresar", {
+                method: "POST",
+              }),
+            })
+          ).headers,
+        ),
       },
     }),
     userId: signUpResult.response.user.id,
@@ -221,10 +232,18 @@ function createRequestCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
 
   if (!setCookie) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error("Expected access auth to return a session cookie.");
   }
 
-  return setCookie.split(";")[0] ?? "";
+  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+
+  if (!sessionCookie?.[1]) {
+    throw new Error(
+      "Expected access auth to return a Supabase session cookie.",
+    );
+  }
+
+  return `sb-access-token=${sessionCookie[1]}`;
 }
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {

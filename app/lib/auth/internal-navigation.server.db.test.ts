@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { auth } from "@/lib/auth/auth.server";
 import {
   getLandingPathForSignedInUser,
@@ -84,9 +85,7 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe("/administracion");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
+    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
   });
 
   test("authenticates internal users with nombre de usuario interno and redirects mandatory changes", async () => {
@@ -112,9 +111,7 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe("/cambiar-contrasena");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
-    );
+    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
   });
 
   test("rejects unverified users with the generic login error", async () => {
@@ -369,7 +366,17 @@ async function createSignedInRequest(input: {
   return {
     request: new Request(input.requestUrl ?? "http://localhost/protected", {
       headers: {
-        cookie: createRequestCookie(credentialUser.headers),
+        cookie: createRequestCookie(
+          (
+            await accessAuthProvider.signInCredentialUser({
+              email: input.email,
+              password: "password-segura",
+              request: new Request("http://localhost/ingresar", {
+                method: "POST",
+              }),
+            })
+          ).headers,
+        ),
       },
     }),
   };
@@ -425,16 +432,18 @@ function createRequestCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
 
   if (!setCookie) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error("Expected access auth to return a session cookie.");
   }
 
-  const sessionCookie = setCookie.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error(
+      "Expected access auth to return a Supabase session cookie.",
+    );
   }
 
-  return `better-auth.session_token=${sessionCookie[1]}`;
+  return `sb-access-token=${sessionCookie[1]}`;
 }
 
 async function expectThrownResponse(

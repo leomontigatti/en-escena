@@ -114,7 +114,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     throw redirect(
       await getPostLoginPathForUserId(
-        result.userId,
+        credentialUser.id,
         getSafeRedirectTo(request),
       ),
       withSupabaseSsrHeaders({ headers: result.headers }),

@@ -4,8 +4,8 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { session, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
-import { action as signInAction } from "@/routes/ingresar";
 import { action as logoutAction, loader as logoutLoader } from "@/routes/salir";
+import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -13,17 +13,21 @@ installDatabaseTestHooks();
 
 describe("logout route", () => {
   test("POST revokes only the current session and redirects to login", async () => {
-    const { headers: currentSessionHeaders, userId } =
-      await createVerifiedCredentialUser("salir@example.com");
+    const { userId } = await createVerifiedCredentialUser("salir@example.com");
+    const currentSessionResponse = await expectThrownResponse(
+      submitSignInAction("salir@example.com"),
+      302,
+    );
     const otherSessionResponse = await expectThrownResponse(
       submitSignInAction("salir@example.com"),
       302,
     );
-    const otherSessionHeaders = otherSessionResponse.headers;
     const currentSessionToken = extractDatabaseSessionToken(
-      currentSessionHeaders,
+      currentSessionResponse.headers,
     );
-    const otherSessionToken = extractDatabaseSessionToken(otherSessionHeaders);
+    const otherSessionToken = extractDatabaseSessionToken(
+      otherSessionResponse.headers,
+    );
 
     const response = await expectThrownResponse(
       logoutAction({
@@ -32,7 +36,7 @@ describe("logout route", () => {
         request: new Request("http://localhost/salir", {
           method: "POST",
           headers: {
-            cookie: createRequestCookie(currentSessionHeaders),
+            cookie: createRequestCookie(currentSessionResponse.headers),
           },
         }),
         params: {},
@@ -42,9 +46,7 @@ describe("logout route", () => {
     );
 
     expect(response.headers.get("location")).toBe("/ingresar?sesion=cerrada");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token=",
-    );
+    expect(response.headers.get("set-cookie")).toContain("sb-access-token=");
 
     const savedSessions = await db.query.session.findMany({
       where: eq(session.userId, userId),
@@ -61,10 +63,14 @@ describe("logout route", () => {
   });
 
   test("GET does not revoke the current session", async () => {
-    const { headers, userId } = await createVerifiedCredentialUser(
+    const { userId } = await createVerifiedCredentialUser(
       "salir-get@example.com",
     );
-    const sessionToken = extractDatabaseSessionToken(headers);
+    const signedInResponse = await expectThrownResponse(
+      submitSignInAction("salir-get@example.com"),
+      302,
+    );
+    const sessionToken = extractDatabaseSessionToken(signedInResponse.headers);
 
     const response = await expectThrownResponse(logoutLoader(), 302);
 
@@ -95,14 +101,17 @@ async function createVerifiedCredentialUser(email: string) {
     .set({ emailVerified: true })
     .where(eq(user.id, signUpResult.response.user.id));
 
+  await db
+    .delete(session)
+    .where(eq(session.userId, signUpResult.response.user.id));
+
   return {
-    headers: signUpResult.headers,
     userId: signUpResult.response.user.id,
   };
 }
 
 function createRequestCookie(headers: Headers) {
-  return `better-auth.session_token=${extractSignedSessionCookie(headers)}`;
+  return `sb-access-token=${extractSignedSessionCookie(headers)}`;
 }
 
 function extractDatabaseSessionToken(headers: Headers) {
@@ -111,10 +120,12 @@ function extractDatabaseSessionToken(headers: Headers) {
 
 function extractSignedSessionCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = setCookie?.match(/sb-access-token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error(
+      "Expected access auth to return a Supabase session cookie.",
+    );
   }
 
   return sessionCookie[1];

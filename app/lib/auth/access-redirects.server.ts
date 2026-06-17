@@ -3,7 +3,6 @@ import { redirect } from "react-router";
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
-const ACCESS_SESSION_COOKIE_NAME = "better-auth.session_token";
 
 export type LoginRedirectReason =
   | typeof CONTINUE_REASON
@@ -56,7 +55,12 @@ function hasAccessSessionCookie(request: Request) {
   return request.headers
     .get("cookie")
     ?.split(";")
-    .some((cookie) =>
-      cookie.trim().startsWith(`${ACCESS_SESSION_COOKIE_NAME}=`),
-    );
+    .some((cookie) => {
+      const cookieName = cookie.trim().split("=")[0] ?? "";
+
+      return (
+        cookieName === "better-auth.session_token" ||
+        cookieName.startsWith("sb-")
+      );
+    });
 }

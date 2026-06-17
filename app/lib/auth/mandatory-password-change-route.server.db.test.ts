@@ -96,9 +96,14 @@ async function createInternalSessionState(input: {
     })
     .where(eq(user.id, signUpResult.response.user.id));
 
+  const currentSessionResponse = await expectThrownResponse(
+    submitSignInAction(input.internalUsername, input.password),
+    302,
+  );
+
   return {
     userId: signUpResult.response.user.id,
-    currentSessionHeaders: signUpResult.headers,
+    currentSessionHeaders: currentSessionResponse.headers,
   };
 }
 
@@ -139,7 +144,7 @@ function submitSignInAction(identifier: string, password: string) {
 }
 
 function createRequestCookie(headers: Headers) {
-  return `better-auth.session_token=${extractSignedSessionCookie(headers)}`;
+  return `sb-access-token=${extractSignedSessionCookie(headers)}`;
 }
 
 function extractDatabaseSessionToken(headers: Headers) {
@@ -148,10 +153,12 @@ function extractDatabaseSessionToken(headers: Headers) {
 
 function extractSignedSessionCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = setCookie?.match(/sb-access-token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error(
+      "Expected access auth to return a Supabase session cookie.",
+    );
   }
 
   return sessionCookie[1];
