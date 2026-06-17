@@ -20,6 +20,7 @@ import {
   readFormValue,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
+import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
@@ -133,7 +134,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     };
   }
 
-  throw redirect("/portal", { headers: result.headers });
+  throw redirect(
+    "/portal",
+    withSupabaseSsrHeaders({ headers: result.headers }),
+  );
 }
 
 export default function CompletarRegistroRoute() {

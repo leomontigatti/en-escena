@@ -15,6 +15,7 @@ import {
   passwordMismatchMessage,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
+import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
@@ -106,9 +107,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     };
   }
 
-  throw redirect(await getLandingPathForUserId(result.userId), {
-    headers: result.headers,
-  });
+  throw redirect(
+    await getLandingPathForUserId(result.userId),
+    withSupabaseSsrHeaders({ headers: result.headers }),
+  );
 }
 
 export default function CompletarInvitacionRoute() {

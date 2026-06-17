@@ -14,6 +14,8 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena"
 TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena-test"
 BETTER_AUTH_SECRET="<local-random-secret>"
 BETTER_AUTH_URL="http://localhost:5173"
+SUPABASE_URL="https://your-project-ref.supabase.co"
+SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
 RESEND_API_KEY=""
 EMAIL_FROM="En Escena <acceso@example.com>"
 ```
@@ -31,6 +33,10 @@ openssl rand -base64 32
 - `BETTER_AUTH_URL` is the base URL for Better Auth. Use
   `http://localhost:5173` with `npm run dev`, unless you intentionally run the
   dev server on another port.
+- `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` configure the server-side
+  Supabase Auth SSR client for per-request cookie handling inside the access
+  boundary. Use the project URL and publishable key from the target Supabase
+  project, even before any user-facing flow switches to Supabase.
 - `RESEND_API_KEY` and `EMAIL_FROM` are only required when
   `NODE_ENV=production`. Leave `RESEND_API_KEY` empty for local development.
 
@@ -121,6 +127,11 @@ EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 access recovery and internal invitation emails all use this sender. Provider
 errors are logged with an `[email:provider:error]` prefix without printing
 provider secrets.
+
+Supabase Auth emails in production also require Custom SMTP to be enabled in the
+Supabase project and pointed at the same verified Resend sender. The default
+Supabase shared SMTP is not sufficient for the production access flows in this
+repo.
 
 ## Better Auth Scope
 

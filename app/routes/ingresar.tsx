@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
+import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
 import {
   authToastIds,
@@ -116,9 +117,7 @@ export async function action({ request }: Route.ActionArgs) {
         result.userId,
         getSafeRedirectTo(request),
       ),
-      {
-        headers: result.headers,
-      },
+      withSupabaseSsrHeaders({ headers: result.headers }),
     );
   } catch (error) {
     if (error instanceof Response) {
