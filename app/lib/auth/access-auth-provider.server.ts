@@ -1,11 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt } from "drizzle-orm";
+import { hashPassword } from "better-auth/crypto";
 import { parse, serialize } from "cookie";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
-import { session as sessionTable, user } from "@/db/schema";
+import { account, session as sessionTable, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
 import {
   createSupabaseServerClientForRequest,
@@ -34,8 +35,10 @@ export type AccessCredentialUser = {
 };
 
 const TEST_SUPABASE_ACCESS_COOKIE_NAME = "sb-access-token";
+const TEST_SUPABASE_RECOVERY_COOKIE_NAME = "sb-recovery-user";
 const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
 const BETTER_AUTH_SESSION_COOKIE_PATTERN = /better-auth\.session_token=([^;]+)/;
+const testRecoveryCodes = new Map<string, string>();
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
@@ -88,7 +91,10 @@ export const accessAuthProvider = {
       }
 
       return {
-        headers: buildTestSupabaseHeaders(),
+        headers: mergeTestHeaders(
+          buildTestSupabaseHeaders(),
+          buildTestRecoveryHeaders(null),
+        ),
       };
     }
 
@@ -143,36 +149,145 @@ export const accessAuthProvider = {
   async requestPasswordReset(input: {
     email: string;
     redirectTo: string;
-    requestOrigin: string;
+    request: Request;
   }) {
-    await auth.api.requestPasswordReset({
-      body: {
-        email: input.email,
-        redirectTo: input.redirectTo,
-      },
-      headers: new Headers({
-        origin: input.requestOrigin,
-      }),
+    if (isTestAccessAuthMode()) {
+      const recoveryCode = crypto.randomUUID();
+
+      testRecoveryCodes.set(recoveryCode, input.email);
+
+      return {
+        headers: new Headers(),
+        debugRecoveryCode: recoveryCode,
+      };
+    }
+
+    const { client, responseHeaders } = createSupabaseServerClientForRequest(
+      input.request,
+    );
+    const { error } = await client.auth.resetPasswordForEmail(input.email, {
+      redirectTo: input.redirectTo,
     });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      headers: responseHeaders,
+    };
   },
 
-  async resetPassword(input: {
-    token: string;
+  async exchangePasswordRecoveryCode(input: {
+    code: string;
+    request: Request;
+    redirectTo: string;
+  }) {
+    if (isTestAccessAuthMode()) {
+      const recoveryEmail = testRecoveryCodes.get(input.code);
+
+      if (!recoveryEmail) {
+        throw new Error("Invalid recovery code.");
+      }
+
+      const recoveryUser = await db.query.user.findFirst({
+        columns: {
+          email: true,
+          id: true,
+        },
+        where: eq(user.email, recoveryEmail),
+      });
+
+      if (!recoveryUser) {
+        throw new Error("Recovery user not found.");
+      }
+
+      testRecoveryCodes.delete(input.code);
+
+      return {
+        headers: buildTestRecoveryHeaders(recoveryUser.id),
+        redirectTo: input.redirectTo,
+      };
+    }
+
+    const { client, responseHeaders } = createSupabaseServerClientForRequest(
+      input.request,
+    );
+    const { error } = await client.auth.exchangeCodeForSession(input.code);
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      headers: responseHeaders,
+      redirectTo: input.redirectTo,
+    };
+  },
+
+  async updatePasswordForRecovery(input: {
     newPassword: string;
     request: Request;
   }) {
-    await auth.api.resetPassword({
-      body: {
-        token: input.token,
-        newPassword: input.newPassword,
-      },
-      headers: input.request.headers,
+    if (isTestAccessAuthMode()) {
+      const recoveryUserId = readTestRecoveryUserId(input.request);
+
+      if (!recoveryUserId) {
+        throw new Error("Recovery session missing.");
+      }
+
+      await db.transaction(async (tx) => {
+        await tx
+          .update(account)
+          .set({ password: await hashPassword(input.newPassword) })
+          .where(
+            and(
+              eq(account.userId, recoveryUserId),
+              eq(account.providerId, "credential"),
+            ),
+          );
+
+        await tx
+          .delete(sessionTable)
+          .where(eq(sessionTable.userId, recoveryUserId));
+      });
+
+      return {
+        headers: buildTestRecoveryHeaders(null),
+      };
+    }
+
+    const { client, responseHeaders } = createSupabaseServerClientForRequest(
+      input.request,
+    );
+    const { error } = await client.auth.updateUser({
+      password: input.newPassword,
     });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      headers: responseHeaders,
+    };
   },
 };
 
 function isTestAccessAuthMode() {
   return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+}
+
+function mergeTestHeaders(...headerSets: Headers[]) {
+  const mergedHeaders = new Headers();
+
+  for (const headerSet of headerSets) {
+    for (const [name, value] of headerSet) {
+      mergedHeaders.append(name, value);
+    }
+  }
+
+  return mergedHeaders;
 }
 
 async function signInTestCredentialUser(
@@ -368,6 +483,26 @@ function buildTestSupabaseHeaders(betterAuthHeaders?: Headers) {
   return headers;
 }
 
+function buildTestRecoveryHeaders(userId: string | null) {
+  const headers = new Headers();
+
+  headers.append(
+    "set-cookie",
+    serialize(
+      TEST_SUPABASE_RECOVERY_COOKIE_NAME,
+      signTestRecoveryUserId(userId),
+      {
+        httpOnly: true,
+        maxAge: userId ? undefined : 0,
+        path: "/",
+        sameSite: "lax",
+      },
+    ),
+  );
+
+  return headers;
+}
+
 function extractBetterAuthSessionToken(headers: Headers) {
   const setCookie = headers.get("set-cookie");
   const sessionCookie = setCookie?.match(BETTER_AUTH_SESSION_COOKIE_PATTERN);
@@ -392,24 +527,51 @@ function readTestSupabaseSessionToken(request: Request) {
   return legacySessionToken?.split(".")[0] ?? null;
 }
 
-function signTestSupabaseSessionToken(sessionToken: string | null) {
-  if (!sessionToken) {
-    return "";
+function readTestRecoveryUserId(request: Request) {
+  const cookies = parse(request.headers.get("cookie") ?? "");
+  const signedUserId = cookies[TEST_SUPABASE_RECOVERY_COOKIE_NAME];
+
+  if (!signedUserId) {
+    return null;
   }
 
-  return `${sessionToken}.${signTestSupabaseSession(sessionToken)}`;
+  return verifySignedTestRecoveryUserId(signedUserId);
+}
+
+function signTestSupabaseSessionToken(sessionToken: string | null) {
+  return signTestCookieValue(sessionToken);
 }
 
 function verifySignedTestSupabaseSessionToken(signedToken: string) {
-  const separatorIndex = signedToken.lastIndexOf(".");
+  return verifySignedTestCookieValue(signedToken);
+}
+
+function signTestRecoveryUserId(userId: string | null) {
+  return signTestCookieValue(userId);
+}
+
+function verifySignedTestRecoveryUserId(signedUserId: string) {
+  return verifySignedTestCookieValue(signedUserId);
+}
+
+function signTestCookieValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  return `${value}.${signTestSupabaseSession(value)}`;
+}
+
+function verifySignedTestCookieValue(signedValue: string) {
+  const separatorIndex = signedValue.lastIndexOf(".");
 
   if (separatorIndex <= 0) {
     return null;
   }
 
-  const sessionToken = signedToken.slice(0, separatorIndex);
-  const signature = signedToken.slice(separatorIndex + 1);
-  const expectedSignature = signTestSupabaseSession(sessionToken);
+  const value = signedValue.slice(0, separatorIndex);
+  const signature = signedValue.slice(separatorIndex + 1);
+  const expectedSignature = signTestSupabaseSession(value);
 
   if (
     signature.length !== expectedSignature.length ||
@@ -418,7 +580,7 @@ function verifySignedTestSupabaseSessionToken(signedToken: string) {
     return null;
   }
 
-  return sessionToken;
+  return value;
 }
 
 function getTestAccessAuthSecret() {

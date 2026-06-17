@@ -89,8 +89,8 @@ The main local auth routes are:
 - `/registro/:token`: complete academy registration from the emailed link.
 - `/ingresar`: sign in with email and password.
 - `/recuperar-acceso`: request an access recovery email.
-- `/recuperar-acceso/nueva?token=...`: define a new password from the recovery
-  link.
+- `/cambiar-contrasena?code=...`: complete the Supabase Auth academy recovery
+  flow after following the emailed link.
 - `/invitacion/:token`: complete an internal user invitation.
 
 ## Local Email
@@ -108,8 +108,9 @@ With the default dev server, test registration links locally with this flow:
 4. Copy the `/registro/<token>` URL from the `[email:dev]` console output.
 5. Open that URL in the browser and complete the academy form.
 
-The same console logging pattern applies to access recovery and internal
-invitation emails.
+The same console logging pattern applies to internal invitation emails. Academy
+recovery emails are sent by Supabase Auth, so local verification of that flow
+depends on the target Supabase project and its configured redirect URLs.
 
 If the submitted registration email already belongs to a user, the browser still
 shows the generic response. The dev email logs guidance toward `/ingresar` or
@@ -136,15 +137,28 @@ Supabase project and pointed at the same verified Resend sender. The default
 Supabase shared SMTP is not sufficient for the production access flows in this
 repo.
 
-## Better Auth Scope
+Configure these Supabase Auth dashboard values for academy recovery:
 
-For v1, Better Auth owns credentials, password hashing, sessions and password
-recovery primitives. The app owns domain-specific access flows:
+- Redirect URLs must include each deployed `/cambiar-contrasena` URL that can
+  receive password recovery links, plus `http://localhost:5173/cambiar-contrasena`
+  for local development.
+- Custom SMTP must use the same verified Resend sender configured in
+  `EMAIL_FROM` so Supabase recovery emails and app-owned invitation/registration
+  emails share the same domain identity.
+
+## Auth Scope
+
+For v1, Supabase Auth owns academy credentials, academy password recovery and
+academy sessions. Better Auth still backs internal credential data and the
+shared local test harness while the access boundary migration is in progress.
+The app owns domain-specific access flows:
 
 - Public academy registration tokens create an `Academia` and its single academy
   user.
 - Internal invitation tokens create or activate one internal user role:
   administration, audit or judging.
+- Internal password recovery remains an administrative reset with a temporary
+  password; internal users do not receive recovery emails.
 - Roles and academy ownership are app-domain data. Do not use Better Auth
   organizations for v1.
 

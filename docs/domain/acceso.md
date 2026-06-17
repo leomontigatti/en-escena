@@ -13,8 +13,9 @@ Rules for public academy registration, users, sessions and internal invitations.
 - A `Usuario` auditor is read-only and cannot create, edit, publish, unpublish, cancel, correct or annul.
 - Session inactivity limit is 8 hours for all permissions; logout affects only current session.
 - Admins create internal users directly with a temporary password; the first internal login requires a `Cambio obligatorio de contraseña`.
+- Academy users recover access by email through Supabase Auth and define the new password on `Cambio de contraseña`.
 - Internal password recovery is an administrative reset that assigns a temporary password and requires a `Cambio obligatorio de contraseña`.
 - Admins can create, edit, suspend, reactivate, reset passwords and change permissions for internal users; auditors can view users read-only.
 - Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes must keep administrative traceability without storing raw passwords or password hashes in audit payloads.
 - Internal users use the same password hashing mechanism as Better Auth.
-- Better Auth owns credentials, password recovery and sessions; app code owns domain-specific registration and invitations.
+- Supabase Auth owns academy credentials, academy password recovery and academy sessions; app code owns domain-specific registration and invitations.

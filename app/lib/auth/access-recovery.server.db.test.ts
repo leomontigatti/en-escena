@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academies, session, user, verification } from "@/db/schema";
+import { academies, session, user } from "@/db/schema";
 import { auth } from "@/lib/auth/auth.server";
+import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import {
-  requestAccessRecoveryEmail,
-  resetAccessPassword,
-} from "@/lib/auth/access-recovery.server";
-import { action as resetPasswordAction } from "@/routes/recuperar-acceso_.nueva";
+  action as changePasswordAction,
+  loader as changePasswordLoader,
+} from "@/routes/cambiar-contrasena";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -29,15 +29,9 @@ vi.mock("@/lib/shared/email.server", () => ({
 
 const OLD_PASSWORD = "old-password";
 const NEW_PASSWORD = "new-password";
-const RESET_PASSWORD_PATH = "/recuperar-acceso/nueva";
+const RESET_PASSWORD_PATH = "/cambiar-contrasena";
 const RESET_PASSWORD_ACTION_URL = `http://localhost${RESET_PASSWORD_PATH}`;
 const RECOVERY_REQUEST_URL = "http://localhost:3000/recuperar-acceso";
-const RESET_PASSWORD_REQUEST_URL = new URL(
-  RESET_PASSWORD_PATH,
-  RECOVERY_REQUEST_URL,
-).toString();
-const EXPIRED_RESET_TOKEN_MESSAGE =
-  "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.";
 
 installDatabaseTestHooks();
 
@@ -46,7 +40,7 @@ describe("access recovery", () => {
     sentEmails.length = 0;
   });
 
-  test("lets an existing user define a new password without creating academy data or changing role", async () => {
+  test("requests a Supabase reset only for eligible academy users", async () => {
     const signUpResult = await auth.api.signUpEmail({
       body: {
         email: "usuario@example.com",
@@ -57,76 +51,149 @@ describe("access recovery", () => {
 
     await db
       .update(user)
-      .set({ emailVerified: true, role: "judge" })
+      .set({ emailVerified: true, role: "academy" })
       .where(eq(user.id, signUpResult.user.id));
 
-    await requestAccessRecoveryEmail({
+    await db.insert(academies).values({
+      userId: signUpResult.user.id,
+      name: "Academia Norte",
+      contactName: "Usuario",
+      phone: "123456",
+    });
+
+    const requestPasswordReset = vi.fn().mockResolvedValue({
+      headers: new Headers(),
+    });
+
+    const result = await requestAccessRecoveryEmail({
       email: "usuario@example.com",
       requestUrl: RECOVERY_REQUEST_URL,
+      request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+      requestPasswordReset,
     });
 
-    const rawToken = await findResetTokenForUser(signUpResult.user.id);
-    expect(sentEmails).toHaveLength(1);
-    expect(sentEmails[0]).toMatchObject({
-      to: "usuario@example.com",
-      subject: "Recuperá tu acceso a En Escena",
+    expect(result).toEqual({
+      headers: new Headers(),
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
     });
-
-    const result = await resetAccessPassword({
-      token: rawToken,
-      newPassword: NEW_PASSWORD,
-      request: new Request(RESET_PASSWORD_REQUEST_URL),
+    expect(requestPasswordReset).toHaveBeenCalledWith({
+      email: "usuario@example.com",
+      redirectTo: "http://localhost:3000/cambiar-contrasena",
+      request: expect.any(Request),
     });
-
-    expect(result).toEqual({ ok: true });
-
-    await expect(
-      auth.api.signInEmail({
-        body: {
-          email: "usuario@example.com",
-          password: NEW_PASSWORD,
-        },
-      }),
-    ).resolves.toMatchObject({
-      user: { email: "usuario@example.com" },
-    });
-
-    const savedUser = await db.query.user.findFirst({
-      where: eq(user.id, signUpResult.user.id),
-    });
-    const savedAcademies = await db.query.academies.findMany({
-      where: eq(academies.userId, signUpResult.user.id),
-    });
-
-    expect(savedUser).toMatchObject({
-      emailVerified: true,
-      role: "judge",
-    });
-    expect(savedAcademies).toEqual([]);
   });
 
-  test("revokes existing sessions and redirects to login after a successful password reset", async () => {
-    const { rawToken, sessionCookie, userId } =
-      await createRecoverySessionState("revocar-sesiones@example.com");
-
-    await auth.api.signInEmail({
+  test("returns the generic response without triggering reset for internal, suspended or missing emails", async () => {
+    const internalUser = await auth.api.signUpEmail({
       body: {
-        email: "revocar-sesiones@example.com",
+        email: "interno@example.com",
+        name: "Interno",
         password: OLD_PASSWORD,
       },
-      returnHeaders: true,
+    });
+    const suspendedUser = await auth.api.signUpEmail({
+      body: {
+        email: "suspendido@example.com",
+        name: "Suspendido",
+        password: OLD_PASSWORD,
+      },
     });
 
-    await expect(findSessionsByUserId(userId)).resolves.toHaveLength(2);
+    await db
+      .update(user)
+      .set({ emailVerified: true, role: "admin" })
+      .where(eq(user.id, internalUser.user.id));
+    await db
+      .update(user)
+      .set({ emailVerified: true, role: "academy", suspended: true })
+      .where(eq(user.id, suspendedUser.user.id));
+    await db.insert(academies).values({
+      userId: suspendedUser.user.id,
+      name: "Academia Sur",
+      contactName: "Suspendido",
+      phone: "123456",
+    });
 
-    const response = await expectThrownResponse(
-      submitResetPasswordAction({
-        token: rawToken,
-        password: NEW_PASSWORD,
+    const requestPasswordReset = vi.fn().mockResolvedValue({
+      headers: new Headers(),
+    });
+
+    await expect(
+      requestAccessRecoveryEmail({
+        email: "interno@example.com",
+        requestUrl: RECOVERY_REQUEST_URL,
+        request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+        requestPasswordReset,
+      }),
+    ).resolves.toMatchObject({
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    });
+    await expect(
+      requestAccessRecoveryEmail({
+        email: "suspendido@example.com",
+        requestUrl: RECOVERY_REQUEST_URL,
+        request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+        requestPasswordReset,
+      }),
+    ).resolves.toMatchObject({
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    });
+    await expect(
+      requestAccessRecoveryEmail({
+        email: "inexistente@example.com",
+        requestUrl: RECOVERY_REQUEST_URL,
+        request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+        requestPasswordReset,
+      }),
+    ).resolves.toMatchObject({
+      message:
+        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    });
+
+    expect(requestPasswordReset).not.toHaveBeenCalled();
+  });
+
+  test("completes academy recovery through /cambiar-contrasena and revokes existing sessions", async () => {
+    const { recoveryCode, sessionCookie, userId } =
+      await createRecoverySessionState("revocar-sesiones@example.com");
+
+    const loaderResponse = await expectThrownResponse(
+      changePasswordLoader({
+        url: new URL(
+          `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
+        ),
+        pattern: "/cambiar-contrasena",
+        request: new Request(
+          `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
+        ),
+        params: {},
+        context: {},
       }),
     );
 
-    expect(response.status).toBe(302);
+    expect(loaderResponse.headers.get("location")).toBe(
+      "/cambiar-contrasena?recuperacion=1",
+    );
+
+    const recoveryCookie = createRecoveryCookie(loaderResponse.headers);
+
+    const response = await expectThrownResponse(
+      changePasswordAction({
+        url: new URL("http://localhost/cambiar-contrasena?recuperacion=1"),
+        pattern: "/cambiar-contrasena",
+        request: createChangePasswordRequest({
+          password: NEW_PASSWORD,
+          cookie: recoveryCookie,
+          requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
+        }),
+        params: {},
+        context: {},
+      }),
+    );
+
     expect(response.headers.get("location")).toBe("/ingresar?recuperacion=ok");
     await expect(findSessionsByUserId(userId)).resolves.toEqual([]);
     await expect(
@@ -145,33 +212,6 @@ describe("access recovery", () => {
       user: { email: "revocar-sesiones@example.com" },
     });
   });
-
-  test("keeps the existing error behavior and sessions when the reset token expired", async () => {
-    const { rawToken, userId } = await createRecoverySessionState(
-      "token-expirado@example.com",
-    );
-
-    await db
-      .update(verification)
-      .set({ expiresAt: new Date(Date.now() - 1_000) })
-      .where(eq(verification.identifier, `reset-password:${rawToken}`));
-
-    const result = await submitResetPasswordAction({
-      token: rawToken,
-      password: NEW_PASSWORD,
-    });
-
-    expect(result).toEqual({
-      status: "error",
-      message: EXPIRED_RESET_TOKEN_MESSAGE,
-      fieldErrors: {},
-      values: {
-        password: "",
-        confirmPassword: "",
-      },
-    });
-    await expect(findSessionsByUserId(userId)).resolves.toHaveLength(1);
-  });
 });
 
 async function createRecoverySessionState(email: string) {
@@ -186,40 +226,31 @@ async function createRecoverySessionState(email: string) {
 
   await db
     .update(user)
-    .set({ emailVerified: true })
+    .set({ emailVerified: true, role: "academy" })
     .where(eq(user.id, signUpResult.response.user.id));
 
-  const rawToken = await insertResetToken(signUpResult.response.user.id);
+  await db.insert(academies).values({
+    userId: signUpResult.response.user.id,
+    name: "Academia Oeste",
+    contactName: email,
+    phone: "123456",
+  });
+
+  const recoveryResult = await requestAccessRecoveryEmail({
+    email,
+    requestUrl: RECOVERY_REQUEST_URL,
+    request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+  });
+
+  if (!recoveryResult.debugRecoveryCode) {
+    throw new Error("Expected a test recovery code.");
+  }
 
   return {
-    rawToken,
+    recoveryCode: recoveryResult.debugRecoveryCode,
     sessionCookie: createRequestCookie(signUpResult.headers),
     userId: signUpResult.response.user.id,
   };
-}
-
-async function insertResetToken(userId: string) {
-  const rawToken = crypto.randomUUID();
-
-  await db.insert(verification).values({
-    identifier: `reset-password:${rawToken}`,
-    value: userId,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-  });
-
-  return rawToken;
-}
-
-async function findResetTokenForUser(userId: string) {
-  const resetToken = await db.query.verification.findFirst({
-    where: eq(verification.value, userId),
-  });
-
-  if (!resetToken?.identifier.startsWith("reset-password:")) {
-    throw new Error("Expected reset token to exist.");
-  }
-
-  return resetToken.identifier.replace("reset-password:", "");
 }
 
 function findSessionsByUserId(userId: string) {
@@ -228,21 +259,22 @@ function findSessionsByUserId(userId: string) {
   });
 }
 
-function submitResetPasswordAction(input: { token: string; password: string }) {
+function createChangePasswordRequest(input: {
+  password: string;
+  cookie: string;
+  requestUrl?: string;
+}) {
   const formData = new FormData();
-  formData.set("token", input.token);
-  formData.set("password", input.password);
+  formData.set("mode", "recovery");
+  formData.set("newPassword", input.password);
   formData.set("confirmPassword", input.password);
 
-  return resetPasswordAction({
-    url: new URL(RESET_PASSWORD_ACTION_URL),
-    pattern: RESET_PASSWORD_PATH,
-    request: new Request(RESET_PASSWORD_ACTION_URL, {
-      method: "POST",
-      body: formData,
-    }),
-    params: {},
-    context: {},
+  return new Request(input.requestUrl ?? RESET_PASSWORD_ACTION_URL, {
+    method: "POST",
+    body: formData,
+    headers: {
+      cookie: input.cookie,
+    },
   });
 }
 
@@ -261,12 +293,33 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
 }
 
 function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = readSetCookieValue(
+    headers,
+    /better-auth\.session_token=([^;]+)/,
+  );
 
-  if (!sessionCookie?.[1]) {
+  if (!sessionCookie) {
     throw new Error("Expected Better Auth to return a session cookie.");
   }
 
-  return `better-auth.session_token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie}`;
+}
+
+function createRecoveryCookie(headers: Headers) {
+  const recoveryCookie = readSetCookieValue(
+    headers,
+    /sb-recovery-user=([^;]+)/,
+  );
+
+  if (!recoveryCookie) {
+    throw new Error(
+      "Expected recovery exchange to return a test recovery cookie.",
+    );
+  }
+
+  return `sb-recovery-user=${recoveryCookie}`;
+}
+
+function readSetCookieValue(headers: Headers, pattern: RegExp) {
+  return headers.get("set-cookie")?.match(pattern)?.[1] ?? null;
 }

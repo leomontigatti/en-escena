@@ -7,7 +7,7 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "react-hook-form";
-import { redirect, useActionData } from "react-router";
+import { data, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
@@ -68,10 +68,17 @@ const academyProfileSchema = z.object({
 });
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
-type ActionData = Extract<
-  Awaited<ReturnType<typeof action>>,
-  { status: "error" | "success" }
->;
+type ActionData =
+  | {
+      status: "success";
+      message: string;
+    }
+  | {
+      status: "error";
+      message: string;
+      fieldErrors: AcademyProfileFieldErrors;
+      values: AcademyProfileFormValues;
+    };
 type AcademyProfileFormValues = z.infer<typeof academyProfileSchema>;
 type AcademyProfileFormReturn = UseFormReturn<
   AcademyProfileFormValues,
@@ -108,12 +115,18 @@ export async function action({ request }: { request: Request }) {
     const result = await requestAccessRecoveryEmail({
       email: user.email,
       requestUrl: request.url,
+      request,
     });
 
-    return {
-      status: "success" as const,
-      message: result.message,
-    };
+    return data(
+      {
+        status: "success" as const,
+        message: result.message,
+      },
+      {
+        headers: result.headers,
+      },
+    );
   }
 
   if (intent !== "" && intent !== updateAcademyProfileIntent) {
