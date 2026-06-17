@@ -1,11 +1,15 @@
-import { and, eq, ne } from "drizzle-orm";
-import { hashPassword, verifyPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { account, session, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
+import {
+  revokeOtherAccessSessions,
+  setInternalCredentialPassword,
+  verifyInternalCredentialPassword,
+} from "@/lib/auth/internal-user-auth.server";
 import { getLandingPathForUserId } from "@/lib/auth/internal-navigation.server";
 import {
   requireSignedInUser,
@@ -31,24 +35,9 @@ export async function completeMandatoryPasswordChange(input: {
   newPassword: string;
 }) {
   const appUser = await requireMandatoryPasswordChangeUser(input.request);
-
-  const credentialAccount = await db.query.account.findFirst({
-    columns: { password: true },
-    where: and(
-      eq(account.userId, appUser.id),
-      eq(account.providerId, "credential"),
-    ),
-  });
-
-  if (!credentialAccount?.password) {
-    return {
-      ok: false as const,
-      error: "No pudimos validar tu contraseña actual.",
-    };
-  }
-
-  const matchesCurrentPassword = await verifyPassword({
-    hash: credentialAccount.password,
+  const currentSession = await getRequiredSession(appUser, input.request);
+  const matchesCurrentPassword = await verifyInternalCredentialPassword({
+    email: appUser.email,
     password: input.currentPassword,
   });
 
@@ -59,30 +48,22 @@ export async function completeMandatoryPasswordChange(input: {
     };
   }
 
-  const newPasswordHash = await hashPassword(input.newPassword);
-  const currentSession = await getRequiredSession(appUser, input.request);
+  await setInternalCredentialPassword({
+    password: input.newPassword,
+    userId: appUser.id,
+  });
 
   await db.transaction(async (tx) => {
-    await tx
-      .update(account)
-      .set({ password: newPasswordHash })
-      .where(
-        and(
-          eq(account.userId, appUser.id),
-          eq(account.providerId, "credential"),
-        ),
-      );
-
     await tx
       .update(user)
       .set({ requiresPasswordChange: false })
       .where(eq(user.id, appUser.id));
+  });
 
-    await tx
-      .delete(session)
-      .where(
-        and(eq(session.userId, appUser.id), ne(session.id, currentSession.id)),
-      );
+  await revokeOtherAccessSessions({
+    currentSessionId: currentSession.id,
+    request: input.request,
+    userId: appUser.id,
   });
 
   return {

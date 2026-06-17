@@ -1,8 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { administrativeAuditEntries, session, user } from "@/db/schema";
+import { administrativeAuditEntries, user } from "@/db/schema";
 import { getInternalOptionalEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import {
+  revokeInternalCredentialSessions,
+  setInternalCredentialSuspendedState,
+} from "@/lib/auth/internal-user-auth.server";
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 
 type SetInternalUserSuspendedStateInput = {
@@ -53,6 +57,7 @@ export async function setInternalUserSuspendedState(
       name: true,
       requiresPasswordChange: true,
       role: true,
+      sessionInvalidBefore: true,
       suspended: true,
     },
     where: eq(user.id, input.targetUserId),
@@ -110,16 +115,30 @@ export async function setInternalUserSuspendedState(
     ...beforeValues,
     suspended: nextSuspended,
   };
+  const invalidatedAt = nextSuspended
+    ? new Date()
+    : existingUser.sessionInvalidBefore;
+
+  try {
+    await setInternalCredentialSuspendedState({
+      suspended: nextSuspended,
+      userId: existingUser.id,
+    });
+  } catch {
+    return {
+      ok: false,
+      error: "No pudimos actualizar el acceso de este Usuario.",
+    };
+  }
 
   await db.transaction(async (tx) => {
     await tx
       .update(user)
-      .set({ suspended: nextSuspended })
+      .set({
+        sessionInvalidBefore: invalidatedAt,
+        suspended: nextSuspended,
+      })
       .where(eq(user.id, existingUser.id));
-
-    if (nextSuspended) {
-      await tx.delete(session).where(eq(session.userId, existingUser.id));
-    }
 
     await tx.insert(administrativeAuditEntries).values({
       entityType: "user",
@@ -131,6 +150,10 @@ export async function setInternalUserSuspendedState(
       afterValues,
     });
   });
+
+  if (nextSuspended) {
+    await revokeInternalCredentialSessions(existingUser.id);
+  }
 
   return { ok: true, userId: existingUser.id };
 }

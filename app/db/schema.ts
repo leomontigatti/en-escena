@@ -72,6 +72,10 @@ export const user = createTable("user", {
     .notNull()
     .default(false),
   suspended: boolean("suspended").notNull().default(false),
+  sessionInvalidBefore: timestamp("session_invalid_before", {
+    mode: "date",
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,

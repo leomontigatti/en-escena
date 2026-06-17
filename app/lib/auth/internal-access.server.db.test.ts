@@ -111,6 +111,32 @@ describe("internal access authorization", () => {
     ).resolves.toEqual([]);
   });
 
+  test("blocks sessions invalidated after administrative revocation", async () => {
+    const { request, userId } = await createSignedInRequest({
+      email: "revocado.privado@example.com",
+      role: "admin",
+    });
+
+    await db
+      .update(user)
+      .set({
+        sessionInvalidBefore: new Date(Date.now() + 60_000),
+      })
+      .where(eq(user.id, userId));
+
+    const response = await expectThrownResponse(requireSignedInUser(request));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "/ingresar?redirectTo=%2Fprotected&motivo=expirada",
+    );
+    await expect(
+      db.query.session.findMany({
+        where: eq(session.userId, userId),
+      }),
+    ).resolves.toEqual([]);
+  });
+
   test("returns the academy owned by an academy user", async () => {
     const { request, userId } = await createSignedInRequest({
       email: "academia@example.com",
