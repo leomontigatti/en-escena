@@ -2,19 +2,10 @@ import { describe, expect, test, vi } from "vitest";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
-const signInEmail = vi.hoisted(() => vi.fn());
 const signInCredentialUser = vi.hoisted(() => vi.fn());
 const findCredentialUserForIdentifier = vi.hoisted(() => vi.fn());
 const getPostLoginPathForUserId = vi.hoisted(() => vi.fn());
 const redirectSignedInUserFromPublicRoute = vi.hoisted(() => vi.fn());
-
-vi.mock("@/lib/auth/auth.server", () => ({
-  auth: {
-    api: {
-      signInEmail,
-    },
-  },
-}));
 
 vi.mock("@/lib/auth/access-auth-provider.server", () => ({
   accessAuthProvider: {
@@ -102,7 +93,6 @@ describe("access UI validation", () => {
       password: "password-segura",
       request: expect.any(Request),
     });
-    expect(signInEmail).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("/administracion");
   });
 

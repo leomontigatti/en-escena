@@ -1,17 +1,26 @@
 import { auth } from "@/lib/auth/auth.server";
 
+type CredentialUserInput = {
+  email: string;
+  password: string;
+  request: Request;
+};
+
+export type AccessCredentialUser = {
+  userId: string;
+  headers: Headers;
+};
+
 export const accessAuthProvider = {
   async getAccessSession(request: Request) {
-    return await auth.api.getSession({
+    return auth.api.getSession({
       headers: request.headers,
     });
   },
 
-  async signInCredentialUser(input: {
-    email: string;
-    password: string;
-    request: Request;
-  }) {
+  async signInCredentialUser(
+    input: CredentialUserInput,
+  ): Promise<AccessCredentialUser> {
     const result = await auth.api.signInEmail({
       body: {
         email: input.email,
@@ -38,11 +47,9 @@ export const accessAuthProvider = {
     };
   },
 
-  async signUpCredentialUser(input: {
-    email: string;
-    password: string;
-    request: Request;
-  }) {
+  async signUpCredentialUser(
+    input: CredentialUserInput,
+  ): Promise<AccessCredentialUser> {
     const result = await auth.api.signUpEmail({
       body: {
         email: input.email,

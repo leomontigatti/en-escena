@@ -5,10 +5,5 @@ export async function signUpAcademyUser(input: {
   password: string;
   request: Request;
 }) {
-  const signUpResult = await accessAuthProvider.signUpCredentialUser(input);
-
-  return {
-    userId: signUpResult.userId,
-    headers: signUpResult.headers,
-  };
+  return accessAuthProvider.signUpCredentialUser(input);
 }

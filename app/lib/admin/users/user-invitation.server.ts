@@ -8,7 +8,10 @@ import {
   hashRegistrationToken,
   normalizeEmail,
 } from "@/lib/academies/registration-token.server";
-import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import {
+  accessAuthProvider,
+  type AccessCredentialUser,
+} from "@/lib/auth/access-auth-provider.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
 import {
   INTERNAL_USER_ROLES,
@@ -38,17 +41,12 @@ type InternalUserInvitationDependencies = {
   sendEmail?: (input: SendEmailInput) => Promise<void> | void;
 };
 
-type CredentialUser = {
-  userId: string;
-  headers: Headers;
-};
-
 type CredentialUserCreator = (input: {
   email: string;
   password: string;
   request: Request;
   existingUserId?: string;
-}) => Promise<CredentialUser>;
+}) => Promise<AccessCredentialUser>;
 
 export async function requestInternalUserInvitation(
   input: RequestInternalUserInvitationInput,
@@ -185,28 +183,18 @@ async function createBetterAuthCredentialUser(input: {
   if (input.existingUserId) {
     await setExistingUserPassword(input.existingUserId, input.password);
 
-    const signInResult = await accessAuthProvider.signInCredentialUser({
+    return accessAuthProvider.signInCredentialUser({
       email: input.email,
       password: input.password,
       request: input.request,
     });
-
-    return {
-      userId: signInResult.userId,
-      headers: signInResult.headers,
-    };
   }
 
-  const signUpResult = await accessAuthProvider.signUpCredentialUser({
+  return accessAuthProvider.signUpCredentialUser({
     email: input.email,
     password: input.password,
     request: input.request,
   });
-
-  return {
-    userId: signUpResult.userId,
-    headers: signUpResult.headers,
-  };
 }
 
 async function setExistingUserPassword(userId: string, password: string) {
