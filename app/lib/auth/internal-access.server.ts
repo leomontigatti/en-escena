@@ -51,9 +51,7 @@ export async function requireSignedInUser(
   }
 
   if (appUser.suspended) {
-    await accessAuthProvider.signOutCurrentSession(request);
-    await db.delete(sessionTable).where(eq(sessionTable.userId, appUser.id));
-    redirectToLoginForRequest(request);
+    await revokeAppUserSessionsAndRedirect(request, appUser.id);
   }
 
   if (
@@ -61,9 +59,7 @@ export async function requireSignedInUser(
     session.session.issuedAt &&
     session.session.issuedAt < appUser.sessionInvalidBefore
   ) {
-    await accessAuthProvider.signOutCurrentSession(request);
-    await db.delete(sessionTable).where(eq(sessionTable.userId, appUser.id));
-    redirectToLoginForRequest(request);
+    await revokeAppUserSessionsAndRedirect(request, appUser.id);
   }
 
   if (
@@ -124,4 +120,13 @@ export async function requireAdminUser(request: Request) {
 
 function throwForbidden(message = DEFAULT_FORBIDDEN_MESSAGE): never {
   throw new Response(message, { status: 403 });
+}
+
+async function revokeAppUserSessionsAndRedirect(
+  request: Request,
+  userId: string,
+): Promise<never> {
+  await accessAuthProvider.signOutCurrentSession(request);
+  await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
+  redirectToLoginForRequest(request);
 }

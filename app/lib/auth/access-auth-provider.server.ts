@@ -384,9 +384,11 @@ function getIssuedAtForAccessToken(accessToken: string | null) {
       Buffer.from(normalizeBase64Url(payload), "base64").toString("utf8"),
     ) as { iat?: number };
 
-    return typeof decoded.iat === "number"
-      ? new Date(decoded.iat * 1000)
-      : null;
+    if (typeof decoded.iat !== "number") {
+      return null;
+    }
+
+    return new Date(decoded.iat * 1000);
   } catch {
     return null;
   }

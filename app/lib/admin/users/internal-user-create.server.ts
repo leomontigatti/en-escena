@@ -125,31 +125,35 @@ export async function createInternalUser(
         where: eq(user.id, credentialUser.userId),
       });
 
-      const [savedUser] = existingCreatedUser
-        ? await tx
-            .update(user)
-            .set({
-              email: credentialEmail,
-              emailVerified: false,
-              internalUsername,
-              name,
-              requiresPasswordChange: true,
-              role: input.role,
-            })
-            .where(eq(user.id, credentialUser.userId))
-            .returning({ id: user.id })
-        : await tx
-            .insert(user)
-            .values({
-              email: credentialEmail,
-              emailVerified: false,
-              id: credentialUser.userId,
-              internalUsername,
-              name,
-              requiresPasswordChange: true,
-              role: input.role,
-            })
-            .returning({ id: user.id });
+      let savedUser: { id: string } | undefined;
+
+      if (existingCreatedUser) {
+        [savedUser] = await tx
+          .update(user)
+          .set({
+            email: credentialEmail,
+            emailVerified: false,
+            internalUsername,
+            name,
+            requiresPasswordChange: true,
+            role: input.role,
+          })
+          .where(eq(user.id, credentialUser.userId))
+          .returning({ id: user.id });
+      } else {
+        [savedUser] = await tx
+          .insert(user)
+          .values({
+            email: credentialEmail,
+            emailVerified: false,
+            id: credentialUser.userId,
+            internalUsername,
+            name,
+            requiresPasswordChange: true,
+            role: input.role,
+          })
+          .returning({ id: user.id });
+      }
 
       if (!savedUser) {
         throw new Error("Expected internal user to be created.");

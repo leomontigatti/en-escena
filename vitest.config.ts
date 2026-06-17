@@ -1,11 +1,12 @@
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
+import type { UserConfig } from "vite";
 
 import viteConfig from "./vite.config";
 
 export default mergeConfig(
-  viteConfig as any,
+  viteConfig as UserConfig,
   defineConfig({
     resolve: {
       alias: {
