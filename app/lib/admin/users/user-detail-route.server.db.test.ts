@@ -1,5 +1,4 @@
-import { and, eq } from "drizzle-orm";
-import { verifyPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -7,7 +6,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  account,
   academies,
   administrativeAuditEntries,
   session,
@@ -297,10 +295,6 @@ describe("administracion/usuarios/:userId route", () => {
       db.select().from(session).where(eq(session.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
-    const previousCredentialPassword = await findCredentialPassword(
-      targetUser.userId,
-    );
-
     const response = await expectThrownResponse(
       detailAction(
         detailActionArgs(
@@ -330,20 +324,6 @@ describe("administracion/usuarios/:userId route", () => {
     await expect(
       db.select().from(session).where(eq(session.userId, targetUser.userId)),
     ).resolves.toEqual([]);
-
-    const nextCredentialPassword = await findCredentialPassword(
-      targetUser.userId,
-    );
-
-    expect(nextCredentialPassword).toBeTruthy();
-    expect(nextCredentialPassword).not.toBe(previousCredentialPassword);
-    expect(nextCredentialPassword).not.toBe("temporal-nueva");
-    expect(
-      await verifyPassword({
-        hash: nextCredentialPassword ?? "",
-        password: "temporal-nueva",
-      }),
-    ).toBe(true);
 
     await expect(
       db
@@ -379,15 +359,31 @@ describe("administracion/usuarios/:userId route", () => {
       },
     );
     expect(JSON.stringify(savedAuditEntry)).not.toContain("temporal-nueva");
-    expect(JSON.stringify(savedAuditEntry)).not.toContain(
-      nextCredentialPassword ?? "",
-    );
 
     const loginResponse = await expectThrownResponse(
       submitSignInAction("julia.restablecida", "temporal-nueva"),
       302,
     );
     expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
+
+    const oldPasswordResponse = await signInAction({
+      url: new URL("http://localhost/ingresar"),
+      pattern: "/ingresar",
+      request: new Request("http://localhost/ingresar", {
+        method: "POST",
+        body: new URLSearchParams({
+          identifier: "julia.restablecida",
+          password: "password-anterior",
+        }),
+      }),
+      params: {},
+      context: {},
+    });
+
+    expect(oldPasswordResponse).toMatchObject({
+      status: "error",
+      message: "No pudimos ingresar con esos datos.",
+    });
   });
 
   test("blocks non-admin mutations and prevents self-demotion of the only admin", async () => {
@@ -852,18 +848,6 @@ function submitSignInAction(identifier: string, password: string) {
     params: {},
     context: {},
   });
-}
-
-async function findCredentialPassword(userId: string) {
-  const credentialAccount = await db.query.account.findFirst({
-    columns: { password: true },
-    where: and(
-      eq(account.userId, userId),
-      eq(account.providerId, "credential"),
-    ),
-  });
-
-  return credentialAccount?.password ?? null;
 }
 
 function createRequestCookie(headers: Headers) {

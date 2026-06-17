@@ -1,14 +1,12 @@
-import { and, eq } from "drizzle-orm";
-import { hashPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  account,
-  administrativeAuditEntries,
-  session,
-  user,
-} from "@/db/schema";
+import { administrativeAuditEntries, user } from "@/db/schema";
 import { getInternalOptionalEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import {
+  revokeInternalCredentialSessions,
+  setInternalCredentialPassword,
+} from "@/lib/auth/internal-user-auth.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
@@ -87,21 +85,7 @@ export async function resetInternalUserPassword(
     );
   }
 
-  const credentialAccount = await db.query.account.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(account.userId, existingUser.id),
-      eq(account.providerId, "credential"),
-    ),
-  });
-
-  if (!credentialAccount) {
-    return resetPasswordError(
-      "No pudimos actualizar la contraseña de este Usuario.",
-    );
-  }
-
-  const nextPasswordHash = await hashPassword(input.temporaryPassword);
+  const invalidatedAt = new Date();
   const beforeValues: InternalUserPasswordResetAuditSnapshot = {
     email: getInternalOptionalEmail({
       email: existingUser.email,
@@ -118,18 +102,25 @@ export async function resetInternalUserPassword(
     requiresPasswordChange: true,
   };
 
+  try {
+    await setInternalCredentialPassword({
+      password: input.temporaryPassword,
+      userId: existingUser.id,
+    });
+  } catch {
+    return resetPasswordError(
+      "No pudimos actualizar la contraseña de este Usuario.",
+    );
+  }
+
   await db.transaction(async (tx) => {
     await tx
-      .update(account)
-      .set({ password: nextPasswordHash })
-      .where(eq(account.id, credentialAccount.id));
-
-    await tx
       .update(user)
-      .set({ requiresPasswordChange: true })
+      .set({
+        requiresPasswordChange: true,
+        sessionInvalidBefore: invalidatedAt,
+      })
       .where(eq(user.id, existingUser.id));
-
-    await tx.delete(session).where(eq(session.userId, existingUser.id));
 
     await tx.insert(administrativeAuditEntries).values({
       entityType: "user",
@@ -141,6 +132,8 @@ export async function resetInternalUserPassword(
       afterValues,
     });
   });
+
+  await revokeInternalCredentialSessions(existingUser.id);
 
   return { ok: true, userId: existingUser.id };
 }

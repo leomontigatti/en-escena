@@ -17,6 +17,7 @@ type CredentialUserInput = {
 type AccessSession = {
   session: {
     id: string | null;
+    issuedAt: Date | null;
   };
   user: {
     email: string;
@@ -55,6 +56,7 @@ export const accessAuthProvider = {
     return {
       session: {
         id: session?.access_token ?? null,
+        issuedAt: getIssuedAtForAccessToken(session?.access_token ?? null),
       },
       user: {
         id: verifiedUser.id,
@@ -243,6 +245,7 @@ async function getTestAccessSession(
     columns: {
       expiresAt: true,
       id: true,
+      createdAt: true,
       userId: true,
     },
     where: and(
@@ -270,6 +273,7 @@ async function getTestAccessSession(
   return {
     session: {
       id: savedSession.id,
+      issuedAt: savedSession.createdAt,
     },
     user: {
       email: savedUser.email,
@@ -362,6 +366,37 @@ function signTestSupabaseSession(sessionToken: string) {
   return createHmac("sha256", getTestAccessAuthSecret())
     .update(sessionToken)
     .digest("hex");
+}
+
+function getIssuedAtForAccessToken(accessToken: string | null) {
+  if (!accessToken) {
+    return null;
+  }
+
+  const payload = accessToken.split(".")[1];
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(normalizeBase64Url(payload), "base64").toString("utf8"),
+    ) as { iat?: number };
+
+    return typeof decoded.iat === "number"
+      ? new Date(decoded.iat * 1000)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeBase64Url(value: string) {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+  const padding = normalized.length % 4;
+
+  return padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
 }
 
 async function findOrCreateAppUserForAccessUser(input: {

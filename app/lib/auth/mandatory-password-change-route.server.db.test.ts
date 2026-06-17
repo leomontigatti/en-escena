@@ -59,16 +59,29 @@ describe("mandatory password change route", () => {
       extractDatabaseSessionToken(otherSessionResponse.headers),
     );
 
-    await expect(
-      auth.api.signInEmail({
-        body: {
-          email: "cambio-obligatorio@example.com",
-          password: "password-nueva",
-        },
+    const signInWithOldPassword = await signInAction({
+      url: new URL("http://localhost/ingresar"),
+      pattern: "/ingresar",
+      request: createSignInRequest({
+        identifier: "cambio.admin",
+        password: "password-segura",
       }),
-    ).resolves.toMatchObject({
-      user: { id: userId },
+      params: {},
+      context: {},
     });
+
+    expect(signInWithOldPassword).toMatchObject({
+      status: "error",
+      message: "No pudimos ingresar con esos datos.",
+    });
+
+    const signInWithNewPassword = await expectThrownResponse(
+      submitSignInAction("cambio.admin", "password-nueva"),
+      302,
+    );
+    expect(signInWithNewPassword.headers.get("location")).toBe(
+      "/administracion",
+    );
   });
 });
 
@@ -127,19 +140,26 @@ function createChangePasswordRequest(input: {
 }
 
 function submitSignInAction(identifier: string, password: string) {
-  const formData = new FormData();
-  formData.set("identifier", identifier);
-  formData.set("password", password);
-
   return signInAction({
     url: new URL("http://localhost/ingresar"),
     pattern: "/ingresar",
-    request: new Request("http://localhost/ingresar", {
-      method: "POST",
-      body: formData,
+    request: createSignInRequest({
+      identifier,
+      password,
     }),
     params: {},
     context: {},
+  });
+}
+
+function createSignInRequest(input: { identifier: string; password: string }) {
+  const formData = new FormData();
+  formData.set("identifier", input.identifier);
+  formData.set("password", input.password);
+
+  return new Request("http://localhost/ingresar", {
+    method: "POST",
+    body: formData,
   });
 }
 

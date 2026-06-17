@@ -1,18 +1,17 @@
-import { and, eq } from "drizzle-orm";
-import { verifyPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { account, administrativeAuditEntries, user } from "@/db/schema";
+import { administrativeAuditEntries, user } from "@/db/schema";
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
-import { auth } from "@/lib/auth/auth.server";
+import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
 describe("create internal user", () => {
-  test("creates an internal user with normalized username, hashed temporary password, mandatory password change, and sanitized audit data", async () => {
+  test("creates an internal user with normalized username, mandatory password change, and sanitized audit data", async () => {
     const adminUser = await createAdminUser("admin.creator@example.com");
 
     const result = await createInternalUser({
@@ -50,32 +49,11 @@ describe("create internal user", () => {
     });
     expect(savedUser?.email).toContain("jurado.principal");
 
-    const credentialAccount = await db.query.account.findFirst({
-      where: and(
-        eq(account.userId, createdUserId),
-        eq(account.providerId, "credential"),
-      ),
-    });
-
-    expect(credentialAccount?.password).toBeTruthy();
-    expect(credentialAccount?.password).not.toBe("temporal-segura");
-    expect(
-      await verifyPassword({
-        hash: credentialAccount?.password ?? "",
-        password: "temporal-segura",
-      }),
-    ).toBe(true);
-
-    await expect(
-      auth.api.signInEmail({
-        body: {
-          email: savedUser?.email ?? "",
-          password: "temporal-segura",
-        },
-      }),
-    ).resolves.toMatchObject({
-      user: { id: createdUserId },
-    });
+    const loginResponse = await expectThrownResponse(
+      submitSignInAction("Jurado.Principal", "temporal-segura"),
+      302,
+    );
+    expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
 
     await expect(
       db
@@ -161,4 +139,36 @@ async function createAdminUser(email: string) {
   }
 
   return adminUser;
+}
+
+function submitSignInAction(identifier: string, password: string) {
+  const formData = new FormData();
+  formData.set("identifier", identifier);
+  formData.set("password", password);
+
+  return signInAction({
+    url: new URL("http://localhost/ingresar"),
+    pattern: "/ingresar",
+    request: new Request("http://localhost/ingresar", {
+      method: "POST",
+      body: formData,
+    }),
+    params: {},
+    context: {},
+  });
+}
+
+async function expectThrownResponse(
+  resultPromise: Promise<unknown>,
+  status: number,
+) {
+  try {
+    await resultPromise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(Response);
+    expect((error as Response).status).toBe(status);
+    return error as Response;
+  }
+
+  throw new Error("Expected a response to be thrown.");
 }

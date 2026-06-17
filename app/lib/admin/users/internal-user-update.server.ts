@@ -59,6 +59,7 @@ export async function updateInternalUser(
       name: true,
       requiresPasswordChange: true,
       role: true,
+      sessionInvalidBefore: true,
       suspended: true,
     },
     where: eq(user.id, input.userId),
@@ -142,6 +143,9 @@ export async function updateInternalUser(
     suspended: existingUser.suspended,
   };
   const roleChanged = existingUser.role !== input.role;
+  const invalidatedAt = roleChanged
+    ? new Date()
+    : existingUser.sessionInvalidBefore;
 
   await db.transaction(async (tx) => {
     await tx
@@ -151,6 +155,7 @@ export async function updateInternalUser(
         emailVerified: false,
         name,
         role: input.role,
+        sessionInvalidBefore: invalidatedAt,
       })
       .where(eq(user.id, existingUser.id));
 

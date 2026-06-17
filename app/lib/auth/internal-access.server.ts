@@ -18,6 +18,7 @@ export type AppUser = {
   name: string | null;
   role: "academy" | InternalUserRole;
   requiresPasswordChange: boolean;
+  sessionInvalidBefore: Date | null;
 };
 
 const DEFAULT_FORBIDDEN_MESSAGE = "No tenés permiso para acceder a esta vista.";
@@ -39,6 +40,7 @@ export async function requireSignedInUser(
       name: true,
       role: true,
       requiresPasswordChange: true,
+      sessionInvalidBefore: true,
       suspended: true,
     },
     where: eq(user.id, session.user.id),
@@ -49,6 +51,17 @@ export async function requireSignedInUser(
   }
 
   if (appUser.suspended) {
+    await accessAuthProvider.signOutCurrentSession(request);
+    await db.delete(sessionTable).where(eq(sessionTable.userId, appUser.id));
+    redirectToLoginForRequest(request);
+  }
+
+  if (
+    appUser.sessionInvalidBefore &&
+    session.session.issuedAt &&
+    session.session.issuedAt < appUser.sessionInvalidBefore
+  ) {
+    await accessAuthProvider.signOutCurrentSession(request);
     await db.delete(sessionTable).where(eq(sessionTable.userId, appUser.id));
     redirectToLoginForRequest(request);
   }

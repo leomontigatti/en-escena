@@ -7,6 +7,10 @@ vi.mock("@/lib/admin/event-context.server", () => ({
   loadAdminEventContext: vi.fn(),
 }));
 
+vi.mock("@/lib/admin/users/internal-user-create.server", () => ({
+  createInternalUser: vi.fn(),
+}));
+
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));

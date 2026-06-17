@@ -1,11 +1,14 @@
 import { eq, or } from "drizzle-orm";
-import { hashPassword } from "better-auth/crypto";
 
 import { db } from "@/db";
-import { account, administrativeAuditEntries, user } from "@/db/schema";
+import { administrativeAuditEntries, user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { assertValidInternalUsername } from "@/lib/auth/internal-username.server";
+import {
+  createInternalCredentialUser,
+  deleteInternalCredentialUser,
+} from "@/lib/auth/internal-user-auth.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
@@ -107,44 +110,67 @@ export async function createInternalUser(
     );
   }
 
-  const passwordHash = await hashPassword(input.temporaryPassword);
-
-  const createdUser = await db.transaction(async (tx) => {
-    const [savedUser] = await tx
-      .insert(user)
-      .values({
-        email: credentialEmail,
-        emailVerified: false,
-        internalUsername,
-        name,
-        requiresPasswordChange: true,
-        role: input.role,
-      })
-      .returning({ id: user.id });
-
-    if (!savedUser) {
-      throw new Error("Expected internal user to be created.");
-    }
-
-    await tx.insert(account).values({
-      userId: savedUser.id,
-      providerId: "credential",
-      accountId: savedUser.id,
-      password: passwordHash,
-    });
-
-    await tx.insert(administrativeAuditEntries).values({
-      entityType: "user",
-      entityId: savedUser.id,
-      adminUserId: input.createdByUserId,
-      action: "create",
-      reason: null,
-      beforeValues: {},
-      afterValues: auditSnapshot,
-    });
-
-    return savedUser;
+  const credentialUser = await createInternalCredentialUser({
+    email: credentialEmail,
+    name,
+    password: input.temporaryPassword,
   });
+
+  let createdUser: { id: string } | null = null;
+
+  try {
+    createdUser = await db.transaction(async (tx) => {
+      const existingCreatedUser = await tx.query.user.findFirst({
+        columns: { id: true },
+        where: eq(user.id, credentialUser.userId),
+      });
+
+      const [savedUser] = existingCreatedUser
+        ? await tx
+            .update(user)
+            .set({
+              email: credentialEmail,
+              emailVerified: false,
+              internalUsername,
+              name,
+              requiresPasswordChange: true,
+              role: input.role,
+            })
+            .where(eq(user.id, credentialUser.userId))
+            .returning({ id: user.id })
+        : await tx
+            .insert(user)
+            .values({
+              email: credentialEmail,
+              emailVerified: false,
+              id: credentialUser.userId,
+              internalUsername,
+              name,
+              requiresPasswordChange: true,
+              role: input.role,
+            })
+            .returning({ id: user.id });
+
+      if (!savedUser) {
+        throw new Error("Expected internal user to be created.");
+      }
+
+      await tx.insert(administrativeAuditEntries).values({
+        entityType: "user",
+        entityId: savedUser.id,
+        adminUserId: input.createdByUserId,
+        action: "create",
+        reason: null,
+        beforeValues: {},
+        afterValues: auditSnapshot,
+      });
+
+      return savedUser;
+    });
+  } catch (error) {
+    await deleteInternalCredentialUser(credentialUser.userId);
+    throw error;
+  }
 
   return { ok: true, userId: createdUser.id };
 }
