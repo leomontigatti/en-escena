@@ -1,4 +1,4 @@
-import { Form, useActionData } from "react-router";
+import { data, Form, useActionData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -68,14 +68,20 @@ export async function action({ request }: Route.ActionArgs) {
   const result = await requestAccessRecoveryEmail({
     email: parsed.data.email,
     requestUrl: request.url,
+    request,
   });
 
-  return {
-    status: "success" as const,
-    message: result.message,
-    fieldErrors: getEmptyFieldErrors<RecoveryField>(),
-    values,
-  };
+  return data(
+    {
+      status: "success" as const,
+      message: result.message,
+      fieldErrors: getEmptyFieldErrors<RecoveryField>(),
+      values,
+    },
+    {
+      headers: result.headers,
+    },
+  );
 }
 
 export default function RecuperarAccesoRoute() {

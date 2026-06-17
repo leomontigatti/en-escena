@@ -1248,12 +1248,15 @@ describe("portal Perfil action", () => {
 
     expect(requestAccessRecoveryEmailMock).toHaveBeenCalledWith({
       email: "portal@example.com",
+      request: expect.any(Request),
       requestUrl: "http://localhost/portal/perfil",
     });
-    expect(result).toEqual({
-      status: "success",
-      message:
-        "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+    expect(result).toMatchObject({
+      data: {
+        status: "success",
+        message:
+          "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.",
+      },
     });
   });
 });
