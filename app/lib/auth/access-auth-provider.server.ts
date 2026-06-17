@@ -30,6 +30,8 @@ export type AccessCredentialUser = {
 };
 
 const TEST_SUPABASE_ACCESS_COOKIE_NAME = "sb-access-token";
+const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
+const BETTER_AUTH_SESSION_COOKIE_PATTERN = /better-auth\.session_token=([^;]+)/;
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
@@ -65,37 +67,10 @@ export const accessAuthProvider = {
     input: CredentialUserInput,
   ): Promise<AccessCredentialUser> {
     if (isTestAccessAuthMode()) {
-      const result = await auth.api.signInEmail({
-        body: {
-          email: input.email,
-          password: input.password,
-        },
-        headers: input.request.headers,
-        returnHeaders: true,
-      });
-
-      return {
-        userId: result.response.user.id,
-        headers: buildTestSupabaseHeaders(result.headers),
-      };
+      return await signInTestCredentialUser(input);
     }
 
-    const { client, responseHeaders } = createSupabaseServerClientForRequest(
-      input.request,
-    );
-    const { data, error } = await client.auth.signInWithPassword({
-      email: input.email,
-      password: input.password,
-    });
-
-    if (error || !data.user?.id) {
-      throw error ?? new Error("Supabase sign-in failed.");
-    }
-
-    return {
-      userId: await findOrCreateAppUserForAccessUser(data.user),
-      headers: responseHeaders,
-    };
+    return await signInSupabaseCredentialUser(input);
   },
 
   async signOutCurrentSession(request: Request) {
@@ -130,43 +105,10 @@ export const accessAuthProvider = {
     input: CredentialUserInput,
   ): Promise<AccessCredentialUser> {
     if (isTestAccessAuthMode()) {
-      const result = await auth.api.signUpEmail({
-        body: {
-          email: input.email,
-          name: input.email,
-          password: input.password,
-        },
-        headers: input.request.headers,
-        returnHeaders: true,
-      });
-
-      return {
-        userId: result.response.user.id,
-        headers: buildTestSupabaseHeaders(result.headers),
-      };
+      return await signUpTestCredentialUser(input);
     }
 
-    const { client, responseHeaders } = createSupabaseServerClientForRequest(
-      input.request,
-    );
-    const { data, error } = await client.auth.signUp({
-      email: input.email,
-      password: input.password,
-      options: {
-        data: {
-          name: input.email,
-        },
-      },
-    });
-
-    if (error || !data.user?.id || !data.user.email) {
-      throw error ?? new Error("Supabase sign-up failed.");
-    }
-
-    return {
-      userId: await findOrCreateAppUserForAccessUser(data.user),
-      headers: responseHeaders,
-    };
+    return await signUpSupabaseCredentialUser(input);
   },
 
   async requestPasswordReset(input: {
@@ -202,6 +144,90 @@ export const accessAuthProvider = {
 
 function isTestAccessAuthMode() {
   return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+}
+
+async function signInTestCredentialUser(
+  input: CredentialUserInput,
+): Promise<AccessCredentialUser> {
+  const result = await auth.api.signInEmail({
+    body: {
+      email: input.email,
+      password: input.password,
+    },
+    headers: input.request.headers,
+    returnHeaders: true,
+  });
+
+  return {
+    userId: result.response.user.id,
+    headers: buildTestSupabaseHeaders(result.headers),
+  };
+}
+
+async function signInSupabaseCredentialUser(
+  input: CredentialUserInput,
+): Promise<AccessCredentialUser> {
+  const { client, responseHeaders } = createSupabaseServerClientForRequest(
+    input.request,
+  );
+  const { data, error } = await client.auth.signInWithPassword({
+    email: input.email,
+    password: input.password,
+  });
+
+  if (error || !data.user?.id) {
+    throw error ?? new Error("Supabase sign-in failed.");
+  }
+
+  return {
+    userId: await findOrCreateAppUserForAccessUser(data.user),
+    headers: responseHeaders,
+  };
+}
+
+async function signUpTestCredentialUser(
+  input: CredentialUserInput,
+): Promise<AccessCredentialUser> {
+  const result = await auth.api.signUpEmail({
+    body: {
+      email: input.email,
+      name: input.email,
+      password: input.password,
+    },
+    headers: input.request.headers,
+    returnHeaders: true,
+  });
+
+  return {
+    userId: result.response.user.id,
+    headers: buildTestSupabaseHeaders(result.headers),
+  };
+}
+
+async function signUpSupabaseCredentialUser(
+  input: CredentialUserInput,
+): Promise<AccessCredentialUser> {
+  const { client, responseHeaders } = createSupabaseServerClientForRequest(
+    input.request,
+  );
+  const { data, error } = await client.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: {
+        name: input.email,
+      },
+    },
+  });
+
+  if (error || !data.user?.id || !data.user.email) {
+    throw error ?? new Error("Supabase sign-up failed.");
+  }
+
+  return {
+    userId: await findOrCreateAppUserForAccessUser(data.user),
+    headers: responseHeaders,
+  };
 }
 
 async function getTestAccessSession(
@@ -277,7 +303,7 @@ function buildTestSupabaseHeaders(betterAuthHeaders?: Headers) {
 
 function extractBetterAuthSessionToken(headers: Headers) {
   const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
+  const sessionCookie = setCookie?.match(BETTER_AUTH_SESSION_COOKIE_PATTERN);
 
   if (!sessionCookie?.[1]) {
     throw new Error("Expected Better Auth to return a session cookie.");
@@ -294,7 +320,7 @@ function readTestSupabaseSessionToken(request: Request) {
     return verifySignedTestSupabaseSessionToken(signedToken);
   }
 
-  const legacySessionToken = cookies["better-auth.session_token"];
+  const legacySessionToken = cookies[BETTER_AUTH_SESSION_COOKIE_NAME];
 
   return legacySessionToken?.split(".")[0] ?? null;
 }
@@ -304,11 +330,7 @@ function signTestSupabaseSessionToken(sessionToken: string | null) {
     return "";
   }
 
-  const signature = createHmac("sha256", getTestAccessAuthSecret())
-    .update(sessionToken)
-    .digest("hex");
-
-  return `${sessionToken}.${signature}`;
+  return `${sessionToken}.${signTestSupabaseSession(sessionToken)}`;
 }
 
 function verifySignedTestSupabaseSessionToken(signedToken: string) {
@@ -320,9 +342,7 @@ function verifySignedTestSupabaseSessionToken(signedToken: string) {
 
   const sessionToken = signedToken.slice(0, separatorIndex);
   const signature = signedToken.slice(separatorIndex + 1);
-  const expectedSignature = createHmac("sha256", getTestAccessAuthSecret())
-    .update(sessionToken)
-    .digest("hex");
+  const expectedSignature = signTestSupabaseSession(sessionToken);
 
   if (
     signature.length !== expectedSignature.length ||
@@ -336,6 +356,12 @@ function verifySignedTestSupabaseSessionToken(signedToken: string) {
 
 function getTestAccessAuthSecret() {
   return process.env.BETTER_AUTH_SECRET ?? "test-access-auth-secret";
+}
+
+function signTestSupabaseSession(sessionToken: string) {
+  return createHmac("sha256", getTestAccessAuthSecret())
+    .update(sessionToken)
+    .digest("hex");
 }
 
 async function findOrCreateAppUserForAccessUser(input: {

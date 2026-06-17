@@ -3,6 +3,8 @@ import { redirect } from "react-router";
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
+const LEGACY_ACCESS_SESSION_COOKIE_NAME = "better-auth.session_token";
+const SUPABASE_COOKIE_NAME_PREFIX = "sb-";
 
 export type LoginRedirectReason =
   | typeof CONTINUE_REASON
@@ -59,8 +61,8 @@ function hasAccessSessionCookie(request: Request) {
       const cookieName = cookie.trim().split("=")[0] ?? "";
 
       return (
-        cookieName === "better-auth.session_token" ||
-        cookieName.startsWith("sb-")
+        cookieName === LEGACY_ACCESS_SESSION_COOKIE_NAME ||
+        cookieName.startsWith(SUPABASE_COOKIE_NAME_PREFIX)
       );
     });
 }
