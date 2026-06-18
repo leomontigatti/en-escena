@@ -1,11 +1,11 @@
 import { Link, redirect, useActionData } from "react-router";
-import { Save } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   defaultEventFormValues,
   parseEventFormValues,
@@ -93,26 +93,21 @@ export function AdministracionEventoNuevoRouteView({
       description="Definí fechas, seña requerida y visibilidad inicial del evento."
       requireSelectedEvent={false}
     >
-      <form
-        method="post"
-        noValidate
-        className="flex w-full flex-col gap-4"
-        onSubmit={eventForm.handleSubmit}
-      >
+      <form method="post" noValidate onSubmit={eventForm.handleSubmit}>
         <Card>
           <CardContent>
             <EventFormFields controller={eventForm} />
           </CardContent>
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            <Button asChild variant="outline" size="lg">
+              <Link to="/administracion/eventos">Volver</Link>
+            </Button>
+            <Button type="submit" size="lg">
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar
+            </Button>
+          </CardFooter>
         </Card>
-        <div className="flex items-center justify-between">
-          <Button asChild variant="outline">
-            <Link to="/administracion/eventos">Volver</Link>
-          </Button>
-          <Button type="submit">
-            <Save data-icon="inline-start" />
-            Guardar
-          </Button>
-        </div>
       </form>
     </AdminResourceLayout>
   );

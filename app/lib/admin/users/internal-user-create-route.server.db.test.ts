@@ -40,7 +40,7 @@ describe("administracion/usuarios/nuevo route", () => {
     expect(loaderData).not.toHaveProperty("email");
     expect(loaderData).not.toHaveProperty("eventOptions");
     expect(loaderData).not.toHaveProperty("selectedEventId");
-    expect(markup).toContain("Crear Usuario interno");
+    expect(markup).toContain("Nuevo usuario");
     expect(markup).toContain("Contraseña temporal");
     expect(markup).toContain("canal seguro");
     expect(markup).not.toContain("Usuario interno creado");

@@ -54,7 +54,7 @@ describe("administracion layout route", () => {
       }),
     );
 
-    expect(markup).toContain("Crear Usuario interno");
+    expect(markup).toContain("Nuevo usuario");
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain('href="/administracion/usuarios"');

@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { Link } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
@@ -10,6 +11,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   listAdministrativeUsers,
   readAdministrativeUserFilters,
@@ -79,13 +81,13 @@ export function AdministracionUsuariosRouteView({
       requireSelectedEvent={false}
       title="Usuarios"
       description="Consultá accesos internos y de academia con filtros por tipo, estado y archivo."
-      action={
-        loaderData.canManage
-          ? {
-              label: "Crear Usuario interno",
-              to: "/administracion/usuarios/nuevo",
-            }
-          : undefined
+      headerAction={
+        loaderData.canManage ? (
+          <Button type="button" disabled>
+            <Plus aria-hidden="true" data-icon />
+            Nuevo usuario
+          </Button>
+        ) : undefined
       }
     >
       {loaderData.users.length > 0 ||

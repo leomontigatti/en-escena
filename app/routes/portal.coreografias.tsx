@@ -6,14 +6,7 @@ import {
   LoaderCircle,
   Plus,
 } from "lucide-react";
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Controller,
   useForm,
@@ -826,7 +819,7 @@ function CreateChoreographyModal({
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
       <DialogContent
-        className="max-h-[90vh] max-w-3xl overflow-y-auto"
+        className="max-h-[90vh] max-w-3xl overflow-visible"
         overlayClassName="backdrop-blur-sm"
       >
         <DialogHeader>
@@ -836,182 +829,152 @@ function CreateChoreographyModal({
           </DialogDescription>
         </DialogHeader>
 
-        <Field>
-          <div className="flex justify-end">
-            <span className="text-sm text-muted-foreground">
-              Paso {currentStepIndex + 1} de {registrationSteps.length}
-            </span>
-          </div>
-          <Progress value={progressValue} />
-        </Field>
+        <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+          <Field>
+            <div className="flex justify-end">
+              <span className="text-sm text-muted-foreground">
+                Paso {currentStepIndex + 1} de {registrationSteps.length}
+              </span>
+            </div>
+            <Progress value={progressValue} />
+          </Field>
 
-        {submissionError ? (
-          <div className="mt-4">
+          {submissionError ? (
             <AccessNotice variant="error">{submissionError}</AccessNotice>
+          ) : null}
+
+          <div className="flex flex-col gap-6">
+            {currentStep === "name" ? (
+              <section className="flex flex-col gap-4">
+                <ChoreographyTextField
+                  control={form.control}
+                  fieldName="name"
+                  id={nameFieldId}
+                  label="Nombre"
+                  placeholder="Ej.: Danza de la luna"
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "modality" ? (
+              <section className="flex flex-col gap-4">
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="modalityId"
+                  id={modalityFieldId}
+                  label="Modalidad"
+                  onValueChange={() => {
+                    form.setValue("submodalityId", "", { shouldDirty: true });
+                    resetResolutionState();
+                  }}
+                  options={baseOptions.modalities.map((modality) => ({
+                    value: modality.id,
+                    label: modality.name,
+                  }))}
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "submodality" ? (
+              <section className="flex flex-col gap-4">
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="submodalityId"
+                  id={submodalityFieldId}
+                  label="Submodalidad"
+                  onValueChange={() => {
+                    resetResolutionState();
+                  }}
+                  options={selectedSubmodalities.map((submodality) => ({
+                    value: submodality.id,
+                    label: submodality.name,
+                  }))}
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "dancers" ? (
+              <section className="flex flex-col gap-6">
+                <MultiComboboxField
+                  control={form.control}
+                  name="dancerIds"
+                  label="Bailarines"
+                  options={dancers.map((dancer) => ({
+                    value: dancer.id,
+                    label: `${dancer.firstName} ${dancer.lastName}`,
+                  }))}
+                  placeholder="Seleccionar bailarines"
+                  emptyMessage="Sin bailarines disponibles"
+                  onValueChange={resetResolutionState}
+                  searchable={true}
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "experienceLevel" && resolution ? (
+              <section className="flex flex-col gap-5">
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="experienceLevelId"
+                  id={experienceLevelFieldId}
+                  label="Nivel de experiencia"
+                  options={resolution.experienceLevel.options.map((option) => ({
+                    value: option.id,
+                    label: option.name,
+                  }))}
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "schedule" && resolution ? (
+              <section className="flex flex-col gap-5">
+                <ChoreographySelectField
+                  control={form.control}
+                  fieldName="scheduleCapacityId"
+                  id={scheduleCapacityFieldId}
+                  label="Cupo de cronograma"
+                  options={
+                    resolution.schedule.status === "multiple"
+                      ? resolution.schedule.options.map((option) => ({
+                          value: option.id,
+                          label: `${option.schedule.name} · ${formatGroupTypeLabel(option.groupType)} · Cupo ${option.capacity}`,
+                        }))
+                      : []
+                  }
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "professors" ? (
+              <section className="flex flex-col gap-6">
+                <MultiComboboxField
+                  control={form.control}
+                  name="professorIds"
+                  label="Profesores"
+                  options={professors.map((professor) => ({
+                    value: professor.id,
+                    label: `${professor.firstName} ${professor.lastName}`,
+                  }))}
+                  placeholder="Seleccionar profesores"
+                  emptyMessage="Sin profesores disponibles"
+                  searchable={true}
+                />
+              </section>
+            ) : null}
+
+            {currentStep === "summary" && resolution ? (
+              <ChoreographyCreationSummary
+                baseOptions={baseOptions}
+                name={watchedValues.name}
+                resolution={resolution}
+                selectedModalityId={selectedModalityId}
+                selectedProfessors={selectedProfessors}
+                selectedScheduleCapacityId={selectedScheduleCapacityId}
+                selectedSubmodalityId={selectedSubmodalityId}
+                selectedExperienceLevelId={selectedExperienceLevelId}
+              />
+            ) : null}
           </div>
-        ) : null}
-
-        <div className="flex flex-col gap-6">
-          {currentStep === "name" ? (
-            <section className="flex flex-col gap-4">
-              <ChoreographyTextField
-                control={form.control}
-                fieldName="name"
-                id={nameFieldId}
-                label="Nombre"
-                placeholder="Ej.: Danza de la luna"
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "modality" ? (
-            <section className="flex flex-col gap-4">
-              <ChoreographySelectField
-                control={form.control}
-                fieldName="modalityId"
-                id={modalityFieldId}
-                label="Modalidad"
-                onValueChange={() => {
-                  form.setValue("submodalityId", "", { shouldDirty: true });
-                  resetResolutionState();
-                }}
-                options={baseOptions.modalities.map((modality) => ({
-                  value: modality.id,
-                  label: modality.name,
-                }))}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "submodality" ? (
-            <section className="flex flex-col gap-4">
-              <ChoreographySelectField
-                control={form.control}
-                fieldName="submodalityId"
-                id={submodalityFieldId}
-                label="Submodalidad"
-                onValueChange={() => {
-                  resetResolutionState();
-                }}
-                options={selectedSubmodalities.map((submodality) => ({
-                  value: submodality.id,
-                  label: submodality.name,
-                }))}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "dancers" ? (
-            <section className="flex flex-col gap-6">
-              <MultiComboboxField
-                control={form.control}
-                name="dancerIds"
-                label="Bailarines"
-                options={dancers.map((dancer) => ({
-                  value: dancer.id,
-                  label: `${dancer.firstName} ${dancer.lastName}`,
-                }))}
-                placeholder="Seleccionar bailarines"
-                emptyMessage="Sin bailarines disponibles"
-                onValueChange={resetResolutionState}
-                searchable={true}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "experienceLevel" && resolution ? (
-            <section className="flex flex-col gap-5">
-              <SummaryGrid>
-                <SummaryItem
-                  label="Tipo de grupo"
-                  value={formatGroupTypeLabel(resolution.groupType)}
-                />
-                <SummaryItem
-                  label="Categoría"
-                  value={
-                    resolution.category.status === "resolved"
-                      ? resolution.category.name
-                      : "Pendiente"
-                  }
-                />
-              </SummaryGrid>
-
-              <ChoreographySelectField
-                control={form.control}
-                fieldName="experienceLevelId"
-                id={experienceLevelFieldId}
-                label="Nivel de experiencia"
-                options={resolution.experienceLevel.options.map((option) => ({
-                  value: option.id,
-                  label: option.name,
-                }))}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "schedule" && resolution ? (
-            <section className="flex flex-col gap-5">
-              <SummaryGrid>
-                <SummaryItem
-                  label="Tipo de grupo"
-                  value={formatGroupTypeLabel(resolution.groupType)}
-                />
-                <SummaryItem
-                  label="Categoría"
-                  value={
-                    resolution.category.status === "resolved"
-                      ? resolution.category.name
-                      : "Pendiente"
-                  }
-                />
-              </SummaryGrid>
-
-              <ChoreographySelectField
-                control={form.control}
-                fieldName="scheduleCapacityId"
-                id={scheduleCapacityFieldId}
-                label="Cupo de cronograma"
-                options={
-                  resolution.schedule.status === "multiple"
-                    ? resolution.schedule.options.map((option) => ({
-                        value: option.id,
-                        label: `${option.schedule.name} · ${formatGroupTypeLabel(option.groupType)} · Cupo ${option.capacity}`,
-                      }))
-                    : []
-                }
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "professors" ? (
-            <section className="flex flex-col gap-6">
-              <MultiComboboxField
-                control={form.control}
-                name="professorIds"
-                label="Profesores"
-                options={professors.map((professor) => ({
-                  value: professor.id,
-                  label: `${professor.firstName} ${professor.lastName}`,
-                }))}
-                placeholder="Seleccionar profesores"
-                emptyMessage="Sin profesores disponibles"
-                searchable={true}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === "summary" && resolution ? (
-            <ChoreographyCreationSummary
-              baseOptions={baseOptions}
-              name={watchedValues.name}
-              resolution={resolution}
-              selectedModalityId={selectedModalityId}
-              selectedProfessors={selectedProfessors}
-              selectedScheduleCapacityId={selectedScheduleCapacityId}
-              selectedSubmodalityId={selectedSubmodalityId}
-              selectedExperienceLevelId={selectedExperienceLevelId}
-            />
-          ) : null}
         </div>
 
         <DialogFooter className="sm:justify-between">
@@ -1070,15 +1033,14 @@ function CreateChoreographyModal({
                 disabled={!canResolve || isResolving}
                 onClick={handleResolveStep}
               >
+                Siguiente
                 {isResolving ? (
                   <LoaderCircle
                     aria-hidden="true"
                     className="animate-spin"
                     data-icon
                   />
-                ) : null}
-                {isResolving ? "Resolviendo..." : "Siguiente"}
-                {isResolving ? null : (
+                ) : (
                   <ChevronRight aria-hidden="true" data-icon />
                 )}
               </Button>
@@ -1128,7 +1090,7 @@ function CreateChoreographyModal({
                 ) : (
                   <Check aria-hidden="true" data-icon />
                 )}
-                {isSubmitting ? "Guardando..." : "Guardar"}
+                Guardar
               </Button>
             ) : null}
           </div>
@@ -1136,10 +1098,6 @@ function CreateChoreographyModal({
       </DialogContent>
     </Dialog>
   );
-}
-
-function SummaryGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
 }
 
 function ChoreographyCreationSummary({
@@ -1190,7 +1148,7 @@ function ChoreographyCreationSummary({
         ]
       : []),
     {
-      label: "Cupo de cronograma",
+      label: "Cronograma",
       value: formatScheduleSummary(resolution, selectedScheduleCapacityId),
     },
     {
@@ -1215,7 +1173,7 @@ function ChoreographyCreationSummary({
       <dl className="mt-3 flex flex-col gap-3">
         {summaryItems.map((item) => (
           <div key={item.label} className="flex items-baseline gap-3">
-            <dt className="min-w-32 text-xs font-semibold uppercase text-muted-foreground">
+            <dt className="min-w-40 text-xs font-semibold uppercase text-muted-foreground">
               {item.label}
             </dt>
             <dd className="text-sm">{item.value}</dd>
@@ -1260,17 +1218,6 @@ function getFirstPostResolutionStepIndex(input: {
       step === "experienceLevel" ||
       step === "schedule" ||
       step === "professors",
-  );
-}
-
-function SummaryItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border bg-muted/50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-sm">{value}</p>
-    </div>
   );
 }
 

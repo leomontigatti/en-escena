@@ -123,13 +123,13 @@ const emptyCreateInternalUserFieldErrors =
   getEmptyFieldErrors<CreateInternalUserField>();
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Crear Usuario interno | Panel de administración | En Escena" },
+  { title: "Nuevo usuario | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
     { label: "Usuarios", to: "/administracion/usuarios" },
-    { label: "Crear Usuario interno" },
+    { label: "Nuevo usuario" },
   ],
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
@@ -232,7 +232,7 @@ export function AdministracionUsuariosNuevoRouteView({
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <section className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Crear Usuario interno</h1>
+        <h1 className="text-xl font-semibold">Nuevo usuario</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Creá accesos internos con nombre de usuario propio y cambio
           obligatorio de contraseña en el primer ingreso.
@@ -294,7 +294,7 @@ export function AdministracionUsuariosNuevoRouteView({
           />
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="submit">Crear Usuario interno</Button>
+            <Button type="submit">Nuevo usuario</Button>
             <Button asChild variant="outline">
               <Link to="/administracion">Volver al panel</Link>
             </Button>
