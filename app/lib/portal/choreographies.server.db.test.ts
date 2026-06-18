@@ -16,9 +16,9 @@ import {
   modalities,
   prices,
   professors,
-  scheduleBlockModalities,
-  scheduleBlocks,
-  scheduleEntries,
+  scheduleModalities,
+  schedules,
+  scheduleCapacities,
   submodalities,
   user,
 } from "@/db/schema";
@@ -72,7 +72,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: "music/complete.mp3",
       name: "Final Completa",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: selectedCatalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -93,7 +93,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: null,
       name: "Sin Música",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: selectedCatalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -114,7 +114,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: "music/category.mp3",
       name: "Sin Categoría",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: null,
     });
     await db.insert(choreographyDancers).values({
@@ -135,7 +135,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: "music/level.mp3",
       name: "Sin Nivel",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: null,
     });
     await db.insert(choreographyDancers).values({
@@ -156,7 +156,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: "music/profesores.mp3",
       name: "Sin Profesores",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: null,
     });
     await db.insert(choreographyDancers).values({
@@ -174,7 +174,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: otherEventCatalog.modality.id,
       musicStorageKey: "music/other-event.mp3",
       name: "Otro Evento",
-      scheduleEntryId: otherEventCatalog.scheduleEntry.id,
+      scheduleCapacityId: otherEventCatalog.scheduleCapacity.id,
       submodalityId: null,
     });
     await db.insert(choreographyDancers).values({
@@ -196,7 +196,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: selectedCatalog.modality.id,
       musicStorageKey: "music/other-academy.mp3",
       name: "Otra Academia",
-      scheduleEntryId: selectedCatalog.scheduleEntry.id,
+      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
       submodalityId: null,
     });
     await db.insert(choreographyDancers).values({
@@ -293,7 +293,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail.mp3",
       name: "Detalle Histórico",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -376,7 +376,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-registration-closed.mp3",
       name: "Inscripción cerrada",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     const financialBlockedChoreography = await createChoreographyRecord({
@@ -388,7 +388,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-financial.mp3",
       name: "Financiera",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     const presentationBlockedChoreography = await createChoreographyRecord({
@@ -401,7 +401,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-presentation.mp3",
       name: "Presentada",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
 
@@ -495,7 +495,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-open.mp3",
       name: "Abierta",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -558,7 +558,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-update.mp3",
       name: "Editable",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -604,7 +604,10 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        professorLinkFormData([activeProfessor.id]),
+        choreographyUpdateFormData({
+          dancerIds: [dancer.id],
+          professorIds: [activeProfessor.id],
+        }),
       ),
     });
 
@@ -614,7 +617,7 @@ describe.sequential("portal choreographies reads", () => {
     }
     expect(updateResponse.status).toBe(302);
     expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?actualizado=1`,
+      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
     );
 
     await expect(
@@ -648,12 +651,16 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        professorLinkFormData([archivedLinkedProfessor.id]),
+        choreographyUpdateFormData({
+          dancerIds: [dancer.id],
+          professorIds: [archivedLinkedProfessor.id],
+        }),
       ),
     });
 
     expect(rejectedResult).toMatchObject({
-      status: "professor-error",
+      status: "update-error",
+      section: "professors",
       message:
         "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.",
     });
@@ -678,7 +685,10 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        professorLinkFormData([]),
+        choreographyUpdateFormData({
+          dancerIds: [dancer.id],
+          professorIds: [],
+        }),
       ),
     });
 
@@ -739,7 +749,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/dancers-update.mp3",
       name: "Editable",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -799,7 +809,7 @@ describe.sequential("portal choreographies reads", () => {
         resolution: {
           schedule: {
             status: "keep-current",
-            selectedScheduleEntryId: catalog.scheduleEntry.id,
+            selectedScheduleCapacityId: catalog.scheduleCapacity.id,
           },
         },
       },
@@ -810,7 +820,9 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        dancerLinkFormData([activeReplacementDancer.id]),
+        dancerLinkFormData([activeReplacementDancer.id], {
+          professorIds: [professor.id],
+        }),
       ),
     });
 
@@ -820,7 +832,7 @@ describe.sequential("portal choreographies reads", () => {
     }
     expect(updateResponse.status).toBe(302);
     expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
     );
 
     await expect(
@@ -859,12 +871,15 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        dancerLinkFormData([archivedLinkedDancer.id]),
+        dancerLinkFormData([archivedLinkedDancer.id], {
+          professorIds: [professor.id],
+        }),
       ),
     });
 
     expect(rejectedArchivedReuse).toMatchObject({
-      status: "dancer-error",
+      status: "update-error",
+      section: "dancers",
       message:
         "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.",
     });
@@ -879,12 +894,15 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        dancerLinkFormData([activeReplacementDancer.id]),
+        dancerLinkFormData([archivedLinkedDancer.id], {
+          professorIds: [professor.id],
+        }),
       ),
     });
 
     expect(rejectedIneligibleSave).toMatchObject({
-      status: "dancer-error",
+      status: "update-error",
+      section: "dancers",
       message:
         "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
     });
@@ -896,9 +914,9 @@ describe.sequential("portal choreographies reads", () => {
     ).resolves.toMatchObject([{ dancerId: activeReplacementDancer.id }]);
   });
 
-  test("autoassigns the only compatible cronograma when a roster edit changes the tipo de grupo", async () => {
+  test("autoassigns the only compatible cupo de cronograma when a roster edit changes the tipo de grupo", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia Cronograma",
+      academyName: "Academia Cupo de cronograma",
       email: "coreografias.detail.dancers.schedule-auto@example.com",
     });
     const event = await createEventRecord({
@@ -908,19 +926,17 @@ describe.sequential("portal choreographies reads", () => {
       registrationEndsAt: date("2026-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
-    const [duoScheduleEntry, trioScheduleEntry] = await db
-      .insert(scheduleEntries)
+    const [duoScheduleCapacity, trioScheduleCapacity] = await db
+      .insert(scheduleCapacities)
       .values([
         {
-          scheduleBlockId: catalog.scheduleBlock.id,
-          groupTypes: ["duo"],
-          groupTypeKey: "duo",
+          scheduleId: catalog.schedule.id,
+          groupType: "duo",
           capacity: 5,
         },
         {
-          scheduleBlockId: catalog.scheduleBlock.id,
-          groupTypes: ["trio"],
-          groupTypeKey: "trio",
+          scheduleId: catalog.schedule.id,
+          groupType: "trio",
           capacity: 5,
         },
       ])
@@ -958,8 +974,8 @@ describe.sequential("portal choreographies reads", () => {
       experienceLevelId: catalog.level.id,
       groupType: "duo",
       modalityId: catalog.modality.id,
-      name: "Editable con cronograma",
-      scheduleEntryId: duoScheduleEntry.id,
+      name: "Editable con cupo de cronograma",
+      scheduleCapacityId: duoScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values([
@@ -994,7 +1010,7 @@ describe.sequential("portal choreographies reads", () => {
     }
     expect(updateResponse.status).toBe(302);
     expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
     );
 
     await expect(
@@ -1005,7 +1021,7 @@ describe.sequential("portal choreographies reads", () => {
       groupType: "trio",
       categoryId: catalog.categoryWithLevel.id,
       experienceLevelId: catalog.level.id,
-      scheduleEntryId: trioScheduleEntry.id,
+      scheduleCapacityId: trioScheduleCapacity.id,
     });
     await expect(
       db.query.choreographyDancers.findMany({
@@ -1014,9 +1030,9 @@ describe.sequential("portal choreographies reads", () => {
     ).resolves.toHaveLength(3);
   });
 
-  test("requires academy selection when multiple compatible cronogramas exist for the edited roster", async () => {
+  test("requires academy selection when multiple compatible cupos de cronograma exist for the edited roster", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia Cronograma Múltiple",
+      academyName: "Academia Cupo de cronograma Múltiple",
       email: "coreografias.detail.dancers.schedule-multiple@example.com",
     });
     const event = await createEventRecord({
@@ -1026,8 +1042,8 @@ describe.sequential("portal choreographies reads", () => {
       registrationEndsAt: date("2026-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
-    const [alternateScheduleBlock] = await db
-      .insert(scheduleBlocks)
+    const [alternateSchedule] = await db
+      .insert(schedules)
       .values({
         eventId: event.id,
         name: `Bloque alternativo ${event.id}`,
@@ -1036,34 +1052,34 @@ describe.sequential("portal choreographies reads", () => {
         totalCapacity: 10,
       })
       .returning();
-    await db.insert(scheduleBlockModalities).values({
-      scheduleBlockId: alternateScheduleBlock.id,
+    await db.insert(scheduleModalities).values({
+      scheduleId: alternateSchedule.id,
       modalityId: catalog.modality.id,
     });
-    const [duoScheduleEntry, firstTrioScheduleEntry, secondTrioScheduleEntry] =
-      await db
-        .insert(scheduleEntries)
-        .values([
-          {
-            scheduleBlockId: catalog.scheduleBlock.id,
-            groupTypes: ["duo"],
-            groupTypeKey: "duo",
-            capacity: 5,
-          },
-          {
-            scheduleBlockId: catalog.scheduleBlock.id,
-            groupTypes: ["trio"],
-            groupTypeKey: "trio",
-            capacity: 5,
-          },
-          {
-            scheduleBlockId: alternateScheduleBlock.id,
-            groupTypes: ["trio"],
-            groupTypeKey: "trio",
-            capacity: 3,
-          },
-        ])
-        .returning();
+    const [
+      duoScheduleCapacity,
+      firstTrioScheduleCapacity,
+      secondTrioScheduleCapacity,
+    ] = await db
+      .insert(scheduleCapacities)
+      .values([
+        {
+          scheduleId: catalog.schedule.id,
+          groupType: "duo",
+          capacity: 5,
+        },
+        {
+          scheduleId: catalog.schedule.id,
+          groupType: "trio",
+          capacity: 5,
+        },
+        {
+          scheduleId: alternateSchedule.id,
+          groupType: "trio",
+          capacity: 3,
+        },
+      ])
+      .returning();
     const dancers = await Promise.all([
       createDancer(owner.academyId, { birthDate: "2012-04-05" }),
       createDancer(owner.academyId, { birthDate: "2012-05-05" }),
@@ -1086,7 +1102,7 @@ describe.sequential("portal choreographies reads", () => {
       groupType: "duo",
       modalityId: catalog.modality.id,
       name: "Editable con selección",
-      scheduleEntryId: duoScheduleEntry.id,
+      scheduleCapacityId: duoScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values([
@@ -1119,8 +1135,8 @@ describe.sequential("portal choreographies reads", () => {
           schedule: {
             status: "multiple",
             options: [
-              { id: firstTrioScheduleEntry.id },
-              { id: secondTrioScheduleEntry.id },
+              { id: firstTrioScheduleCapacity.id },
+              { id: secondTrioScheduleCapacity.id },
             ],
           },
         },
@@ -1137,10 +1153,11 @@ describe.sequential("portal choreographies reads", () => {
     });
 
     expect(blockedResponse).toMatchObject({
-      status: "dancer-error",
+      status: "update-error",
+      section: "dancers",
       fieldErrors: {
-        scheduleEntryId:
-          "Elegí un Cronograma compatible para guardar los bailarines.",
+        scheduleCapacityId:
+          "Elegí un Cupo de cronograma compatible para guardar los bailarines.",
       },
     });
 
@@ -1152,7 +1169,7 @@ describe.sequential("portal choreographies reads", () => {
         dancerLinkFormData(
           dancers.map((dancer) => dancer.id),
           {
-            scheduleEntryId: firstTrioScheduleEntry.id,
+            scheduleCapacityId: firstTrioScheduleCapacity.id,
           },
         ),
       ),
@@ -1163,7 +1180,7 @@ describe.sequential("portal choreographies reads", () => {
       throw new Error("Expected redirect response.");
     }
     expect(saveResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?bailarines-actualizados=1`,
+      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
     );
     await expect(
       db.query.choreographies.findFirst({
@@ -1171,13 +1188,13 @@ describe.sequential("portal choreographies reads", () => {
       }),
     ).resolves.toMatchObject({
       groupType: "trio",
-      scheduleEntryId: firstTrioScheduleEntry.id,
+      scheduleCapacityId: firstTrioScheduleCapacity.id,
     });
   });
 
-  test("blocks roster save with a clear error when no compatible cronograma exists", async () => {
+  test("blocks roster save with a clear error when no compatible cupo de cronograma exists", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia Sin Cronograma",
+      academyName: "Academia Sin Cupo de cronograma",
       email: "coreografias.detail.dancers.schedule-none@example.com",
     });
     const event = await createEventRecord({
@@ -1187,12 +1204,11 @@ describe.sequential("portal choreographies reads", () => {
       registrationEndsAt: date("2026-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
-    const [duoScheduleEntry] = await db
-      .insert(scheduleEntries)
+    const [duoScheduleCapacity] = await db
+      .insert(scheduleCapacities)
       .values({
-        scheduleBlockId: catalog.scheduleBlock.id,
-        groupTypes: ["duo"],
-        groupTypeKey: "duo",
+        scheduleId: catalog.schedule.id,
+        groupType: "duo",
         capacity: 5,
       })
       .returning();
@@ -1217,8 +1233,8 @@ describe.sequential("portal choreographies reads", () => {
       experienceLevelId: catalog.level.id,
       groupType: "duo",
       modalityId: catalog.modality.id,
-      name: "Editable sin cronograma",
-      scheduleEntryId: duoScheduleEntry.id,
+      name: "Editable sin cupo de cronograma",
+      scheduleCapacityId: duoScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values([
@@ -1244,9 +1260,10 @@ describe.sequential("portal choreographies reads", () => {
     });
 
     expect(response).toMatchObject({
-      status: "dancer-error",
+      status: "update-error",
+      section: "dancers",
       message:
-        "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+        "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
     });
     await expect(
       db.query.choreographies.findFirst({
@@ -1254,7 +1271,7 @@ describe.sequential("portal choreographies reads", () => {
       }),
     ).resolves.toMatchObject({
       groupType: "duo",
-      scheduleEntryId: duoScheduleEntry.id,
+      scheduleCapacityId: duoScheduleCapacity.id,
     });
     await expect(
       db.query.choreographyDancers.findMany({
@@ -1263,7 +1280,7 @@ describe.sequential("portal choreographies reads", () => {
     ).resolves.toHaveLength(2);
   });
 
-  test("revalidates cronograma cupo on confirmation and keeps the original roster when capacity is lost concurrently", async () => {
+  test("revalidates cupo de cronograma cupo on confirmation and keeps the original roster when capacity is lost concurrently", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Cupo Concurrente",
       email: "coreografias.detail.dancers.schedule-cupo@example.com",
@@ -1279,19 +1296,17 @@ describe.sequential("portal choreographies reads", () => {
       registrationEndsAt: date("2026-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
-    const [duoScheduleEntry, trioScheduleEntry] = await db
-      .insert(scheduleEntries)
+    const [duoScheduleCapacity, trioScheduleCapacity] = await db
+      .insert(scheduleCapacities)
       .values([
         {
-          scheduleBlockId: catalog.scheduleBlock.id,
-          groupTypes: ["duo"],
-          groupTypeKey: "duo",
+          scheduleId: catalog.schedule.id,
+          groupType: "duo",
           capacity: 5,
         },
         {
-          scheduleBlockId: catalog.scheduleBlock.id,
-          groupTypes: ["trio"],
-          groupTypeKey: "trio",
+          scheduleId: catalog.schedule.id,
+          groupType: "trio",
           capacity: 1,
         },
       ])
@@ -1323,7 +1338,7 @@ describe.sequential("portal choreographies reads", () => {
       groupType: "duo",
       modalityId: catalog.modality.id,
       name: "Editable con cupo concurrente",
-      scheduleEntryId: duoScheduleEntry.id,
+      scheduleCapacityId: duoScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values([
@@ -1355,7 +1370,7 @@ describe.sequential("portal choreographies reads", () => {
         resolution: {
           schedule: {
             status: "auto",
-            selectedScheduleEntryId: trioScheduleEntry.id,
+            selectedScheduleCapacityId: trioScheduleCapacity.id,
           },
         },
       },
@@ -1369,7 +1384,7 @@ describe.sequential("portal choreographies reads", () => {
       groupType: "trio",
       modalityId: catalog.modality.id,
       name: "Ocupa el cupo",
-      scheduleEntryId: trioScheduleEntry.id,
+      scheduleCapacityId: trioScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values([
@@ -1400,8 +1415,10 @@ describe.sequential("portal choreographies reads", () => {
     });
 
     expect(response).toMatchObject({
-      status: "dancer-error",
-      message: "El Cronograma seleccionado ya no tiene cupo disponible.",
+      status: "update-error",
+      section: "dancers",
+      message:
+        "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
     });
     await expect(
       db.query.choreographies.findFirst({
@@ -1409,7 +1426,7 @@ describe.sequential("portal choreographies reads", () => {
       }),
     ).resolves.toMatchObject({
       groupType: "duo",
-      scheduleEntryId: duoScheduleEntry.id,
+      scheduleCapacityId: duoScheduleCapacity.id,
     });
     await expect(
       db.query.choreographyDancers.findMany({
@@ -1457,7 +1474,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/category-edit.mp3",
       name: "Editable",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -1475,12 +1492,15 @@ describe.sequential("portal choreographies reads", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
         owner.cookie,
-        dancerLinkFormData([teenDancer.id]),
+        dancerLinkFormData([teenDancer.id], {
+          professorIds: [professor.id],
+        }),
       ),
     });
 
     expect(missingLevelResult).toMatchObject({
-      status: "dancer-error",
+      status: "update-error",
+      section: "dancers",
       fieldErrors: {
         experienceLevelId: "Este campo es obligatorio.",
       },
@@ -1505,6 +1525,7 @@ describe.sequential("portal choreographies reads", () => {
         owner.cookie,
         dancerLinkFormData([teenDancer.id], {
           experienceLevelId: catalog.level.id,
+          professorIds: [professor.id],
         }),
       ),
     });
@@ -1542,6 +1563,7 @@ describe.sequential("portal choreographies reads", () => {
         owner.cookie,
         dancerLinkFormData([adultDancer.id], {
           experienceLevelId: catalog.level.id,
+          professorIds: [professor.id],
         }),
       ),
     });
@@ -1568,6 +1590,7 @@ describe.sequential("portal choreographies reads", () => {
         owner.cookie,
         dancerLinkFormData([uncategorizedDancer.id], {
           experienceLevelId: catalog.level.id,
+          professorIds: [professor.id],
         }),
       ),
     });
@@ -1619,7 +1642,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: historicalCatalog.modality.id,
       musicStorageKey: "music/readonly.mp3",
       name: "Histórica",
-      scheduleEntryId: historicalCatalog.scheduleEntry.id,
+      scheduleCapacityId: historicalCatalog.scheduleCapacity.id,
       submodalityId: historicalCatalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -1681,7 +1704,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: null,
       name: "A Eliminar",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -1750,7 +1773,7 @@ describe.sequential("portal choreographies reads", () => {
       experienceLevelId: catalog.level.id,
       modalityId: catalog.modality.id,
       name: "Ajena",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
 
@@ -1801,7 +1824,7 @@ describe.sequential("portal choreographies reads", () => {
       modalityId: catalog.modality.id,
       musicStorageKey: "music/schema.mp3",
       name: "Protegida",
-      scheduleEntryId: catalog.scheduleEntry.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
     await db.insert(choreographyDancers).values({
@@ -1832,8 +1855,8 @@ describe.sequential("portal choreographies reads", () => {
     ).rejects.toThrow();
     await expect(
       db
-        .delete(scheduleEntries)
-        .where(eq(scheduleEntries.id, catalog.scheduleEntry.id)),
+        .delete(scheduleCapacities)
+        .where(eq(scheduleCapacities.id, catalog.scheduleCapacity.id)),
     ).rejects.toThrow();
 
     await db
@@ -2003,8 +2026,8 @@ async function createEventCatalog(eventId: string) {
     categoryId: categoryWithLevel.id,
     experienceLevelId: level.id,
   });
-  const [scheduleBlock] = await db
-    .insert(scheduleBlocks)
+  const [schedule] = await db
+    .insert(schedules)
     .values({
       eventId,
       name: `Bloque ${eventId}`,
@@ -2013,8 +2036,8 @@ async function createEventCatalog(eventId: string) {
       totalCapacity: 10,
     })
     .returning();
-  await db.insert(scheduleBlockModalities).values({
-    scheduleBlockId: scheduleBlock.id,
+  await db.insert(scheduleModalities).values({
+    scheduleId: schedule.id,
     modalityId: modality.id,
   });
   await db.insert(prices).values({
@@ -2022,14 +2045,13 @@ async function createEventCatalog(eventId: string) {
     groupType: "solo",
     amount: 10000,
     paymentDeadline: "2026-05-31",
-    scheduleBlockId: null,
+    scheduleId: null,
   });
-  const [scheduleEntry] = await db
-    .insert(scheduleEntries)
+  const [scheduleCapacity] = await db
+    .insert(scheduleCapacities)
     .values({
-      scheduleBlockId: scheduleBlock.id,
-      groupTypes: ["solo"],
-      groupTypeKey: "solo",
+      scheduleId: schedule.id,
+      groupType: "solo",
       capacity: 5,
     })
     .returning();
@@ -2039,8 +2061,8 @@ async function createEventCatalog(eventId: string) {
     categoryWithoutLevel,
     level,
     modality,
-    scheduleBlock,
-    scheduleEntry,
+    schedule,
+    scheduleCapacity,
     submodality,
   };
 }
@@ -2087,7 +2109,7 @@ async function createChoreographyRecord(
     academyId: string;
     eventId: string;
     modalityId: string;
-    scheduleEntryId: string;
+    scheduleCapacityId: string;
     name: string;
   },
 ) {
@@ -2104,7 +2126,7 @@ async function createChoreographyRecord(
       categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
       categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
       experienceLevelId: overrides.experienceLevelId ?? null,
-      scheduleEntryId: overrides.scheduleEntryId,
+      scheduleCapacityId: overrides.scheduleCapacityId,
       musicStorageKey: overrides.musicStorageKey ?? null,
       hasPresentation: overrides.hasPresentation ?? false,
       hasActiveFinancialLink: overrides.hasActiveFinancialLink ?? false,
@@ -2144,12 +2166,29 @@ function createPortalPostRequest(
   });
 }
 
-function professorLinkFormData(professorIds: string[]) {
+function choreographyUpdateFormData(input: {
+  dancerIds: string[];
+  professorIds?: string[];
+  experienceLevelId?: string;
+  scheduleCapacityId?: string;
+}) {
   const formData = new FormData();
-  formData.set("intent", "update-choreography-professors");
+  formData.set("intent", "update-choreography");
 
-  for (const professorId of professorIds) {
+  for (const dancerId of input.dancerIds) {
+    formData.append("dancerIds", dancerId);
+  }
+
+  for (const professorId of input.professorIds ?? []) {
     formData.append("professorIds", professorId);
+  }
+
+  if (input.experienceLevelId) {
+    formData.set("experienceLevelId", input.experienceLevelId);
+  }
+
+  if (input.scheduleCapacityId) {
+    formData.set("scheduleCapacityId", input.scheduleCapacityId);
   }
 
   return formData;
@@ -2168,21 +2207,29 @@ function resolveDancerLinkFormData(dancerIds: string[]) {
 
 function dancerLinkFormData(
   dancerIds: string[],
-  options: { experienceLevelId?: string; scheduleEntryId?: string } = {},
+  options: {
+    experienceLevelId?: string;
+    professorIds?: string[];
+    scheduleCapacityId?: string;
+  } = {},
 ) {
   const formData = new FormData();
-  formData.set("intent", "update-choreography-dancers");
+  formData.set("intent", "update-choreography");
 
   for (const dancerId of dancerIds) {
     formData.append("dancerIds", dancerId);
+  }
+
+  for (const professorId of options.professorIds ?? []) {
+    formData.append("professorIds", professorId);
   }
 
   if (options.experienceLevelId) {
     formData.set("experienceLevelId", options.experienceLevelId);
   }
 
-  if (options.scheduleEntryId) {
-    formData.set("scheduleEntryId", options.scheduleEntryId);
+  if (options.scheduleCapacityId) {
+    formData.set("scheduleCapacityId", options.scheduleCapacityId);
   }
 
   return formData;

@@ -8,15 +8,11 @@ import {
   Users,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  HomeAccessCard,
+  type HomeAccessCardItem,
+} from "@/components/shared/home-access-card";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
@@ -73,12 +69,12 @@ export function AdministracionIndexRouteView({
       : null;
 
   return (
-    <>
-      <section className="flex flex-col gap-3">
-        <h1 className="text-xl font-semibold text-foreground">
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Panel de administración
         </h1>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Este panel concentra la operación del Evento, sus excepciones y la
           configuración principal.
         </p>
@@ -101,21 +97,11 @@ export function AdministracionIndexRouteView({
         className="grid gap-4 sm:grid-cols-2"
         aria-label="Accesos de administración"
       >
-        {adminHomeCards.map((card) =>
-          card.to ? (
-            <Link
-              key={card.title}
-              to={card.to}
-              className="group rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
-            >
-              <AdminHomeCard card={card} />
-            </Link>
-          ) : (
-            <AdminHomeCard key={card.title} card={card} />
-          ),
-        )}
+        {adminHomeCards.map((card) => (
+          <HomeAccessCard key={card.title} item={card} />
+        ))}
       </nav>
-    </>
+    </div>
   );
 }
 
@@ -157,36 +143,4 @@ const adminHomeCards = [
     icon: ShieldUser,
     to: "/administracion/usuarios",
   },
-] satisfies Array<{
-  title: string;
-  description: string;
-  icon: typeof Building2;
-  to: string | null;
-}>;
-
-type AdminHomeCardData = (typeof adminHomeCards)[number];
-
-function AdminHomeCard({ card }: { card: AdminHomeCardData }) {
-  const Icon = card.icon;
-
-  return (
-    <Card className="h-full rounded-lg transition-colors hover:bg-accent group-hover:bg-accent">
-      <CardHeader className="grid-cols-[auto_1fr] items-center gap-4">
-        <Avatar size="lg" className="rounded-lg after:rounded-lg">
-          <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
-            <Icon aria-hidden="true" />
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col gap-1">
-          <CardTitle>{card.title}</CardTitle>
-          <CardDescription>{card.description}</CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <span className="text-xs font-medium text-muted-foreground">
-          {card.to ? "Acceso disponible" : "Próximamente"}
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
+] satisfies HomeAccessCardItem[];

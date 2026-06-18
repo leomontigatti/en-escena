@@ -7,7 +7,7 @@ import {
   choreographies,
   choreographyDancers,
   dancers,
-  scheduleEntries,
+  scheduleCapacities,
   user,
 } from "@/db/schema";
 import { getDancerVerificationStatus } from "@/lib/dancers/verification";
@@ -364,7 +364,7 @@ async function findAdministrativeDancerInscriptions(input: {
       id: choreographies.id,
       name: choreographies.name,
       groupType: choreographies.groupType,
-      scheduleBlockId: scheduleEntries.scheduleBlockId,
+      scheduleId: scheduleCapacities.scheduleId,
     })
     .from(choreographyDancers)
     .innerJoin(
@@ -372,8 +372,8 @@ async function findAdministrativeDancerInscriptions(input: {
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
     .innerJoin(
-      scheduleEntries,
-      eq(choreographies.scheduleEntryId, scheduleEntries.id),
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
     .where(
       and(
@@ -388,7 +388,7 @@ async function findAdministrativeDancerInscriptions(input: {
       const priceResult = await resolveApplicablePrice({
         eventId: selectedEventId,
         groupType: choreography.groupType,
-        scheduleBlockId: choreography.scheduleBlockId,
+        scheduleId: choreography.scheduleId,
       });
       const priceInCents = priceResult.ok ? priceResult.price.amount : null;
 

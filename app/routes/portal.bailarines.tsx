@@ -234,7 +234,8 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
     {
       id: "name",
       header: "Nombre",
-      className: "font-medium",
+      className: "w-1/2 font-medium",
+      headerClassName: "w-1/2",
       cell: (dancer) => (
         <Link
           to={`/portal/bailarines/${dancer.id}`}
@@ -248,19 +249,18 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
     },
     {
-      id: "birthDate",
-      header: "Fecha de nacimiento",
-      cell: (dancer) => formatDateOnly(dancer.birthDate),
-    },
-    {
       id: "document",
       header: "Documento",
+      className: "w-1/4 text-muted-foreground",
+      headerClassName: "w-1/4",
       cell: (dancer) => formatDocument(dancer),
       filterValue: (dancer) => dancer.documentNumber ?? "",
     },
     {
       id: "status",
       header: "Estado",
+      className: "w-1/4",
+      headerClassName: "w-1/4",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
           {getDancerStateBadges(dancer).map((badge) => (
@@ -339,6 +339,10 @@ function CreateDancerDialog({
     defaultValues: actionData?.values ?? emptyDancerValues,
   });
   const serverFieldErrors = actionData?.fieldErrors ?? emptyDancerFieldErrors;
+
+  useEffect(() => {
+    form.reset(actionData?.values ?? emptyDancerValues);
+  }, [actionData?.values, form]);
 
   useApplyServerFieldErrors(form, serverFieldErrors);
 
@@ -505,12 +509,6 @@ function getDancerVerificationLabel(
     case "incomplete":
       return "Incompleto";
   }
-}
-
-function formatDateOnly(value: string) {
-  const [year, month, day] = value.split("-");
-
-  return `${day}/${month}/${year}`;
 }
 
 function formatDocument(dancer: DancerRow) {

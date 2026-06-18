@@ -15,8 +15,8 @@ import {
 } from "@/db/schema";
 import {
   createModality,
-  createScheduleBlock,
-  createScheduleEntry,
+  createSchedule,
+  createScheduleCapacity,
 } from "@/lib/events/bases-repository.server";
 import {
   toAdminProfessorParticipationSearchValue,
@@ -338,8 +338,9 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain("Academia Ficha");
     expect(markup).toContain("Julia");
     expect(markup).toContain("Detalle");
-    expect(markup).toContain('name="documentType" value="passport"');
+    expect(markup).toContain("Pasaporte");
     expect(markup).toContain("AA123456");
+    expect(countOccurrences(markup, "lucide-lock")).toBeGreaterThanOrEqual(5);
     expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).not.toContain("estado=todos");
     expect(markup).not.toContain("participando=todos");
@@ -937,6 +938,10 @@ function renderDetailRoute(
   );
 }
 
+function countOccurrences(value: string, search: string) {
+  return value.split(search).length - 1;
+}
+
 function renderRouteInAdminLayout({
   childComponent,
   childHandle,
@@ -1237,7 +1242,7 @@ async function linkProfessorToEventChoreography(input: {
     }),
   );
   const block = await expectCreated(
-    createScheduleBlock(input.eventId, {
+    createSchedule(input.eventId, {
       name: `${input.choreographyName} Bloque`,
       scheduledDate: "2026-05-01",
       startTime: "10:00",
@@ -1246,8 +1251,8 @@ async function linkProfessorToEventChoreography(input: {
     }),
   );
   const entry = await expectCreated(
-    createScheduleEntry(block.id, {
-      groupTypes: ["solo"],
+    createScheduleCapacity(block.id, {
+      groupType: "solo",
       capacity: 10,
     }),
   );
@@ -1260,7 +1265,7 @@ async function linkProfessorToEventChoreography(input: {
       modalityId: modality.id,
       groupType: "solo",
       categoryCalculationMode: "oldest",
-      scheduleEntryId: entry.id,
+      scheduleCapacityId: entry.id,
     })
     .returning();
 

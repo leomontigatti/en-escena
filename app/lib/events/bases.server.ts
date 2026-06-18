@@ -1,20 +1,20 @@
 import {
   listEventBasesData,
   resolveApplicablePrice,
-  resolveCompatibleScheduleEntries,
-  type CompatibleScheduleEntry,
-  type CompatibleScheduleEntryResolution,
+  resolveCompatibleScheduleCapacities,
+  type CompatibleScheduleCapacity,
+  type CompatibleScheduleCapacityResolution,
   type PriceListItem,
   type PriceResolutionResult,
-  type ScheduleBlockListItem,
+  type ScheduleListItem,
 } from "@/lib/events/bases-repository.server";
 
 export type {
-  CompatibleScheduleEntry,
-  CompatibleScheduleEntryResolution,
+  CompatibleScheduleCapacity,
+  CompatibleScheduleCapacityResolution,
   PriceListItem,
   PriceResolutionResult,
-  ScheduleBlockListItem,
+  ScheduleListItem,
 };
 
 export async function getEventBases(eventId: string) {
@@ -47,7 +47,7 @@ export function getChoreographyRegistrationBaseOptions(
 export async function resolveEventBasesPrice(input: {
   eventId: string;
   groupType: string;
-  scheduleBlockId: string | null;
+  scheduleId: string | null;
 }): Promise<PriceResolutionResult> {
   return resolveApplicablePrice(input);
 }
@@ -56,6 +56,6 @@ export async function resolveEventBasesScheduleOptions(input: {
   eventId: string;
   modalityId: string;
   groupType: string;
-}): Promise<CompatibleScheduleEntryResolution> {
-  return resolveCompatibleScheduleEntries(input);
+}): Promise<CompatibleScheduleCapacityResolution> {
+  return resolveCompatibleScheduleCapacities(input);
 }

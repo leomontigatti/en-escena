@@ -32,5 +32,5 @@ Selectable event contexts can be reintroduced in V2 as explicit Evento de trabaj
 
 - Loaders, actions, repositories, and UI copy should treat the Evento activo as the only implicit event context.
 - Admin and portal list URLs should not preserve or emit `evento` query parameters.
-- Admin Bases del evento for Modalidades, Categorías, Bloques horarios and Precios applies to the Evento activo in V1.
+- Admin Bases del evento for Modalidades, Categorías, Cronogramas and Precios applies to the Evento activo in V1.
 - V2 event filtering will require a new decision to define URL shape, selector placement, read-only copy, and mutation rules.

@@ -20,18 +20,18 @@ import {
   EventPricesRouteView,
 } from "@/components/admin/events/event-prices";
 import {
-  EventScheduleBlocksRouteView,
-  EventScheduleBlockDetailRouteView,
-  NewEventScheduleBlockRouteView,
-} from "@/components/admin/events/event-schedule-blocks";
+  EventSchedulesRouteView,
+  EventScheduleDetailRouteView,
+  NewEventScheduleRouteView,
+} from "@/components/admin/events/event-schedules";
 import { db } from "@/db";
 import {
   categories,
   experienceLevels,
   modalities,
   prices,
-  scheduleBlocks,
-  scheduleEntries,
+  schedules,
+  scheduleCapacities,
   submodalities,
   user,
 } from "@/db/schema";
@@ -39,8 +39,8 @@ import {
   createCategory,
   createExperienceLevel,
   createModality,
-  createScheduleBlock,
-  createScheduleEntry,
+  createSchedule,
+  createScheduleCapacity,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
@@ -52,9 +52,9 @@ import {
   loader,
 } from "@/lib/admin/events/bases-route.server";
 import { AdministracionRouteView } from "@/routes/administracion";
-import { handle as bloquesHorariosHandle } from "@/routes/administracion.bloques-horarios";
-import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.bloques-horarios_.$scheduleBlockId";
-import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.bloques-horarios_.nuevo";
+import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
+import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
+import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.cronogramas_.nuevo";
 import { handle as categoriasHandle } from "@/routes/administracion.categorias";
 import { handle as categoriaDetalleHandle } from "@/routes/administracion.categorias_.$categoryId";
 import { handle as categoriaNuevaHandle } from "@/routes/administracion.categorias_.nueva";
@@ -109,7 +109,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("Bases del evento");
     expect(markup).toContain("/administracion/modalidades");
     expect(markup).toContain("/administracion/categorias");
-    expect(markup).toContain("/administracion/bloques-horarios");
+    expect(markup).toContain("/administracion/cronogramas");
     expect(markup).toContain("/administracion/precios");
     expect(markup).not.toContain('name="intent" value="create-modality"');
     expect(markup).toContain("/administracion/eventos");
@@ -309,11 +309,9 @@ describe.sequential("administracion Bases del evento routes", () => {
 
     expect(detalleMarkup).toContain("Jazz");
     expect(detalleMarkup).toContain("Jazz Funk");
-    expect(detalleMarkup).toContain("Agregar");
-    expect(detalleMarkup).toContain(
-      `aria-label="Borrar submodalidad Jazz Funk"`,
-    );
-    expect(detalleMarkup).toContain('name="intent" value="delete-submodality"');
+    expect(detalleMarkup).toContain(`aria-label="Agregar submodalidad"`);
+    expect(detalleMarkup).toContain(`aria-label="Quitar submodalidad"`);
+    expect(detalleMarkup).toContain('name="submodalities.0.id"');
     expect(detalleMarkup).not.toContain("Elegí una modalidad");
     expect(detalleMarkup).not.toContain(
       'name="intent" value="update-submodality"',
@@ -386,7 +384,61 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("renders bloques horarios as a browse list with ocupación and detail links", async () => {
+  test("saves inline submodalidades through the modalidad form", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const submodality = await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: modality.id,
+        name: "Jazz funk",
+      }),
+    );
+
+    const updateModalityRequest = await createSignedInRequest({
+      email: "admin.inline.submodalidades@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/${modality.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-modality",
+        id: modality.id,
+        name: "Jazz escénico",
+        submodalitiesMode: "replace",
+        "submodalities.0.id": submodality.id,
+        "submodalities.0.name": "Commercial jazz",
+        "submodalities.1.name": "Lyrical jazz",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(updateModalityRequest.request)),
+      302,
+    );
+
+    await expect(
+      db.query.modalities.findFirst({
+        where: eq(modalities.id, modality.id),
+      }),
+    ).resolves.toMatchObject({ name: "Jazz Escénico" });
+
+    const savedSubmodalities = await db.query.submodalities.findMany({
+      where: eq(submodalities.modalityId, modality.id),
+    });
+
+    expect(savedSubmodalities).toHaveLength(2);
+    expect(savedSubmodalities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: submodality.id,
+          name: "Commercial Jazz",
+        }),
+        expect.objectContaining({ name: "Lyrical Jazz" }),
+      ]),
+    );
+  });
+
+  test("renders cronogramas as a browse list with ocupación and detail links", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await createModality(event.id, { name: "Jazz" });
     const urbanas = await createModality(event.id, { name: "Danzas urbanas" });
@@ -395,8 +447,8 @@ describe.sequential("administracion Bases del evento routes", () => {
       throw new Error("Expected schedule block modalities to be created.");
     }
 
-    const scheduleBlock = await expectCreated(
-      createScheduleBlock(event.id, {
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -406,8 +458,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
 
     await expectCreated(
-      createScheduleEntry(scheduleBlock.id, {
-        groupTypes: ["solo", "duo"],
+      createScheduleCapacity(schedule.id, {
+        groupType: "solo",
         capacity: 8,
       }),
     );
@@ -418,7 +470,7 @@ describe.sequential("administracion Bases del evento routes", () => {
           await createSignedInRequest({
             email: "admin.lista.bloques.ocupacion@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
           })
         ).request,
       ),
@@ -428,29 +480,29 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("Ocupación");
     expect(markup).toContain("8/24");
     expect(markup).toContain("Sábado mañana");
-    expect(markup).toContain("02/05/2026");
+    expect(markup).toContain("2 de mayo de 2026");
     expect(markup).toContain("09:00");
     expect(markup).toContain("Jazz");
     expect(markup).toContain("Danzas Urbanas");
-    expect(markup).toContain(
-      `/administracion/bloques-horarios/${scheduleBlock.id}`,
+    expect(markup).toContain(`/administracion/cronogramas/${schedule.id}`);
+    expect(markup).toContain("/administracion/cronogramas/nuevo");
+    expect(markup).not.toContain('name="intent" value="create-schedule"');
+    expect(markup).not.toContain('name="intent" value="delete-schedule"');
+    expect(markup).not.toContain(
+      'name="intent" value="create-schedule-capacity"',
     );
-    expect(markup).toContain("/administracion/bloques-horarios/nuevo");
-    expect(markup).not.toContain('name="intent" value="create-schedule-block"');
-    expect(markup).not.toContain('name="intent" value="delete-schedule-block"');
-    expect(markup).not.toContain('name="intent" value="create-schedule-entry"');
   });
 
-  test("renders dedicated create and detail routes for bloques horarios", async () => {
+  test("renders dedicated create and detail routes for cronogramas", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await createModality(event.id, { name: "Jazz" });
 
     if (!modality.ok || !modality.record) {
-      throw new Error("Expected bloque horario modality to be created.");
+      throw new Error("Expected cronograma modality to be created.");
     }
 
-    const scheduleBlock = await expectCreated(
-      createScheduleBlock(event.id, {
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
         name: "Domingo tarde",
         scheduledDate: "2026-05-03",
         startTime: "15:00",
@@ -465,30 +517,22 @@ describe.sequential("administracion Bases del evento routes", () => {
           await createSignedInRequest({
             email: "admin.rutas.bloques@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/bloques-horarios/nuevo?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
           })
         ).request,
       ),
     );
 
     const createMarkup = renderNuevoBloqueHorarioRoute(data);
-    const detailMarkup = renderBloqueHorarioDetailRoute(data, scheduleBlock.id);
+    const detailMarkup = renderBloqueHorarioDetailRoute(data, schedule.id);
 
-    expect(createMarkup).toContain("Nuevo bloque horario");
-    expect(createMarkup).toContain(
-      'name="intent" value="create-schedule-block"',
-    );
-    expect(createMarkup).toContain(
-      "La ocupación reservada por cronogramas no puede superar el cupo total del bloque horario.",
-    );
-    expect(detailMarkup).toContain("Detalle del bloque horario");
-    expect(detailMarkup).toContain(
-      'name="intent" value="update-schedule-block"',
-    );
-    expect(detailMarkup).toContain(
-      'name="intent" value="create-schedule-entry"',
-    );
-    expect(detailMarkup).toContain("Borrar bloque horario");
+    expect(createMarkup).toContain("Nuevo cronograma");
+    expect(createMarkup).toContain('name="intent" value="create-schedule"');
+    expect(createMarkup).toContain("Dividir cupo");
+    expect(detailMarkup).toContain("Editar cronograma");
+    expect(detailMarkup).toContain('name="intent" value="update-schedule"');
+    expect(detailMarkup).not.toContain("Cupos de cronograma");
+    expect(detailMarkup).toContain("Dividir cupo");
   });
 
   test("creates, edits and deletes Bases del evento through the administration action", async () => {
@@ -696,6 +740,38 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(nuevaMarkup).toContain("Niveles de experiencia");
     expect(nuevaMarkup).not.toContain(
       "Crear y asociar nuevo nivel de experiencia",
+    );
+
+    const duplicateCategoryMarkup = renderCategoriaNuevaRoute(data, {
+      status: "error",
+      message:
+        "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+      fieldErrors: {},
+      scope: {
+        intent: "create-category",
+      },
+      values: {
+        name: "Mini avanzado",
+        minAge: "8",
+        maxAge: "12",
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevelIds: ["Inicial"],
+      },
+    });
+
+    expect(duplicateCategoryMarkup).not.toContain(
+      "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+    );
+    expect(duplicateCategoryMarkup).toContain('value="Mini avanzado"');
+    expect(duplicateCategoryMarkup).toContain('value="8"');
+    expect(duplicateCategoryMarkup).toContain('value="12"');
+    expect(duplicateCategoryMarkup).toContain('name="groupTypes" value="solo"');
+    expect(duplicateCategoryMarkup).toContain(
+      `name="modalityIds" value="${jazz.id}"`,
+    );
+    expect(duplicateCategoryMarkup).toContain(
+      'name="experienceLevelIds" value="Inicial"',
     );
 
     const createRequest = await createSignedInRequest({
@@ -909,9 +985,9 @@ describe.sequential("administracion Bases del evento routes", () => {
     const blockRequest = await createSignedInRequest({
       email: "admin.precio.bloque.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -921,8 +997,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Sábado mañana"),
     });
 
     await expectThrownResponse(
@@ -938,7 +1014,7 @@ describe.sequential("administracion Bases del evento routes", () => {
                 groupType: "solo",
                 amount: "12000",
                 paymentDeadline: "2026-05-31",
-                scheduleBlockId: "",
+                scheduleId: "",
               }),
             })
           ).request,
@@ -960,7 +1036,7 @@ describe.sequential("administracion Bases del evento routes", () => {
                 groupType: "solo",
                 amount: "15000",
                 paymentDeadline: "2026-05-31",
-                scheduleBlockId: scheduleBlock?.id ?? "",
+                scheduleId: schedule?.id ?? "",
               }),
             })
           ).request,
@@ -978,7 +1054,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     const markup = renderPreciosRoute(data);
 
     expect(markup).toContain("Precio base");
-    expect(markup).toContain("Precio por bloque horario");
+    expect(markup).toContain("Precio por cronograma");
     expect(markup).toContain("Solo - Precio base - hasta 31/5/26");
     expect(markup).toContain("Nuevo precio");
     expect(markup).toContain("/administracion/precios/nuevo");
@@ -994,9 +1070,9 @@ describe.sequential("administracion Bases del evento routes", () => {
     const blockRequest = await createSignedInRequest({
       email: "admin.precio.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -1006,8 +1082,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Sábado mañana"),
     });
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
@@ -1018,7 +1094,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "15000",
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: scheduleBlock?.id ?? "",
+        scheduleId: schedule?.id ?? "",
       }),
     });
 
@@ -1031,7 +1107,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       where: and(
         eq(prices.groupType, "solo"),
         eq(prices.paymentDeadline, "2026-05-31"),
-        eq(prices.scheduleBlockId, scheduleBlock?.id ?? ""),
+        eq(prices.scheduleId, schedule?.id ?? ""),
       ),
     });
     expect(createResponse.headers.get("location")).toMatch(
@@ -1051,7 +1127,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const createMarkup = renderPrecioNuevoRoute(createData);
     expect(createMarkup).toContain(
-      "El precio base aplica cuando no existe un precio específico para el bloque horario.",
+      "El precio base aplica cuando no existe un precio específico para el cronograma.",
     );
 
     const detailData = await loader(
@@ -1067,7 +1143,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const detailMarkup = renderPrecioDetalleRoute(detailData, price?.id ?? "");
 
-    expect(detailMarkup).toContain("Precio por bloque horario");
+    expect(detailMarkup).toContain("Precio por cronograma");
     expect(detailMarkup).toContain("Sábado mañana");
     expect(detailMarkup).toContain("31/5/26");
     expect(detailMarkup).toContain("Borrar precio");
@@ -1082,7 +1158,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
-        scheduleBlockId: "",
+        scheduleId: "",
       }),
     });
 
@@ -1097,7 +1173,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toMatchObject({
       amount: 12000,
       paymentDeadline: "2026-06-30",
-      scheduleBlockId: null,
+      scheduleId: null,
     });
 
     const blockedDeleteRequest = await createSignedInRequest({
@@ -1142,19 +1218,19 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 
-  test("creates, edits and deletes Bloques horarios through the admin action", async () => {
+  test("creates, edits and deletes Cronogramas through the admin action", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });
     await createModality(event.id, { name: "Danzas urbanas" });
     const eventModalities = await db.query.modalities.findMany({
       where: eq(modalities.eventId, event.id),
     });
-    const scheduleBlockRequest = await createSignedInRequest({
+    const scheduleRequest = await createSignedInRequest({
       email: "admin.crea.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -1163,18 +1239,18 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     });
 
-    const createScheduleBlockResponse = await expectThrownResponse(
-      action(routeArgs(scheduleBlockRequest.request)),
+    const createScheduleResponse = await expectThrownResponse(
+      action(routeArgs(scheduleRequest.request)),
       302,
     );
-    expect(createScheduleBlockResponse.headers.get("location")).toMatch(
-      /\/administracion\/bloques-horarios\/[^?]+\?notificacion=bloque-horario-guardado/,
+    expect(createScheduleResponse.headers.get("location")).toMatch(
+      /\/administracion\/cronogramas\/[^?]+\?notificacion=cronograma-guardado/,
     );
 
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Sábado mañana"),
     });
-    expect(scheduleBlock).toMatchObject({
+    expect(schedule).toMatchObject({
       eventId: event.id,
       scheduledDate: "2026-05-02",
       startTime: "09:00",
@@ -1187,7 +1263,7 @@ describe.sequential("administracion Bases del evento routes", () => {
           await createSignedInRequest({
             email: "admin.lista.bloques@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
           })
         ).request,
       ),
@@ -1195,7 +1271,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     const markup = renderBloquesHorariosRoute(data);
 
     expect(markup).toContain("Sábado mañana");
-    expect(markup).toContain("02/05/2026");
+    expect(markup).toContain("2 de mayo de 2026");
     expect(markup).toContain("09:00");
     expect(markup).toContain("0/24");
     expect(markup).toContain("Jazz");
@@ -1204,13 +1280,13 @@ describe.sequential("administracion Bases del evento routes", () => {
     const urbanas = eventModalities.find(
       (modality) => modality.name === "Danzas Urbanas",
     );
-    const editScheduleBlockRequest = await createSignedInRequest({
+    const editScheduleRequest = await createSignedInRequest({
       email: "admin.edita.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "update-schedule-block",
-        id: scheduleBlock?.id ?? "",
+        intent: "update-schedule",
+        id: schedule?.id ?? "",
         name: "Sábado tarde",
         scheduledDate: "2026-05-02",
         startTime: "14:30",
@@ -1219,16 +1295,16 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     });
 
-    const updateScheduleBlockResponse = await expectThrownResponse(
-      action(routeArgs(editScheduleBlockRequest.request)),
+    const updateScheduleResponse = await expectThrownResponse(
+      action(routeArgs(editScheduleRequest.request)),
       302,
     );
-    expect(updateScheduleBlockResponse.headers.get("location")).toContain(
-      "notificacion=bloque-horario-guardado",
+    expect(updateScheduleResponse.headers.get("location")).toContain(
+      "notificacion=cronograma-guardado",
     );
     await expect(
-      db.query.scheduleBlocks.findFirst({
-        where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
+      db.query.schedules.findFirst({
+        where: eq(schedules.id, schedule?.id ?? ""),
       }),
     ).resolves.toMatchObject({
       name: "Sábado tarde",
@@ -1236,26 +1312,26 @@ describe.sequential("administracion Bases del evento routes", () => {
       totalCapacity: 18,
     });
 
-    const deleteScheduleBlockRequest = await createSignedInRequest({
+    const deleteScheduleRequest = await createSignedInRequest({
       email: "admin.borra.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "delete-schedule-block",
-        id: scheduleBlock?.id ?? "",
+        intent: "delete-schedule",
+        id: schedule?.id ?? "",
       }),
     });
 
-    const deleteScheduleBlockResponse = await expectThrownResponse(
-      action(routeArgs(deleteScheduleBlockRequest.request)),
+    const deleteScheduleResponse = await expectThrownResponse(
+      action(routeArgs(deleteScheduleRequest.request)),
       302,
     );
-    expect(deleteScheduleBlockResponse.headers.get("location")).toBe(
-      "/administracion/bloques-horarios?notificacion=bloque-horario-eliminado",
+    expect(deleteScheduleResponse.headers.get("location")).toBe(
+      "/administracion/cronogramas?notificacion=cronograma-eliminado",
     );
     await expect(
-      db.query.scheduleBlocks.findFirst({
-        where: eq(scheduleBlocks.id, scheduleBlock?.id ?? ""),
+      db.query.schedules.findFirst({
+        where: eq(schedules.id, schedule?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
   });
@@ -1269,9 +1345,9 @@ describe.sequential("administracion Bases del evento routes", () => {
     const blockRequest = await createSignedInRequest({
       email: "admin.precio.bloque@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -1281,8 +1357,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Sábado mañana"),
     });
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
@@ -1293,7 +1369,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "15000",
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: scheduleBlock?.id ?? "",
+        scheduleId: schedule?.id ?? "",
       }),
     });
 
@@ -1309,7 +1385,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       where: and(
         eq(prices.groupType, "solo"),
         eq(prices.paymentDeadline, "2026-05-31"),
-        eq(prices.scheduleBlockId, scheduleBlock?.id ?? ""),
+        eq(prices.scheduleId, schedule?.id ?? ""),
       ),
     });
     expect(price).toMatchObject({
@@ -1317,7 +1393,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       groupType: "solo",
       amount: 15000,
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: scheduleBlock?.id,
+      scheduleId: schedule?.id,
     });
 
     const data = await loader(
@@ -1348,7 +1424,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
-        scheduleBlockId: "",
+        scheduleId: "",
       }),
     });
 
@@ -1366,7 +1442,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toMatchObject({
       amount: 12000,
       paymentDeadline: "2026-06-30",
-      scheduleBlockId: null,
+      scheduleId: null,
     });
 
     const deletePriceRequest = await createSignedInRequest({
@@ -1393,18 +1469,18 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("creates, edits and deletes cronogramas inside bloques horarios through the admin action", async () => {
+  test("creates, edits and deletes cupos de cronograma inside cronogramas through the admin action", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });
     const [modality] = await db.query.modalities.findMany({
       where: eq(modalities.eventId, event.id),
     });
-    const scheduleBlockRequest = await createSignedInRequest({
-      email: "admin.crea.bloque.cronograma@example.com",
+    const scheduleRequest = await createSignedInRequest({
+      email: "admin.crea.bloque.cupo-cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -1413,39 +1489,36 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     });
 
-    await expectThrownResponse(
-      action(routeArgs(scheduleBlockRequest.request)),
-      302,
-    );
+    await expectThrownResponse(action(routeArgs(scheduleRequest.request)), 302);
 
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-      where: eq(scheduleBlocks.name, "Sábado mañana"),
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Sábado mañana"),
     });
-    const createScheduleEntryRequest = await createSignedInRequest({
-      email: "admin.crea.cronograma@example.com",
+    const createScheduleCapacityRequest = await createSignedInRequest({
+      email: "admin.crea.cupo-cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-entry",
-        scheduleBlockId: scheduleBlock?.id ?? "",
-        groupTypes: ["solo", "duo"],
+        intent: "create-schedule-capacity",
+        scheduleId: schedule?.id ?? "",
+        groupType: "solo",
         capacity: "8",
       }),
     });
 
-    const createScheduleEntryResponse = await expectThrownResponse(
-      action(routeArgs(createScheduleEntryRequest.request)),
+    const createScheduleCapacityResponse = await expectThrownResponse(
+      action(routeArgs(createScheduleCapacityRequest.request)),
       302,
     );
-    expect(createScheduleEntryResponse.headers.get("location")).toContain(
-      "notificacion=cronograma-guardado",
+    expect(createScheduleCapacityResponse.headers.get("location")).toContain(
+      "notificacion=cupo-cronograma-guardado",
     );
 
-    const scheduleEntry = await db.query.scheduleEntries.findFirst({
-      where: eq(scheduleEntries.scheduleBlockId, scheduleBlock?.id ?? ""),
+    const scheduleCapacity = await db.query.scheduleCapacities.findFirst({
+      where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
     });
-    expect(scheduleEntry).toMatchObject({
-      groupTypeKey: "solo|duo",
+    expect(scheduleCapacity).toMatchObject({
+      groupType: "solo",
       capacity: 8,
     });
 
@@ -1453,73 +1526,156 @@ describe.sequential("administracion Bases del evento routes", () => {
       routeArgs(
         (
           await createSignedInRequest({
-            email: "admin.lista.cronogramas@example.com",
+            email: "admin.lista.cupos-cronograma@example.com",
             role: "admin",
-            requestUrl: `http://localhost/administracion/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
+            requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
           })
         ).request,
       ),
     );
-    const markup = renderBloqueHorarioDetailRoute(
-      data,
-      scheduleBlock?.id ?? "",
-    );
+    const markup = renderBloqueHorarioDetailRoute(data, schedule?.id ?? "");
 
-    expect(markup).toContain("Cronogramas");
-    expect(markup).toContain("Solo, Dúo");
-    expect(markup).toContain("8 cupos");
-    expect(markup).toContain('name="intent" value="create-schedule-entry"');
+    expect(markup).not.toContain("Cupos de cronograma");
+    expect(markup).toContain('name="scheduleCapacities.0.groupType"');
+    expect(markup).toContain('name="scheduleCapacities.0.capacity"');
 
-    const editScheduleEntryRequest = await createSignedInRequest({
-      email: "admin.edita.cronograma@example.com",
+    const editScheduleCapacityRequest = await createSignedInRequest({
+      email: "admin.edita.cupo-cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
       body: formData({
-        intent: "update-schedule-entry",
-        id: scheduleEntry?.id ?? "",
-        groupTypes: ["trio"],
+        intent: "update-schedule-capacity",
+        id: scheduleCapacity?.id ?? "",
+        groupType: "trio",
         capacity: "4",
       }),
     });
 
-    const updateScheduleEntryResponse = await expectThrownResponse(
-      action(routeArgs(editScheduleEntryRequest.request)),
+    const updateScheduleCapacityResponse = await expectThrownResponse(
+      action(routeArgs(editScheduleCapacityRequest.request)),
       302,
     );
-    expect(updateScheduleEntryResponse.headers.get("location")).toContain(
-      "notificacion=cronograma-guardado",
+    expect(updateScheduleCapacityResponse.headers.get("location")).toContain(
+      "notificacion=cupo-cronograma-guardado",
     );
     await expect(
-      db.query.scheduleEntries.findFirst({
-        where: eq(scheduleEntries.id, scheduleEntry?.id ?? ""),
+      db.query.scheduleCapacities.findFirst({
+        where: eq(scheduleCapacities.id, scheduleCapacity?.id ?? ""),
       }),
     ).resolves.toMatchObject({
-      groupTypeKey: "trio",
+      groupType: "trio",
       capacity: 4,
     });
 
-    const deleteScheduleEntryRequest = await createSignedInRequest({
-      email: "admin.borra.cronograma@example.com",
+    const deleteScheduleCapacityRequest = await createSignedInRequest({
+      email: "admin.borra.cupo-cronograma@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/${scheduleBlock?.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
       body: formData({
-        intent: "delete-schedule-entry",
-        id: scheduleEntry?.id ?? "",
+        intent: "delete-schedule-capacity",
+        id: scheduleCapacity?.id ?? "",
       }),
     });
 
-    const deleteScheduleEntryResponse = await expectThrownResponse(
-      action(routeArgs(deleteScheduleEntryRequest.request)),
+    const deleteScheduleCapacityResponse = await expectThrownResponse(
+      action(routeArgs(deleteScheduleCapacityRequest.request)),
       302,
     );
-    expect(deleteScheduleEntryResponse.headers.get("location")).toContain(
-      "notificacion=cronograma-eliminado",
+    expect(deleteScheduleCapacityResponse.headers.get("location")).toContain(
+      "notificacion=cupo-cronograma-eliminado",
     );
     await expect(
-      db.query.scheduleEntries.findFirst({
-        where: eq(scheduleEntries.id, scheduleEntry?.id ?? ""),
+      db.query.scheduleCapacities.findFirst({
+        where: eq(scheduleCapacities.id, scheduleCapacity?.id ?? ""),
       }),
     ).resolves.toBeUndefined();
+  });
+
+  test("saves inline cupos de cronograma through the cronograma form", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const createScheduleRequest = await createSignedInRequest({
+      email: "admin.inline.cupos-cronograma@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+      body: formData({
+        intent: "create-schedule",
+        name: "Domingo tarde",
+        scheduledDate: "2026-05-03",
+        startTime: "15:00",
+        totalCapacity: "12",
+        modalityIds: [modality.id],
+        "scheduleCapacities.0.groupType": "solo",
+        "scheduleCapacities.0.capacity": "5",
+        "scheduleCapacities.1.groupType": "grupal",
+        "scheduleCapacities.1.capacity": "7",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(createScheduleRequest.request)),
+      302,
+    );
+
+    const schedule = await db.query.schedules.findFirst({
+      where: eq(schedules.name, "Domingo tarde"),
+    });
+    const createdEntries = await db.query.scheduleCapacities.findMany({
+      where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
+    });
+    const soloEntry = createdEntries.find(
+      (entry) => entry.groupType === "solo",
+    );
+
+    expect(createdEntries).toHaveLength(2);
+    expect(createdEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ groupType: "solo", capacity: 5 }),
+        expect.objectContaining({ groupType: "grupal", capacity: 7 }),
+      ]),
+    );
+
+    const updateScheduleRequest = await createSignedInRequest({
+      email: "admin.inline.cupos-cronograma.edita@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-schedule",
+        id: schedule?.id ?? "",
+        name: "Domingo tarde",
+        scheduledDate: "2026-05-03",
+        startTime: "15:00",
+        totalCapacity: "12",
+        modalityIds: [modality.id],
+        "scheduleCapacities.0.id": soloEntry?.id ?? "",
+        "scheduleCapacities.0.groupType": "duo",
+        "scheduleCapacities.0.capacity": "3",
+        "scheduleCapacities.1.groupType": "trio",
+        "scheduleCapacities.1.capacity": "4",
+      }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(updateScheduleRequest.request)),
+      302,
+    );
+
+    const updatedEntries = await db.query.scheduleCapacities.findMany({
+      where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
+    });
+
+    expect(updatedEntries).toHaveLength(2);
+    expect(updatedEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: soloEntry?.id, groupType: "duo" }),
+        expect.objectContaining({ groupType: "trio", capacity: 4 }),
+      ]),
+    );
+    expect(updatedEntries.some((entry) => entry.groupType === "grupal")).toBe(
+      false,
+    );
   });
 
   test("returns Spanish validation errors from Bases del evento actions", async () => {
@@ -1539,6 +1695,9 @@ describe.sequential("administracion Bases del evento routes", () => {
       fieldErrors: { name: "Usá un nombre distinto para la modalidad." },
       scope: {
         intent: "create-modality",
+      },
+      values: {
+        name: " jazz ",
       },
     });
 
@@ -1568,6 +1727,61 @@ describe.sequential("administracion Bases del evento routes", () => {
       scope: {
         intent: "create-category",
       },
+      values: {
+        name: "Infantil",
+        minAge: "12",
+        maxAge: "8",
+        groupTypes: ["solo"],
+        modalityIds:
+          modality.ok && modality.record ? [modality.record.id] : [""],
+        experienceLevelIds: [],
+      },
+    });
+
+    if (!modality.ok) {
+      throw new Error("Expected modality creation to succeed.");
+    }
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Mini",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [modality.record.id],
+        experienceLevelIds: [],
+      }),
+    );
+
+    const duplicateCategoryValues = {
+      name: "Mini avanzado",
+      minAge: "8",
+      maxAge: "12",
+      groupTypes: ["solo"],
+      modalityIds: [modality.record.id],
+      experienceLevelIds: ["Elite"],
+    };
+    const duplicateCategoryRequest = await createSignedInRequest({
+      email: "admin.categoria.duplicada@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/categorias/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-category",
+        ...duplicateCategoryValues,
+      }),
+    });
+
+    await expect(
+      action(routeArgs(duplicateCategoryRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message:
+        "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+      fieldErrors: {},
+      scope: {
+        intent: "create-category",
+      },
+      values: duplicateCategoryValues,
     });
 
     const createPriceRequest = await createSignedInRequest({
@@ -1579,7 +1793,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: "",
+        scheduleId: "",
       }),
     });
 
@@ -1597,7 +1811,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: "",
+        scheduleId: "",
       }),
     });
 
@@ -1612,6 +1826,12 @@ describe.sequential("administracion Bases del evento routes", () => {
       scope: {
         intent: "create-price",
       },
+      values: {
+        groupType: "solo",
+        amount: "13000",
+        paymentDeadline: "2026-05-31",
+        scheduleId: "",
+      },
     });
 
     const requiredPriceRequest = await createSignedInRequest({
@@ -1624,7 +1844,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         groupType: "",
         amount: "",
         paymentDeadline: "",
-        scheduleBlockId: "",
+        scheduleId: "",
       }),
     });
 
@@ -1641,14 +1861,20 @@ describe.sequential("administracion Bases del evento routes", () => {
       scope: {
         intent: "create-price",
       },
+      values: {
+        groupType: "",
+        amount: "",
+        paymentDeadline: "",
+        scheduleId: "",
+      },
     });
 
-    const requiredScheduleBlockRequest = await createSignedInRequest({
+    const requiredScheduleRequest = await createSignedInRequest({
       email: "admin.bloque.requerido@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/nuevo?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-block",
+        intent: "create-schedule",
         name: "",
         scheduledDate: "",
         startTime: "",
@@ -1658,10 +1884,10 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
 
     await expect(
-      action(routeArgs(requiredScheduleBlockRequest.request)),
+      action(routeArgs(requiredScheduleRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message: "Revisá los datos del bloque horario.",
+      message: "Revisá los datos del cronograma.",
       fieldErrors: {
         name: "Este campo es obligatorio.",
         scheduledDate: "Este campo es obligatorio.",
@@ -1670,12 +1896,20 @@ describe.sequential("administracion Bases del evento routes", () => {
         modalityIds: "Este campo es obligatorio.",
       },
       scope: {
-        intent: "create-schedule-block",
+        intent: "create-schedule",
+      },
+      values: {
+        name: "",
+        scheduledDate: "",
+        startTime: "",
+        totalCapacity: "",
+        modalityIds: [],
+        scheduleCapacities: [],
       },
     });
 
     const createdBlock = await expectCreated(
-      createScheduleBlock(event.id, {
+      createSchedule(event.id, {
         name: "Domingo tarde",
         scheduledDate: "2026-05-03",
         startTime: "15:00",
@@ -1684,30 +1918,34 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     );
 
-    const requiredScheduleEntryRequest = await createSignedInRequest({
-      email: "admin.cronograma.requerido@example.com",
+    const requiredScheduleCapacityRequest = await createSignedInRequest({
+      email: "admin.cupo-cronograma.requerido@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bloques-horarios/${createdBlock.id}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}?evento=${event.id}`,
       body: formData({
-        intent: "create-schedule-entry",
-        scheduleBlockId: createdBlock.id,
-        groupTypes: [],
+        intent: "create-schedule-capacity",
+        scheduleId: createdBlock.id,
+        groupType: "",
         capacity: "",
       }),
     });
 
     await expect(
-      action(routeArgs(requiredScheduleEntryRequest.request)),
+      action(routeArgs(requiredScheduleCapacityRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message: "Revisá los datos del cronograma.",
+      message: "Revisá los datos del cupo de cronograma.",
       fieldErrors: {
-        groupTypes: "Este campo es obligatorio.",
+        groupType: "Este campo es obligatorio.",
         capacity: "Este campo es obligatorio.",
       },
       scope: {
-        intent: "create-schedule-entry",
+        intent: "create-schedule-capacity",
         parentRecordId: createdBlock.id,
+      },
+      values: {
+        groupType: "",
+        capacity: "",
       },
     });
   });
@@ -1735,10 +1973,16 @@ describe.sequential("administracion Bases del evento routes", () => {
     const detailMarkup = renderModalidadDetalleRoute(data, modality.id, {
       status: "error",
       message: "Ingresá el nombre de la submodalidad.",
-      fieldErrors: { name: "Ingresá el nombre de la submodalidad." },
+      fieldErrors: {
+        "submodalities.0.name": "Ingresá el nombre de la submodalidad.",
+      },
       scope: {
-        intent: "create-submodality",
-        parentRecordId: modality.id,
+        intent: "update-modality",
+        recordId: modality.id,
+      },
+      values: {
+        name: "Jazz",
+        submodalities: [{ name: "" }],
       },
     });
 
@@ -1752,13 +1996,13 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(detailMarkup).toContain("Ingresá el nombre de la submodalidad.");
   });
 
-  test("routes cronograma field errors to the submitted cronograma form only", async () => {
+  test("routes cupo de cronograma field errors to the submitted cupo de cronograma form only", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
-    const scheduleBlock = await expectCreated(
-      createScheduleBlock(event.id, {
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -1772,9 +2016,9 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
     });
     const data = await loader(routeArgs(request.request));
-    const scheduleEntry = await expectCreated(
-      createScheduleEntry(scheduleBlock.id, {
-        groupTypes: ["solo"],
+    const scheduleCapacity = await expectCreated(
+      createScheduleCapacity(schedule.id, {
+        groupType: "solo",
         capacity: 6,
       }),
     );
@@ -1798,42 +2042,48 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     });
     const scheduleMarkup = renderRoute(data, {
-      id: "schedule-block-detail-error",
-      path: "bloques-horarios/:scheduleBlockId",
-      url: `/administracion/bloques-horarios/${scheduleBlock.id}`,
+      id: "schedule-detail-error",
+      path: "cronogramas/:scheduleId",
+      url: `/administracion/cronogramas/${schedule.id}`,
       handle: bloqueHorarioDetalleHandle,
-      element: createElement(EventScheduleBlockDetailRouteView, {
+      element: createElement(EventScheduleDetailRouteView, {
         loaderData: data,
-        scheduleBlockId: scheduleBlock.id,
+        scheduleId: schedule.id,
         actionData: {
           status: "error",
-          message: "Revisá los datos del cronograma.",
-          fieldErrors: { capacity: "Este campo es obligatorio." },
+          message: "Revisá los datos del cupo de cronograma.",
+          fieldErrors: {
+            "scheduleCapacities.0.capacity": "Este campo es obligatorio.",
+          },
           scope: {
-            intent: "create-schedule-entry",
-            parentRecordId: scheduleBlock.id,
+            intent: "update-schedule",
+            recordId: schedule.id,
           },
         },
       }),
     });
     const updateScheduleMarkup = renderBloqueHorarioDetailRoute(
       refreshedData,
-      scheduleBlock.id,
+      schedule.id,
       {
         status: "error",
-        message: "Revisá los datos del cronograma.",
-        fieldErrors: { capacity: "Ajustá el cupo del cronograma." },
+        message: "Revisá los datos del cupo de cronograma.",
+        fieldErrors: {
+          "scheduleCapacities.0.capacity": "Ajustá el cupo.",
+        },
         scope: {
-          intent: "update-schedule-entry",
-          recordId: scheduleEntry.id,
+          intent: "update-schedule",
+          recordId: schedule.id,
         },
       },
     );
 
     expect(priceMarkup).not.toContain("Revisá los datos del precio.");
-    expect(scheduleMarkup).not.toContain("Revisá los datos del cronograma.");
-    expect(scheduleMarkup).toContain("Este campo es obligatorio.");
-    expect(updateScheduleMarkup).toContain("Ajustá el cupo del cronograma.");
+    expect(scheduleMarkup).not.toContain(
+      "Revisá los datos del cupo de cronograma.",
+    );
+    expect(scheduleMarkup).not.toContain("Este campo es obligatorio.");
+    expect(updateScheduleMarkup).toContain("Ajustá el cupo.");
     expect(updateScheduleMarkup).not.toContain("Este campo es obligatorio.");
   });
 });
@@ -1939,13 +2189,19 @@ function renderCategoriasRoute(loaderData: EventBasesLoaderData) {
   });
 }
 
-function renderCategoriaNuevaRoute(loaderData: EventBasesLoaderData) {
+function renderCategoriaNuevaRoute(
+  loaderData: EventBasesLoaderData,
+  actionData?: ActionData,
+) {
   return renderRoute(loaderData, {
     id: "category-new",
     path: "categorias/nueva",
     url: "/administracion/categorias/nueva",
     handle: categoriaNuevaHandle,
-    element: createElement(NewEventCategoryRouteView, { loaderData }),
+    element: createElement(NewEventCategoryRouteView, {
+      loaderData,
+      actionData,
+    }),
   });
 }
 
@@ -2013,11 +2269,11 @@ function renderModalidadDetalleRoute(
 
 function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
   return renderRoute(loaderData, {
-    id: "schedule-blocks",
-    path: "bloques-horarios",
-    url: "/administracion/bloques-horarios",
+    id: "schedules",
+    path: "cronogramas",
+    url: "/administracion/cronogramas",
     handle: bloquesHorariosHandle,
-    element: createElement(EventScheduleBlocksRouteView, {
+    element: createElement(EventSchedulesRouteView, {
       loaderData,
     }),
   });
@@ -2025,11 +2281,11 @@ function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
 
 function renderNuevoBloqueHorarioRoute(loaderData: EventBasesLoaderData) {
   return renderRoute(loaderData, {
-    id: "schedule-block-new",
-    path: "bloques-horarios/nuevo",
-    url: "/administracion/bloques-horarios/nuevo",
+    id: "schedule-new",
+    path: "cronogramas/nuevo",
+    url: "/administracion/cronogramas/nuevo",
     handle: bloqueHorarioNuevoHandle,
-    element: createElement(NewEventScheduleBlockRouteView, {
+    element: createElement(NewEventScheduleRouteView, {
       loaderData,
     }),
   });
@@ -2037,17 +2293,17 @@ function renderNuevoBloqueHorarioRoute(loaderData: EventBasesLoaderData) {
 
 function renderBloqueHorarioDetailRoute(
   loaderData: EventBasesLoaderData,
-  scheduleBlockId: string,
+  scheduleId: string,
   actionData?: ActionData,
 ) {
   return renderRoute(loaderData, {
-    id: "schedule-block-detail",
-    path: "bloques-horarios/:scheduleBlockId",
-    url: `/administracion/bloques-horarios/${scheduleBlockId}`,
+    id: "schedule-detail",
+    path: "cronogramas/:scheduleId",
+    url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
-    element: createElement(EventScheduleBlockDetailRouteView, {
+    element: createElement(EventScheduleDetailRouteView, {
       loaderData,
-      scheduleBlockId,
+      scheduleId,
       actionData,
     }),
   });

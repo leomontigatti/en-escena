@@ -8,9 +8,9 @@ import {
   experienceLevels,
   modalities,
   prices,
-  scheduleEntries,
-  scheduleBlockModalities,
-  scheduleBlocks,
+  scheduleCapacities,
+  scheduleModalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -19,14 +19,14 @@ type EventBaseEntityKind =
   | "modality"
   | "submodality"
   | "experience-level"
-  | "schedule-block";
+  | "schedule";
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
 
 type EventBaseRecord =
   | typeof modalities.$inferSelect
-  | typeof scheduleEntries.$inferSelect
-  | typeof scheduleBlocks.$inferSelect
+  | typeof scheduleCapacities.$inferSelect
+  | typeof schedules.$inferSelect
   | typeof submodalities.$inferSelect
   | typeof experienceLevels.$inferSelect
   | typeof categories.$inferSelect
@@ -49,8 +49,8 @@ type EventBaseFailure = {
     | "invalid-group-type"
     | "invalid-modality"
     | "missing-price"
-    | "invalid-schedule-entry"
-    | "schedule-block-has-dependencies";
+    | "invalid-schedule-capacity"
+    | "schedule-has-dependencies";
   error: string;
   fieldErrors?: Record<string, string>;
 };
@@ -64,6 +64,14 @@ type EventBaseNameInput = {
 
 type SubmodalityInput = EventBaseNameInput & {
   modalityId: string;
+};
+
+type InlineSubmodalityInput = EventBaseNameInput & {
+  id?: string;
+};
+
+export type ModalityWithSubmodalitiesInput = EventBaseNameInput & {
+  submodalities: InlineSubmodalityInput[];
 };
 
 type CategoryInput = EventBaseNameInput & {
@@ -85,51 +93,69 @@ type ValidCategoryInput = {
   experienceLevelKey: string;
 };
 
+type InlineScheduleCapacityInput = ScheduleCapacityInput & {
+  id?: string;
+};
+
+type ValidInlineScheduleCapacityInput = {
+  id?: string;
+  index: number;
+  groupType: GroupType;
+  capacity: number;
+};
+
+type ValidInlineSubmodalityInput = InlineSubmodalityInput & {
+  index: number;
+};
+
 type CategoryRelationRow = {
   categoryId: string;
 };
 
-type CompatibleScheduleEntryRow = typeof scheduleEntries.$inferSelect & {
-  blockId: string;
-  blockName: string;
-  blockDate: string;
-  blockTime: string;
+type CompatibleScheduleCapacityRow = typeof scheduleCapacities.$inferSelect & {
+  scheduleName: string;
+  scheduleDate: string;
+  scheduleTime: string;
 };
 
 type EventBasesTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
 >[0];
 
-export type ScheduleBlockInput = EventBaseNameInput & {
+export type ScheduleInput = EventBaseNameInput & {
   scheduledDate: string;
   startTime: string;
   totalCapacity: number;
   modalityIds: string[];
 };
 
-export type ScheduleEntryInput = {
-  groupTypes: string[];
+export type ScheduleCapacityInput = {
+  groupType: string;
   capacity: number;
 };
 
-type ScheduleBlockDependencies = {
-  hasDependencies?: (scheduleBlockId: string) => Promise<boolean> | boolean;
+export type ScheduleWithEntriesInput = ScheduleInput & {
+  scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
 };
 
-type ScheduleEntryDependencies = {
-  hasDependencies?: (scheduleEntryId: string) => Promise<boolean> | boolean;
+type ScheduleDependencies = {
+  hasDependencies?: (scheduleId: string) => Promise<boolean> | boolean;
 };
 
-export type ScheduleBlockListItem = typeof scheduleBlocks.$inferSelect & {
+type ScheduleCapacityDependencies = {
+  hasDependencies?: (scheduleCapacityId: string) => Promise<boolean> | boolean;
+};
+
+export type ScheduleListItem = typeof schedules.$inferSelect & {
   modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
   modalityIds: string[];
   occupiedCapacity: number;
-  scheduleEntries: ScheduleEntryListItem[];
+  scheduleCapacities: ScheduleCapacityListItem[];
 };
 
-export type ScheduleEntryListItem = typeof scheduleEntries.$inferSelect;
+export type ScheduleCapacityListItem = typeof scheduleCapacities.$inferSelect;
 
-export type CompatibleScheduleEntryResolution =
+export type CompatibleScheduleCapacityResolution =
   | {
       status: "none";
       error: string;
@@ -137,33 +163,34 @@ export type CompatibleScheduleEntryResolution =
     }
   | {
       status: "auto";
-      scheduleEntry: CompatibleScheduleEntry;
-      options: [CompatibleScheduleEntry];
+      scheduleCapacity: CompatibleScheduleCapacity;
+      options: [CompatibleScheduleCapacity];
     }
   | {
       status: "multiple";
-      options: CompatibleScheduleEntry[];
+      options: CompatibleScheduleCapacity[];
     };
 
-export type CompatibleScheduleEntry = typeof scheduleEntries.$inferSelect & {
-  scheduleBlock: Pick<
-    typeof scheduleBlocks.$inferSelect,
-    "id" | "name" | "scheduledDate" | "startTime"
-  >;
-};
+export type CompatibleScheduleCapacity =
+  typeof scheduleCapacities.$inferSelect & {
+    schedule: Pick<
+      typeof schedules.$inferSelect,
+      "id" | "name" | "scheduledDate" | "startTime"
+    >;
+  };
 
 export type PriceInput = {
   groupType: string;
   amount: number;
   paymentDeadline: string;
-  scheduleBlockId: string | null;
+  scheduleId: string | null;
 };
 
 type ValidPriceInput = {
   groupType: GroupType;
   amount: number;
   paymentDeadline: string;
-  scheduleBlockId: string | null;
+  scheduleId: string | null;
 };
 
 type PriceDependencies = {
@@ -171,8 +198,8 @@ type PriceDependencies = {
 };
 
 export type PriceListItem = typeof prices.$inferSelect & {
-  scheduleBlock: Pick<
-    typeof scheduleBlocks.$inferSelect,
+  schedule: Pick<
+    typeof schedules.$inferSelect,
     "id" | "name" | "scheduledDate" | "startTime"
   > | null;
 };
@@ -209,13 +236,12 @@ const eventBaseCopy = {
       "Ya existe un nivel de experiencia con ese nombre en este evento.",
     duplicateFieldError: "Usá un nombre distinto para el nivel de experiencia.",
   },
-  "schedule-block": {
-    label: "bloque horario",
-    invalidError: "Revisá los datos del bloque horario.",
-    requiredNameError: "Ingresá el nombre del bloque horario.",
-    duplicateError:
-      "Ya existe un bloque horario con ese nombre en este evento.",
-    duplicateFieldError: "Usá un nombre distinto para el bloque horario.",
+  schedule: {
+    label: "cronograma",
+    invalidError: "Revisá los datos del cronograma.",
+    requiredNameError: "Ingresá el nombre del cronograma.",
+    duplicateError: "Ya existe un cronograma con ese nombre en este evento.",
+    duplicateFieldError: "Usá un nombre distinto para el cronograma.",
   },
 } satisfies Record<
   EventBaseEntityKind,
@@ -236,7 +262,7 @@ export async function listEventBasesData(eventId: string) {
     eventCategories,
     eventCategoryModalities,
     eventCategoryExperienceLevels,
-    eventScheduleBlocks,
+    eventSchedules,
     eventPrices,
   ] = await Promise.all([
     db.query.modalities.findMany({
@@ -278,7 +304,7 @@ export async function listEventBasesData(eventId: string) {
         eq(categories.id, categoryExperienceLevels.categoryId),
       )
       .where(eq(categories.eventId, eventId)),
-    listScheduleBlocks(eventId),
+    listSchedules(eventId),
     listPrices(eventId),
   ]);
 
@@ -300,7 +326,7 @@ export async function listEventBasesData(eventId: string) {
       modalityIds: modalityIdsByCategory.get(category.id) ?? [],
       experienceLevelIds: experienceLevelIdsByCategory.get(category.id) ?? [],
     })),
-    scheduleBlocks: eventScheduleBlocks,
+    schedules: eventSchedules,
     prices: eventPrices,
   };
 }
@@ -357,6 +383,88 @@ export async function updateModality(
     .returning();
 
   return created(record);
+}
+
+export async function updateModalityWithSubmodalities(
+  modalityId: string,
+  input: ModalityWithSubmodalitiesInput,
+): Promise<EventBasesMutationResult> {
+  const modality = await db.query.modalities.findFirst({
+    where: eq(modalities.id, modalityId),
+  });
+
+  if (!modality) {
+    return eventBaseEntityNotFound("modality");
+  }
+
+  const validation = await validateEventBaseName({
+    eventId: modality.eventId,
+    name: input.name,
+    kind: "modality",
+    exceptId: modalityId,
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const existingEntries = await db.query.submodalities.findMany({
+    where: eq(submodalities.modalityId, modalityId),
+  });
+  const submodalityValidation = validateInlineSubmodalitiesInput({
+    existingEntries,
+    submodalities: input.submodalities,
+  });
+
+  if (!submodalityValidation.ok) {
+    return submodalityValidation;
+  }
+
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    const [record] = await tx
+      .update(modalities)
+      .set({ name: toTitleCase(input.name) })
+      .where(eq(modalities.id, modalityId))
+      .returning();
+
+    if (!record) {
+      return eventBaseEntityNotFound("modality");
+    }
+
+    const nextEntries = submodalityValidation.entries;
+    const nextIds = new Set(
+      nextEntries
+        .map((entry) => entry.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const entryIdsToDelete = existingEntries
+      .map((entry) => entry.id)
+      .filter((entryId) => !nextIds.has(entryId));
+
+    if (entryIdsToDelete.length > 0) {
+      await tx
+        .delete(submodalities)
+        .where(inArray(submodalities.id, entryIdsToDelete));
+    }
+
+    for (const entry of nextEntries) {
+      if (entry.id) {
+        await tx
+          .update(submodalities)
+          .set({ name: toTitleCase(entry.name) })
+          .where(eq(submodalities.id, entry.id));
+        continue;
+      }
+
+      await tx.insert(submodalities).values({
+        eventId: modality.eventId,
+        modalityId,
+        name: toTitleCase(entry.name),
+      });
+    }
+
+    return created(record);
+  });
 }
 
 export async function deleteModality(
@@ -666,71 +774,70 @@ export async function deleteCategory(
   return { ok: true };
 }
 
-export async function listScheduleBlocks(
+export async function listSchedules(
   eventId: string,
-): Promise<ScheduleBlockListItem[]> {
-  const blocks = await db.query.scheduleBlocks.findMany({
-    where: eq(scheduleBlocks.eventId, eventId),
+): Promise<ScheduleListItem[]> {
+  const eventSchedules = await db.query.schedules.findMany({
+    where: eq(schedules.eventId, eventId),
     orderBy: [
-      asc(scheduleBlocks.scheduledDate),
-      asc(scheduleBlocks.startTime),
-      asc(scheduleBlocks.name),
+      asc(schedules.scheduledDate),
+      asc(schedules.startTime),
+      asc(schedules.name),
     ],
   });
 
-  if (blocks.length === 0) {
+  if (eventSchedules.length === 0) {
     return [];
   }
 
-  const blockIds = blocks.map((block) => block.id);
-  const [acceptedModalities, blockScheduleEntries] = await Promise.all([
+  const scheduleIds = eventSchedules.map((schedule) => schedule.id);
+  const [acceptedModalities, eventScheduleCapacities] = await Promise.all([
     db
       .select({
-        blockId: scheduleBlockModalities.scheduleBlockId,
+        scheduleId: scheduleModalities.scheduleId,
         modalityId: modalities.id,
         modalityName: modalities.name,
       })
-      .from(scheduleBlockModalities)
-      .innerJoin(
-        modalities,
-        eq(scheduleBlockModalities.modalityId, modalities.id),
-      )
-      .where(inArray(scheduleBlockModalities.scheduleBlockId, blockIds))
+      .from(scheduleModalities)
+      .innerJoin(modalities, eq(scheduleModalities.modalityId, modalities.id))
+      .where(inArray(scheduleModalities.scheduleId, scheduleIds))
       .orderBy(asc(modalities.name)),
-    db.query.scheduleEntries.findMany({
-      where: inArray(scheduleEntries.scheduleBlockId, blockIds),
+    db.query.scheduleCapacities.findMany({
+      where: inArray(scheduleCapacities.scheduleId, scheduleIds),
       orderBy: [
-        asc(scheduleEntries.groupTypeKey),
-        asc(scheduleEntries.capacity),
+        asc(scheduleCapacities.groupType),
+        asc(scheduleCapacities.capacity),
       ],
     }),
   ]);
 
-  const modalitiesByBlockId = groupScheduleBlockModalities(acceptedModalities);
-  const entriesByBlockId = groupScheduleEntries(blockScheduleEntries);
+  const modalitiesByScheduleId = groupScheduleModalities(acceptedModalities);
+  const capacitiesByScheduleId = groupScheduleCapacities(
+    eventScheduleCapacities,
+  );
 
-  return blocks.map((block) => {
-    const blockModalities = modalitiesByBlockId.get(block.id) ?? [];
-    const scheduleEntriesForBlock = entriesByBlockId.get(block.id) ?? [];
+  return eventSchedules.map((schedule) => {
+    const scheduleModalities = modalitiesByScheduleId.get(schedule.id) ?? [];
+    const capacitiesForSchedule = capacitiesByScheduleId.get(schedule.id) ?? [];
 
     return {
-      ...block,
-      modalities: blockModalities,
-      modalityIds: blockModalities.map((modality) => modality.id),
-      occupiedCapacity: scheduleEntriesForBlock.reduce(
-        (total, entry) => total + entry.capacity,
+      ...schedule,
+      modalities: scheduleModalities,
+      modalityIds: scheduleModalities.map((modality) => modality.id),
+      occupiedCapacity: capacitiesForSchedule.reduce(
+        (total, capacity) => total + capacity.capacity,
         0,
       ),
-      scheduleEntries: scheduleEntriesForBlock,
+      scheduleCapacities: capacitiesForSchedule,
     };
   });
 }
 
-export async function createScheduleBlock(
+export async function createSchedule(
   eventId: string,
-  input: ScheduleBlockInput,
+  input: ScheduleInput,
 ): Promise<EventBasesMutationResult> {
-  const validation = await validateScheduleBlockInput(eventId, input);
+  const validation = await validateScheduleInput(eventId, input);
 
   if (!validation.ok) {
     return validation;
@@ -738,7 +845,7 @@ export async function createScheduleBlock(
 
   return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
     const [record] = await tx
-      .insert(scheduleBlocks)
+      .insert(schedules)
       .values({
         eventId,
         name: input.name.trim(),
@@ -752,31 +859,89 @@ export async function createScheduleBlock(
       return {
         ok: false,
         code: "invalid-event-bases",
-        error: "No se pudo guardar el bloque horario.",
+        error: "No se pudo guardar el cronograma.",
       };
     }
 
     await tx
-      .insert(scheduleBlockModalities)
-      .values(getScheduleBlockModalityValues(record.id, input.modalityIds));
+      .insert(scheduleModalities)
+      .values(getScheduleModalityValues(record.id, input.modalityIds));
 
     return created(record);
   });
 }
 
-export async function updateScheduleBlock(
-  scheduleBlockId: string,
-  input: ScheduleBlockInput,
-  dependencies: ScheduleBlockDependencies = {},
+export async function createScheduleWithEntries(
+  eventId: string,
+  input: ScheduleWithEntriesInput,
 ): Promise<EventBasesMutationResult> {
-  const existing = await getScheduleBlockWithModalityIds(scheduleBlockId);
+  const validation = await validateScheduleInput(eventId, input);
 
-  if (!existing) {
-    return eventBaseEntityNotFound("schedule-block");
+  if (!validation.ok) {
+    return validation;
   }
 
-  const validation = await validateScheduleBlockInput(existing.eventId, input, {
-    exceptId: scheduleBlockId,
+  const scheduleCapacityValidation =
+    await validateInlineScheduleCapacitiesInput({
+      scheduleCapacities: input.scheduleCapacities,
+      totalCapacity: input.totalCapacity,
+    });
+
+  if (!scheduleCapacityValidation.ok) {
+    return scheduleCapacityValidation;
+  }
+
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    const [record] = await tx
+      .insert(schedules)
+      .values({
+        eventId,
+        name: input.name.trim(),
+        scheduledDate: input.scheduledDate,
+        startTime: normalizeTime(input.startTime),
+        totalCapacity: input.totalCapacity,
+      })
+      .returning();
+
+    if (!record) {
+      return {
+        ok: false,
+        code: "invalid-event-bases",
+        error: "No se pudo guardar el cronograma.",
+      };
+    }
+
+    await tx
+      .insert(scheduleModalities)
+      .values(getScheduleModalityValues(record.id, input.modalityIds));
+
+    if (scheduleCapacityValidation.entries.length > 0) {
+      await tx.insert(scheduleCapacities).values(
+        scheduleCapacityValidation.entries.map((entry) => ({
+          scheduleId: record.id,
+          groupType: entry.groupType,
+          capacity: entry.capacity,
+        })),
+      );
+    }
+
+    return created(record);
+  });
+}
+
+export async function updateSchedule(
+  scheduleId: string,
+  input: ScheduleInput,
+  dependencies: ScheduleDependencies = {},
+): Promise<EventBasesMutationResult> {
+  const existing = await getScheduleWithModalityIds(scheduleId);
+
+  if (!existing) {
+    return eventBaseEntityNotFound("schedule");
+  }
+
+  const validation = await validateScheduleInput(existing.eventId, input, {
+    exceptId: scheduleId,
   });
 
   if (!validation.ok) {
@@ -784,92 +949,208 @@ export async function updateScheduleBlock(
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleBlockHasOperationalDependencies;
+    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
 
   if (
-    (await hasDependencies(scheduleBlockId)) &&
-    hasStructuralScheduleBlockChanges(existing, input)
+    (await hasDependencies(scheduleId)) &&
+    hasStructuralScheduleChanges(existing, input)
   ) {
     return {
       ok: false,
-      code: "schedule-block-has-dependencies",
+      code: "schedule-has-dependencies",
       error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el bloque horario tiene dependencias.",
+        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
     };
   }
 
   return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
     const [record] = await tx
-      .update(scheduleBlocks)
+      .update(schedules)
       .set({
         name: input.name.trim(),
         scheduledDate: input.scheduledDate,
         startTime: normalizeTime(input.startTime),
         totalCapacity: input.totalCapacity,
       })
-      .where(eq(scheduleBlocks.id, scheduleBlockId))
+      .where(eq(schedules.id, scheduleId))
       .returning();
 
     if (!record) {
-      return eventBaseEntityNotFound("schedule-block");
+      return eventBaseEntityNotFound("schedule");
     }
 
     await tx
-      .delete(scheduleBlockModalities)
-      .where(eq(scheduleBlockModalities.scheduleBlockId, scheduleBlockId));
+      .delete(scheduleModalities)
+      .where(eq(scheduleModalities.scheduleId, scheduleId));
     await tx
-      .insert(scheduleBlockModalities)
-      .values(
-        getScheduleBlockModalityValues(scheduleBlockId, input.modalityIds),
-      );
+      .insert(scheduleModalities)
+      .values(getScheduleModalityValues(scheduleId, input.modalityIds));
 
     return created(record);
   });
 }
 
-export async function deleteScheduleBlock(
-  scheduleBlockId: string,
-  dependencies: ScheduleBlockDependencies = {},
-): Promise<EventBasesDeleteResult> {
-  const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-    where: eq(scheduleBlocks.id, scheduleBlockId),
+export async function updateScheduleWithEntries(
+  scheduleId: string,
+  input: ScheduleWithEntriesInput,
+  dependencies: ScheduleDependencies = {},
+): Promise<EventBasesMutationResult> {
+  const existing = await getScheduleWithModalityIds(scheduleId);
+
+  if (!existing) {
+    return eventBaseEntityNotFound("schedule");
+  }
+
+  const validation = await validateScheduleInput(existing.eventId, input, {
+    exceptId: scheduleId,
   });
 
-  if (!scheduleBlock) {
-    return eventBaseEntityNotFound("schedule-block");
+  if (!validation.ok) {
+    return validation;
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleBlockHasOperationalDependencies;
+    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
 
-  if (await hasDependencies(scheduleBlockId)) {
+  if (
+    (await hasDependencies(scheduleId)) &&
+    hasStructuralScheduleChanges(existing, input)
+  ) {
     return {
       ok: false,
-      code: "schedule-block-has-dependencies",
-      error: "No se puede borrar el bloque horario porque tiene dependencias.",
-    };
-  }
-
-  if (await scheduleBlockHasScheduleEntries(scheduleBlockId)) {
-    return {
-      ok: false,
-      code: "schedule-block-has-dependencies",
+      code: "schedule-has-dependencies",
       error:
-        "No se puede borrar el bloque horario porque tiene cronogramas relacionados.",
+        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
     };
   }
 
-  await db.delete(scheduleBlocks).where(eq(scheduleBlocks.id, scheduleBlockId));
+  const existingEntries = await db.query.scheduleCapacities.findMany({
+    where: eq(scheduleCapacities.scheduleId, scheduleId),
+  });
+  const scheduleCapacityValidation =
+    await validateInlineScheduleCapacitiesInput({
+      existingEntries,
+      scheduleCapacities: input.scheduleCapacities,
+      totalCapacity: input.totalCapacity,
+    });
+
+  if (!scheduleCapacityValidation.ok) {
+    return scheduleCapacityValidation;
+  }
+
+  const scheduleCapacityDependencyValidation =
+    await validateInlineScheduleCapacityDependencies({
+      existingEntries,
+      nextEntries: scheduleCapacityValidation.entries,
+    });
+
+  if (!scheduleCapacityDependencyValidation.ok) {
+    return scheduleCapacityDependencyValidation;
+  }
+
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    const [record] = await tx
+      .update(schedules)
+      .set({
+        name: input.name.trim(),
+        scheduledDate: input.scheduledDate,
+        startTime: normalizeTime(input.startTime),
+        totalCapacity: input.totalCapacity,
+      })
+      .where(eq(schedules.id, scheduleId))
+      .returning();
+
+    if (!record) {
+      return eventBaseEntityNotFound("schedule");
+    }
+
+    await tx
+      .delete(scheduleModalities)
+      .where(eq(scheduleModalities.scheduleId, scheduleId));
+    await tx
+      .insert(scheduleModalities)
+      .values(getScheduleModalityValues(scheduleId, input.modalityIds));
+
+    const nextEntries = scheduleCapacityValidation.entries;
+    const nextIds = new Set(
+      nextEntries
+        .map((entry) => entry.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const entryIdsToDelete = existingEntries
+      .map((entry) => entry.id)
+      .filter((entryId) => !nextIds.has(entryId));
+
+    if (entryIdsToDelete.length > 0) {
+      await tx
+        .delete(scheduleCapacities)
+        .where(inArray(scheduleCapacities.id, entryIdsToDelete));
+    }
+
+    for (const entry of nextEntries) {
+      if (entry.id) {
+        await tx
+          .update(scheduleCapacities)
+          .set({
+            groupType: entry.groupType,
+            capacity: entry.capacity,
+          })
+          .where(eq(scheduleCapacities.id, entry.id));
+        continue;
+      }
+
+      await tx.insert(scheduleCapacities).values({
+        scheduleId,
+        groupType: entry.groupType,
+        capacity: entry.capacity,
+      });
+    }
+
+    return created(record);
+  });
+}
+
+export async function deleteSchedule(
+  scheduleId: string,
+  dependencies: ScheduleDependencies = {},
+): Promise<EventBasesDeleteResult> {
+  const schedule = await db.query.schedules.findFirst({
+    where: eq(schedules.id, scheduleId),
+  });
+
+  if (!schedule) {
+    return eventBaseEntityNotFound("schedule");
+  }
+
+  const hasDependencies =
+    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
+
+  if (await hasDependencies(scheduleId)) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: "No se puede borrar el cronograma porque tiene dependencias.",
+    };
+  }
+
+  if (await scheduleHasScheduleCapacities(scheduleId)) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error:
+        "No se puede borrar el cronograma porque tiene cupos de cronograma relacionados.",
+    };
+  }
+
+  await db.delete(schedules).where(eq(schedules.id, scheduleId));
 
   return { ok: true };
 }
 
-export async function scheduleBlockHasOperationalDependencies(
-  scheduleBlockId: string,
-) {
+export async function scheduleHasOperationalDependencies(scheduleId: string) {
   const price = await db.query.prices.findFirst({
     columns: { id: true },
-    where: eq(prices.scheduleBlockId, scheduleBlockId),
+    where: eq(prices.scheduleId, scheduleId),
   });
 
   return Boolean(price);
@@ -884,29 +1165,31 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
     return [];
   }
 
-  const blockIds = uniqueValues(
+  const scheduleIds = uniqueValues(
     eventPrices
-      .map((price) => price.scheduleBlockId)
+      .map((price) => price.scheduleId)
       .filter((id): id is string => Boolean(id)),
   );
-  const blocks =
-    blockIds.length > 0
-      ? await db.query.scheduleBlocks.findMany({
-          where: inArray(scheduleBlocks.id, blockIds),
+  const eventSchedules =
+    scheduleIds.length > 0
+      ? await db.query.schedules.findMany({
+          where: inArray(schedules.id, scheduleIds),
           orderBy: [
-            asc(scheduleBlocks.scheduledDate),
-            asc(scheduleBlocks.startTime),
-            asc(scheduleBlocks.name),
+            asc(schedules.scheduledDate),
+            asc(schedules.startTime),
+            asc(schedules.name),
           ],
         })
       : [];
-  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+  const schedulesById = new Map(
+    eventSchedules.map((schedule) => [schedule.id, schedule]),
+  );
 
   return eventPrices
     .map((price) => ({
       ...price,
-      scheduleBlock: price.scheduleBlockId
-        ? (blocksById.get(price.scheduleBlockId) ?? null)
+      schedule: price.scheduleId
+        ? (schedulesById.get(price.scheduleId) ?? null)
         : null,
     }))
     .sort(comparePrices);
@@ -962,7 +1245,7 @@ export async function updatePrice(
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se pueden editar monto, tipo de grupo ni bloque horario porque el precio tiene dependencias.",
+        "No se pueden editar monto, tipo de grupo ni cronograma porque el precio tiene dependencias.",
     };
   }
 
@@ -1007,7 +1290,7 @@ export async function resolveApplicablePrice(input: {
   eventId: string;
   groupType: string;
   paymentDate?: Date | string | null;
-  scheduleBlockId: string | null;
+  scheduleId: string | null;
 }): Promise<PriceResolutionResult> {
   if (!isGroupType(input.groupType)) {
     return {
@@ -1017,12 +1300,12 @@ export async function resolveApplicablePrice(input: {
     };
   }
 
-  if (input.scheduleBlockId) {
+  if (input.scheduleId) {
     const specificPrices = await db.query.prices.findMany({
       where: and(
         eq(prices.eventId, input.eventId),
         eq(prices.groupType, input.groupType),
-        eq(prices.scheduleBlockId, input.scheduleBlockId),
+        eq(prices.scheduleId, input.scheduleId),
       ),
     });
     const specificPrice = selectApplicablePrice(
@@ -1039,7 +1322,7 @@ export async function resolveApplicablePrice(input: {
     where: and(
       eq(prices.eventId, input.eventId),
       eq(prices.groupType, input.groupType),
-      isNull(prices.scheduleBlockId),
+      isNull(prices.scheduleId),
     ),
   });
   const generalPrice = selectApplicablePrice(generalPrices, input.paymentDate);
@@ -1051,8 +1334,7 @@ export async function resolveApplicablePrice(input: {
   return {
     ok: false,
     code: "missing-price",
-    error:
-      "No hay un precio configurado para este tipo de grupo y bloque horario.",
+    error: "No hay un precio configurado para este tipo de grupo y cronograma.",
   };
 }
 
@@ -1060,22 +1342,21 @@ export async function priceHasOperationalDependencies(_priceId: string) {
   return false;
 }
 
-export async function createScheduleEntry(
-  scheduleBlockId: string,
-  input: ScheduleEntryInput,
+export async function createScheduleCapacity(
+  scheduleId: string,
+  input: ScheduleCapacityInput,
 ): Promise<EventBasesMutationResult> {
-  const validation = await validateScheduleEntryInput(scheduleBlockId, input);
+  const validation = await validateScheduleCapacityInput(scheduleId, input);
 
   if (!validation.ok) {
     return validation;
   }
 
   const [record] = await db
-    .insert(scheduleEntries)
+    .insert(scheduleCapacities)
     .values({
-      scheduleBlockId,
-      groupTypes: validation.groupTypes,
-      groupTypeKey: validation.groupTypeKey,
+      scheduleId,
+      groupType: validation.groupType,
       capacity: input.capacity,
     })
     .returning();
@@ -1083,23 +1364,23 @@ export async function createScheduleEntry(
   return created(record);
 }
 
-export async function updateScheduleEntry(
-  scheduleEntryId: string,
-  input: ScheduleEntryInput,
-  dependencies: ScheduleEntryDependencies = {},
+export async function updateScheduleCapacity(
+  scheduleCapacityId: string,
+  input: ScheduleCapacityInput,
+  dependencies: ScheduleCapacityDependencies = {},
 ): Promise<EventBasesMutationResult> {
-  const existing = await db.query.scheduleEntries.findFirst({
-    where: eq(scheduleEntries.id, scheduleEntryId),
+  const existing = await db.query.scheduleCapacities.findFirst({
+    where: eq(scheduleCapacities.id, scheduleCapacityId),
   });
 
   if (!existing) {
-    return scheduleEntryNotFound();
+    return scheduleCapacityNotFound();
   }
 
-  const validation = await validateScheduleEntryInput(
-    existing.scheduleBlockId,
+  const validation = await validateScheduleCapacityInput(
+    existing.scheduleId,
     input,
-    scheduleEntryId,
+    scheduleCapacityId,
   );
 
   if (!validation.ok) {
@@ -1107,77 +1388,77 @@ export async function updateScheduleEntry(
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleEntryHasOperationalDependencies;
+    dependencies.hasDependencies ?? scheduleCapacityHasOperationalDependencies;
 
   if (
-    (await hasDependencies(scheduleEntryId)) &&
-    hasStructuralScheduleEntryChanges(existing, {
-      groupTypeKey: validation.groupTypeKey,
+    (await hasDependencies(scheduleCapacityId)) &&
+    hasStructuralScheduleCapacityChanges(existing, {
+      groupType: validation.groupType,
       capacity: input.capacity,
     })
   ) {
     return {
       ok: false,
-      code: "invalid-schedule-entry",
+      code: "invalid-schedule-capacity",
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cronograma tiene dependencias.",
+        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
     };
   }
 
   const [record] = await db
-    .update(scheduleEntries)
+    .update(scheduleCapacities)
     .set({
-      groupTypes: validation.groupTypes,
-      groupTypeKey: validation.groupTypeKey,
+      groupType: validation.groupType,
       capacity: input.capacity,
     })
-    .where(eq(scheduleEntries.id, scheduleEntryId))
+    .where(eq(scheduleCapacities.id, scheduleCapacityId))
     .returning();
 
   return created(record);
 }
 
-export async function deleteScheduleEntry(
-  scheduleEntryId: string,
-  dependencies: ScheduleEntryDependencies = {},
+export async function deleteScheduleCapacity(
+  scheduleCapacityId: string,
+  dependencies: ScheduleCapacityDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  const scheduleEntry = await db.query.scheduleEntries.findFirst({
-    where: eq(scheduleEntries.id, scheduleEntryId),
+  const scheduleCapacity = await db.query.scheduleCapacities.findFirst({
+    where: eq(scheduleCapacities.id, scheduleCapacityId),
   });
 
-  if (!scheduleEntry) {
-    return scheduleEntryNotFound();
+  if (!scheduleCapacity) {
+    return scheduleCapacityNotFound();
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleEntryHasOperationalDependencies;
+    dependencies.hasDependencies ?? scheduleCapacityHasOperationalDependencies;
 
-  if (await hasDependencies(scheduleEntryId)) {
+  if (await hasDependencies(scheduleCapacityId)) {
     return {
       ok: false,
-      code: "invalid-schedule-entry",
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      code: "invalid-schedule-capacity",
+      error:
+        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
     };
   }
 
   await db
-    .delete(scheduleEntries)
-    .where(eq(scheduleEntries.id, scheduleEntryId));
+    .delete(scheduleCapacities)
+    .where(eq(scheduleCapacities.id, scheduleCapacityId));
 
   return { ok: true };
 }
 
-export async function scheduleEntryHasOperationalDependencies(
-  _scheduleEntryId: string,
+export async function scheduleCapacityHasOperationalDependencies(
+  _scheduleCapacityId: string,
 ) {
   return false;
 }
 
-export async function resolveCompatibleScheduleEntries(input: {
+export async function resolveCompatibleScheduleCapacities(input: {
   eventId: string;
   modalityId: string;
   groupType: string;
-}): Promise<CompatibleScheduleEntryResolution> {
+}): Promise<CompatibleScheduleCapacityResolution> {
   if (!isGroupType(input.groupType)) {
     return {
       status: "none",
@@ -1186,7 +1467,7 @@ export async function resolveCompatibleScheduleEntries(input: {
     };
   }
 
-  const compatibleOptions = await findCompatibleScheduleEntries({
+  const compatibleOptions = await findCompatibleScheduleCapacities({
     eventId: input.eventId,
     modalityId: input.modalityId,
     groupType: input.groupType,
@@ -1196,7 +1477,7 @@ export async function resolveCompatibleScheduleEntries(input: {
     return {
       status: "none",
       error:
-        "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+        "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
       options: [],
     };
   }
@@ -1204,7 +1485,7 @@ export async function resolveCompatibleScheduleEntries(input: {
   if (compatibleOptions.length === 1) {
     return {
       status: "auto",
-      scheduleEntry: compatibleOptions[0],
+      scheduleCapacity: compatibleOptions[0],
       options: [compatibleOptions[0]],
     };
   }
@@ -1308,13 +1589,13 @@ async function validateEventBaseName(input: {
   return { ok: true };
 }
 
-async function validateScheduleBlockInput(
+async function validateScheduleInput(
   eventId: string,
-  input: ScheduleBlockInput,
+  input: ScheduleInput,
   options: { exceptId?: string } = {},
 ): Promise<{ ok: true } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
-  const copy = eventBaseCopy["schedule-block"];
+  const copy = eventBaseCopy["schedule"];
 
   if (input.name.trim().length === 0) {
     fieldErrors.name = requiredFieldMessage;
@@ -1368,7 +1649,7 @@ async function validateScheduleBlockInput(
   const duplicate = await findDuplicateName({
     eventId,
     name: input.name,
-    kind: "schedule-block",
+    kind: "schedule",
     exceptId: options.exceptId,
   });
 
@@ -1391,7 +1672,7 @@ async function validatePriceInput(
 ): Promise<{ ok: true; input: ValidPriceInput } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
   const paymentDeadline = input.paymentDeadline.trim();
-  const scheduleBlockId = input.scheduleBlockId?.trim() || null;
+  const scheduleId = input.scheduleId?.trim() || null;
 
   if (input.groupType.trim().length === 0) {
     fieldErrors.groupType = requiredFieldMessage;
@@ -1407,32 +1688,28 @@ async function validatePriceInput(
     fieldErrors.paymentDeadline = requiredFieldMessage;
   }
 
-  if (scheduleBlockId) {
-    const scheduleBlock = await db.query.scheduleBlocks.findFirst({
+  if (scheduleId) {
+    const schedule = await db.query.schedules.findFirst({
       columns: { id: true },
-      where: and(
-        eq(scheduleBlocks.id, scheduleBlockId),
-        eq(scheduleBlocks.eventId, eventId),
-      ),
+      where: and(eq(schedules.id, scheduleId), eq(schedules.eventId, eventId)),
     });
 
-    if (!scheduleBlock) {
-      fieldErrors.scheduleBlockId =
-        "Elegí un bloque horario del evento activo.";
+    if (!schedule) {
+      fieldErrors.scheduleId = "Elegí un cronograma del evento activo.";
     }
   }
 
   const fieldErrorKeys = Object.keys(fieldErrors);
 
   if (fieldErrorKeys.length > 0 || !isGroupType(input.groupType)) {
-    const onlyScheduleBlockError =
-      fieldErrorKeys.length === 1 && fieldErrorKeys[0] === "scheduleBlockId";
+    const onlyScheduleError =
+      fieldErrorKeys.length === 1 && fieldErrorKeys[0] === "scheduleId";
 
     return {
       ok: false,
       code: "invalid-event-bases",
-      error: onlyScheduleBlockError
-        ? "Elegí un bloque horario del evento activo."
+      error: onlyScheduleError
+        ? "Elegí un cronograma del evento activo."
         : "Revisá los datos del precio.",
       fieldErrors,
     };
@@ -1442,15 +1719,15 @@ async function validatePriceInput(
     groupType: input.groupType,
     amount: input.amount,
     paymentDeadline,
-    scheduleBlockId,
+    scheduleId,
   };
 
   if (await findDuplicatePrice(eventId, validInput, options.exceptId)) {
     return {
       ok: false,
       code: "duplicate-name",
-      error: scheduleBlockId
-        ? "Ya existe un precio para ese tipo de grupo y bloque horario."
+      error: scheduleId
+        ? "Ya existe un precio para ese tipo de grupo y cronograma."
         : "Ya existe un precio general para ese tipo de grupo.",
       fieldErrors: {
         groupType: "Revisá el tipo de grupo del precio.",
@@ -1467,9 +1744,9 @@ async function findDuplicatePrice(
   exceptId?: string,
 ) {
   const idFilter = exceptId ? ne(prices.id, exceptId) : undefined;
-  const scheduleBlockFilter = input.scheduleBlockId
-    ? eq(prices.scheduleBlockId, input.scheduleBlockId)
-    : isNull(prices.scheduleBlockId);
+  const scheduleFilter = input.scheduleId
+    ? eq(prices.scheduleId, input.scheduleId)
+    : isNull(prices.scheduleId);
 
   return db
     .select({ id: prices.id })
@@ -1479,7 +1756,7 @@ async function findDuplicatePrice(
         eq(prices.eventId, eventId),
         eq(prices.groupType, input.groupType),
         eq(prices.paymentDeadline, input.paymentDeadline),
-        scheduleBlockFilter,
+        scheduleFilter,
         idFilter,
       ),
     )
@@ -1487,28 +1764,24 @@ async function findDuplicatePrice(
     .then(([record]) => record);
 }
 
-async function validateScheduleEntryInput(
-  scheduleBlockId: string,
-  input: ScheduleEntryInput,
+async function validateScheduleCapacityInput(
+  scheduleId: string,
+  input: ScheduleCapacityInput,
   exceptId?: string,
-): Promise<
-  { ok: true; groupTypes: GroupType[]; groupTypeKey: string } | EventBaseFailure
-> {
-  const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-    where: eq(scheduleBlocks.id, scheduleBlockId),
+): Promise<{ ok: true; groupType: GroupType } | EventBaseFailure> {
+  const schedule = await db.query.schedules.findFirst({
+    where: eq(schedules.id, scheduleId),
   });
 
-  if (!scheduleBlock) {
-    return scheduleEntryNotFound();
+  if (!schedule) {
+    return scheduleCapacityNotFound();
   }
 
   const fieldErrors: Record<string, string> = {};
-  const groupTypes = uniqueValues(input.groupTypes)
-    .filter(isGroupType)
-    .sort((a, b) => groupTypeOrder.indexOf(a) - groupTypeOrder.indexOf(b));
+  const groupType = isGroupType(input.groupType) ? input.groupType : null;
 
-  if (groupTypes.length === 0) {
-    fieldErrors.groupTypes = requiredFieldMessage;
+  if (!groupType) {
+    fieldErrors.groupType = requiredFieldMessage;
   }
 
   if (!Number.isInteger(input.capacity) || input.capacity <= 0) {
@@ -1518,44 +1791,227 @@ async function validateScheduleEntryInput(
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
-      code: "invalid-schedule-entry",
-      error: "Revisá los datos del cronograma.",
+      code: "invalid-schedule-capacity",
+      error: "Revisá los datos del cupo de cronograma.",
       fieldErrors,
     };
   }
 
-  const groupTypeKey = groupTypes.join("|");
-
   if (
-    await findDuplicateScheduleEntry(scheduleBlockId, groupTypeKey, exceptId)
+    groupType &&
+    (await findDuplicateScheduleCapacity(scheduleId, groupType, exceptId))
   ) {
     return {
       ok: false,
-      code: "invalid-schedule-entry",
+      code: "invalid-schedule-capacity",
       error:
-        "Ya existe un cronograma para esa combinación de tipos de grupo en este bloque horario.",
+        "Ya existe un cupo de cronograma para ese tipo de grupo en este cronograma.",
       fieldErrors: {
-        groupTypes: "Revisá los tipos de grupo del cronograma.",
+        groupType: "Revisá el tipo de grupo del cupo de cronograma.",
       },
     };
   }
 
-  const reservedCapacity = await getReservedScheduleEntryCapacity(
-    scheduleBlockId,
+  const reservedCapacity = await getReservedScheduleCapacityCapacity(
+    scheduleId,
     exceptId,
   );
 
-  if (reservedCapacity + input.capacity > scheduleBlock.totalCapacity) {
+  if (reservedCapacity + input.capacity > schedule.totalCapacity) {
     return {
       ok: false,
-      code: "invalid-schedule-entry",
+      code: "invalid-schedule-capacity",
       error:
-        "La suma de cupos de cronogramas no puede superar el cupo total del bloque horario.",
-      fieldErrors: { capacity: "Ajustá el cupo del cronograma." },
+        "La suma de cupos de cronograma no puede superar el cupo total del cronograma.",
+      fieldErrors: { capacity: "Ajustá el cupo." },
     };
   }
 
-  return { ok: true, groupTypes, groupTypeKey };
+  return { ok: true, groupType: groupType ?? "solo" };
+}
+
+async function validateInlineScheduleCapacitiesInput({
+  existingEntries = [],
+  scheduleCapacities: inputEntries,
+  totalCapacity,
+}: {
+  existingEntries?: Array<typeof scheduleCapacities.$inferSelect>;
+  scheduleCapacities: InlineScheduleCapacityInput[];
+  totalCapacity: number;
+}): Promise<
+  { ok: true; entries: ValidInlineScheduleCapacityInput[] } | EventBaseFailure
+> {
+  const fieldErrors: Record<string, string> = {};
+  const existingEntryIds = new Set(existingEntries.map((entry) => entry.id));
+  const firstIndexByGroupType = new Map<string, number>();
+  const entries = inputEntries.map((entry, index) => {
+    const groupType = isGroupType(entry.groupType) ? entry.groupType : null;
+
+    if (entry.id && !existingEntryIds.has(entry.id)) {
+      fieldErrors[`scheduleCapacities.${index}.groupType`] =
+        "No encontramos ese cupo de cronograma en el cronograma.";
+    }
+
+    if (!groupType) {
+      fieldErrors[`scheduleCapacities.${index}.groupType`] =
+        requiredFieldMessage;
+    }
+
+    if (!Number.isInteger(entry.capacity) || entry.capacity <= 0) {
+      fieldErrors[`scheduleCapacities.${index}.capacity`] =
+        "Ingresá un cupo mayor a cero.";
+    }
+
+    if (groupType) {
+      const firstIndex = firstIndexByGroupType.get(groupType);
+
+      if (firstIndex === undefined) {
+        firstIndexByGroupType.set(groupType, index);
+      } else {
+        fieldErrors[`scheduleCapacities.${firstIndex}.groupType`] =
+          "Revisá el tipo de grupo del cupo de cronograma.";
+        fieldErrors[`scheduleCapacities.${index}.groupType`] =
+          "Ya existe un cupo de cronograma para ese tipo de grupo.";
+      }
+    }
+
+    return {
+      id: entry.id,
+      index,
+      groupType: groupType ?? "solo",
+      capacity: entry.capacity,
+    };
+  });
+  const totalReservedCapacity = entries.reduce(
+    (total, entry) =>
+      Number.isInteger(entry.capacity) && entry.capacity > 0
+        ? total + entry.capacity
+        : total,
+    0,
+  );
+
+  if (totalReservedCapacity > totalCapacity) {
+    for (const entry of entries) {
+      fieldErrors[`scheduleCapacities.${entry.index}.capacity`] =
+        "Ajustá el cupo.";
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      code: "invalid-schedule-capacity",
+      error: "Revisá los datos del cupo de cronograma.",
+      fieldErrors,
+    };
+  }
+
+  return { ok: true, entries };
+}
+
+async function validateInlineScheduleCapacityDependencies({
+  existingEntries,
+  nextEntries,
+}: {
+  existingEntries: Array<typeof scheduleCapacities.$inferSelect>;
+  nextEntries: ValidInlineScheduleCapacityInput[];
+}): Promise<{ ok: true } | EventBaseFailure> {
+  const nextEntryById = new Map(
+    nextEntries
+      .filter((entry) => entry.id)
+      .map((entry) => [entry.id as string, entry]),
+  );
+
+  for (const existingEntry of existingEntries) {
+    const nextEntry = nextEntryById.get(existingEntry.id);
+    const hasDependencies = await scheduleCapacityHasOperationalDependencies(
+      existingEntry.id,
+    );
+
+    if (!nextEntry) {
+      if (hasDependencies) {
+        return {
+          ok: false,
+          code: "invalid-schedule-capacity",
+          error:
+            "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+        };
+      }
+
+      continue;
+    }
+
+    if (
+      hasDependencies &&
+      hasStructuralScheduleCapacityChanges(existingEntry, {
+        groupType: nextEntry.groupType,
+        capacity: nextEntry.capacity,
+      })
+    ) {
+      return {
+        ok: false,
+        code: "invalid-schedule-capacity",
+        error:
+          "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+function validateInlineSubmodalitiesInput({
+  existingEntries,
+  submodalities: inputEntries,
+}: {
+  existingEntries: Array<typeof submodalities.$inferSelect>;
+  submodalities: InlineSubmodalityInput[];
+}): { ok: true; entries: ValidInlineSubmodalityInput[] } | EventBaseFailure {
+  const fieldErrors: Record<string, string> = {};
+  const existingEntryIds = new Set(existingEntries.map((entry) => entry.id));
+  const firstIndexByName = new Map<string, number>();
+  const entries = inputEntries.map((entry, index) => {
+    const normalizedName = normalizeEventBaseName(entry.name);
+
+    if (entry.id && !existingEntryIds.has(entry.id)) {
+      fieldErrors[`submodalities.${index}.name`] =
+        "No encontramos esa submodalidad en la modalidad.";
+    }
+
+    if (entry.name.trim().length === 0) {
+      fieldErrors[`submodalities.${index}.name`] = requiredFieldMessage;
+    }
+
+    if (normalizedName) {
+      const firstIndex = firstIndexByName.get(normalizedName);
+
+      if (firstIndex === undefined) {
+        firstIndexByName.set(normalizedName, index);
+      } else {
+        fieldErrors[`submodalities.${firstIndex}.name`] =
+          eventBaseCopy.submodality.duplicateFieldError;
+        fieldErrors[`submodalities.${index}.name`] =
+          eventBaseCopy.submodality.duplicateFieldError;
+      }
+    }
+
+    return {
+      id: entry.id,
+      index,
+      name: entry.name,
+    };
+  });
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      code: "invalid-event-bases",
+      error: eventBaseCopy.submodality.invalidError,
+      fieldErrors,
+    };
+  }
+
+  return { ok: true, entries };
 }
 
 async function validateCategoryInput(
@@ -1676,8 +2132,9 @@ async function validateCategoryInput(
     return {
       ok: false,
       code: "duplicate-category",
-      error: "Ya existe una categoría equivalente en este evento.",
-      fieldErrors: { name: "Revisá la combinación de la categoría." },
+      error:
+        "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+      fieldErrors: {},
     };
   }
 
@@ -1687,7 +2144,7 @@ async function validateCategoryInput(
       code: "invalid-event-bases",
       error:
         "La categoría se solapa con otra categoría para la misma modalidad y tipo de grupo.",
-      fieldErrors: { ageRange: "Ajustá las edades o la aplicabilidad." },
+      fieldErrors: {},
     };
   }
 
@@ -1700,23 +2157,44 @@ async function findDuplicateCategory(
   exceptId?: string,
 ) {
   const idFilter = exceptId ? ne(categories.id, exceptId) : undefined;
-
-  return db
+  const candidates = await db
     .select({ id: categories.id })
     .from(categories)
     .where(
       and(
         eq(categories.eventId, eventId),
-        sql`lower(${categories.name}) = ${input.name.toLowerCase()}`,
         eq(categories.minAge, input.minAge),
         eq(categories.maxAge, input.maxAge),
         eq(categories.groupTypeKey, input.groupTypeKey),
-        eq(categories.experienceLevelKey, input.experienceLevelKey),
         idFilter,
       ),
-    )
-    .limit(1)
-    .then(([record]) => record);
+    );
+
+  if (candidates.length === 0) {
+    return false;
+  }
+
+  const relationRows = await db
+    .select({
+      categoryId: categoryModalities.categoryId,
+      modalityId: categoryModalities.modalityId,
+    })
+    .from(categoryModalities)
+    .where(
+      inArray(
+        categoryModalities.categoryId,
+        candidates.map((category) => category.id),
+      ),
+    );
+
+  return candidates.some((category) => {
+    const modalityIds = relationRows
+      .filter((relation) => relation.categoryId === category.id)
+      .map((relation) => relation.modalityId)
+      .sort();
+
+    return haveSameValues(modalityIds, input.modalityIds);
+  });
 }
 
 async function findOverlappingCategory(
@@ -1835,82 +2313,76 @@ function toTitleCase(name: string) {
     );
 }
 
-async function findCompatibleScheduleEntries(input: {
+async function findCompatibleScheduleCapacities(input: {
   eventId: string;
   modalityId: string;
   groupType: GroupType;
-}): Promise<CompatibleScheduleEntry[]> {
+}): Promise<CompatibleScheduleCapacity[]> {
   const rows = await db
     .select({
-      id: scheduleEntries.id,
-      scheduleBlockId: scheduleEntries.scheduleBlockId,
-      groupTypes: scheduleEntries.groupTypes,
-      groupTypeKey: scheduleEntries.groupTypeKey,
-      capacity: scheduleEntries.capacity,
-      createdAt: scheduleEntries.createdAt,
-      blockId: scheduleBlocks.id,
-      blockName: scheduleBlocks.name,
-      blockDate: scheduleBlocks.scheduledDate,
-      blockTime: scheduleBlocks.startTime,
+      id: scheduleCapacities.id,
+      scheduleId: scheduleCapacities.scheduleId,
+      groupType: scheduleCapacities.groupType,
+      capacity: scheduleCapacities.capacity,
+      createdAt: scheduleCapacities.createdAt,
+      scheduleName: schedules.name,
+      scheduleDate: schedules.scheduledDate,
+      scheduleTime: schedules.startTime,
     })
-    .from(scheduleEntries)
+    .from(scheduleCapacities)
+    .innerJoin(schedules, eq(scheduleCapacities.scheduleId, schedules.id))
     .innerJoin(
-      scheduleBlocks,
-      eq(scheduleEntries.scheduleBlockId, scheduleBlocks.id),
-    )
-    .innerJoin(
-      scheduleBlockModalities,
-      eq(scheduleBlocks.id, scheduleBlockModalities.scheduleBlockId),
+      scheduleModalities,
+      eq(schedules.id, scheduleModalities.scheduleId),
     )
     .where(
       and(
-        eq(scheduleBlocks.eventId, input.eventId),
-        eq(scheduleBlockModalities.modalityId, input.modalityId),
-        sql`${scheduleEntries.groupTypes} @> ARRAY[${input.groupType}]::en_escena_group_type[]`,
+        eq(schedules.eventId, input.eventId),
+        eq(scheduleModalities.modalityId, input.modalityId),
+        eq(scheduleCapacities.groupType, input.groupType),
       ),
     )
     .orderBy(
-      asc(scheduleBlocks.scheduledDate),
-      asc(scheduleBlocks.startTime),
-      asc(scheduleEntries.groupTypeKey),
+      asc(schedules.scheduledDate),
+      asc(schedules.startTime),
+      asc(scheduleCapacities.groupType),
     );
 
-  return rows.map(toCompatibleScheduleEntry);
+  return rows.map(toCompatibleScheduleCapacity);
 }
 
-function toCompatibleScheduleEntry(
-  row: CompatibleScheduleEntryRow,
-): CompatibleScheduleEntry {
+function toCompatibleScheduleCapacity(
+  row: CompatibleScheduleCapacityRow,
+): CompatibleScheduleCapacity {
   return {
     id: row.id,
-    scheduleBlockId: row.scheduleBlockId,
-    groupTypes: row.groupTypes,
-    groupTypeKey: row.groupTypeKey,
+    scheduleId: row.scheduleId,
+    groupType: row.groupType,
     capacity: row.capacity,
     createdAt: row.createdAt,
-    scheduleBlock: {
-      id: row.blockId,
-      name: row.blockName,
-      scheduledDate: row.blockDate,
-      startTime: row.blockTime,
+    schedule: {
+      id: row.scheduleId,
+      name: row.scheduleName,
+      scheduledDate: row.scheduleDate,
+      startTime: row.scheduleTime,
     },
   };
 }
 
-async function findDuplicateScheduleEntry(
-  scheduleBlockId: string,
-  groupTypeKey: string,
+async function findDuplicateScheduleCapacity(
+  scheduleId: string,
+  groupType: GroupType,
   exceptId?: string,
 ) {
-  const idFilter = exceptId ? ne(scheduleEntries.id, exceptId) : undefined;
+  const idFilter = exceptId ? ne(scheduleCapacities.id, exceptId) : undefined;
 
   return db
-    .select({ id: scheduleEntries.id })
-    .from(scheduleEntries)
+    .select({ id: scheduleCapacities.id })
+    .from(scheduleCapacities)
     .where(
       and(
-        eq(scheduleEntries.scheduleBlockId, scheduleBlockId),
-        eq(scheduleEntries.groupTypeKey, groupTypeKey),
+        eq(scheduleCapacities.scheduleId, scheduleId),
+        eq(scheduleCapacities.groupType, groupType),
         idFilter,
       ),
     )
@@ -1918,28 +2390,28 @@ async function findDuplicateScheduleEntry(
     .then(([record]) => record);
 }
 
-async function getReservedScheduleEntryCapacity(
-  scheduleBlockId: string,
+async function getReservedScheduleCapacityCapacity(
+  scheduleId: string,
   exceptId?: string,
 ) {
-  const idFilter = exceptId ? ne(scheduleEntries.id, exceptId) : undefined;
+  const idFilter = exceptId ? ne(scheduleCapacities.id, exceptId) : undefined;
   const [result] = await db
     .select({
-      total: sql<number>`coalesce(sum(${scheduleEntries.capacity}), 0)::int`,
+      total: sql<number>`coalesce(sum(${scheduleCapacities.capacity}), 0)::int`,
     })
-    .from(scheduleEntries)
-    .where(and(eq(scheduleEntries.scheduleBlockId, scheduleBlockId), idFilter));
+    .from(scheduleCapacities)
+    .where(and(eq(scheduleCapacities.scheduleId, scheduleId), idFilter));
 
   return result?.total ?? 0;
 }
 
-async function scheduleBlockHasScheduleEntries(scheduleBlockId: string) {
-  const scheduleEntry = await db.query.scheduleEntries.findFirst({
+async function scheduleHasScheduleCapacities(scheduleId: string) {
+  const scheduleCapacity = await db.query.scheduleCapacities.findFirst({
     columns: { id: true },
-    where: eq(scheduleEntries.scheduleBlockId, scheduleBlockId),
+    where: eq(scheduleCapacities.scheduleId, scheduleId),
   });
 
-  return Boolean(scheduleEntry);
+  return Boolean(scheduleCapacity);
 }
 
 async function modalityHasEventBaseDependencies(
@@ -1973,18 +2445,17 @@ async function modalityHasEventBaseDependencies(
     };
   }
 
-  const scheduleBlockRelation =
-    await db.query.scheduleBlockModalities.findFirst({
-      columns: { scheduleBlockId: true },
-      where: eq(scheduleBlockModalities.modalityId, modalityId),
-    });
+  const scheduleRelation = await db.query.scheduleModalities.findFirst({
+    columns: { scheduleId: true },
+    where: eq(scheduleModalities.modalityId, modalityId),
+  });
 
-  if (scheduleBlockRelation) {
+  if (scheduleRelation) {
     return {
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la modalidad porque tiene Bloques horarios relacionados.",
+        "No se puede borrar la modalidad porque tiene Cronogramas relacionados.",
     };
   }
 
@@ -2069,11 +2540,11 @@ function priceNotFound(): EventBaseFailure {
   };
 }
 
-function scheduleEntryNotFound(): EventBaseFailure {
+function scheduleCapacityNotFound(): EventBaseFailure {
   return {
     ok: false,
     code: "event-bases-not-found",
-    error: "No encontramos ese cronograma.",
+    error: "No encontramos ese cupo de cronograma.",
   };
 }
 
@@ -2085,13 +2556,21 @@ function getTable(kind: EventBaseEntityKind) {
       return submodalities;
     case "experience-level":
       return experienceLevels;
-    case "schedule-block":
-      return scheduleBlocks;
+    case "schedule":
+      return schedules;
   }
 }
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function haveSameValues(first: string[], second: string[]) {
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  return first.every((value, index) => value === second[index]);
 }
 
 function sortedIds(ids: string[]) {
@@ -2129,29 +2608,29 @@ function groupRelationIdsByCategory<TRelation extends CategoryRelationRow>(
   return idsByCategory;
 }
 
-async function getScheduleBlockWithModalityIds(scheduleBlockId: string) {
-  const scheduleBlock = await db.query.scheduleBlocks.findFirst({
-    where: eq(scheduleBlocks.id, scheduleBlockId),
+async function getScheduleWithModalityIds(scheduleId: string) {
+  const schedule = await db.query.schedules.findFirst({
+    where: eq(schedules.id, scheduleId),
   });
 
-  if (!scheduleBlock) {
+  if (!schedule) {
     return null;
   }
 
-  const acceptedModalities = await db.query.scheduleBlockModalities.findMany({
+  const acceptedModalities = await db.query.scheduleModalities.findMany({
     columns: { modalityId: true },
-    where: eq(scheduleBlockModalities.scheduleBlockId, scheduleBlockId),
+    where: eq(scheduleModalities.scheduleId, scheduleId),
   });
 
   return {
-    ...scheduleBlock,
+    ...schedule,
     modalityIds: acceptedModalities.map((modality) => modality.modalityId),
   };
 }
 
-function hasStructuralScheduleBlockChanges(
-  existing: typeof scheduleBlocks.$inferSelect & { modalityIds: string[] },
-  input: ScheduleBlockInput,
+function hasStructuralScheduleChanges(
+  existing: typeof schedules.$inferSelect & { modalityIds: string[] },
+  input: ScheduleInput,
 ) {
   return (
     existing.scheduledDate !== input.scheduledDate ||
@@ -2170,7 +2649,7 @@ function hasStructuralPriceChanges(
     existing.groupType !== input.groupType ||
     existing.amount !== input.amount ||
     existing.paymentDeadline !== input.paymentDeadline ||
-    existing.scheduleBlockId !== input.scheduleBlockId
+    existing.scheduleId !== input.scheduleId
   );
 }
 
@@ -2183,24 +2662,24 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
     return groupTypeComparison;
   }
 
-  if (first.scheduleBlock && !second.scheduleBlock) {
+  if (first.schedule && !second.schedule) {
     return -1;
   }
 
-  if (!first.scheduleBlock && second.scheduleBlock) {
+  if (!first.schedule && second.schedule) {
     return 1;
   }
 
-  const firstBlockKey = first.scheduleBlock
-    ? `${first.scheduleBlock.scheduledDate}\0${first.scheduleBlock.startTime}\0${first.scheduleBlock.name}`
+  const firstScheduleKey = first.schedule
+    ? `${first.schedule.scheduledDate}\0${first.schedule.startTime}\0${first.schedule.name}`
     : "";
-  const secondBlockKey = second.scheduleBlock
-    ? `${second.scheduleBlock.scheduledDate}\0${second.scheduleBlock.startTime}\0${second.scheduleBlock.name}`
+  const secondScheduleKey = second.schedule
+    ? `${second.schedule.scheduledDate}\0${second.schedule.startTime}\0${second.schedule.name}`
     : "";
-  const blockComparison = firstBlockKey.localeCompare(secondBlockKey);
+  const scheduleComparison = firstScheduleKey.localeCompare(secondScheduleKey);
 
-  if (blockComparison !== 0) {
-    return blockComparison;
+  if (scheduleComparison !== 0) {
+    return scheduleComparison;
   }
 
   return first.amount - second.amount;
@@ -2258,62 +2737,61 @@ function toDateOnly(value: Date | string) {
   return value.slice(0, 10);
 }
 
-function hasStructuralScheduleEntryChanges(
-  existing: typeof scheduleEntries.$inferSelect,
-  input: { groupTypeKey: string; capacity: number },
+function hasStructuralScheduleCapacityChanges(
+  existing: typeof scheduleCapacities.$inferSelect,
+  input: { groupType: GroupType; capacity: number },
 ) {
   return (
-    existing.groupTypeKey !== input.groupTypeKey ||
+    existing.groupType !== input.groupType ||
     existing.capacity !== input.capacity
   );
 }
 
-function getScheduleBlockModalityValues(
-  scheduleBlockId: string,
-  modalityIds: string[],
-) {
+function getScheduleModalityValues(scheduleId: string, modalityIds: string[]) {
   return uniqueValues(modalityIds).map((modalityId) => ({
-    scheduleBlockId,
+    scheduleId,
     modalityId,
   }));
 }
 
-function groupScheduleBlockModalities(
+function groupScheduleModalities(
   acceptedModalities: Array<{
-    blockId: string;
+    scheduleId: string;
     modalityId: string;
     modalityName: string;
   }>,
 ) {
-  const modalitiesByBlockId = new Map<
+  const modalitiesByScheduleId = new Map<
     string,
     Array<Pick<typeof modalities.$inferSelect, "id" | "name">>
   >();
 
   for (const modality of acceptedModalities) {
-    const blockModalities = modalitiesByBlockId.get(modality.blockId) ?? [];
+    const scheduleModalities =
+      modalitiesByScheduleId.get(modality.scheduleId) ?? [];
 
-    blockModalities.push({
+    scheduleModalities.push({
       id: modality.modalityId,
       name: modality.modalityName,
     });
-    modalitiesByBlockId.set(modality.blockId, blockModalities);
+    modalitiesByScheduleId.set(modality.scheduleId, scheduleModalities);
   }
 
-  return modalitiesByBlockId;
+  return modalitiesByScheduleId;
 }
 
-function groupScheduleEntries(entries: ScheduleEntryListItem[]) {
-  const entriesByBlockId = new Map<string, ScheduleEntryListItem[]>();
+function groupScheduleCapacities(capacities: ScheduleCapacityListItem[]) {
+  const capacitiesByScheduleId = new Map<string, ScheduleCapacityListItem[]>();
 
-  for (const entry of entries) {
-    const blockEntries = entriesByBlockId.get(entry.scheduleBlockId) ?? [];
+  for (const capacity of capacities) {
+    const scheduleCapacities =
+      capacitiesByScheduleId.get(capacity.scheduleId) ?? [];
 
-    blockEntries.push(entry);
-    entriesByBlockId.set(entry.scheduleBlockId, blockEntries);
+    scheduleCapacities.push(capacity);
+    capacitiesByScheduleId.set(capacity.scheduleId, scheduleCapacities);
   }
 
-  return entriesByBlockId;
+  return capacitiesByScheduleId;
 }
 
 function isValidDate(value: string) {

@@ -1,10 +1,10 @@
 import { useActionData, useParams } from "react-router";
 
-import { EventScheduleBlockDetailRouteView } from "@/components/admin/events/event-schedule-blocks";
+import { EventScheduleDetailRouteView } from "@/components/admin/events/event-schedules";
 import { action, loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 
-import type { Route } from "./+types/administracion.bloques-horarios_.$scheduleBlockId";
+import type { Route } from "./+types/administracion.cronogramas_.$scheduleId";
 
 export { action, loader };
 
@@ -12,28 +12,28 @@ type LoaderData = Route.ComponentProps["loaderData"];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Bloques horarios", to: "/administracion/bloques-horarios" },
+    { label: "Cronogramas", to: "/administracion/cronogramas" },
     (match) => {
       const data = match.data as LoaderData | undefined;
-      const scheduleBlock = data?.scheduleBlocks.find(
-        (block) => block.id === match.params.scheduleBlockId,
+      const schedule = data?.schedules.find(
+        (block) => block.id === match.params.scheduleId,
       );
-      return { label: scheduleBlock?.name ?? "Bloque horario" };
+      return { label: schedule?.name ?? "Cronograma" };
     },
   ],
 } satisfies AdminRouteHandle;
 
-export default function AdminScheduleBlockDetailRoute({
+export default function AdminScheduleDetailRoute({
   loaderData,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
   const params = useParams();
 
   return (
-    <EventScheduleBlockDetailRouteView
+    <EventScheduleDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
-      scheduleBlockId={params.scheduleBlockId ?? ""}
+      scheduleId={params.scheduleId ?? ""}
     />
   );
 }

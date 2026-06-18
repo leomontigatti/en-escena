@@ -1,7 +1,7 @@
 import { Link } from "react-router";
-import { Save } from "lucide-react";
+import { Check, Ellipsis, Info, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Controller,
@@ -14,27 +14,31 @@ import { z } from "zod";
 import {
   AdminEmptyState,
   AdminResourceLayout,
-  buildEventBasePath,
 } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -43,7 +47,6 @@ import {
 } from "@/components/ui/empty";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -59,9 +62,12 @@ import {
 } from "@/components/ui/select";
 import type {
   PriceListItem,
-  ScheduleBlockListItem,
+  ScheduleListItem,
 } from "@/lib/events/bases.server";
-import type { ActionData } from "@/lib/admin/events/bases-action.server";
+import type {
+  ActionData,
+  PriceActionValues,
+} from "@/lib/admin/events/bases-action.server";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
@@ -70,21 +76,18 @@ import {
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-type PriceScope = {
-  detail: string | null;
-  label: string;
-};
-
 type EventBaseAreaProps = {
   loaderData: EventBasesLoaderData;
   actionData?: ActionData;
 };
 
-const PRICE_BASE_HELPER_TEXT =
-  "El precio base aplica cuando no existe un precio específico para el bloque horario.";
-const PRICE_BASE_SCHEDULE_BLOCK_VALUE = "__price-base__";
+const PRICE_SCHEDULE_ALERT_TEXT =
+  "El precio base aplica cuando no existe un precio específico para el cronograma.";
+const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
 const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
+  day: "numeric",
+  month: "numeric",
+  year: "2-digit",
   timeZone: "UTC",
 });
 
@@ -99,7 +102,7 @@ const priceFormSchema = z.object({
       return Number.isInteger(amount) && amount > 0;
     }, "Ingresá un monto mayor a cero."),
   paymentDeadline: z.string().trim().min(1, requiredFieldMessage),
-  scheduleBlockId: z.string(),
+  scheduleId: z.string(),
 });
 
 type PriceFormValues = z.infer<typeof priceFormSchema>;
@@ -131,7 +134,7 @@ export function EventPricesRouteView({
       ) : (
         <AdminEmptyState
           title="Todavía no hay precios creados."
-          description="Creá el primer precio para definir importes base o específicos por bloque horario del evento activo."
+          description="Creá el primer precio para definir importes base o específicos por cronograma del evento activo."
         />
       )}
     </AdminResourceLayout>
@@ -148,18 +151,19 @@ export function NewEventPriceRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Nuevo precio"
-      description="Configurá tipo de grupo, importe y si el precio aplica como base o para un bloque horario específico."
+      description="Configurá tipo de grupo, importe y si el precio aplica como base o para un cronograma específico."
     >
+      <PriceScheduleAlert />
       <PriceFormPanel>
         <PriceForm
           formId={createPriceFormId}
           intent="create-price"
-          scheduleBlocks={loaderData.scheduleBlocks}
+          schedules={loaderData.schedules}
           fieldErrors={actionData?.fieldErrors}
-          helperText={PRICE_BASE_HELPER_TEXT}
+          submittedValues={getPriceSubmittedValues(actionData, "create-price")}
         />
+        <PriceFormActions formId={createPriceFormId} submitLabel="Guardar" />
       </PriceFormPanel>
-      <PriceFormActions formId={createPriceFormId} submitLabel="Guardar" />
     </AdminResourceLayout>
   );
 }
@@ -176,35 +180,39 @@ export function EventPriceDetailRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={price ? getPriceDisplayName(price) : "Precio no encontrado"}
+      title={price ? "Editar precio" : "Precio no encontrado"}
       description={
         price
-          ? "Editá el alcance y el importe del precio. El borrado solo está disponible desde esta pantalla."
+          ? "Editá el alcance, importe y fecha límite de pago."
           : "No encontramos ese precio dentro del evento activo."
       }
+      headerAction={price ? <PriceActions price={price} /> : null}
     >
       {price ? (
         <div className="flex flex-col gap-6">
-          <ResourceSection title="Resumen">
-            <PriceSummaryCard price={price} />
-          </ResourceSection>
-          <ResourceSection title="Editar precio">
+          <PriceScheduleAlert />
+          <PriceFormPanel>
             <PriceForm
+              formId="update-price-form"
               id={price.id}
               intent="update-price"
-              scheduleBlocks={loaderData.scheduleBlocks}
+              schedules={loaderData.schedules}
               groupType={price.groupType}
               amount={price.amount}
               paymentDeadline={price.paymentDeadline ?? ""}
-              scheduleBlockId={price.scheduleBlockId}
-              buttonLabel="Guardar"
+              scheduleId={price.scheduleId}
               fieldErrors={actionData?.fieldErrors}
-              helperText={PRICE_BASE_HELPER_TEXT}
+              submittedValues={getPriceSubmittedValues(
+                actionData,
+                "update-price",
+                price.id,
+              )}
             />
-          </ResourceSection>
-          <ResourceSection title="Eliminar precio">
-            <PriceDeleteForm priceId={price.id} />
-          </ResourceSection>
+            <PriceFormActions
+              formId="update-price-form"
+              submitLabel="Guardar"
+            />
+          </PriceFormPanel>
         </div>
       ) : (
         <EmptyResourceState>
@@ -242,39 +250,71 @@ export function isPriceDetailPath(requestUrl: string) {
   );
 }
 
+function getPriceSubmittedValues(
+  actionData: ActionData | undefined,
+  intent: string,
+  recordId?: string,
+) {
+  if (
+    actionData?.scope?.intent !== intent ||
+    actionData.scope.recordId !== recordId ||
+    !isPriceActionValues(actionData.values)
+  ) {
+    return undefined;
+  }
+
+  return actionData.values;
+}
+
+function isPriceActionValues(
+  values: ActionData["values"] | undefined,
+): values is PriceActionValues {
+  return (
+    values !== undefined &&
+    "groupType" in values &&
+    "amount" in values &&
+    "paymentDeadline" in values &&
+    "scheduleId" in values
+  );
+}
+
 function PriceForm({
   amount,
-  buttonLabel,
   fieldErrors = emptyPriceFieldErrors,
   formId,
   groupType,
-  helperText,
   id,
   intent,
   paymentDeadline,
-  scheduleBlockId,
-  scheduleBlocks,
+  scheduleId,
+  schedules,
+  submittedValues,
 }: {
   amount?: number;
-  buttonLabel?: string;
   fieldErrors?: Record<string, string>;
   formId?: string;
   groupType?: string;
-  helperText?: string;
   id?: string;
   intent: string;
   paymentDeadline?: string;
-  scheduleBlockId?: string | null;
-  scheduleBlocks: ScheduleBlockListItem[];
+  scheduleId?: string | null;
+  schedules: ScheduleListItem[];
+  submittedValues?: PriceActionValues;
 }) {
   const defaultValues = useMemo(
-    () => ({
-      groupType: groupType ?? "",
-      amount: amount ? String(amount) : "",
-      paymentDeadline: paymentDeadline ?? "",
-      scheduleBlockId: scheduleBlockId ?? PRICE_BASE_SCHEDULE_BLOCK_VALUE,
-    }),
-    [amount, groupType, paymentDeadline, scheduleBlockId],
+    () =>
+      submittedValues
+        ? {
+            ...submittedValues,
+            scheduleId: submittedValues.scheduleId || EMPTY_SCHEDULE_VALUE,
+          }
+        : {
+            groupType: groupType ?? "",
+            amount: amount ? String(amount) : "",
+            paymentDeadline: paymentDeadline ?? "",
+            scheduleId: scheduleId ?? EMPTY_SCHEDULE_VALUE,
+          },
+    [amount, groupType, paymentDeadline, scheduleId, submittedValues],
   );
   const form = useForm<PriceFormValues>({
     defaultValues,
@@ -287,6 +327,12 @@ function PriceForm({
   }, [defaultValues, form]);
 
   useApplyServerFieldErrors(form, fieldErrors);
+
+  const selectedScheduleValue = form.watch("scheduleId");
+  const priceScopeLabel =
+    selectedScheduleValue === EMPTY_SCHEDULE_VALUE
+      ? "Precio base"
+      : "Precio por cronograma";
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -308,6 +354,7 @@ function PriceForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
+      <p className="text-sm font-medium">{priceScopeLabel}</p>
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
         <SelectField
           form={form}
@@ -315,6 +362,23 @@ function PriceForm({
           name="groupType"
           options={groupTypeOptions}
           placeholder="Elegí un tipo"
+        />
+        <SelectField
+          form={form}
+          label="Cronograma"
+          name="scheduleId"
+          options={[
+            {
+              label: "Sin cronograma",
+              value: EMPTY_SCHEDULE_VALUE,
+            },
+            ...schedules.map((schedule) => ({
+              label: schedule.name,
+              value: schedule.id,
+            })),
+          ]}
+          placeholder="Sin cronograma"
+          submitValue={(value) => (value === EMPTY_SCHEDULE_VALUE ? "" : value)}
         />
         <TextField
           form={form}
@@ -340,38 +404,17 @@ function PriceForm({
             />
           )}
         />
-        <SelectField
-          className="sm:col-span-2"
-          form={form}
-          label="Bloque horario opcional"
-          name="scheduleBlockId"
-          options={[
-            {
-              label: "Precio general",
-              value: PRICE_BASE_SCHEDULE_BLOCK_VALUE,
-            },
-            ...scheduleBlocks.map((scheduleBlock) => ({
-              label: scheduleBlock.name,
-              value: scheduleBlock.id,
-            })),
-          ]}
-          placeholder="Precio general"
-          submitValue={(value) =>
-            value === PRICE_BASE_SCHEDULE_BLOCK_VALUE ? "" : value
-          }
-        />
-        {helperText ? (
-          <FieldDescription className="sm:col-span-2">
-            {helperText}
-          </FieldDescription>
-        ) : null}
-        {buttonLabel ? (
-          <div className="sm:col-span-2">
-            <Button type="submit">{buttonLabel}</Button>
-          </div>
-        ) : null}
       </FieldGroup>
     </form>
+  );
+}
+
+function PriceScheduleAlert() {
+  return (
+    <Alert>
+      <Info aria-hidden="true" />
+      <AlertDescription>{PRICE_SCHEDULE_ALERT_TEXT}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -383,12 +426,12 @@ function PriceFormActions({
   submitLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildPriceListPath(null)}>Volver</Link>
       </Button>
       <Button type="submit" form={formId}>
-        <Save data-icon="inline-start" />
+        <Check data-icon="inline-start" />
         {submitLabel}
       </Button>
     </div>
@@ -398,7 +441,7 @@ function PriceFormActions({
 function PriceFormPanel({ children }: { children: ReactNode }) {
   return (
     <Card>
-      <CardContent>{children}</CardContent>
+      <CardContent className="flex flex-col gap-6">{children}</CardContent>
     </Card>
   );
 }
@@ -503,44 +546,6 @@ function SelectField({
   );
 }
 
-function PriceSummaryCard({ price }: { price: PriceListItem }) {
-  const scope = getPriceScope(price);
-
-  return (
-    <Card>
-      <CardContent>
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <PriceDetailItem
-            label="Tipo de grupo"
-            value={groupTypeLabels[price.groupType] ?? price.groupType}
-          />
-          <PriceDetailItem label="Alcance" value={scope.label} />
-          <PriceDetailItem label="Importe" value={`$${price.amount}`} />
-          <PriceDetailItem
-            label="Fecha límite de pago"
-            value={formatPaymentDeadline(price.paymentDeadline)}
-          />
-          <PriceDetailItem
-            label="Bloque horario"
-            value={scope.detail ?? "Sin bloque horario específico"}
-          />
-        </dl>
-      </CardContent>
-    </Card>
-  );
-}
-
-function PriceDetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{value}</dd>
-    </div>
-  );
-}
-
 function PriceListTable({
   prices,
   selectedEventId,
@@ -550,59 +555,54 @@ function PriceListTable({
 }) {
   const columns: DataTableColumn<PriceListItem>[] = [
     {
-      id: "price",
-      header: "Precio",
+      id: "groupType",
+      header: "Tipo de grupo",
       className: "min-w-56 font-medium",
       cell: (price) => (
         <Link
           to={buildPriceDetailPath(price.id, selectedEventId)}
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={getPriceDisplayName(price)}
         >
-          {getPriceDisplayName(price)}
+          {getGroupTypeLabel(price.groupType)}
         </Link>
       ),
-      filterValue: (price) => getPriceDisplayName(price),
-    },
-    {
-      id: "groupType",
-      header: "Tipo de grupo",
-      cell: (price) => <PriceGroupTypeBadge groupType={price.groupType} />,
       filterValues: (price) => [price.groupType],
       filterValue: (price) => getGroupTypeLabel(price.groupType),
+      sortValue: (price) => getGroupTypeLabel(price.groupType),
     },
     {
       id: "scope",
-      header: "Alcance",
-      cell: (price) => {
-        const scope = getPriceScope(price);
-
-        return (
-          <div>
-            <p>{scope.label}</p>
-            {scope.detail ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {scope.detail}
-              </p>
-            ) : null}
-          </div>
-        );
-      },
-      filterValue: (price) => {
-        const scope = getPriceScope(price);
-
-        return [scope.label, scope.detail].filter(Boolean).join(" ");
-      },
+      header: "Cronograma",
+      cell: (price) => (
+        <div className="flex flex-col">
+          <span className="text-muted-foreground">
+            {getPriceScopeLabel(price)}
+          </span>
+          {price.schedule ? (
+            <span className="text-muted-foreground">{price.schedule.name}</span>
+          ) : null}
+        </div>
+      ),
+      filterValue: (price) =>
+        price.schedule
+          ? `${getPriceScopeLabel(price)} ${price.schedule.name}`
+          : getPriceScopeLabel(price),
     },
     {
       id: "paymentDeadline",
       header: "Fecha límite",
-      cell: (price) => formatPaymentDeadline(price.paymentDeadline),
+      cell: (price) => (
+        <span className="text-muted-foreground">
+          {formatPaymentDeadlineForTable(price.paymentDeadline)}
+        </span>
+      ),
       sortValue: (price) => price.paymentDeadline ?? "",
     },
     {
       id: "amount",
       header: "Importe",
-      cell: (price) => `$${price.amount}`,
+      cell: (price) => formatAmount(price.amount),
     },
   ];
 
@@ -612,8 +612,8 @@ function PriceListTable({
       rows={prices}
       columns={columns}
       getRowKey={(price) => price.id}
-      searchPlaceholder="Buscar precio por tipo o bloque"
-      textFilterColumnId="price"
+      searchPlaceholder="Buscar precio por cronograma"
+      textFilterColumnId="scope"
       facetedFilters={[
         {
           columnId: "groupType",
@@ -631,87 +631,113 @@ function PriceListTable({
   );
 }
 
-function PriceGroupTypeBadge({ groupType }: { groupType: string }) {
-  return <Badge variant="secondary">{getGroupTypeLabel(groupType)}</Badge>;
-}
-
 function getGroupTypeLabel(groupType: string) {
   return groupTypeLabels[groupType] ?? groupType;
 }
 
 export function getPriceDisplayName(price: PriceListItem) {
   const groupTypeLabel = getGroupTypeLabel(price.groupType);
-  const deadlineLabel = formatPaymentDeadline(price.paymentDeadline);
+  const scopeLabel = price.schedule?.name ?? getPriceScopeLabel(price);
+  const deadlineLabel = formatPaymentDeadlineForDisplay(price.paymentDeadline);
 
-  if (price.scheduleBlock) {
-    return `${groupTypeLabel} - ${price.scheduleBlock.name} - hasta ${deadlineLabel}`;
-  }
-
-  return `${groupTypeLabel} - Precio base - hasta ${deadlineLabel}`;
+  return deadlineLabel
+    ? `${groupTypeLabel} - ${scopeLabel} - hasta ${deadlineLabel}`
+    : `${groupTypeLabel} - ${scopeLabel}`;
 }
 
-function formatPaymentDeadline(paymentDeadline: string | null) {
+function getPriceScopeLabel(price: PriceListItem) {
+  return price.schedule ? "Precio por cronograma" : "Precio base";
+}
+
+function formatPaymentDeadlineForDisplay(paymentDeadline: string | null) {
   if (!paymentDeadline) {
-    return "Sin fecha límite";
+    return "";
   }
 
   return priceDateFormatter.format(new Date(`${paymentDeadline}T00:00:00Z`));
 }
 
-function PriceDeleteForm({ priceId }: { priceId: string }) {
+function formatPaymentDeadlineForTable(paymentDeadline: string | null) {
+  return formatPaymentDeadlineForDisplay(paymentDeadline);
+}
+
+function formatAmount(amount: number) {
+  return `$${amount}`;
+}
+
+function PriceActions({ price }: { price: PriceListItem }) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Eliminar precio</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <p className="text-sm leading-6 text-muted-foreground">
-          Esta acción elimina el precio si no tiene dependencias asociadas.
-        </p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button className="w-fit" variant="destructive">
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Acciones"
+            title="Borrar precio"
+          >
+            <Ellipsis aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48" forceMount>
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setDeleteDialogOpen(true)}
+            >
               Borrar precio
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Borrar este precio?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. Si el precio tiene
-                dependencias asociadas, el sistema va a impedir el borrado.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <form method="post">
-                <input type="hidden" name="intent" value="delete-price" />
-                <input type="hidden" name="id" value={priceId} />
-                <input type="hidden" name="confirmDeletion" value={priceId} />
-                <AlertDialogAction asChild variant="destructive">
-                  <button type="submit">Borrar precio</button>
-                </AlertDialogAction>
-              </form>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardContent>
-    </Card>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DeletePriceDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        price={price}
+      />
+    </>
   );
 }
 
-function ResourceSection({
-  children,
-  title,
+function DeletePriceDialog({
+  open,
+  onOpenChange,
+  price,
 }: {
-  children: ReactNode;
-  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  price: PriceListItem;
 }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {children}
-    </section>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar precio</DialogTitle>
+          <DialogDescription>
+            Esta acción borra {getPriceDisplayName(price)} si no tiene
+            dependencias asociadas. No se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancelar
+            </Button>
+          </DialogClose>
+          <form method="post">
+            <input type="hidden" name="intent" value="delete-price" />
+            <input type="hidden" name="id" value={price.id} />
+            <input type="hidden" name="confirmDeletion" value={price.id} />
+            <Button type="submit" variant="destructive">
+              <Trash data-icon="inline-start" />
+              Eliminar
+            </Button>
+          </form>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -731,18 +757,4 @@ function appendSelectedEventId(
   _selectedEventId: string | null,
 ) {
   return pathname;
-}
-
-function getPriceScope(price: PriceListItem): PriceScope {
-  if (price.scheduleBlock) {
-    return {
-      label: "Precio por bloque horario",
-      detail: price.scheduleBlock.name,
-    };
-  }
-
-  return {
-    label: "Precio base",
-    detail: null,
-  };
 }

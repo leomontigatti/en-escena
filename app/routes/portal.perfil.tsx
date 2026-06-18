@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, KeyRound } from "lucide-react";
+import { Check, Ellipsis, Info, KeyRound, Lock } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   Controller,
@@ -11,6 +11,7 @@ import { data, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -31,7 +32,6 @@ import {
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -215,6 +215,14 @@ export function PortalPerfilRouteView({
         <ProfileActionsMenu />
       </header>
 
+      <Alert>
+        <Info aria-hidden="true" />
+        <AlertDescription>
+          Para cambiar el nombre de la academia o el email de acceso, comunicate
+          con nosotros.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardContent>
           <form
@@ -231,8 +239,8 @@ export function PortalPerfilRouteView({
             <FieldGroup className="grid gap-5 md:grid-cols-2">
               <ReadOnlyTextField
                 autoComplete="organization"
-                description="Para cambiar el nombre de la academia, contactá a administración."
                 label="Nombre de la academia"
+                name="name"
                 value={values.name}
               />
               <ReadOnlyEmailField email={loaderData.email} />
@@ -355,13 +363,13 @@ function AcademyProfileTextField({
 
 function ReadOnlyTextField({
   autoComplete,
-  description,
   label,
+  name,
   value,
 }: {
   autoComplete: string;
-  description?: string;
   label: string;
+  name?: string;
   value: string;
 }) {
   const id = useId();
@@ -370,10 +378,21 @@ function ReadOnlyTextField({
     <Field data-disabled>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <FieldContent>
-        <Input id={id} autoComplete={autoComplete} disabled value={value} />
-        {description ? (
-          <FieldDescription>{description}</FieldDescription>
-        ) : null}
+        {name ? <input type="hidden" name={name} value={value} /> : null}
+        <div className="relative">
+          <Input
+            id={id}
+            autoComplete={autoComplete}
+            disabled
+            readOnly
+            value={value}
+            className="pr-9"
+          />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
       </FieldContent>
     </Field>
   );
@@ -386,16 +405,21 @@ function ReadOnlyEmailField({ email }: { email: string }) {
     <Field data-disabled>
       <FieldLabel htmlFor={id}>Email de acceso</FieldLabel>
       <FieldContent>
-        <Input
-          id={id}
-          autoComplete="email"
-          disabled
-          type="email"
-          value={email}
-        />
-        <FieldDescription>
-          Para cambiar el email de acceso, contactá a administración.
-        </FieldDescription>
+        <div className="relative">
+          <Input
+            id={id}
+            autoComplete="email"
+            disabled
+            readOnly
+            type="email"
+            value={email}
+            className="pr-9"
+          />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
       </FieldContent>
     </Field>
   );

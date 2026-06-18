@@ -1,7 +1,7 @@
 export type EventRegistrationMissingCode =
   | "categories"
   | "modalities"
-  | "schedule-blocks"
+  | "schedules"
   | "schedule-entries"
   | "prices"
   | "schedule-compatibility"

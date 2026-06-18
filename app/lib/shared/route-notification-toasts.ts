@@ -25,10 +25,10 @@ export const routeNotificationToastIds = {
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
   "evento-eliminado": "route-notification:evento-eliminado",
-  "bloque-horario-guardado": "route-notification:bloque-horario-guardado",
-  "bloque-horario-eliminado": "route-notification:bloque-horario-eliminado",
   "cronograma-guardado": "route-notification:cronograma-guardado",
   "cronograma-eliminado": "route-notification:cronograma-eliminado",
+  "cupo-cronograma-guardado": "route-notification:cupo-cronograma-guardado",
+  "cupo-cronograma-eliminado": "route-notification:cupo-cronograma-eliminado",
   "precio-guardado": "route-notification:precio-guardado",
   "precio-eliminado": "route-notification:precio-eliminado",
   "programa-visible": "route-notification:programa-visible",
@@ -139,16 +139,6 @@ export const routeNotificationToasts = {
     message: "Evento eliminado.",
     variant: "success",
   },
-  "bloque-horario-guardado": {
-    id: routeNotificationToastIds["bloque-horario-guardado"],
-    message: "Bloque horario guardado.",
-    variant: "success",
-  },
-  "bloque-horario-eliminado": {
-    id: routeNotificationToastIds["bloque-horario-eliminado"],
-    message: "Bloque horario eliminado.",
-    variant: "success",
-  },
   "cronograma-guardado": {
     id: routeNotificationToastIds["cronograma-guardado"],
     message: "Cronograma guardado.",
@@ -157,6 +147,16 @@ export const routeNotificationToasts = {
   "cronograma-eliminado": {
     id: routeNotificationToastIds["cronograma-eliminado"],
     message: "Cronograma eliminado.",
+    variant: "success",
+  },
+  "cupo-cronograma-guardado": {
+    id: routeNotificationToastIds["cupo-cronograma-guardado"],
+    message: "Cupo de cronograma guardado.",
+    variant: "success",
+  },
+  "cupo-cronograma-eliminado": {
+    id: routeNotificationToastIds["cupo-cronograma-eliminado"],
+    message: "Cupo de cronograma eliminado.",
     variant: "success",
   },
   "precio-guardado": {

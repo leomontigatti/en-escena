@@ -589,8 +589,8 @@ export const categoryExperienceLevels = createTable(
   ],
 );
 
-export const scheduleBlocks = createTable(
-  "schedule_block",
+export const schedules = createTable(
+  "schedule",
   {
     id: varchar("id", { length: 255 })
       .primaryKey()
@@ -611,35 +611,32 @@ export const scheduleBlocks = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index("schedule_block_event_id_idx").on(table.eventId),
-    uniqueIndex("schedule_block_event_name_unique").on(
-      table.eventId,
-      table.name,
-    ),
+    index("schedule_event_id_idx").on(table.eventId),
+    uniqueIndex("schedule_event_name_unique").on(table.eventId, table.name),
   ],
 );
 
-export const scheduleBlockModalities = createTable(
-  "schedule_block_modality",
+export const scheduleModalities = createTable(
+  "schedule_modality",
   {
-    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).notNull(),
+    scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
     modalityId: varchar("modality_id", { length: 255 }).notNull(),
   },
   (table) => [
     foreignKey({
-      columns: [table.scheduleBlockId],
-      foreignColumns: [scheduleBlocks.id],
-      name: "schedule_block_modality_block_fk",
+      columns: [table.scheduleId],
+      foreignColumns: [schedules.id],
+      name: "schedule_modality_schedule_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [table.modalityId],
       foreignColumns: [modalities.id],
-      name: "schedule_block_modality_modality_fk",
+      name: "schedule_modality_modality_fk",
     }),
-    index("schedule_block_modality_block_id_idx").on(table.scheduleBlockId),
-    index("schedule_block_modality_modality_id_idx").on(table.modalityId),
-    uniqueIndex("schedule_block_modality_unique").on(
-      table.scheduleBlockId,
+    index("schedule_modality_schedule_id_idx").on(table.scheduleId),
+    index("schedule_modality_modality_id_idx").on(table.modalityId),
+    uniqueIndex("schedule_modality_unique").on(
+      table.scheduleId,
       table.modalityId,
     ),
   ],
@@ -655,7 +652,7 @@ export const prices = createTable(
     eventId: varchar("event_id", { length: 255 })
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
-    scheduleBlockId: varchar("schedule_block_id", { length: 255 }),
+    scheduleId: varchar("schedule_id", { length: 255 }),
     groupType: groupType("group_type").notNull(),
     paymentDeadline: text("payment_deadline"),
     amount: integer("amount").notNull(),
@@ -669,35 +666,34 @@ export const prices = createTable(
   (table) => [
     index("price_event_id_idx").on(table.eventId),
     foreignKey({
-      columns: [table.scheduleBlockId],
-      foreignColumns: [scheduleBlocks.id],
-      name: "price_schedule_block_fk",
+      columns: [table.scheduleId],
+      foreignColumns: [schedules.id],
+      name: "price_schedule_fk",
     }),
-    index("price_schedule_block_id_idx").on(table.scheduleBlockId),
+    index("price_schedule_id_idx").on(table.scheduleId),
     uniqueIndex("price_general_unique")
       .on(table.eventId, table.groupType, table.paymentDeadline)
-      .where(sql`${table.scheduleBlockId} is null`),
+      .where(sql`${table.scheduleId} is null`),
     uniqueIndex("price_specific_unique")
       .on(
         table.eventId,
         table.groupType,
-        table.scheduleBlockId,
+        table.scheduleId,
         table.paymentDeadline,
       )
-      .where(sql`${table.scheduleBlockId} is not null`),
+      .where(sql`${table.scheduleId} is not null`),
   ],
 );
 
-export const scheduleEntries = createTable(
-  "schedule_entry",
+export const scheduleCapacities = createTable(
+  "schedule_capacity",
   {
     id: varchar("id", { length: 255 })
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    scheduleBlockId: varchar("schedule_block_id", { length: 255 }).notNull(),
-    groupTypes: groupType("group_types").array().notNull(),
-    groupTypeKey: text("group_type_key").notNull(),
+    scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
+    groupType: groupType("group_type").notNull(),
     capacity: integer("capacity").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -708,14 +704,14 @@ export const scheduleEntries = createTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.scheduleBlockId],
-      foreignColumns: [scheduleBlocks.id],
-      name: "schedule_entry_block_fk",
+      columns: [table.scheduleId],
+      foreignColumns: [schedules.id],
+      name: "schedule_capacity_schedule_fk",
     }).onDelete("cascade"),
-    index("schedule_entry_block_id_idx").on(table.scheduleBlockId),
-    uniqueIndex("schedule_entry_block_group_types_unique").on(
-      table.scheduleBlockId,
-      table.groupTypeKey,
+    index("schedule_capacity_schedule_id_idx").on(table.scheduleId),
+    uniqueIndex("schedule_capacity_schedule_group_type_unique").on(
+      table.scheduleId,
+      table.groupType,
     ),
   ],
 );
@@ -749,7 +745,9 @@ export const choreographies = createTable(
     experienceLevelId: varchar("experience_level_id", {
       length: 255,
     }),
-    scheduleEntryId: varchar("schedule_entry_id", { length: 255 }).notNull(),
+    scheduleCapacityId: varchar("schedule_capacity_id", {
+      length: 255,
+    }).notNull(),
     musicStorageKey: text("music_storage_key"),
     hasPresentation: boolean("has_presentation").notNull().default(false),
     hasActiveFinancialLink: boolean("has_active_financial_link")
@@ -785,11 +783,11 @@ export const choreographies = createTable(
       name: "choreography_experience_level_fk",
     }),
     foreignKey({
-      columns: [table.scheduleEntryId],
-      foreignColumns: [scheduleEntries.id],
-      name: "choreography_schedule_entry_fk",
+      columns: [table.scheduleCapacityId],
+      foreignColumns: [scheduleCapacities.id],
+      name: "choreography_schedule_capacity_fk",
     }),
-    index("choreography_schedule_entry_id_idx").on(table.scheduleEntryId),
+    index("choreography_schedule_capacity_id_idx").on(table.scheduleCapacityId),
   ],
 );
 

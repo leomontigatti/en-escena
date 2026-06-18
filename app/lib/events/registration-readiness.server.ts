@@ -26,24 +26,20 @@ const baseMissingItemDefinitions = {
     label: "Categorías",
     detail: "Falta al menos una categoría en este evento.",
   },
-  "schedule-blocks": {
-    label: "Bloques horarios",
-    detail: "Falta al menos un bloque horario en este evento.",
-  },
-  "schedule-entries": {
+  schedules: {
     label: "Cronogramas",
     detail: "Falta al menos un cronograma en este evento.",
+  },
+  "schedule-entries": {
+    label: "Cupos de cronograma",
+    detail: "Falta al menos un cupo de cronograma en este evento.",
   },
   prices: {
     label: "Precios",
     detail: "Falta al menos un precio en este evento.",
   },
 } satisfies Record<
-  | "modalities"
-  | "categories"
-  | "schedule-blocks"
-  | "schedule-entries"
-  | "prices",
+  "modalities" | "categories" | "schedules" | "schedule-entries" | "prices",
   Pick<EventRegistrationMissingItem, "label" | "detail">
 >;
 
@@ -98,8 +94,8 @@ export async function getEventRegistrationReadinessForBases(
         if (scheduleResolution.status === "none") {
           missingItems.push({
             code: "schedule-compatibility",
-            label: "Cronogramas compatibles",
-            detail: `Falta un cronograma compatible para ${registrationPath}.`,
+            label: "Cupos de cronograma compatibles",
+            detail: `Falta un cupo de cronograma compatible para ${registrationPath}.`,
           });
           continue;
         }
@@ -108,14 +104,14 @@ export async function getEventRegistrationReadinessForBases(
           const priceResolution = await resolveEventBasesPrice({
             eventId,
             groupType,
-            scheduleBlockId: option.scheduleBlock.id,
+            scheduleId: option.schedule.id,
           });
 
           if (!priceResolution.ok) {
             missingItems.push({
               code: "price-coverage",
               label: "Precios aplicables",
-              detail: `Falta un precio aplicable para ${registrationPath} en el bloque horario ${option.scheduleBlock.name}.`,
+              detail: `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
             });
           }
         }
@@ -149,18 +145,18 @@ function collectBaseMissingItems(eventBases: EventBases) {
     });
   }
 
-  if (eventBases.scheduleBlocks.length === 0) {
+  if (eventBases.schedules.length === 0) {
     missingItems.push({
-      code: "schedule-blocks",
-      ...baseMissingItemDefinitions["schedule-blocks"],
+      code: "schedules",
+      ...baseMissingItemDefinitions["schedules"],
     });
   }
 
-  const hasScheduleEntries = eventBases.scheduleBlocks.some(
-    (scheduleBlock) => scheduleBlock.scheduleEntries.length > 0,
+  const hasScheduleCapacities = eventBases.schedules.some(
+    (schedule) => schedule.scheduleCapacities.length > 0,
   );
 
-  if (!hasScheduleEntries) {
+  if (!hasScheduleCapacities) {
     missingItems.push({
       code: "schedule-entries",
       ...baseMissingItemDefinitions["schedule-entries"],

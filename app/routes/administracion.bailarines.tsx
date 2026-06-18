@@ -117,8 +117,8 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
     {
       id: "nombre",
       header: "Nombre",
-      className: "w-1/4 font-medium",
-      headerClassName: "w-1/4",
+      className: "w-1/2 font-medium",
+      headerClassName: "w-1/2",
       cell: (dancer) => (
         <Link
           to={buildDancerDetailHref(loaderData, dancer.id)}
@@ -141,8 +141,8 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
     {
       id: "status",
       header: "Estado",
-      className: "w-1/2",
-      headerClassName: "w-1/2",
+      className: "w-1/4",
+      headerClassName: "w-1/4",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
           {loaderData.selectedEventId ? (

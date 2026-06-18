@@ -26,21 +26,22 @@ Rules for people, choreography registration, locks and Bases del evento.
 ## Choreographies
 
 - `Coreografía` belongs to one academy and one event; it is not reusable between events.
-- It is registered with modalidad, dancers, calculated tipo de grupo, category, optional nivel de experiencia and cronograma.
+- It is registered with modalidad, dancers, calculated tipo de grupo, category, optional nivel de experiencia and cupo de cronograma.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
 - It can be confirmed without category when no category rule applies; then it is operationally incomplete.
 - Academy can delete it while unpaid, without active financial documents, and without presentation.
-- Deleting a coreografía releases cronograma capacity and leaves no visible domain entity.
+- Deleting a coreografía releases cupo de cronograma capacity and leaves no visible domain entity.
 - Outside inscription period, deleting an unpaid coreografía can make re-registration impossible unless admin changes event dates.
 - Once signed, academy cannot edit blocked data or dancers until admin removes the active financial link.
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
+- Academy choreography modification is submitted as one save operation; if a dancer change cannot be confirmed, professor changes in the same submission are not saved.
 
 ## Choreography Registration
 
 - `Registro de coreografía` works with temporary data and creates the coreografía only on final confirmation.
 - Before final confirmation it does not consume capacity, generate financial state, or leave abandoned incomplete coreografías.
-- Looking up available cronogramas does not reserve capacity.
+- Looking up available cupos de cronograma does not reserve capacity.
 - Submodalidad step exists only when selected modalidad has submodalidades.
 - If no category is assigned, level step is skipped and level remains empty until recalculation.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
@@ -49,11 +50,11 @@ Rules for people, choreography registration, locks and Bases del evento.
 - Solo, duo and trio summaries list names and ages; group summaries show dancer count.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.
-- Backend revalidates cronograma capacity on confirmation.
+- Backend revalidates cupo de cronograma capacity on confirmation.
 
 ## Choreography Locks
 
-- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category, level and cronograma.
+- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category, level and cupo de cronograma.
 - For unpaid choreographies without financial docs or presentation, expected correction path is delete and register again.
 - Admin structural correction is exceptional, instance-level, requires reason, and is allowed only without presentation or active financial docs.
 - Structural correction that changes modalidad, submodalidad or dancers recalculates group type, category, level and schedule.
@@ -64,10 +65,11 @@ Rules for people, choreography registration, locks and Bases del evento.
 - A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category; it becomes editable when new category requires level.
 - A roster change that recalculates to a category requiring level must choose the new level before confirmation.
-- Cronograma stays when roster change does not change group type; it clears when group type changes.
-- When roster change clears cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
+- Cupo de cronograma stays when roster change does not change group type; it clears when group type changes.
+- When roster change clears cupo de cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
 - Roster change can recalculate price on confirmation, but the academy edit flow remains operational and does not show price amounts before confirming.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
+- Music and professor links can be edited while presentation is pending, even if registration is closed or the choreography has an active financial link.
 - Music/professor links stop being editable once presentation is no longer pending.
 
 ## Bases del evento
@@ -75,9 +77,10 @@ Rules for people, choreography registration, locks and Bases del evento.
 - `Modalidad` can have submodalidades.
 - `Submodalidad` is selected only when modalidad has related submodalidades.
 - `Tipo de grupo` is calculated from dancer count: solo, duo, trio or grupal.
-- Tipo de grupo determines available cronogramas and price rules.
+- Tipo de grupo determines available cupos de cronograma and price rules.
 - `Categoría` is calculated from ages against event start date.
 - Category applies to one or more group types and either all modalities or selected modalities.
+- Category duplication uses exact competitive identity: same minimum age, maximum age, group type set and modality set. It ignores category name and experience levels.
 - Category ranges cannot overlap for the same group type and modality.
 - Solo, duo and trio use oldest dancer age.
 - Grupal allows up to 20% older dancers; above that, it uses average age.

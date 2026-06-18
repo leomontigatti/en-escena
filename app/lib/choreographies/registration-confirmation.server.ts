@@ -6,7 +6,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
-  scheduleEntries,
+  scheduleCapacities,
 } from "@/db/schema";
 import {
   resolveChoreographyRegistrationOperation,
@@ -18,7 +18,7 @@ import {
 const INVALID_EXPERIENCE_LEVEL_ERROR =
   "Elegí un Nivel de experiencia válido para confirmar la Coreografía.";
 const INVALID_SCHEDULE_ENTRY_ERROR =
-  "Elegí un Cronograma compatible para confirmar la Coreografía.";
+  "Elegí un Cupo de cronograma compatible para confirmar la Coreografía.";
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -39,7 +39,7 @@ type CreateChoreographyRegistrationInput =
     name: string;
     professorIds: string[];
     experienceLevelId: string | null;
-    scheduleEntryId: string;
+    scheduleCapacityId: string;
   };
 
 type CreateChoreographyRegistrationFailureCode =
@@ -47,8 +47,8 @@ type CreateChoreographyRegistrationFailureCode =
   | "invalid-name"
   | "invalid-professors"
   | "invalid-experience-level"
-  | "invalid-schedule-entry"
-  | "schedule-entry-full";
+  | "invalid-schedule-capacity"
+  | "schedule-capacity-full";
 
 type CreateChoreographyRegistrationFailure = {
   ok: false;
@@ -104,13 +104,13 @@ export async function createChoreographyRegistration(
     return experienceLevelId.failure;
   }
 
-  const scheduleEntryId = resolveSelectedScheduleEntryId({
+  const scheduleCapacityId = resolveSelectedScheduleCapacityId({
     resolution: operation.resolution,
-    scheduleEntryId: input.scheduleEntryId,
+    scheduleCapacityId: input.scheduleCapacityId,
   });
 
-  if (!scheduleEntryId.ok) {
-    return scheduleEntryId.failure;
+  if (!scheduleCapacityId.ok) {
+    return scheduleCapacityId.failure;
   }
 
   const validProfessorIds = await resolveProfessorIds({
@@ -126,18 +126,18 @@ export async function createChoreographyRegistration(
 
   try {
     choreography = await db.transaction(async (tx) => {
-      const [lockedScheduleEntry] = await tx
+      const [lockedScheduleCapacity] = await tx
         .select({
-          id: scheduleEntries.id,
-          capacity: scheduleEntries.capacity,
+          id: scheduleCapacities.id,
+          capacity: scheduleCapacities.capacity,
         })
-        .from(scheduleEntries)
-        .where(eq(scheduleEntries.id, scheduleEntryId.value))
+        .from(scheduleCapacities)
+        .where(eq(scheduleCapacities.id, scheduleCapacityId.value))
         .for("update");
 
-      if (!lockedScheduleEntry) {
+      if (!lockedScheduleCapacity) {
         throw createFailure(
-          "invalid-schedule-entry",
+          "invalid-schedule-capacity",
           INVALID_SCHEDULE_ENTRY_ERROR,
         );
       }
@@ -147,14 +147,16 @@ export async function createChoreographyRegistration(
           occupiedCount: sql<number>`count(*)`,
         })
         .from(choreographies)
-        .where(eq(choreographies.scheduleEntryId, lockedScheduleEntry.id));
+        .where(
+          eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+        );
 
       const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
 
-      if (occupiedCount >= lockedScheduleEntry.capacity) {
+      if (occupiedCount >= lockedScheduleCapacity.capacity) {
         throw createFailure(
-          "schedule-entry-full",
-          "El Cronograma seleccionado ya no tiene cupo disponible.",
+          "schedule-capacity-full",
+          "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
         );
       }
 
@@ -174,7 +176,7 @@ export async function createChoreographyRegistration(
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
-          scheduleEntryId: lockedScheduleEntry.id,
+          scheduleCapacityId: lockedScheduleCapacity.id,
         })
         .returning();
 
@@ -349,9 +351,9 @@ function resolveSelectedExperienceLevelId(input: {
   return { ok: true, value: input.experienceLevelId };
 }
 
-function resolveSelectedScheduleEntryId(input: {
+function resolveSelectedScheduleCapacityId(input: {
   resolution: ChoreographyRegistrationOperationResolution;
-  scheduleEntryId: string;
+  scheduleCapacityId: string;
 }):
   | { ok: true; value: string }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
@@ -359,41 +361,43 @@ function resolveSelectedScheduleEntryId(input: {
     return {
       ok: false,
       failure: createFailure(
-        "invalid-schedule-entry",
+        "invalid-schedule-capacity",
         input.resolution.schedule.error,
       ),
     };
   }
 
   if (input.resolution.schedule.status === "auto") {
-    if (input.scheduleEntryId !== input.resolution.schedule.scheduleEntryId) {
+    if (
+      input.scheduleCapacityId !== input.resolution.schedule.scheduleCapacityId
+    ) {
       return {
         ok: false,
         failure: createFailure(
-          "invalid-schedule-entry",
+          "invalid-schedule-capacity",
           INVALID_SCHEDULE_ENTRY_ERROR,
         ),
       };
     }
 
-    return { ok: true, value: input.resolution.schedule.scheduleEntryId };
+    return { ok: true, value: input.resolution.schedule.scheduleCapacityId };
   }
 
   const isValidOption = input.resolution.schedule.options.some(
-    (option) => option.id === input.scheduleEntryId,
+    (option) => option.id === input.scheduleCapacityId,
   );
 
   if (!isValidOption) {
     return {
       ok: false,
       failure: createFailure(
-        "invalid-schedule-entry",
+        "invalid-schedule-capacity",
         INVALID_SCHEDULE_ENTRY_ERROR,
       ),
     };
   }
 
-  return { ok: true, value: input.scheduleEntryId };
+  return { ok: true, value: input.scheduleCapacityId };
 }
 
 function createFailure(

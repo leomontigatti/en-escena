@@ -11,9 +11,9 @@ import {
   experienceLevels,
   modalities,
   prices,
-  scheduleBlockModalities,
-  scheduleBlocks,
-  scheduleEntries,
+  scheduleModalities,
+  schedules,
+  scheduleCapacities,
   submodalities,
   user,
 } from "@/db/schema";
@@ -163,8 +163,8 @@ export async function createEventCatalog(eventId: string) {
     categoryId: childCategory.id,
     experienceLevelId: level.id,
   });
-  const [scheduleBlock] = await db
-    .insert(scheduleBlocks)
+  const [schedule] = await db
+    .insert(schedules)
     .values({
       eventId,
       name: `Bloque ${eventId}`,
@@ -173,8 +173,8 @@ export async function createEventCatalog(eventId: string) {
       totalCapacity: 10,
     })
     .returning();
-  await db.insert(scheduleBlockModalities).values({
-    scheduleBlockId: scheduleBlock.id,
+  await db.insert(scheduleModalities).values({
+    scheduleId: schedule.id,
     modalityId: modality.id,
   });
   await db.insert(prices).values([
@@ -183,60 +183,56 @@ export async function createEventCatalog(eventId: string) {
       groupType: "solo",
       amount: 10000,
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: null,
+      scheduleId: null,
     },
     {
       eventId,
       groupType: "duo",
       amount: 15000,
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: null,
+      scheduleId: null,
     },
     {
       eventId,
       groupType: "trio",
       amount: 20000,
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: null,
+      scheduleId: null,
     },
     {
       eventId,
       groupType: "grupal",
       amount: 25000,
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: null,
+      scheduleId: null,
     },
   ]);
   const [
-    soloScheduleEntry,
-    duoScheduleEntry,
-    trioScheduleEntry,
-    grupalScheduleEntry,
+    soloScheduleCapacity,
+    duoScheduleCapacity,
+    trioScheduleCapacity,
+    grupalScheduleCapacity,
   ] = await db
-    .insert(scheduleEntries)
+    .insert(scheduleCapacities)
     .values([
       {
-        scheduleBlockId: scheduleBlock.id,
-        groupTypes: ["solo"],
-        groupTypeKey: "solo",
+        scheduleId: schedule.id,
+        groupType: "solo",
         capacity: 5,
       },
       {
-        scheduleBlockId: scheduleBlock.id,
-        groupTypes: ["duo"],
-        groupTypeKey: "duo",
+        scheduleId: schedule.id,
+        groupType: "duo",
         capacity: 5,
       },
       {
-        scheduleBlockId: scheduleBlock.id,
-        groupTypes: ["trio"],
-        groupTypeKey: "trio",
+        scheduleId: schedule.id,
+        groupType: "trio",
         capacity: 5,
       },
       {
-        scheduleBlockId: scheduleBlock.id,
-        groupTypes: ["grupal"],
-        groupTypeKey: "grupal",
+        scheduleId: schedule.id,
+        groupType: "grupal",
         capacity: 5,
       },
     ])
@@ -248,11 +244,11 @@ export async function createEventCatalog(eventId: string) {
     level,
     childCategory,
     teenCategory,
-    scheduleBlock,
-    soloScheduleEntry,
-    duoScheduleEntry,
-    trioScheduleEntry,
-    grupalScheduleEntry,
+    schedule,
+    soloScheduleCapacity,
+    duoScheduleCapacity,
+    trioScheduleCapacity,
+    grupalScheduleCapacity,
   };
 }
 

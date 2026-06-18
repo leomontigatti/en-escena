@@ -20,13 +20,13 @@ _Evitar_: Activo, visible
 Condición que indica si los resultados de un evento están visibles u ocultos.
 _Evitar_: Estado del evento, active
 
-**Bloque horario**:
-Franja de programación de un evento, con nombre, fecha local, hora local y cupo total de coreografías.
-_Evitar_: Cronograma, horario suelto
-
 **Cronograma**:
-Distribución de cupo de coreografías dentro de un bloque horario, relacionada con tipos de grupo.
-_Evitar_: Bloque horario, agenda completa
+Franja de programación de un evento, con nombre, fecha local, hora local, modalidades aceptadas y cupo total de coreografías.
+_Evitar_: Bloque horario, horario suelto, agenda completa
+
+**Cupo de cronograma**:
+Distribución del cupo de coreografías dentro de un cronograma, relacionada con un único tipo de grupo.
+_Evitar_: Cronograma, bloque horario
 
 **Academia**:
 Entidad participante que puede inscribirse en eventos y cargar profesores, bailarines y coreografías.
@@ -139,6 +139,10 @@ _Evitar_: Obra reutilizable, inscripción, número
 **Registro de coreografía**:
 Flujo del portal de academias para crear una coreografía en el Evento activo dentro del período de inscripción.
 _Evitar_: Borrador de coreografía, presentación
+
+**Modificación de coreografía**:
+Flujo del portal de academias para cambiar datos permitidos de una Coreografía ya registrada, sin convertir correcciones estructurales excepcionales en edición libre.
+_Evitar_: Registro de coreografía, corrección administrativa
 
 **Período de inscripción**:
 Ventana temporal del evento durante la cual las academias pueden registrar coreografías desde el portal.
@@ -269,7 +273,7 @@ Clasificación calculada por cantidad de bailarines seleccionados para una coreo
 _Evitar_: Modalidad, categoría
 
 **Categoría**:
-Clasificación calculada por edades medidas contra la fecha de inicio del evento.
+Clasificación calculada por edades medidas contra la fecha de inicio del evento. Su identidad competitiva se define por rango de edad, tipos de grupo y modalidades.
 _Evitar_: Modalidad, tipo de grupo
 
 **Nivel de experiencia**:

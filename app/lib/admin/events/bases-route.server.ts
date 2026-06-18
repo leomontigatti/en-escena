@@ -17,7 +17,7 @@ import {
 import {
   getEventBases,
   type PriceListItem,
-  type ScheduleBlockListItem,
+  type ScheduleListItem,
 } from "@/lib/events/bases.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -37,7 +37,7 @@ export type EventBasesLoaderData = {
   submodalities: SubmodalityRow[];
   experienceLevels: ExperienceLevelRow[];
   categories: CategoryRow[];
-  scheduleBlocks: ScheduleBlockListItem[];
+  schedules: ScheduleListItem[];
   prices: PriceListItem[];
 };
 
@@ -57,7 +57,7 @@ export async function loadEventBasesRouteData(request: Request) {
         modalities: [],
         submodalities: [],
         experienceLevels: [],
-        scheduleBlocks: [],
+        schedules: [],
         prices: [],
       };
 

@@ -6,8 +6,8 @@ import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import {
   getEventBases,
   resolveEventBasesScheduleOptions,
-  type CompatibleScheduleEntry,
-  type CompatibleScheduleEntryResolution,
+  type CompatibleScheduleCapacity,
+  type CompatibleScheduleCapacityResolution,
   type EventBases,
 } from "@/lib/events/bases.server";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
@@ -39,10 +39,10 @@ type ExperienceLevelSummary = {
 };
 
 type ScheduleOptionSummary = Pick<
-  CompatibleScheduleEntry,
-  "id" | "capacity" | "groupTypes" | "groupTypeKey"
+  CompatibleScheduleCapacity,
+  "id" | "capacity" | "groupType"
 > & {
-  scheduleBlock: CompatibleScheduleEntry["scheduleBlock"];
+  schedule: CompatibleScheduleCapacity["schedule"];
 };
 
 type DancerAgeSummary = {
@@ -99,7 +99,7 @@ type ScheduleResolution =
   | {
       status: "auto";
       canConfirm: true;
-      scheduleEntryId: string;
+      scheduleCapacityId: string;
       options: [ScheduleOptionSummary];
     }
   | {
@@ -320,12 +320,12 @@ async function resolveRegistrationFromResolvedDancers(input: {
     category: categoryResolution.category,
   });
 
-  const compatibleScheduleEntries = await resolveEventBasesScheduleOptions({
+  const compatibleScheduleCapacities = await resolveEventBasesScheduleOptions({
     eventId: input.eventId,
     modalityId: modality.id,
     groupType,
   });
-  const schedule = mapScheduleResolution(compatibleScheduleEntries);
+  const schedule = mapScheduleResolution(compatibleScheduleCapacities);
 
   return {
     ok: true,
@@ -562,7 +562,7 @@ function isAgeWithinCategory(
 }
 
 function mapScheduleResolution(
-  scheduleResolution: CompatibleScheduleEntryResolution,
+  scheduleResolution: CompatibleScheduleCapacityResolution,
 ): ScheduleResolution {
   if (scheduleResolution.status === "none") {
     return {
@@ -577,8 +577,8 @@ function mapScheduleResolution(
     return {
       status: "auto",
       canConfirm: true,
-      scheduleEntryId: scheduleResolution.scheduleEntry.id,
-      options: [toScheduleOptionSummary(scheduleResolution.scheduleEntry)],
+      scheduleCapacityId: scheduleResolution.scheduleCapacity.id,
+      options: [toScheduleOptionSummary(scheduleResolution.scheduleCapacity)],
     };
   }
 
@@ -590,14 +590,13 @@ function mapScheduleResolution(
 }
 
 function toScheduleOptionSummary(
-  option: CompatibleScheduleEntry,
+  option: CompatibleScheduleCapacity,
 ): ScheduleOptionSummary {
   return {
     id: option.id,
     capacity: option.capacity,
-    groupTypes: option.groupTypes,
-    groupTypeKey: option.groupTypeKey,
-    scheduleBlock: option.scheduleBlock,
+    groupType: option.groupType,
+    schedule: option.schedule,
   };
 }
 

@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import type { EventPriceDetailRouteView as EventPriceDetailRouteViewType } from "@/components/admin/events/event-prices";
+import type { getPriceDisplayName as GetPriceDisplayName } from "@/components/admin/events/event-prices";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
@@ -13,11 +14,12 @@ describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
   let EventPriceDetailRouteView: typeof EventPriceDetailRouteViewType;
+  let getPriceDisplayName: typeof GetPriceDisplayName;
 
   beforeAll(async () => {
     installReactTestEnvironment();
 
-    ({ EventPriceDetailRouteView } =
+    ({ EventPriceDetailRouteView, getPriceDisplayName } =
       await import("@/components/admin/events/event-prices"));
   }, 20_000);
 
@@ -38,16 +40,16 @@ describe("EventPriceDetailRouteView", () => {
       groupType: "solo",
       id: "price_1",
       paymentDeadline: "2026-05-31",
-      scheduleBlockId: null,
-      scheduleBlockName: null,
+      scheduleId: null,
+      scheduleName: null,
     });
     const secondPrice = createPrice({
       amount: 18000,
       groupType: "duo",
       id: "price_2",
       paymentDeadline: "2026-06-30",
-      scheduleBlockId: "block_2",
-      scheduleBlockName: "Noche",
+      scheduleId: "block_2",
+      scheduleName: "Noche",
     });
     const loaderData = createLoaderData({
       prices: [firstPrice, secondPrice],
@@ -67,7 +69,7 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "groupType")).toBe("solo");
     expect(readInputValue(container, "amount")).toBe("12000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-05-31");
-    expect(readInputValue(container, "scheduleBlockId")).toBe("");
+    expect(readInputValue(container, "scheduleId")).toBe("");
 
     await renderPriceDetailRoute({
       loaderData,
@@ -79,7 +81,20 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "groupType")).toBe("duo");
     expect(readInputValue(container, "amount")).toBe("18000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
-    expect(readInputValue(container, "scheduleBlockId")).toBe("block_2");
+    expect(readInputValue(container, "scheduleId")).toBe("block_2");
+  });
+
+  test("formats the breadcrumb display name with group type, schedule and deadline", () => {
+    const price = createPrice({
+      amount: 18000,
+      groupType: "solo",
+      id: "price_1",
+      paymentDeadline: "2026-11-10",
+      scheduleId: "block_1",
+      scheduleName: "Noche",
+    });
+
+    expect(getPriceDisplayName(price)).toBe("Solo - Noche - hasta 10/11/26");
   });
 });
 
@@ -151,7 +166,7 @@ function createLoaderData({
     submodalities: [],
     experienceLevels: [],
     categories: [],
-    scheduleBlocks: [
+    schedules: [
       {
         id: "block_1",
         eventId: "event_1",
@@ -163,7 +178,7 @@ function createLoaderData({
         modalityIds: [],
         modalities: [],
         occupiedCapacity: 0,
-        scheduleEntries: [],
+        scheduleCapacities: [],
       },
       {
         id: "block_2",
@@ -176,7 +191,7 @@ function createLoaderData({
         modalityIds: [],
         modalities: [],
         occupiedCapacity: 0,
-        scheduleEntries: [],
+        scheduleCapacities: [],
       },
     ],
     prices,
@@ -188,15 +203,15 @@ function createPrice({
   groupType,
   id,
   paymentDeadline,
-  scheduleBlockId,
-  scheduleBlockName,
+  scheduleId,
+  scheduleName,
 }: {
   amount: number;
   groupType: PriceListItem["groupType"];
   id: string;
   paymentDeadline: string;
-  scheduleBlockId: string | null;
-  scheduleBlockName: string | null;
+  scheduleId: string | null;
+  scheduleName: string | null;
 }): PriceListItem {
   return {
     id,
@@ -204,12 +219,12 @@ function createPrice({
     groupType,
     amount,
     paymentDeadline,
-    scheduleBlockId,
+    scheduleId,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    scheduleBlock: scheduleBlockId
+    schedule: scheduleId
       ? {
-          id: scheduleBlockId,
-          name: scheduleBlockName ?? "Bloque horario",
+          id: scheduleId,
+          name: scheduleName ?? "Cronograma",
           scheduledDate: "2026-10-10",
           startTime: "20:00",
         }

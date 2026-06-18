@@ -7,9 +7,9 @@ import {
   categoryModalities,
   events,
   modalities,
-  scheduleBlockModalities,
-  scheduleBlocks,
-  scheduleEntries,
+  scheduleModalities,
+  schedules,
+  scheduleCapacities,
 } from "@/db/schema";
 import { resolveChoreographyRegistrationOperation } from "@/lib/choreographies/registration-resolution.server";
 import {
@@ -27,7 +27,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("choreography registration resolution", () => {
-  test("resolves a valid solo registration using the evento local start date, required experience levels, and compatible cronogramas", async () => {
+  test("resolves a valid solo registration using the evento local start date, required experience levels, and compatible cupos de cronograma", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "registro.coreografia.owner@example.com",
@@ -70,7 +70,7 @@ describe.sequential("choreography registration resolution", () => {
         schedule: {
           status: "auto",
           canConfirm: true,
-          options: [{ id: catalog.soloScheduleEntry.id }],
+          options: [{ id: catalog.soloScheduleCapacity.id }],
         },
         dancers: [
           {
@@ -398,14 +398,14 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("returns compatible cronogramas when they exist and blocks confirmation with a clear message when none match the selection", async () => {
+  test("returns compatible cupos de cronograma when they exist and blocks confirmation with a clear message when none match the selection", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia cronograma",
-      email: "registro.coreografia.cronograma@example.com",
+      academyName: "Academia cupo de cronograma",
+      email: "registro.coreografia.cupo-cronograma@example.com",
     });
     const { event, catalog } = await createOpenEventCatalog();
-    const [scheduleBlockTwo] = await db
-      .insert(scheduleBlocks)
+    const [scheduleTwo] = await db
+      .insert(schedules)
       .values({
         eventId: event.id,
         name: `Bloque dos ${event.id}`,
@@ -414,16 +414,15 @@ describe.sequential("choreography registration resolution", () => {
         totalCapacity: 10,
       })
       .returning();
-    await db.insert(scheduleBlockModalities).values({
-      scheduleBlockId: scheduleBlockTwo.id,
+    await db.insert(scheduleModalities).values({
+      scheduleId: scheduleTwo.id,
       modalityId: catalog.modality.id,
     });
     const [extraSoloEntry] = await db
-      .insert(scheduleEntries)
+      .insert(scheduleCapacities)
       .values({
-        scheduleBlockId: scheduleBlockTwo.id,
-        groupTypes: ["solo"],
-        groupTypeKey: "solo",
+        scheduleId: scheduleTwo.id,
+        groupType: "solo",
         capacity: 5,
       })
       .returning();
@@ -451,7 +450,7 @@ describe.sequential("choreography registration resolution", () => {
       modalityId: soloOnlyModality.id,
     });
     const [soloOnlyBlock] = await db
-      .insert(scheduleBlocks)
+      .insert(schedules)
       .values({
         eventId: event.id,
         name: `Bloque tap ${event.id}`,
@@ -460,14 +459,13 @@ describe.sequential("choreography registration resolution", () => {
         totalCapacity: 10,
       })
       .returning();
-    await db.insert(scheduleBlockModalities).values({
-      scheduleBlockId: soloOnlyBlock.id,
+    await db.insert(scheduleModalities).values({
+      scheduleId: soloOnlyBlock.id,
       modalityId: soloOnlyModality.id,
     });
-    await db.insert(scheduleEntries).values({
-      scheduleBlockId: soloOnlyBlock.id,
-      groupTypes: ["solo"],
-      groupTypeKey: "solo",
+    await db.insert(scheduleCapacities).values({
+      scheduleId: soloOnlyBlock.id,
+      groupType: "solo",
       capacity: 5,
     });
     const soloDancer = await createDancer(owner.academyId, {
@@ -495,7 +493,7 @@ describe.sequential("choreography registration resolution", () => {
           status: "multiple",
           canConfirm: true,
           options: expect.arrayContaining([
-            expect.objectContaining({ id: catalog.soloScheduleEntry.id }),
+            expect.objectContaining({ id: catalog.soloScheduleCapacity.id }),
             expect.objectContaining({ id: extraSoloEntry.id }),
           ]),
         },
@@ -521,7 +519,7 @@ describe.sequential("choreography registration resolution", () => {
           status: "none",
           canConfirm: false,
           error:
-            "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+            "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
         },
       },
     });

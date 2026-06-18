@@ -3,10 +3,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   LoaderCircle,
   Plus,
-  X,
 } from "lucide-react";
 import {
   useEffect,
@@ -14,10 +12,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   Controller,
   useForm,
@@ -27,7 +23,6 @@ import {
 import { Link, redirect, useFetcher, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
-import { clsx } from "clsx";
 
 import { AccessNotice } from "@/components/auth/access-ui";
 import {
@@ -39,6 +34,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,7 +133,7 @@ const CREATE_CHOREOGRAPHY_STEP_LABELS: Record<CreateChoreographyStep, string> =
     submodality: "Submodalidad",
     dancers: "Bailarines",
     experienceLevel: "Nivel",
-    schedule: "Cronograma",
+    schedule: "Cupo de cronograma",
     professors: "Profesores",
     summary: "Resumen",
   };
@@ -159,14 +155,14 @@ const createChoreographySchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
   professorIds: z.array(z.string()),
   experienceLevelId: z.string().trim().optional(),
-  scheduleEntryId: z.string().trim().optional(),
+  scheduleCapacityId: z.string().trim().optional(),
 });
 
 type CreateChoreographyFormValues = z.infer<typeof createChoreographySchema>;
 type CreateChoreographyForm = UseFormReturn<CreateChoreographyFormValues>;
 type ManualRequiredFieldName =
   | "experienceLevelId"
-  | "scheduleEntryId"
+  | "scheduleCapacityId"
   | "submodalityId";
 
 const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
@@ -176,7 +172,7 @@ const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
   dancerIds: [],
   professorIds: [],
   experienceLevelId: "",
-  scheduleEntryId: "",
+  scheduleCapacityId: "",
 };
 
 export const meta = () => [
@@ -240,7 +236,7 @@ export async function action({ request }: { request: Request }) {
       dancerIds: readFormStringArray(formData, "dancerIds"),
       professorIds: readFormStringArray(formData, "professorIds"),
       experienceLevelId: readOptionalFormString(formData, "experienceLevelId"),
-      scheduleEntryId: readFormString(formData, "scheduleEntryId"),
+      scheduleCapacityId: readFormString(formData, "scheduleCapacityId"),
     });
 
     if (!result.ok) {
@@ -561,7 +557,7 @@ function CreateChoreographyModal({
   const modalityFieldId = useId();
   const submodalityFieldId = useId();
   const experienceLevelFieldId = useId();
-  const scheduleEntryFieldId = useId();
+  const scheduleCapacityFieldId = useId();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [resolution, setResolution] = useState<RegistrationResolution | null>(
     null,
@@ -578,7 +574,7 @@ function CreateChoreographyModal({
   const selectedDancerIds = watchedValues.dancerIds;
   const selectedProfessorIds = watchedValues.professorIds;
   const selectedExperienceLevelId = watchedValues.experienceLevelId ?? "";
-  const selectedScheduleEntryId = watchedValues.scheduleEntryId ?? "";
+  const selectedScheduleCapacityId = watchedValues.scheduleCapacityId ?? "";
 
   const selectedSubmodalities = useMemo(
     () =>
@@ -624,7 +620,7 @@ function CreateChoreographyModal({
 
     if (nextResolution.schedule.status === "none") {
       setResolution(null);
-      form.setValue("scheduleEntryId", "", { shouldDirty: true });
+      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
       toast.error(nextResolution.schedule.error, {
         id: CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID,
       });
@@ -647,17 +643,17 @@ function CreateChoreographyModal({
 
     if (nextResolution.schedule.status === "auto") {
       form.setValue(
-        "scheduleEntryId",
-        nextResolution.schedule.scheduleEntryId,
+        "scheduleCapacityId",
+        nextResolution.schedule.scheduleCapacityId,
         { shouldDirty: true },
       );
     } else if (
       nextResolution.schedule.status === "multiple" &&
       !nextResolution.schedule.options.some(
-        (option) => option.id === selectedScheduleEntryId,
+        (option) => option.id === selectedScheduleCapacityId,
       )
     ) {
-      form.setValue("scheduleEntryId", "", { shouldDirty: true });
+      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
     }
 
     setCurrentStepIndex(
@@ -671,7 +667,7 @@ function CreateChoreographyModal({
     calculationData,
     form,
     selectedExperienceLevelId,
-    selectedScheduleEntryId,
+    selectedScheduleCapacityId,
   ]);
 
   useEffect(() => {
@@ -694,8 +690,12 @@ function CreateChoreographyModal({
   function resetResolutionState() {
     setResolution(null);
     form.setValue("experienceLevelId", "", { shouldDirty: true });
-    form.setValue("scheduleEntryId", "", { shouldDirty: true });
-    form.clearErrors(["submodalityId", "experienceLevelId", "scheduleEntryId"]);
+    form.setValue("scheduleCapacityId", "", { shouldDirty: true });
+    form.clearErrors([
+      "submodalityId",
+      "experienceLevelId",
+      "scheduleCapacityId",
+    ]);
   }
 
   function handleClose() {
@@ -763,12 +763,15 @@ function CreateChoreographyModal({
       return;
     }
 
-    if (resolution.schedule.status === "multiple" && !selectedScheduleEntryId) {
-      setRequiredFieldError(form, "scheduleEntryId");
+    if (
+      resolution.schedule.status === "multiple" &&
+      !selectedScheduleCapacityId
+    ) {
+      setRequiredFieldError(form, "scheduleCapacityId");
       return;
     }
 
-    form.clearErrors("scheduleEntryId");
+    form.clearErrors("scheduleCapacityId");
     setCurrentStepIndex((stepIndex) => stepIndex + 1);
   }
 
@@ -788,7 +791,7 @@ function CreateChoreographyModal({
         dancerIds: selectedDancerIds,
         professorIds: selectedProfessorIds,
         experienceLevelId: selectedExperienceLevelId,
-        scheduleEntryId: selectedScheduleEntryId,
+        scheduleCapacityId: selectedScheduleCapacityId,
       }),
       { method: "post" },
     );
@@ -807,7 +810,7 @@ function CreateChoreographyModal({
     resolution !== null &&
     (resolution.schedule.status === "auto" ||
       (resolution.schedule.status === "multiple" &&
-        selectedScheduleEntryId.length > 0));
+        selectedScheduleCapacityId.length > 0));
   const canAdvanceFromExperienceLevel =
     resolution !== null && hasRequiredExperienceLevel;
   const canAdvanceFromSchedule = resolution !== null && hasRequiredSchedule;
@@ -894,17 +897,18 @@ function CreateChoreographyModal({
 
           {currentStep === "dancers" ? (
             <section className="flex flex-col gap-6">
-              <ChoreographyMultipleComboboxField
+              <MultiComboboxField
                 control={form.control}
-                fieldName="dancerIds"
+                name="dancerIds"
                 label="Bailarines"
                 options={dancers.map((dancer) => ({
                   value: dancer.id,
                   label: `${dancer.firstName} ${dancer.lastName}`,
                 }))}
-                triggerLabel="Seleccionar bailarines"
-                emptyPlaceholder="Sin bailarines disponibles"
+                placeholder="Seleccionar bailarines"
+                emptyMessage="Sin bailarines disponibles"
                 onValueChange={resetResolutionState}
+                searchable={true}
               />
             </section>
           ) : null}
@@ -958,14 +962,14 @@ function CreateChoreographyModal({
 
               <ChoreographySelectField
                 control={form.control}
-                fieldName="scheduleEntryId"
-                id={scheduleEntryFieldId}
-                label="Cronograma"
+                fieldName="scheduleCapacityId"
+                id={scheduleCapacityFieldId}
+                label="Cupo de cronograma"
                 options={
                   resolution.schedule.status === "multiple"
                     ? resolution.schedule.options.map((option) => ({
                         value: option.id,
-                        label: `${option.scheduleBlock.name} · ${formatGroupTypeLabel(option.groupTypeKey)} · Cupo ${option.capacity}`,
+                        label: `${option.schedule.name} · ${formatGroupTypeLabel(option.groupType)} · Cupo ${option.capacity}`,
                       }))
                     : []
                 }
@@ -975,16 +979,17 @@ function CreateChoreographyModal({
 
           {currentStep === "professors" ? (
             <section className="flex flex-col gap-6">
-              <ChoreographyMultipleComboboxField
+              <MultiComboboxField
                 control={form.control}
-                fieldName="professorIds"
+                name="professorIds"
                 label="Profesores"
                 options={professors.map((professor) => ({
                   value: professor.id,
                   label: `${professor.firstName} ${professor.lastName}`,
                 }))}
-                triggerLabel="Seleccionar profesores"
-                emptyPlaceholder="Sin profesores disponibles"
+                placeholder="Seleccionar profesores"
+                emptyMessage="Sin profesores disponibles"
+                searchable={true}
               />
             </section>
           ) : null}
@@ -996,7 +1001,7 @@ function CreateChoreographyModal({
               resolution={resolution}
               selectedModalityId={selectedModalityId}
               selectedProfessors={selectedProfessors}
-              selectedScheduleEntryId={selectedScheduleEntryId}
+              selectedScheduleCapacityId={selectedScheduleCapacityId}
               selectedSubmodalityId={selectedSubmodalityId}
               selectedExperienceLevelId={selectedExperienceLevelId}
             />
@@ -1138,7 +1143,7 @@ function ChoreographyCreationSummary({
   selectedExperienceLevelId,
   selectedModalityId,
   selectedProfessors,
-  selectedScheduleEntryId,
+  selectedScheduleCapacityId,
   selectedSubmodalityId,
 }: {
   baseOptions: ChoreographyRegistrationBaseOptions;
@@ -1147,7 +1152,7 @@ function ChoreographyCreationSummary({
   selectedExperienceLevelId: string;
   selectedModalityId: string;
   selectedProfessors: PortalCoreografiasLoaderData["activeProfessors"];
-  selectedScheduleEntryId: string;
+  selectedScheduleCapacityId: string;
   selectedSubmodalityId: string;
 }) {
   const summaryItems = [
@@ -1179,8 +1184,8 @@ function ChoreographyCreationSummary({
         ]
       : []),
     {
-      label: "Cronograma",
-      value: formatScheduleSummary(resolution, selectedScheduleEntryId),
+      label: "Cupo de cronograma",
+      value: formatScheduleSummary(resolution, selectedScheduleCapacityId),
     },
     {
       label: "Bailarines",
@@ -1315,7 +1320,7 @@ function ChoreographySelectField({
     | "modalityId"
     | "submodalityId"
     | "experienceLevelId"
-    | "scheduleEntryId";
+    | "scheduleCapacityId";
   id: string;
   label: string;
   onValueChange?: (value: string) => void;
@@ -1366,263 +1371,6 @@ function ChoreographySelectField({
         );
       }}
     />
-  );
-}
-
-type ChoreographyMultipleComboboxOption = {
-  value: string;
-  label: string;
-};
-
-function ChoreographyMultipleComboboxField({
-  control,
-  fieldName,
-  emptyPlaceholder,
-  label,
-  onValueChange,
-  options,
-  triggerLabel,
-}: {
-  control: Control<CreateChoreographyFormValues>;
-  fieldName: "dancerIds" | "professorIds";
-  emptyPlaceholder: string;
-  label: string;
-  onValueChange?: () => void;
-  options: ChoreographyMultipleComboboxOption[];
-  triggerLabel: string;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const currentValue = field.value ?? [];
-        const isInvalid = Boolean(fieldState.error?.message);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel>{label}</FieldLabel>
-            <FieldContent>
-              <ChoreographyMultipleSelectControl
-                emptyPlaceholder={emptyPlaceholder}
-                isInvalid={isInvalid}
-                onBlur={field.onBlur}
-                onSelectionChange={onValueChange}
-                options={options}
-                triggerLabel={triggerLabel}
-                value={currentValue}
-                onValueChange={(nextValue) => {
-                  field.onChange(nextValue);
-                }}
-              />
-              {fieldState.error?.message ? (
-                <FieldError>{fieldState.error.message}</FieldError>
-              ) : null}
-            </FieldContent>
-          </Field>
-        );
-      }}
-    />
-  );
-}
-
-function ChoreographyMultipleSelectControl({
-  emptyPlaceholder,
-  isInvalid,
-  onBlur,
-  onSelectionChange,
-  options,
-  triggerLabel,
-  value,
-  onValueChange: setValue,
-}: {
-  emptyPlaceholder: string;
-  isInvalid: boolean;
-  onBlur: () => void;
-  onSelectionChange?: () => void;
-  options: ChoreographyMultipleComboboxOption[];
-  triggerLabel: string;
-  value: string[];
-  onValueChange: (value: string[]) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const triggerRef = useRef<HTMLDivElement | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
-  const optionByValue = useMemo(
-    () => new Map(options.map((option) => [option.value, option])),
-    [options],
-  );
-  const selectedOptions = value.map((selectedValue) => ({
-    value: selectedValue,
-    label: optionByValue.get(selectedValue)?.label ?? selectedValue,
-  }));
-  const availableOptions = options.filter(
-    (option) => !value.includes(option.value),
-  );
-  const filteredOptions = availableOptions.filter((option) =>
-    option.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-  );
-  const emptyMessage =
-    options.length === 0
-      ? emptyPlaceholder
-      : availableOptions.length === 0
-        ? "Ya seleccionaste todas las opciones."
-        : "Sin resultados.";
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function updateDropdownPosition() {
-      const trigger = triggerRef.current;
-
-      if (!trigger) {
-        return;
-      }
-
-      const triggerRect = trigger.getBoundingClientRect();
-      const top = triggerRect.bottom + 4;
-
-      setDropdownStyle({
-        top,
-        left: triggerRect.left,
-        width: triggerRect.width,
-        maxHeight: `min(18rem, calc(100vh - ${top + 8}px))`,
-      });
-    }
-
-    updateDropdownPosition();
-    inputRef.current?.focus();
-    window.addEventListener("resize", updateDropdownPosition);
-    window.addEventListener("scroll", updateDropdownPosition, true);
-
-    return () => {
-      window.removeEventListener("resize", updateDropdownPosition);
-      window.removeEventListener("scroll", updateDropdownPosition, true);
-    };
-  }, [isOpen, value.length]);
-
-  function handleSelect(nextValue: string) {
-    setValue([...value, nextValue]);
-    onSelectionChange?.();
-    setQuery("");
-    setIsOpen(true);
-  }
-
-  function handleRemove(nextValue: string) {
-    setValue(value.filter((selectedValue) => selectedValue !== nextValue));
-    onSelectionChange?.();
-  }
-
-  const dropdown =
-    isOpen && typeof document !== "undefined"
-      ? createPortal(
-          <div
-            ref={dropdownRef}
-            className="pointer-events-auto fixed z-[70] flex flex-col rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10"
-            style={dropdownStyle}
-          >
-            <div className="p-1 pb-0">
-              <Input
-                ref={inputRef}
-                value={query}
-                disabled={options.length === 0}
-                placeholder="Buscar..."
-                onChange={(event) => setQuery(event.currentTarget.value)}
-              />
-            </div>
-            <div className="min-h-0 overflow-y-auto overscroll-contain p-1">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => handleSelect(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))
-              ) : (
-                <p className="py-2 text-center text-sm text-muted-foreground">
-                  {emptyMessage}
-                </p>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
-
-  return (
-    <div
-      className="relative"
-      onBlur={(event) => {
-        const nextFocusedElement = event.relatedTarget as Node | null;
-
-        if (
-          !event.currentTarget.contains(nextFocusedElement) &&
-          !dropdownRef.current?.contains(nextFocusedElement)
-        ) {
-          setIsOpen(false);
-          onBlur();
-        }
-      }}
-    >
-      <div
-        ref={triggerRef}
-        role="combobox"
-        tabIndex={0}
-        aria-expanded={isOpen}
-        aria-invalid={isInvalid ? true : undefined}
-        className={clsx(
-          "flex min-h-8 cursor-default flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          isInvalid &&
-            "border-destructive ring-3 ring-destructive/20 dark:border-destructive/50 dark:ring-destructive/40",
-        )}
-        onClick={() => setIsOpen((current) => !current)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            setIsOpen((current) => !current);
-          }
-        }}
-      >
-        {selectedOptions.length > 0 ? (
-          selectedOptions.map((option) => (
-            <span
-              key={option.value}
-              className="flex h-[calc(--spacing(5.25))] w-fit items-center justify-center gap-1 rounded-sm bg-muted px-1.5 text-xs font-medium whitespace-nowrap text-foreground"
-            >
-              {option.label}
-              <button
-                type="button"
-                className="-mr-1 flex size-4 items-center justify-center rounded-sm opacity-50 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-3"
-                aria-label={`Quitar ${option.label}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleRemove(option.value);
-                }}
-              >
-                <X aria-hidden="true" />
-              </button>
-            </span>
-          ))
-        ) : (
-          <span className="flex-1 text-muted-foreground">{triggerLabel}</span>
-        )}
-        <ChevronDown
-          aria-hidden="true"
-          className="ml-auto size-4 text-muted-foreground"
-        />
-      </div>
-      {dropdown}
-    </div>
   );
 }
 
@@ -1699,27 +1447,27 @@ function formatExperienceLevelSummary(
 
 function formatScheduleSummary(
   resolution: RegistrationResolution,
-  scheduleEntryId: string,
+  scheduleCapacityId: string,
 ) {
   if (resolution.schedule.status === "none") {
-    return "Sin cronograma compatible";
+    return "Sin cupo de cronograma compatible";
   }
 
   const selectedOption =
     resolution.schedule.status === "auto"
       ? resolution.schedule.options[0]
       : resolution.schedule.options.find(
-          (option) => option.id === scheduleEntryId,
+          (option) => option.id === scheduleCapacityId,
         );
 
   if (!selectedOption) {
     return "Pendiente";
   }
 
-  return formatScheduleBlockDateTime(selectedOption.scheduleBlock);
+  return formatScheduleDateTime(selectedOption.schedule);
 }
 
-function formatScheduleBlockDateTime(input: {
+function formatScheduleDateTime(input: {
   name: string;
   scheduledDate: string;
   startTime: string;
@@ -1814,7 +1562,7 @@ function buildCreateChoreographyFormData(input: {
   dancerIds: string[];
   professorIds: string[];
   experienceLevelId: string;
-  scheduleEntryId: string;
+  scheduleCapacityId: string;
 }) {
   const formData = new FormData();
   formData.set("intent", CREATE_CHOREOGRAPHY_INTENT);
@@ -1829,7 +1577,7 @@ function buildCreateChoreographyFormData(input: {
   appendFormStringArray(formData, "dancerIds", input.dancerIds);
   appendFormStringArray(formData, "professorIds", input.professorIds);
   setOptionalFormString(formData, "experienceLevelId", input.experienceLevelId);
-  formData.set("scheduleEntryId", input.scheduleEntryId);
+  formData.set("scheduleCapacityId", input.scheduleCapacityId);
 
   return formData;
 }

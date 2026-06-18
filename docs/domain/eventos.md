@@ -8,10 +8,10 @@ Rules for event context, Bases del evento, administration and portal behavior.
 - At most one `Evento activo` can exist globally; there can also be none.
 - `Estado del evento` is automatic from dates: no iniciado, en curso, finalizado. It is not the same as active.
 - `Visibilidad de resultados` is controlled by publish/unpublish actions and is independent from active status and temporal state.
-- `Bloque horario` dates and times are local business dates/times, without their own timezone.
-- A `Cronograma` consumes capacity inside a `Bloque horario`; the sum of cronograma capacities cannot exceed block capacity.
-- A coreografía can use a cronograma only when block modality and cronograma group type are compatible.
-- `Bases del evento` includes modalidades, submodalidades, categorías, niveles de experiencia, bloques horarios, cronogramas and precios. It does not include Eventos.
+- `Cronograma` dates and times are local business dates/times, without their own timezone.
+- A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of cupo capacities cannot exceed cronograma capacity.
+- A coreografía can use a cupo de cronograma only when cronograma modality and cupo group type are compatible.
+- `Bases del evento` includes modalidades, submodalidades, categorías, niveles de experiencia, cronogramas, cupos de cronograma and precios. It does not include Eventos.
 
 ## Administración y Portal
 

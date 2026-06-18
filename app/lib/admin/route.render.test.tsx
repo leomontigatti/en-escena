@@ -95,7 +95,7 @@ describe("administracion layout route", () => {
               submodalities: [],
               experienceLevels: [],
               categories: [],
-              scheduleBlocks: [],
+              schedules: [],
               prices: [],
             },
           },

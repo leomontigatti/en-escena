@@ -96,14 +96,14 @@ describe("route notification toasts", () => {
       message: "Precio guardado.",
       variant: "success",
     });
-    expect(routeNotificationToasts["bloque-horario-eliminado"]).toEqual({
-      id: "route-notification:bloque-horario-eliminado",
-      message: "Bloque horario eliminado.",
+    expect(routeNotificationToasts["cronograma-eliminado"]).toEqual({
+      id: "route-notification:cronograma-eliminado",
+      message: "Cronograma eliminado.",
       variant: "success",
     });
-    expect(routeNotificationToasts["cronograma-guardado"]).toEqual({
-      id: "route-notification:cronograma-guardado",
-      message: "Cronograma guardado.",
+    expect(routeNotificationToasts["cupo-cronograma-guardado"]).toEqual({
+      id: "route-notification:cupo-cronograma-guardado",
+      message: "Cupo de cronograma guardado.",
       variant: "success",
     });
     expect(routeNotificationToasts["usuario-interno-creado"]).toEqual({

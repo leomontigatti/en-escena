@@ -47,7 +47,9 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").value).toBe("Juvenil");
     expect(getInputByLabel("Tipo de grupo").value).toBe("Solo");
     expect(getInputByLabel("Nivel de experiencia").value).toBe("Inicial");
-    expect(getInputByLabel("Cronograma").value).toBe("2026-05-01 · 10:00");
+    expect(getInputByLabel("Cupo de cronograma").value).toBe(
+      "2026-05-01 · 10:00",
+    );
 
     expect(getInputByLabel("Nombre").disabled).toBe(true);
     expect(getInputByLabel("Modalidad").disabled).toBe(true);
@@ -55,7 +57,7 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").disabled).toBe(true);
     expect(getInputByLabel("Tipo de grupo").disabled).toBe(true);
     expect(getInputByLabel("Nivel de experiencia").disabled).toBe(true);
-    expect(getInputByLabel("Cronograma").disabled).toBe(true);
+    expect(getInputByLabel("Cupo de cronograma").disabled).toBe(true);
   });
 
   test("renders people comboboxes without separate dancer/professor cards", async () => {
@@ -68,7 +70,6 @@ describe("coreografía detail readonly form", () => {
     expect(text).toContain("Ana Paz");
     expect(text).not.toContain("Guardar bailarines");
     expect(text).toContain("Profesores");
-    expect(text).toContain("Buscar profesores");
     expect(text).not.toContain("Guardar Profesores");
   });
 
@@ -170,6 +171,12 @@ function buildLoaderData(
         lastName: "Paz",
         active: true,
       },
+      {
+        id: "dancer_2",
+        firstName: "Luz",
+        lastName: "Rios",
+        active: true,
+      },
     ],
     availableProfessors: [
       {
@@ -198,8 +205,8 @@ function buildLoaderData(
         reasonCode: null,
         reasonText: null,
       },
-      scheduleEntryId: "schedule_1",
-      scheduleBlockName: "Bloque mañana",
+      scheduleCapacityId: "schedule_1",
+      scheduleName: "Bloque mañana",
       scheduleLabel: "2026-05-01 · 10:00",
       dancers: [
         {

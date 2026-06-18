@@ -105,8 +105,8 @@ The Panel de administración also uses a React Router layout route:
   `administracion.modalidades_.nueva.tsx`,
   `administracion.categorias_.$categoryId.tsx`,
   `administracion.categorias_.nueva.tsx`,
-  `administracion.bloques-horarios_.$scheduleBlockId.tsx`,
-  `administracion.bloques-horarios_.nuevo.tsx`,
+  `administracion.cronogramas_.$scheduleId.tsx`,
+  `administracion.cronogramas_.nuevo.tsx`,
   `administracion.precios_.$priceId.tsx`,
   `administracion.precios_.nuevo.tsx`,
   `administracion.usuarios_.$userId.tsx`, and

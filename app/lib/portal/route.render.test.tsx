@@ -18,7 +18,10 @@ import { PortalShell } from "@/components/portal/ui";
 import { PortalRouteView } from "@/routes/portal";
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
-import { PortalCoreografiaDetalleRouteView } from "@/routes/portal.coreografias_.$choreographyId";
+import {
+  PortalCoreografiaDetalleRouteView,
+  shouldRevalidate as shouldRevalidateCoreografiaDetalle,
+} from "@/routes/portal.coreografias_.$choreographyId";
 import { PortalCoreografiasRouteView } from "@/routes/portal.coreografias";
 import {
   action as perfilAction,
@@ -380,7 +383,6 @@ describe("portal route view", () => {
             },
           ],
         }),
-        successMessage: "Profesores actualizados correctamente.",
       }),
     });
 
@@ -389,7 +391,7 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "Actualizá bailarines y profesores de esta coreografía.",
     );
-    expect(markup).toContain("Buscar profesores");
+    expect(markup).not.toContain("Buscar profesores");
     expect(markup).toContain("Mora Archivada");
     expect(markup).not.toContain("Falta cargar");
     expect(markup).toContain("Acciones");
@@ -448,18 +450,42 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "Actualizá bailarines y profesores de esta coreografía.",
     );
-    expect(markup).toContain("Buscar bailarines");
+    expect(markup).not.toContain("Buscar bailarines");
     expect(markup).toContain("Mora Archivada");
+  });
+
+  test("does not revalidate coreografía detail loader after dancer roster resolution", () => {
+    const resolveFormData = new FormData();
+    resolveFormData.set("intent", "resolve-choreography-dancers");
+
+    expect(
+      shouldRevalidateCoreografiaDetalle({
+        defaultShouldRevalidate: true,
+        formData: resolveFormData,
+      }),
+    ).toBe(false);
+
+    const updateFormData = new FormData();
+    updateFormData.set("intent", "update-choreography");
+
+    expect(
+      shouldRevalidateCoreografiaDetalle({
+        defaultShouldRevalidate: true,
+        formData: updateFormData,
+      }),
+    ).toBe(true);
   });
 
   test("keeps the coreografía detail free of financial copy when dancer resolution state is present", () => {
     const markup = renderCoreografiaDetalle({
       actionData: {
-        status: "dancer-error",
+        status: "update-error",
+        section: "dancers",
         message: "Revisá los bailarines de la coreografía.",
         selectedDancerIds: ["dancer_1", "dancer_2", "dancer_3", "dancer_4"],
+        selectedProfessorIds: [],
         selectedExperienceLevelId: null,
-        selectedScheduleEntryId: "schedule_auto",
+        selectedScheduleCapacityId: "schedule_auto",
       },
       initialDancerResolution: {
         ok: true,
@@ -476,14 +502,13 @@ describe("portal route view", () => {
           schedule: {
             status: "auto",
             canSave: true,
-            selectedScheduleEntryId: "schedule_auto",
+            selectedScheduleCapacityId: "schedule_auto",
             options: [
               {
                 id: "schedule_auto",
                 capacity: 5,
-                groupTypes: ["grupal"],
-                groupTypeKey: "grupal",
-                scheduleBlock: {
+                groupType: "grupal",
+                schedule: {
                   id: "block_1",
                   name: "Bloque tarde",
                   scheduledDate: "2026-05-01",
@@ -549,7 +574,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Desglose");
   });
 
-  test("does not render transient cronograma resolution errors on the read-only detail", () => {
+  test("does not render transient cupo de cronograma resolution errors on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -565,9 +590,9 @@ describe("portal route view", () => {
             status: "none",
             canSave: false,
             error:
-              "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+              "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
             options: [],
-            selectedScheduleEntryId: null,
+            selectedScheduleCapacityId: null,
           },
         },
       },
@@ -592,13 +617,13 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Cronograma");
+    expect(markup).toContain("Cupo de cronograma");
     expect(markup).not.toContain(
-      "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+      "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
     );
   });
 
-  test("does not render transient auto cronograma messaging on the read-only detail", () => {
+  test("does not render transient auto cupo de cronograma messaging on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -613,14 +638,13 @@ describe("portal route view", () => {
           schedule: {
             status: "auto",
             canSave: true,
-            selectedScheduleEntryId: "schedule_auto",
+            selectedScheduleCapacityId: "schedule_auto",
             options: [
               {
                 id: "schedule_auto",
                 capacity: 5,
-                groupTypes: ["trio"],
-                groupTypeKey: "trio",
-                scheduleBlock: {
+                groupType: "trio",
+                schedule: {
                   id: "block_1",
                   name: "Bloque tarde",
                   scheduledDate: "2026-05-01",
@@ -652,13 +676,13 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Cronograma");
+    expect(markup).toContain("Cupo de cronograma");
     expect(markup).not.toContain(
-      "El cronograma compatible se selecciona automáticamente.",
+      "El cupo de cronograma compatible se selecciona automáticamente.",
     );
   });
 
-  test("does not render transient multiple cronograma messaging on the read-only detail", () => {
+  test("does not render transient multiple cupo de cronograma messaging on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -673,14 +697,13 @@ describe("portal route view", () => {
           schedule: {
             status: "multiple",
             canSave: true,
-            selectedScheduleEntryId: null,
+            selectedScheduleCapacityId: null,
             options: [
               {
                 id: "schedule_1",
                 capacity: 5,
-                groupTypes: ["trio"],
-                groupTypeKey: "trio",
-                scheduleBlock: {
+                groupType: "trio",
+                schedule: {
                   id: "block_1",
                   name: "Bloque mañana",
                   scheduledDate: "2026-05-01",
@@ -690,9 +713,8 @@ describe("portal route view", () => {
               {
                 id: "schedule_2",
                 capacity: 3,
-                groupTypes: ["trio"],
-                groupTypeKey: "trio",
-                scheduleBlock: {
+                groupType: "trio",
+                schedule: {
                   id: "block_2",
                   name: "Bloque tarde",
                   scheduledDate: "2026-05-01",
@@ -724,9 +746,9 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Cronograma");
+    expect(markup).toContain("Cupo de cronograma");
     expect(markup).not.toContain(
-      "Elegí un cronograma compatible antes de guardar los bailarines.",
+      "Elegí un cupo de cronograma compatible antes de guardar los bailarines.",
     );
     expect(markup).not.toContain('id="choreography-dancer-schedule"');
   });
@@ -756,8 +778,8 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Buscar bailarines");
-    expect(markup).not.toContain(
+    expect(markup).not.toContain("Buscar bailarines");
+    expect(markup).toContain(
       "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
     );
   });
@@ -849,7 +871,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Cargar Bailarín");
   });
 
-  test("shows ordered Bailarines with date, document and state badges", () => {
+  test("shows ordered Bailarines with document and state badges", () => {
     const markup = renderBailarines({
       loaderData: academyLoaderData({
         dancers: [
@@ -873,14 +895,15 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Ana Alvarez");
-    expect(markup).toContain("01/02/2014");
     expect(markup).toContain("Juan Manuel Cruz de la Torre");
-    expect(markup).toContain("03/04/2015");
     expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Sin documento");
     expect(markup).toContain("No participando");
     expect(markup).toContain("Faltan imágenes");
     expect(markup).toContain("Incompleto");
+    expect(markup).not.toContain("Fecha de nacimiento");
+    expect(markup).not.toContain("01/02/2014");
+    expect(markup).not.toContain("03/04/2015");
     expect(markup).toContain('href="/portal/bailarines/dancer_ana"');
     expect(markup.indexOf("Ana Alvarez")).toBeLessThan(
       markup.indexOf("Juan Manuel Cruz de la Torre"),
@@ -990,6 +1013,34 @@ describe("portal route view", () => {
     expect(markup).not.toContain(
       "Faltan datos de identificación para completar la verificación.",
     );
+  });
+
+  test("renders verified identification fields as locked readonly inputs", () => {
+    const markup = renderBailarinDetalle({
+      loaderData: {
+        ...academyLoaderData(),
+        dancer: dancerDetailRow({
+          birthDate: "2014-02-01",
+          documentType: "dni",
+          documentNumber: "12345678",
+          documentFrontImageStorageKey: "dancers/front.jpg",
+          documentBackImageStorageKey: "dancers/back.jpg",
+          identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
+        }),
+      },
+    });
+
+    expect(markup).toContain("Fecha de nacimiento");
+    expect(markup).toContain('name="birthDate" value="2014-02-01"');
+    expect(markup).toContain('value="1 de febrero de 2014"');
+    expect(markup).toContain("Tipo de documento");
+    expect(markup).toContain('name="documentType" value="dni"');
+    expect(markup).toContain('value="DNI"');
+    expect(markup).toContain("Número de documento");
+    expect(markup).toContain('name="documentNumber" value="12345678"');
+    expect(markup).toContain('disabled="" readOnly="" value="12345678"');
+    expect(countOccurrences(markup, "lucide-lock")).toBe(3);
+    expect(markup).not.toContain("Faltan imágenes");
   });
 
   test("shows field errors and preserves submitted values", () => {
@@ -1233,9 +1284,10 @@ describe("portal Perfil view", () => {
 
     expect(markup).toContain("Perfil");
     expect(markup).toContain("Nombre de la academia");
+    expect(markup).toContain('name="name" value="Academia de Prueba"');
     expect(markup).toContain('value="Academia de Prueba"');
     expect(markup).toContain(
-      "Para cambiar el nombre de la academia, contactá a administración.",
+      "Para cambiar el nombre de la academia o el email de acceso, comunicate con nosotros.",
     );
     expect(markup).toContain("Nombre de contacto");
     expect(markup).toContain('name="contactName" value="Contacto"');
@@ -1244,9 +1296,8 @@ describe("portal Perfil view", () => {
     expect(markup).toContain("Email de acceso");
     expect(markup).toContain('value="portal@example.com"');
     expect(markup).toContain("disabled");
-    expect(markup).toContain(
-      "Para cambiar el email de acceso, contactá a administración.",
-    );
+    expect(countOccurrences(markup, "lucide-lock")).toBe(2);
+    expect(countOccurrences(markup, "lucide-info")).toBe(1);
     expect(markup).toContain("Guardar");
     expect(markup).toContain("Acciones");
     expect(markup).toContain('form="portal-perfil-form"');
@@ -1748,8 +1799,8 @@ function choreographyDetailRow(
         "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
     },
     experienceLevelId: "level_1",
-    scheduleEntryId: "schedule_1",
-    scheduleBlockName: "Bloque mañana",
+    scheduleCapacityId: "schedule_1",
+    scheduleName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",
     dancers: [
       {
@@ -1801,6 +1852,10 @@ function eventSummary(
     endsAt: date("2026-05-03T12:00:00Z"),
     ...overrides,
   };
+}
+
+function countOccurrences(value: string, search: string) {
+  return value.split(search).length - 1;
 }
 
 function date(value: string) {

@@ -2,31 +2,31 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scheduleEntries, submodalities } from "@/db/schema";
+import { scheduleCapacities, submodalities } from "@/db/schema";
 import {
   createCategory,
   createExperienceLevel,
   createModality,
   createPrice,
-  createScheduleEntry,
-  createScheduleBlock,
+  createScheduleCapacity,
+  createSchedule,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
   deletePrice,
-  deleteScheduleEntry,
-  deleteScheduleBlock,
+  deleteScheduleCapacity,
+  deleteSchedule,
   deleteSubmodality,
   listEventBasesData,
   resolveApplicablePrice,
-  resolveCompatibleScheduleEntries,
+  resolveCompatibleScheduleCapacities,
   updateCategory,
   updateExperienceLevel,
   updateModality,
   updatePrice,
-  updateScheduleEntry,
-  updateScheduleBlock,
+  updateScheduleCapacity,
+  updateSchedule,
   updateSubmodality,
 } from "@/lib/events/bases-repository.server";
 import { createEvent } from "@/lib/events/management.server";
@@ -200,6 +200,9 @@ describe("Bases del evento repository", () => {
     const firstModality = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
+    const otherFirstModality = await expectCreated(
+      createModality(firstEvent.id, { name: "Contemporáneo" }),
+    );
     const secondModality = await expectCreated(
       createModality(secondEvent.id, { name: "Jazz" }),
     );
@@ -232,17 +235,28 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({ ok: true });
     await expect(
       createCategory(firstEvent.id, {
-        name: " Infantil ",
+        name: "Infantil Contemporáneo",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["duo", "solo"],
+        modalityIds: [otherFirstModality.id],
+        experienceLevelIds: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      createCategory(firstEvent.id, {
+        name: "Mini",
         minAge: 8,
         maxAge: 12,
         groupTypes: ["duo", "solo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [],
+        experienceLevelIds: [firstLevel.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "Ya existe una categoría equivalente en este evento.",
-      fieldErrors: { name: "Revisá la combinación de la categoría." },
+      error:
+        "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+      fieldErrors: {},
     });
     await expect(
       createCategory(firstEvent.id, {
@@ -257,7 +271,7 @@ describe("Bases del evento repository", () => {
       ok: false,
       error:
         "La categoría se solapa con otra categoría para la misma modalidad y tipo de grupo.",
-      fieldErrors: { ageRange: "Ajustá las edades o la aplicabilidad." },
+      fieldErrors: {},
     });
     await expect(
       createCategory(firstEvent.id, {
@@ -303,7 +317,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("manages bloques horarios with event-scoped modalidades, cupo validation and dependency guardrails", async () => {
+  test("manages cronogramas with event-scoped modalidades, cupo validation and dependency guardrails", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
     const secondEvent = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
@@ -317,7 +331,7 @@ describe("Bases del evento repository", () => {
     );
 
     await expect(
-      createScheduleBlock(firstEvent.id, {
+      createSchedule(firstEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -329,7 +343,7 @@ describe("Bases del evento repository", () => {
       fieldErrors: { totalCapacity: "Ingresá un cupo total mayor a cero." },
     });
     await expect(
-      createScheduleBlock(firstEvent.id, {
+      createSchedule(firstEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -343,7 +357,7 @@ describe("Bases del evento repository", () => {
       },
     });
     await expect(
-      createScheduleBlock(firstEvent.id, {
+      createSchedule(firstEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -358,7 +372,7 @@ describe("Bases del evento repository", () => {
     });
 
     const block = await expectCreated(
-      createScheduleBlock(firstEvent.id, {
+      createSchedule(firstEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -367,7 +381,7 @@ describe("Bases del evento repository", () => {
       }),
     );
     await expectCreated(
-      createScheduleBlock(secondEvent.id, {
+      createSchedule(secondEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-06-02",
         startTime: "11:00",
@@ -377,7 +391,7 @@ describe("Bases del evento repository", () => {
     );
 
     await expect(listEventBasesData(firstEvent.id)).resolves.toMatchObject({
-      scheduleBlocks: [
+      schedules: [
         {
           eventId: firstEvent.id,
           name: "Sábado mañana",
@@ -387,7 +401,7 @@ describe("Bases del evento repository", () => {
     });
 
     await expect(
-      updateScheduleBlock(
+      updateSchedule(
         block.id,
         {
           name: "Sábado temprano",
@@ -403,7 +417,7 @@ describe("Bases del evento repository", () => {
       record: { name: "Sábado temprano" },
     });
     await expect(
-      updateScheduleBlock(
+      updateSchedule(
         block.id,
         {
           name: "Sábado temprano",
@@ -417,13 +431,13 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el bloque horario tiene dependencias.",
+        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
     });
     await expect(
-      deleteScheduleBlock(block.id, { hasDependencies: async () => true }),
+      deleteSchedule(block.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el bloque horario porque tiene dependencias.",
+      error: "No se puede borrar el cronograma porque tiene dependencias.",
     });
   });
 
@@ -437,7 +451,7 @@ describe("Bases del evento repository", () => {
       createModality(secondEvent.id, { name: "Jazz" }),
     );
     const block = await expectCreated(
-      createScheduleBlock(firstEvent.id, {
+      createSchedule(firstEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -446,7 +460,7 @@ describe("Bases del evento repository", () => {
       }),
     );
     const otherEventBlock = await expectCreated(
-      createScheduleBlock(secondEvent.id, {
+      createSchedule(secondEvent.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-06-02",
         startTime: "11:00",
@@ -460,7 +474,7 @@ describe("Bases del evento repository", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
     const specific = await expectCreated(
@@ -468,19 +482,19 @@ describe("Bases del evento repository", () => {
         groupType: "solo",
         amount: 15000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: block.id,
+        scheduleId: block.id,
       }),
     );
-    await expect(deleteScheduleBlock(block.id)).resolves.toMatchObject({
+    await expect(deleteSchedule(block.id)).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el bloque horario porque tiene dependencias.",
+      error: "No se puede borrar el cronograma porque tiene dependencias.",
     });
     await expect(
       createPrice(secondEvent.id, {
         groupType: "solo",
         amount: 9000,
         paymentDeadline: "2026-06-30",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(
@@ -488,7 +502,7 @@ describe("Bases del evento repository", () => {
         groupType: "solo",
         amount: 13000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -500,13 +514,13 @@ describe("Bases del evento repository", () => {
         groupType: "solo",
         amount: 13000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: otherEventBlock.id,
+        scheduleId: otherEventBlock.id,
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "Elegí un bloque horario del evento activo.",
+      error: "Elegí un cronograma del evento activo.",
       fieldErrors: {
-        scheduleBlockId: "Elegí un bloque horario del evento activo.",
+        scheduleId: "Elegí un cronograma del evento activo.",
       },
     });
 
@@ -514,7 +528,7 @@ describe("Bases del evento repository", () => {
       resolveApplicablePrice({
         eventId: firstEvent.id,
         groupType: "solo",
-        scheduleBlockId: block.id,
+        scheduleId: block.id,
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -525,7 +539,7 @@ describe("Bases del evento repository", () => {
         groupType: "solo",
         amount: 17000,
         paymentDeadline: "2026-06-30",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
     await expect(
@@ -533,7 +547,7 @@ describe("Bases del evento repository", () => {
         eventId: firstEvent.id,
         groupType: "solo",
         paymentDate: "2026-06-10",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -543,7 +557,7 @@ describe("Bases del evento repository", () => {
       resolveApplicablePrice({
         eventId: firstEvent.id,
         groupType: "solo",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -553,13 +567,13 @@ describe("Bases del evento repository", () => {
       resolveApplicablePrice({
         eventId: firstEvent.id,
         groupType: "duo",
-        scheduleBlockId: block.id,
+        scheduleId: block.id,
       }),
     ).resolves.toEqual({
       ok: false,
       code: "missing-price",
       error:
-        "No hay un precio configurado para este tipo de grupo y bloque horario.",
+        "No hay un precio configurado para este tipo de grupo y cronograma.",
     });
 
     await expect(listEventBasesData(firstEvent.id)).resolves.toMatchObject({
@@ -567,17 +581,17 @@ describe("Bases del evento repository", () => {
         {
           eventId: firstEvent.id,
           paymentDeadline: "2026-05-31",
-          scheduleBlock: { name: "Sábado mañana" },
+          schedule: { name: "Sábado mañana" },
         },
         {
           eventId: firstEvent.id,
           paymentDeadline: "2026-05-31",
-          scheduleBlock: null,
+          schedule: null,
         },
         {
           eventId: firstEvent.id,
           paymentDeadline: "2026-06-30",
-          scheduleBlock: null,
+          schedule: null,
         },
       ],
     });
@@ -589,7 +603,7 @@ describe("Bases del evento repository", () => {
           groupType: "solo",
           amount: 12000,
           paymentDeadline: "2026-05-31",
-          scheduleBlockId: null,
+          scheduleId: null,
         },
         { hasDependencies: async () => true },
       ),
@@ -604,14 +618,14 @@ describe("Bases del evento repository", () => {
           groupType: "solo",
           amount: 14000,
           paymentDeadline: "2026-05-31",
-          scheduleBlockId: null,
+          scheduleId: null,
         },
         { hasDependencies: async () => true },
       ),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar monto, tipo de grupo ni bloque horario porque el precio tiene dependencias.",
+        "No se pueden editar monto, tipo de grupo ni cronograma porque el precio tiene dependencias.",
     });
     await expect(
       deletePrice(general.id, { hasDependencies: async () => true }),
@@ -621,7 +635,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("manages cronogramas with unique group types, block cupo limits and compatibility resolution", async () => {
+  test("manages cupos de cronograma with unique group types, block cupo limits and compatibility resolution", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -630,7 +644,7 @@ describe("Bases del evento repository", () => {
       createModality(event.id, { name: "Danzas urbanas" }),
     );
     const block = await expectCreated(
-      createScheduleBlock(event.id, {
+      createSchedule(event.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -639,7 +653,7 @@ describe("Bases del evento repository", () => {
       }),
     );
     const otherBlock = await expectCreated(
-      createScheduleBlock(event.id, {
+      createSchedule(event.id, {
         name: "Sábado tarde",
         scheduledDate: "2026-05-02",
         startTime: "14:00",
@@ -649,42 +663,44 @@ describe("Bases del evento repository", () => {
     );
 
     const soloSchedule = await expectCreated(
-      createScheduleEntry(block.id, {
-        groupTypes: ["solo"],
+      createScheduleCapacity(block.id, {
+        groupType: "solo",
         capacity: 6,
       }),
     );
     await expect(
-      createScheduleEntry(block.id, {
-        groupTypes: ["solo"],
+      createScheduleCapacity(block.id, {
+        groupType: "solo",
         capacity: 2,
       }),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "Ya existe un cronograma para esa combinación de tipos de grupo en este bloque horario.",
-      fieldErrors: { groupTypes: "Revisá los tipos de grupo del cronograma." },
+        "Ya existe un cupo de cronograma para ese tipo de grupo en este cronograma.",
+      fieldErrors: {
+        groupType: "Revisá el tipo de grupo del cupo de cronograma.",
+      },
     });
     await expect(
-      createScheduleEntry(block.id, {
-        groupTypes: ["duo"],
+      createScheduleCapacity(block.id, {
+        groupType: "duo",
         capacity: 5,
       }),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "La suma de cupos de cronogramas no puede superar el cupo total del bloque horario.",
-      fieldErrors: { capacity: "Ajustá el cupo del cronograma." },
+        "La suma de cupos de cronograma no puede superar el cupo total del cronograma.",
+      fieldErrors: { capacity: "Ajustá el cupo." },
     });
     await expectCreated(
-      createScheduleEntry(otherBlock.id, {
-        groupTypes: ["solo"],
+      createScheduleCapacity(otherBlock.id, {
+        groupType: "solo",
         capacity: 3,
       }),
     );
 
     await expect(
-      resolveCompatibleScheduleEntries({
+      resolveCompatibleScheduleCapacities({
         eventId: event.id,
         modalityId: urbanas.id,
         groupType: "solo",
@@ -692,10 +708,10 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       status: "none",
       error:
-        "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+        "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
     });
     await expect(
-      resolveCompatibleScheduleEntries({
+      resolveCompatibleScheduleCapacities({
         eventId: event.id,
         modalityId: jazz.id,
         groupType: "solo",
@@ -708,29 +724,30 @@ describe("Bases del evento repository", () => {
     });
 
     await expect(
-      updateScheduleEntry(
+      updateScheduleCapacity(
         soloSchedule.id,
-        { groupTypes: ["solo", "duo"], capacity: 6 },
+        { groupType: "duo", capacity: 6 },
         { hasDependencies: async () => true },
       ),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cronograma tiene dependencias.",
+        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
     });
     await expect(
-      deleteScheduleEntry(soloSchedule.id, {
+      deleteScheduleCapacity(soloSchedule.id, {
         hasDependencies: async () => true,
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error:
+        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
     });
 
-    const savedSchedule = await db.query.scheduleEntries.findFirst({
-      where: eq(scheduleEntries.id, soloSchedule.id),
+    const savedSchedule = await db.query.scheduleCapacities.findFirst({
+      where: eq(scheduleCapacities.id, soloSchedule.id),
     });
-    expect(savedSchedule).toMatchObject({ capacity: 6, groupTypeKey: "solo" });
+    expect(savedSchedule).toMatchObject({ capacity: 6, groupType: "solo" });
   });
 });
 

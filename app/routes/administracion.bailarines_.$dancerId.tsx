@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Ellipsis, Lock, Pencil, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import {
@@ -367,6 +367,7 @@ export function AdministracionBailarinDetalleRouteView({
   });
 
   const dancer = loaderData.dancer;
+  const isIdentityVerified = dancer.identificationStatus === "verified";
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
   const submittedEditValues = isDancerUpdateValues(actionData?.values)
@@ -382,11 +383,15 @@ export function AdministracionBailarinDetalleRouteView({
   const editValues = {
     firstName: submittedEditValues?.firstName ?? dancer.firstName,
     lastName: submittedEditValues?.lastName ?? dancer.lastName,
-    birthDate: submittedEditValues?.birthDate ?? dancer.birthDate,
-    documentType:
-      submittedEditValues?.documentType ?? dancer.documentType ?? "",
-    documentNumber:
-      submittedEditValues?.documentNumber ?? dancer.documentNumber ?? "",
+    birthDate: isIdentityVerified
+      ? dancer.birthDate
+      : (submittedEditValues?.birthDate ?? dancer.birthDate),
+    documentType: isIdentityVerified
+      ? (dancer.documentType ?? "")
+      : (submittedEditValues?.documentType ?? dancer.documentType ?? ""),
+    documentNumber: isIdentityVerified
+      ? (dancer.documentNumber ?? "")
+      : (submittedEditValues?.documentNumber ?? dancer.documentNumber ?? ""),
     documentFrontImageStorageKey:
       submittedEditValues?.documentFrontImageStorageKey ??
       dancer.documentFrontImageStorageKey ??
@@ -563,16 +568,43 @@ export function AdministracionBailarinDetalleRouteView({
                   <FieldGroup className="grid gap-5 md:grid-cols-2">
                     {isEditing ? (
                       <>
-                        <DancerBirthDateField
-                          className="md:col-span-2"
-                          form={editForm.form}
-                        />
-                        <DancerDocumentTypeField form={editForm.form} />
-                        <DancerTextField
-                          form={editForm.form}
-                          label="Número de documento"
-                          name="documentNumber"
-                        />
+                        {isIdentityVerified ? (
+                          <>
+                            <ReadOnlyField
+                              className="md:col-span-2"
+                              label="Fecha de nacimiento"
+                              name="birthDate"
+                              value={formatDateOnlyLabel(dancer.birthDate)}
+                              hiddenValue={dancer.birthDate}
+                            />
+                            <ReadOnlyField
+                              label="Tipo de documento"
+                              name="documentType"
+                              value={formatDancerDocumentType(
+                                dancer.documentType,
+                              )}
+                              hiddenValue={dancer.documentType ?? ""}
+                            />
+                            <ReadOnlyField
+                              label="Número de documento"
+                              name="documentNumber"
+                              value={dancer.documentNumber ?? ""}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <DancerBirthDateField
+                              className="md:col-span-2"
+                              form={editForm.form}
+                            />
+                            <DancerDocumentTypeField form={editForm.form} />
+                            <DancerTextField
+                              form={editForm.form}
+                              label="Número de documento"
+                              name="documentNumber"
+                            />
+                          </>
+                        )}
                         <DancerImageStorageField
                           form={editForm.form}
                           label="Imagen frente del documento"
@@ -1063,18 +1095,12 @@ function ReadOnlyDateField({
   className?: string;
   value: string;
 }) {
-  const id = useId();
-
   return (
-    <DateOnlyField
+    <ReadOnlyField
       className={className}
-      id={id}
       label="Fecha de nacimiento"
-      name="birthDate"
-      defaultValue={value}
-      disabled
-      buttonClassName="w-full !bg-input/50 !font-normal disabled:!opacity-50 dark:!bg-input/80"
       value={value}
+      displayValue={formatDateOnlyLabel(value)}
     />
   );
 }
@@ -1145,7 +1171,19 @@ function DancerImageStorageField({
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
           <FieldContent>
             <input type="hidden" name={field.name} value={field.value} />
-            <Input id={id} value={field.value} disabled readOnly />
+            <div className="relative">
+              <Input
+                id={id}
+                value={field.value}
+                disabled
+                readOnly
+                className="pr-9"
+              />
+              <Lock
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+              />
+            </div>
           </FieldContent>
         </Field>
       )}
@@ -1348,23 +1386,69 @@ function isFutureDateOnly(value: string) {
 
 function ReadOnlyField({
   className,
+  displayValue,
+  hiddenValue,
   label,
+  name,
   value,
 }: {
   className?: string;
+  displayValue?: string;
+  hiddenValue?: string;
   label: string;
+  name?: string;
   value: string;
 }) {
   const id = useId();
 
   return (
-    <Field className={className}>
+    <Field className={className} data-disabled>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <FieldContent>
-        <Input id={id} value={value} disabled readOnly />
+        {name ? (
+          <input type="hidden" name={name} value={hiddenValue ?? value} />
+        ) : null}
+        <div className="relative">
+          <Input
+            id={id}
+            value={displayValue ?? value}
+            disabled
+            readOnly
+            className="pr-9"
+          />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
       </FieldContent>
     </Field>
   );
+}
+
+function formatDateOnlyLabel(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  const monthNames = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+
+  return `${day} de ${monthNames[month - 1]} de ${year}`;
 }
 
 function formatDancerDocumentType(

@@ -3,6 +3,7 @@ import {
   Archive,
   Check,
   Ellipsis,
+  Lock,
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
@@ -283,8 +284,17 @@ export function PortalBailarinDetalleRouteView({
   const hasDocumentData = Boolean(
     loaderData.dancer.documentType && loaderData.dancer.documentNumber,
   );
+  const isIdentityVerified =
+    hasDocumentData && loaderData.dancer.identityVerifiedAt !== null;
+  const identityFieldValues = isIdentityVerified
+    ? {
+        birthDate: loaderData.dancer.birthDate,
+        documentType: loaderData.dancer.documentType ?? "",
+        documentNumber: loaderData.dancer.documentNumber ?? "",
+      }
+    : formValues;
   const showsIdentificationAlert = !hasDocumentData;
-  const showsMissingImagesAlert = hasDocumentData;
+  const showsMissingImagesAlert = hasDocumentData && !isIdentityVerified;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -410,21 +420,51 @@ export function PortalBailarinDetalleRouteView({
                   label="Apellido"
                   name="lastName"
                 />
-                <DancerBirthDateField
-                  form={form.form}
-                  error={actionData?.fieldErrors.birthDate}
-                />
+                {isIdentityVerified ? (
+                  <ReadonlyLockedFormField
+                    label="Fecha de nacimiento"
+                    name="birthDate"
+                    value={identityFieldValues.birthDate}
+                    displayValue={formatDateOnlyLabel(
+                      identityFieldValues.birthDate,
+                    )}
+                  />
+                ) : (
+                  <DancerBirthDateField
+                    form={form.form}
+                    error={actionData?.fieldErrors.birthDate}
+                  />
+                )}
                 <div className="hidden md:block" aria-hidden="true" />
-                <DancerDocumentTypeField
-                  form={form.form}
-                  error={actionData?.fieldErrors.documentType}
-                />
-                <DancerTextField
-                  form={form.form}
-                  error={actionData?.fieldErrors.documentNumber}
-                  label="Número de documento"
-                  name="documentNumber"
-                />
+                {isIdentityVerified ? (
+                  <ReadonlyLockedFormField
+                    label="Tipo de documento"
+                    name="documentType"
+                    value={identityFieldValues.documentType}
+                    displayValue={formatDocumentTypeLabel(
+                      identityFieldValues.documentType,
+                    )}
+                  />
+                ) : (
+                  <DancerDocumentTypeField
+                    form={form.form}
+                    error={actionData?.fieldErrors.documentType}
+                  />
+                )}
+                {isIdentityVerified ? (
+                  <ReadonlyLockedFormField
+                    label="Número de documento"
+                    name="documentNumber"
+                    value={identityFieldValues.documentNumber}
+                  />
+                ) : (
+                  <DancerTextField
+                    form={form.form}
+                    error={actionData?.fieldErrors.documentNumber}
+                    label="Número de documento"
+                    name="documentNumber"
+                  />
+                )}
               </FieldGroup>
             </form>
           </CardContent>
@@ -496,6 +536,42 @@ function useDancerForm({
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
+function ReadonlyLockedFormField({
+  displayValue,
+  label,
+  name,
+  value,
+}: {
+  displayValue?: string;
+  label: string;
+  name: string;
+  value: string;
+}) {
+  const id = useId();
+
+  return (
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <input type="hidden" name={name} value={value} />
+        <div className="relative">
+          <Input
+            id={id}
+            value={displayValue ?? value}
+            disabled
+            readOnly
+            className="pr-9"
+          />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
+      </FieldContent>
+    </Field>
+  );
+}
+
 function DancerTextField({
   error,
   form,
@@ -559,7 +635,7 @@ function DancerBirthDateField({
           onBlur={field.onBlur}
           onValueChange={field.onChange}
           error={fieldState.error?.message ?? error}
-          buttonClassName="mt-0 h-8 w-full justify-start font-normal"
+          buttonClassName="mt-0 h-8 w-full font-normal"
           endMonth={new Date()}
           startMonth={new Date(1900, 0)}
         />
@@ -622,6 +698,44 @@ function DancerDocumentTypeField({
       )}
     />
   );
+}
+
+function formatDateOnlyLabel(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  const monthNames = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+
+  return `${day} de ${monthNames[month - 1]} de ${year}`;
+}
+
+function formatDocumentTypeLabel(value: string) {
+  switch (value) {
+    case "dni":
+      return "DNI";
+    case "passport":
+      return "Pasaporte";
+    case "other":
+      return "Otro";
+    default:
+      return "";
+  }
 }
 
 function DancerStatusDialog({

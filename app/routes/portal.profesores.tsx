@@ -226,7 +226,8 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
     {
       id: "name",
       header: "Nombre",
-      className: "font-medium",
+      className: "w-1/2 font-medium",
+      headerClassName: "w-1/2",
       cell: (professor) => (
         <Link
           to={`/portal/profesores/${professor.id}`}
@@ -242,12 +243,16 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
     {
       id: "document",
       header: "Documento",
+      className: "w-1/4 text-muted-foreground",
+      headerClassName: "w-1/4",
       cell: (professor) => formatProfessorDocument(professor),
       filterValue: (professor) => professor.documentNumber ?? "",
     },
     {
       id: "status",
       header: "Estado",
+      className: "w-1/4",
+      headerClassName: "w-1/4",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
           {getProfessorStateBadges(professor).map((badge) => (
@@ -324,6 +329,10 @@ function CreateProfessorDialog({
   });
   const serverFieldErrors =
     actionData?.fieldErrors ?? emptyProfessorFieldErrors;
+
+  useEffect(() => {
+    form.reset(actionData?.values ?? emptyProfessorValues);
+  }, [actionData?.values, form]);
 
   useApplyServerFieldErrors(form, serverFieldErrors);
 

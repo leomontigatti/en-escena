@@ -14,7 +14,7 @@ import {
 export type EventBaseAreaKey =
   | "categorias"
   | "modalidades"
-  | "bloques-horarios"
+  | "cronogramas"
   | "precios";
 
 type AdminResourceLayoutSelectedEvent = {
@@ -57,8 +57,8 @@ export const eventBaseAreas: Array<{
     label: "Categorías",
   },
   {
-    key: "bloques-horarios",
-    label: "Bloques horarios",
+    key: "cronogramas",
+    label: "Cronogramas",
   },
   {
     key: "precios",
@@ -109,8 +109,8 @@ export function AdminEventRequiredEmptyState() {
         </EmptyMedia>
         <EmptyTitle>Elegí un evento activo para editar sus bases</EmptyTitle>
         <EmptyDescription>
-          Activá un evento para editar modalidades, categorías, bloques horarios
-          y precios.
+          Activá un evento para editar modalidades, categorías, cronogramas y
+          precios.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

@@ -12,8 +12,8 @@ import {
   experienceLevels,
   modalities,
   professors,
-  scheduleBlocks,
-  scheduleEntries,
+  schedules,
+  scheduleCapacities,
   submodalities,
 } from "@/db/schema";
 import {
@@ -31,8 +31,9 @@ export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
   dancerEditingEligibility: DancerEditingEligibility;
-  scheduleEntryId: string;
-  scheduleBlockName: string;
+  hasPresentation?: boolean;
+  scheduleCapacityId: string;
+  scheduleName: string;
   scheduleLabel: string;
   dancers: Array<{
     id: string;
@@ -94,7 +95,19 @@ export type UpdateChoreographyDancersResult =
       message: string;
       fieldErrors?: {
         experienceLevelId?: string;
-        scheduleEntryId?: string;
+        scheduleCapacityId?: string;
+      };
+    };
+
+export type UpdateChoreographyResult =
+  | { ok: true }
+  | {
+      ok: false;
+      message: string;
+      section: "dancers" | "professors";
+      fieldErrors?: {
+        experienceLevelId?: string;
+        scheduleCapacityId?: string;
       };
     };
 
@@ -113,25 +126,25 @@ export type ChoreographyDancerScheduleResolution =
       canSave: false;
       error: string;
       options: [];
-      selectedScheduleEntryId: null;
+      selectedScheduleCapacityId: null;
     }
   | {
       status: "keep-current";
       canSave: true;
       options: [ChoreographyDancerScheduleOption];
-      selectedScheduleEntryId: string;
+      selectedScheduleCapacityId: string;
     }
   | {
       status: "auto";
       canSave: true;
       options: [ChoreographyDancerScheduleOption];
-      selectedScheduleEntryId: string;
+      selectedScheduleCapacityId: string;
     }
   | {
       status: "multiple";
       canSave: true;
       options: ChoreographyDancerScheduleOption[];
-      selectedScheduleEntryId: null;
+      selectedScheduleCapacityId: null;
     };
 
 export type ChoreographyCategoryCalculationMode =
@@ -174,7 +187,7 @@ const invalidDancerSelectionMessage =
 const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";
 const compatibleScheduleSelectionRequiredMessage =
-  "Elegí un Cronograma compatible para guardar los bailarines.";
+  "Elegí un Cupo de cronograma compatible para guardar los bailarines.";
 const closedRegistrationDeletionWarningMessage =
   "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
@@ -193,9 +206,9 @@ type ChoreographyRow = {
 type ChoreographyDetailRow = ChoreographyRow & {
   hasActiveFinancialLink: boolean;
   hasPresentation: boolean;
-  scheduleBlockName: string;
+  scheduleName: string;
   scheduleDate: string;
-  scheduleEntryId: string;
+  scheduleCapacityId: string;
   scheduleTime: string;
 };
 
@@ -257,10 +270,10 @@ export async function findChoreographyForAcademyEvent(
       submodalityName: submodalities.name,
       categoryName: categories.name,
       experienceLevelName: experienceLevels.name,
-      scheduleBlockName: scheduleBlocks.name,
-      scheduleDate: scheduleBlocks.scheduledDate,
-      scheduleEntryId: scheduleEntries.id,
-      scheduleTime: scheduleBlocks.startTime,
+      scheduleName: schedules.name,
+      scheduleDate: schedules.scheduledDate,
+      scheduleCapacityId: scheduleCapacities.id,
+      scheduleTime: schedules.startTime,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -271,13 +284,10 @@ export async function findChoreographyForAcademyEvent(
       eq(choreographies.experienceLevelId, experienceLevels.id),
     )
     .innerJoin(
-      scheduleEntries,
-      eq(choreographies.scheduleEntryId, scheduleEntries.id),
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
-    .innerJoin(
-      scheduleBlocks,
-      eq(scheduleEntries.scheduleBlockId, scheduleBlocks.id),
-    )
+    .innerJoin(schedules, eq(scheduleCapacities.scheduleId, schedules.id))
     .where(
       and(
         eq(choreographies.id, choreographyId),
@@ -330,12 +340,39 @@ export async function findChoreographyForAcademyEvent(
       isRegistrationOpen: options.isRegistrationOpen,
     }),
     experienceLevelId: row.experienceLevelId,
-    scheduleEntryId: row.scheduleEntryId,
-    scheduleBlockName: row.scheduleBlockName,
-    scheduleLabel: `${row.scheduleDate} · ${row.scheduleTime}`,
+    hasPresentation: row.hasPresentation,
+    scheduleCapacityId: row.scheduleCapacityId,
+    scheduleName: row.scheduleName,
+    scheduleLabel: formatScheduleDateTime({
+      name: row.scheduleName,
+      scheduledDate: row.scheduleDate,
+      startTime: row.scheduleTime,
+    }),
     dancers: dancerRows,
     professors: professorRows,
   };
+}
+
+function formatScheduleDateTime(input: {
+  name: string;
+  scheduledDate: string;
+  startTime: string;
+}) {
+  const [year, month, day] = input.scheduledDate.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return input.name;
+  }
+
+  const date = new Date(year, month - 1, day);
+  const formattedDate = new Intl.DateTimeFormat("es-AR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+  const formattedTime = input.startTime.slice(0, 5);
+
+  return `${formattedDate} - ${formattedTime} hs.`;
 }
 
 export async function listProfessorOptionsForChoreography(
@@ -472,13 +509,61 @@ export async function updateChoreographyProfessors(input: {
   return { ok: true };
 }
 
+async function validateChoreographyProfessorSelection(input: {
+  academyId: string;
+  choreographyId: string;
+  professorIds: string[];
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const requestedProfessorIds = [...new Set(input.professorIds)];
+
+  if (requestedProfessorIds.length === 0) {
+    return { ok: true };
+  }
+
+  const currentLinks = await db
+    .select({
+      professorId: choreographyProfessors.professorId,
+    })
+    .from(choreographyProfessors)
+    .where(eq(choreographyProfessors.choreographyId, input.choreographyId));
+  const linkedProfessorIds = new Set(
+    currentLinks.map((row) => row.professorId),
+  );
+  const selectedProfessors = await db.query.professors.findMany({
+    columns: { id: true, active: true },
+    where: and(
+      eq(professors.academyId, input.academyId),
+      inArray(professors.id, requestedProfessorIds),
+    ),
+  });
+  const allowedProfessorIds = new Set(
+    selectedProfessors
+      .filter(
+        (professor) => professor.active || linkedProfessorIds.has(professor.id),
+      )
+      .map((professor) => professor.id),
+  );
+
+  if (
+    selectedProfessors.length !== requestedProfessorIds.length ||
+    requestedProfessorIds.some((id) => !allowedProfessorIds.has(id))
+  ) {
+    return {
+      ok: false,
+      message: invalidProfessorSelectionMessage,
+    };
+  }
+
+  return { ok: true };
+}
+
 export async function updateChoreographyDancers(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;
   dancerIds: string[];
   experienceLevelId: string | null;
-  scheduleEntryId?: string | null;
+  scheduleCapacityId?: string | null;
   isRegistrationOpen: boolean;
 }): Promise<UpdateChoreographyDancersResult> {
   const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
@@ -505,33 +590,32 @@ export async function updateChoreographyDancers(input: {
     };
   }
 
-  const resolvedScheduleEntryId = resolveSelectedScheduleEntryIdForDancerUpdate(
-    {
+  const resolvedScheduleCapacityId =
+    resolveSelectedScheduleCapacityIdForDancerUpdate({
       schedule: scheduleResolution,
-      scheduleEntryId: input.scheduleEntryId ?? null,
-    },
-  );
+      scheduleCapacityId: input.scheduleCapacityId ?? null,
+    });
 
-  if (!resolvedScheduleEntryId.ok) {
+  if (!resolvedScheduleCapacityId.ok) {
     return {
       ok: false,
-      message: resolvedScheduleEntryId.message,
-      fieldErrors: resolvedScheduleEntryId.fieldErrors,
+      message: resolvedScheduleCapacityId.message,
+      fieldErrors: resolvedScheduleCapacityId.fieldErrors,
     };
   }
 
   try {
     await db.transaction(async (tx) => {
-      const [lockedScheduleEntry] = await tx
+      const [lockedScheduleCapacity] = await tx
         .select({
-          id: scheduleEntries.id,
-          capacity: scheduleEntries.capacity,
+          id: scheduleCapacities.id,
+          capacity: scheduleCapacities.capacity,
         })
-        .from(scheduleEntries)
-        .where(eq(scheduleEntries.id, resolvedScheduleEntryId.value))
+        .from(scheduleCapacities)
+        .where(eq(scheduleCapacities.id, resolvedScheduleCapacityId.value))
         .for("update");
 
-      if (!lockedScheduleEntry) {
+      if (!lockedScheduleCapacity) {
         throw new Error("Expected selected schedule entry to exist.");
       }
 
@@ -542,15 +626,15 @@ export async function updateChoreographyDancers(input: {
         .from(choreographies)
         .where(
           and(
-            eq(choreographies.scheduleEntryId, lockedScheduleEntry.id),
+            eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
             ne(choreographies.id, input.choreographyId),
           ),
         );
 
       const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
 
-      if (occupiedCount >= lockedScheduleEntry.capacity) {
-        throw new Error("schedule-entry-full");
+      if (occupiedCount >= lockedScheduleCapacity.capacity) {
+        throw new Error("schedule-capacity-full");
       }
 
       await tx
@@ -576,19 +660,110 @@ export async function updateChoreographyDancers(input: {
           categoryCalculationMode: resolution.categoryCalculationMode,
           categoryAgeBasis: resolution.categoryAgeBasis,
           experienceLevelId: resolvedExperienceLevelId.value,
-          scheduleEntryId: lockedScheduleEntry.id,
+          scheduleCapacityId: lockedScheduleCapacity.id,
         })
         .where(eq(choreographies.id, input.choreographyId));
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "schedule-entry-full") {
+    if (error instanceof Error && error.message === "schedule-capacity-full") {
       return {
         ok: false,
-        message: "El Cronograma seleccionado ya no tiene cupo disponible.",
+        message:
+          "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
       };
     }
 
     throw error;
+  }
+
+  return { ok: true };
+}
+
+export async function updateChoreography(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  dancerIds: string[];
+  professorIds: string[];
+  experienceLevelId: string | null;
+  scheduleCapacityId?: string | null;
+  isRegistrationOpen: boolean;
+}): Promise<UpdateChoreographyResult> {
+  const [currentDancerLinks, currentProfessorLinks] = await Promise.all([
+    db
+      .select({ dancerId: choreographyDancers.dancerId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
+    db
+      .select({ professorId: choreographyProfessors.professorId })
+      .from(choreographyProfessors)
+      .where(eq(choreographyProfessors.choreographyId, input.choreographyId)),
+  ]);
+  const dancerIdsChanged = !haveSameIds(
+    currentDancerLinks.map((row) => row.dancerId),
+    input.dancerIds,
+  );
+  const professorIdsChanged = !haveSameIds(
+    currentProfessorLinks.map((row) => row.professorId),
+    input.professorIds,
+  );
+
+  if (!dancerIdsChanged && !professorIdsChanged) {
+    return { ok: true };
+  }
+
+  if (professorIdsChanged) {
+    const professorValidation = await validateChoreographyProfessorSelection({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      professorIds: input.professorIds,
+    });
+
+    if (!professorValidation.ok) {
+      return {
+        ok: false,
+        section: "professors",
+        message: professorValidation.message,
+      };
+    }
+  }
+
+  if (dancerIdsChanged) {
+    const dancerResult = await updateChoreographyDancers({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      dancerIds: input.dancerIds,
+      eventId: input.eventId,
+      experienceLevelId: input.experienceLevelId,
+      isRegistrationOpen: input.isRegistrationOpen,
+      scheduleCapacityId: input.scheduleCapacityId,
+    });
+
+    if (!dancerResult.ok) {
+      return {
+        ok: false,
+        section: "dancers",
+        message: dancerResult.message,
+        fieldErrors: dancerResult.fieldErrors,
+      };
+    }
+  }
+
+  if (professorIdsChanged) {
+    const professorResult = await updateChoreographyProfessors({
+      academyId: input.academyId,
+      eventId: input.eventId,
+      choreographyId: input.choreographyId,
+      professorIds: input.professorIds,
+    });
+
+    if (!professorResult.ok) {
+      return {
+        ok: false,
+        section: "professors",
+        message: professorResult.message,
+      };
+    }
   }
 
   return { ok: true };
@@ -778,8 +953,18 @@ function resolveSelectedExperienceLevelId(input: {
   return { ok: true, value: input.experienceLevelId };
 }
 
-function isCompatibleScheduleEntry(
-  currentScheduleEntryId: string,
+function haveSameIds(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftSet = new Set(left);
+
+  return right.every((id) => leftSet.has(id));
+}
+
+function isCompatibleScheduleCapacity(
+  currentScheduleCapacityId: string,
   resolution: ChoreographyRegistrationOperationResolution,
 ) {
   if (resolution.schedule.status === "none") {
@@ -787,26 +972,26 @@ function isCompatibleScheduleEntry(
   }
 
   if (resolution.schedule.status === "auto") {
-    return resolution.schedule.scheduleEntryId === currentScheduleEntryId;
+    return resolution.schedule.scheduleCapacityId === currentScheduleCapacityId;
   }
 
   return resolution.schedule.options.some(
-    (option) => option.id === currentScheduleEntryId,
+    (option) => option.id === currentScheduleCapacityId,
   );
 }
 
 function resolveDancerUpdateScheduleSelection(
-  currentScheduleEntryId: string,
+  currentScheduleCapacityId: string,
   resolution: ChoreographyRegistrationOperationResolution,
 ): ChoreographyDancerScheduleResolution {
-  if (isCompatibleScheduleEntry(currentScheduleEntryId, resolution)) {
+  if (isCompatibleScheduleCapacity(currentScheduleCapacityId, resolution)) {
     const currentOption =
       resolution.schedule.status === "auto"
         ? (resolution.schedule.options.find(
-            (option) => option.id === currentScheduleEntryId,
+            (option) => option.id === currentScheduleCapacityId,
           ) ?? resolution.schedule.options[0])
         : resolution.schedule.options.find(
-            (option) => option.id === currentScheduleEntryId,
+            (option) => option.id === currentScheduleCapacityId,
           );
 
     if (!currentOption) {
@@ -814,9 +999,9 @@ function resolveDancerUpdateScheduleSelection(
         status: "none",
         canSave: false,
         error:
-          "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
+          "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
         options: [],
-        selectedScheduleEntryId: null,
+        selectedScheduleCapacityId: null,
       };
     }
 
@@ -824,7 +1009,7 @@ function resolveDancerUpdateScheduleSelection(
       status: "keep-current",
       canSave: true,
       options: [currentOption],
-      selectedScheduleEntryId: currentOption.id,
+      selectedScheduleCapacityId: currentOption.id,
     };
   }
 
@@ -834,7 +1019,7 @@ function resolveDancerUpdateScheduleSelection(
       canSave: false,
       error: resolution.schedule.error,
       options: [],
-      selectedScheduleEntryId: null,
+      selectedScheduleCapacityId: null,
     };
   }
 
@@ -843,7 +1028,7 @@ function resolveDancerUpdateScheduleSelection(
       status: "auto",
       canSave: true,
       options: resolution.schedule.options,
-      selectedScheduleEntryId: resolution.schedule.scheduleEntryId,
+      selectedScheduleCapacityId: resolution.schedule.scheduleCapacityId,
     };
   }
 
@@ -851,20 +1036,20 @@ function resolveDancerUpdateScheduleSelection(
     status: "multiple",
     canSave: true,
     options: resolution.schedule.options,
-    selectedScheduleEntryId: null,
+    selectedScheduleCapacityId: null,
   };
 }
 
-function resolveSelectedScheduleEntryIdForDancerUpdate(input: {
+function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   schedule: ChoreographyDancerScheduleResolution;
-  scheduleEntryId: string | null;
+  scheduleCapacityId: string | null;
 }):
   | { ok: true; value: string }
   | {
       ok: false;
       message: string;
       fieldErrors: {
-        scheduleEntryId: string;
+        scheduleCapacityId: string;
       };
     } {
   if (
@@ -873,7 +1058,7 @@ function resolveSelectedScheduleEntryIdForDancerUpdate(input: {
   ) {
     return {
       ok: true,
-      value: input.schedule.selectedScheduleEntryId,
+      value: input.schedule.selectedScheduleCapacityId,
     };
   }
 
@@ -882,29 +1067,29 @@ function resolveSelectedScheduleEntryIdForDancerUpdate(input: {
       ok: false,
       message: input.schedule.error,
       fieldErrors: {
-        scheduleEntryId: input.schedule.error,
+        scheduleCapacityId: input.schedule.error,
       },
     };
   }
 
   if (
-    !input.scheduleEntryId ||
+    !input.scheduleCapacityId ||
     !input.schedule.options.some(
-      (option) => option.id === input.scheduleEntryId,
+      (option) => option.id === input.scheduleCapacityId,
     )
   ) {
     return {
       ok: false,
       message: compatibleScheduleSelectionRequiredMessage,
       fieldErrors: {
-        scheduleEntryId: compatibleScheduleSelectionRequiredMessage,
+        scheduleCapacityId: compatibleScheduleSelectionRequiredMessage,
       },
     };
   }
 
   return {
     ok: true,
-    value: input.scheduleEntryId,
+    value: input.scheduleCapacityId,
   };
 }
 
@@ -934,7 +1119,7 @@ type ResolvedChoreographyDancerUpdateContext =
         submodalityId: string | null;
         categoryId: string | null;
         experienceLevelId: string | null;
-        scheduleEntryId: string;
+        scheduleCapacityId: string;
         hasActiveFinancialLink: boolean;
         hasPresentation: boolean;
       };
@@ -964,7 +1149,7 @@ async function resolveChoreographyDancerUpdateContext(input: {
       submodalityId: true,
       categoryId: true,
       experienceLevelId: true,
-      scheduleEntryId: true,
+      scheduleCapacityId: true,
       hasActiveFinancialLink: true,
       hasPresentation: true,
     },
@@ -1083,7 +1268,7 @@ async function resolveChoreographyDancerUpdateContext(input: {
     resolvedDancers,
     resolution: resolution.resolution,
     scheduleResolution: resolveDancerUpdateScheduleSelection(
-      choreography.scheduleEntryId,
+      choreography.scheduleCapacityId,
       resolution.resolution,
     ),
   };

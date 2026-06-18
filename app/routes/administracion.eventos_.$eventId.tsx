@@ -263,10 +263,10 @@ function getMissingItemAdminPath(code: EventRegistrationMissingCode) {
       return "/administracion/modalidades";
     case "categories":
       return "/administracion/categorias";
-    case "schedule-blocks":
+    case "schedules":
     case "schedule-entries":
     case "schedule-compatibility":
-      return "/administracion/bloques-horarios";
+      return "/administracion/cronogramas";
     case "prices":
     case "price-coverage":
       return "/administracion/precios";
@@ -279,10 +279,10 @@ function getMissingItemLinkLabel(code: EventRegistrationMissingCode) {
       return "modalidades";
     case "categories":
       return "categorías";
-    case "schedule-blocks":
+    case "schedules":
     case "schedule-entries":
     case "schedule-compatibility":
-      return "bloques horarios";
+      return "cronogramas";
     case "prices":
     case "price-coverage":
       return "precios";
@@ -295,14 +295,14 @@ function getMissingItemSummary(code: EventRegistrationMissingCode) {
       return "Falta cargar modalidades.";
     case "categories":
       return "Falta cargar categorías.";
-    case "schedule-blocks":
-      return "Falta cargar bloques horarios.";
-    case "schedule-entries":
+    case "schedules":
       return "Falta cargar cronogramas.";
+    case "schedule-entries":
+      return "Falta cargar cupos de cronograma.";
     case "prices":
       return "Falta cargar precios.";
     case "schedule-compatibility":
-      return "Existen categorías sin un cronograma compatible.";
+      return "Existen categorías sin un cupo de cronograma compatible.";
     case "price-coverage":
       return "Existen combinaciones sin un precio aplicable.";
   }

@@ -1,4 +1,4 @@
-import { ChevronDown, Save, Settings2, Trash } from "lucide-react";
+import { Check, Ellipsis, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -19,20 +19,10 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxValue,
-} from "@/components/ui/combobox";
 import {
   Dialog,
   DialogClose,
@@ -54,8 +44,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,7 +53,10 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { categories, experienceLevels, modalities } from "@/db/schema";
-import type { ActionData } from "@/lib/admin/events/bases-action.server";
+import type {
+  ActionData,
+  CategoryActionValues,
+} from "@/lib/admin/events/bases-action.server";
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {
@@ -73,7 +64,6 @@ import {
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { cn } from "@/lib/shared/utils";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 
 type ModalityRow = typeof modalities.$inferSelect;
@@ -186,12 +176,16 @@ export function NewEventCategoryRouteView({
           modalities={loaderData.modalities}
           experienceLevels={loaderData.experienceLevels}
           fieldErrors={providedActionData?.fieldErrors}
+          submittedValues={getCategorySubmittedValues(
+            providedActionData,
+            "create-category",
+          )}
+        />
+        <CategoryFormActions
+          formId="create-category-form"
+          submitLabel="Guardar"
         />
       </CategoryFormPanel>
-      <CategoryFormActions
-        formId="create-category-form"
-        submitLabel="Guardar"
-      />
     </AdminResourceLayout>
   );
 }
@@ -219,28 +213,31 @@ export function EventCategoryDetailRouteView({
       headerAction={category ? <CategoryActions category={category} /> : null}
     >
       {category ? (
-        <div className="flex flex-col gap-6">
-          <CategoryFormPanel>
-            <CategoryForm
-              formId="update-category-form"
-              id={category.id}
-              intent="update-category"
-              modalities={loaderData.modalities}
-              experienceLevels={loaderData.experienceLevels}
-              name={category.name}
-              minAge={category.minAge}
-              maxAge={category.maxAge}
-              groupTypes={category.groupTypes}
-              modalityIds={category.modalityIds}
-              experienceLevelIds={category.experienceLevelIds}
-              fieldErrors={providedActionData?.fieldErrors}
-            />
-          </CategoryFormPanel>
+        <CategoryFormPanel>
+          <CategoryForm
+            formId="update-category-form"
+            id={category.id}
+            intent="update-category"
+            modalities={loaderData.modalities}
+            experienceLevels={loaderData.experienceLevels}
+            name={category.name}
+            minAge={category.minAge}
+            maxAge={category.maxAge}
+            groupTypes={category.groupTypes}
+            modalityIds={category.modalityIds}
+            experienceLevelIds={category.experienceLevelIds}
+            fieldErrors={providedActionData?.fieldErrors}
+            submittedValues={getCategorySubmittedValues(
+              providedActionData,
+              "update-category",
+              category.id,
+            )}
+          />
           <CategoryFormActions
             formId="update-category-form"
             submitLabel="Guardar"
           />
-        </div>
+        </CategoryFormPanel>
       ) : (
         <EmptyResourceState>No encontramos esa categoría.</EmptyResourceState>
       )}
@@ -371,10 +368,14 @@ function CategoryActions({ category }: { category: CategoryRow }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Settings2 data-icon="inline-start" />
-            Acciones
-            <ChevronDown data-icon="inline-end" />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            aria-label="Acciones"
+          >
+            <Ellipsis aria-hidden="true" />
+            <span className="sr-only">Acciones</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -450,6 +451,7 @@ function CategoryForm({
   modalities,
   modalityIds = emptyCategorySelection,
   name,
+  submittedValues,
 }: {
   experienceLevelIds?: string[];
   experienceLevels: ExperienceLevelRow[];
@@ -463,6 +465,7 @@ function CategoryForm({
   modalities: ModalityRow[];
   modalityIds?: string[];
   name?: string;
+  submittedValues?: CategoryActionValues;
 }) {
   const selectedExperienceLevelValues = useMemo(
     () =>
@@ -476,14 +479,15 @@ function CategoryForm({
     [experienceLevelIds, experienceLevels],
   );
   const defaultValues = useMemo(
-    () => ({
-      name: name ?? "",
-      minAge: minAge === undefined ? "" : String(minAge),
-      maxAge: maxAge === undefined ? "" : String(maxAge),
-      groupTypes,
-      modalityIds,
-      experienceLevelIds: selectedExperienceLevelValues,
-    }),
+    () =>
+      submittedValues ?? {
+        name: name ?? "",
+        minAge: minAge === undefined ? "" : String(minAge),
+        maxAge: maxAge === undefined ? "" : String(maxAge),
+        groupTypes,
+        modalityIds,
+        experienceLevelIds: selectedExperienceLevelValues,
+      },
     [
       groupTypes,
       maxAge,
@@ -491,6 +495,7 @@ function CategoryForm({
       modalityIds,
       name,
       selectedExperienceLevelValues,
+      submittedValues,
     ],
   );
   const form = useForm<CategoryFormValues>({
@@ -549,24 +554,27 @@ function CategoryForm({
           type="number"
         />
 
-        <MultipleComboboxField
-          form={form}
-          title="Tipos de grupo"
+        <MultiComboboxField
+          control={form.control}
+          label="Tipos de grupo"
           name="groupTypes"
+          inputName="groupTypes"
           options={groupTypeOptions}
           placeholder="Seleccioná tipos de grupo"
         />
-        <MultipleComboboxField
-          form={form}
-          title="Niveles de experiencia"
+        <MultiComboboxField
+          control={form.control}
+          label="Niveles de experiencia"
           name="experienceLevelIds"
+          inputName="experienceLevelIds"
           options={experienceLevelOptions}
           placeholder="Seleccioná niveles"
         />
-        <MultipleComboboxField
-          form={form}
-          title="Modalidades"
+        <MultiComboboxField
+          control={form.control}
+          label="Modalidades"
           name="modalityIds"
+          inputName="modalityIds"
           options={modalities.map((modality) => ({
             value: modality.id,
             label: modality.name,
@@ -622,12 +630,12 @@ function CategoryFormActions({
   submitLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildCategoriasListPath(null)}>Volver</Link>
       </Button>
       <Button type="submit" form={formId}>
-        <Save data-icon="inline-start" />
+        <Check aria-hidden="true" data-icon="inline-start" />
         {submitLabel}
       </Button>
     </div>
@@ -637,92 +645,8 @@ function CategoryFormActions({
 function CategoryFormPanel({ children }: { children: ReactNode }) {
   return (
     <Card>
-      <CardContent>{children}</CardContent>
+      <CardContent className="flex flex-col gap-6">{children}</CardContent>
     </Card>
-  );
-}
-
-function MultipleComboboxField({
-  className,
-  form,
-  name,
-  options,
-  placeholder,
-  title,
-}: {
-  className?: string;
-  form: CategoryFormController;
-  name: "groupTypes" | "experienceLevelIds" | "modalityIds";
-  options: Array<{ value: string; label: string }>;
-  placeholder: string;
-  title: string;
-}) {
-  return (
-    <Controller
-      control={form.control}
-      name={name}
-      render={({ field, fieldState }) => {
-        const selectedValues = field.value;
-
-        return (
-          <FieldSet
-            className={className}
-            data-invalid={fieldState.error ? true : undefined}
-          >
-            <FieldLegend
-              variant="label"
-              className={cn(fieldState.error && "text-destructive")}
-            >
-              {title}
-            </FieldLegend>
-            {selectedValues.map((value) => (
-              <input key={value} type="hidden" name={name} value={value} />
-            ))}
-            <Combobox
-              items={options.map((option) => option.value)}
-              itemToStringValue={(value) =>
-                options.find((option) => option.value === value)?.label ?? value
-              }
-              multiple
-              value={selectedValues}
-              onValueChange={field.onChange}
-            >
-              <ComboboxChips aria-invalid={fieldState.error ? true : undefined}>
-                <ComboboxValue>
-                  {selectedValues.map((value) => (
-                    <ComboboxChip key={value}>
-                      {options.find((option) => option.value === value)
-                        ?.label ?? value}
-                    </ComboboxChip>
-                  ))}
-                </ComboboxValue>
-                <ComboboxChipsInput
-                  disabled={options.length === 0}
-                  onBlur={field.onBlur}
-                  placeholder={
-                    options.length > 0
-                      ? placeholder
-                      : "Sin opciones disponibles"
-                  }
-                />
-              </ComboboxChips>
-              <ComboboxContent>
-                <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-                <ComboboxList>
-                  {(value) => (
-                    <ComboboxItem key={value} value={value}>
-                      {options.find((option) => option.value === value)
-                        ?.label ?? value}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-            <FieldError>{fieldState.error?.message}</FieldError>
-          </FieldSet>
-        );
-      }}
-    />
   );
 }
 
@@ -778,4 +702,32 @@ function resolveCategoryFieldName(fieldName: string) {
   return (fieldName === "ageRange" ? "maxAge" : fieldName) as
     | keyof CategoryFormValues
     | null;
+}
+
+function getCategorySubmittedValues(
+  actionData: ActionData | undefined,
+  intent: string,
+  recordId?: string,
+) {
+  if (
+    actionData?.scope?.intent !== intent ||
+    actionData.scope.recordId !== recordId ||
+    !isCategoryActionValues(actionData.values)
+  ) {
+    return undefined;
+  }
+
+  return actionData.values;
+}
+
+function isCategoryActionValues(
+  values: ActionData["values"] | undefined,
+): values is CategoryActionValues {
+  return (
+    values !== undefined &&
+    "minAge" in values &&
+    "maxAge" in values &&
+    "modalityIds" in values &&
+    "experienceLevelIds" in values
+  );
 }

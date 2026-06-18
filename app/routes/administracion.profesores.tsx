@@ -113,8 +113,8 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
     {
       id: "nombre",
       header: "Nombre",
-      className: "w-1/4 font-medium",
-      headerClassName: "w-1/4",
+      className: "w-1/2 font-medium",
+      headerClassName: "w-1/2",
       cell: (professor) => (
         <Link
           to={buildProfessorDetailHref(loaderData, professor.id)}
@@ -138,8 +138,8 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
     {
       id: "status",
       header: "Estado",
-      className: "w-1/2",
-      headerClassName: "w-1/2",
+      className: "w-1/4",
+      headerClassName: "w-1/4",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
           {loaderData.selectedEventId ? (

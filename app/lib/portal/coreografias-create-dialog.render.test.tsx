@@ -75,7 +75,7 @@ describe("coreografía creation dialog render", () => {
     expect(markup).toContain('data-slot="input"');
     expect(markup).toContain('data-slot="progress"');
     expect(markup).toContain("Paso 1 de 5");
-    expect(markup).not.toContain("Nivel y cronograma");
+    expect(markup).not.toContain("Nivel y cupo de cronograma");
     expect(markup).not.toContain("El nombre se normaliza al confirmar.");
   });
 });

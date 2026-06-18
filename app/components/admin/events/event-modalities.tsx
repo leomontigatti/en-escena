@@ -1,9 +1,16 @@
-import { ChevronDown, Plus, Save, Settings2, Trash, X } from "lucide-react";
+import { Check, Ellipsis, Plus, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
-import { useEffect, useState, type ReactNode } from "react";
-import { Controller, type SubmitHandler, useForm } from "react-hook-form";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Controller,
+  useFieldArray,
+  type FieldPath,
+  type SubmitHandler,
+  useForm,
+  type UseFormReturn,
+} from "react-hook-form";
 import { z } from "zod";
 
 import {
@@ -45,14 +52,26 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSet,
+  FieldTitle,
 } from "@/components/ui/field";
 import type { modalities, submodalities } from "@/db/schema";
-import type { ActionData } from "@/lib/admin/events/bases-action.server";
+import type {
+  ActionData,
+  ModalityActionValues,
+  NameActionValues,
+} from "@/lib/admin/events/bases-action.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 type ModalityRow = typeof modalities.$inferSelect;
@@ -67,10 +86,18 @@ const nameFormSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
 });
 
-type NameFormValues = z.infer<typeof nameFormSchema>;
+const submodalityFormSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1, requiredFieldMessage),
+});
+const modalityFormSchema = nameFormSchema.extend({
+  submodalities: z.array(submodalityFormSchema),
+});
+
+type ModalityFormValues = z.infer<typeof modalityFormSchema>;
+type ModalityFormController = UseFormReturn<ModalityFormValues>;
 
 const emptyModalityFieldErrors: Record<string, string> = {};
-const emptySubmodalityFieldErrors: Record<string, string> = {};
 
 export function EventModalitiesRouteView({
   loaderData,
@@ -120,12 +147,16 @@ export function NewEventModalityRouteView({
           formId="create-modality-form"
           intent="create-modality"
           fieldErrors={getModalityFieldErrors(providedActionData)}
+          submittedValues={getNameSubmittedValues(
+            providedActionData,
+            "create-modality",
+          )}
+        />
+        <ModalityFormActions
+          formId="create-modality-form"
+          submitLabel="Guardar"
         />
       </ModalityFormPanel>
-      <ModalityFormActions
-        formId="create-modality-form"
-        submitLabel="Guardar"
-      />
     </AdminResourceLayout>
   );
 }
@@ -156,29 +187,27 @@ export function EventModalityDetailRouteView({
       headerAction={modality ? <ModalityActions modality={modality} /> : null}
     >
       {modality ? (
-        <div className="flex flex-col gap-6">
-          <ModalityFormPanel>
-            <ModalityForm
-              formId="update-modality-form"
-              id={modality.id}
-              intent="update-modality"
-              name={modality.name}
-              fieldErrors={getModalityFieldErrors(
-                providedActionData,
-                modality.id,
-              )}
-            />
-            <SubmodalitiesField
-              actionData={providedActionData}
-              modalityId={modality.id}
-              submodalities={modalitySubmodalities}
-            />
-          </ModalityFormPanel>
+        <ModalityFormPanel>
+          <ModalityForm
+            formId="update-modality-form"
+            id={modality.id}
+            intent="update-modality"
+            name={modality.name}
+            submodalities={modalitySubmodalities}
+            fieldErrors={getModalityFieldErrors(
+              providedActionData,
+              modality.id,
+            )}
+            submittedValues={getModalitySubmittedValues(
+              providedActionData,
+              modality.id,
+            )}
+          />
           <ModalityFormActions
             formId="update-modality-form"
             submitLabel="Guardar"
           />
-        </div>
+        </ModalityFormPanel>
       ) : (
         <EmptyResourceState>No encontramos esa modalidad.</EmptyResourceState>
       )}
@@ -278,30 +307,45 @@ function ModalityForm({
   id,
   intent,
   name,
+  submodalities,
+  submittedValues,
 }: {
   fieldErrors?: Record<string, string>;
   formId: string;
   id?: string;
   intent: string;
   name?: string;
+  submodalities?: SubmodalityRow[];
+  submittedValues?: NameActionValues | ModalityActionValues;
 }) {
-  const form = useForm<NameFormValues>({
-    defaultValues: { name: name ?? "" },
+  const includeSubmodalities = submodalities !== undefined;
+  const defaultValues = useMemo(
+    (): ModalityFormValues => ({
+      name: submittedValues?.name ?? name ?? "",
+      submodalities:
+        submittedValues && "submodalities" in submittedValues
+          ? submittedValues.submodalities
+          : (submodalities ?? []).map(toSubmodalityFormValues),
+    }),
+    [name, submodalities, submittedValues],
+  );
+  const form = useForm<ModalityFormValues>({
+    defaultValues,
     mode: "onSubmit",
-    resolver: zodResolver(nameFormSchema),
+    resolver: zodResolver(modalityFormSchema),
   });
 
   useEffect(() => {
-    form.reset({ name: name ?? "" });
-  }, [form, name]);
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
+  useApplyServerFieldErrors(form, fieldErrors, resolveModalityFieldName);
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<NameFormValues> = () => {
+    const submitNativeForm: SubmitHandler<ModalityFormValues> = () => {
       formElement.submit();
     };
 
@@ -317,11 +361,17 @@ function ModalityForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
+      {includeSubmodalities ? (
+        <input type="hidden" name="submodalitiesMode" value="replace" />
+      ) : null}
       <NameField
         form={form}
         id="modality-name"
         serverError={fieldErrors.name}
       />
+      {includeSubmodalities ? (
+        <SubmodalitiesInlineFieldArray form={form} fieldErrors={fieldErrors} />
+      ) : null}
     </form>
   );
 }
@@ -331,7 +381,7 @@ function NameField({
   id,
   serverError,
 }: {
-  form: ReturnType<typeof useForm<NameFormValues>>;
+  form: ModalityFormController;
   id: string;
   serverError?: string;
 }) {
@@ -360,12 +410,12 @@ function ModalityFormActions({
   submitLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildModalidadesListPath(null)}>Volver</Link>
       </Button>
       <Button type="submit" form={formId}>
-        <Save data-icon="inline-start" />
+        <Check data-icon="inline-start" />
         {submitLabel}
       </Button>
     </div>
@@ -375,7 +425,7 @@ function ModalityFormActions({
 function ModalityFormPanel({ children }: { children: ReactNode }) {
   return (
     <Card>
-      <CardContent>{children}</CardContent>
+      <CardContent className="flex flex-col gap-6">{children}</CardContent>
     </Card>
   );
 }
@@ -387,10 +437,8 @@ function ModalityActions({ modality }: { modality: ModalityRow }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Settings2 data-icon="inline-start" />
-            Acciones
-            <ChevronDown data-icon="inline-end" />
+          <Button variant="outline" size="icon-sm" aria-label="Acciones">
+            <Ellipsis aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -429,7 +477,7 @@ function DeleteModalityDialog({
           <DialogTitle>Eliminar modalidad</DialogTitle>
           <DialogDescription>
             Esta acción borra {modality.name} si no tiene submodalidades,
-            categorías o bloques horarios relacionados. No se puede deshacer.
+            categorías o cronogramas relacionados. No se puede deshacer.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-row justify-between sm:justify-between">
@@ -453,166 +501,117 @@ function DeleteModalityDialog({
   );
 }
 
-function SubmodalitiesField({
-  actionData,
-  modalityId,
-  submodalities,
+function SubmodalitiesInlineFieldArray({
+  fieldErrors,
+  form,
 }: {
-  actionData?: ActionData;
-  modalityId: string;
-  submodalities: SubmodalityRow[];
+  fieldErrors: Record<string, string>;
+  form: ModalityFormController;
 }) {
-  const submodalityFieldErrors = getSubmodalityFieldErrors(
-    actionData,
-    modalityId,
-  );
-  const [createDialogOpen, setCreateDialogOpen] = useState(() =>
-    shouldOpenCreateSubmodalityDialog(actionData, modalityId),
-  );
-
-  useEffect(() => {
-    if (shouldOpenCreateSubmodalityDialog(actionData, modalityId)) {
-      setCreateDialogOpen(true);
-    }
-  }, [actionData, modalityId]);
-
-  return (
-    <div className="mt-4 flex flex-col gap-2">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium">Submodalidades</p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setCreateDialogOpen(true)}
-        >
-          <Plus data-icon="inline-start" />
-          Agregar
-        </Button>
-      </div>
-
-      <div className="flex min-h-7 flex-wrap items-center gap-2">
-        {submodalities.length > 0 ? (
-          submodalities.map((submodality) => (
-            <SubmodalityDeletableBadge
-              key={submodality.id}
-              submodality={submodality}
-            />
-          ))
-        ) : (
-          <span className="text-sm leading-7 text-muted-foreground">
-            Sin submodalidades todavía.
-          </span>
-        )}
-      </div>
-      {submodalityFieldErrors.name ? (
-        <p className="text-sm font-medium text-destructive">
-          {submodalityFieldErrors.name}
-        </p>
-      ) : null}
-
-      <CreateSubmodalityDialog
-        actionData={actionData}
-        modalityId={modalityId}
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-      />
-    </div>
-  );
-}
-
-function SubmodalityDeletableBadge({
-  submodality,
-}: {
-  submodality: SubmodalityRow;
-}) {
-  return (
-    <Badge variant="secondary" className="h-7 gap-1 pr-1 text-sm">
-      {submodality.name}
-      <form method="post">
-        <input type="hidden" name="intent" value="delete-submodality" />
-        <input type="hidden" name="id" value={submodality.id} />
-        <Button
-          type="submit"
-          aria-label={`Borrar submodalidad ${submodality.name}`}
-          size="icon-xs"
-          variant="ghost"
-        >
-          <X />
-        </Button>
-      </form>
-    </Badge>
-  );
-}
-
-function CreateSubmodalityDialog({
-  actionData,
-  modalityId,
-  open,
-  onOpenChange,
-}: {
-  actionData?: ActionData;
-  modalityId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const fieldErrors = getSubmodalityFieldErrors(actionData, modalityId);
-  const form = useForm<NameFormValues>({
-    defaultValues: { name: "" },
-    mode: "onSubmit",
-    resolver: zodResolver(nameFormSchema),
+  const { append, fields, remove } = useFieldArray({
+    control: form.control,
+    keyName: "fieldId",
+    name: "submodalities",
   });
 
-  useApplyServerFieldErrors(form, fieldErrors);
+  return (
+    <FieldSet>
+      <div className="flex justify-center">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label="Agregar submodalidad"
+                onClick={() => append(createEmptySubmodalityFormValues())}
+              >
+                <Plus aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Agregar submodalidad</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      {fields.length > 0 ? (
+        <>
+          <FieldTitle>Submodalidades</FieldTitle>
+          <ul className="flex flex-col gap-3">
+            {fields.map((field, index) => (
+              <li key={field.fieldId}>
+                <SubmodalityInlineFields
+                  field={field}
+                  fieldErrors={fieldErrors}
+                  form={form}
+                  index={index}
+                  onRemove={() => remove(index)}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </FieldSet>
+  );
+}
 
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) {
-      form.reset();
-    }
-
-    onOpenChange(nextOpen);
-  }
-
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<NameFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
+function SubmodalityInlineFields({
+  field,
+  fieldErrors,
+  form,
+  index,
+  onRemove,
+}: {
+  field: { id?: string };
+  fieldErrors: Record<string, string>;
+  form: ModalityFormController;
+  index: number;
+  onRemove: () => void;
+}) {
+  const idFieldName = `submodalities.${index}.id` as const;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Crear submodalidad</DialogTitle>
-        </DialogHeader>
-        <form method="post" onSubmit={handleSubmit}>
-          <input type="hidden" name="intent" value="create-submodality" />
-          <input type="hidden" name="modalityId" value={modalityId} />
-          <FieldGroup>
-            <NameField
-              form={form}
-              id="submodality-name"
-              serverError={fieldErrors.name}
-            />
-            <DialogFooter className="flex-row justify-between sm:justify-between">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Cancelar
-                </Button>
-              </DialogClose>
-              <Button type="submit">
-                <Save data-icon="inline-start" />
-                Guardar
-              </Button>
-            </DialogFooter>
-          </FieldGroup>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_2rem] sm:items-start">
+      {field.id ? (
+        <input type="hidden" name={idFieldName} value={field.id} />
+      ) : null}
+      <Controller
+        control={form.control}
+        name={`submodalities.${index}.name`}
+        render={({ field: controllerField, fieldState }) => {
+          const error =
+            fieldState.error?.message ??
+            fieldErrors[`submodalities.${index}.name`];
+
+          return (
+            <Field data-invalid={error ? true : undefined}>
+              <FieldLabel
+                className="sr-only"
+                htmlFor={`submodality-name-${index}`}
+              >
+                Submodalidad
+              </FieldLabel>
+              <Input
+                id={`submodality-name-${index}`}
+                aria-invalid={error ? true : undefined}
+                {...controllerField}
+              />
+              <FieldError>{error}</FieldError>
+            </Field>
+          );
+        }}
+      />
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon-sm"
+        aria-label="Quitar submodalidad"
+        onClick={onRemove}
+      >
+        <Trash aria-hidden="true" />
+      </Button>
+    </FieldGroup>
   );
 }
 
@@ -630,27 +629,49 @@ function getModalityFieldErrors(actionData?: ActionData, modalityId?: string) {
   return emptyModalityFieldErrors;
 }
 
-function getSubmodalityFieldErrors(
+function getNameSubmittedValues(
   actionData: ActionData | undefined,
-  modalityId: string,
+  intent: string,
+  recordId?: string,
+  parentRecordId?: string,
 ) {
   if (
-    matchesActionScope(actionData, { intent: "create-submodality", modalityId })
+    actionData?.scope?.intent !== intent ||
+    actionData.scope.recordId !== recordId ||
+    actionData.scope.parentRecordId !== parentRecordId ||
+    !isNameActionValues(actionData.values)
   ) {
-    return actionData?.fieldErrors ?? emptySubmodalityFieldErrors;
+    return undefined;
   }
 
-  return emptySubmodalityFieldErrors;
+  return actionData.values;
 }
 
-function shouldOpenCreateSubmodalityDialog(
+function getModalitySubmittedValues(
   actionData: ActionData | undefined,
   modalityId: string,
 ) {
-  return matchesActionScope(actionData, {
-    intent: "create-submodality",
+  const submittedValues = getNameSubmittedValues(
+    actionData,
+    "update-modality",
     modalityId,
-  });
+  );
+
+  if (!submittedValues) {
+    return undefined;
+  }
+
+  return {
+    name: submittedValues.name,
+    submodalities:
+      "submodalities" in submittedValues ? submittedValues.submodalities : [],
+  };
+}
+
+function isNameActionValues(
+  values: ActionData["values"] | undefined,
+): values is NameActionValues | ModalityActionValues {
+  return values !== undefined && "name" in values;
 }
 
 function matchesActionScope(
@@ -686,6 +707,33 @@ function EmptyResourceState({ children }: { children: ReactNode }) {
       </EmptyHeader>
     </Empty>
   );
+}
+
+function createEmptySubmodalityFormValues(): ModalityFormValues["submodalities"][number] {
+  return {
+    name: "",
+  };
+}
+
+function toSubmodalityFormValues(
+  submodality: SubmodalityRow,
+): ModalityFormValues["submodalities"][number] {
+  return {
+    id: submodality.id,
+    name: submodality.name,
+  };
+}
+
+function resolveModalityFieldName(fieldName: string) {
+  if (fieldName === "name") {
+    return fieldName;
+  }
+
+  if (/^submodalities\.\d+\.(id|name)$/.test(fieldName)) {
+    return fieldName as FieldPath<ModalityFormValues>;
+  }
+
+  return null;
 }
 
 const modalityRoutes = {

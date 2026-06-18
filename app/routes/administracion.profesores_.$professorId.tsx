@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Ellipsis, Lock, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
@@ -454,28 +454,44 @@ export function AdministracionProfesorDetalleRouteView({
                   label="Academia"
                   value={professor.academy.name}
                 />
-                <ProfessorTextField
-                  disabled={!isEditing}
-                  form={editForm.form}
-                  label="Nombre"
-                  name="firstName"
-                />
-                <ProfessorTextField
-                  disabled={!isEditing}
-                  form={editForm.form}
-                  label="Apellido"
-                  name="lastName"
-                />
-                <ProfessorDocumentTypeField
-                  disabled={!isEditing}
-                  form={editForm.form}
-                />
-                <ProfessorTextField
-                  disabled={!isEditing}
-                  form={editForm.form}
-                  label="Número de documento"
-                  name="documentNumber"
-                />
+                {isEditing ? (
+                  <>
+                    <ProfessorTextField
+                      form={editForm.form}
+                      label="Nombre"
+                      name="firstName"
+                    />
+                    <ProfessorTextField
+                      form={editForm.form}
+                      label="Apellido"
+                      name="lastName"
+                    />
+                    <ProfessorDocumentTypeField form={editForm.form} />
+                    <ProfessorTextField
+                      form={editForm.form}
+                      label="Número de documento"
+                      name="documentNumber"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ReadOnlyField label="Nombre" value={professor.firstName} />
+                    <ReadOnlyField
+                      label="Apellido"
+                      value={professor.lastName}
+                    />
+                    <ReadOnlyField
+                      label="Tipo de documento"
+                      value={formatProfessorDocumentType(
+                        professor.documentType,
+                      )}
+                    />
+                    <ReadOnlyField
+                      label="Número de documento"
+                      value={professor.documentNumber ?? ""}
+                    />
+                  </>
+                )}
               </FieldGroup>
             </form>
           </CardContent>
@@ -647,12 +663,10 @@ function ProfessorActionsMenu({
 }
 
 function ProfessorTextField({
-  disabled,
   form,
   label,
   name,
 }: {
-  disabled: boolean;
   form: ProfessorEditFormReturn;
   label: string;
   name: "documentNumber" | "firstName" | "lastName";
@@ -673,8 +687,6 @@ function ProfessorTextField({
               aria-invalid={fieldState.error ? true : undefined}
               aria-describedby={fieldState.error ? errorId : undefined}
               autoComplete="off"
-              disabled={disabled}
-              readOnly={disabled}
               {...field}
             />
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
@@ -686,10 +698,8 @@ function ProfessorTextField({
 }
 
 function ProfessorDocumentTypeField({
-  disabled,
   form,
 }: {
-  disabled: boolean;
   form: ProfessorEditFormReturn;
 }) {
   const id = useId();
@@ -704,7 +714,6 @@ function ProfessorDocumentTypeField({
           <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
           <FieldContent>
             <Select
-              disabled={disabled}
               value={field.value || noDocumentTypeSelectValue}
               onValueChange={(value) => {
                 field.onChange(
@@ -884,13 +893,34 @@ function ReadOnlyField({
   const id = useId();
 
   return (
-    <Field className={className}>
+    <Field className={className} data-disabled>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <FieldContent>
-        <Input id={id} value={value} disabled readOnly />
+        <div className="relative">
+          <Input id={id} value={value} disabled readOnly className="pr-9" />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
       </FieldContent>
     </Field>
   );
+}
+
+function formatProfessorDocumentType(
+  documentType: "dni" | "other" | "passport" | null,
+) {
+  switch (documentType) {
+    case "dni":
+      return "DNI";
+    case "passport":
+      return "Pasaporte";
+    case "other":
+      return "Otro";
+    case null:
+      return "";
+  }
 }
 
 function getProfessorConfirmationAction({

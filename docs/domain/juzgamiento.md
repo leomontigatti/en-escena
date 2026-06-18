@@ -24,7 +24,7 @@ Rules for presentations, judging, ranking, results, scores and feedback.
 - Competitive average is rounded to two decimals and that rounded value orders positions.
 - Ties are real competition ties, e.g. 1, 1, 3.
 - Final award ranking requires every presentation in the competitive group to be resolved.
-- `Cronograma` does not define competitive grouping.
+- `Cupo de cronograma` does not define competitive grouping.
 - Public results require all competitive groups resolved and are visible without login.
 - Public results do not include dancers, audio feedback or private judge detail.
 - Publishing results also enables academy results; unpublishing hides both.

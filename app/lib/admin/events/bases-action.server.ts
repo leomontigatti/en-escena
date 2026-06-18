@@ -15,38 +15,40 @@ import {
   isPriceDetailPath,
 } from "@/components/admin/events/event-prices";
 import {
-  buildScheduleBlockDetailPath,
-  buildScheduleBlocksPath,
-  isScheduleBlockDetailPath,
-} from "@/components/admin/events/event-schedule-blocks";
+  buildScheduleDetailPath,
+  buildSchedulesPath,
+  isScheduleDetailPath,
+} from "@/components/admin/events/event-schedules";
 import {
   createCategory,
   createExperienceLevel,
   createModality,
   createPrice,
-  createScheduleBlock,
-  createScheduleEntry,
+  createScheduleCapacity,
   createSubmodality,
   deleteCategory,
   deleteExperienceLevel,
   deleteModality,
   deletePrice,
-  deleteScheduleBlock,
-  deleteScheduleEntry,
+  deleteSchedule,
+  deleteScheduleCapacity,
   deleteSubmodality,
   ensureExperienceLevelsForEvent,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
   type PriceInput,
-  type ScheduleBlockInput,
-  type ScheduleEntryInput,
+  type ScheduleInput,
+  type ScheduleWithEntriesInput,
+  type ScheduleCapacityInput,
   updateCategory,
   updateExperienceLevel,
   updateModality,
+  updateModalityWithSubmodalities,
   updatePrice,
-  updateScheduleBlock,
-  updateScheduleEntry,
+  updateScheduleWithEntries,
+  updateScheduleCapacity,
   updateSubmodality,
+  createScheduleWithEntries,
 } from "@/lib/events/bases-repository.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -56,6 +58,7 @@ export type ActionData = {
   message: string;
   fieldErrors: Record<string, string>;
   scope: ActionErrorScope | null;
+  values?: EventBasesActionValues;
 };
 
 export type ActionErrorScope = {
@@ -71,8 +74,8 @@ type EventBasesActionInput = {
   id: string;
   intent: string;
   capacity: number;
-  scheduleBlockId: string;
-  priceScheduleBlockId: string | null;
+  scheduleId: string;
+  priceScheduleId: string | null;
   paymentDeadline: string;
   minAge: number;
   maxAge: number;
@@ -87,6 +90,9 @@ type EventBasesActionInput = {
   startTime: string;
   totalCapacity: number;
   amount: number;
+  scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
+  submodalities: NameActionValuesWithId[];
+  submodalitiesMode: string;
 };
 
 type EventBasesActionResult = EventBasesDeleteResult | EventBasesMutationResult;
@@ -99,6 +105,49 @@ type CategoryMutationInput = {
   modalityIds: string[];
   experienceLevelIds: string[];
 };
+export type CategoryActionValues = {
+  name: string;
+  minAge: string;
+  maxAge: string;
+  groupTypes: string[];
+  modalityIds: string[];
+  experienceLevelIds: string[];
+};
+export type NameActionValues = {
+  name: string;
+};
+export type NameActionValuesWithId = NameActionValues & {
+  id?: string;
+};
+export type ModalityActionValues = NameActionValues & {
+  submodalities: NameActionValuesWithId[];
+};
+export type PriceActionValues = {
+  groupType: string;
+  amount: string;
+  paymentDeadline: string;
+  scheduleId: string;
+};
+export type ScheduleCapacityActionValues = {
+  id?: string;
+  groupType: string;
+  capacity: string;
+};
+export type ScheduleActionValues = {
+  name: string;
+  scheduledDate: string;
+  startTime: string;
+  totalCapacity: string;
+  modalityIds: string[];
+  scheduleCapacities: ScheduleCapacityActionValues[];
+};
+export type EventBasesActionValues =
+  | CategoryActionValues
+  | ModalityActionValues
+  | NameActionValues
+  | PriceActionValues
+  | ScheduleActionValues
+  | ScheduleCapacityActionValues;
 type RequiredFieldErrorResult = {
   message: string;
   fieldErrors: Record<string, string>;
@@ -107,18 +156,18 @@ type RequiredFieldErrorResult = {
 const eventBasesNotificationSearchParam = "notificacion";
 const categorySavedNotification = "categoria-guardada";
 const categoryDeletedNotification = "categoria-eliminada";
-const scheduleBlockSavedNotification = "bloque-horario-guardado";
-const scheduleBlockDeletedNotification = "bloque-horario-eliminado";
-const scheduleEntrySavedNotification = "cronograma-guardado";
-const scheduleEntryDeletedNotification = "cronograma-eliminado";
+const scheduleSavedNotification = "cronograma-guardado";
+const scheduleDeletedNotification = "cronograma-eliminado";
+const scheduleCapacitySavedNotification = "cupo-cronograma-guardado";
+const scheduleCapacityDeletedNotification = "cupo-cronograma-eliminado";
 const modalitySavedNotification = "modalidad-guardada";
 const modalityDeletedNotification = "modalidad-eliminada";
 const priceSavedNotification = "precio-guardado";
 const priceDeletedNotification = "precio-eliminado";
 const categoryDeleteConfirmationMessage =
   "Confirmá el borrado de la categoría antes de continuar.";
-const scheduleBlockDeleteConfirmationMessage =
-  "Confirmá el borrado del bloque horario antes de continuar.";
+const scheduleDeleteConfirmationMessage =
+  "Confirmá el borrado del cronograma antes de continuar.";
 
 export async function runEventBasesAction({
   eventId,
@@ -156,11 +205,11 @@ export async function runEventBasesAction({
     );
   }
 
-  if (requiresScheduleBlockDeletionConfirmation(request.url, input)) {
+  if (requiresScheduleDeletionConfirmation(request.url, input)) {
     return actionError(
-      scheduleBlockDeleteConfirmationMessage,
+      scheduleDeleteConfirmationMessage,
       {
-        confirmDelete: scheduleBlockDeleteConfirmationMessage,
+        confirmDelete: scheduleDeleteConfirmationMessage,
       },
       buildActionErrorScope(input),
     );
@@ -173,6 +222,7 @@ export async function runEventBasesAction({
       requiredFieldErrors.message,
       requiredFieldErrors.fieldErrors,
       buildActionErrorScope(input),
+      getActionErrorValues(input, formData),
     );
   }
 
@@ -183,6 +233,7 @@ export async function runEventBasesAction({
       result.error,
       result.fieldErrors,
       buildActionErrorScope(input),
+      getActionErrorValues(input, formData),
     );
   }
 
@@ -228,13 +279,13 @@ function requiresPriceDeletionConfirmation(
   );
 }
 
-function requiresScheduleBlockDeletionConfirmation(
+function requiresScheduleDeletionConfirmation(
   requestUrl: string,
   input: EventBasesActionInput,
 ) {
   return (
-    input.intent === "delete-schedule-block" &&
-    isScheduleBlockDetailPath(requestUrl) &&
+    input.intent === "delete-schedule" &&
+    isScheduleDetailPath(requestUrl) &&
     !input.confirmDelete
   );
 }
@@ -263,8 +314,8 @@ function readEventBasesActionInput(
       formData.get("newExperienceLevelName") ?? "",
     ),
     name: String(formData.get("name") ?? ""),
-    scheduleBlockId: String(formData.get("scheduleBlockId") ?? ""),
-    priceScheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
+    scheduleId: String(formData.get("scheduleId") ?? ""),
+    priceScheduleId: String(formData.get("scheduleId") ?? "") || null,
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
@@ -274,20 +325,228 @@ function readEventBasesActionInput(
       10,
     ),
     amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
+    scheduleCapacities: readScheduleCapacitiesInput(formData),
+    submodalities: readSubmodalitiesInput(formData),
+    submodalitiesMode: String(formData.get("submodalitiesMode") ?? ""),
   };
+}
+
+function readScheduleCapacitiesInput(formData: FormData) {
+  const entriesByIndex = new Map<
+    number,
+    { id?: string; groupType: string; capacity: number }
+  >();
+
+  for (const [key, value] of formData.entries()) {
+    const match = /^scheduleCapacities\.(\d+)\.(id|groupType|capacity)$/.exec(
+      key,
+    );
+
+    if (!match || typeof value !== "string") {
+      continue;
+    }
+
+    const index = Number.parseInt(match[1] ?? "", 10);
+    const fieldName = match[2];
+    const entry = entriesByIndex.get(index) ?? {
+      groupType: "",
+      capacity: Number.NaN,
+    };
+
+    if (fieldName === "id" && value.trim().length > 0) {
+      entry.id = value;
+    }
+
+    if (fieldName === "groupType") {
+      entry.groupType = value;
+    }
+
+    if (fieldName === "capacity") {
+      entry.capacity = Number.parseInt(value, 10);
+    }
+
+    entriesByIndex.set(index, entry);
+  }
+
+  return Array.from(entriesByIndex.entries())
+    .sort(([firstIndex], [secondIndex]) => firstIndex - secondIndex)
+    .map(([, entry]) => entry);
+}
+
+function readSubmodalitiesInput(formData: FormData) {
+  const entriesByIndex = new Map<number, { id?: string; name: string }>();
+
+  for (const [key, value] of formData.entries()) {
+    const match = /^submodalities\.(\d+)\.(id|name)$/.exec(key);
+
+    if (!match || typeof value !== "string") {
+      continue;
+    }
+
+    const index = Number.parseInt(match[1] ?? "", 10);
+    const fieldName = match[2];
+    const entry = entriesByIndex.get(index) ?? { name: "" };
+
+    if (fieldName === "id" && value.trim().length > 0) {
+      entry.id = value;
+    }
+
+    if (fieldName === "name") {
+      entry.name = value;
+    }
+
+    entriesByIndex.set(index, entry);
+  }
+
+  return Array.from(entriesByIndex.entries())
+    .sort(([firstIndex], [secondIndex]) => firstIndex - secondIndex)
+    .map(([, entry]) => entry);
 }
 
 function actionError(
   message: string,
   fieldErrors: Record<string, string> = {},
   scope: ActionErrorScope | null = null,
+  values?: EventBasesActionValues,
 ): ActionData {
-  return {
+  const actionData: ActionData = {
     status: "error",
     message,
     fieldErrors,
     scope,
   };
+
+  if (values) {
+    actionData.values = values;
+  }
+
+  return actionData;
+}
+
+function getActionErrorValues(
+  input: EventBasesActionInput,
+  formData: FormData,
+) {
+  if (isCategoryMutationIntent(input.intent)) {
+    return readCategoryActionValues(formData);
+  }
+
+  if (isModalityFormMutation(input)) {
+    return readModalityActionValues(formData);
+  }
+
+  if (isNameMutationIntent(input.intent)) {
+    return readNameActionValues(formData);
+  }
+
+  if (isPriceMutationIntent(input.intent)) {
+    return readPriceActionValues(formData);
+  }
+
+  if (isScheduleMutationIntent(input.intent)) {
+    return readScheduleActionValues(formData);
+  }
+
+  if (isScheduleCapacityMutationIntent(input.intent)) {
+    return readScheduleCapacityActionValues(formData);
+  }
+
+  return undefined;
+}
+
+function readCategoryActionValues(formData: FormData): CategoryActionValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    minAge: String(formData.get("minAge") ?? ""),
+    maxAge: String(formData.get("maxAge") ?? ""),
+    groupTypes: formData.getAll("groupTypes").map(String),
+    modalityIds: formData.getAll("modalityIds").map(String),
+    experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
+  };
+}
+
+function readNameActionValues(formData: FormData): NameActionValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+  };
+}
+
+function readModalityActionValues(formData: FormData): ModalityActionValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    submodalities: readSubmodalitiesInput(formData),
+  };
+}
+
+function readPriceActionValues(formData: FormData): PriceActionValues {
+  return {
+    groupType: String(formData.get("groupType") ?? ""),
+    amount: String(formData.get("amount") ?? ""),
+    paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
+    scheduleId: String(formData.get("scheduleId") ?? ""),
+  };
+}
+
+function readScheduleActionValues(formData: FormData): ScheduleActionValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    scheduledDate: String(formData.get("scheduledDate") ?? ""),
+    startTime: String(formData.get("startTime") ?? ""),
+    totalCapacity: String(formData.get("totalCapacity") ?? ""),
+    modalityIds: formData.getAll("modalityIds").map(String),
+    scheduleCapacities: readScheduleCapacityActionValuesList(formData),
+  };
+}
+
+function readScheduleCapacityActionValues(
+  formData: FormData,
+): ScheduleCapacityActionValues {
+  return {
+    groupType: String(formData.get("groupType") ?? ""),
+    capacity: String(formData.get("capacity") ?? ""),
+  };
+}
+
+function readScheduleCapacityActionValuesList(formData: FormData) {
+  const entriesByIndex = new Map<
+    number,
+    { id?: string; groupType: string; capacity: string }
+  >();
+
+  for (const [key, value] of formData.entries()) {
+    const match = /^scheduleCapacities\.(\d+)\.(id|groupType|capacity)$/.exec(
+      key,
+    );
+
+    if (!match || typeof value !== "string") {
+      continue;
+    }
+
+    const index = Number.parseInt(match[1] ?? "", 10);
+    const fieldName = match[2];
+    const entry = entriesByIndex.get(index) ?? {
+      groupType: "",
+      capacity: "",
+    };
+
+    if (fieldName === "id" && value.trim().length > 0) {
+      entry.id = value;
+    }
+
+    if (fieldName === "groupType") {
+      entry.groupType = value;
+    }
+
+    if (fieldName === "capacity") {
+      entry.capacity = value;
+    }
+
+    entriesByIndex.set(index, entry);
+  }
+
+  return Array.from(entriesByIndex.entries())
+    .sort(([firstIndex], [secondIndex]) => firstIndex - secondIndex)
+    .map(([, entry]) => entry);
 }
 
 function buildActionErrorScope(
@@ -306,8 +565,8 @@ function buildActionErrorScope(
         recordId: emptyStringToUndefined(input.id),
         parentRecordId: emptyStringToUndefined(input.modalityId),
       };
-    case "create-schedule-entry":
-      return buildParentRecordActionScope(input.intent, input.scheduleBlockId);
+    case "create-schedule-capacity":
+      return buildParentRecordActionScope(input.intent, input.scheduleId);
     default:
       return buildRecordActionScope(input.intent, input.id);
   }
@@ -317,20 +576,28 @@ function buildRecordActionScope(
   intent: string,
   recordId: string,
 ): ActionErrorScope {
-  return {
-    intent,
-    recordId: emptyStringToUndefined(recordId),
-  };
+  const scope: ActionErrorScope = { intent };
+  const normalizedRecordId = emptyStringToUndefined(recordId);
+
+  if (normalizedRecordId) {
+    scope.recordId = normalizedRecordId;
+  }
+
+  return scope;
 }
 
 function buildParentRecordActionScope(
   intent: string,
   parentRecordId: string,
 ): ActionErrorScope {
-  return {
-    intent,
-    parentRecordId: emptyStringToUndefined(parentRecordId),
-  };
+  const scope: ActionErrorScope = { intent };
+  const normalizedParentRecordId = emptyStringToUndefined(parentRecordId);
+
+  if (normalizedParentRecordId) {
+    scope.parentRecordId = normalizedParentRecordId;
+  }
+
+  return scope;
 }
 
 function emptyStringToUndefined(value: string) {
@@ -366,17 +633,17 @@ function buildActionRedirectUrl(
     );
   }
 
-  if (input.intent === "delete-schedule-block") {
+  if (input.intent === "delete-schedule") {
     return withEventBasesNotification(
-      buildScheduleBlocksPath(null),
-      scheduleBlockDeletedNotification,
+      buildSchedulesPath(null),
+      scheduleDeletedNotification,
     );
   }
 
-  if (input.intent === "delete-schedule-entry") {
+  if (input.intent === "delete-schedule-capacity") {
     return withEventBasesNotification(
       currentUrl.pathname,
-      scheduleEntryDeletedNotification,
+      scheduleCapacityDeletedNotification,
     );
   }
 
@@ -414,13 +681,13 @@ function buildActionRedirectUrl(
   }
 
   if (
-    input.intent === "create-schedule-block" &&
+    input.intent === "create-schedule" &&
     result.ok &&
     hasEventBaseRecord(result)
   ) {
     return withEventBasesNotification(
-      buildScheduleBlockDetailPath(result.record.id, null),
-      scheduleBlockSavedNotification,
+      buildScheduleDetailPath(result.record.id, null),
+      scheduleSavedNotification,
     );
   }
 
@@ -445,17 +712,17 @@ function buildActionRedirectUrl(
     );
   }
 
-  if (isScheduleBlockMutationIntent(input.intent)) {
+  if (isScheduleMutationIntent(input.intent)) {
     return withEventBasesNotification(
       currentUrl.pathname,
-      scheduleBlockSavedNotification,
+      scheduleSavedNotification,
     );
   }
 
-  if (isScheduleEntryMutationIntent(input.intent)) {
+  if (isScheduleCapacityMutationIntent(input.intent)) {
     return withEventBasesNotification(
       currentUrl.pathname,
-      scheduleEntrySavedNotification,
+      scheduleCapacitySavedNotification,
     );
   }
 
@@ -478,19 +745,35 @@ function isModalityMutationIntent(intent: string) {
   );
 }
 
+function isModalityFormMutation(input: EventBasesActionInput) {
+  return (
+    input.intent === "update-modality" && input.submodalitiesMode === "replace"
+  );
+}
+
+function isNameMutationIntent(intent: string) {
+  return (
+    intent === "create-modality" ||
+    intent === "update-modality" ||
+    intent === "create-submodality" ||
+    intent === "update-submodality" ||
+    intent === "create-experience-level" ||
+    intent === "update-experience-level"
+  );
+}
+
 function isPriceMutationIntent(intent: string) {
   return intent === "create-price" || intent === "update-price";
 }
 
-function isScheduleBlockMutationIntent(intent: string) {
-  return (
-    intent === "create-schedule-block" || intent === "update-schedule-block"
-  );
+function isScheduleMutationIntent(intent: string) {
+  return intent === "create-schedule" || intent === "update-schedule";
 }
 
-function isScheduleEntryMutationIntent(intent: string) {
+function isScheduleCapacityMutationIntent(intent: string) {
   return (
-    intent === "create-schedule-entry" || intent === "update-schedule-entry"
+    intent === "create-schedule-capacity" ||
+    intent === "update-schedule-capacity"
   );
 }
 
@@ -502,12 +785,12 @@ function getRequiredFieldErrors(
     case "create-price":
     case "update-price":
       return getPriceRequiredFieldErrors(formData);
-    case "create-schedule-block":
-    case "update-schedule-block":
-      return getScheduleBlockRequiredFieldErrors(formData);
-    case "create-schedule-entry":
-    case "update-schedule-entry":
-      return getScheduleEntryRequiredFieldErrors(formData);
+    case "create-schedule":
+    case "update-schedule":
+      return getScheduleRequiredFieldErrors(formData);
+    case "create-schedule-capacity":
+    case "update-schedule-capacity":
+      return getScheduleCapacityRequiredFieldErrors(formData);
     default:
       return null;
   }
@@ -525,7 +808,7 @@ function getPriceRequiredFieldErrors(
   return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
 }
 
-function getScheduleBlockRequiredFieldErrors(
+function getScheduleRequiredFieldErrors(
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   const fieldErrors = {
@@ -538,28 +821,67 @@ function getScheduleBlockRequiredFieldErrors(
     ...getRequiredArrayErrors({
       modalityIds: formData.getAll("modalityIds"),
     }),
+    ...getScheduleCapacitiesRequiredFieldErrors(formData),
   };
 
   return buildRequiredFieldError(
-    "Revisá los datos del bloque horario.",
+    "Revisá los datos del cronograma.",
     fieldErrors,
   );
 }
 
-function getScheduleEntryRequiredFieldErrors(
+function getScheduleCapacitiesRequiredFieldErrors(formData: FormData) {
+  const fieldErrors: Record<string, string> = {};
+  const entryIndexes = getScheduleCapacityIndexes(formData);
+
+  for (const index of entryIndexes) {
+    const capacity = formData.get(`scheduleCapacities.${index}.capacity`);
+    const groupType = formData.get(`scheduleCapacities.${index}.groupType`);
+
+    if (typeof capacity !== "string" || capacity.trim().length === 0) {
+      fieldErrors[`scheduleCapacities.${index}.capacity`] =
+        requiredFieldMessage;
+    }
+
+    if (typeof groupType !== "string" || groupType.trim().length === 0) {
+      fieldErrors[`scheduleCapacities.${index}.groupType`] =
+        requiredFieldMessage;
+    }
+  }
+
+  return fieldErrors;
+}
+
+function getScheduleCapacityIndexes(formData: FormData) {
+  const indexes = new Set<number>();
+
+  for (const key of formData.keys()) {
+    const match = /^scheduleCapacities\.(\d+)\./.exec(key);
+
+    if (!match) {
+      continue;
+    }
+
+    indexes.add(Number.parseInt(match[1] ?? "", 10));
+  }
+
+  return Array.from(indexes).sort(
+    (firstIndex, secondIndex) => firstIndex - secondIndex,
+  );
+}
+
+function getScheduleCapacityRequiredFieldErrors(
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   const fieldErrors = {
     ...getRequiredErrors({
       capacity: formData.get("capacity"),
-    }),
-    ...getRequiredArrayErrors({
-      groupTypes: formData.getAll("groupTypes"),
+      groupType: formData.get("groupType"),
     }),
   };
 
   return buildRequiredFieldError(
-    "Revisá los datos del cronograma.",
+    "Revisá los datos del cupo de cronograma.",
     fieldErrors,
   );
 }
@@ -634,30 +956,43 @@ async function runEventBasesIntent(
         };
       }
       return deleteCategory(input.id);
-    case "create-schedule-block":
-      return createScheduleBlock(input.eventId, getScheduleBlockInput(input));
-    case "update-schedule-block":
-      return updateScheduleBlock(input.id, getScheduleBlockInput(input));
-    case "delete-schedule-block":
-      return deleteScheduleBlock(input.id);
+    case "create-schedule":
+      return createScheduleWithEntries(
+        input.eventId,
+        getScheduleWithEntriesInput(input),
+      );
+    case "update-schedule":
+      return updateScheduleWithEntries(
+        input.id,
+        getScheduleWithEntriesInput(input),
+      );
+    case "delete-schedule":
+      return deleteSchedule(input.id);
     case "create-price":
       return createPrice(input.eventId, getPriceInput(input));
     case "update-price":
       return updatePrice(input.id, getPriceInput(input));
     case "delete-price":
       return deletePrice(input.id);
-    case "create-schedule-entry":
-      return createScheduleEntry(
-        input.scheduleBlockId,
-        getScheduleEntryInput(input),
+    case "create-schedule-capacity":
+      return createScheduleCapacity(
+        input.scheduleId,
+        getScheduleCapacityInput(input),
       );
-    case "update-schedule-entry":
-      return updateScheduleEntry(input.id, getScheduleEntryInput(input));
-    case "delete-schedule-entry":
-      return deleteScheduleEntry(input.id);
+    case "update-schedule-capacity":
+      return updateScheduleCapacity(input.id, getScheduleCapacityInput(input));
+    case "delete-schedule-capacity":
+      return deleteScheduleCapacity(input.id);
     case "create-modality":
       return createModality(input.eventId, { name: input.name });
     case "update-modality":
+      if (isModalityFormMutation(input)) {
+        return updateModalityWithSubmodalities(input.id, {
+          name: input.name,
+          submodalities: input.submodalities,
+        });
+      }
+
       return updateModality(input.id, { name: input.name });
     case "delete-modality":
       return deleteModality(input.id);
@@ -789,9 +1124,7 @@ async function saveCategory(
   return categoryResult;
 }
 
-function getScheduleBlockInput(
-  input: EventBasesActionInput,
-): ScheduleBlockInput {
+function getScheduleInput(input: EventBasesActionInput): ScheduleInput {
   return {
     name: input.name,
     scheduledDate: input.scheduledDate,
@@ -801,20 +1134,29 @@ function getScheduleBlockInput(
   };
 }
 
+function getScheduleWithEntriesInput(
+  input: EventBasesActionInput,
+): ScheduleWithEntriesInput {
+  return {
+    ...getScheduleInput(input),
+    scheduleCapacities: input.scheduleCapacities,
+  };
+}
+
 function getPriceInput(input: EventBasesActionInput): PriceInput {
   return {
     groupType: input.groupType,
     amount: input.amount,
     paymentDeadline: input.paymentDeadline,
-    scheduleBlockId: input.priceScheduleBlockId,
+    scheduleId: input.priceScheduleId,
   };
 }
 
-function getScheduleEntryInput(
+function getScheduleCapacityInput(
   input: EventBasesActionInput,
-): ScheduleEntryInput {
+): ScheduleCapacityInput {
   return {
-    groupTypes: input.groupTypes,
+    groupType: input.groupType,
     capacity: input.capacity,
   };
 }

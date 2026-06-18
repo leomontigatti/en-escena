@@ -13,7 +13,7 @@ Rules for financial states, invoices, payments, account balance and pricing.
 - `Pago` can be unlinked, linked to one or many invoices, or left as available balance.
 - `Cuenta corriente de academia` is built from payments, imputations, invoices, cancellations and credit notes.
 - `Precio de coreografía` is estimated while unpaid or signed, final when paid.
-- Each `Precio de coreografía` has a payment deadline. The down-payment date selects the earliest applicable deadline for that group type and optional schedule block.
+- Each `Precio de coreografía` has a payment deadline. The down-payment date selects the earliest applicable deadline for that group type and optional cronograma.
 - Down payment fixes applicable price date, but discounts can still change until full payment.
 - Dancer discounts use signed or paid coreografías of same dancer, academy and event.
 - No discounts cross academies.

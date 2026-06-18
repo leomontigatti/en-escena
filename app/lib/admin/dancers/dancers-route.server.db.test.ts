@@ -16,8 +16,8 @@ import {
 import {
   createModality,
   createPrice,
-  createScheduleBlock,
-  createScheduleEntry,
+  createSchedule,
+  createScheduleCapacity,
 } from "@/lib/events/bases-repository.server";
 import {
   toAdminDancerIdentificationSearchValue,
@@ -394,6 +394,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("Pasaporte");
     expect(markup).toContain("Número de documento");
     expect(markup).toContain("AA123456");
+    expect(countOccurrences(markup, "lucide-lock")).toBeGreaterThanOrEqual(8);
     expect(markup).toContain(
       "La documentación está lista para revisión administrativa.",
     );
@@ -441,7 +442,7 @@ describe.sequential("administracion/bailarines route", () => {
         groupType: "duo",
         amount: 1250000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
 
@@ -1018,6 +1019,12 @@ describe.sequential("administracion/bailarines route", () => {
       dancer.id,
     );
     expect(verifiedMarkup).toContain("La identidad fue verificada.");
+    expect(verifiedMarkup).toContain('name="birthDate" value="2012-06-12"');
+    expect(verifiedMarkup).toContain('name="documentType" value="dni"');
+    expect(verifiedMarkup).toContain('name="documentNumber" value="12345678"');
+    expect(
+      countOccurrences(verifiedMarkup, "lucide-lock"),
+    ).toBeGreaterThanOrEqual(3);
 
     const missingReasonResult = await detailAction(
       detailActionArgs(
@@ -1225,6 +1232,10 @@ function renderDetailRoute(
       createElement(AdministracionBailarinDetalleRouteView, { loaderData }),
     ),
   );
+}
+
+function countOccurrences(value: string, search: string) {
+  return value.split(search).length - 1;
 }
 
 function buildListInitialEntry(
@@ -1456,7 +1467,7 @@ async function linkDancerToEventChoreography(input: {
     }),
   );
   const block = await expectCreated(
-    createScheduleBlock(input.eventId, {
+    createSchedule(input.eventId, {
       name: `${input.choreographyName} Bloque`,
       scheduledDate: "2026-05-01",
       startTime: "10:00",
@@ -1465,8 +1476,8 @@ async function linkDancerToEventChoreography(input: {
     }),
   );
   const entry = await expectCreated(
-    createScheduleEntry(block.id, {
-      groupTypes: [groupType],
+    createScheduleCapacity(block.id, {
+      groupType,
       capacity: 10,
     }),
   );
@@ -1479,7 +1490,7 @@ async function linkDancerToEventChoreography(input: {
       modalityId: modality.id,
       groupType,
       categoryCalculationMode: "oldest",
-      scheduleEntryId: entry.id,
+      scheduleCapacityId: entry.id,
     })
     .returning();
 

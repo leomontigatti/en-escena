@@ -80,17 +80,20 @@ export function DateOnlyField({
             disabled={disabled}
             type="button"
             variant="outline"
-            className={cn("justify-start font-normal", buttonClassName)}
+            className={cn(
+              "w-full cursor-pointer justify-between font-normal",
+              buttonClassName,
+            )}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
             onBlur={onBlur}
           >
-            <CalendarIcon data-icon="inline-start" />
             {selectedDate
               ? format(selectedDate, "d 'de' MMMM 'de' yyyy", {
                   locale: es,
                 })
               : "Elegí fecha"}
+            <CalendarIcon data-icon="inline-end" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">

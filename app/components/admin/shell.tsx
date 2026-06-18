@@ -90,8 +90,8 @@ const eventBaseNavigationItems = [
     icon: Settings,
   },
   {
-    label: "Bloques horarios",
-    to: "/administracion/bloques-horarios",
+    label: "Cronogramas",
+    to: "/administracion/cronogramas",
     icon: Clock,
   },
   {

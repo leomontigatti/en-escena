@@ -5,8 +5,8 @@ import {
   createExperienceLevel,
   createModality,
   createPrice,
-  createScheduleBlock,
-  createScheduleEntry,
+  createSchedule,
+  createScheduleCapacity,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
 import { createEvent } from "@/lib/events/management.server";
@@ -17,7 +17,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("event registration readiness", () => {
-  test("reports missing compatible cronogramas and applicable precios using the real bases del evento rules", async () => {
+  test("reports missing compatible cupos de cronograma and applicable precios using the real bases del evento rules", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -43,7 +43,7 @@ describe("event registration readiness", () => {
       }),
     );
     const block = await expectCreated(
-      createScheduleBlock(event.id, {
+      createSchedule(event.id, {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
@@ -52,8 +52,8 @@ describe("event registration readiness", () => {
       }),
     );
     await expectCreated(
-      createScheduleEntry(block.id, {
-        groupTypes: ["solo"],
+      createScheduleCapacity(block.id, {
+        groupType: "solo",
         capacity: 8,
       }),
     );
@@ -62,7 +62,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 15000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
 
@@ -81,7 +81,7 @@ describe("event registration readiness", () => {
     });
   });
 
-  test("marks an evento as ready when every supported registration path has cronograma and precio", async () => {
+  test("marks an evento as ready when every supported registration path has cupo de cronograma and precio", async () => {
     const event = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -107,7 +107,7 @@ describe("event registration readiness", () => {
       }),
     );
     const block = await expectCreated(
-      createScheduleBlock(event.id, {
+      createSchedule(event.id, {
         name: "Domingo mañana",
         scheduledDate: "2026-06-07",
         startTime: "10:00",
@@ -116,9 +116,15 @@ describe("event registration readiness", () => {
       }),
     );
     await expectCreated(
-      createScheduleEntry(block.id, {
-        groupTypes: ["solo", "duo"],
-        capacity: 12,
+      createScheduleCapacity(block.id, {
+        groupType: "solo",
+        capacity: 6,
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, {
+        groupType: "duo",
+        capacity: 6,
       }),
     );
     await expectCreated(
@@ -126,7 +132,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
     await expectCreated(
@@ -134,7 +140,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 22000,
         paymentDeadline: "2026-05-31",
-        scheduleBlockId: null,
+        scheduleId: null,
       }),
     );
 
