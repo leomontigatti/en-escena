@@ -1,0 +1,11 @@
+[variables]
+NIXPACKS_NODE_VERSION = "20.19.11"
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "node node_modules/@react-router/serve/bin.js ./build/server/index.js"
