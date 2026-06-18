@@ -656,8 +656,8 @@ export const prices = createTable(
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     scheduleBlockId: varchar("schedule_block_id", { length: 255 }),
-    name: text("name").notNull(),
     groupType: groupType("group_type").notNull(),
+    paymentDeadline: text("payment_deadline"),
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -675,10 +675,15 @@ export const prices = createTable(
     }),
     index("price_schedule_block_id_idx").on(table.scheduleBlockId),
     uniqueIndex("price_general_unique")
-      .on(table.eventId, table.groupType)
+      .on(table.eventId, table.groupType, table.paymentDeadline)
       .where(sql`${table.scheduleBlockId} is null`),
     uniqueIndex("price_specific_unique")
-      .on(table.eventId, table.groupType, table.scheduleBlockId)
+      .on(
+        table.eventId,
+        table.groupType,
+        table.scheduleBlockId,
+        table.paymentDeadline,
+      )
       .where(sql`${table.scheduleBlockId} is not null`),
   ],
 );

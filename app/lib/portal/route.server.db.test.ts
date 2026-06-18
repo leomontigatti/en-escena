@@ -230,9 +230,9 @@ describe.sequential("portal loader Evento activo", () => {
     );
     await expectCreated(
       createPrice(activeEvent.id, {
-        name: "Solo general",
         groupType: "solo",
         amount: 1000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );
@@ -612,9 +612,9 @@ describe.sequential("portal Coreografías route", () => {
     );
     await expectCreated(
       createPrice(event.id, {
-        name: "Precio base",
         groupType: "solo",
         amount: 15000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: block.id,
       }),
     );
@@ -786,6 +786,75 @@ describe.sequential("portal Bailarines route", () => {
       lastName: "Cruz de la Torre",
       birthDate: "2015-04-03",
     });
+  });
+
+  test("marks Bailarines linked to active Evento coreografias as participating", async () => {
+    const event = await createSavedEvent({
+      name: "En Escena 2026",
+    });
+    await activateEvent(event.id);
+    const session = await createAcademySession({
+      email: "bailarines.participacion@example.com",
+      academyName: "Academia Participacion",
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-05-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
+      }),
+    );
+    const entry = await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Participa",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    const [choreography] = await db
+      .insert(choreographies)
+      .values({
+        academyId: session.academyId,
+        eventId: event.id,
+        name: "Solo activo",
+        groupType: "solo",
+        modalityId: modality.id,
+        categoryCalculationMode: "oldest",
+        scheduleEntryId: entry.id,
+      })
+      .returning();
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+
+    const loaderData = await bailarinesLoader({
+      request: new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+
+    expect(loaderData.dancers).toMatchObject([
+      {
+        firstName: "Ana",
+        lastName: "Participa",
+        participationStatus: "participating",
+      },
+    ]);
   });
 
   test("rejects future Bailarín birth dates without creating a record", async () => {
@@ -1318,6 +1387,14 @@ describe("portal Profesores management", () => {
 
     expect(loaderData.professors).toEqual([
       expect.objectContaining({
+        firstName: "Ana",
+        lastName: "Zapata",
+        active: true,
+        documentType: null,
+        documentNumber: null,
+        isIncomplete: true,
+      }),
+      expect.objectContaining({
         firstName: "Bea",
         lastName: "Archivada",
         active: false,
@@ -1328,17 +1405,76 @@ describe("portal Profesores management", () => {
       expect.objectContaining({
         firstName: "José Luis",
         lastName: "de la Cruz",
+        active: true,
         documentType: null,
         documentNumber: null,
         isIncomplete: true,
       }),
-      expect.objectContaining({
-        firstName: "Ana",
-        lastName: "Zapata",
-        documentType: null,
-        documentNumber: null,
-        isIncomplete: true,
+    ]);
+  });
+
+  test("marks Profesores linked to active Evento coreografias as participating", async () => {
+    const event = await createSavedEvent({ name: "En Escena 2026" });
+    await activateEvent(event.id);
+    const session = await createAcademySession({
+      email: "profesores.participacion@example.com",
+      academyName: "Academia Participacion Profesores",
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const block = await expectCreated(
+      createScheduleBlock(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-05-03",
+        startTime: "10:00",
+        totalCapacity: 12,
+        modalityIds: [modality.id],
       }),
+    );
+    const entry = await expectCreated(
+      createScheduleEntry(block.id, {
+        groupTypes: ["solo"],
+        capacity: 8,
+      }),
+    );
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: session.academyId,
+        firstName: "Paula",
+        lastName: "Participa",
+      })
+      .returning();
+    const [choreography] = await db
+      .insert(choreographies)
+      .values({
+        academyId: session.academyId,
+        eventId: event.id,
+        name: "Solo activo",
+        groupType: "solo",
+        modalityId: modality.id,
+        categoryCalculationMode: "oldest",
+        scheduleEntryId: entry.id,
+      })
+      .returning();
+    await db.insert(choreographyProfessors).values({
+      choreographyId: choreography.id,
+      professorId: professor.id,
+    });
+
+    const loaderData = await profesoresLoader({
+      request: new Request("http://localhost/portal/profesores", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+
+    expect(loaderData.professors).toMatchObject([
+      {
+        firstName: "Paula",
+        lastName: "Participa",
+        participationStatus: "participating",
+      },
     ]);
   });
 

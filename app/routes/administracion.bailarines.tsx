@@ -68,6 +68,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return {
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
+    hasAnyDancer: listResult.hasAnyDancer,
     dancers: listResult.items,
     totalCount: listResult.totalCount,
     totalPages: listResult.totalPages,
@@ -78,13 +79,15 @@ export function AdministracionBailarinesRouteView({
   loaderData,
 }: AdministracionBailarinesRouteProps) {
   const shouldShowTable =
-    loaderData.dancers.length > 0 || hasActiveListFilters(loaderData);
+    loaderData.dancers.length > 0 ||
+    hasActiveListFilters(loaderData) ||
+    loaderData.hasAnyDancer;
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Bailarines"
-      description="Consultá la ficha administrativa de cada bailarín y priorizá la revisión documental desde el listado."
+      description="Consultá la ficha administrativa de cada bailarín y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
     >
       {shouldShowTable ? (
@@ -112,30 +115,34 @@ export default function AdministracionBailarinesRoute({
 function DancerTable({ loaderData }: { loaderData: LoaderData }) {
   const columns: DataTableColumn<DancerRow>[] = [
     {
-      id: "dancer",
-      header: "Bailarín",
-      className: "font-medium",
+      id: "nombre",
+      header: "Nombre",
+      className: "w-1/4 font-medium",
+      headerClassName: "w-1/4",
       cell: (dancer) => (
         <Link
           to={buildDancerDetailHref(loaderData, dancer.id)}
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {dancer.lastName}, {dancer.firstName}
+          {dancer.firstName} {dancer.lastName}
         </Link>
       ),
-      filterValue: (dancer) => `${dancer.lastName} ${dancer.firstName}`,
-      sortValue: (dancer) => `${dancer.lastName}, ${dancer.firstName}`,
+      filterValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
+      sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
     },
     {
       id: "academy",
       header: "Academia",
+      className: "w-1/4 text-muted-foreground",
+      headerClassName: "w-1/4",
       cell: (dancer) => dancer.academyName,
       filterValue: (dancer) => dancer.academyName,
-      sortValue: (dancer) => dancer.academyName,
     },
     {
       id: "status",
       header: "Estado",
+      className: "w-1/2",
+      headerClassName: "w-1/2",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
           {loaderData.selectedEventId ? (
@@ -151,13 +158,12 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       ),
       filterValue: (dancer) =>
         buildDancerStatusSummary(dancer, loaderData.selectedEventId),
-      sortValue: (dancer) =>
-        buildDancerStatusSummary(dancer, loaderData.selectedEventId),
     },
   ];
 
   return (
     <DataTable
+      mode="server"
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
@@ -165,12 +171,14 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
-      emptyMessage="No hay Bailarines que coincidan con la búsqueda."
-      serverSide={{
-        currentPage: loaderData.filters.page,
-        totalPages: loaderData.totalPages,
-        totalRows: loaderData.totalCount,
+      initialSort={{
+        columnId: "nombre",
+        direction: loaderData.filters.nameOrder,
       }}
+      emptyMessage="No hay Bailarines que coincidan con la búsqueda o los filtros."
+      currentPage={loaderData.filters.page}
+      totalPages={loaderData.totalPages}
+      totalRows={loaderData.totalCount}
     />
   );
 }
@@ -229,24 +237,27 @@ function buildDancerFacetedFilters(
     groups.push({
       id: "participando",
       label: "Participación",
-      options: [{ label: "No participando", value: "no" }],
+      options: [
+        { label: "Participando", value: "si" },
+        { label: "No participando", value: "no" },
+      ],
     });
   }
 
   groups.push(
     {
-      id: "estado",
-      label: "Estado",
-      options: [{ label: "Archivados", value: "archivados" }],
+      id: "identificacion",
+      label: "Verificación",
+      options: [
+        { label: "Incompleto", value: "incompleta" },
+        { label: "Sin verificar", value: "para-verificar" },
+        { label: "Verificado", value: "verificados" },
+      ],
     },
     {
-      id: "identificacion",
-      label: "Identificación",
-      options: [
-        { label: "Incompletos", value: "incompleta" },
-        { label: "Para verificar", value: "para-verificar" },
-        { label: "Verificados", value: "verificados" },
-      ],
+      id: "estado",
+      label: "Archivo",
+      options: [{ label: "Archivado", value: "archivados" }],
     },
   );
 
@@ -296,6 +307,10 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
     searchParams.set("q", loaderData.filters.query);
   }
 
+  if (loaderData.filters.nameOrder === "desc") {
+    searchParams.set("orden", "nombre:desc");
+  }
+
   const values = getSelectedFilterValues(loaderData);
 
   if (values.participando) {
@@ -318,7 +333,9 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
 }
 
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
-  return { filters: getSelectedFilterValues(loaderData) };
+  const values = getSelectedFilterValues(loaderData);
+
+  return Object.keys(values).length > 0 ? { filters: values } : undefined;
 }
 
 function getSelectedFilterValues(loaderData: LoaderData) {
@@ -331,7 +348,7 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.identification,
   );
 
-  if (loaderData.selectedEventId !== null && participationValue === "no") {
+  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
     values.participando = participationValue;
   }
 
@@ -358,7 +375,7 @@ function hasActiveListFilters(loaderData: LoaderData) {
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    (loaderData.selectedEventId !== null && participationValue === "no") ||
+    (loaderData.selectedEventId !== null && participationValue !== "todos") ||
     statusValue === "archivados" ||
     identificationValue !== "todos"
   );

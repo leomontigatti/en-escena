@@ -21,11 +21,15 @@ export function getDancerVerificationStatus(
     return "incomplete";
   }
 
+  if (input.identityVerifiedAt !== null) {
+    return "verified";
+  }
+
   if (!hasDocumentImages(input)) {
     return "missingImages";
   }
 
-  return input.identityVerifiedAt === null ? "unverified" : "verified";
+  return "unverified";
 }
 
 export function hasDocumentPair(input: DancerVerificationInput) {

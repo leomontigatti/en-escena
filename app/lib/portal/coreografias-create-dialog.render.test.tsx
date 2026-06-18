@@ -65,12 +65,18 @@ describe("coreografía creation dialog render", () => {
 
     const markup = document.body.innerHTML;
 
-    expect(markup).toContain("Registrar Coreografía");
+    expect(markup).toContain("Nueva coreografía");
+    expect(markup).toContain(
+      "Completá los siguientes pasos para registrarla en el evento.",
+    );
     expect(markup).toContain('data-slot="dialog-content"');
     expect(markup).toContain('data-slot="field"');
     expect(markup).toContain('data-slot="field-content"');
     expect(markup).toContain('data-slot="input"');
-    expect(markup).toContain("El nombre se normaliza al confirmar.");
+    expect(markup).toContain('data-slot="progress"');
+    expect(markup).toContain("Paso 1 de 5");
+    expect(markup).not.toContain("Nivel y cronograma");
+    expect(markup).not.toContain("El nombre se normaliza al confirmar.");
   });
 });
 

@@ -12,7 +12,7 @@ type PortalCoreografiaDetalleRouteViewComponent =
 type PortalCoreografiaDetalleRouteViewProps =
   Parameters<PortalCoreografiaDetalleRouteViewComponent>[0];
 
-describe("coreografía dancer editor", () => {
+describe("coreografía detail readonly form", () => {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
   let PortalCoreografiaDetalleRouteView: PortalCoreografiaDetalleRouteViewComponent;
@@ -38,221 +38,89 @@ describe("coreografía dancer editor", () => {
     document.body.innerHTML = "";
   });
 
-  test("renders active dancers plus linked archived dancers, excluding archived unlinked records", async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/portal/coreografias/choreo_1",
-          action: async () => null,
-          element: (
-            <PortalCoreografiaDetalleRouteView
-              loaderData={buildLoaderData({
-                availableDancers: [
-                  {
-                    id: "dancer_1",
-                    firstName: "Luz",
-                    lastName: "Activa",
-                    active: true,
-                  },
-                  {
-                    id: "dancer_2",
-                    firstName: "Mora",
-                    lastName: "Archivada",
-                    active: false,
-                  },
-                ],
-                choreography: {
-                  ...buildLoaderData().choreography,
-                  dancers: [
-                    {
-                      id: "dancer_1",
-                      firstName: "Luz",
-                      lastName: "Activa",
-                      active: true,
-                      ageAtEventStart: 14,
-                    },
-                    {
-                      id: "dancer_2",
-                      firstName: "Mora",
-                      lastName: "Archivada",
-                      active: false,
-                      ageAtEventStart: 14,
-                    },
-                  ],
-                },
-              })}
-            />
-          ),
-        },
-      ],
-      { initialEntries: ["/portal/coreografias/choreo_1"] },
-    );
+  test("renders choreography data as disabled form fields", async () => {
+    await renderRoute();
 
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
+    expect(getInputByLabel("Nombre").value).toBe("Mi Pieza");
+    expect(getInputByLabel("Modalidad").value).toBe("Jazz");
+    expect(getInputByLabel("Submodalidad").value).toBe("Lyrical");
+    expect(getInputByLabel("Categoría").value).toBe("Juvenil");
+    expect(getInputByLabel("Tipo de grupo").value).toBe("Solo");
+    expect(getInputByLabel("Nivel de experiencia").value).toBe("Inicial");
+    expect(getInputByLabel("Cronograma").value).toBe("2026-05-01 · 10:00");
 
-    await act(async () => {
-      root?.render(<RouterProvider router={router} />);
-    });
-
-    const markup = document.body.innerHTML;
-
-    expect(markup).toContain("Buscar bailarines");
-    expect(markup).toContain("Activa, Luz");
-    expect(markup).toContain("Archivada, Mora");
-    expect(markup).not.toContain("Oculta, Nora");
+    expect(getInputByLabel("Nombre").disabled).toBe(true);
+    expect(getInputByLabel("Modalidad").disabled).toBe(true);
+    expect(getInputByLabel("Submodalidad").disabled).toBe(true);
+    expect(getInputByLabel("Categoría").disabled).toBe(true);
+    expect(getInputByLabel("Tipo de grupo").disabled).toBe(true);
+    expect(getInputByLabel("Nivel de experiencia").disabled).toBe(true);
+    expect(getInputByLabel("Cronograma").disabled).toBe(true);
   });
 
-  test("validates that at least one dancer remains selected before saving", async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/portal/coreografias/choreo_1",
-          action: async () => null,
-          element: (
-            <PortalCoreografiaDetalleRouteView
-              loaderData={buildLoaderData({
-                availableDancers: [
-                  {
-                    id: "dancer_1",
-                    firstName: "Luz",
-                    lastName: "Activa",
-                    active: true,
-                  },
-                ],
-                choreography: {
-                  ...buildLoaderData().choreography,
-                  dancers: [],
-                },
-              })}
-            />
-          ),
-        },
-      ],
-      { initialEntries: ["/portal/coreografias/choreo_1"] },
-    );
+  test("renders people comboboxes without separate dancer/professor cards", async () => {
+    await renderRoute();
 
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
+    const text = document.body.textContent ?? "";
 
-    await act(async () => {
-      root?.render(<RouterProvider router={router} />);
-    });
-
-    const form = document.querySelector("form");
-
-    if (!form) {
-      throw new Error("Expected dancer editor form to be rendered.");
-    }
-
-    await act(async () => {
-      form.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-      );
-    });
-
-    expect(document.body.textContent).toContain("Este campo es obligatorio.");
+    expect(text).not.toContain("Evento activo");
+    expect(text).toContain("Bailarines");
+    expect(text).toContain("Ana Paz");
+    expect(text).not.toContain("Guardar bailarines");
+    expect(text).toContain("Profesores");
+    expect(text).toContain("Buscar profesores");
+    expect(text).not.toContain("Guardar Profesores");
   });
 
-  test("shows schedule guidance from the initial dancer resolution", async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/portal/coreografias/choreo_1",
-          action: async () => null,
-          element: (
-            <PortalCoreografiaDetalleRouteView
-              loaderData={buildLoaderData()}
-              initialDancerResolution={{
-                ok: true,
-                resolution: {
-                  groupType: "duo",
-                  categoryId: "category_2",
-                  categoryName: "Adultos",
-                  experienceLevel: {
-                    required: false,
-                    options: [],
-                  },
-                  schedule: {
-                    status: "auto",
-                    canSave: true,
-                    selectedScheduleEntryId: "schedule_2",
-                    options: [
-                      {
-                        id: "schedule_2",
-                        capacity: 3,
-                        groupTypes: ["duo"],
-                        groupTypeKey: "duo",
-                        scheduleBlock: {
-                          id: "block_2",
-                          name: "Bloque tarde",
-                          scheduledDate: "2026-05-01",
-                          startTime: "14:00",
-                        },
-                      },
-                    ],
-                  },
-                },
-              }}
-            />
-          ),
-        },
-      ],
-      { initialEntries: ["/portal/coreografias/choreo_1"] },
-    );
-
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      root?.render(<RouterProvider router={router} />);
-    });
-
-    const saveButton = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((node) => node.textContent?.includes("Guardar bailarines"));
-
-    expect(saveButton).toBeInstanceOf(HTMLButtonElement);
-    expect(saveButton?.disabled).toBe(false);
-    expect(document.body.textContent).toContain("Solo");
-    expect(document.body.textContent).toContain("Juvenil");
-    expect(document.body.textContent).toContain(
-      "El cronograma compatible se selecciona automáticamente.",
-    );
-  });
-
-  test("shows the required level field and blocks submit until selected", async () => {
-    let saveCalls = 0;
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/portal/coreografias/choreo_1",
-          action: async ({ request }) => {
-            const formData = await request.formData();
-
-            if (formData.get("intent") === "update-choreography-dancers") {
-              saveCalls += 1;
-            }
-
-            return null;
+  test("shows academy-actionable operational pending items above the card", async () => {
+    await renderRoute(
+      buildLoaderData({
+        choreography: {
+          ...buildLoaderData().choreography,
+          categoryName: null,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["music", "category", "professors"],
           },
+        },
+      }),
+    );
+
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("Faltan cargar archivo de música y profesores.");
+    expect(text).not.toContain("Faltan cargar categoría");
+    expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
+  });
+
+  test("does not show an operational alert when only category is pending", async () => {
+    await renderRoute(
+      buildLoaderData({
+        choreography: {
+          ...buildLoaderData().choreography,
+          categoryName: null,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["category"],
+          },
+        },
+      }),
+    );
+
+    expect(document.body.textContent).not.toContain("Falta cargar");
+    expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
+  });
+
+  async function renderRoute(
+    loaderData: PortalCoreografiaDetalleRouteViewProps["loaderData"] = buildLoaderData(),
+  ) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/portal/coreografias/choreo_1",
+          action: async () => null,
           element: (
-            <PortalCoreografiaDetalleRouteView
-              loaderData={buildLoaderData({
-                choreography: {
-                  ...buildLoaderData().choreography,
-                  experienceLevelId: null,
-                  experienceLevelName: null,
-                  operationalStatus: {
-                    code: "incomplete",
-                    pendingItems: ["experienceLevel"],
-                  },
-                },
-              })}
-            />
+            <PortalCoreografiaDetalleRouteView loaderData={loaderData} />
           ),
         },
       ],
@@ -266,29 +134,27 @@ describe("coreografía dancer editor", () => {
     await act(async () => {
       root?.render(<RouterProvider router={router} />);
     });
+  }
 
-    expect(document.body.textContent).toContain("Nivel de experiencia");
-
-    const experienceLevelInput = document.querySelector<HTMLInputElement>(
-      'input[name="experienceLevelId"]',
+  function getInputByLabel(label: string) {
+    const labelElement = Array.from(document.querySelectorAll("label")).find(
+      (element) => element.textContent === label,
     );
-    const form = document.querySelector("form");
 
-    expect(experienceLevelInput?.value ?? "").toBe("");
-
-    if (!(form instanceof HTMLFormElement)) {
-      throw new Error("Expected dancer editor form to be rendered.");
+    if (!labelElement) {
+      throw new Error(`Expected ${label} label to be rendered.`);
     }
 
-    await act(async () => {
-      form.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-      );
-    });
+    const input = document.getElementById(
+      labelElement.getAttribute("for") ?? "",
+    );
 
-    expect(document.body.textContent).toContain("Este campo es obligatorio.");
-    expect(saveCalls).toBe(0);
-  });
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error(`Expected ${label} input to be rendered.`);
+    }
+
+    return input;
+  }
 });
 
 function buildLoaderData(
@@ -305,7 +171,14 @@ function buildLoaderData(
         active: true,
       },
     ],
-    availableProfessors: [],
+    availableProfessors: [
+      {
+        id: "professor_1",
+        firstName: "Paula",
+        lastName: "Docente",
+        active: true,
+      },
+    ],
     choreography: {
       id: "choreo_1",
       name: "Mi Pieza",

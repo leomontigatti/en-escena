@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   GraduationCap,
   Home,
+  Inbox,
   LogOut,
   User,
   Users,
@@ -29,6 +30,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -70,6 +78,67 @@ export type PortalRouteHandle = {
     PortalShellBreadcrumbItem | PortalBreadcrumbFactory
   >;
 };
+
+type PortalListPageProps = {
+  titleId: string;
+  title: string;
+  description: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+};
+
+export function PortalListPage({
+  titleId,
+  title,
+  description,
+  action,
+  children,
+}: PortalListPageProps) {
+  return (
+    <section className="flex flex-col gap-6" aria-labelledby={titleId}>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 id={titleId} className="text-xl font-semibold">
+            {title}
+          </h2>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        {action}
+      </header>
+
+      {children}
+    </section>
+  );
+}
+
+type PortalEmptyStateProps = {
+  title: string;
+  description: ReactNode;
+  icon?: ReactNode;
+};
+
+export function PortalEmptyState({
+  title,
+  description,
+  icon = <Inbox aria-hidden="true" />,
+}: PortalEmptyStateProps) {
+  return (
+    <Empty className="min-h-64 border">
+      <EmptyHeader>
+        <EmptyMedia
+          variant="icon"
+          className="size-10 [&_svg:not([class*='size-'])]:size-5"
+        >
+          {icon}
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
 
 type CoreographyCreationState = {
   tone: "ready" | "blocked" | "info";

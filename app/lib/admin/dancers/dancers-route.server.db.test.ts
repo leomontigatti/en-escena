@@ -135,7 +135,7 @@ describe.sequential("administracion/bailarines route", () => {
       documentType: "dni",
       documentNumber: "2002",
     });
-    await createDancer({
+    const verifiedArchivedDancer = await createDancer({
       academyId: southAcademy.academy.id,
       firstName: "Beto",
       lastName: "Verificado",
@@ -186,11 +186,16 @@ describe.sequential("administracion/bailarines route", () => {
     });
     const defaultData = await loader(routeArgs(defaultRequest));
 
-    expect(defaultData.filters.participation).toBe("yes");
+    expect(defaultData.filters.participation).toBe("all");
+    expect(defaultData.filters.status).toBe("active");
     expect(defaultData.filters.identification).toBe("all");
-    expect(defaultData.dancers.map((dancer) => dancer.id)).toEqual([
-      participatingDancer.id,
-    ]);
+    expect(defaultData.totalCount).toBe(53);
+    expect(defaultData.dancers.map((dancer) => dancer.id)).toContain(
+      identifiedDancer.id,
+    );
+    expect(defaultData.dancers.map((dancer) => dancer.id)).not.toContain(
+      archivedDancer.id,
+    );
 
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
@@ -227,7 +232,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(emptySearchData.dancers).toHaveLength(0);
     expect(emptySearchMarkup).toContain('value="No existe"');
     expect(emptySearchMarkup).toContain(
-      "No hay Bailarines que coincidan con la búsqueda.",
+      "No hay Bailarines que coincidan con la búsqueda o los filtros.",
     );
     expect(emptySearchMarkup).not.toContain(
       "Todavía no hay Bailarines para mostrar.",
@@ -242,6 +247,7 @@ describe.sequential("administracion/bailarines route", () => {
     const archivedMarkup = renderRoute(archivedData);
 
     expect(archivedData.dancers.map((dancer) => dancer.id)).toEqual([
+      verifiedArchivedDancer.id,
       archivedDancer.id,
     ]);
     expect(archivedMarkup).toContain("Archivado");
@@ -327,8 +333,8 @@ describe.sequential("administracion/bailarines route", () => {
     expect(loaderData.filters.participation).toBe("all");
     expect(loaderData.filters.identification).toBe("all");
     expect(loaderData.dancers.map((item) => item.id)).toEqual([
-      activeDancer.id,
       participatingDancer.id,
+      activeDancer.id,
     ]);
     expect(markup).not.toContain("Participando");
     expect(markup).not.toContain("No participando");
@@ -383,10 +389,13 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("Academia Ficha");
     expect(markup).toContain("Julia");
     expect(markup).toContain("Detalle");
-    expect(markup).toContain("12/07/2012");
-    expect(markup).toContain("Pasaporte AA123456");
+    expect(markup).toContain("12 de julio de 2012");
+    expect(markup).toContain("Tipo de documento");
+    expect(markup).toContain("Pasaporte");
+    expect(markup).toContain("Número de documento");
+    expect(markup).toContain("AA123456");
     expect(markup).toContain(
-      "Faltan imágenes del documento para completar la verificación.",
+      "La documentación está lista para revisión administrativa.",
     );
     expect(markup).toContain("Identificación");
     expect(markup).toContain("Inscripciones");
@@ -429,9 +438,9 @@ describe.sequential("administracion/bailarines route", () => {
 
     await expectCreated(
       createPrice(activeEvent.id, {
-        name: "Dúo general",
         groupType: "duo",
         amount: 1250000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );
@@ -830,7 +839,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
   });
 
-  test("warns in edit mode that changing birth date may require recalculating linked coreografias", async () => {
+  test("keeps birth date recalculation warning out of the inline edit form", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.advertencia.bailarines.academia@example.com",
@@ -862,7 +871,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
 
     expect(markup).toContain("Guardar");
-    expect(markup).toContain(
+    expect(markup).not.toContain(
       "Si cambiás la fecha de nacimiento, las coreografías vinculadas pueden requerir recalcular categoría desde el flujo de Coreografías.",
     );
   });
@@ -956,8 +965,6 @@ describe.sequential("administracion/bailarines route", () => {
       birthDate: "2012-06-12",
       documentType: "dni",
       documentNumber: "12345678",
-      documentFrontImageStorageKey: "dancers/paula-front.jpg",
-      documentBackImageStorageKey: "dancers/paula-back.jpg",
     });
     const { request } = await createSignedInRequest({
       email: "admin.verificacion.bailarines@example.com",
@@ -969,8 +976,11 @@ describe.sequential("administracion/bailarines route", () => {
       await detailLoader(detailRouteArgs(request, dancer.id)),
       dancer.id,
     );
-    expect(readOnlyMarkup).toContain("Para verificar");
-    expect(readOnlyMarkup).toContain("Verificar identidad");
+    expect(readOnlyMarkup).toContain(
+      "La documentación está lista para revisión administrativa.",
+    );
+    expect(readOnlyMarkup).not.toContain("Para verificar");
+    expect(readOnlyMarkup).toContain("Verificar");
 
     const verifyResponse = await expectThrownResponse(
       detailAction(
@@ -1228,9 +1238,13 @@ function buildListInitialEntry(
     searchParams.set("q", loaderData.filters.query);
   }
 
+  if (loaderData.filters.nameOrder === "desc") {
+    searchParams.set("orden", "nombre:desc");
+  }
+
   if (
-    loaderData.filters.participation !== "yes" ||
-    !loaderData.selectedEventId
+    loaderData.selectedEventId &&
+    loaderData.filters.participation !== "all"
   ) {
     searchParams.set(
       "participando",

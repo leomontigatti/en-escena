@@ -457,17 +457,17 @@ describe("Bases del evento repository", () => {
 
     const general = await expectCreated(
       createPrice(firstEvent.id, {
-        name: "Solo general",
         groupType: "solo",
         amount: 12000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );
     const specific = await expectCreated(
       createPrice(firstEvent.id, {
-        name: "Solo sábado",
         groupType: "solo",
         amount: 15000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: block.id,
       }),
     );
@@ -477,17 +477,17 @@ describe("Bases del evento repository", () => {
     });
     await expect(
       createPrice(secondEvent.id, {
-        name: "Solo general",
         groupType: "solo",
         amount: 9000,
+        paymentDeadline: "2026-06-30",
         scheduleBlockId: null,
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(
       createPrice(firstEvent.id, {
-        name: "Solo duplicado",
         groupType: "solo",
         amount: 13000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     ).resolves.toMatchObject({
@@ -497,9 +497,9 @@ describe("Bases del evento repository", () => {
     });
     await expect(
       createPrice(firstEvent.id, {
-        name: "Solo otro evento",
         groupType: "solo",
         amount: 13000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: otherEventBlock.id,
       }),
     ).resolves.toMatchObject({
@@ -519,6 +519,25 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       ok: true,
       price: { id: specific.id, amount: 15000 },
+    });
+    const laterGeneral = await expectCreated(
+      createPrice(firstEvent.id, {
+        groupType: "solo",
+        amount: 17000,
+        paymentDeadline: "2026-06-30",
+        scheduleBlockId: null,
+      }),
+    );
+    await expect(
+      resolveApplicablePrice({
+        eventId: firstEvent.id,
+        groupType: "solo",
+        paymentDate: "2026-06-10",
+        scheduleBlockId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      price: { id: laterGeneral.id, amount: 17000 },
     });
     await expect(
       resolveApplicablePrice({
@@ -547,12 +566,17 @@ describe("Bases del evento repository", () => {
       prices: [
         {
           eventId: firstEvent.id,
-          name: "Solo sábado",
+          paymentDeadline: "2026-05-31",
           scheduleBlock: { name: "Sábado mañana" },
         },
         {
           eventId: firstEvent.id,
-          name: "Solo general",
+          paymentDeadline: "2026-05-31",
+          scheduleBlock: null,
+        },
+        {
+          eventId: firstEvent.id,
+          paymentDeadline: "2026-06-30",
           scheduleBlock: null,
         },
       ],
@@ -562,24 +586,24 @@ describe("Bases del evento repository", () => {
       updatePrice(
         general.id,
         {
-          name: "Solo general actualizado",
           groupType: "solo",
           amount: 12000,
+          paymentDeadline: "2026-05-31",
           scheduleBlockId: null,
         },
         { hasDependencies: async () => true },
       ),
     ).resolves.toMatchObject({
       ok: true,
-      record: { name: "Solo general actualizado" },
+      record: { amount: 12000 },
     });
     await expect(
       updatePrice(
         general.id,
         {
-          name: "Solo general actualizado",
           groupType: "solo",
           amount: 14000,
+          paymentDeadline: "2026-05-31",
           scheduleBlockId: null,
         },
         { hasDependencies: async () => true },

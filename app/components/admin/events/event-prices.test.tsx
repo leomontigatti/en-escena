@@ -19,7 +19,7 @@ describe("EventPriceDetailRouteView", () => {
 
     ({ EventPriceDetailRouteView } =
       await import("@/components/admin/events/event-prices"));
-  });
+  }, 20_000);
 
   afterEach(() => {
     if (root) {
@@ -37,7 +37,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 12000,
       groupType: "solo",
       id: "price_1",
-      name: "Precio base",
+      paymentDeadline: "2026-05-31",
       scheduleBlockId: null,
       scheduleBlockName: null,
     });
@@ -45,7 +45,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 18000,
       groupType: "duo",
       id: "price_2",
-      name: "Precio bloque noche",
+      paymentDeadline: "2026-06-30",
       scheduleBlockId: "block_2",
       scheduleBlockName: "Noche",
     });
@@ -64,9 +64,9 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(readInputValue(container, "name")).toBe("Precio base");
     expect(readInputValue(container, "groupType")).toBe("solo");
     expect(readInputValue(container, "amount")).toBe("12000");
+    expect(readInputValue(container, "paymentDeadline")).toBe("2026-05-31");
     expect(readInputValue(container, "scheduleBlockId")).toBe("");
 
     await renderPriceDetailRoute({
@@ -76,9 +76,9 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(readInputValue(container, "name")).toBe("Precio bloque noche");
     expect(readInputValue(container, "groupType")).toBe("duo");
     expect(readInputValue(container, "amount")).toBe("18000");
+    expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
     expect(readInputValue(container, "scheduleBlockId")).toBe("block_2");
   });
 });
@@ -187,23 +187,23 @@ function createPrice({
   amount,
   groupType,
   id,
-  name,
+  paymentDeadline,
   scheduleBlockId,
   scheduleBlockName,
 }: {
   amount: number;
   groupType: PriceListItem["groupType"];
   id: string;
-  name: string;
+  paymentDeadline: string;
   scheduleBlockId: string | null;
   scheduleBlockName: string | null;
 }): PriceListItem {
   return {
     id,
     eventId: "event_1",
-    name,
     groupType,
     amount,
+    paymentDeadline,
     scheduleBlockId,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     scheduleBlock: scheduleBlockId

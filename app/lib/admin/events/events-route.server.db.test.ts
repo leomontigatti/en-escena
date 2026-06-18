@@ -76,6 +76,7 @@ describe("administracion/eventos route", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Activo");
     expect(markup).toContain("Finalizado");
+    expect(markup).toContain("Configuración pendiente");
     expect(markup).toContain(`/administracion/eventos/${finalEvent.id}`);
     expect(markup).not.toContain("Acciones");
     expect(markup).not.toContain("Editar");

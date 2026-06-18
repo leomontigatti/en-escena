@@ -16,6 +16,10 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import {
   AlertDialog,
@@ -58,14 +62,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { formatGroupTypes, groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleBlockListItem } from "@/lib/events/bases.server";
@@ -695,51 +691,103 @@ function ScheduleBlockList({
   scheduleBlocks: ScheduleBlockListItem[];
   selectedEventId: string | null;
 }) {
+  const columns: DataTableColumn<ScheduleBlockListItem>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "min-w-56 font-medium",
+      cell: (scheduleBlock) => (
+        <Link
+          to={buildScheduleBlockDetailPath(scheduleBlock.id, selectedEventId)}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {scheduleBlock.name}
+        </Link>
+      ),
+      filterValue: (scheduleBlock) => scheduleBlock.name,
+    },
+    {
+      id: "modalities",
+      header: "Modalidades",
+      cell: (scheduleBlock) => (
+        <ScheduleBlockModalityBadges scheduleBlock={scheduleBlock} />
+      ),
+      filterValues: (scheduleBlock) =>
+        scheduleBlock.modalities.map((modality) => modality.id),
+      filterValue: (scheduleBlock) =>
+        scheduleBlock.modalities.map((modality) => modality.name).join(" "),
+    },
+    {
+      id: "scheduledDate",
+      header: "Fecha",
+      cell: (scheduleBlock) => formatDate(scheduleBlock.scheduledDate),
+      className: "text-muted-foreground",
+      sortValue: (scheduleBlock) =>
+        `${scheduleBlock.scheduledDate} ${scheduleBlock.startTime}`,
+    },
+    {
+      id: "startTime",
+      header: "Hora",
+      cell: (scheduleBlock) => scheduleBlock.startTime,
+      className: "text-muted-foreground",
+      sortValue: (scheduleBlock) => scheduleBlock.startTime,
+    },
+    {
+      id: "occupancy",
+      header: "Ocupación",
+      cell: (scheduleBlock) => formatScheduleBlockOccupancy(scheduleBlock),
+      className: "font-medium",
+    },
+  ];
+
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Modalidades</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Hora</TableHead>
-              <TableHead>Ocupación</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {scheduleBlocks.map((scheduleBlock) => (
-              <TableRow key={scheduleBlock.id}>
-                <TableCell>
-                  <Link
-                    to={buildScheduleBlockDetailPath(
-                      scheduleBlock.id,
-                      selectedEventId,
-                    )}
-                    className="font-semibold underline-offset-4 hover:underline"
-                  >
-                    {scheduleBlock.name}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <ScheduleBlockModalityBadges scheduleBlock={scheduleBlock} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(scheduleBlock.scheduledDate)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {scheduleBlock.startTime}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {formatScheduleBlockOccupancy(scheduleBlock)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <DataTable
+      mode="client"
+      rows={scheduleBlocks}
+      columns={columns}
+      getRowKey={(scheduleBlock) => scheduleBlock.id}
+      searchPlaceholder="Buscar bloque horario por nombre"
+      textFilterColumnId="name"
+      facetedFilters={buildScheduleBlockFacetedFilters(scheduleBlocks)}
+      emptyMessage="No hay bloques horarios que coincidan con la búsqueda."
+      initialSort={{ columnId: "scheduledDate", direction: "asc" }}
+    />
+  );
+}
+
+function buildScheduleBlockFacetedFilters(
+  scheduleBlocks: ScheduleBlockListItem[],
+) {
+  return [
+    {
+      columnId: "modalities",
+      label: "Filtros",
+      groups: [
+        {
+          label: "Modalidad",
+          options: getScheduleBlockModalityOptions(scheduleBlocks),
+        },
+      ],
+    },
+  ];
+}
+
+function getScheduleBlockModalityOptions(
+  scheduleBlocks: ScheduleBlockListItem[],
+) {
+  const modalities = scheduleBlocks.flatMap(
+    (scheduleBlock) => scheduleBlock.modalities,
+  );
+
+  return Array.from(
+    new Map(
+      modalities.map((modality) => [
+        modality.id,
+        { label: modality.name, value: modality.id },
+      ]),
+    ).values(),
+  ).sort((firstOption, secondOption) =>
+    firstOption.label.localeCompare(secondOption.label, "es-AR"),
   );
 }
 

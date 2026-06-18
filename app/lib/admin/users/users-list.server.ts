@@ -14,12 +14,16 @@ export type AdministrativeUserListState =
   | "mandatory-password-change"
   | "suspended";
 
+export type AdministrativeUserListStateFilter =
+  | "active"
+  | "mandatory-password-change";
+
 export type AdministrativeUserListType = "academy" | "internal";
 
 export type AdministrativeUserListFilters = {
+  archived: boolean;
   query: string;
-  role: AdministrativeUserListRole | "all";
-  state: AdministrativeUserListState | "all";
+  state: AdministrativeUserListStateFilter | "all";
   type: AdministrativeUserListType | "all";
 };
 
@@ -36,10 +40,14 @@ export type AdministrativeUserListItem = {
 export function readAdministrativeUserFilters(
   searchParams: URLSearchParams,
 ): AdministrativeUserListFilters {
+  const stateValue = searchParams.get("estado");
+
   return {
+    archived:
+      readArchivedFilter(searchParams.get("archivado")) ||
+      stateValue === "suspended",
     query: searchParams.get("q")?.trim() ?? "",
-    role: readRoleFilter(searchParams.get("permiso")),
-    state: readStateFilter(searchParams.get("estado")),
+    state: readStateFilter(stateValue),
     type: readTypeFilter(searchParams.get("tipo")),
   };
 }
@@ -118,14 +126,19 @@ function buildAdministrativeUserWhere(
     );
   }
 
-  if (filters.role !== "all") {
-    clauses.push(eq(user.role, filters.role));
-  }
-
   if (filters.type === "academy") {
     clauses.push(eq(user.role, "academy"));
   } else if (filters.type === "internal") {
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
+  }
+
+  if (filters.archived) {
+    clauses.push(eq(user.suspended, true));
+    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
+  } else {
+    clauses.push(
+      or(eq(user.role, "academy"), eq(user.suspended, false)) ?? sql`false`,
+    );
   }
 
   if (filters.state === "active") {
@@ -139,9 +152,6 @@ function buildAdministrativeUserWhere(
     clauses.push(eq(user.requiresPasswordChange, true));
     clauses.push(eq(user.suspended, false));
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
-  } else if (filters.state === "suspended") {
-    clauses.push(eq(user.suspended, true));
-    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
 
   if (clauses.length === 0) {
@@ -151,27 +161,12 @@ function buildAdministrativeUserWhere(
   return and(...clauses);
 }
 
-function readRoleFilter(
-  value: string | null,
-): AdministrativeUserListFilters["role"] {
-  switch (value) {
-    case "academy":
-    case "admin":
-    case "auditor":
-    case "judge":
-      return value;
-    default:
-      return "all";
-  }
-}
-
 function readStateFilter(
   value: string | null,
 ): AdministrativeUserListFilters["state"] {
   switch (value) {
     case "active":
     case "mandatory-password-change":
-    case "suspended":
       return value;
     default:
       return "all";
@@ -188,4 +183,8 @@ function readTypeFilter(
     default:
       return "all";
   }
+}
+
+function readArchivedFilter(value: string | null) {
+  return value === "si";
 }

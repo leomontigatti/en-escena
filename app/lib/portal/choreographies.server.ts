@@ -304,7 +304,7 @@ export async function findChoreographyForAcademyEvent(
       .from(choreographyDancers)
       .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
       .where(eq(choreographyDancers.choreographyId, choreographyId))
-      .orderBy(asc(dancers.lastName), asc(dancers.firstName)),
+      .orderBy(asc(dancers.firstName), asc(dancers.lastName)),
     db
       .select({
         id: professors.id,
@@ -318,7 +318,7 @@ export async function findChoreographyForAcademyEvent(
         eq(choreographyProfessors.professorId, professors.id),
       )
       .where(eq(choreographyProfessors.choreographyId, choreographyId))
-      .orderBy(asc(professors.lastName), asc(professors.firstName)),
+      .orderBy(asc(professors.firstName), asc(professors.lastName)),
   ]);
 
   return {
@@ -352,7 +352,7 @@ export async function listProfessorOptionsForChoreography(
     })
     .from(professors)
     .where(eq(professors.academyId, academyId))
-    .orderBy(asc(professors.lastName), asc(professors.firstName));
+    .orderBy(asc(professors.firstName), asc(professors.lastName));
 
   return rows.filter(
     (professor) => professor.active || linkedProfessorIdsSet.has(professor.id),
@@ -373,7 +373,7 @@ export async function listDancerOptionsForChoreography(
     })
     .from(dancers)
     .where(eq(dancers.academyId, academyId))
-    .orderBy(asc(dancers.lastName), asc(dancers.firstName));
+    .orderBy(asc(dancers.firstName), asc(dancers.lastName));
 
   return rows.filter(
     (dancer) => dancer.active || linkedDancerIdsSet.has(dancer.id),

@@ -1,16 +1,13 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  choreographies,
-  choreographyProfessors,
-  professors,
-} from "@/db/schema";
+import { professors } from "@/db/schema";
 import {
   findDuplicateProfessorDocument,
   normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
 } from "@/lib/portal/professor-records.server";
+import { buildProfessorEventParticipationSql } from "@/lib/people/participation.server";
 
 export type ProfessorFormField = "firstName" | "lastName";
 
@@ -82,13 +79,13 @@ export async function listAcademyProfessors(
       active: professors.active,
       documentType: professors.documentType,
       documentNumber: professors.documentNumber,
-      isParticipating: buildParticipationSql(selectedEventId),
+      isParticipating: buildProfessorEventParticipationSql(selectedEventId),
     })
     .from(professors)
     .where(and(eq(professors.academyId, academyId), statusFilter))
     .orderBy(
-      asc(sql`lower(${professors.lastName})`),
       asc(sql`lower(${professors.firstName})`),
+      asc(sql`lower(${professors.lastName})`),
     );
 
   return rows.map((professor) =>
@@ -274,21 +271,6 @@ function toProfessorListItem(
       professor.isParticipating ?? false,
     ),
   };
-}
-
-function buildParticipationSql(selectedEventId: string | null) {
-  if (selectedEventId === null) {
-    return sql<boolean>`false`;
-  }
-
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyProfessors}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyProfessors.choreographyId}
-    where ${choreographyProfessors.professorId} = ${professors.id}
-      and ${choreographies.eventId} = ${selectedEventId}
-  )`;
 }
 
 function toParticipationStatus(

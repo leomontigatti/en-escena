@@ -57,7 +57,5 @@ export function formatOperationalStatusLabel(
     return "Completa";
   }
 
-  return `Pendiente: ${operationalStatus.pendingItems
-    .map(formatOperationalPendingItemLabel)
-    .join(", ")}`;
+  return "Incompleta";
 }

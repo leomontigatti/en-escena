@@ -60,8 +60,13 @@ Rules for people, choreography registration, locks and Bases del evento.
 - If recalculation needs a level, admin must choose it in same correction.
 - Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
 - If financial docs are canceled/accredited, coreografía can become editable/deletable again.
+- Academy can change choreography dancers only during the inscription period and only while the choreography has no active financial document or presentation.
+- A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category; it becomes editable when new category requires level.
+- A roster change that recalculates to a category requiring level must choose the new level before confirmation.
 - Cronograma stays when roster change does not change group type; it clears when group type changes.
+- When roster change clears cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
+- Roster change can recalculate price on confirmation, but the academy edit flow remains operational and does not show price amounts before confirming.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
 - Music/professor links stop being editable once presentation is no longer pending.
 

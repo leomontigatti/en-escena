@@ -17,6 +17,7 @@ type DateOnlyFieldProps = {
   buttonClassName?: string;
   className?: string;
   defaultValue: string;
+  disabled?: boolean;
   error?: string;
   errorClassName?: string;
   id: string;
@@ -34,6 +35,7 @@ export function DateOnlyField({
   buttonClassName,
   className,
   defaultValue,
+  disabled = false,
   error,
   errorClassName,
   id,
@@ -64,10 +66,18 @@ export function DateOnlyField({
         {label}
       </FieldLabel>
       <input type="hidden" name={name} value={dateValue} />
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={disabled ? false : open}
+        onOpenChange={(nextOpen) => {
+          if (!disabled) {
+            setOpen(nextOpen);
+          }
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             id={id}
+            disabled={disabled}
             type="button"
             variant="outline"
             className={cn("justify-start font-normal", buttonClassName)}

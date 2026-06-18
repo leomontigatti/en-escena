@@ -8,6 +8,7 @@ export const adminProfessorCorrectionReasonMessage =
 
 export type AdminProfessorParticipationFilter = "yes" | "no" | "all";
 export type AdminProfessorStatusFilter = "active" | "archived" | "all";
+export type AdminProfessorNameOrder = "asc" | "desc";
 export type AdminProfessorParticipationStatus =
   | "participating"
   | "not-participating"
@@ -18,6 +19,7 @@ export type AdministrativeProfessorAuditAction =
   | "reactivate";
 
 export type AdministrativeProfessorListFilters = {
+  nameOrder: AdminProfessorNameOrder;
   participation: AdminProfessorParticipationFilter;
   query: string;
   status: AdminProfessorStatusFilter;
@@ -40,7 +42,7 @@ export function readAdminProfessorParticipationFilter(input: {
     return "all";
   }
 
-  return input.hasSelectedEvent ? "yes" : "all";
+  return "all";
 }
 
 export function readAdminProfessorStatusFilter(

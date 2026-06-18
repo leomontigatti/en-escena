@@ -1,12 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Inbox, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import type { PortalRouteHandle } from "@/components/portal/ui";
+import {
+  PortalEmptyState,
+  PortalListPage,
+  type PortalRouteHandle,
+} from "@/components/portal/ui";
 import {
   DataTable,
   type DataTableColumn,
@@ -22,13 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Field,
   FieldContent,
@@ -73,9 +70,9 @@ const emptyDancerFieldErrors: Partial<
   Record<keyof CreateDancerFormValues, string>
 > = {};
 
-const defaultDancerFilters = {
+const baseDancerFilters = {
   status: {
-    Estado: "active",
+    archivo: "active",
   },
 };
 
@@ -173,20 +170,11 @@ export function PortalBailarinesRouteView({
 
   return (
     <>
-      <section
-        className="flex flex-col gap-6"
-        aria-labelledby="bailarines-title"
-      >
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h2 id="bailarines-title" className="text-xl font-semibold">
-              Bailarines
-            </h2>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Gestioná los bailarines de tu academia y priorizá los registros
-              que todavía necesitan documento o imágenes.
-            </p>
-          </div>
+      <PortalListPage
+        titleId="bailarines-title"
+        title="Bailarines"
+        description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
+        action={
           <Button
             type="button"
             onClick={() => {
@@ -197,25 +185,17 @@ export function PortalBailarinesRouteView({
             <Plus aria-hidden="true" data-icon />
             Nuevo bailarín
           </Button>
-        </header>
-
+        }
+      >
         {loaderData.dancers.length > 0 ? (
           <DancersTable dancers={loaderData.dancers} />
         ) : (
-          <Empty className="min-h-64 border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Inbox aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>Todavía no cargaste bailarines</EmptyTitle>
-              <EmptyDescription>
-                Cuando cargues bailarines, van a aparecer en esta lista para
-                usarlos en coreografías.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <PortalEmptyState
+            title="Todavía no cargaste bailarines"
+            description="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
+          />
         )}
-      </section>
+      </PortalListPage>
 
       <CreateDancerDialog
         key={dialogResetKey}
@@ -300,6 +280,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
 
   return (
     <DataTable
+      mode="client"
       rows={dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
@@ -311,13 +292,6 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
           label: "Filtros",
           groups: [
             {
-              label: "Estado",
-              options: [
-                { label: "Activo", value: "active" },
-                { label: "Archivado", value: "archived" },
-              ],
-            },
-            {
               label: "Participación",
               options: [
                 { label: "Participando", value: "participating" },
@@ -325,7 +299,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
               ],
             },
             {
-              label: "Completitud",
+              label: "Verificación",
               options: [
                 { label: "Incompleto", value: "incomplete" },
                 { label: "Faltan imágenes", value: "missingImages" },
@@ -333,10 +307,15 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
                 { label: "Verificado", value: "verified" },
               ],
             },
+            {
+              id: "archivo",
+              label: "Archivo",
+              options: [{ label: "Archivado", value: "archived" }],
+            },
           ],
         },
       ]}
-      initialFacetedFilterValues={defaultDancerFilters}
+      baseFacetedFilterValues={baseDancerFilters}
       emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />

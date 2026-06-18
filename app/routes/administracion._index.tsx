@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { Link } from "react-router";
 import {
   Building2,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -15,14 +17,61 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { db } from "@/db";
+import { events as eventsTable } from "@/db/schema";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 
 import type { Route } from "./+types/administracion._index";
+
+type ActiveEventSummary = {
+  id: string;
+  name: string;
+};
+
+type AdministracionIndexLoaderData = {
+  activeEvent: ActiveEventSummary | null;
+  activeEventRegistrationReadiness: EventRegistrationReadiness | null;
+};
+
+type AdministracionIndexRouteProps = {
+  loaderData: AdministracionIndexLoaderData;
+};
 
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de administración | En Escena" },
 ];
 
-export default function AdministracionIndexRoute() {
+export async function loader({ request }: Route.LoaderArgs) {
+  await requireAdminPanelUser(request);
+
+  const activeEvent = await db.query.events.findFirst({
+    columns: {
+      id: true,
+      name: true,
+    },
+    where: eq(eventsTable.active, true),
+  });
+
+  return {
+    activeEvent: activeEvent ?? null,
+    activeEventRegistrationReadiness: activeEvent
+      ? await getEventRegistrationReadiness(activeEvent.id)
+      : null,
+  } satisfies AdministracionIndexLoaderData;
+}
+
+export function AdministracionIndexRouteView({
+  loaderData,
+}: AdministracionIndexRouteProps) {
+  const activeEvent = loaderData.activeEvent;
+  const readinessAlertEvent =
+    activeEvent !== null &&
+    loaderData.activeEventRegistrationReadiness?.isReady === false
+      ? activeEvent
+      : null;
+
   return (
     <>
       <section className="flex flex-col gap-3">
@@ -34,6 +83,19 @@ export default function AdministracionIndexRoute() {
           configuración principal.
         </p>
       </section>
+
+      {readinessAlertEvent ? (
+        <Alert>
+          <AlertTitle>Falta configurar bases para el evento activo.</AlertTitle>
+          <AlertDescription>
+            Podés revisarlas acá{" "}
+            <Link to={`/administracion/eventos/${readinessAlertEvent.id}`}>
+              {readinessAlertEvent.name}
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <nav
         className="grid gap-4 sm:grid-cols-2"
@@ -55,6 +117,12 @@ export default function AdministracionIndexRoute() {
       </nav>
     </>
   );
+}
+
+export default function AdministracionIndexRoute({
+  loaderData,
+}: AdministracionIndexRouteProps) {
+  return <AdministracionIndexRouteView loaderData={loaderData} />;
 }
 
 const adminHomeCards = [

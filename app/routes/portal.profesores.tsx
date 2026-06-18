@@ -1,11 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Inbox, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import type { PortalRouteHandle } from "@/components/portal/ui";
+import {
+  PortalEmptyState,
+  PortalListPage,
+  type PortalRouteHandle,
+} from "@/components/portal/ui";
 import {
   DataTable,
   type DataTableColumn,
@@ -21,13 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Field,
   FieldContent,
@@ -73,9 +70,9 @@ const emptyProfessorFieldErrors: Partial<
   Record<keyof CreateProfessorFormValues, string>
 > = {};
 
-const defaultProfessorFilters = {
+const baseProfessorFilters = {
   status: {
-    Estado: "active",
+    archivo: "active",
   },
 };
 
@@ -165,20 +162,11 @@ export function PortalProfesoresRouteView({
 
   return (
     <>
-      <section
-        className="flex flex-col gap-6"
-        aria-labelledby="profesores-title"
-      >
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h2 id="profesores-title" className="text-xl font-semibold">
-              Profesores
-            </h2>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Gestioná los profesores de tu academia y completá su
-              identificación cuando tengas los datos.
-            </p>
-          </div>
+      <PortalListPage
+        titleId="profesores-title"
+        title="Profesores"
+        description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
+        action={
           <Button
             type="button"
             onClick={() => {
@@ -189,25 +177,17 @@ export function PortalProfesoresRouteView({
             <Plus aria-hidden="true" data-icon />
             Nuevo profesor
           </Button>
-        </header>
-
+        }
+      >
         {loaderData.professors.length > 0 ? (
           <ProfessorsTable professors={loaderData.professors} />
         ) : (
-          <Empty className="min-h-64 border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Inbox aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>Todavía no cargaste profesores</EmptyTitle>
-              <EmptyDescription>
-                Sumá el plantel docente de tu academia para empezar a vincularlo
-                en las coreografías.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <PortalEmptyState
+            title="Todavía no cargaste profesores"
+            description="Sumá el plantel docente de tu academia para empezar a vincularlo en las coreografías."
+          />
         )}
-      </section>
+      </PortalListPage>
 
       <CreateProfessorDialog
         key={dialogResetKey}
@@ -287,6 +267,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
 
   return (
     <DataTable
+      mode="client"
       rows={professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
@@ -297,13 +278,6 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
           columnId: "status",
           label: "Filtros",
           groups: [
-            {
-              label: "Estado",
-              options: [
-                { label: "Activo", value: "active" },
-                { label: "Archivado", value: "archived" },
-              ],
-            },
             {
               label: "Participación",
               options: [
@@ -318,10 +292,15 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
                 { label: "Incompleto", value: "incomplete" },
               ],
             },
+            {
+              id: "archivo",
+              label: "Archivo",
+              options: [{ label: "Archivado", value: "archived" }],
+            },
           ],
         },
       ]}
-      initialFacetedFilterValues={defaultProfessorFilters}
+      baseFacetedFilterValues={baseProfessorFilters}
       emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />

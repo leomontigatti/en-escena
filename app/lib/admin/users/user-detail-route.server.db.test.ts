@@ -662,8 +662,8 @@ function renderListRoute(
           "0": {
             canManage: true,
             filters: {
+              archived: false,
               query: "",
-              role: "all",
               state: "all",
               type: "all",
             },

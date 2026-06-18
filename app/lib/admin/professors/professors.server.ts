@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -13,6 +13,7 @@ import {
   adminProfessorCorrectionReasonMessage,
   adminProfessorPageSize,
   type AdministrativeProfessorAuditAction,
+  type AdminProfessorNameOrder,
   type AdminProfessorParticipationStatus,
   type AdministrativeProfessorListFilters,
   readAdminProfessorParticipationFilter,
@@ -24,6 +25,10 @@ import {
   normalizeProfessorDocumentPair,
   normalizeProfessorNames,
 } from "@/lib/portal/professor-records.server";
+import {
+  buildProfessorAnyEventParticipationSql,
+  buildProfessorEventParticipationSql,
+} from "@/lib/people/participation.server";
 
 export type AdministrativeProfessorListItem = {
   id: string;
@@ -37,6 +42,7 @@ export type AdministrativeProfessorListItem = {
 
 export type AdministrativeProfessorListResult = {
   filters: AdministrativeProfessorListFilters;
+  hasAnyProfessor: boolean;
   items: AdministrativeProfessorListItem[];
   totalCount: number;
   totalPages: number;
@@ -111,13 +117,17 @@ export function readAdministrativeProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
 ): AdministrativeProfessorListFilters {
+  const stateValue = searchParams.get("estado");
+
   return {
-    participation: readAdminProfessorParticipationFilter({
-      value: searchParams.get("participando"),
+    nameOrder: readProfessorNameOrder(searchParams.get("orden")),
+    participation: readProfessorParticipationFilter({
+      stateValue,
+      participationValue: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("q")?.trim() ?? "",
-    status: readAdminProfessorStatusFilter(searchParams.get("estado")),
+    status: readProfessorStatusFilter(stateValue),
     page: readPage(searchParams),
   };
 }
@@ -127,6 +137,13 @@ export async function listAdministrativeProfessors(input: {
   filters: AdministrativeProfessorListFilters;
 }): Promise<AdministrativeProfessorListResult> {
   const where = buildAdministrativeProfessorWhere(input);
+
+  const [{ count: totalUnfilteredCount }] = await db
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(professors)
+    .innerJoin(academies, eq(academies.id, professors.academyId));
 
   const [{ count }] = await db
     .select({
@@ -142,7 +159,19 @@ export async function listAdministrativeProfessors(input: {
     Math.ceil(totalCount / adminProfessorPageSize),
   );
   const page = Math.min(input.filters.page, totalPages);
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildProfessorEventParticipationSql(
+    input.selectedEventId,
+  );
+  const orderByName =
+    input.filters.nameOrder === "desc"
+      ? [
+          desc(sql`lower(${professors.firstName})`),
+          desc(sql`lower(${professors.lastName})`),
+        ]
+      : [
+          asc(sql`lower(${professors.firstName})`),
+          asc(sql`lower(${professors.lastName})`),
+        ];
 
   const rows = await db
     .select({
@@ -158,11 +187,7 @@ export async function listAdministrativeProfessors(input: {
     .from(professors)
     .innerJoin(academies, eq(academies.id, professors.academyId))
     .where(where)
-    .orderBy(
-      asc(sql`lower(${professors.lastName})`),
-      asc(sql`lower(${professors.firstName})`),
-      asc(professors.id),
-    )
+    .orderBy(...orderByName, asc(professors.id))
     .limit(adminProfessorPageSize)
     .offset((page - 1) * adminProfessorPageSize);
 
@@ -171,6 +196,7 @@ export async function listAdministrativeProfessors(input: {
       ...input.filters,
       page,
     },
+    hasAnyProfessor: Number(totalUnfilteredCount) > 0,
     items: rows.map((row) => ({
       id: row.id,
       firstName: row.firstName,
@@ -189,11 +215,50 @@ export async function listAdministrativeProfessors(input: {
   };
 }
 
+function readProfessorParticipationFilter(input: {
+  stateValue: string | null;
+  participationValue: string | null;
+  hasSelectedEvent: boolean;
+}): AdministrativeProfessorListFilters["participation"] {
+  if (input.stateValue === "participando") {
+    return "yes";
+  }
+
+  if (input.stateValue === "no-participando") {
+    return "no";
+  }
+
+  if (input.stateValue === "archivados") {
+    return "all";
+  }
+
+  return readAdminProfessorParticipationFilter({
+    value: input.participationValue,
+    hasSelectedEvent: input.hasSelectedEvent,
+  });
+}
+
+function readProfessorStatusFilter(
+  value: string | null,
+): AdministrativeProfessorListFilters["status"] {
+  if (value === "archivados") {
+    return "archived";
+  }
+
+  return readAdminProfessorStatusFilter(value);
+}
+
+function readProfessorNameOrder(value: string | null): AdminProfessorNameOrder {
+  return value === "nombre:desc" ? "desc" : "asc";
+}
+
 export async function findAdministrativeProfessor(input: {
   professorId: string;
   selectedEventId: string | null;
 }): Promise<AdministrativeProfessorDetail | null> {
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildProfessorEventParticipationSql(
+    input.selectedEventId,
+  );
 
   const row = await db
     .select({
@@ -211,7 +276,7 @@ export async function findAdministrativeProfessor(input: {
       academyPhone: academies.phone,
       academyEmail: user.email,
       isParticipating: participationSql,
-      hasParticipatedInAnyEvent: buildAnyEventParticipationSql(),
+      hasParticipatedInAnyEvent: buildProfessorAnyEventParticipationSql(),
     })
     .from(professors)
     .innerJoin(academies, eq(academies.id, professors.academyId))
@@ -463,7 +528,9 @@ function buildAdministrativeProfessorWhere(input: {
   filters: AdministrativeProfessorListFilters;
 }) {
   const conditions: SQL[] = [];
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildProfessorEventParticipationSql(
+    input.selectedEventId,
+  );
 
   if (input.filters.status === "active") {
     conditions.push(eq(professors.active, true));
@@ -504,31 +571,6 @@ function buildAdministrativeProfessorWhere(input: {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
-function buildParticipationSql(selectedEventId: string | null) {
-  if (selectedEventId === null) {
-    return sql<boolean>`false`;
-  }
-
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyProfessors}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyProfessors.choreographyId}
-    where ${choreographyProfessors.professorId} = ${professors.id}
-      and ${choreographies.eventId} = ${selectedEventId}
-  )`;
-}
-
-function buildAnyEventParticipationSql() {
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyProfessors}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyProfessors.choreographyId}
-    where ${choreographyProfessors.professorId} = ${professors.id}
-  )`;
-}
-
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
@@ -544,8 +586,10 @@ async function findAdministrativeProfessorForMutation(input: {
   professorId: string;
   selectedEventId: string | null;
 }) {
-  const participationSql = buildParticipationSql(input.selectedEventId);
-  const anyEventParticipationSql = buildAnyEventParticipationSql();
+  const participationSql = buildProfessorEventParticipationSql(
+    input.selectedEventId,
+  );
+  const anyEventParticipationSql = buildProfessorAnyEventParticipationSql();
 
   return await db
     .select({

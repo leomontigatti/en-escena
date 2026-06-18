@@ -291,6 +291,7 @@ function CategoriesTable({
           emptyLabel="Sin tipos de grupo"
         />
       ),
+      filterValues: (category) => category.groupTypes,
       filterValue: (category) =>
         category.groupTypes
           .map((groupType) => groupTypeLabels[groupType] ?? groupType)
@@ -317,11 +318,24 @@ function CategoriesTable({
 
   return (
     <DataTable
+      mode="client"
       rows={categories}
       columns={columns}
       getRowKey={(category) => category.id}
       searchPlaceholder="Buscar categoría por nombre"
       textFilterColumnId="name"
+      facetedFilters={[
+        {
+          columnId: "groupTypes",
+          label: "Filtros",
+          groups: [
+            {
+              label: "Tipo de grupo",
+              options: groupTypeOptions,
+            },
+          ],
+        },
+      ]}
       emptyMessage="No hay categorías que coincidan con la búsqueda."
       initialSort={{ columnId: "name", direction: "asc" }}
     />

@@ -148,15 +148,20 @@ describe("administracion/profesores route", () => {
     });
     const defaultData = await loader(routeArgs(defaultRequest));
 
-    expect(defaultData.filters.participation).toBe("yes");
-    expect(defaultData.professors.map((professor) => professor.id)).toEqual([
-      participatingProfessor.id,
-    ]);
+    expect(defaultData.filters.participation).toBe("all");
+    expect(defaultData.filters.status).toBe("active");
+    expect(defaultData.totalCount).toBe(53);
+    expect(defaultData.professors.map((professor) => professor.id)).toContain(
+      nonParticipatingProfessor.id,
+    );
+    expect(
+      defaultData.professors.map((professor) => professor.id),
+    ).not.toContain(archivedProfessor.id);
 
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.busqueda@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&estado=todos&q=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&q=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -165,13 +170,13 @@ describe("administracion/profesores route", () => {
       nonParticipatingProfessor.id,
     ]);
     expect(searchMarkup).toContain("No participando");
-    expect(searchMarkup).toContain("Identificación incompleta");
+    expect(searchMarkup).not.toContain("Identificación incompleta");
+    expect(searchMarkup).not.toContain("Identificación completa");
     expect(searchMarkup).not.toContain("Acciones");
     expect(searchMarkup).toContain(
       `/administracion/profesores/${nonParticipatingProfessor.id}?q=Academia+Sur`,
     );
     expect(searchMarkup).toContain("participando=no");
-    expect(searchMarkup).toContain("estado=todos");
     expect(searchMarkup).toContain("q=Academia+Sur");
     expect(searchMarkup).not.toContain(">Todos<");
 
@@ -186,7 +191,7 @@ describe("administracion/profesores route", () => {
     expect(emptySearchData.professors).toHaveLength(0);
     expect(emptySearchMarkup).toContain('value="No existe"');
     expect(emptySearchMarkup).toContain(
-      "No hay Profesores que coincidan con la búsqueda.",
+      "No hay Profesores que coincidan con la búsqueda o los filtros.",
     );
     expect(emptySearchMarkup).not.toContain(
       "Todavía no hay Profesores para mostrar.",
@@ -279,8 +284,8 @@ describe("administracion/profesores route", () => {
     expect(loaderData.filters.participation).toBe("all");
     expect(loaderData.filters.status).toBe("active");
     expect(loaderData.professors.map((item) => item.id)).toEqual([
-      activeProfessor.id,
       participatingProfessor.id,
+      activeProfessor.id,
     ]);
     expect(markup).not.toContain("Participando");
     expect(markup).not.toContain("No participando");
@@ -316,7 +321,7 @@ describe("administracion/profesores route", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.ficha@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&estado=todos&participando=todos&page=2&q=Julia`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&page=2&q=Julia`,
     });
 
     const loaderData = await detailLoader(
@@ -336,8 +341,8 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain('name="documentType" value="passport"');
     expect(markup).toContain("AA123456");
     expect(markup).not.toContain(`evento=${event.id}`);
-    expect(markup).toContain("estado=todos");
-    expect(markup).toContain("participando=todos");
+    expect(markup).not.toContain("estado=todos");
+    expect(markup).not.toContain("participando=todos");
     expect(markup).toContain("page=2");
     expect(markup).toContain("q=Julia");
     expect(markup).not.toContain("Editar");
@@ -409,7 +414,7 @@ describe("administracion/profesores route", () => {
     expect(listMarkup).toContain("Evento activo");
     expect(detailMarkup).toContain("Detalle profesor");
     expect(detailMarkup).toContain('href="/administracion/profesores"');
-    expect(detailMarkup).toContain("Pérez, Julia");
+    expect(detailMarkup).toContain("Julia Pérez");
   });
 
   test("shows archived and incomplete identification alerts in the administrative detail", async () => {
@@ -438,6 +443,7 @@ describe("administracion/profesores route", () => {
 
     expect(markup).toContain("Este profesor está archivado.");
     expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).not.toContain("Identificación incompleta");
     expect(markup).toContain("Reactivar");
   });
 
@@ -994,23 +1000,18 @@ function buildListInitialEntry(
     searchParams.set("q", loaderData.filters.query);
   }
 
-  if (
-    loaderData.filters.participation !== "yes" ||
-    !loaderData.selectedEventId
-  ) {
-    searchParams.set(
-      "participando",
-      toAdminProfessorParticipationSearchValue(
-        loaderData.filters.participation,
-      ),
-    );
+  if (loaderData.filters.nameOrder === "desc") {
+    searchParams.set("orden", "nombre:desc");
   }
 
-  if (loaderData.filters.status !== "active") {
-    searchParams.set(
-      "estado",
-      toAdminProfessorStatusSearchValue(loaderData.filters.status),
-    );
+  const values = getProfessorFilterValues(loaderData);
+
+  if (values.participando) {
+    searchParams.set("participando", values.participando);
+  }
+
+  if (values.estado) {
+    searchParams.set("estado", values.estado);
   }
 
   if (loaderData.filters.page > 1) {
@@ -1020,6 +1021,31 @@ function buildListInitialEntry(
   const search = searchParams.toString();
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
+}
+
+function getProfessorFilterValues(
+  loaderData: Parameters<
+    typeof AdministracionProfesoresRouteView
+  >[0]["loaderData"],
+) {
+  const values: Record<string, string> = {};
+  const statusValue = toAdminProfessorStatusSearchValue(
+    loaderData.filters.status,
+  );
+
+  if (statusValue === "archivados") {
+    values.estado = statusValue;
+  }
+
+  const participationValue = toAdminProfessorParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+
+  if (loaderData.selectedEventId && participationValue !== "todos") {
+    values.participando = participationValue;
+  }
+
+  return values;
 }
 
 async function createSignedInRequest(input: {

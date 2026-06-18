@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { ChevronDown, Save, Settings2, Trash } from "lucide-react";
+import { Check, Ellipsis, Trash, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, redirect, useActionData } from "react-router";
 import { toast } from "sonner";
@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -50,6 +50,11 @@ import {
   type RouteNotificationKey,
 } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import type {
+  EventRegistrationMissingCode,
+  EventRegistrationReadiness,
+} from "@/lib/events/registration-readiness";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 
 import type { Route } from "./+types/administracion.eventos_.$eventId";
 
@@ -90,6 +95,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   return {
     event,
+    registrationReadiness: await getEventRegistrationReadiness(event.id),
   };
 }
 
@@ -184,16 +190,58 @@ export function AdministracionEventoDetalleRouteView({
       title="Editar evento"
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}
-      headerAction={
-        <div className="flex flex-wrap items-center gap-2">
-          {loaderData.event.active ? <Badge>Activo</Badge> : null}
-          <EventActions event={loaderData.event} />
-        </div>
-      }
+      headerAction={<EventActions event={loaderData.event} />}
     >
+      <EventRegistrationReadinessAlert
+        readiness={loaderData.registrationReadiness}
+      />
       <EditEventPanel event={loaderData.event} actionData={actionData} />
     </AdminResourceLayout>
   );
+}
+
+function EventRegistrationReadinessAlert({
+  readiness,
+}: {
+  readiness: EventRegistrationReadiness;
+}) {
+  if (readiness.isReady) {
+    return null;
+  }
+
+  return (
+    <Alert>
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>
+        <p>Este evento no está listo para inscribir coreografías.</p>
+        <ul className="mt-1 list-disc pl-5">
+          {summarizeMissingItems(readiness.missingItems).map((item) => (
+            <li key={item.code}>
+              {item.message}{" "}
+              <Link to={getMissingItemAdminPath(item.code)}>
+                Revisar {item.linkLabel}
+              </Link>
+              .
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function summarizeMissingItems(
+  missingItems: EventRegistrationReadiness["missingItems"],
+) {
+  const missingCodes = Array.from(
+    new Set(missingItems.map((item) => item.code)),
+  );
+
+  return missingCodes.map((code) => ({
+    code,
+    linkLabel: getMissingItemLinkLabel(code),
+    message: getMissingItemSummary(code),
+  }));
 }
 
 export default function AdministracionEventoDetalleRoute({
@@ -207,6 +255,57 @@ export default function AdministracionEventoDetalleRoute({
       actionData={actionData}
     />
   );
+}
+
+function getMissingItemAdminPath(code: EventRegistrationMissingCode) {
+  switch (code) {
+    case "modalities":
+      return "/administracion/modalidades";
+    case "categories":
+      return "/administracion/categorias";
+    case "schedule-blocks":
+    case "schedule-entries":
+    case "schedule-compatibility":
+      return "/administracion/bloques-horarios";
+    case "prices":
+    case "price-coverage":
+      return "/administracion/precios";
+  }
+}
+
+function getMissingItemLinkLabel(code: EventRegistrationMissingCode) {
+  switch (code) {
+    case "modalities":
+      return "modalidades";
+    case "categories":
+      return "categorías";
+    case "schedule-blocks":
+    case "schedule-entries":
+    case "schedule-compatibility":
+      return "bloques horarios";
+    case "prices":
+    case "price-coverage":
+      return "precios";
+  }
+}
+
+function getMissingItemSummary(code: EventRegistrationMissingCode) {
+  switch (code) {
+    case "modalities":
+      return "Falta cargar modalidades.";
+    case "categories":
+      return "Falta cargar categorías.";
+    case "schedule-blocks":
+      return "Falta cargar bloques horarios.";
+    case "schedule-entries":
+      return "Falta cargar cronogramas.";
+    case "prices":
+      return "Falta cargar precios.";
+    case "schedule-compatibility":
+      return "Existen categorías sin un cronograma compatible.";
+    case "price-coverage":
+      return "Existen combinaciones sin un precio aplicable.";
+  }
 }
 
 function EditEventPanel({
@@ -227,7 +326,6 @@ function EditEventPanel({
       method="post"
       action={eventActionPath(event.id)}
       noValidate
-      className="flex w-full flex-col gap-4"
       onSubmit={eventForm.handleSubmit}
     >
       <Card>
@@ -235,16 +333,16 @@ function EditEventPanel({
           <input type="hidden" name="intent" value="update" />
           <EventFormFields controller={eventForm} />
         </CardContent>
+        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+          <Button asChild variant="outline" size="lg">
+            <Link to="/administracion/eventos">Volver</Link>
+          </Button>
+          <Button type="submit" size="lg">
+            <Check aria-hidden="true" data-icon="inline-start" />
+            Guardar
+          </Button>
+        </CardFooter>
       </Card>
-      <div className="flex items-center justify-between">
-        <Button asChild variant="outline">
-          <Link to="/administracion/eventos">Volver</Link>
-        </Button>
-        <Button type="submit">
-          <Save data-icon="inline-start" />
-          Guardar
-        </Button>
-      </div>
     </form>
   );
 }
@@ -256,10 +354,14 @@ function EventActions({ event }: { event: EventRow }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Settings2 data-icon="inline-start" />
-            Acciones
-            <ChevronDown data-icon="inline-end" />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            aria-label="Acciones"
+          >
+            <Ellipsis aria-hidden="true" />
+            <span className="sr-only">Acciones</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">

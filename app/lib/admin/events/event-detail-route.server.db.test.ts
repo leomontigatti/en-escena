@@ -32,7 +32,18 @@ describe("administracion/eventos/:eventId route", () => {
 
     expect(data.event.id).toBe(event.id);
     expect(data.event.name).toBe("Regional 2026");
+    expect(data.registrationReadiness).toMatchObject({
+      eventId: event.id,
+      isReady: false,
+    });
     expect(markup).toContain("Editar evento");
+    expect(markup).toContain(
+      "Este evento no está listo para inscribir coreografías.",
+    );
+    expect(markup).not.toContain("Falta configurar:");
+    expect(markup).toContain("Falta cargar modalidades.");
+    expect(markup).toContain('href="/administracion/modalidades"');
+    expect(markup).not.toContain(">Activo</span>");
     expect(markup).not.toContain("Evento de trabajo");
   });
 

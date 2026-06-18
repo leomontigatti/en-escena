@@ -1,6 +1,9 @@
 import { useActionData, useParams } from "react-router";
 
-import { EventPriceDetailRouteView } from "@/components/admin/events/event-prices";
+import {
+  EventPriceDetailRouteView,
+  getPriceDisplayName,
+} from "@/components/admin/events/event-prices";
 import { action, loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 
@@ -18,7 +21,7 @@ export const handle = {
       const price = data?.prices.find(
         (item) => item.id === match.params.priceId,
       );
-      return { label: price?.name ?? "Precio" };
+      return { label: price ? getPriceDisplayName(price) : "Precio" };
     },
   ],
 } satisfies AdminRouteHandle;

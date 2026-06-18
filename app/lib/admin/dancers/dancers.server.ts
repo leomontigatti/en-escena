@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -16,6 +16,7 @@ import {
   adminDancerCorrectionReasonMessage,
   adminDancerPageSize,
   type AdministrativeDancerAuditAction,
+  type AdminDancerNameOrder,
   type AdminDancerIdentificationStatus,
   type AdminDancerParticipationStatus,
   type AdministrativeDancerListFilters,
@@ -29,6 +30,10 @@ import {
   normalizeDancerDocumentPair,
   normalizeDancerValues,
 } from "@/lib/portal/dancer-records.server";
+import {
+  buildDancerAnyEventParticipationSql,
+  buildDancerEventParticipationSql,
+} from "@/lib/people/participation.server";
 
 export type AdministrativeDancerListItem = {
   id: string;
@@ -42,6 +47,7 @@ export type AdministrativeDancerListItem = {
 
 export type AdministrativeDancerListResult = {
   filters: AdministrativeDancerListFilters;
+  hasAnyDancer: boolean;
   items: AdministrativeDancerListItem[];
   totalCount: number;
   totalPages: number;
@@ -143,6 +149,7 @@ export function readAdministrativeDancerFilters(
   options: { hasSelectedEvent: boolean },
 ): AdministrativeDancerListFilters {
   return {
+    nameOrder: readDancerNameOrder(searchParams.get("orden")),
     participation: readAdminDancerParticipationFilter({
       value: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
@@ -162,6 +169,13 @@ export async function listAdministrativeDancers(input: {
 }): Promise<AdministrativeDancerListResult> {
   const where = buildAdministrativeDancerWhere(input);
 
+  const [{ count: totalUnfilteredCount }] = await db
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(dancers)
+    .innerJoin(academies, eq(academies.id, dancers.academyId));
+
   const [{ count }] = await db
     .select({
       count: sql<number>`count(*)`,
@@ -173,7 +187,19 @@ export async function listAdministrativeDancers(input: {
   const totalCount = Number(count);
   const totalPages = Math.max(1, Math.ceil(totalCount / adminDancerPageSize));
   const page = Math.min(input.filters.page, totalPages);
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildDancerEventParticipationSql(
+    input.selectedEventId,
+  );
+  const orderByName =
+    input.filters.nameOrder === "desc"
+      ? [
+          desc(sql`lower(${dancers.firstName})`),
+          desc(sql`lower(${dancers.lastName})`),
+        ]
+      : [
+          asc(sql`lower(${dancers.firstName})`),
+          asc(sql`lower(${dancers.lastName})`),
+        ];
 
   const rows = await db
     .select({
@@ -192,11 +218,7 @@ export async function listAdministrativeDancers(input: {
     .from(dancers)
     .innerJoin(academies, eq(academies.id, dancers.academyId))
     .where(where)
-    .orderBy(
-      asc(sql`lower(${dancers.lastName})`),
-      asc(sql`lower(${dancers.firstName})`),
-      asc(dancers.id),
-    )
+    .orderBy(...orderByName, asc(dancers.id))
     .limit(adminDancerPageSize)
     .offset((page - 1) * adminDancerPageSize);
 
@@ -205,6 +227,7 @@ export async function listAdministrativeDancers(input: {
       ...input.filters,
       page,
     },
+    hasAnyDancer: Number(totalUnfilteredCount) > 0,
     items: rows.map((row) => ({
       id: row.id,
       firstName: row.firstName,
@@ -228,11 +251,17 @@ export async function listAdministrativeDancers(input: {
   };
 }
 
+function readDancerNameOrder(value: string | null): AdminDancerNameOrder {
+  return value === "nombre:desc" ? "desc" : "asc";
+}
+
 export async function findAdministrativeDancer(input: {
   dancerId: string;
   selectedEventId: string | null;
 }): Promise<AdministrativeDancerDetail | null> {
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildDancerEventParticipationSql(
+    input.selectedEventId,
+  );
 
   const row = await db
     .select({
@@ -254,7 +283,7 @@ export async function findAdministrativeDancer(input: {
       academyPhone: academies.phone,
       academyEmail: user.email,
       isParticipating: participationSql,
-      hasParticipatedInAnyEvent: buildAnyEventParticipationSql(),
+      hasParticipatedInAnyEvent: buildDancerAnyEventParticipationSql(),
     })
     .from(dancers)
     .innerJoin(academies, eq(academies.id, dancers.academyId))
@@ -517,7 +546,10 @@ export async function verifyAdministrativeDancerIdentity(input: {
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
   }
 
-  if (existingDancer.identificationStatus !== "pending-verification") {
+  if (
+    existingDancer.identificationStatus !== "pending-verification" &&
+    existingDancer.identificationStatus !== "missing-images"
+  ) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
@@ -619,7 +651,9 @@ function buildAdministrativeDancerWhere(input: {
   filters: AdministrativeDancerListFilters;
 }) {
   const conditions: SQL[] = [];
-  const participationSql = buildParticipationSql(input.selectedEventId);
+  const participationSql = buildDancerEventParticipationSql(
+    input.selectedEventId,
+  );
 
   if (input.filters.status === "active") {
     conditions.push(eq(dancers.active, true));
@@ -681,31 +715,6 @@ function buildAdministrativeDancerWhere(input: {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
-function buildParticipationSql(selectedEventId: string | null) {
-  if (selectedEventId === null) {
-    return sql<boolean>`false`;
-  }
-
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyDancers}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyDancers.choreographyId}
-    where ${choreographyDancers.dancerId} = ${dancers.id}
-      and ${choreographies.eventId} = ${selectedEventId}
-  )`;
-}
-
-function buildAnyEventParticipationSql() {
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyDancers}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyDancers.choreographyId}
-    where ${choreographyDancers.dancerId} = ${dancers.id}
-  )`;
-}
-
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
@@ -721,8 +730,10 @@ async function findAdministrativeDancerForMutation(input: {
   dancerId: string;
   selectedEventId: string | null;
 }) {
-  const participationSql = buildParticipationSql(input.selectedEventId);
-  const anyEventParticipationSql = buildAnyEventParticipationSql();
+  const participationSql = buildDancerEventParticipationSql(
+    input.selectedEventId,
+  );
+  const anyEventParticipationSql = buildDancerAnyEventParticipationSql();
 
   return await db
     .select({
@@ -864,7 +875,7 @@ function toIdentificationStatus(input: {
 
   switch (verificationStatus) {
     case "missingImages":
-      return "missing-images";
+      return "pending-verification";
     case "unverified":
       return "pending-verification";
     default:

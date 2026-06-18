@@ -152,16 +152,17 @@ export type CompatibleScheduleEntry = typeof scheduleEntries.$inferSelect & {
   >;
 };
 
-export type PriceInput = EventBaseNameInput & {
+export type PriceInput = {
   groupType: string;
   amount: number;
+  paymentDeadline: string;
   scheduleBlockId: string | null;
 };
 
 type ValidPriceInput = {
-  name: string;
   groupType: GroupType;
   amount: number;
+  paymentDeadline: string;
   scheduleBlockId: string | null;
 };
 
@@ -1005,6 +1006,7 @@ export async function deletePrice(
 export async function resolveApplicablePrice(input: {
   eventId: string;
   groupType: string;
+  paymentDate?: Date | string | null;
   scheduleBlockId: string | null;
 }): Promise<PriceResolutionResult> {
   if (!isGroupType(input.groupType)) {
@@ -1016,26 +1018,31 @@ export async function resolveApplicablePrice(input: {
   }
 
   if (input.scheduleBlockId) {
-    const specificPrice = await db.query.prices.findFirst({
+    const specificPrices = await db.query.prices.findMany({
       where: and(
         eq(prices.eventId, input.eventId),
         eq(prices.groupType, input.groupType),
         eq(prices.scheduleBlockId, input.scheduleBlockId),
       ),
     });
+    const specificPrice = selectApplicablePrice(
+      specificPrices,
+      input.paymentDate,
+    );
 
     if (specificPrice) {
       return { ok: true, price: specificPrice };
     }
   }
 
-  const generalPrice = await db.query.prices.findFirst({
+  const generalPrices = await db.query.prices.findMany({
     where: and(
       eq(prices.eventId, input.eventId),
       eq(prices.groupType, input.groupType),
       isNull(prices.scheduleBlockId),
     ),
   });
+  const generalPrice = selectApplicablePrice(generalPrices, input.paymentDate);
 
   if (generalPrice) {
     return { ok: true, price: generalPrice };
@@ -1383,12 +1390,8 @@ async function validatePriceInput(
   options: { exceptId?: string } = {},
 ): Promise<{ ok: true; input: ValidPriceInput } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
-  const name = input.name.trim();
+  const paymentDeadline = input.paymentDeadline.trim();
   const scheduleBlockId = input.scheduleBlockId?.trim() || null;
-
-  if (name.length === 0) {
-    fieldErrors.name = requiredFieldMessage;
-  }
 
   if (input.groupType.trim().length === 0) {
     fieldErrors.groupType = requiredFieldMessage;
@@ -1398,6 +1401,10 @@ async function validatePriceInput(
 
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
     fieldErrors.amount = "Ingresá un monto mayor a cero.";
+  }
+
+  if (!isDateOnly(paymentDeadline)) {
+    fieldErrors.paymentDeadline = requiredFieldMessage;
   }
 
   if (scheduleBlockId) {
@@ -1432,9 +1439,9 @@ async function validatePriceInput(
   }
 
   const validInput = {
-    name,
     groupType: input.groupType,
     amount: input.amount,
+    paymentDeadline,
     scheduleBlockId,
   };
 
@@ -1471,6 +1478,7 @@ async function findDuplicatePrice(
       and(
         eq(prices.eventId, eventId),
         eq(prices.groupType, input.groupType),
+        eq(prices.paymentDeadline, input.paymentDeadline),
         scheduleBlockFilter,
         idFilter,
       ),
@@ -2161,6 +2169,7 @@ function hasStructuralPriceChanges(
   return (
     existing.groupType !== input.groupType ||
     existing.amount !== input.amount ||
+    existing.paymentDeadline !== input.paymentDeadline ||
     existing.scheduleBlockId !== input.scheduleBlockId
   );
 }
@@ -2194,7 +2203,59 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
     return blockComparison;
   }
 
-  return first.name.localeCompare(second.name);
+  return first.amount - second.amount;
+}
+
+function selectApplicablePrice(
+  candidates: Array<typeof prices.$inferSelect>,
+  paymentDate: Date | string | null | undefined,
+) {
+  const dateOnly = paymentDate ? toDateOnly(paymentDate) : null;
+  const applicableCandidates = dateOnly
+    ? candidates.filter(
+        (price) =>
+          price.paymentDeadline === null || price.paymentDeadline >= dateOnly,
+      )
+    : candidates;
+
+  return applicableCandidates.sort(compareApplicablePrices)[0] ?? null;
+}
+
+function compareApplicablePrices(
+  first: typeof prices.$inferSelect,
+  second: typeof prices.$inferSelect,
+) {
+  if (first.paymentDeadline === null && second.paymentDeadline !== null) {
+    return 1;
+  }
+
+  if (first.paymentDeadline !== null && second.paymentDeadline === null) {
+    return -1;
+  }
+
+  if (first.paymentDeadline && second.paymentDeadline) {
+    const deadlineComparison = first.paymentDeadline.localeCompare(
+      second.paymentDeadline,
+    );
+
+    if (deadlineComparison !== 0) {
+      return deadlineComparison;
+    }
+  }
+
+  return first.amount - second.amount;
+}
+
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function toDateOnly(value: Date | string) {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return value.slice(0, 10);
 }
 
 function hasStructuralScheduleEntryChanges(

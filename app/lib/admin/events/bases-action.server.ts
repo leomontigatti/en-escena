@@ -73,6 +73,7 @@ type EventBasesActionInput = {
   capacity: number;
   scheduleBlockId: string;
   priceScheduleBlockId: string | null;
+  paymentDeadline: string;
   minAge: number;
   maxAge: number;
   groupTypes: string[];
@@ -264,6 +265,7 @@ function readEventBasesActionInput(
     name: String(formData.get("name") ?? ""),
     scheduleBlockId: String(formData.get("scheduleBlockId") ?? ""),
     priceScheduleBlockId: String(formData.get("scheduleBlockId") ?? "") || null,
+    paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
     experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
     startTime: String(formData.get("startTime") ?? ""),
@@ -515,9 +517,9 @@ function getPriceRequiredFieldErrors(
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   const fieldErrors = getRequiredErrors({
-    name: formData.get("name"),
     groupType: formData.get("groupType"),
     amount: formData.get("amount"),
+    paymentDeadline: formData.get("paymentDeadline"),
   });
 
   return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
@@ -801,9 +803,9 @@ function getScheduleBlockInput(
 
 function getPriceInput(input: EventBasesActionInput): PriceInput {
   return {
-    name: input.name,
     groupType: input.groupType,
     amount: input.amount,
+    paymentDeadline: input.paymentDeadline,
     scheduleBlockId: input.priceScheduleBlockId,
   };
 }

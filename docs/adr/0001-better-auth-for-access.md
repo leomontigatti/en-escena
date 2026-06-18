@@ -3,6 +3,8 @@
 Superseded on 2026-06-17 by the completed Supabase Auth migration and app-owned
 local test harness. Keep this ADR only as historical context.
 
+**Status**: superseded by ADR-0006
+
 We will use Better Auth for credential-based authentication, sessions, and password recovery, while keeping domain-specific access flows such as public academy registration and internal user invitations in application code. This avoids building password/session security ourselves, but keeps the academy registration boundary explicit: a registration token creates an academy plus its single academy user, while Better Auth owns the resulting verified email, password, and session.
 
 **Considered Options**

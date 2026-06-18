@@ -135,6 +135,13 @@ describe("portal route view", () => {
               pendingItems: ["music"],
             },
           }),
+          choreographyListItem({
+            id: "choreo_2",
+            name: "Otra Pieza",
+            modalityName: "Folklore",
+            groupType: "duo",
+            categoryName: "Adultos",
+          }),
         ],
         eventContext: {
           events: [selectedEvent],
@@ -164,31 +171,69 @@ describe("portal route view", () => {
       "Buscar coreografía por nombre, modalidad o categoría",
     );
     expect(markup).toContain("Filtros");
+    expect(markup).toContain("2 de 2 registros");
     expect(markup).toContain("Jazz · Lyrical");
+    expect(markup).toContain("Folklore");
     expect(markup).toContain("Juvenil · Grupal");
-    expect(markup).toContain("Pendiente: Música");
+    expect(markup).toContain("Adultos · Dúo");
+    expect(markup).toContain("Incompleta");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
-    expect(markup).toContain("Crear Coreografía");
-    expect(markup).toContain("disabled");
-    expect(markup).toContain(
-      "La inscripción del Evento activo está cerrada y no admite nuevas coreografías.",
-    );
+    expect(markup).toContain("Nueva coreografía");
+    expect(markup).toContain('disabled=""');
     expect(markup).toContain('href="/portal/coreografias/choreo_1"');
   });
 
-  test("disables Crear Coreografía with a clear message when there are no Bailarines activos", () => {
+  test("disables Nueva coreografía when there are no bailarines activos", () => {
     const markup = renderCoreografias({
       loaderData: coreografiasLoaderData({
         activeDancers: [],
       }),
     });
 
-    expect(markup).toContain("Crear Coreografía");
-    expect(markup).toContain("disabled");
+    expect(markup).toContain("Nueva coreografía");
+    expect(markup).toContain('disabled=""');
+  });
+
+  test("does not expose missing active event bases before coreografía creation", () => {
+    const selectedEvent = eventSummary({
+      id: "event_active",
+      name: "Regional 2026",
+      active: true,
+    });
+
+    const markup = renderCoreografias({
+      loaderData: coreografiasLoaderData({
+        eventContext: {
+          events: [selectedEvent],
+          selectedEvent,
+          activeEvent: selectedEvent,
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(false, [
+            {
+              code: "price-coverage",
+              label: "Precios aplicables",
+              detail:
+                "Falta un precio aplicable para categoría Juvenil, modalidad Jazz, tipo de grupo Solo.",
+            },
+          ]),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        },
+      }),
+    });
+
+    expect(markup).toContain("Nueva coreografía");
+    expect(markup).toContain('disabled=""');
     expect(markup).toContain(
-      "Necesitás al menos un Bailarín activo para registrar una Coreografía.",
+      "No hay coreografías registradas para este evento",
     );
+    expect(markup).not.toContain("Creación no disponible");
+    expect(markup).not.toContain(
+      "Faltan bases del evento antes de registrar coreografías.",
+    );
+    expect(markup).not.toContain("Precios aplicables");
   });
 
   test("keeps Coreografías visible in the shell without an active event", () => {
@@ -212,16 +257,16 @@ describe("portal route view", () => {
     expect(markup).toContain("Coreografías");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
-    expect(markup).toContain("Todavía no hay Eventos configurados");
+    expect(markup).toContain("Todavía no hay eventos configurados");
   });
 
-  test("shows the enabled Crear Coreografía button for the active editable Evento", () => {
+  test("shows the enabled Nueva coreografía button for the active editable event", () => {
     const markup = renderCoreografias();
 
-    expect(markup).toContain("Crear Coreografía");
-    expect(markup).not.toContain("cursor-not-allowed");
+    expect(markup).toContain("Nueva coreografía");
+    expect(markup).not.toContain('disabled=""');
     expect(markup).toContain(
-      "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
+      "Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo.",
     );
   });
 
@@ -230,7 +275,7 @@ describe("portal route view", () => {
       deleted: true,
     });
 
-    expect(markup).toContain("La Coreografía se eliminó correctamente.");
+    expect(markup).toContain("La coreografía se eliminó correctamente.");
   });
 
   test("shows the Coreografía detail with structural read-only data, roster and archived badges", () => {
@@ -280,23 +325,21 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Mi Pieza");
-    expect(markup).toContain("Evento activo");
+    expect(markup).toContain("Editar coreografía");
     expect(markup).toContain("Inicio");
     expectPortalNavigation(markup);
     expectActivePortalNavigationItem(markup, "/portal/coreografias");
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
-    expect(markup).toContain("Categoría pendiente");
-    expect(markup).toContain("Pendiente: Categoría, Profesores");
-    expect(markup).toContain("Pendientes operativos: Categoría, Profesores");
-    expect(markup).toContain("Edad al inicio del Evento: 14");
-    expect(markup).toContain("Archivado");
+    expect(markup).toContain("Sin asignar");
+    expect(markup).toContain("Falta cargar profesores.");
+    expect(markup).toContain("Ana Paz");
     expect(markup).not.toContain("Volver a Coreografías");
     expect(markup).not.toContain("Eliminar Coreografía");
   });
 
-  test("shows editable Profesores on active Coreografía detail and keeps archived linked options visible", () => {
+  test("shows linked Profesores on the Coreografía detail and keeps archived options visible", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
         availableProfessors: [
@@ -341,22 +384,21 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Evento activo");
-    expect(markup).toContain("Editable");
-    expect(markup).toContain("Profesores actualizados correctamente.");
-    expect(markup).toContain("Guardar Profesores");
+    expect(markup).toContain("Editar coreografía");
+    expect(markup).not.toContain("Profesores actualizados correctamente.");
+    expect(markup).toContain(
+      "Actualizá bailarines y profesores de esta coreografía.",
+    );
     expect(markup).toContain("Buscar profesores");
-    expect(markup).toContain("Archivada, Mora");
-    expect(markup).toContain('name="professorIds" value="prof_2"');
-    expect(markup).toContain("Estado operativo al día.");
-    expect(markup).toContain('value="update-choreography-professors"');
-    expect(markup).toContain("Eliminar Coreografía");
+    expect(markup).toContain("Mora Archivada");
+    expect(markup).not.toContain("Falta cargar");
+    expect(markup).toContain("Acciones");
     expect(markup).not.toContain(
       "Confirmo que quiero eliminar esta Coreografía.",
     );
   });
 
-  test("shows editable bailarines on coreografía detail with active and linked archived options", () => {
+  test("shows linked bailarines on coreografía detail with active and archived options", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
         availableDancers: [
@@ -402,17 +444,15 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Edición disponible");
+    expect(markup).toContain("Editar coreografía");
     expect(markup).toContain(
-      "Actualizá el roster y revisá cómo cambian tipo de grupo, categoría y nivel antes de guardar.",
+      "Actualizá bailarines y profesores de esta coreografía.",
     );
-    expect(markup).toContain("Datos recalculados");
-    expect(markup).toContain("Guardar bailarines");
     expect(markup).toContain("Buscar bailarines");
-    expect(markup).toContain("Archivada, Mora");
+    expect(markup).toContain("Mora Archivada");
   });
 
-  test("explains recalculated dancer changes without exposing financial amounts", () => {
+  test("keeps the coreografía detail free of financial copy when dancer resolution state is present", () => {
     const markup = renderCoreografiaDetalle({
       actionData: {
         status: "dancer-error",
@@ -504,20 +544,12 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain(
-      "El tipo de grupo cambió porque depende de la cantidad de bailarines seleccionados.",
-    );
-    expect(markup).toContain(
-      "La categoría cambió según la edad promedio del grupo: 13 años.",
-    );
-    expect(markup).toContain(
-      "El precio se recalcula al confirmar los bailarines. Este paso no muestra importes.",
-    );
+    expect(markup).toContain("Editar coreografía");
     expect(markup).not.toContain("$");
     expect(markup).not.toContain("Desglose");
   });
 
-  test("shows the no-option cronograma state for dancer edits", () => {
+  test("does not render transient cronograma resolution errors on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -560,12 +592,13 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain(
+    expect(markup).toContain("Cronograma");
+    expect(markup).not.toContain(
       "No hay cronogramas compatibles para la modalidad y el tipo de grupo seleccionados.",
     );
   });
 
-  test("shows the auto cronograma state for dancer edits", () => {
+  test("does not render transient auto cronograma messaging on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -619,12 +652,13 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain(
+    expect(markup).toContain("Cronograma");
+    expect(markup).not.toContain(
       "El cronograma compatible se selecciona automáticamente.",
     );
   });
 
-  test("shows the multiple cronograma state for dancer edits", () => {
+  test("does not render transient multiple cronograma messaging on the read-only detail", () => {
     const markup = renderCoreografiaDetalle({
       initialDancerResolution: {
         ok: true,
@@ -691,13 +725,13 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain("Cronograma");
-    expect(markup).toContain(
+    expect(markup).not.toContain(
       "Elegí un cronograma compatible antes de guardar los bailarines.",
     );
-    expect(markup).toContain('id="choreography-dancer-schedule"');
+    expect(markup).not.toContain('id="choreography-dancer-schedule"');
   });
 
-  test("shows the primary blocked reason for dancer editing on coreografía detail", () => {
+  test("keeps the coreografía detail read-only when dancer editing would be blocked", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
         eventContext: {
@@ -721,11 +755,9 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain("Edición no disponible");
-    expect(markup).toContain(
-      "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.",
-    );
-    expect(markup).toContain(
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Buscar bailarines");
+    expect(markup).not.toContain(
       "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
     );
   });
@@ -807,6 +839,8 @@ describe("portal route view", () => {
     );
     expect(markup).toContain("Nuevo bailarín");
     expect(markup).toContain("Filtros");
+    expect(markup).toContain('aria-label="Filtros"');
+    expect(markup).not.toContain('aria-label="Filtros:');
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Faltan imágenes");

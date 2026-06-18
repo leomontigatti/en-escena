@@ -76,6 +76,16 @@ describe("route notification toasts", () => {
       message: "Bailarín verificado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["coreografia-creada"]).toEqual({
+      id: "route-notification:coreografia-creada",
+      message: "Coreografía creada.",
+      variant: "success",
+    });
+    expect(routeNotificationToasts["coreografia-guardada"]).toEqual({
+      id: "route-notification:coreografia-guardada",
+      message: "Coreografía guardada.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["evento-guardado"]).toEqual({
       id: "route-notification:evento-guardado",
       message: "Evento guardado.",

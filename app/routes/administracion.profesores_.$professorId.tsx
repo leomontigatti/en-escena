@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Ellipsis, TriangleAlert } from "lucide-react";
+import { Check, Ellipsis, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
@@ -8,9 +8,8 @@ import { z } from "zod";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,10 +44,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   adminProfessorCorrectionReasonMessage,
   adminProfessorNotFoundMessage,
-  getAdminProfessorParticipationLabel,
-  type AdminProfessorParticipationStatus,
 } from "@/lib/admin/professors/professors.shared";
 import {
   findAdministrativeProfessor,
@@ -143,7 +146,7 @@ export const handle = {
       const data = match.data as LoaderData | undefined;
       const professor = data?.professor;
       return professor
-        ? { label: `${professor.lastName}, ${professor.firstName}` }
+        ? { label: `${professor.firstName} ${professor.lastName}` }
         : null;
     },
   ],
@@ -396,61 +399,48 @@ export function AdministracionProfesorDetalleRouteView({
       }
     >
       <section className="flex flex-col gap-6">
-        <Card>
-          <CardContent className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              {!professor.active ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Este profesor está archivado. Reactivalo para que vuelva a
-                    aparecer en las vistas activas y en próximas selecciones del
-                    portal.
-                  </AlertDescription>
-                  {loaderData.canEdit ? (
-                    <AlertAction>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        onClick={() => {
-                          reasonForm.form.reset({
-                            correctionReason:
-                              actionData?.values.correctionReason ?? "",
-                            statusIntent: "reactivate-professor",
-                          });
-                          setDialogIntent("reactivate-professor");
-                        }}
-                      >
-                        Reactivar
-                      </Button>
-                    </AlertAction>
-                  ) : null}
-                </Alert>
+        <div className="flex flex-col gap-3">
+          {!professor.active ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Este profesor está archivado. Reactivalo para que vuelva a
+                aparecer en las vistas activas y en próximas selecciones del
+                portal.
+              </AlertDescription>
+              {loaderData.canEdit ? (
+                <AlertAction className="top-1/2 -translate-y-1/2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      reasonForm.form.reset({
+                        correctionReason:
+                          actionData?.values.correctionReason ?? "",
+                        statusIntent: "reactivate-professor",
+                      });
+                      setDialogIntent("reactivate-professor");
+                    }}
+                  >
+                    Reactivar
+                  </Button>
+                </AlertAction>
               ) : null}
-              {professor.isIncomplete ? (
-                <Alert>
-                  <TriangleAlert aria-hidden="true" />
-                  <AlertDescription>
-                    Faltan datos de identificación.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <Badge variant={professor.active ? "default" : "secondary"}>
-                  {professor.active ? "Activo" : "Archivado"}
-                </Badge>
-                <ParticipationBadge
-                  participationStatus={professor.participationStatus}
-                />
-                {professor.isIncomplete ? (
-                  <Badge variant="secondary">Identificación incompleta</Badge>
-                ) : (
-                  <Badge variant="outline">Identificación completa</Badge>
-                )}
-              </div>
-            </div>
+            </Alert>
+          ) : null}
+          {professor.isIncomplete ? (
+            <Alert>
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Faltan datos de identificación.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
 
+        <Card>
+          <CardContent>
             <form
               id="administracion-profesor-form"
               method="post"
@@ -460,6 +450,7 @@ export function AdministracionProfesorDetalleRouteView({
               <input type="hidden" name="intent" value="update-professor" />
               <FieldGroup className="grid gap-5 md:grid-cols-2">
                 <ReadOnlyField
+                  className="md:col-span-2"
                   label="Academia"
                   value={professor.academy.name}
                 />
@@ -488,37 +479,37 @@ export function AdministracionProfesorDetalleRouteView({
               </FieldGroup>
             </form>
           </CardContent>
-        </Card>
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          {isEditing ? (
-            <Button asChild variant="outline" size="lg">
-              <Link to={loaderData.cancelHref}>Cancelar</Link>
-            </Button>
-          ) : (
-            <Button asChild variant="outline" size="lg">
-              <Link to={loaderData.backToList}>
-                <ArrowLeft aria-hidden="true" data-icon="inline-start" />
-                Volver
-              </Link>
-            </Button>
-          )}
-          {loaderData.canEdit ? (
-            isEditing ? (
-              <Button
-                type="submit"
-                form="administracion-profesor-form"
-                size="lg"
-              >
-                Guardar
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            {isEditing ? (
+              <Button asChild variant="outline" size="lg">
+                <Link to={loaderData.cancelHref}>Cancelar</Link>
               </Button>
             ) : (
-              <Button asChild size="lg">
-                <Link to={loaderData.editHref}>Editar</Link>
+              <Button asChild variant="outline" size="lg">
+                <Link to={loaderData.backToList}>Volver</Link>
               </Button>
-            )
-          ) : null}
-        </div>
+            )}
+            {loaderData.canEdit ? (
+              isEditing ? (
+                <Button
+                  type="submit"
+                  form="administracion-profesor-form"
+                  size="lg"
+                >
+                  <Check aria-hidden="true" data-icon="inline-start" />
+                  Guardar
+                </Button>
+              ) : (
+                <Button asChild size="lg">
+                  <Link to={loaderData.editHref}>
+                    <Pencil aria-hidden="true" data-icon="inline-start" />
+                    Editar
+                  </Link>
+                </Button>
+              )
+            ) : null}
+          </CardFooter>
+        </Card>
       </section>
 
       <ProfessorConfirmationDialog
@@ -622,12 +613,24 @@ function ProfessorActionsMenu({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="lg">
-          <Ellipsis aria-hidden="true" data-icon />
-          Acciones
-        </Button>
-      </DropdownMenuTrigger>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label="Acciones"
+              >
+                <Ellipsis aria-hidden="true" />
+                <span className="sr-only">Acciones</span>
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="left">Acciones</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuItem
           variant={active ? "destructive" : "default"}
@@ -718,7 +721,7 @@ function ProfessorDocumentTypeField({
               >
                 <SelectValue placeholder="Sin documento" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="start" position="popper" side="bottom">
                 <SelectItem value={noDocumentTypeSelectValue}>
                   Sin documento
                 </SelectItem>
@@ -869,31 +872,24 @@ function ProfessorConfirmationDialog({
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({
+  className,
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: string;
+}) {
   const id = useId();
 
   return (
-    <Field>
+    <Field className={className}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <FieldContent>
         <Input id={id} value={value} disabled readOnly />
       </FieldContent>
     </Field>
-  );
-}
-
-function ParticipationBadge({
-  participationStatus,
-}: {
-  participationStatus: AdminProfessorParticipationStatus;
-}) {
-  const variant =
-    participationStatus === "participating" ? "outline" : "secondary";
-
-  return (
-    <Badge variant={variant}>
-      {getAdminProfessorParticipationLabel(participationStatus)}
-    </Badge>
   );
 }
 

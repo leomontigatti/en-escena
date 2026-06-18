@@ -180,30 +180,30 @@ export async function createEventCatalog(eventId: string) {
   await db.insert(prices).values([
     {
       eventId,
-      name: `Solo ${eventId}`,
       groupType: "solo",
       amount: 10000,
+      paymentDeadline: "2026-05-31",
       scheduleBlockId: null,
     },
     {
       eventId,
-      name: `Dúo ${eventId}`,
       groupType: "duo",
       amount: 15000,
+      paymentDeadline: "2026-05-31",
       scheduleBlockId: null,
     },
     {
       eventId,
-      name: `Trío ${eventId}`,
       groupType: "trio",
       amount: 20000,
+      paymentDeadline: "2026-05-31",
       scheduleBlockId: null,
     },
     {
       eventId,
-      name: `Grupal ${eventId}`,
       groupType: "grupal",
       amount: 25000,
+      paymentDeadline: "2026-05-31",
       scheduleBlockId: null,
     },
   ]);

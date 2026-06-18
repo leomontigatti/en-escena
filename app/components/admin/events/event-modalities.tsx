@@ -244,6 +244,7 @@ function ModalitiesTable({
 
   return (
     <DataTable
+      mode="client"
       rows={modalities}
       columns={columns}
       getRowKey={(modality) => modality.id}
@@ -584,7 +585,7 @@ function CreateSubmodalityDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent forceMount>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Crear submodalidad</DialogTitle>
         </DialogHeader>

@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -21,6 +22,7 @@ import type { Route } from "./+types/administracion.eventos";
 type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState = ReturnType<typeof getTemporalState>;
 type EventListRow = EventRow & {
+  isRegistrationReady: boolean;
   temporalState: TemporalState;
 };
 type LoaderData = Awaited<ReturnType<typeof loader>>;
@@ -48,10 +50,19 @@ export async function loader({ request }: Route.LoaderArgs) {
     orderBy: [desc(eventsTable.startsAt)],
   });
   const now = new Date();
+  const eventReadinessById = new Map(
+    await Promise.all(
+      eventRows.map(
+        async (event) =>
+          [event.id, await getEventRegistrationReadiness(event.id)] as const,
+      ),
+    ),
+  );
 
   return {
     events: eventRows.map((event) => ({
       ...event,
+      isRegistrationReady: eventReadinessById.get(event.id)?.isReady ?? false,
       temporalState: getTemporalState(event, now),
     })),
   };
@@ -136,48 +147,34 @@ function EventTable({ events }: { events: EventListRow[] }) {
               {event.active ? "Activo" : "Inactivo"}
             </Badge>
             <Badge variant="outline">{event.temporalState.label}</Badge>
+            {event.isRegistrationReady ? null : (
+              <Badge variant="outline">Configuración pendiente</Badge>
+            )}
           </div>
         );
       },
       filterValue: (event) =>
-        `${event.active ? "Activo" : "Inactivo"} ${event.temporalState.label}`,
+        `${event.active ? "Activo" : "Inactivo"} ${event.temporalState.label} ${
+          event.isRegistrationReady ? "" : "Configuración pendiente"
+        }`,
       filterValues: (event) => [
         event.active ? "active" : "inactive",
         event.temporalState.value,
+        event.isRegistrationReady
+          ? "registration-ready"
+          : "configuration-pending",
       ],
     },
   ];
 
   return (
     <DataTable
+      mode="client"
       rows={events}
       columns={columns}
       getRowKey={(event) => event.id}
       searchPlaceholder="Buscar evento por nombre"
       textFilterColumnId="name"
-      facetedFilters={[
-        {
-          columnId: "status",
-          label: "Filtros",
-          groups: [
-            {
-              label: "Estado",
-              options: [
-                { label: "Activo", value: "active" },
-                { label: "Inactivo", value: "inactive" },
-              ],
-            },
-            {
-              label: "Período",
-              options: [
-                { label: "No iniciado", value: "not-started" },
-                { label: "En curso", value: "in-progress" },
-                { label: "Finalizado", value: "finished" },
-              ],
-            },
-          ],
-        },
-      ]}
       emptyMessage="No hay eventos que coincidan con la búsqueda."
       initialSort={{ columnId: "event", direction: "desc" }}
     />

@@ -16,6 +16,11 @@ import {
   AdminResourceLayout,
   buildEventBasePath,
 } from "@/components/admin/resource-layout";
+import { DateOnlyField } from "@/components/shared/date-only-field";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -51,14 +57,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type {
   PriceListItem,
   ScheduleBlockListItem,
@@ -85,9 +83,12 @@ type EventBaseAreaProps = {
 const PRICE_BASE_HELPER_TEXT =
   "El precio base aplica cuando no existe un precio específico para el bloque horario.";
 const PRICE_BASE_SCHEDULE_BLOCK_VALUE = "__price-base__";
+const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
+  dateStyle: "short",
+  timeZone: "UTC",
+});
 
 const priceFormSchema = z.object({
-  name: z.string().trim().min(1, requiredFieldMessage),
   groupType: z.string().min(1, requiredFieldMessage),
   amount: z
     .string()
@@ -97,6 +98,7 @@ const priceFormSchema = z.object({
 
       return Number.isInteger(amount) && amount > 0;
     }, "Ingresá un monto mayor a cero."),
+  paymentDeadline: z.string().trim().min(1, requiredFieldMessage),
   scheduleBlockId: z.string(),
 });
 
@@ -146,7 +148,7 @@ export function NewEventPriceRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Nuevo precio"
-      description="Configurá nombre, tipo de grupo, importe y si el precio aplica como base o para un bloque horario específico."
+      description="Configurá tipo de grupo, importe y si el precio aplica como base o para un bloque horario específico."
     >
       <PriceFormPanel>
         <PriceForm
@@ -174,7 +176,7 @@ export function EventPriceDetailRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={price?.name ?? "Precio no encontrado"}
+      title={price ? getPriceDisplayName(price) : "Precio no encontrado"}
       description={
         price
           ? "Editá el alcance y el importe del precio. El borrado solo está disponible desde esta pantalla."
@@ -191,9 +193,9 @@ export function EventPriceDetailRouteView({
               id={price.id}
               intent="update-price"
               scheduleBlocks={loaderData.scheduleBlocks}
-              name={price.name}
               groupType={price.groupType}
               amount={price.amount}
+              paymentDeadline={price.paymentDeadline ?? ""}
               scheduleBlockId={price.scheduleBlockId}
               buttonLabel="Guardar"
               fieldErrors={actionData?.fieldErrors}
@@ -249,7 +251,7 @@ function PriceForm({
   helperText,
   id,
   intent,
-  name,
+  paymentDeadline,
   scheduleBlockId,
   scheduleBlocks,
 }: {
@@ -261,18 +263,18 @@ function PriceForm({
   helperText?: string;
   id?: string;
   intent: string;
-  name?: string;
+  paymentDeadline?: string;
   scheduleBlockId?: string | null;
   scheduleBlocks: ScheduleBlockListItem[];
 }) {
   const defaultValues = useMemo(
     () => ({
-      name: name ?? "",
       groupType: groupType ?? "",
       amount: amount ? String(amount) : "",
+      paymentDeadline: paymentDeadline ?? "",
       scheduleBlockId: scheduleBlockId ?? PRICE_BASE_SCHEDULE_BLOCK_VALUE,
     }),
-    [amount, groupType, name, scheduleBlockId],
+    [amount, groupType, paymentDeadline, scheduleBlockId],
   );
   const form = useForm<PriceFormValues>({
     defaultValues,
@@ -307,12 +309,6 @@ function PriceForm({
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          className="sm:col-span-2"
-          form={form}
-          label="Nombre del precio"
-          name="name"
-        />
         <SelectField
           form={form}
           label="Tipo de grupo"
@@ -327,6 +323,22 @@ function PriceForm({
           name="amount"
           step="1"
           type="number"
+        />
+        <Controller
+          control={form.control}
+          name="paymentDeadline"
+          render={({ field }) => (
+            <DateOnlyField
+              id={`price-payment-deadline-${id ?? intent}`}
+              label="Fecha límite de pago"
+              name="paymentDeadline"
+              defaultValue={paymentDeadline ?? ""}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              error={form.formState.errors.paymentDeadline?.message}
+            />
+          )}
         />
         <SelectField
           className="sm:col-span-2"
@@ -498,13 +510,16 @@ function PriceSummaryCard({ price }: { price: PriceListItem }) {
     <Card>
       <CardContent>
         <dl className="grid gap-4 sm:grid-cols-2">
-          <PriceDetailItem label="Nombre" value={price.name} />
           <PriceDetailItem
             label="Tipo de grupo"
             value={groupTypeLabels[price.groupType] ?? price.groupType}
           />
           <PriceDetailItem label="Alcance" value={scope.label} />
           <PriceDetailItem label="Importe" value={`$${price.amount}`} />
+          <PriceDetailItem
+            label="Fecha límite de pago"
+            value={formatPaymentDeadline(price.paymentDeadline)}
+          />
           <PriceDetailItem
             label="Bloque horario"
             value={scope.detail ?? "Sin bloque horario específico"}
@@ -533,55 +548,114 @@ function PriceListTable({
   prices: PriceListItem[];
   selectedEventId: string | null;
 }) {
-  return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead scope="col">Nombre</TableHead>
-              <TableHead scope="col">Tipo de grupo</TableHead>
-              <TableHead scope="col">Alcance</TableHead>
-              <TableHead scope="col">Importe</TableHead>
-              <TableHead scope="col">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {prices.map((price) => {
-              const scope = getPriceScope(price);
+  const columns: DataTableColumn<PriceListItem>[] = [
+    {
+      id: "price",
+      header: "Precio",
+      className: "min-w-56 font-medium",
+      cell: (price) => (
+        <Link
+          to={buildPriceDetailPath(price.id, selectedEventId)}
+          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {getPriceDisplayName(price)}
+        </Link>
+      ),
+      filterValue: (price) => getPriceDisplayName(price),
+    },
+    {
+      id: "groupType",
+      header: "Tipo de grupo",
+      cell: (price) => <PriceGroupTypeBadge groupType={price.groupType} />,
+      filterValues: (price) => [price.groupType],
+      filterValue: (price) => getGroupTypeLabel(price.groupType),
+    },
+    {
+      id: "scope",
+      header: "Alcance",
+      cell: (price) => {
+        const scope = getPriceScope(price);
 
-              return (
-                <TableRow key={price.id}>
-                  <TableCell className="font-medium">{price.name}</TableCell>
-                  <TableCell>
-                    {groupTypeLabels[price.groupType] ?? price.groupType}
-                  </TableCell>
-                  <TableCell>
-                    <p>{scope.label}</p>
-                    {scope.detail ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {scope.detail}
-                      </p>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>${price.amount}</TableCell>
-                  <TableCell>
-                    <Button asChild variant="outline">
-                      <Link
-                        to={buildPriceDetailPath(price.id, selectedEventId)}
-                      >
-                        Ver detalle
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+        return (
+          <div>
+            <p>{scope.label}</p>
+            {scope.detail ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {scope.detail}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
+      filterValue: (price) => {
+        const scope = getPriceScope(price);
+
+        return [scope.label, scope.detail].filter(Boolean).join(" ");
+      },
+    },
+    {
+      id: "paymentDeadline",
+      header: "Fecha límite",
+      cell: (price) => formatPaymentDeadline(price.paymentDeadline),
+      sortValue: (price) => price.paymentDeadline ?? "",
+    },
+    {
+      id: "amount",
+      header: "Importe",
+      cell: (price) => `$${price.amount}`,
+    },
+  ];
+
+  return (
+    <DataTable
+      mode="client"
+      rows={prices}
+      columns={columns}
+      getRowKey={(price) => price.id}
+      searchPlaceholder="Buscar precio por tipo o bloque"
+      textFilterColumnId="price"
+      facetedFilters={[
+        {
+          columnId: "groupType",
+          label: "Filtros",
+          groups: [
+            {
+              label: "Tipo de grupo",
+              options: groupTypeOptions,
+            },
+          ],
+        },
+      ]}
+      emptyMessage="No hay precios que coincidan con la búsqueda."
+    />
   );
+}
+
+function PriceGroupTypeBadge({ groupType }: { groupType: string }) {
+  return <Badge variant="secondary">{getGroupTypeLabel(groupType)}</Badge>;
+}
+
+function getGroupTypeLabel(groupType: string) {
+  return groupTypeLabels[groupType] ?? groupType;
+}
+
+export function getPriceDisplayName(price: PriceListItem) {
+  const groupTypeLabel = getGroupTypeLabel(price.groupType);
+  const deadlineLabel = formatPaymentDeadline(price.paymentDeadline);
+
+  if (price.scheduleBlock) {
+    return `${groupTypeLabel} - ${price.scheduleBlock.name} - hasta ${deadlineLabel}`;
+  }
+
+  return `${groupTypeLabel} - Precio base - hasta ${deadlineLabel}`;
+}
+
+function formatPaymentDeadline(paymentDeadline: string | null) {
+  if (!paymentDeadline) {
+    return "Sin fecha límite";
+  }
+
+  return priceDateFormatter.format(new Date(`${paymentDeadline}T00:00:00Z`));
 }
 
 function PriceDeleteForm({ priceId }: { priceId: string }) {

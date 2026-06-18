@@ -85,11 +85,11 @@ Identificador de acceso para usuarios internos sin depender de un correo electr�
 _Evitar_: Correo interno, alias, cuenta
 
 **Recuperación de acceso**:
-Flujo por el que un usuario existente recupera su acceso mediante un enlace enviado a su correo verificado.
+Flujo por el que una academia existente recupera su acceso mediante un enlace enviado a su correo verificado.
 _Evitar_: Registro público de academia, invitación de usuario
 
 **Restablecimiento administrativo de contraseña**:
-Acción administrativa que asigna una nueva contraseña temporal a un usuario interno y exige cambio obligatorio de contraseña.
+Acción administrativa que asigna una nueva contraseña temporal a un usuario interno y exige cambio obligatorio de contraseña; es el mecanismo de recuperación para usuarios internos.
 _Evitar_: Recuperación de acceso, invitación de usuario interno
 
 **Sesión de acceso**:
@@ -249,8 +249,12 @@ Saldo financiero de una academia compuesto por pagos, imputaciones, facturas, ca
 _Evitar_: Estado financiero de coreografía, pago
 
 **Precio de coreografía**:
-Importe calculado para una coreografía a partir de tipo de grupo, fecha de seña y descuentos individuales.
+Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago, fecha de seña y descuentos individuales.
 _Evitar_: Pago, estado financiero
+
+**Fecha límite de pago**:
+Fecha hasta la que un Precio de coreografía puede aplicarse cuando una academia paga la seña.
+_Evitar_: Fecha de seña, vencimiento de factura
 
 **Modalidad**:
 Clasificación artística elegida al registrar una coreografía.

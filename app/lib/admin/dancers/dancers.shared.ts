@@ -8,6 +8,7 @@ export const adminDancerCorrectionReasonMessage =
 
 export type AdminDancerParticipationFilter = "yes" | "no" | "all";
 export type AdminDancerStatusFilter = "active" | "archived" | "all";
+export type AdminDancerNameOrder = "asc" | "desc";
 export type AdminDancerIdentificationFilter =
   | "incomplete"
   | "pending-verification"
@@ -29,6 +30,7 @@ export type AdministrativeDancerAuditAction =
   | "verify-identity";
 
 export type AdministrativeDancerListFilters = {
+  nameOrder: AdminDancerNameOrder;
   participation: AdminDancerParticipationFilter;
   query: string;
   status: AdminDancerStatusFilter;
@@ -48,7 +50,7 @@ export function readAdminDancerParticipationFilter(input: {
     case "todos":
       return "all";
     default:
-      return input.hasSelectedEvent ? "yes" : "all";
+      return "all";
   }
 }
 

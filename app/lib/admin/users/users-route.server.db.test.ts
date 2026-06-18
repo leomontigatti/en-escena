@@ -106,14 +106,14 @@ describe("administracion/usuarios route", () => {
     expect(defaultMarkup).toContain("Interno");
     expect(defaultMarkup).toContain("Activo");
     expect(defaultMarkup).toContain("Cambio obligatorio");
-    expect(defaultMarkup).toContain("Suspendido");
+    expect(defaultMarkup).not.toContain("Susana Suspendida");
+    expect(defaultMarkup).not.toContain("susana.suspendida");
 
     const byIdentifierRequest = await createSignedInRequest({
       email: "admin.busqueda.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios?q=ada.admin&estado=todos",
+      requestUrl: "http://localhost/administracion/usuarios?q=ada.admin",
       userName: "Admin Búsqueda",
       internalUsername: "admin.busqueda",
     });
@@ -129,8 +129,7 @@ describe("administracion/usuarios route", () => {
       email: "admin.nombre.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios?q=Nora+Norte&estado=todos",
+      requestUrl: "http://localhost/administracion/usuarios?q=Nora+Norte",
       userName: "Admin Nombre",
       internalUsername: "admin.nombre",
     });
@@ -140,27 +139,11 @@ describe("administracion/usuarios route", () => {
       "Nora Norte",
     ]);
 
-    const byRoleRequest = await createSignedInRequest({
-      email: "admin.rol.usuarios@example.com",
-      role: "admin",
-      requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios?permiso=auditor&estado=todos",
-      userName: "Admin Rol",
-      internalUsername: "admin.rol",
-    });
-    const byRoleData = await loader(routeArgs(byRoleRequest.request));
-
-    expect(byRoleData.users.map((savedUser) => savedUser.mainRole)).toEqual([
-      "auditor",
-    ]);
-
     const byTypeRequest = await createSignedInRequest({
       email: "admin.tipo.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios?tipo=academy&estado=todos",
+      requestUrl: "http://localhost/administracion/usuarios?tipo=academy",
       userName: "Admin Tipo",
       internalUsername: "admin.tipo",
     });
@@ -191,7 +174,7 @@ describe("administracion/usuarios route", () => {
       email: "admin.suspendidos.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
+      requestUrl: "http://localhost/administracion/usuarios?archivado=si",
       userName: "Admin Suspendidos",
       internalUsername: "admin.suspendidos",
     });
@@ -225,8 +208,8 @@ function renderRoute(
           "0": {
             users: [],
             filters: {
+              archived: false,
               query: "",
-              role: "all",
               state: "all",
               type: "all",
             },

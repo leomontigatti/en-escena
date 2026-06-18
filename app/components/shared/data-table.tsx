@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useNavigation } from "react-router";
+import { Link, useLocation, useNavigate, useNavigation } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,54 +103,93 @@ type DataTableFacetedFilterOption = {
 
 type DataTableFacetedFilterValue = Record<string, string>;
 
-type DataTableServerSideState = {
-  currentPage: number;
-  totalPages: number;
-  totalRows: number;
-  basePath?: string;
-  loading?: boolean;
-  pageParamName?: string;
-  searchParamName?: string;
-};
-
-type DataTableProps<TData> = {
+type DataTableBaseProps<TData> = {
   rows: TData[];
   columns: DataTableColumn<TData>[];
   getRowKey: (row: TData) => string;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   searchPlaceholder: string;
   initialSearchValue?: string;
-  textFilterColumnId?: string;
   facetedFilters?: DataTableFacetedFilter[];
   emptyMessage?: string;
+  baseFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
   initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
+};
+
+type DataTableClientProps<TData> = DataTableBaseProps<TData> & {
+  mode: "client";
+  textFilterColumnId?: string;
   initialSort?: {
     columnId: string;
     direction: SortDirection;
   };
-  serverSide?: DataTableServerSideState;
 };
 
-export function DataTable<TData>({
-  rows,
-  columns,
-  getRowKey,
-  getRowProps,
-  searchPlaceholder,
-  initialSearchValue = "",
-  textFilterColumnId,
-  facetedFilters = [],
-  emptyMessage = "No hay resultados para mostrar.",
-  initialFacetedFilterValues = {},
-  initialSort,
-  serverSide,
-}: DataTableProps<TData>) {
+type DataTableServerProps<TData> = DataTableBaseProps<TData> & {
+  mode: "server";
+  currentPage: number;
+  totalPages: number;
+  totalRows: number;
+  basePath?: string;
+  initialSort?: {
+    columnId: string;
+    direction: SortDirection;
+  };
+  loading?: boolean;
+  pageParamName?: string;
+  searchParamName?: string;
+  sortParamName?: string;
+};
+
+type DataTableProps<TData> =
+  | DataTableClientProps<TData>
+  | DataTableServerProps<TData>;
+
+const emptyFacetedFilterValues: Record<string, DataTableFacetedFilterValue> =
+  {};
+
+export function DataTable<TData>(props: DataTableProps<TData>) {
+  const {
+    rows,
+    columns,
+    getRowKey,
+    getRowProps,
+    searchPlaceholder,
+    initialSearchValue = "",
+    facetedFilters = [],
+    emptyMessage = "No hay resultados para mostrar.",
+    baseFacetedFilterValues = emptyFacetedFilterValues,
+    initialFacetedFilterValues = emptyFacetedFilterValues,
+  } = props;
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useOptionalNavigation();
+  const isServerMode = props.mode === "server";
+  const textFilterColumnId =
+    props.mode === "client" ? props.textFilterColumnId : undefined;
+  const initialSort = props.initialSort;
+  const serverBasePath = props.mode === "server" ? props.basePath : undefined;
+  const serverCurrentPage =
+    props.mode === "server" ? props.currentPage : undefined;
+  const serverLoading = props.mode === "server" ? props.loading : undefined;
+  const serverPageParamName =
+    props.mode === "server" ? props.pageParamName : undefined;
+  const serverSearchParamName =
+    props.mode === "server" ? props.searchParamName : undefined;
+  const serverSortParamName =
+    props.mode === "server" ? props.sortParamName : undefined;
+  const serverTotalPages =
+    props.mode === "server" ? props.totalPages : undefined;
+  const serverTotalRows = props.mode === "server" ? props.totalRows : undefined;
+  const resolvedBasePath = serverBasePath ?? location.pathname;
   const [searchQuery, setSearchQuery] = useState(initialSearchValue);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-    createColumnFilters(initialFacetedFilterValues),
+    createColumnFilters(
+      mergeBaseFacetedFilterValues(
+        baseFacetedFilterValues,
+        initialFacetedFilterValues,
+      ),
+    ),
   );
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -162,12 +201,11 @@ export function DataTable<TData>({
       : [],
   );
   const lastAppliedSearchValueRef = useRef(initialSearchValue);
-  const isServerSide = serverSide !== undefined;
   const tableGlobalFilter =
-    isServerSide || textFilterColumnId ? "" : searchQuery;
-  const tablePagination = isServerSide
+    isServerMode || textFilterColumnId ? "" : searchQuery;
+  const tablePagination = isServerMode
     ? {
-        pageIndex: serverSide.currentPage - 1,
+        pageIndex: (serverCurrentPage ?? 1) - 1,
         pageSize: rows.length,
       }
     : pagination;
@@ -178,8 +216,28 @@ export function DataTable<TData>({
   }, [initialSearchValue]);
 
   useEffect(() => {
-    setColumnFilters(createColumnFilters(initialFacetedFilterValues));
-  }, [initialFacetedFilterValues]);
+    setColumnFilters(
+      createColumnFilters(
+        mergeBaseFacetedFilterValues(
+          baseFacetedFilterValues,
+          initialFacetedFilterValues,
+        ),
+      ),
+    );
+  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
+
+  useEffect(() => {
+    setSorting(
+      initialSort
+        ? [
+            {
+              id: initialSort.columnId,
+              desc: initialSort.direction === "desc",
+            },
+          ]
+        : [],
+    );
+  }, [initialSort?.columnId, initialSort?.direction]);
 
   const tableColumns = useMemo(
     () =>
@@ -187,7 +245,7 @@ export function DataTable<TData>({
         id: column.id,
         header: column.header,
         cell: ({ row }) => column.cell(row.original),
-        enableSorting: !isServerSide && Boolean(column.sortValue),
+        enableSorting: Boolean(column.sortValue),
         accessorFn: (row) =>
           column.sortValue?.(row) ?? column.filterValue?.(row),
         filterFn: (row, _columnId, filterValue) => {
@@ -233,29 +291,30 @@ export function DataTable<TData>({
           headerClassName: column.headerClassName,
         },
       })),
-    [columns, isServerSide],
+    [columns, isServerMode],
   );
 
   const table = useReactTable({
     data: rows,
     columns: tableColumns,
     state: {
-      columnFilters: isServerSide ? [] : columnFilters,
+      columnFilters: isServerMode ? [] : columnFilters,
       globalFilter: tableGlobalFilter,
       pagination: tablePagination,
       sorting,
     },
-    onColumnFiltersChange: isServerSide ? undefined : setColumnFilters,
+    onColumnFiltersChange: isServerMode ? undefined : setColumnFilters,
     onGlobalFilterChange: setSearchQuery,
-    onPaginationChange: isServerSide ? undefined : setPagination,
+    onPaginationChange: isServerMode ? undefined : setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: isServerSide ? undefined : getFilteredRowModel(),
-    getPaginationRowModel: isServerSide ? undefined : getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: isServerMode ? undefined : getFilteredRowModel(),
+    getPaginationRowModel: isServerMode ? undefined : getPaginationRowModel(),
+    getSortedRowModel: isServerMode ? undefined : getSortedRowModel(),
     getRowId: getRowKey,
-    manualPagination: isServerSide,
-    pageCount: serverSide?.totalPages,
+    manualSorting: isServerMode,
+    manualPagination: isServerMode,
+    pageCount: serverTotalPages,
     globalFilterFn: (row, _columnId, filterValue) =>
       columns.some((column) => {
         const normalizedQuery = normalizeSearchValue(String(filterValue));
@@ -272,26 +331,29 @@ export function DataTable<TData>({
       }),
   });
 
-  const filteredRows = isServerSide
+  const filteredRows = isServerMode
     ? rows
     : table.getFilteredRowModel().rows.map((row) => row.original);
   const visibleRows = table.getRowModel().rows;
-  const totalRows = isServerSide
-    ? serverSide.totalRows
+  const totalRows = isServerMode
+    ? (serverTotalRows ?? rows.length)
     : table.getCoreRowModel().rows.length;
-  const pageCount = isServerSide ? serverSide.totalPages : table.getPageCount();
-  const currentPage = isServerSide
-    ? serverSide.currentPage
+  const pageCount = isServerMode
+    ? (serverTotalPages ?? 1)
+    : table.getPageCount();
+  const currentPage = isServerMode
+    ? (serverCurrentPage ?? 1)
     : table.getState().pagination.pageIndex + 1;
   const isLoading =
-    isServerSide &&
-    (serverSide.loading ??
+    isServerMode &&
+    (serverLoading ??
       (navigation.state !== "idle" &&
         navigation.location?.pathname === location.pathname &&
         navigation.location.search !== location.search));
+  const serverSort = isServerMode ? sorting[0] : undefined;
 
   useEffect(() => {
-    if (!isServerSide) {
+    if (!isServerMode) {
       return;
     }
 
@@ -301,10 +363,10 @@ export function DataTable<TData>({
 
     const timeoutId = window.setTimeout(() => {
       const nextHref = buildDataTableSearchHref({
-        basePath: serverSide.basePath ?? location.pathname,
+        basePath: resolvedBasePath,
         currentSearch: location.search,
-        pageParamName: serverSide.pageParamName,
-        searchParamName: serverSide.searchParamName,
+        pageParamName: serverPageParamName,
+        searchParamName: serverSearchParamName,
         searchValue: searchQuery,
       });
       const currentHref = `${location.pathname}${location.search}`;
@@ -320,18 +382,20 @@ export function DataTable<TData>({
       window.clearTimeout(timeoutId);
     };
   }, [
-    isServerSide,
+    isServerMode,
     location.pathname,
     location.search,
     navigate,
+    resolvedBasePath,
     searchQuery,
-    serverSide,
+    serverPageParamName,
+    serverSearchParamName,
   ]);
 
   const setSearchFilter = (value: string) => {
     setSearchQuery(value);
 
-    if (isServerSide) {
+    if (isServerMode) {
       return;
     }
 
@@ -351,7 +415,14 @@ export function DataTable<TData>({
     filter: DataTableFacetedFilter,
     values: DataTableFacetedFilterValue,
   ) => {
-    table.getColumn(filter.columnId)?.setFilterValue(values);
+    table
+      .getColumn(filter.columnId)
+      ?.setFilterValue(
+        mergeBaseFacetedFilterValue(
+          baseFacetedFilterValues[filter.columnId],
+          values,
+        ),
+      );
   };
 
   const setServerFilterValue = (
@@ -365,10 +436,10 @@ export function DataTable<TData>({
     );
     setColumnFilters(nextFilters);
     const nextHref = buildDataTableFilterHref({
-      basePath: serverSide?.basePath ?? location.pathname,
+      basePath: resolvedBasePath,
       currentSearch: location.search,
       filter,
-      pageParamName: serverSide?.pageParamName,
+      pageParamName: serverPageParamName,
       values,
     });
     const currentHref = `${location.pathname}${location.search}`;
@@ -382,7 +453,7 @@ export function DataTable<TData>({
     filter: DataTableFacetedFilter,
     values: DataTableFacetedFilterValue,
   ) => {
-    if (isServerSide) {
+    if (isServerMode) {
       setServerFilterValue(filter, values);
       return;
     }
@@ -431,7 +502,8 @@ export function DataTable<TData>({
                       table,
                       filter.columnId,
                       columnFilters,
-                      isServerSide,
+                      isServerMode,
+                      baseFacetedFilterValues,
                     )}
                     onChange={(values) => setFacetedFilterValue(filter, values)}
                   />
@@ -459,7 +531,41 @@ export function DataTable<TData>({
                       header.column.columnDef.meta?.headerClassName,
                     )}
                   >
-                    {header.column.getCanSort() ? (
+                    {header.column.getCanSort() && isServerMode ? (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2 text-sm"
+                      >
+                        <Link
+                          to={buildDataTableSortHref({
+                            basePath: resolvedBasePath,
+                            columnId: header.column.id,
+                            currentSearch: location.search,
+                            direction: getNextServerSortDirection(
+                              getServerSortDirection(
+                                serverSort,
+                                header.column.id,
+                              ),
+                            ),
+                            pageParamName: serverPageParamName,
+                            sortParamName: serverSortParamName,
+                          })}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                          <SortIcon
+                            direction={getServerSortDirection(
+                              serverSort,
+                              header.column.id,
+                            )}
+                          />
+                        </Link>
+                      </Button>
+                    ) : header.column.getCanSort() ? (
                       <Button
                         type="button"
                         variant="ghost"
@@ -540,28 +646,28 @@ export function DataTable<TData>({
           ) : null}
         </p>
         <DataTablePagination
-          basePath={serverSide?.basePath ?? location.pathname}
+          basePath={resolvedBasePath}
           pageCount={pageCount}
           currentPage={currentPage}
           canPreviousPage={
-            isServerSide ? currentPage > 1 : table.getCanPreviousPage()
+            isServerMode ? currentPage > 1 : table.getCanPreviousPage()
           }
           canNextPage={
-            isServerSide ? currentPage < pageCount : table.getCanNextPage()
+            isServerMode ? currentPage < pageCount : table.getCanNextPage()
           }
-          onPreviousPage={isServerSide ? undefined : () => table.previousPage()}
-          onNextPage={isServerSide ? undefined : () => table.nextPage()}
+          onPreviousPage={isServerMode ? undefined : () => table.previousPage()}
+          onNextPage={isServerMode ? undefined : () => table.nextPage()}
           onPageChange={
-            isServerSide ? undefined : (page) => table.setPageIndex(page - 1)
+            isServerMode ? undefined : (page) => table.setPageIndex(page - 1)
           }
           pageHrefBuilder={
-            isServerSide
+            isServerMode
               ? (page) =>
                   buildDataTablePageHref({
-                    basePath: serverSide.basePath ?? location.pathname,
+                    basePath: resolvedBasePath,
                     currentSearch: location.search,
                     page,
-                    pageParamName: serverSide.pageParamName,
+                    pageParamName: serverPageParamName,
                   })
               : undefined
           }
@@ -659,8 +765,8 @@ function DataTableFacetedFilterControl({
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      <TooltipContent id={tooltipId} sideOffset={6}>
-        {triggerLabel}
+      <TooltipContent id={tooltipId} side="left" sideOffset={6}>
+        {filter.label}
       </TooltipContent>
     </Tooltip>
   );
@@ -785,6 +891,7 @@ function getSelectedFilterValues<TData>(
   columnId: string,
   columnFilters: ColumnFiltersState,
   isServerSide: boolean,
+  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
 ) {
   if (isServerSide) {
     const filter = columnFilters.find((entry) => entry.id === columnId)?.value;
@@ -794,7 +901,14 @@ function getSelectedFilterValues<TData>(
 
   const filterValue = table.getColumn(columnId)?.getFilterValue();
 
-  return isFacetedFilterValue(filterValue) ? filterValue : {};
+  if (!isFacetedFilterValue(filterValue)) {
+    return {};
+  }
+
+  return removeBaseFacetedFilterValue(
+    baseFacetedFilterValues[columnId],
+    filterValue,
+  );
 }
 
 function getPaginationPages(pageCount: number, currentPage: number) {
@@ -838,6 +952,23 @@ function getPaginationPages(pageCount: number, currentPage: number) {
 
 function toSortDirection(sortValue: false | SortDirection) {
   return sortValue === "asc" || sortValue === "desc" ? sortValue : false;
+}
+
+function getServerSortDirection(
+  serverSort: SortingState[number] | undefined,
+  columnId: string,
+) {
+  if (serverSort?.id !== columnId) {
+    return false;
+  }
+
+  return serverSort.desc ? "desc" : "asc";
+}
+
+function getNextServerSortDirection(
+  currentDirection: SortDirection | false,
+): SortDirection {
+  return currentDirection === "asc" ? "desc" : "asc";
 }
 
 function normalizeSearchValue(value: string) {
@@ -894,6 +1025,53 @@ function createColumnFilters(
     id: columnId,
     value,
   }));
+}
+
+function mergeBaseFacetedFilterValues(
+  baseValues: Record<string, DataTableFacetedFilterValue>,
+  selectedValues: Record<string, DataTableFacetedFilterValue>,
+) {
+  const mergedValues: Record<string, DataTableFacetedFilterValue> = {
+    ...baseValues,
+  };
+
+  for (const [columnId, values] of Object.entries(selectedValues)) {
+    mergedValues[columnId] = mergeBaseFacetedFilterValue(
+      baseValues[columnId],
+      values,
+    );
+  }
+
+  return mergedValues;
+}
+
+function mergeBaseFacetedFilterValue(
+  baseValue: DataTableFacetedFilterValue | undefined,
+  selectedValue: DataTableFacetedFilterValue,
+) {
+  return {
+    ...(baseValue ?? {}),
+    ...selectedValue,
+  };
+}
+
+function removeBaseFacetedFilterValue(
+  baseValue: DataTableFacetedFilterValue | undefined,
+  selectedValue: DataTableFacetedFilterValue,
+) {
+  if (!baseValue) {
+    return selectedValue;
+  }
+
+  const visibleValue = { ...selectedValue };
+
+  for (const [groupId, value] of Object.entries(baseValue)) {
+    if (visibleValue[groupId] === value) {
+      delete visibleValue[groupId];
+    }
+  }
+
+  return visibleValue;
 }
 
 function mergeServerFilterValues(
@@ -992,6 +1170,29 @@ export function buildDataTableFilterHref({
     }
   }
 
+  removePageSearchParam(searchParams, pageParamName);
+
+  return buildTableHref(basePath, searchParams);
+}
+
+export function buildDataTableSortHref({
+  basePath,
+  columnId,
+  currentSearch,
+  direction,
+  pageParamName = "page",
+  sortParamName = "orden",
+}: {
+  basePath: string;
+  columnId: string;
+  currentSearch: string;
+  direction: SortDirection;
+  pageParamName?: string;
+  sortParamName?: string;
+}) {
+  const searchParams = new URLSearchParams(currentSearch);
+
+  searchParams.set(sortParamName, `${columnId}:${direction}`);
   removePageSearchParam(searchParams, pageParamName);
 
   return buildTableHref(basePath, searchParams);

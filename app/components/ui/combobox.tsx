@@ -264,13 +264,17 @@ function ComboboxChip({
 }
 
 function ComboboxChipsInput({
+  "aria-label": ariaLabel,
   className,
+  placeholder,
   ...props
 }: ComboboxPrimitive.Input.Props) {
   return (
     <ComboboxPrimitive.Input
+      aria-label={ariaLabel ?? placeholder}
       data-slot="combobox-chip-input"
       className={cn("min-w-16 flex-1 outline-none", className)}
+      placeholder={placeholder}
       {...props}
     />
   );

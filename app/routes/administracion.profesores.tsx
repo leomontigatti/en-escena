@@ -29,7 +29,6 @@ import type { Route } from "./+types/administracion.profesores";
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ProfessorRow = LoaderData["professors"][number];
 type FacetedFilterGroup = DataTableFacetedFilter["groups"][number];
-type ProfessorIdentificationStatus = ProfessorRow["identificationStatus"];
 
 type AdministracionProfesoresRouteProps = {
   loaderData: LoaderData;
@@ -65,6 +64,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return {
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
+    hasAnyProfessor: listResult.hasAnyProfessor,
     professors: listResult.items,
     totalCount: listResult.totalCount,
     totalPages: listResult.totalPages,
@@ -75,13 +75,15 @@ export function AdministracionProfesoresRouteView({
   loaderData,
 }: AdministracionProfesoresRouteProps) {
   const shouldShowTable =
-    loaderData.professors.length > 0 || hasActiveListFilters(loaderData);
+    loaderData.professors.length > 0 ||
+    hasActiveListFilters(loaderData) ||
+    loaderData.hasAnyProfessor;
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Profesores"
-      description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde un único listado."
+      description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
     >
       {shouldShowTable ? (
@@ -109,31 +111,35 @@ export default function AdministracionProfesoresRoute({
 function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
   const columns: DataTableColumn<ProfessorRow>[] = [
     {
-      id: "professor",
-      header: "Profesor",
-      className: "font-medium",
+      id: "nombre",
+      header: "Nombre",
+      className: "w-1/4 font-medium",
+      headerClassName: "w-1/4",
       cell: (professor) => (
         <Link
           to={buildProfessorDetailHref(loaderData, professor.id)}
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {professor.lastName}, {professor.firstName}
+          {professor.firstName} {professor.lastName}
         </Link>
       ),
       filterValue: (professor) =>
-        `${professor.lastName} ${professor.firstName}`,
-      sortValue: (professor) => `${professor.lastName}, ${professor.firstName}`,
+        `${professor.firstName} ${professor.lastName}`,
+      sortValue: (professor) => `${professor.firstName} ${professor.lastName}`,
     },
     {
       id: "academy",
       header: "Academia",
+      className: "w-1/4 text-muted-foreground",
+      headerClassName: "w-1/4",
       cell: (professor) => professor.academyName,
       filterValue: (professor) => professor.academyName,
-      sortValue: (professor) => professor.academyName,
     },
     {
       id: "status",
       header: "Estado",
+      className: "w-1/2",
+      headerClassName: "w-1/2",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
           {loaderData.selectedEventId ? (
@@ -144,20 +150,16 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
           {!professor.active ? (
             <Badge variant="secondary">Archivado</Badge>
           ) : null}
-          <IdentificationBadge
-            identificationStatus={professor.identificationStatus}
-          />
         </div>
       ),
       filterValue: (professor) =>
-        buildProfessorStatusSummary(professor, loaderData.selectedEventId),
-      sortValue: (professor) =>
         buildProfessorStatusSummary(professor, loaderData.selectedEventId),
     },
   ];
 
   return (
     <DataTable
+      mode="server"
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
@@ -165,12 +167,14 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
-      emptyMessage="No hay Profesores que coincidan con la búsqueda."
-      serverSide={{
-        currentPage: loaderData.filters.page,
-        totalPages: loaderData.totalPages,
-        totalRows: loaderData.totalCount,
+      initialSort={{
+        columnId: "nombre",
+        direction: loaderData.filters.nameOrder,
       }}
+      emptyMessage="No hay Profesores que coincidan con la búsqueda o los filtros."
+      currentPage={loaderData.filters.page}
+      totalPages={loaderData.totalPages}
+      totalRows={loaderData.totalCount}
     />
   );
 }
@@ -190,36 +194,6 @@ function ParticipationBadge({
   );
 }
 
-function IdentificationBadge({
-  identificationStatus,
-}: {
-  identificationStatus: ProfessorIdentificationStatus;
-}) {
-  return (
-    <Badge
-      variant={getProfessorIdentificationBadgeVariant(identificationStatus)}
-    >
-      {getProfessorIdentificationLabel(identificationStatus)}
-    </Badge>
-  );
-}
-
-function getProfessorIdentificationBadgeVariant(
-  identificationStatus: ProfessorIdentificationStatus,
-) {
-  return identificationStatus === "complete" ? "default" : "secondary";
-}
-
-function getProfessorIdentificationLabel(
-  identificationStatus: ProfessorIdentificationStatus,
-) {
-  if (identificationStatus === "complete") {
-    return "Identificación completa";
-  }
-
-  return "Identificación incompleta";
-}
-
 function buildProfessorFacetedFilters(
   loaderData: LoaderData,
 ): DataTableFacetedFilter[] {
@@ -229,14 +203,17 @@ function buildProfessorFacetedFilters(
     groups.push({
       id: "participando",
       label: "Participación",
-      options: [{ label: "No participando", value: "no" }],
+      options: [
+        { label: "Participando", value: "si" },
+        { label: "No participando", value: "no" },
+      ],
     });
   }
 
   groups.push({
     id: "estado",
-    label: "Estado",
-    options: [{ label: "Archivados", value: "archivados" }],
+    label: "Archivo",
+    options: [{ label: "Archivado", value: "archivados" }],
   });
 
   return [
@@ -264,8 +241,6 @@ function buildProfessorStatusSummary(
     values.push("Archivado");
   }
 
-  values.push(getProfessorIdentificationLabel(professor.identificationStatus));
-
   return values.join(" ");
 }
 
@@ -287,6 +262,10 @@ function buildSearchParams(loaderData: LoaderData) {
     searchParams.set("q", loaderData.filters.query);
   }
 
+  if (loaderData.filters.nameOrder === "desc") {
+    searchParams.set("orden", "nombre:desc");
+  }
+
   const values = getSelectedFilterValues(loaderData);
 
   if (values.participando) {
@@ -305,24 +284,27 @@ function buildSearchParams(loaderData: LoaderData) {
 }
 
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
-  return { filters: getSelectedFilterValues(loaderData) };
+  const values = getSelectedFilterValues(loaderData);
+
+  return Object.keys(values).length > 0 ? { filters: values } : undefined;
 }
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const participationValue = toAdminProfessorParticipationSearchValue(
-    loaderData.filters.participation,
-  );
   const statusValue = toAdminProfessorStatusSearchValue(
     loaderData.filters.status,
   );
 
-  if (loaderData.selectedEventId !== null && participationValue === "no") {
-    values.participando = participationValue;
-  }
-
   if (statusValue === "archivados") {
     values.estado = statusValue;
+  }
+
+  const participationValue = toAdminProfessorParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+
+  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
+    values.participando = participationValue;
   }
 
   return values;
@@ -339,7 +321,7 @@ function hasActiveListFilters(loaderData: LoaderData) {
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    (loaderData.selectedEventId !== null && participationValue === "no") ||
+    (loaderData.selectedEventId !== null && participationValue !== "todos") ||
     statusValue === "archivados"
   );
 }

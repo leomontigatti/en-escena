@@ -18,6 +18,8 @@ export const routeNotificationToastIds = {
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
   "bailarin-verificado": "route-notification:bailarin-verificado",
+  "coreografia-creada": "route-notification:coreografia-creada",
+  "coreografia-guardada": "route-notification:coreografia-guardada",
   "user-form-error": "route-notification:user-form-error",
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
@@ -105,6 +107,16 @@ export const routeNotificationToasts = {
   "bailarin-verificado": {
     id: routeNotificationToastIds["bailarin-verificado"],
     message: "Bailarín verificado.",
+    variant: "success",
+  },
+  "coreografia-creada": {
+    id: routeNotificationToastIds["coreografia-creada"],
+    message: "Coreografía creada.",
+    variant: "success",
+  },
+  "coreografia-guardada": {
+    id: routeNotificationToastIds["coreografia-guardada"],
+    message: "Coreografía guardada.",
     variant: "success",
   },
   "evento-activado": {

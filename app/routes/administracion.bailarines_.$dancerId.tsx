@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Ellipsis, TriangleAlert } from "lucide-react";
+import { Check, Ellipsis, Pencil, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import {
@@ -32,9 +32,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,16 +59,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   adminDancerCorrectionReasonMessage,
   adminDancerNotFoundMessage,
-  formatAdminDancerBirthDate,
-  formatAdminDancerDocument,
-  getAdminDancerIdentificationBadgeVariant,
-  getAdminDancerIdentificationLabel,
-  getAdminDancerParticipationBadgeVariant,
-  getAdminDancerParticipationLabel,
   type AdminDancerIdentificationStatus,
-  type AdminDancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import {
@@ -201,7 +199,7 @@ export const handle = {
       const data = match.data as LoaderData | undefined;
       const dancer = data?.dancer;
       return dancer
-        ? { label: `${dancer.lastName}, ${dancer.firstName}` }
+        ? { label: `${dancer.firstName} ${dancer.lastName}` }
         : null;
     },
   ],
@@ -420,7 +418,7 @@ export function AdministracionBailarinDetalleRouteView({
         description:
           "Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal sin desvincular sus coreografías existentes.",
         intent: "archive-dancer" as const,
-        label: "Archivar Bailarín",
+        label: "Archivar",
       }
     : {
         description:
@@ -430,7 +428,8 @@ export function AdministracionBailarinDetalleRouteView({
       };
   const canVerifyIdentity =
     loaderData.canEdit &&
-    dancer.identificationStatus === "pending-verification";
+    hasDancerVerificationMinimumData(dancer) &&
+    dancer.identificationStatus !== "verified";
   const initialDialogIntent = getInitialDialogIntent({
     actionData,
     correctionReasonRequired: dancer.correctionReasonRequired,
@@ -442,8 +441,13 @@ export function AdministracionBailarinDetalleRouteView({
   const editFormId = "admin-dancer-edit-form";
   const statusFormId = "admin-dancer-status-form";
   const verifyFormId = "admin-dancer-verify-form";
+  const watchedBirthDate = editForm.form.watch("birthDate");
   const birthDateMayNeedRecalculation =
-    isEditing && dancer.participatedInAnyEvent;
+    isEditing &&
+    dancer.participatedInAnyEvent &&
+    watchedBirthDate !== dancer.birthDate;
+  const shouldConfirmSave =
+    dancer.correctionReasonRequired || birthDateMayNeedRecalculation;
 
   return (
     <AdminResourceLayout
@@ -454,12 +458,24 @@ export function AdministracionBailarinDetalleRouteView({
       headerAction={
         loaderData.canEdit ? (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="lg">
-                <Ellipsis aria-hidden="true" data-icon />
-                Acciones
-              </Button>
-            </DropdownMenuTrigger>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-lg"
+                      aria-label="Acciones"
+                    >
+                      <Ellipsis aria-hidden="true" />
+                      <span className="sr-only">Acciones</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="left">Acciones</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <DropdownMenuContent align="end" className="w-56">
               {canVerifyIdentity ? (
                 <DropdownMenuItem
@@ -468,7 +484,7 @@ export function AdministracionBailarinDetalleRouteView({
                     setDialogIntent("verify");
                   }}
                 >
-                  Verificar identidad
+                  Verificar
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem
@@ -490,29 +506,17 @@ export function AdministracionBailarinDetalleRouteView({
       }
     >
       <section className="flex flex-col gap-6">
+        <DancerStatusAlerts
+          active={dancer.active}
+          canVerifyIdentity={canVerifyIdentity}
+          identificationStatus={dancer.identificationStatus}
+          onVerifyIdentity={() => {
+            setDialogIntent("verify");
+          }}
+        />
+
         <Card>
-          <CardContent className="flex flex-col gap-6">
-            <DancerStatusAlerts
-              active={dancer.active}
-              canVerifyIdentity={canVerifyIdentity}
-              identificationStatus={dancer.identificationStatus}
-              onVerifyIdentity={() => {
-                setDialogIntent("verify");
-              }}
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={dancer.active ? "default" : "secondary"}>
-                {dancer.active ? "Activo" : "Archivado"}
-              </Badge>
-              <ParticipationBadge
-                participationStatus={dancer.participationStatus}
-              />
-              <IdentificationBadge
-                identificationStatus={dancer.identificationStatus}
-              />
-            </div>
-
+          <CardContent>
             <form
               id={editFormId}
               method="post"
@@ -521,8 +525,12 @@ export function AdministracionBailarinDetalleRouteView({
               className="flex flex-col gap-6"
             >
               <input type="hidden" name="intent" value="update-dancer" />
-              <FieldGroup className="grid gap-5 md:grid-cols-3">
-                <ReadOnlyField label="Academia" value={dancer.academy.name} />
+              <FieldGroup className="grid gap-5 md:grid-cols-2">
+                <ReadOnlyField
+                  className="md:col-span-2"
+                  label="Academia"
+                  value={dancer.academy.name}
+                />
                 {isEditing ? (
                   <>
                     <DancerTextField
@@ -555,20 +563,22 @@ export function AdministracionBailarinDetalleRouteView({
                   <FieldGroup className="grid gap-5 md:grid-cols-2">
                     {isEditing ? (
                       <>
-                        <DancerBirthDateField form={editForm.form} />
-                        <div className="hidden md:block" aria-hidden="true" />
+                        <DancerBirthDateField
+                          className="md:col-span-2"
+                          form={editForm.form}
+                        />
                         <DancerDocumentTypeField form={editForm.form} />
                         <DancerTextField
                           form={editForm.form}
                           label="Número de documento"
                           name="documentNumber"
                         />
-                        <DancerTextField
+                        <DancerImageStorageField
                           form={editForm.form}
                           label="Imagen frente del documento"
                           name="documentFrontImageStorageKey"
                         />
-                        <DancerTextField
+                        <DancerImageStorageField
                           form={editForm.form}
                           label="Imagen dorso del documento"
                           name="documentBackImageStorageKey"
@@ -576,41 +586,29 @@ export function AdministracionBailarinDetalleRouteView({
                       </>
                     ) : (
                       <>
-                        <ReadOnlyField
-                          label="Fecha de nacimiento"
-                          value={formatAdminDancerBirthDate(dancer.birthDate)}
+                        <ReadOnlyDateField
+                          className="md:col-span-2"
+                          value={dancer.birthDate}
                         />
                         <ReadOnlyField
-                          label="Documento"
-                          value={formatAdminDancerDocument(dancer)}
+                          label="Tipo de documento"
+                          value={formatDancerDocumentType(dancer.documentType)}
+                        />
+                        <ReadOnlyField
+                          label="Número de documento"
+                          value={dancer.documentNumber ?? ""}
                         />
                         <ReadOnlyField
                           label="Imagen frente del documento"
-                          value={
-                            dancer.documentFrontImageStorageKey ??
-                            "Sin imagen cargada"
-                          }
+                          value={dancer.documentFrontImageStorageKey ?? ""}
                         />
                         <ReadOnlyField
                           label="Imagen dorso del documento"
-                          value={
-                            dancer.documentBackImageStorageKey ??
-                            "Sin imagen cargada"
-                          }
+                          value={dancer.documentBackImageStorageKey ?? ""}
                         />
                       </>
                     )}
                   </FieldGroup>
-                  {birthDateMayNeedRecalculation ? (
-                    <Alert className="mt-5">
-                      <TriangleAlert aria-hidden="true" />
-                      <AlertDescription>
-                        Si cambiás la fecha de nacimiento, las coreografías
-                        vinculadas pueden requerir recalcular categoría desde el
-                        flujo de Coreografías.
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
                 </TabsContent>
                 <TabsContent value="inscripciones" className="pt-2">
                   <InscriptionsSection
@@ -621,22 +619,19 @@ export function AdministracionBailarinDetalleRouteView({
               </Tabs>
             </form>
           </CardContent>
-        </Card>
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <Button asChild variant="outline" size="lg">
-            <Link to={loaderData.backToList}>
-              <ArrowLeft data-icon="inline-start" />
-              Volver a Bailarines
-            </Link>
-          </Button>
-          {loaderData.canEdit ? (
-            isEditing ? (
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild variant="outline" size="lg">
-                  <Link to={loaderData.cancelHref}>Cancelar</Link>
-                </Button>
-                {dancer.correctionReasonRequired ? (
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            {isEditing ? (
+              <Button asChild variant="outline" size="lg">
+                <Link to={loaderData.cancelHref}>Cancelar</Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="lg">
+                <Link to={loaderData.backToList}>Volver</Link>
+              </Button>
+            )}
+            {loaderData.canEdit ? (
+              isEditing ? (
+                shouldConfirmSave ? (
                   <Button
                     type="button"
                     size="lg"
@@ -644,21 +639,26 @@ export function AdministracionBailarinDetalleRouteView({
                       setDialogIntent("save");
                     }}
                   >
+                    <Check aria-hidden="true" data-icon="inline-start" />
                     Guardar
                   </Button>
                 ) : (
                   <Button type="submit" form={editFormId} size="lg">
+                    <Check aria-hidden="true" data-icon="inline-start" />
                     Guardar
                   </Button>
-                )}
-              </div>
-            ) : (
-              <Button asChild size="lg">
-                <Link to={loaderData.editHref}>Editar</Link>
-              </Button>
-            )
-          ) : null}
-        </div>
+                )
+              ) : (
+                <Button asChild size="lg">
+                  <Link to={loaderData.editHref}>
+                    <Pencil aria-hidden="true" data-icon="inline-start" />
+                    Editar
+                  </Link>
+                </Button>
+              )
+            ) : null}
+          </CardFooter>
+        </Card>
 
         <AlertDialog
           open={dialogIntent === "save"}
@@ -668,19 +668,37 @@ export function AdministracionBailarinDetalleRouteView({
             }
           }}
         >
-          <AlertDialogContent forceMount>
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>¿Guardar cambios?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Este bailarín requiere un motivo de corrección para guardar los
-                cambios.
-              </AlertDialogDescription>
+              {dancer.correctionReasonRequired ? (
+                <AlertDialogDescription>
+                  Este bailarín requiere un motivo de corrección para guardar
+                  los cambios.
+                </AlertDialogDescription>
+              ) : (
+                <AlertDialogDescription>
+                  Confirmá los cambios antes de guardarlos.
+                </AlertDialogDescription>
+              )}
             </AlertDialogHeader>
-            <DancerCorrectionReasonField
-              form={editForm.form}
-              formId={editFormId}
-              required={dancer.correctionReasonRequired}
-            />
+            {birthDateMayNeedRecalculation ? (
+              <Alert>
+                <TriangleAlert aria-hidden="true" />
+                <AlertDescription>
+                  Si cambiás la fecha de nacimiento, las coreografías vinculadas
+                  pueden requerir recalcular categoría desde el flujo de
+                  Coreografías.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {dancer.correctionReasonRequired ? (
+              <DancerCorrectionReasonField
+                form={editForm.form}
+                formId={editFormId}
+                required={true}
+              />
+            ) : null}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction asChild>
@@ -700,7 +718,7 @@ export function AdministracionBailarinDetalleRouteView({
             }
           }}
         >
-          <AlertDialogContent forceMount>
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {statusAction.intent === "archive-dancer"
@@ -752,9 +770,9 @@ export function AdministracionBailarinDetalleRouteView({
             }
           }}
         >
-          <AlertDialogContent forceMount>
+          <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Verificar identidad?</AlertDialogTitle>
+              <AlertDialogTitle>¿Verificar?</AlertDialogTitle>
               <AlertDialogDescription>
                 Confirmá la verificación administrativa de la identidad de este
                 bailarín.
@@ -771,7 +789,7 @@ export function AdministracionBailarinDetalleRouteView({
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction asChild>
                 <Button type="submit" form={verifyFormId}>
-                  Verificar identidad
+                  Verificar
                 </Button>
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -842,9 +860,9 @@ function DancerStatusAlerts({
       {identificationAlert ? (
         <DancerAlert
           action={
-            canVerifyIdentity && identificationStatus === "pending-verification"
+            canVerifyIdentity
               ? {
-                  label: "Verificar identidad",
+                  label: "Verificar",
                   onClick: onVerifyIdentity,
                 }
               : undefined
@@ -872,7 +890,7 @@ function DancerAlert({
       <TriangleAlert aria-hidden="true" />
       <AlertDescription>{children}</AlertDescription>
       {action ? (
-        <AlertAction>
+        <AlertAction className="top-1/2 -translate-y-1/2">
           <Button
             type="button"
             variant="link"
@@ -1008,7 +1026,13 @@ function DancerTextField({
   );
 }
 
-function DancerBirthDateField({ form }: { form: DancerFormReturn }) {
+function DancerBirthDateField({
+  className,
+  form,
+}: {
+  className?: string;
+  form: DancerFormReturn;
+}) {
   const id = useId();
 
   return (
@@ -1017,6 +1041,7 @@ function DancerBirthDateField({ form }: { form: DancerFormReturn }) {
       name="birthDate"
       render={({ field, fieldState }) => (
         <DateOnlyField
+          className={className}
           id={id}
           label="Fecha de nacimiento"
           name={field.name}
@@ -1027,6 +1052,29 @@ function DancerBirthDateField({ form }: { form: DancerFormReturn }) {
           value={field.value}
         />
       )}
+    />
+  );
+}
+
+function ReadOnlyDateField({
+  className,
+  value,
+}: {
+  className?: string;
+  value: string;
+}) {
+  const id = useId();
+
+  return (
+    <DateOnlyField
+      className={className}
+      id={id}
+      label="Fecha de nacimiento"
+      name="birthDate"
+      defaultValue={value}
+      disabled
+      buttonClassName="w-full !bg-input/50 !font-normal disabled:!opacity-50 dark:!bg-input/80"
+      value={value}
     />
   );
 }
@@ -1056,11 +1104,11 @@ function DancerDocumentTypeField({ form }: { form: DancerFormReturn }) {
                 id={id}
                 aria-invalid={fieldState.error ? true : undefined}
                 aria-describedby={fieldState.error ? errorId : undefined}
-                className="h-10 w-full"
+                className="w-full"
               >
                 <SelectValue placeholder="Sin documento" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="start" position="popper" side="bottom">
                 <SelectItem value={noDocumentTypeSelectValue}>
                   Sin documento
                 </SelectItem>
@@ -1070,6 +1118,34 @@ function DancerDocumentTypeField({ form }: { form: DancerFormReturn }) {
               </SelectContent>
             </Select>
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function DancerImageStorageField({
+  form,
+  label,
+  name,
+}: {
+  form: DancerFormReturn;
+  label: string;
+  name: "documentBackImageStorageKey" | "documentFrontImageStorageKey";
+}) {
+  const id = useId();
+
+  return (
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <Field>
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <input type="hidden" name={field.name} value={field.value} />
+            <Input id={id} value={field.value} disabled readOnly />
           </FieldContent>
         </Field>
       )}
@@ -1270,14 +1346,45 @@ function isFutureDateOnly(value: string) {
   return value > today;
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: ReactNode }) {
+function ReadOnlyField({
+  className,
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: string;
+}) {
+  const id = useId();
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-        {value}
-      </div>
-    </div>
+    <Field className={className}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input id={id} value={value} disabled readOnly />
+      </FieldContent>
+    </Field>
+  );
+}
+
+function formatDancerDocumentType(
+  documentType: "dni" | "other" | "passport" | null,
+) {
+  switch (documentType) {
+    case "dni":
+      return "DNI";
+    case "passport":
+      return "Pasaporte";
+    case "other":
+      return "Otro";
+    default:
+      return "Sin documento";
+  }
+}
+
+function hasDancerVerificationMinimumData(dancer: LoaderData["dancer"]) {
+  return Boolean(
+    dancer.birthDate && dancer.documentType && dancer.documentNumber,
   );
 }
 
@@ -1305,6 +1412,7 @@ export function InscriptionsSection({
 
   return (
     <DataTable
+      mode="client"
       rows={inscriptions}
       columns={inscriptionColumns}
       getRowKey={(inscription) => inscription.id}
@@ -1320,34 +1428,6 @@ function formatMoney(valueInCents: number | null) {
   }
 
   return moneyFormatter.format(valueInCents / 100);
-}
-
-function ParticipationBadge({
-  participationStatus,
-}: {
-  participationStatus: AdminDancerParticipationStatus;
-}) {
-  return (
-    <Badge
-      variant={getAdminDancerParticipationBadgeVariant(participationStatus)}
-    >
-      {getAdminDancerParticipationLabel(participationStatus)}
-    </Badge>
-  );
-}
-
-function IdentificationBadge({
-  identificationStatus,
-}: {
-  identificationStatus: AdminDancerIdentificationStatus;
-}) {
-  return (
-    <Badge
-      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
-    >
-      {getAdminDancerIdentificationLabel(identificationStatus)}
-    </Badge>
-  );
 }
 
 function buildBackToListHref(requestUrl: string) {

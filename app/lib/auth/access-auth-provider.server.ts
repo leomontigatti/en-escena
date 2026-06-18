@@ -63,13 +63,15 @@ export const accessAuthProvider = {
       data: { session },
     } = await client.auth.getSession();
 
+    const appUserId = await findAppUserIdForAccessUser(verifiedUser);
+
     return {
       session: {
         id: session?.access_token ?? null,
         issuedAt: getIssuedAtForAccessToken(session?.access_token ?? null),
       },
       user: {
-        id: verifiedUser.id,
+        id: appUserId ?? verifiedUser.id,
         email: verifiedUser.email,
       },
     };
@@ -583,13 +585,10 @@ async function findOrCreateAppUserForAccessUser(input: {
     return input.id;
   }
 
-  const existingUser = await db.query.user.findFirst({
-    columns: { id: true },
-    where: eq(user.email, input.email),
-  });
+  const existingUserId = await findAppUserIdForAccessUser(input);
 
-  if (existingUser) {
-    return existingUser.id;
+  if (existingUserId) {
+    return existingUserId;
   }
 
   await db.insert(user).values({
@@ -600,4 +599,20 @@ async function findOrCreateAppUserForAccessUser(input: {
   });
 
   return input.id;
+}
+
+async function findAppUserIdForAccessUser(input: {
+  email?: string | null;
+  id: string;
+}) {
+  if (!input.email) {
+    return null;
+  }
+
+  const existingUser = await db.query.user.findFirst({
+    columns: { id: true },
+    where: eq(user.email, input.email),
+  });
+
+  return existingUser?.id ?? null;
 }

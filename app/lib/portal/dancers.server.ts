@@ -1,11 +1,12 @@
 import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, choreographyDancers, dancers } from "@/db/schema";
+import { dancers } from "@/db/schema";
 import {
   getDancerVerificationStatus,
   type DancerVerificationStatus,
 } from "@/lib/dancers/verification";
+import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export type DancerListItem = {
   id: string;
@@ -110,11 +111,14 @@ export async function listDancersForAcademy(
       documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
       documentBackImageStorageKey: dancers.documentBackImageStorageKey,
       identityVerifiedAt: dancers.identityVerifiedAt,
-      isParticipating: buildParticipationSql(selectedEventId),
+      isParticipating: buildDancerEventParticipationSql(selectedEventId),
     })
     .from(dancers)
     .where(getDancerListWhere(academyId, status))
-    .orderBy(asc(dancers.lastName), asc(dancers.firstName));
+    .orderBy(
+      asc(sql`lower(${dancers.firstName})`),
+      asc(sql`lower(${dancers.lastName})`),
+    );
 
   return rows.map((dancer) => ({
     id: dancer.id,
@@ -130,21 +134,6 @@ export async function listDancersForAcademy(
       dancer.isParticipating,
     ),
   }));
-}
-
-function buildParticipationSql(selectedEventId: string | null) {
-  if (selectedEventId === null) {
-    return sql<boolean>`false`;
-  }
-
-  return sql<boolean>`exists (
-    select 1
-    from ${choreographyDancers}
-    inner join ${choreographies}
-      on ${choreographies.id} = ${choreographyDancers.choreographyId}
-    where ${choreographyDancers.dancerId} = ${dancers.id}
-      and ${choreographies.eventId} = ${selectedEventId}
-  )`;
 }
 
 function toParticipationStatus(

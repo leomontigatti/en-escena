@@ -97,7 +97,7 @@ describe("AdminShell", () => {
 
               return data?.professor
                 ? {
-                    label: `${data.professor.lastName}, ${data.professor.firstName}`,
+                    label: `${data.professor.firstName} ${data.professor.lastName}`,
                   }
                 : null;
             },
@@ -108,7 +108,7 @@ describe("AdminShell", () => {
 
     expect(breadcrumbItems).toEqual([
       { label: "Profesores", to: "/administracion/profesores" },
-      { label: "Pérez, Ana" },
+      { label: "Ana Pérez" },
     ]);
   });
 

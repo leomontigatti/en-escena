@@ -1,12 +1,23 @@
-import { LoaderCircle, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Ellipsis,
+  LoaderCircle,
+  Trash2,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import {
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type ReactNode,
   type SubmitEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -14,12 +25,12 @@ import {
   useActionData,
   useFetcher,
   useSearchParams,
+  Link,
 } from "react-router";
-import { clsx } from "clsx";
 import { z } from "zod";
 
-import { AccessNotice } from "@/components/auth/access-ui";
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -30,6 +41,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Combobox,
   ComboboxChip,
@@ -42,6 +63,13 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Field,
   FieldContent,
   FieldDescription,
@@ -49,15 +77,23 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
+  FieldGroup,
 } from "@/components/ui/field";
-import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
@@ -73,14 +109,14 @@ import {
 import {
   formatGroupTypeLabel,
   formatOperationalPendingItemLabel,
-  formatOperationalStatusLabel,
 } from "@/lib/portal/choreographies";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
-import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import { cn } from "@/lib/shared/utils";
+import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const choreographyProfessorsUpdatedSearchParam = "actualizado";
@@ -314,194 +350,135 @@ export async function action({
 export function PortalCoreografiaDetalleRouteView({
   loaderData,
   actionData,
-  initialDancerResolution,
   initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteProps) {
-  const selectedEvent = loaderData.eventContext.selectedEvent;
-  const canEditProfessors = !loaderData.eventContext.isReadOnly;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
-  const dancerEditingAvailability = loaderData.dancerEditingEligibility;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  const selectedProfessorIds =
-    actionData?.status === "professor-error"
-      ? new Set(actionData.selectedProfessorIds)
-      : new Set(
-          loaderData.choreography.professors.map((professor) => professor.id),
-        );
 
   return (
     <>
-      <section className="mt-8 space-y-6" aria-labelledby="coreografia-title">
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2
-              id="coreografia-title"
-              className="text-xl font-semibold text-slate-950"
-            >
-              {loaderData.choreography.name}
-            </h2>
-            <span
-              className={getReadOnlyBadgeClassName(
-                loaderData.eventContext.isReadOnly,
-              )}
-            >
-              {getPortalEventStatusLabel(loaderData.eventContext.isReadOnly)}
-            </span>
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="coreografia-title"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 id="coreografia-title" className="text-xl font-semibold">
+              Editar coreografía
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Actualizá bailarines y profesores de esta coreografía.
+            </p>
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Evento activo: {selectedEvent?.name}
-          </p>
-
-          {loaderData.successMessage ? (
-            <div className="mt-4">
-              <AccessNotice variant="success">
-                {loaderData.successMessage}
-              </AccessNotice>
-            </div>
+          {canDeleteChoreography ? (
+            <DropdownMenu>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        aria-label="Acciones"
+                      >
+                        <Ellipsis aria-hidden="true" />
+                        <span className="sr-only">Acciones</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">Acciones</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null}
-
-          {actionData?.message ? (
-            <div className="mt-4">
-              <AccessNotice variant="error">{actionData.message}</AccessNotice>
-            </div>
-          ) : null}
-
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <DetailItem label="Nombre" value={loaderData.choreography.name} />
-            <DetailItem
-              label="Modalidad"
-              value={[
-                loaderData.choreography.modalityName,
-                loaderData.choreography.submodalityName,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            />
-            <DetailItem
-              label="Tipo de grupo"
-              value={formatGroupTypeLabel(loaderData.choreography.groupType)}
-            />
-            <DetailItem
-              label="Categoría"
-              value={
-                loaderData.choreography.categoryName ?? "Categoría pendiente"
-              }
-            />
-            <DetailItem
-              label="Nivel de experiencia"
-              value={
-                loaderData.choreography.experienceLevelName ??
-                "No requiere o pendiente"
-              }
-            />
-            <DetailItem
-              label="Bloque horario"
-              value={loaderData.choreography.scheduleBlockName}
-            />
-            <DetailItem
-              label="Cronograma"
-              value={loaderData.choreography.scheduleLabel}
-            />
-            <DetailItem
-              label="Estado operativo"
-              value={formatOperationalStatusLabel(
-                loaderData.choreography.operationalStatus,
-              )}
-            />
-          </dl>
-
-          <OperationalStatusSummary
-            operationalStatus={loaderData.choreography.operationalStatus}
-          />
         </div>
+
+        <OperationalStatusSummary
+          operationalStatus={loaderData.choreography.operationalStatus}
+        />
+
+        <Card>
+          <CardContent className="flex flex-col gap-5">
+            {actionData?.message ? (
+              <ChoreographyNotice variant="error">
+                {actionData.message}
+              </ChoreographyNotice>
+            ) : null}
+
+            <FieldGroup className="grid gap-5 md:grid-cols-2">
+              <ReadonlyDetailField
+                className="md:col-span-2"
+                label="Nombre"
+                value={loaderData.choreography.name}
+              />
+              <ReadonlyDetailField
+                label="Modalidad"
+                value={loaderData.choreography.modalityName}
+              />
+              <ReadonlyDetailField
+                label="Submodalidad"
+                value={loaderData.choreography.submodalityName ?? ""}
+              />
+              <ReadonlyDetailField
+                label="Categoría"
+                value={loaderData.choreography.categoryName ?? "Sin asignar"}
+              />
+              <ReadonlyDetailField
+                label="Tipo de grupo"
+                value={formatGroupTypeLabel(loaderData.choreography.groupType)}
+              />
+              <ReadonlyDetailField
+                label="Nivel de experiencia"
+                value={loaderData.choreography.experienceLevelName ?? ""}
+              />
+              <ReadonlyDetailField
+                label="Cronograma"
+                value={loaderData.choreography.scheduleLabel}
+              />
+            </FieldGroup>
+
+            <ChoreographyPeopleFields
+              availableDancers={loaderData.availableDancers}
+              availableProfessors={loaderData.availableProfessors}
+              selectedDancers={loaderData.choreography.dancers}
+              selectedProfessors={loaderData.choreography.professors}
+            />
+          </CardContent>
+          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+            <Button asChild variant="outline" size="lg">
+              <Link to="/portal/coreografias">Volver</Link>
+            </Button>
+            <Button type="button" size="lg" disabled>
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar
+            </Button>
+          </CardFooter>
+        </Card>
 
         {canDeleteChoreography ? (
           <DeleteChoreographyDialog
             choreographyId={loaderData.choreography.id}
             isOpen={isDeleteDialogOpen}
             onOpenChange={setIsDeleteDialogOpen}
-            onOpenRequest={() => setIsDeleteDialogOpen(true)}
             warningMessage={loaderData.deletionAvailability.warningMessage}
           />
         ) : null}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 bg-white p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-950">
-                  Bailarines
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {getDancerSectionDescription(dancerEditingAvailability)}
-                </p>
-              </div>
-              <span
-                className={getDancerSectionBadgeClassName(
-                  dancerEditingAvailability.canEdit,
-                )}
-              >
-                {dancerEditingAvailability.canEdit
-                  ? "Edición disponible"
-                  : "Edición no disponible"}
-              </span>
-            </div>
-            {dancerEditingAvailability.reasonText ? (
-              <div className="mt-4">
-                <AccessNotice variant="info">
-                  {dancerEditingAvailability.reasonText}
-                </AccessNotice>
-              </div>
-            ) : null}
-            {dancerEditingAvailability.canEdit ? (
-              <DancerEditor
-                actionData={
-                  actionData?.status === "dancer-error" ? actionData : undefined
-                }
-                choreography={loaderData.choreography}
-                dancers={loaderData.availableDancers}
-                initialResolution={initialDancerResolution}
-                selectedDancers={loaderData.choreography.dancers}
-                selectedScheduleEntryId={
-                  loaderData.choreography.scheduleEntryId
-                }
-              />
-            ) : (
-              <DancerReadonlyList dancers={loaderData.choreography.dancers} />
-            )}
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-white p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-950">
-                  Profesores
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {getProfessorSectionDescription(canEditProfessors)}
-                </p>
-              </div>
-              <span
-                className={getProfessorSectionBadgeClassName(canEditProfessors)}
-              >
-                {canEditProfessors ? "Editable" : "Solo lectura"}
-              </span>
-            </div>
-
-            {canEditProfessors ? (
-              <ProfessorEditor
-                professors={loaderData.availableProfessors}
-                selectedProfessorIds={selectedProfessorIds}
-              />
-            ) : (
-              <ProfessorReadonlyList
-                professors={loaderData.choreography.professors}
-              />
-            )}
-          </div>
-        </div>
       </section>
     </>
   );
@@ -512,27 +489,361 @@ export default function PortalCoreografiaDetalleRoute({
 }: PortalCoreografiaDetalleRouteProps) {
   const actionData = useActionData() as ActionData;
   const [searchParams] = useSearchParams();
+  const saved = readUpdatedSuccessMessage(searchParams) !== null;
+
+  useEffect(() => {
+    if (saved) {
+      showRouteNotificationToast("coreografia-guardada");
+    }
+  }, [saved]);
 
   return (
     <PortalCoreografiaDetalleRouteView
-      loaderData={{
-        ...loaderData,
-        successMessage:
-          readUpdatedSuccessMessage(searchParams) ?? loaderData.successMessage,
-      }}
+      loaderData={loaderData}
       actionData={actionData}
     />
+  );
+}
+
+function ReadonlyDetailField({
+  className,
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: string;
+}) {
+  const id = useId();
+
+  return (
+    <Field className={className} data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input id={id} value={value} disabled readOnly />
+      </FieldContent>
+    </Field>
   );
 }
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm text-slate-950">{value}</dd>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-sm text-foreground">{value}</dd>
     </div>
+  );
+}
+
+function ChoreographyPeopleFields({
+  availableDancers,
+  availableProfessors,
+  selectedDancers,
+  selectedProfessors,
+}: {
+  availableDancers: ChoreographyDancerOption[];
+  availableProfessors: ChoreographyProfessorOption[];
+  selectedDancers: LoaderData["choreography"]["dancers"];
+  selectedProfessors: LoaderData["choreography"]["professors"];
+}) {
+  const dancerOptions = useMemo(
+    () =>
+      availableDancers.map((dancer) => ({
+        value: dancer.id,
+        label: formatDancerName(dancer),
+      })),
+    [availableDancers],
+  );
+  const professorOptions = useMemo(
+    () =>
+      availableProfessors.map((professor) => ({
+        value: professor.id,
+        label: formatProfessorName(professor),
+      })),
+    [availableProfessors],
+  );
+  const initialDancerIds = useMemo(
+    () => selectedDancers.map((dancer) => dancer.id),
+    [selectedDancers],
+  );
+  const initialProfessorIds = useMemo(
+    () => selectedProfessors.map((professor) => professor.id),
+    [selectedProfessors],
+  );
+
+  return (
+    <FieldGroup>
+      <ChoreographyPeopleComboboxField
+        label="Bailarines"
+        options={dancerOptions}
+        placeholder="Buscar bailarines"
+        selectedValues={initialDancerIds}
+      />
+      <ChoreographyPeopleComboboxField
+        label="Profesores"
+        options={professorOptions}
+        placeholder="Buscar profesores"
+        selectedValues={initialProfessorIds}
+      />
+    </FieldGroup>
+  );
+}
+
+type ChoreographyPeopleComboboxOption = {
+  value: string;
+  label: string;
+};
+
+function ChoreographyPeopleComboboxField({
+  label,
+  options,
+  placeholder,
+  selectedValues,
+}: {
+  label: string;
+  options: ChoreographyPeopleComboboxOption[];
+  placeholder: string;
+  selectedValues: string[];
+}) {
+  const [currentValues, setCurrentValues] = useState(selectedValues);
+
+  useEffect(() => {
+    setCurrentValues(selectedValues);
+  }, [selectedValues]);
+
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldContent>
+        <ChoreographyMultipleSelectControl
+          emptyPlaceholder="Sin opciones"
+          isInvalid={false}
+          onBlur={() => {}}
+          options={options}
+          triggerLabel={placeholder}
+          value={currentValues}
+          onValueChange={setCurrentValues}
+        />
+      </FieldContent>
+    </Field>
+  );
+}
+
+function ChoreographyMultipleSelectControl({
+  emptyPlaceholder,
+  isInvalid,
+  onBlur,
+  onSelectionChange,
+  options,
+  triggerLabel,
+  value,
+  onValueChange: setValue,
+}: {
+  emptyPlaceholder: string;
+  isInvalid: boolean;
+  onBlur: () => void;
+  onSelectionChange?: () => void;
+  options: ChoreographyPeopleComboboxOption[];
+  triggerLabel: string;
+  value: string[];
+  onValueChange: (value: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
+  const optionByValue = useMemo(
+    () => new Map(options.map((option) => [option.value, option])),
+    [options],
+  );
+  const selectedOptions = value.map((selectedValue) => ({
+    value: selectedValue,
+    label: optionByValue.get(selectedValue)?.label ?? selectedValue,
+  }));
+  const availableOptions = options.filter(
+    (option) => !value.includes(option.value),
+  );
+  const filteredOptions = availableOptions.filter((option) =>
+    option.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+  );
+  const emptyMessage =
+    options.length === 0
+      ? emptyPlaceholder
+      : availableOptions.length === 0
+        ? "Ya seleccionaste todas las opciones."
+        : "Sin resultados.";
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function updateDropdownPosition() {
+      const trigger = triggerRef.current;
+
+      if (!trigger) {
+        return;
+      }
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const top = triggerRect.bottom + 4;
+
+      setDropdownStyle({
+        top,
+        left: triggerRect.left,
+        width: triggerRect.width,
+        maxHeight: `min(18rem, calc(100vh - ${top + 8}px))`,
+      });
+    }
+
+    updateDropdownPosition();
+    inputRef.current?.focus();
+    window.addEventListener("resize", updateDropdownPosition);
+    window.addEventListener("scroll", updateDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateDropdownPosition);
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+    };
+  }, [isOpen, value.length]);
+
+  function handleSelect(nextValue: string) {
+    setValue([...value, nextValue]);
+    onSelectionChange?.();
+    setQuery("");
+    setIsOpen(true);
+  }
+
+  function handleRemove(nextValue: string) {
+    setValue(value.filter((selectedValue) => selectedValue !== nextValue));
+    onSelectionChange?.();
+  }
+
+  const dropdown =
+    isOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={dropdownRef}
+            className="pointer-events-auto fixed z-[70] flex flex-col rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10"
+            style={dropdownStyle}
+          >
+            <div className="p-1 pb-0">
+              <Input
+                ref={inputRef}
+                value={query}
+                disabled={options.length === 0}
+                placeholder="Buscar..."
+                onChange={(event) => setQuery(event.currentTarget.value)}
+              />
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-1">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => handleSelect(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))
+              ) : (
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  {emptyMessage}
+                </p>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div
+      className="relative"
+      onBlur={(event) => {
+        const nextFocusedElement = event.relatedTarget as Node | null;
+
+        if (
+          !event.currentTarget.contains(nextFocusedElement) &&
+          !dropdownRef.current?.contains(nextFocusedElement)
+        ) {
+          setIsOpen(false);
+          onBlur();
+        }
+      }}
+    >
+      <div
+        ref={triggerRef}
+        role="combobox"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-invalid={isInvalid ? true : undefined}
+        className={cn(
+          "flex min-h-8 cursor-default flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          isInvalid &&
+            "border-destructive ring-3 ring-destructive/20 dark:border-destructive/50 dark:ring-destructive/40",
+        )}
+        onClick={() => setIsOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setIsOpen((current) => !current);
+          }
+        }}
+      >
+        {selectedOptions.length > 0 ? (
+          <>
+            {selectedOptions.map((option) => (
+              <span
+                key={option.value}
+                className="flex h-[calc(--spacing(5.25))] w-fit items-center justify-center gap-1 rounded-sm bg-muted px-1.5 text-xs font-medium whitespace-nowrap text-foreground"
+              >
+                {option.label}
+                <button
+                  type="button"
+                  className="-mr-1 flex size-4 items-center justify-center rounded-sm opacity-50 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-3"
+                  aria-label={`Quitar ${option.label}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleRemove(option.value);
+                  }}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+            <span className="flex-1 text-muted-foreground">{triggerLabel}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-muted-foreground">{triggerLabel}</span>
+        )}
+        <ChevronDown
+          aria-hidden="true"
+          className="ml-auto size-4 text-muted-foreground"
+        />
+      </div>
+      {dropdown}
+    </div>
+  );
+}
+
+function ChoreographyNotice({
+  children,
+  variant = "default",
+}: {
+  children: ReactNode;
+  variant?: "default" | "error";
+}) {
+  return (
+    <Alert variant={variant === "error" ? "destructive" : "default"}>
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -890,205 +1201,225 @@ function DancerEditor({
   };
 
   return (
-    <form
-      method="post"
-      className="mt-4 flex flex-col gap-4"
-      onSubmit={handleSubmit}
-    >
+    <form method="post" className="flex flex-col gap-5" onSubmit={handleSubmit}>
       <input
         type="hidden"
         name="intent"
         value={updateChoreographyDancersIntent}
       />
-      <FieldSet>
-        <FieldLegend variant="label">Bailarines</FieldLegend>
-        <FieldDescription>
-          Elegí bailarines activos de tu academia. Los archivados solo pueden
-          mantenerse o quitarse mientras ya sigan vinculados.
-        </FieldDescription>
-        <Controller
-          control={form.control}
-          name="dancerIds"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.error ? true : undefined}>
-              {field.value.map((dancerId) => (
-                <input
-                  key={dancerId}
-                  type="hidden"
-                  name="dancerIds"
-                  value={dancerId}
-                />
-              ))}
-              <Combobox
-                items={dancerOptions.map((option) => option.value)}
-                itemToStringValue={getDancerLabel}
-                multiple
-                value={field.value}
-                onValueChange={field.onChange}
-              >
-                <ComboboxChips
-                  aria-invalid={fieldState.error ? true : undefined}
-                >
-                  <ComboboxValue>
-                    {field.value.map((value) => (
-                      <ComboboxChip key={value}>
-                        {getDancerLabel(value)}
-                      </ComboboxChip>
-                    ))}
-                  </ComboboxValue>
-                  <ComboboxChipsInput
-                    disabled={dancerOptions.length === 0}
-                    onBlur={field.onBlur}
-                    placeholder={
-                      dancerOptions.length > 0
-                        ? "Buscar bailarines"
-                        : "Sin bailarines disponibles"
-                    }
+      <FieldGroup>
+        <FieldSet>
+          <FieldLegend variant="label">Bailarines</FieldLegend>
+          <FieldDescription>
+            Elegí bailarines activos de tu academia. Los archivados solo pueden
+            mantenerse o quitarse mientras ya sigan vinculados.
+          </FieldDescription>
+          <Controller
+            control={form.control}
+            name="dancerIds"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.error ? true : undefined}>
+                {field.value.map((dancerId) => (
+                  <input
+                    key={dancerId}
+                    type="hidden"
+                    name="dancerIds"
+                    value={dancerId}
                   />
-                </ComboboxChips>
-                <ComboboxContent>
-                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-                  <ComboboxList>
-                    {(value) => {
-                      const option = dancerOptionByValue.get(value);
-
-                      return (
-                        <ComboboxItem key={value} value={value}>
-                          <span className="flex min-w-0 flex-col gap-0.5">
-                            <span>{option?.label ?? value}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {option?.description}
-                            </span>
-                          </span>
-                          {option?.active === false ? <ArchivedBadge /> : null}
-                        </ComboboxItem>
-                      );
-                    }}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <FieldContent>
-                <FieldError>{fieldState.error?.message}</FieldError>
-              </FieldContent>
-            </Field>
-          )}
-        />
-      </FieldSet>
-
-      <Card size="sm">
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold">Datos recalculados</p>
-            {isResolving ? (
-              <span className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                Calculando
-              </span>
-            ) : null}
-          </div>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <DetailItem
-              label="Tipo de grupo"
-              value={formatGroupTypeLabel(derivedResolution.groupType)}
-            />
-            <DetailItem
-              label="Categoría"
-              value={derivedResolution.categoryName ?? "Categoría pendiente"}
-            />
-          </dl>
-          <div className="flex flex-col gap-2 rounded-md border bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
-            {changeExplanations.map((explanation) => (
-              <p key={explanation}>{explanation}</p>
-            ))}
-            <p>
-              El precio se recalcula al confirmar los bailarines. Este paso no
-              muestra importes.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {resolutionError ? (
-        <AccessNotice variant="error">{resolutionError}</AccessNotice>
-      ) : null}
-
-      {derivedResolution.experienceLevelRequired ? (
-        <Controller
-          control={form.control}
-          name="experienceLevelId"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.error ? true : undefined}>
-              <FieldLabel htmlFor={experienceLevelFieldId}>
-                Nivel de experiencia
-              </FieldLabel>
-              <FieldContent>
-                <Select
-                  name={field.name}
-                  value={field.value ?? ""}
+                ))}
+                <Combobox
+                  items={dancerOptions.map((option) => option.value)}
+                  itemToStringValue={getDancerLabel}
+                  multiple
+                  value={field.value}
                   onValueChange={field.onChange}
                 >
-                  <SelectTrigger
-                    id={experienceLevelFieldId}
+                  <ComboboxChips
                     aria-invalid={fieldState.error ? true : undefined}
-                    className="w-full"
                   >
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {derivedResolution.experienceLevelOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Elegilo antes de guardar cuando la categoría resultante lo
-                  requiere.
-                </FieldDescription>
-                <FieldError>{fieldState.error?.message}</FieldError>
-              </FieldContent>
-            </Field>
-          )}
-        />
-      ) : null}
+                    <ComboboxValue>
+                      {field.value.map((value) => (
+                        <ComboboxChip key={value}>
+                          {getDancerLabel(value)}
+                        </ComboboxChip>
+                      ))}
+                    </ComboboxValue>
+                    <ComboboxChipsInput
+                      disabled={dancerOptions.length === 0}
+                      onBlur={field.onBlur}
+                      placeholder={
+                        dancerOptions.length > 0
+                          ? "Buscar bailarines"
+                          : "Sin bailarines disponibles"
+                      }
+                    />
+                  </ComboboxChips>
+                  <ComboboxContent>
+                    <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(value) => {
+                        const option = dancerOptionByValue.get(value);
 
-      {watchedScheduleEntryId ? (
-        <input
-          type="hidden"
-          name="scheduleEntryId"
-          value={watchedScheduleEntryId}
-        />
-      ) : null}
+                        return (
+                          <ComboboxItem key={value} value={value}>
+                            <span className="flex min-w-0 flex-col gap-0.5">
+                              <span>{option?.label ?? value}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {option?.description}
+                              </span>
+                            </span>
+                            {option?.active === false ? (
+                              <ArchivedBadge />
+                            ) : null}
+                          </ComboboxItem>
+                        );
+                      }}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+                {field.value.length > 0 ? (
+                  <ComboboxSearchCue>Buscar bailarines</ComboboxSearchCue>
+                ) : null}
+                <FieldContent>
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </FieldContent>
+              </Field>
+            )}
+          />
+        </FieldSet>
 
-      {isResolving ? (
-        <AccessNotice variant="info">
-          Resolviendo cronograma compatible para este roster.
-        </AccessNotice>
-      ) : null}
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Datos recalculados</CardTitle>
+            {isResolving ? (
+              <CardAction>
+                <Badge variant="secondary">
+                  <LoaderCircle aria-hidden="true" />
+                  Calculando
+                </Badge>
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <DetailItem
+                label="Tipo de grupo"
+                value={formatGroupTypeLabel(derivedResolution.groupType)}
+              />
+              <DetailItem
+                label="Categoría"
+                value={derivedResolution.categoryName ?? "Sin asignar"}
+              />
+            </dl>
+            <Alert>
+              <AlertDescription className="flex flex-col gap-2">
+                {changeExplanations.map((explanation) => (
+                  <span key={explanation}>{explanation}</span>
+                ))}
+                <span>
+                  El precio se recalcula al confirmar los bailarines. Este paso
+                  no muestra importes.
+                </span>
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
 
-      {shouldShowScheduleResolution && resolution?.ok === false ? (
-        <AccessNotice variant="error">{resolution.message}</AccessNotice>
-      ) : null}
+        {resolutionError ? (
+          <ChoreographyNotice variant="error">
+            {resolutionError}
+          </ChoreographyNotice>
+        ) : null}
 
-      {shouldShowScheduleResolution ? (
-        <DancerScheduleResolutionFields
-          control={form.control}
-          resolution={scheduleResolution}
-          scheduleOptions={scheduleOptions}
-        />
-      ) : null}
+        {derivedResolution.experienceLevelRequired ? (
+          <Controller
+            control={form.control}
+            name="experienceLevelId"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.error ? true : undefined}>
+                <FieldLabel htmlFor={experienceLevelFieldId}>
+                  Nivel de experiencia
+                </FieldLabel>
+                <FieldContent>
+                  <Select
+                    name={field.name}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id={experienceLevelFieldId}
+                      aria-invalid={fieldState.error ? true : undefined}
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Seleccionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {derivedResolution.experienceLevelOptions.map(
+                          (option) => (
+                            <SelectItem key={option.id} value={option.id}>
+                              {option.name}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Elegilo antes de guardar cuando la categoría resultante lo
+                    requiere.
+                  </FieldDescription>
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </FieldContent>
+              </Field>
+            )}
+          />
+        ) : null}
 
-      <Button type="submit" className="w-fit" disabled={!canSubmit}>
+        {watchedScheduleEntryId ? (
+          <input
+            type="hidden"
+            name="scheduleEntryId"
+            value={watchedScheduleEntryId}
+          />
+        ) : null}
+
         {isResolving ? (
-          <>
-            <LoaderCircle className="size-4 animate-spin" />
-            Calculando
-          </>
-        ) : (
-          "Guardar bailarines"
-        )}
-      </Button>
+          <ChoreographyNotice>
+            Resolviendo cronograma compatible para este roster.
+          </ChoreographyNotice>
+        ) : null}
+
+        {shouldShowScheduleResolution && resolution?.ok === false ? (
+          <ChoreographyNotice variant="error">
+            {resolution.message}
+          </ChoreographyNotice>
+        ) : null}
+
+        {shouldShowScheduleResolution ? (
+          <DancerScheduleResolutionFields
+            control={form.control}
+            resolution={scheduleResolution}
+            scheduleOptions={scheduleOptions}
+          />
+        ) : null}
+      </FieldGroup>
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={!canSubmit}>
+          {isResolving ? (
+            <>
+              <LoaderCircle aria-hidden="true" data-icon="inline-start" />
+              Calculando
+            </>
+          ) : (
+            <>
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar bailarines
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -1134,22 +1465,26 @@ function DancerScheduleResolutionFields({
   }
 
   if (resolution.status === "none") {
-    return <AccessNotice variant="error">{resolution.error}</AccessNotice>;
+    return (
+      <ChoreographyNotice variant="error">
+        {resolution.error}
+      </ChoreographyNotice>
+    );
   }
 
   if (resolution.status === "keep-current") {
     return (
-      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+      <ChoreographyNotice>
         El cronograma actual sigue siendo compatible y se conserva.
-      </p>
+      </ChoreographyNotice>
     );
   }
 
   if (resolution.status === "auto") {
     return (
-      <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+      <ChoreographyNotice>
         El cronograma compatible se selecciona automáticamente.
-      </p>
+      </ChoreographyNotice>
     );
   }
 
@@ -1159,26 +1494,31 @@ function DancerScheduleResolutionFields({
       name="scheduleEntryId"
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLegend variant="label">Cronograma</FieldLegend>
-          <FieldDescription>
-            Elegí un cronograma compatible antes de guardar los bailarines.
-          </FieldDescription>
-          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-            <SelectTrigger
-              aria-invalid={fieldState.error ? true : undefined}
-              id="choreography-dancer-schedule"
-            >
-              <SelectValue placeholder="Seleccionar cronograma" />
-            </SelectTrigger>
-            <SelectContent>
-              {scheduleOptions.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {formatScheduleOptionLabel(option)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FieldLabel htmlFor="choreography-dancer-schedule">
+            Cronograma
+          </FieldLabel>
           <FieldContent>
+            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+              <SelectTrigger
+                aria-invalid={fieldState.error ? true : undefined}
+                id="choreography-dancer-schedule"
+                className="w-full"
+              >
+                <SelectValue placeholder="Seleccionar cronograma" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {scheduleOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {formatScheduleOptionLabel(option)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              Elegí un cronograma compatible antes de guardar los bailarines.
+            </FieldDescription>
             <FieldError>{fieldState.error?.message}</FieldError>
           </FieldContent>
         </Field>
@@ -1193,17 +1533,17 @@ function DancerReadonlyList({
   dancers: LoaderData["choreography"]["dancers"];
 }) {
   return (
-    <ul className="mt-4 flex flex-col gap-3">
+    <ul className="flex flex-col gap-3">
       {dancers.map((dancer) => (
         <li
           key={dancer.id}
-          className="flex items-center justify-between gap-4 rounded-md border border-slate-100 px-3 py-2"
+          className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2"
         >
-          <div>
-            <p className="text-sm font-medium text-slate-950">
-              {dancer.lastName}, {dancer.firstName}
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="truncate text-sm font-medium">
+              {dancer.firstName} {dancer.lastName}
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               Edad al inicio del Evento: {dancer.ageAtEventStart}
             </p>
           </div>
@@ -1212,6 +1552,10 @@ function DancerReadonlyList({
       ))}
     </ul>
   );
+}
+
+function ComboboxSearchCue({ children }: { children: React.ReactNode }) {
+  return <span className="flex-1 text-muted-foreground">{children}</span>;
 }
 
 function ProfessorEditor({
@@ -1243,69 +1587,83 @@ function ProfessorEditor({
     professorOptionByValue.get(value)?.label ?? value;
 
   return (
-    <form method="post" className="mt-4 flex flex-col gap-4">
+    <form method="post" className="flex flex-col gap-5">
       <input
         type="hidden"
         name="intent"
         value={updateChoreographyProfessorsIntent}
       />
-      {currentProfessorIds.map((professorId) => (
-        <input
-          key={professorId}
-          type="hidden"
-          name="professorIds"
-          value={professorId}
-        />
-      ))}
-      {professorOptions.length > 0 ? (
-        <Combobox
-          items={professorOptions.map((option) => option.value)}
-          itemToStringValue={getProfessorLabel}
-          multiple
-          value={currentProfessorIds}
-          onValueChange={setCurrentProfessorIds}
-        >
-          <ComboboxChips>
-            <ComboboxValue>
-              {currentProfessorIds.map((value) => (
-                <ComboboxChip key={value}>
-                  {getProfessorLabel(value)}
-                </ComboboxChip>
-              ))}
-            </ComboboxValue>
-            <ComboboxChipsInput placeholder="Buscar profesores" />
-          </ComboboxChips>
-          <ComboboxContent>
-            <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-            <ComboboxList>
-              {(value) => {
-                const option = professorOptionByValue.get(value);
+      <FieldGroup>
+        {currentProfessorIds.map((professorId) => (
+          <input
+            key={professorId}
+            type="hidden"
+            name="professorIds"
+            value={professorId}
+          />
+        ))}
+        {professorOptions.length > 0 ? (
+          <FieldSet>
+            <FieldLegend variant="label">Profesores</FieldLegend>
+            <FieldDescription>
+              Elegí los profesores vinculados a esta coreografía.
+            </FieldDescription>
+            <Combobox
+              items={professorOptions.map((option) => option.value)}
+              itemToStringValue={getProfessorLabel}
+              multiple
+              value={currentProfessorIds}
+              onValueChange={setCurrentProfessorIds}
+            >
+              <ComboboxChips>
+                <ComboboxValue>
+                  {currentProfessorIds.map((value) => (
+                    <ComboboxChip key={value}>
+                      {getProfessorLabel(value)}
+                    </ComboboxChip>
+                  ))}
+                </ComboboxValue>
+                <ComboboxChipsInput placeholder="Buscar profesores" />
+              </ComboboxChips>
+              <ComboboxContent>
+                <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                <ComboboxList>
+                  {(value) => {
+                    const option = professorOptionByValue.get(value);
 
-                return (
-                  <ComboboxItem key={value} value={value}>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span>{option?.label ?? value}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {option?.description}
-                      </span>
-                    </span>
-                    {option?.active === false ? <ArchivedBadge /> : null}
-                  </ComboboxItem>
-                );
-              }}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
-      ) : (
-        <p className="text-sm leading-6 text-slate-600">
-          No hay Profesores activos o vinculados para editar en esta
-          Coreografía.
-        </p>
-      )}
+                    return (
+                      <ComboboxItem key={value} value={value}>
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span>{option?.label ?? value}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {option?.description}
+                          </span>
+                        </span>
+                        {option?.active === false ? <ArchivedBadge /> : null}
+                      </ComboboxItem>
+                    );
+                  }}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+            {currentProfessorIds.length > 0 ? (
+              <ComboboxSearchCue>Buscar profesores</ComboboxSearchCue>
+            ) : null}
+          </FieldSet>
+        ) : (
+          <ChoreographyNotice>
+            No hay Profesores activos o vinculados para editar en esta
+            Coreografía.
+          </ChoreographyNotice>
+        )}
+      </FieldGroup>
 
-      <Button type="submit" className="w-fit">
-        Guardar Profesores
-      </Button>
+      <div className="flex justify-end">
+        <Button type="submit">
+          <Check aria-hidden="true" data-icon="inline-start" />
+          Guardar Profesores
+        </Button>
+      </div>
     </form>
   );
 }
@@ -1317,21 +1675,21 @@ function ProfessorReadonlyList({
 }) {
   if (professors.length === 0) {
     return (
-      <p className="mt-4 text-sm leading-6 text-slate-600">
+      <ChoreographyNotice>
         Esta Coreografía todavía no tiene Profesores vinculados.
-      </p>
+      </ChoreographyNotice>
     );
   }
 
   return (
-    <ul className="mt-4 flex flex-col gap-3">
+    <ul className="flex flex-col gap-3">
       {professors.map((professor) => (
         <li
           key={professor.id}
-          className="flex items-center justify-between gap-4 rounded-md border border-slate-100 px-3 py-2"
+          className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2"
         >
-          <p className="text-sm font-medium text-slate-950">
-            {professor.lastName}, {professor.firstName}
+          <p className="truncate text-sm font-medium">
+            {professor.firstName} {professor.lastName}
           </p>
           {!professor.active ? <ArchivedBadge /> : null}
         </li>
@@ -1345,30 +1703,49 @@ function OperationalStatusSummary({
 }: {
   operationalStatus: ChoreographyOperationalStatus;
 }) {
-  if (operationalStatus.code === "complete") {
-    return (
-      <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-        Estado operativo al día.
-      </div>
-    );
+  const academyPendingItems = operationalStatus.pendingItems.filter(
+    (pendingItem) => pendingItem !== "category",
+  );
+
+  if (academyPendingItems.length === 0) {
+    return null;
   }
 
   return (
-    <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      Pendientes operativos:{" "}
-      {operationalStatus.pendingItems
-        .map(formatOperationalPendingItemLabel)
-        .join(", ")}
-    </div>
+    <Alert>
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>
+        {academyPendingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}
+        {formatAcademyPendingItems(academyPendingItems)}.
+      </AlertDescription>
+    </Alert>
   );
 }
 
-function ArchivedBadge() {
-  return (
-    <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-      Archivado
-    </span>
+function formatAcademyPendingItems(
+  pendingItems: ChoreographyOperationalStatus["pendingItems"],
+) {
+  return formatList(
+    pendingItems.map((pendingItem) => {
+      if (pendingItem === "music") {
+        return "archivo de música";
+      }
+
+      return formatOperationalPendingItemLabel(pendingItem).toLowerCase();
+    }),
   );
+}
+
+function formatList(items: string[]) {
+  if (items.length <= 1) {
+    return items[0] ?? "";
+  }
+
+  return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
+}
+
+function ArchivedBadge() {
+  return <Badge variant="secondary">Archivado</Badge>;
 }
 
 function getDancerSectionDescription(
@@ -1381,24 +1758,15 @@ function getDancerSectionDescription(
   return "Consultá los bailarines actuales de esta coreografía y el motivo principal por el que la edición no está disponible.";
 }
 
-function getDancerSectionBadgeClassName(canEdit: boolean) {
-  return clsx(
-    "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
-    canEdit ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800",
-  );
-}
-
 function DeleteChoreographyDialog({
   choreographyId,
   isOpen,
   onOpenChange,
-  onOpenRequest,
   warningMessage,
 }: {
   choreographyId: string;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onOpenRequest: () => void;
   warningMessage: string | null;
 }) {
   return (
@@ -1414,67 +1782,47 @@ function DeleteChoreographyDialog({
           <input type="hidden" name="intent" value={deleteChoreographyIntent} />
         </div>
       ) : null}
-      <div>
-        <Button type="button" variant="destructive" onClick={onOpenRequest}>
-          <Trash2 aria-hidden="true" data-icon="inline-start" />
-          Eliminar Coreografía
-        </Button>
-      </div>
       <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        <AlertDialogContent
-          forceMount
-          className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
-        >
-          <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
-            <AlertDialogTitle>¿Eliminar Coreografía?</AlertDialogTitle>
-            <AlertDialogDescription>
-              En esta versión la eliminación es definitiva y libera el cupo del
-              Cronograma.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {warningMessage ? (
-            <p className="rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground">
-              {warningMessage}
-            </p>
-          ) : null}
-          <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <form method="post">
-              <input
-                type="hidden"
-                name="intent"
-                value={deleteChoreographyIntent}
-              />
-              <input
-                type="hidden"
-                name="confirmDeletion"
-                value={choreographyId}
-              />
-              <Button type="submit" variant="destructive">
-                <Trash2 aria-hidden="true" data-icon="inline-start" />
-                Eliminar Coreografía
-              </Button>
-            </form>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        {isOpen ? (
+          <AlertDialogContent
+            forceMount
+            className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
+          >
+            <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
+              <AlertDialogTitle>¿Eliminar Coreografía?</AlertDialogTitle>
+              <AlertDialogDescription>
+                En esta versión la eliminación es definitiva y libera el cupo
+                del Cronograma.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {warningMessage ? (
+              <p className="rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground">
+                {warningMessage}
+              </p>
+            ) : null}
+            <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <form method="post">
+                <input
+                  type="hidden"
+                  name="intent"
+                  value={deleteChoreographyIntent}
+                />
+                <input
+                  type="hidden"
+                  name="confirmDeletion"
+                  value={choreographyId}
+                />
+                <Button type="submit" variant="destructive">
+                  <Trash2 aria-hidden="true" data-icon="inline-start" />
+                  Eliminar Coreografía
+                </Button>
+              </form>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        ) : null}
       </AlertDialog>
-      <div className="sr-only">Eliminar Coreografía</div>
     </>
-  );
-}
-
-function getReadOnlyBadgeClassName(isReadOnly: boolean) {
-  return isReadOnly
-    ? "inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
-    : "inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800";
-}
-
-function getProfessorSectionBadgeClassName(canEditProfessors: boolean) {
-  return clsx(
-    "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
-    canEditProfessors
-      ? "bg-emerald-50 text-emerald-800"
-      : "bg-slate-100 text-slate-700",
   );
 }
 
@@ -1497,14 +1845,14 @@ function getDancerAvailabilityCopy(isActive: boolean) {
 }
 
 function formatDancerName(dancer: { firstName: string; lastName: string }) {
-  return `${dancer.lastName}, ${dancer.firstName}`;
+  return `${dancer.firstName} ${dancer.lastName}`;
 }
 
 function formatProfessorName(professor: {
   firstName: string;
   lastName: string;
 }) {
-  return `${professor.lastName}, ${professor.firstName}`;
+  return `${professor.firstName} ${professor.lastName}`;
 }
 
 function formatScheduleOptionLabel(option: {

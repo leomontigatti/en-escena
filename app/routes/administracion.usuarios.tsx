@@ -1,25 +1,15 @@
-import { Form, Link } from "react-router";
+import { Link } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  AdminEmptyState,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   listAdministrativeUsers,
   readAdministrativeUserFilters,
@@ -44,25 +34,18 @@ type FilterSelectOption = {
   value: string;
 };
 
-const roleFilterOptions = [
-  { label: "Todos", value: "all" },
-  { label: "Administración", value: "admin" },
-  { label: "Auditoría", value: "auditor" },
-  { label: "Juzgamiento", value: "judge" },
-  { label: "Academia", value: "academy" },
-] satisfies FilterSelectOption[];
-
 const stateFilterOptions = [
-  { label: "Todos", value: "all" },
   { label: "Activo", value: "active" },
   { label: "Cambio obligatorio", value: "mandatory-password-change" },
-  { label: "Suspendido", value: "suspended" },
 ] satisfies FilterSelectOption[];
 
 const typeFilterOptions = [
-  { label: "Todos", value: "all" },
   { label: "Interno", value: "internal" },
   { label: "Academia", value: "academy" },
+] satisfies FilterSelectOption[];
+
+const archivedFilterOptions = [
+  { label: "Archivado", value: "si" },
 ] satisfies FilterSelectOption[];
 
 export const meta: Route.MetaFunction = () => [
@@ -92,33 +75,21 @@ export function AdministracionUsuariosRouteView({
   loaderData,
 }: AdministracionUsuariosRouteProps) {
   return (
-    <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold">Usuarios</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Consultá accesos internos y de academia con filtros por permiso,
-            tipo y estado. El alta de Usuarios internos se hace desde Crear
-            Usuario interno.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-muted-foreground">
-            {formatResultCount(loaderData.users.length)}
-          </p>
-          {loaderData.canManage ? (
-            <Button asChild>
-              <Link to="/administracion/usuarios/nuevo">
-                Crear Usuario interno
-              </Link>
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
-      <UserFilters loaderData={loaderData} />
-
-      {loaderData.users.length > 0 ? (
+    <AdminResourceLayout
+      requireSelectedEvent={false}
+      title="Usuarios"
+      description="Consultá accesos internos y de academia con filtros por tipo, estado y archivo."
+      action={
+        loaderData.canManage
+          ? {
+              label: "Crear Usuario interno",
+              to: "/administracion/usuarios/nuevo",
+            }
+          : undefined
+      }
+    >
+      {loaderData.users.length > 0 ||
+      hasActiveUserFilters(loaderData.filters) ? (
         <UsersTable filters={loaderData.filters} users={loaderData.users} />
       ) : (
         <AdminEmptyState
@@ -126,7 +97,16 @@ export function AdministracionUsuariosRouteView({
           description="Probá con otra búsqueda o ajustá los filtros para revisar otros accesos."
         />
       )}
-    </section>
+    </AdminResourceLayout>
+  );
+}
+
+function hasActiveUserFilters(filters: AdministrativeUserListFilters) {
+  return (
+    filters.query.length > 0 ||
+    filters.archived ||
+    filters.state !== "all" ||
+    filters.type !== "all"
   );
 }
 
@@ -136,85 +116,6 @@ export default function AdministracionUsuariosRoute({
   return <AdministracionUsuariosRouteView loaderData={loaderData} />;
 }
 
-function UserFilters({ loaderData }: { loaderData: LoaderData }) {
-  return (
-    <Form
-      method="get"
-      className="grid gap-4 rounded-lg border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto]"
-    >
-      <label className="grid gap-2 text-sm font-medium text-foreground">
-        Buscar
-        <Input
-          type="search"
-          name="q"
-          defaultValue={loaderData.filters.query}
-          placeholder="Nombre o identificador"
-        />
-      </label>
-
-      <FilterSelect
-        label="Permiso principal"
-        name="permiso"
-        defaultValue={loaderData.filters.role}
-        options={roleFilterOptions}
-      />
-
-      <FilterSelect
-        label="Estado"
-        name="estado"
-        defaultValue={loaderData.filters.state}
-        options={stateFilterOptions}
-      />
-
-      <FilterSelect
-        label="Tipo"
-        name="tipo"
-        defaultValue={loaderData.filters.type}
-        options={typeFilterOptions}
-      />
-
-      <div className="flex items-end gap-2">
-        <Button type="submit" className="w-full sm:w-auto">
-          Aplicar filtros
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/administracion/usuarios">Limpiar</Link>
-        </Button>
-      </div>
-    </Form>
-  );
-}
-
-function FilterSelect({
-  defaultValue,
-  label,
-  name,
-  options,
-}: {
-  defaultValue: string;
-  label: string;
-  name: string;
-  options: Array<{ label: string; value: string }>;
-}) {
-  return (
-    <label className="grid gap-2 text-sm font-medium text-foreground">
-      {label}
-      <Select name={name} defaultValue={defaultValue}>
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </label>
-  );
-}
-
 function UsersTable({
   filters,
   users,
@@ -222,58 +123,131 @@ function UsersTable({
   filters: AdministrativeUserListFilters;
   users: AdministrativeUserListItem[];
 }) {
+  const columns: DataTableColumn<AdministrativeUserListItem>[] = [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "align-top whitespace-normal",
+      cell: (savedUser) => (
+        <div className="flex flex-col gap-1">
+          <Link
+            to={buildUserDetailHref(filters, savedUser.id)}
+            className="w-fit font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            {savedUser.name}
+          </Link>
+          {savedUser.academyName ? (
+            <span className="text-xs text-muted-foreground">
+              {savedUser.academyName}
+            </span>
+          ) : null}
+        </div>
+      ),
+      filterValue: (savedUser) =>
+        [savedUser.name, savedUser.academyName, savedUser.identifier]
+          .filter(Boolean)
+          .join(" "),
+    },
+    {
+      id: "identifier",
+      header: "Identificador",
+      className: "align-top",
+      cell: (savedUser) => (
+        <code className="rounded bg-muted px-2 py-1 text-xs font-medium">
+          {savedUser.identifier}
+        </code>
+      ),
+      filterValue: (savedUser) => savedUser.identifier,
+    },
+    {
+      id: "status",
+      header: "Estado",
+      className: "align-top whitespace-normal",
+      cell: (savedUser) => (
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{getRoleLabel(savedUser.mainRole)}</Badge>
+          <Badge variant="outline">{getTypeLabel(savedUser.userType)}</Badge>
+          <Badge variant={getStateBadgeVariant(savedUser.state)}>
+            {getStateLabel(savedUser.state)}
+          </Badge>
+        </div>
+      ),
+      filterValues: (savedUser) => [
+        savedUser.userType,
+        savedUser.state,
+        savedUser.state === "suspended" ? "si" : "",
+      ],
+      filterValue: (savedUser) =>
+        [
+          getRoleLabel(savedUser.mainRole),
+          getTypeLabel(savedUser.userType),
+          getStateLabel(savedUser.state),
+        ].join(" "),
+    },
+  ];
+
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Identificador</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((savedUser) => (
-            <TableRow key={savedUser.id}>
-              <TableCell className="align-top whitespace-normal">
-                <div className="flex flex-col gap-1">
-                  <Link
-                    to={buildUserDetailHref(filters, savedUser.id)}
-                    className="w-fit font-medium underline-offset-4 hover:underline"
-                  >
-                    {savedUser.name}
-                  </Link>
-                  {savedUser.academyName ? (
-                    <span className="text-xs text-muted-foreground">
-                      {savedUser.academyName}
-                    </span>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell className="align-top">
-                <code className="rounded bg-muted px-2 py-1 text-xs font-medium">
-                  {savedUser.identifier}
-                </code>
-              </TableCell>
-              <TableCell className="align-top whitespace-normal">
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">
-                    {getRoleLabel(savedUser.mainRole)}
-                  </Badge>
-                  <Badge variant="outline">
-                    {getTypeLabel(savedUser.userType)}
-                  </Badge>
-                  <Badge variant={getStateBadgeVariant(savedUser.state)}>
-                    {getStateLabel(savedUser.state)}
-                  </Badge>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      mode="server"
+      rows={users}
+      columns={columns}
+      getRowKey={(savedUser) => savedUser.id}
+      searchPlaceholder="Buscar usuario por nombre o identificador"
+      initialSearchValue={filters.query}
+      facetedFilters={[
+        {
+          columnId: "status",
+          label: "Filtros",
+          groups: [
+            {
+              id: "tipo",
+              label: "Tipo",
+              options: typeFilterOptions,
+            },
+            {
+              id: "estado",
+              label: "Estado",
+              options: stateFilterOptions,
+            },
+            {
+              id: "archivado",
+              label: "Archivado",
+              options: archivedFilterOptions,
+            },
+          ],
+        },
+      ]}
+      initialFacetedFilterValues={buildInitialUserFilterValues(filters)}
+      emptyMessage="No hay Usuarios que coincidan con la búsqueda o los filtros."
+      currentPage={1}
+      totalPages={1}
+      totalRows={users.length}
+    />
   );
+}
+
+function buildInitialUserFilterValues(
+  filters: AdministrativeUserListFilters,
+): Record<string, Record<string, string>> {
+  const values: Record<string, string> = {};
+
+  if (filters.state !== "all") {
+    values.estado = filters.state;
+  }
+
+  if (filters.type !== "all") {
+    values.tipo = filters.type;
+  }
+
+  if (filters.archived) {
+    values.archivado = "si";
+  }
+
+  if (Object.keys(values).length === 0) {
+    return {};
+  }
+
+  return { status: values };
 }
 
 function buildUserDetailHref(
@@ -290,10 +264,6 @@ function buildDetailSearch(filters: AdministrativeUserListFilters) {
     searchParams.set("q", filters.query);
   }
 
-  if (filters.role !== "all") {
-    searchParams.set("permiso", filters.role);
-  }
-
   if (filters.state !== "all") {
     searchParams.set("estado", filters.state);
   }
@@ -302,13 +272,13 @@ function buildDetailSearch(filters: AdministrativeUserListFilters) {
     searchParams.set("tipo", filters.type);
   }
 
+  if (filters.archived) {
+    searchParams.set("archivado", "si");
+  }
+
   const search = searchParams.toString();
 
   return search.length > 0 ? `?${search}` : "";
-}
-
-function formatResultCount(count: number) {
-  return `${count} ${count === 1 ? "Usuario" : "Usuarios"}`;
 }
 
 function getRoleLabel(role: AdministrativeUserListRole) {
@@ -340,7 +310,7 @@ function getStateLabel(state: AdministrativeUserListState) {
     case "mandatory-password-change":
       return "Cambio obligatorio";
     case "suspended":
-      return "Suspendido";
+      return "Archivado";
   }
 }
 
@@ -351,6 +321,6 @@ function getStateBadgeVariant(state: AdministrativeUserListState) {
     case "mandatory-password-change":
       return "secondary";
     case "suspended":
-      return "destructive";
+      return "outline";
   }
 }

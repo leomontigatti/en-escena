@@ -59,9 +59,9 @@ describe("event registration readiness", () => {
     );
     await expectCreated(
       createPrice(event.id, {
-        name: "Dúo general",
         groupType: "duo",
         amount: 15000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );
@@ -123,17 +123,17 @@ describe("event registration readiness", () => {
     );
     await expectCreated(
       createPrice(event.id, {
-        name: "Solo general",
         groupType: "solo",
         amount: 14000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );
     await expectCreated(
       createPrice(event.id, {
-        name: "Dúo general",
         groupType: "duo",
         amount: 22000,
+        paymentDeadline: "2026-05-31",
         scheduleBlockId: null,
       }),
     );

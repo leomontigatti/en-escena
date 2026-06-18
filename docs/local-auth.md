@@ -1,9 +1,11 @@
 # Local Operation and Auth
 
-This document explains how to run the current En Escena access stack locally.
-It supports PRD #1, "Registro publico y autenticacion de usuarios". ADR
-[0001: Better Auth for access](adr/0001-better-auth-for-access.md) remains in
-the repo only as a superseded historical record.
+This document explains how to run the current En Escena access stack locally. It
+supports PRD #1, "Registro publico y autenticacion de usuarios", the Supabase
+adoption ADRs [0005](adr/0005-use-supabase-postgres-before-supabase-auth.md)
+and [0006](adr/0006-use-supabase-auth-for-access.md), and keeps ADR
+[0001: Better Auth for access](adr/0001-better-auth-for-access.md) only as a
+superseded historical record.
 
 ## Environment
 
@@ -16,16 +18,19 @@ TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena-test"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
 SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
+BETTER_AUTH_SECRET="<local-random-secret>"
+BETTER_AUTH_URL="http://localhost:5173"
 RESEND_API_KEY=""
 EMAIL_FROM="En Escena <acceso@example.com>"
 ```
 
 - `DATABASE_URL` points Drizzle and the app-owned domain/access tables at the
-  local application database.
+  application database. For local development, use the local Postgres
+  container. In production or preview, this can point at Supabase Postgres.
 - `TEST_DATABASE_URL` points database tests at their separate local database.
 - `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` configure the server-side
   Supabase Auth SSR client for per-request cookie handling inside the access
-  boundary.
+  boundary. Drizzle server-side queries do not use them.
 - `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
   must create or delete confirmed access users without sending extra Supabase
   confirmation emails during public academy registration. Keep it server-only.
@@ -58,6 +63,25 @@ npm run db:push
 ```
 
 Confirm `.env` points at the local container before running `npm run db:push`.
+
+### Supabase Postgres
+
+For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
+connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
+at local Postgres so `npm run test:db` stays isolated from hosted data.
+
+Choose the connection mode for the runtime:
+
+- Use the direct connection or session pooler for persistent Node runtimes.
+- Use the transaction pooler for serverless or short-lived runtimes.
+
+If you use a transaction pooler, validate the app before rollout because
+transaction pooling can affect prepared statements and session-level database
+behavior.
+
+For schema changes against Supabase, run `npm run db:push` only after verifying
+that `DATABASE_URL` points at the intended hosted database. Database-backed tests
+continue to reset and push schema through `TEST_DATABASE_URL`.
 
 ## Running Locally
 
@@ -134,10 +158,11 @@ Configure these Supabase Auth dashboard values for academy recovery:
   `EMAIL_FROM` so Supabase recovery emails and app-owned invitation/registration
   emails share the same domain identity.
 
-## Auth Scope
+## Access Auth Scope
 
-For v1, Supabase Auth owns production credentials, password recovery and
-sessions. The app owns domain-specific access flows and the local test harness:
+For v1, Supabase Auth owns academy and internal credentials, password recovery
+and sessions. The app owns domain-specific access flows and the local test
+harness:
 
 - Public academy registration tokens create an `Academia` and its single academy
   user.
@@ -145,9 +170,11 @@ sessions. The app owns domain-specific access flows and the local test harness:
   administration, audit or judging.
 - Internal password recovery remains an administrative reset with a temporary
   password; internal users do not receive recovery emails.
-- Roles and academy ownership are app-domain data.
+- Roles, academy ownership, internal usernames, suspension and mandatory
+  password-change state are app-domain data. Do not put authorization
+  decisions in user-editable auth metadata.
 
-The following are not required for v1 local operation or implementation:
+The following are not required for local operation or implementation:
 
 - ngrok, unless a future integration explicitly requires a public callback URL.
 
@@ -157,8 +184,10 @@ When changing auth, registration, recovery or invitation behavior, keep this
 reference order:
 
 1. `CONTEXT.md`, the domain glossary and repo workflows are authoritative.
-2. Current implementation authority is this document plus the active auth code;
-   ADR [0001](adr/0001-better-auth-for-access.md) is historical and superseded.
+2. ADR [0006: Supabase Auth for access credentials](adr/0006-use-supabase-auth-for-access.md)
+   is the accepted target architecture. ADR
+   [0001: Better Auth for access](adr/0001-better-auth-for-access.md) is
+   historical and superseded.
 3. `docs/agents/coding-standards.md` controls test and implementation style.
 4. Vendored React/Vercel skills are supporting references when UI or route work
    is relevant: `react-best-practices`, `web-design-guidelines`,
