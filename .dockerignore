@@ -1,0 +1,8 @@
+build
+node_modules
+.react-router
+.git
+.env
+.env.*
+npm-debug.log*
+.DS_Store
