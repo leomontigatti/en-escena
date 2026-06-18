@@ -20,8 +20,10 @@ SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
 SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
 BETTER_AUTH_SECRET="<local-random-secret>"
 BETTER_AUTH_URL="http://localhost:5173"
-RESEND_API_KEY=""
 EMAIL_FROM="En Escena <acceso@example.com>"
+EMAIL_PROVIDER="brevo"
+BREVO_API_KEY=""
+RESEND_API_KEY=""
 ```
 
 - `DATABASE_URL` points Drizzle and the app-owned domain/access tables at the
@@ -34,8 +36,9 @@ EMAIL_FROM="En Escena <acceso@example.com>"
 - `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
   must create or delete confirmed access users without sending extra Supabase
   confirmation emails during public academy registration. Keep it server-only.
-- `RESEND_API_KEY` and `EMAIL_FROM` are only required when
-  `NODE_ENV=production`. Leave `RESEND_API_KEY` empty for local development.
+- `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
+  required when `NODE_ENV=production`. Leave provider keys empty for local
+  development.
 
 Do not commit real secrets.
 
@@ -130,33 +133,52 @@ shows the generic response. The dev email logs guidance toward `/ingresar` or
 
 ## Production Email
 
-Production access emails use Resend through the app email boundary in
-`app/lib/email.server.ts`. Register and verify the sending domain in Resend, then
-configure these environment variables in the production host:
+Production access emails use the app email boundary in
+`app/lib/shared/email.server.ts`. Until the En Escena sending domain is ready,
+use Brevo for app-owned registration and invitation emails:
 
 ```sh
+EMAIL_PROVIDER="brevo"
+BREVO_API_KEY="xkeysib-..."
+EMAIL_FROM="En Escena <verified-sender@example.com>"
+```
+
+`EMAIL_FROM` must match a sender verified in Brevo. Provider errors are logged
+with an `[email:provider:error]` prefix without printing provider secrets.
+
+When the sending domain is ready, switch the app-owned emails back to Resend:
+
+```sh
+EMAIL_PROVIDER="resend"
 RESEND_API_KEY="re_..."
 EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 ```
 
-`EMAIL_FROM` must use an address on the verified sending domain. Registration,
-access recovery and internal invitation emails all use this sender. Provider
-errors are logged with an `[email:provider:error]` prefix without printing
-provider secrets.
+`EMAIL_FROM` must use an address on the verified Resend sending domain.
+Registration and internal invitation emails use this sender.
 
-Supabase Auth emails in production also require Custom SMTP to be enabled in the
-Supabase project and pointed at the same verified Resend sender. The default
-Supabase shared SMTP is not sufficient for the production access flows in this
-repo.
+Supabase Auth recovery emails in production also require Custom SMTP to be
+enabled in the Supabase project. While Brevo is the temporary provider, configure
+Supabase Auth Custom SMTP with:
+
+- Host: `smtp-relay.brevo.com`
+- Port: `587`
+- User: the Brevo SMTP login
+- Password: the Brevo SMTP key, not the API key
+- Sender name: `En Escena`
+- From/admin email: the same verified sender configured in `EMAIL_FROM`
+
+The default Supabase shared SMTP is not sufficient for the production access
+flows in this repo.
 
 Configure these Supabase Auth dashboard values for academy recovery:
 
 - Redirect URLs must include each deployed `/cambiar-contrasena` URL that can
   receive password recovery links, plus `http://localhost:5173/cambiar-contrasena`
   for local development.
-- Custom SMTP must use the same verified Resend sender configured in
-  `EMAIL_FROM` so Supabase recovery emails and app-owned invitation/registration
-  emails share the same domain identity.
+- Custom SMTP must use the same sender configured in `EMAIL_FROM` so Supabase
+  recovery emails and app-owned invitation/registration emails share the same
+  sender identity.
 
 ## Access Auth Scope
 
