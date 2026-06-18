@@ -22,7 +22,7 @@ import {
   toAdminProfessorParticipationSearchValue,
   toAdminProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionProfesoresRouteView,
@@ -1027,13 +1027,10 @@ async function createSignedInRequest(input: {
   role: "academy" | "admin" | "auditor" | "judge";
   requestUrl: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db
@@ -1111,13 +1108,10 @@ async function createAcademyUser(input: {
   contactName: string;
   phone: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db

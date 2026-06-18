@@ -43,7 +43,7 @@ import {
   createScheduleEntry,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   action,
@@ -2084,13 +2084,10 @@ async function createSignedInRequest(input: {
   requestUrl: string;
   body?: FormData;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db

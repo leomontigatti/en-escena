@@ -1,8 +1,8 @@
 import {
+  createHmac,
   randomBytes,
   scryptSync,
   timingSafeEqual,
-  createHmac,
 } from "node:crypto";
 
 import { and, eq, gt } from "drizzle-orm";
@@ -22,7 +22,6 @@ const SCRYPT_KEY_LENGTH = 64;
 
 export async function createLocalAccessUser(input: {
   email: string;
-  headers?: Headers;
   name: string;
   password: string;
 }) {
@@ -46,7 +45,6 @@ export async function createLocalAccessUser(input: {
   });
 
   const sessionRecord = await createLocalAccessSession({
-    headers: input.headers,
     userId: savedUser.id,
   });
 
@@ -67,7 +65,6 @@ export async function createLocalAccessUser(input: {
 
 export async function signInLocalAccessUser(input: {
   email: string;
-  headers?: Headers;
   password: string;
 }) {
   const savedUser = await db.query.user.findFirst({
@@ -89,7 +86,6 @@ export async function signInLocalAccessUser(input: {
   }
 
   const sessionRecord = await createLocalAccessSession({
-    headers: input.headers,
     userId: savedUser.id,
   });
 
@@ -223,10 +219,7 @@ export async function verifyLocalAccessPassword(input: {
   });
 }
 
-export async function createLocalAccessSession(input: {
-  headers?: Headers;
-  userId: string;
-}) {
+export async function createLocalAccessSession(input: { userId: string }) {
   const savedSession = await db
     .insert(accessSession)
     .values({
@@ -308,10 +301,6 @@ function extractLocalAccessSessionTokenFromRequestHeaders(headers: Headers) {
 
 function shouldRefreshLocalAccessSession(expiresAt: Date) {
   return expiresAt.getTime() - Date.now() < ACCESS_SESSION_REFRESH_WINDOW_MS;
-}
-
-function hashLocalAccessPassword(password: string) {
-  return createLocalAccessPasswordHash(password);
 }
 
 export function createLocalAccessPasswordHash(password: string) {

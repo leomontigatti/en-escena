@@ -17,7 +17,7 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 
 export const OPEN_REGISTRATION_ENDS_AT = date("2099-04-30T12:00:00Z");
 
@@ -28,13 +28,10 @@ export async function createAcademySession({
   academyName: string;
   email: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
   });
 
   await db

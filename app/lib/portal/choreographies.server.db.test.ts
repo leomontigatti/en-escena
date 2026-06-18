@@ -22,7 +22,7 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { action as choreographyDetailAction } from "@/routes/portal.coreografias_.$choreographyId";
 import { loader as choreographyDetailLoader } from "@/routes/portal.coreografias_.$choreographyId";
 import { loader as choreographiesLoader } from "@/routes/portal.coreografias";
@@ -1860,13 +1860,10 @@ async function createAcademySession({
   academyName: string;
   email: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
   });
 
   await db

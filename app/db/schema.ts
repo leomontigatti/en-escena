@@ -150,9 +150,6 @@ export const accessCredential = createTable(
   (table) => [uniqueIndex("access_credential_user_id_unique").on(table.userId)],
 );
 
-export const session = accessSession;
-export const account = accessCredential;
-
 export const academies = createTable(
   "academy",
   {

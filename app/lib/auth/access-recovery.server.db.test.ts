@@ -2,8 +2,12 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academies, session, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { academies, accessSession, user } from "@/db/schema";
+import {
+  createLocalAccessUser,
+  readLocalAccessSession,
+  signInLocalAccessUser,
+} from "@/lib/auth/access-test-auth.server";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import {
   action as changePasswordAction,
@@ -41,12 +45,10 @@ describe("access recovery", () => {
   });
 
   test("requests a Supabase reset only for eligible academy users", async () => {
-    const signUpResult = await auth.api.signUpEmail({
-      body: {
-        email: "usuario@example.com",
-        name: "Usuario",
-        password: OLD_PASSWORD,
-      },
+    const signUpResult = await createLocalAccessUser({
+      email: "usuario@example.com",
+      name: "Usuario",
+      password: OLD_PASSWORD,
     });
 
     await db
@@ -85,19 +87,15 @@ describe("access recovery", () => {
   });
 
   test("returns the generic response without triggering reset for internal, suspended or missing emails", async () => {
-    const internalUser = await auth.api.signUpEmail({
-      body: {
-        email: "interno@example.com",
-        name: "Interno",
-        password: OLD_PASSWORD,
-      },
+    const internalUser = await createLocalAccessUser({
+      email: "interno@example.com",
+      name: "Interno",
+      password: OLD_PASSWORD,
     });
-    const suspendedUser = await auth.api.signUpEmail({
-      body: {
-        email: "suspendido@example.com",
-        name: "Suspendido",
-        password: OLD_PASSWORD,
-      },
+    const suspendedUser = await createLocalAccessUser({
+      email: "suspendido@example.com",
+      name: "Suspendido",
+      password: OLD_PASSWORD,
     });
 
     await db
@@ -197,16 +195,12 @@ describe("access recovery", () => {
     expect(response.headers.get("location")).toBe("/ingresar?recuperacion=ok");
     await expect(findSessionsByUserId(userId)).resolves.toEqual([]);
     await expect(
-      auth.api.getSession({
-        headers: new Headers({ cookie: sessionCookie }),
-      }),
+      readLocalAccessSession(new Headers({ cookie: sessionCookie })),
     ).resolves.toBeNull();
     await expect(
-      auth.api.signInEmail({
-        body: {
-          email: "revocar-sesiones@example.com",
-          password: NEW_PASSWORD,
-        },
+      signInLocalAccessUser({
+        email: "revocar-sesiones@example.com",
+        password: NEW_PASSWORD,
       }),
     ).resolves.toMatchObject({
       user: { email: "revocar-sesiones@example.com" },
@@ -215,13 +209,10 @@ describe("access recovery", () => {
 });
 
 async function createRecoverySessionState(email: string) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: OLD_PASSWORD,
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: OLD_PASSWORD,
   });
 
   await db
@@ -254,8 +245,8 @@ async function createRecoverySessionState(email: string) {
 }
 
 function findSessionsByUserId(userId: string) {
-  return db.query.session.findMany({
-    where: eq(session.userId, userId),
+  return db.query.accessSession.findMany({
+    where: eq(accessSession.userId, userId),
   });
 }
 

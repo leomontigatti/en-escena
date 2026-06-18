@@ -20,7 +20,7 @@ import {
   createScheduleEntry,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { loader as portalLoader } from "@/routes/portal";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
@@ -1763,13 +1763,10 @@ async function createAcademySession({
   academyName: string;
   email: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
   });
 
   await db
@@ -1924,13 +1921,10 @@ async function createAcademyRecord({
 }
 
 async function createInternalRequest(requestUrl: string) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: "admin@example.com",
-      name: "admin@example.com",
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: "admin@example.com",
+    name: "admin@example.com",
+    password: "password-segura",
   });
 
   await db

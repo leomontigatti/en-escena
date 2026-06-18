@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, session, user } from "@/db/schema";
+import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import {
   requireAcademyUser,
   requireAdminUser,
@@ -105,8 +105,8 @@ describe("internal access authorization", () => {
       "/ingresar?redirectTo=%2Fprotected&motivo=expirada",
     );
     await expect(
-      db.query.session.findMany({
-        where: eq(session.userId, userId),
+      db.query.accessSession.findMany({
+        where: eq(accessSession.userId, userId),
       }),
     ).resolves.toEqual([]);
   });
@@ -131,8 +131,8 @@ describe("internal access authorization", () => {
       "/ingresar?redirectTo=%2Fprotected&motivo=expirada",
     );
     await expect(
-      db.query.session.findMany({
-        where: eq(session.userId, userId),
+      db.query.accessSession.findMany({
+        where: eq(accessSession.userId, userId),
       }),
     ).resolves.toEqual([]);
   });
@@ -216,13 +216,10 @@ async function createSignedInRequest(input: {
   role: "academy" | InternalUserRole;
   requiresPasswordChange?: boolean;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db

@@ -297,7 +297,6 @@ async function signInTestCredentialUser(
 ): Promise<AccessCredentialUser> {
   const result = await signInLocalAccessUser({
     email: input.email,
-    headers: input.request.headers,
     password: input.password,
   });
 
@@ -333,7 +332,6 @@ async function signUpTestCredentialUser(
 ): Promise<AccessCredentialUser> {
   const result = await createLocalAccessUser({
     email: input.email,
-    headers: input.request.headers,
     name: input.email,
     password: input.password,
   });

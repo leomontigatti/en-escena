@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { session, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { accessSession, user } from "@/db/schema";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { action as changePasswordAction } from "@/routes/cambiar-contrasena";
 import { action as signInAction } from "@/routes/ingresar";
 
@@ -48,8 +48,8 @@ describe("mandatory password change route", () => {
     });
     expect(savedUser?.requiresPasswordChange).toBe(false);
 
-    const remainingSessions = await db.query.session.findMany({
-      where: eq(session.userId, userId),
+    const remainingSessions = await db.query.accessSession.findMany({
+      where: eq(accessSession.userId, userId),
     });
     expect(remainingSessions).toHaveLength(1);
     expect(remainingSessions[0]?.token).toBe(
@@ -91,13 +91,10 @@ async function createInternalSessionState(input: {
   internalUsername: string;
   password: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: input.password,
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: input.password,
   });
 
   await db

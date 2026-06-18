@@ -8,10 +8,10 @@ import { db } from "@/db";
 import {
   academies,
   administrativeAuditEntries,
-  session,
+  accessSession,
   user,
 } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import {
   loader as listLoader,
   AdministracionUsuariosRouteView,
@@ -61,7 +61,10 @@ describe("administracion/usuarios/:userId route", () => {
       }),
     ).resolves.toMatchObject({ suspended: false });
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
     const suspendResponse = await expectThrownResponse(
@@ -88,7 +91,10 @@ describe("administracion/usuarios/:userId route", () => {
       }),
     ).resolves.toMatchObject({ suspended: true });
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toEqual([]);
 
     const suspendedDetail = await detailLoader(
@@ -204,7 +210,10 @@ describe("administracion/usuarios/:userId route", () => {
     });
 
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
     const response = await expectThrownResponse(
@@ -239,7 +248,10 @@ describe("administracion/usuarios/:userId route", () => {
       role: "auditor",
     });
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toEqual([]);
     await expect(
       db
@@ -292,7 +304,10 @@ describe("administracion/usuarios/:userId route", () => {
     });
 
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
     const response = await expectThrownResponse(
@@ -322,7 +337,10 @@ describe("administracion/usuarios/:userId route", () => {
       }),
     ).resolves.toMatchObject({ requiresPasswordChange: true });
     await expect(
-      db.select().from(session).where(eq(session.userId, targetUser.userId)),
+      db
+        .select()
+        .from(accessSession)
+        .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toEqual([]);
 
     await expect(
@@ -707,13 +725,10 @@ async function createSignedInRequest(input: {
   internalUsername?: string;
   password?: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.userName,
-      password: input.password ?? "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.userName,
+    password: input.password ?? "password-segura",
   });
 
   await db
@@ -742,13 +757,10 @@ async function createAcademyUser(input: {
   contactName: string;
   email: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.contactName,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.contactName,
+    password: "password-segura",
   });
 
   await db

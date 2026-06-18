@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { session, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { accessSession, user } from "@/db/schema";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { action as logoutAction, loader as logoutLoader } from "@/routes/salir";
 import { action as signInAction } from "@/routes/ingresar";
 
@@ -48,8 +48,8 @@ describe("logout route", () => {
     expect(response.headers.get("location")).toBe("/ingresar?sesion=cerrada");
     expect(response.headers.get("set-cookie")).toContain("sb-access-token=");
 
-    const savedSessions = await db.query.session.findMany({
-      where: eq(session.userId, userId),
+    const savedSessions = await db.query.accessSession.findMany({
+      where: eq(accessSession.userId, userId),
     });
 
     expect(savedSessions.map((savedSession) => savedSession.token)).toEqual([
@@ -76,8 +76,8 @@ describe("logout route", () => {
 
     expect(response.headers.get("location")).toBe("/ingresar");
 
-    const savedSessions = await db.query.session.findMany({
-      where: eq(session.userId, userId),
+    const savedSessions = await db.query.accessSession.findMany({
+      where: eq(accessSession.userId, userId),
     });
 
     expect(savedSessions.map((savedSession) => savedSession.token)).toEqual([
@@ -87,13 +87,10 @@ describe("logout route", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
   });
 
   await db
@@ -102,8 +99,8 @@ async function createVerifiedCredentialUser(email: string) {
     .where(eq(user.id, signUpResult.response.user.id));
 
   await db
-    .delete(session)
-    .where(eq(session.userId, signUpResult.response.user.id));
+    .delete(accessSession)
+    .where(eq(accessSession.userId, signUpResult.response.user.id));
 
   return {
     userId: signUpResult.response.user.id,

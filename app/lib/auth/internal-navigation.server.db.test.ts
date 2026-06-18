@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import {
   getLandingPathForSignedInUser,
   requireAdminPanelUser,
@@ -115,12 +115,10 @@ describe("internal navigation", () => {
   });
 
   test("rejects unverified users with the generic login error", async () => {
-    await auth.api.signUpEmail({
-      body: {
-        email: "sin-verificar@example.com",
-        name: "sin-verificar@example.com",
-        password: "password-segura",
-      },
+    await createLocalAccessUser({
+      email: "sin-verificar@example.com",
+      name: "sin-verificar@example.com",
+      password: "password-segura",
     });
 
     await expect(
@@ -388,13 +386,10 @@ async function createCredentialUser(input: {
   internalUsername?: string;
   requiresPasswordChange?: boolean;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db

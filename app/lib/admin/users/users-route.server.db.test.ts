@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import {
   AdministracionUsuariosRouteView,
   loader,
@@ -246,13 +246,10 @@ async function createSignedInRequest(input: {
   userName: string;
   internalUsername?: string;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.userName,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.userName,
+    password: "password-segura",
   });
 
   await db

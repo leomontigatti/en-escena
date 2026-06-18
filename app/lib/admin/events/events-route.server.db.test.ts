@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { createEvent } from "@/lib/events/management.server";
 import { AdministracionRouteView } from "@/routes/administracion";
 import {
@@ -332,13 +332,10 @@ async function createSignedInRequest(input: {
   requestUrl: string;
   body?: FormData;
 }) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: "password-segura",
   });
 
   await db

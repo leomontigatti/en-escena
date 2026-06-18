@@ -5,7 +5,7 @@ import { db } from "@/db";
 import {
   academies,
   academyRegistrationTokens,
-  session,
+  accessSession,
   user,
 } from "@/db/schema";
 import {
@@ -155,9 +155,9 @@ describe("academy registration", () => {
     });
     expect(consumedToken?.consumedAt).toBeInstanceOf(Date);
 
-    const savedSessions = await db.query.session.findMany({
+    const savedSessions = await db.query.accessSession.findMany({
       columns: { userId: true },
-      where: eq(session.userId, savedUsers[0]?.id ?? ""),
+      where: eq(accessSession.userId, savedUsers[0]?.id ?? ""),
     });
     expect(savedSessions).toEqual([{ userId: savedUsers[0]?.id }]);
   });
@@ -249,7 +249,7 @@ describe("academy registration", () => {
     expect(await getRegistrationTokenStatus("unknown-token")).toBe("invalid");
     expect(await db.query.user.findMany()).toEqual([]);
     expect(await db.query.academies.findMany()).toEqual([]);
-    expect(await db.query.session.findMany()).toEqual([]);
+    expect(await db.query.accessSession.findMany()).toEqual([]);
   });
 
   test("does not allow a consumed token to create duplicate users or academies", async () => {
@@ -278,7 +278,7 @@ describe("academy registration", () => {
     });
     expect(await db.query.user.findMany()).toHaveLength(1);
     expect(await db.query.academies.findMany()).toHaveLength(1);
-    expect(await db.query.session.findMany()).toHaveLength(1);
+    expect(await db.query.accessSession.findMany()).toHaveLength(1);
   });
 
   test("compensates auth creation and reports email conflicts without consuming the token", async () => {
@@ -314,7 +314,7 @@ describe("academy registration", () => {
       "supabase-conflict-user",
     );
     expect(await db.query.academies.findMany()).toEqual([]);
-    expect(await db.query.session.findMany()).toEqual([]);
+    expect(await db.query.accessSession.findMany()).toEqual([]);
 
     const pendingToken = await db.query.academyRegistrationTokens.findFirst({
       columns: { consumedAt: true },
@@ -331,7 +331,7 @@ function installDefaultAcademyAuthMocks() {
 }
 
 async function createTestAcademyAccessUser(input: { email: string }) {
-  const [{ db }, { session, user }] = await Promise.all([
+  const [{ db }, { accessSession, user }] = await Promise.all([
     import("@/db"),
     import("@/db/schema"),
   ]);
@@ -343,7 +343,7 @@ async function createTestAcademyAccessUser(input: { email: string }) {
     name: input.email,
     email: input.email,
   });
-  await db.insert(session).values({
+  await db.insert(accessSession).values({
     id: crypto.randomUUID(),
     token: sessionToken,
     userId,
@@ -359,12 +359,12 @@ async function createTestAcademyAccessUser(input: { email: string }) {
 }
 
 async function deleteTestAcademyAccessUser(userId: string) {
-  const [{ db }, { session, user }] = await Promise.all([
+  const [{ db }, { accessSession, user }] = await Promise.all([
     import("@/db"),
     import("@/db/schema"),
   ]);
 
-  await db.delete(session).where(eq(session.userId, userId));
+  await db.delete(accessSession).where(eq(accessSession.userId, userId));
   await db.delete(user).where(eq(user.id, userId));
 }
 
