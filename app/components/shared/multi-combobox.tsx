@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   Combobox,
@@ -59,6 +59,10 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
   value,
 }: MultiComboboxProps<TOption>) {
   const anchorRef = useComboboxAnchor();
+  const [isInsideDialog, setIsInsideDialog] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null,
+  );
   const optionByValue = new Map(
     options.map((option) => [option.value, option] as const),
   );
@@ -82,6 +86,19 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
     return getOption(value).label;
   }
 
+  useEffect(() => {
+    const dialogContent =
+      anchorRef.current?.closest<HTMLElement>('[data-slot="dialog-content"]') ??
+      null;
+    const dialogPortalHost =
+      dialogContent?.querySelector<HTMLElement>(
+        '[data-slot="dialog-combobox-portal-host"]',
+      ) ?? null;
+
+    setIsInsideDialog(dialogContent ? true : false);
+    setPortalContainer(dialogPortalHost);
+  }, [anchorRef]);
+
   return (
     <>
       {name
@@ -96,6 +113,7 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
         : null}
       <Combobox
         items={comboboxItems}
+        itemToStringLabel={getOptionLabel}
         itemToStringValue={getOptionLabel}
         multiple
         value={value}
@@ -132,7 +150,23 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
             )}
           </ComboboxTrigger>
         </ComboboxChips>
-        <ComboboxContent anchor={anchorRef}>
+        <ComboboxContent
+          anchor={anchorRef}
+          collisionAvoidance={
+            isInsideDialog
+              ? {
+                  side: "none",
+                  align: "shift",
+                  fallbackAxisSide: "none",
+                }
+              : undefined
+          }
+          dismissableLayerBranch={isInsideDialog}
+          positionerClassName={
+            isInsideDialog ? "pointer-events-auto z-60" : undefined
+          }
+          portalContainer={portalContainer}
+        >
           {searchable ? (
             <ComboboxInput
               disabled={disabled || options.length === 0}

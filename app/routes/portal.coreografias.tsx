@@ -563,6 +563,9 @@ function CreateChoreographyModal({
     null,
   );
   const hasSubmittedChoreographyRef = useRef(false);
+  const processedCalculationDataRef = useRef<CalculationActionData | undefined>(
+    undefined,
+  );
   const form = useForm<CreateChoreographyFormValues>({
     resolver: zodResolver(createChoreographySchema),
     defaultValues: emptyCreateChoreographyValues,
@@ -609,6 +612,12 @@ function CreateChoreographyModal({
       return;
     }
 
+    if (processedCalculationDataRef.current === calculationData) {
+      return;
+    }
+
+    processedCalculationDataRef.current = calculationData;
+
     if (!calculationData.result.ok) {
       toast.error(calculationData.result.error, {
         id: CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID,
@@ -617,6 +626,9 @@ function CreateChoreographyModal({
     }
 
     const nextResolution = calculationData.result.resolution;
+    const currentExperienceLevelId = form.getValues("experienceLevelId") ?? "";
+    const currentScheduleCapacityId =
+      form.getValues("scheduleCapacityId") ?? "";
 
     if (nextResolution.schedule.status === "none") {
       setResolution(null);
@@ -632,7 +644,7 @@ function CreateChoreographyModal({
     if (nextResolution.experienceLevel.required) {
       if (
         !nextResolution.experienceLevel.options.some(
-          (option) => option.id === selectedExperienceLevelId,
+          (option) => option.id === currentExperienceLevelId,
         )
       ) {
         form.setValue("experienceLevelId", "", { shouldDirty: true });
@@ -650,7 +662,7 @@ function CreateChoreographyModal({
     } else if (
       nextResolution.schedule.status === "multiple" &&
       !nextResolution.schedule.options.some(
-        (option) => option.id === selectedScheduleCapacityId,
+        (option) => option.id === currentScheduleCapacityId,
       )
     ) {
       form.setValue("scheduleCapacityId", "", { shouldDirty: true });
@@ -662,13 +674,7 @@ function CreateChoreographyModal({
         resolution: nextResolution,
       }),
     );
-  }, [
-    canChooseSubmodality,
-    calculationData,
-    form,
-    selectedExperienceLevelId,
-    selectedScheduleCapacityId,
-  ]);
+  }, [canChooseSubmodality, calculationData, form]);
 
   useEffect(() => {
     if (!hasSubmittedChoreographyRef.current) {
