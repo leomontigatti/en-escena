@@ -16,21 +16,12 @@ export default mergeConfig(
             import.meta.url,
           ),
         ),
-        "@better-auth/core/dist/instrumentation/attributes.mjs": fileURLToPath(
-          new URL(
-            "./tests/stubs/better-auth-instrumentation-attributes.ts",
-            import.meta.url,
-          ),
-        ),
       },
     },
     test: {
       server: {
         deps: {
-          inline: [
-            /@better-auth\/core/,
-            /@opentelemetry\/semantic-conventions/,
-          ],
+          inline: [/@opentelemetry\/semantic-conventions/],
         },
       },
       exclude: [

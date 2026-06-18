@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { administrativeAuditEntries, session, user } from "@/db/schema";
+import { accessSession, administrativeAuditEntries, user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import {
   buildInternalCredentialEmail,
@@ -160,7 +160,9 @@ export async function updateInternalUser(
       .where(eq(user.id, existingUser.id));
 
     if (roleChanged) {
-      await tx.delete(session).where(eq(session.userId, existingUser.id));
+      await tx
+        .delete(accessSession)
+        .where(eq(accessSession.userId, existingUser.id));
     }
 
     await tx.insert(administrativeAuditEntries).values({

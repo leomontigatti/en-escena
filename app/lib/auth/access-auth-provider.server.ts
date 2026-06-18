@@ -1,13 +1,19 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { and, eq, gt } from "drizzle-orm";
-import { hashPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
-import { account, session as sessionTable, user } from "@/db/schema";
-import { auth } from "@/lib/auth/auth.server";
+import { accessCredential, accessSession, user } from "@/db/schema";
+import {
+  buildLocalAccessSessionHeaders,
+  createLocalAccessPasswordHash,
+  createLocalAccessUser,
+  readLocalAccessSession,
+  signInLocalAccessUser,
+  TEST_ACCESS_SESSION_COOKIE_NAME,
+} from "@/lib/auth/access-test-auth.server";
 import {
   createSupabaseServerClientForRequest,
   getRequiredSupabaseEnv,
@@ -35,10 +41,7 @@ export type AccessCredentialUser = {
   headers: Headers;
 };
 
-const TEST_SUPABASE_ACCESS_COOKIE_NAME = "sb-access-token";
 const TEST_SUPABASE_RECOVERY_COOKIE_NAME = "sb-recovery-user";
-const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
-const BETTER_AUTH_SESSION_COOKIE_PATTERN = /better-auth\.session_token=([^;]+)/;
 const testRecoveryCodes = new Map<string, string>();
 
 export const accessAuthProvider = {
@@ -88,13 +91,13 @@ export const accessAuthProvider = {
 
       if (sessionToken) {
         await db
-          .delete(sessionTable)
-          .where(eq(sessionTable.token, sessionToken));
+          .delete(accessSession)
+          .where(eq(accessSession.token, sessionToken));
       }
 
       return {
         headers: mergeTestHeaders(
-          buildTestSupabaseHeaders(),
+          buildLocalAccessSessionHeaders(null),
           buildTestRecoveryHeaders(null),
         ),
       };
@@ -135,7 +138,7 @@ export const accessAuthProvider = {
 
   async deleteAccessUser(userId: string) {
     if (isTestAccessAuthMode()) {
-      await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
+      await db.delete(accessSession).where(eq(accessSession.userId, userId));
       await db.delete(user).where(eq(user.id, userId));
       return;
     }
@@ -240,18 +243,15 @@ export const accessAuthProvider = {
 
       await db.transaction(async (tx) => {
         await tx
-          .update(account)
-          .set({ password: await hashPassword(input.newPassword) })
-          .where(
-            and(
-              eq(account.userId, recoveryUserId),
-              eq(account.providerId, "credential"),
-            ),
-          );
+          .update(accessCredential)
+          .set({
+            passwordHash: createLocalAccessPasswordHash(input.newPassword),
+          })
+          .where(eq(accessCredential.userId, recoveryUserId));
 
         await tx
-          .delete(sessionTable)
-          .where(eq(sessionTable.userId, recoveryUserId));
+          .delete(accessSession)
+          .where(eq(accessSession.userId, recoveryUserId));
       });
 
       return {
@@ -295,18 +295,15 @@ function mergeTestHeaders(...headerSets: Headers[]) {
 async function signInTestCredentialUser(
   input: CredentialUserInput,
 ): Promise<AccessCredentialUser> {
-  const result = await auth.api.signInEmail({
-    body: {
-      email: input.email,
-      password: input.password,
-    },
+  const result = await signInLocalAccessUser({
+    email: input.email,
     headers: input.request.headers,
-    returnHeaders: true,
+    password: input.password,
   });
 
   return {
     userId: result.response.user.id,
-    headers: buildTestSupabaseHeaders(result.headers),
+    headers: result.headers,
   };
 }
 
@@ -334,19 +331,16 @@ async function signInSupabaseCredentialUser(
 async function signUpTestCredentialUser(
   input: CredentialUserInput,
 ): Promise<AccessCredentialUser> {
-  const result = await auth.api.signUpEmail({
-    body: {
-      email: input.email,
-      name: input.email,
-      password: input.password,
-    },
+  const result = await createLocalAccessUser({
+    email: input.email,
     headers: input.request.headers,
-    returnHeaders: true,
+    name: input.email,
+    password: input.password,
   });
 
   return {
     userId: result.response.user.id,
-    headers: buildTestSupabaseHeaders(result.headers),
+    headers: result.headers,
   };
 }
 
@@ -423,68 +417,22 @@ async function getTestAccessSession(
     return null;
   }
 
-  const savedSession = await db.query.session.findFirst({
-    columns: {
-      expiresAt: true,
-      id: true,
-      createdAt: true,
-      userId: true,
-    },
-    where: and(
-      eq(sessionTable.token, sessionToken),
-      gt(sessionTable.expiresAt, new Date()),
-    ),
-  });
+  const savedSession = await readLocalAccessSession(request.headers);
 
   if (!savedSession) {
     return null;
   }
 
-  const savedUser = await db.query.user.findFirst({
-    columns: {
-      email: true,
-      id: true,
-    },
-    where: eq(user.id, savedSession.userId),
-  });
-
-  if (!savedUser?.email) {
-    return null;
-  }
-
   return {
     session: {
-      id: savedSession.id,
-      issuedAt: savedSession.createdAt,
+      id: savedSession.session.id,
+      issuedAt: savedSession.session.issuedAt,
     },
     user: {
-      email: savedUser.email,
-      id: savedUser.id,
+      email: savedSession.user.email,
+      id: savedSession.user.id,
     },
   };
-}
-
-function buildTestSupabaseHeaders(betterAuthHeaders?: Headers) {
-  const headers = new Headers();
-  const betterAuthSessionToken = betterAuthHeaders
-    ? extractBetterAuthSessionToken(betterAuthHeaders)
-    : null;
-
-  headers.append(
-    "set-cookie",
-    serialize(
-      TEST_SUPABASE_ACCESS_COOKIE_NAME,
-      signTestSupabaseSessionToken(betterAuthSessionToken),
-      {
-        httpOnly: true,
-        maxAge: betterAuthSessionToken ? undefined : 0,
-        path: "/",
-        sameSite: "lax",
-      },
-    ),
-  );
-
-  return headers;
 }
 
 function buildTestRecoveryHeaders(userId: string | null) {
@@ -507,28 +455,14 @@ function buildTestRecoveryHeaders(userId: string | null) {
   return headers;
 }
 
-function extractBetterAuthSessionToken(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(BETTER_AUTH_SESSION_COOKIE_PATTERN);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
-  }
-
-  return sessionCookie[1].split(".")[0] ?? null;
-}
-
 function readTestSupabaseSessionToken(request: Request) {
   const cookies = parse(request.headers.get("cookie") ?? "");
-  const signedToken = cookies[TEST_SUPABASE_ACCESS_COOKIE_NAME];
+  const signedToken = cookies[TEST_ACCESS_SESSION_COOKIE_NAME];
 
   if (signedToken) {
     return verifySignedTestSupabaseSessionToken(signedToken);
   }
-
-  const legacySessionToken = cookies[BETTER_AUTH_SESSION_COOKIE_NAME];
-
-  return legacySessionToken?.split(".")[0] ?? null;
+  return null;
 }
 
 function readTestRecoveryUserId(request: Request) {
@@ -588,7 +522,7 @@ function verifySignedTestCookieValue(signedValue: string) {
 }
 
 function getTestAccessAuthSecret() {
-  return process.env.BETTER_AUTH_SECRET ?? "test-access-auth-secret";
+  return process.env.TEST_ACCESS_AUTH_SECRET ?? "test-access-auth-secret";
 }
 
 function createSupabaseAdminClient() {

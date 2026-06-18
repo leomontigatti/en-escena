@@ -17,5 +17,5 @@ Rules for public academy registration, users, sessions and internal invitations.
 - Internal password recovery is an administrative reset that assigns a temporary password and requires a `Cambio obligatorio de contraseña`.
 - Admins can create, edit, suspend, reactivate, reset passwords and change permissions for internal users; auditors can view users read-only.
 - Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes must keep administrative traceability without storing raw passwords or password hashes in audit payloads.
-- Internal users use the same password hashing mechanism as Better Auth.
-- Supabase Auth owns academy credentials, academy password recovery and academy sessions; app code owns domain-specific registration and invitations.
+- Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
+- Supabase Auth owns production academy credentials, academy password recovery and academy sessions; app code owns domain-specific registration, invitations and the local test harness.

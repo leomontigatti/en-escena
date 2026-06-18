@@ -293,16 +293,13 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
 }
 
 function createRequestCookie(headers: Headers) {
-  const sessionCookie = readSetCookieValue(
-    headers,
-    /better-auth\.session_token=([^;]+)/,
-  );
+  const sessionCookie = readSetCookieValue(headers, /sb-access-token=([^;]+)/);
 
   if (!sessionCookie) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error("Expected access auth to return a session cookie.");
   }
 
-  return `better-auth.session_token=${sessionCookie}`;
+  return `sb-access-token=${sessionCookie}`;
 }
 
 function createRecoveryCookie(headers: Headers) {

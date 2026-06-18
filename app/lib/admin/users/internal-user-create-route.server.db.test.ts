@@ -156,7 +156,7 @@ function createRequestCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
 
   if (!setCookie) {
-    throw new Error("Expected Better Auth to return a session cookie.");
+    throw new Error("Expected access auth to return a session cookie.");
   }
 
   return setCookie.split(";")[0] ?? "";

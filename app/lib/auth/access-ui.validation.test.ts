@@ -64,8 +64,7 @@ describe("access UI validation", () => {
     signInCredentialUser.mockResolvedValue({
       userId: "user_123",
       headers: new Headers({
-        "set-cookie":
-          "better-auth.session_token=signed.token; Path=/; HttpOnly",
+        "set-cookie": "sb-access-token=signed.token; Path=/; HttpOnly",
       }),
     });
     getPostLoginPathForUserId.mockResolvedValue("/administracion");

@@ -70,14 +70,14 @@ describe("supabase auth ssr helpers", () => {
     const init = withSupabaseSsrHeaders(
       {
         headers: new Headers({
-          "set-cookie": "better-auth.session_token=1; Path=/; HttpOnly",
+          "set-cookie": "sb-access-token=1; Path=/; HttpOnly",
         }),
       },
       supabaseHeaders,
     );
 
     expect(getSetCookieValues(new Headers(init.headers))).toEqual([
-      "better-auth.session_token=1; Path=/; HttpOnly",
+      "sb-access-token=1; Path=/; HttpOnly",
       "sb-refresh=2; Path=/; HttpOnly",
     ]);
   });

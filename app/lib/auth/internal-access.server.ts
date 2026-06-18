@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, session as sessionTable, user } from "@/db/schema";
+import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
@@ -127,6 +127,6 @@ async function revokeAppUserSessionsAndRedirect(
   userId: string,
 ): Promise<never> {
   await accessAuthProvider.signOutCurrentSession(request);
-  await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
+  await db.delete(accessSession).where(eq(accessSession.userId, userId));
   redirectToLoginForRequest(request);
 }

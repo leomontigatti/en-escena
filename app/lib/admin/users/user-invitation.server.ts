@@ -1,8 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { hashPassword } from "better-auth/crypto";
 
 import { db } from "@/db";
-import { account, internalUserInvitations, user } from "@/db/schema";
+import { accessCredential, internalUserInvitations, user } from "@/db/schema";
 import {
   createRegistrationToken,
   hashRegistrationToken,
@@ -12,6 +11,7 @@ import {
   accessAuthProvider,
   type AccessCredentialUser,
 } from "@/lib/auth/access-auth-provider.server";
+import { createLocalAccessPasswordHash } from "@/lib/auth/access-test-auth.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
 import {
   INTERNAL_USER_ROLES,
@@ -129,7 +129,7 @@ export async function completeInternalUserInvitation(
   }
 
   const createCredentialUser =
-    dependencies.createCredentialUser ?? createBetterAuthCredentialUser;
+    dependencies.createCredentialUser ?? createCredentialAccessUser;
   const credentialUser = await createCredentialUser({
     email: invitation.email,
     password: input.password,
@@ -174,7 +174,7 @@ function findUsableInternalInvitation(
   });
 }
 
-async function createBetterAuthCredentialUser(input: {
+async function createCredentialAccessUser(input: {
   email: string;
   password: string;
   request: Request;
@@ -198,27 +198,22 @@ async function createBetterAuthCredentialUser(input: {
 }
 
 async function setExistingUserPassword(userId: string, password: string) {
-  const passwordHash = await hashPassword(password);
-  const credentialAccount = await db.query.account.findFirst({
+  const passwordHash = createLocalAccessPasswordHash(password);
+  const credentialAccount = await db.query.accessCredential.findFirst({
     columns: { id: true },
-    where: and(
-      eq(account.userId, userId),
-      eq(account.providerId, "credential"),
-    ),
+    where: eq(accessCredential.userId, userId),
   });
 
   if (credentialAccount) {
     await db
-      .update(account)
-      .set({ password: passwordHash, updatedAt: new Date() })
-      .where(eq(account.id, credentialAccount.id));
+      .update(accessCredential)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(accessCredential.id, credentialAccount.id));
     return;
   }
 
-  await db.insert(account).values({
+  await db.insert(accessCredential).values({
     userId,
-    providerId: "credential",
-    accountId: userId,
-    password: passwordHash,
+    passwordHash,
   });
 }

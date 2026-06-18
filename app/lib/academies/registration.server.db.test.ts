@@ -122,7 +122,7 @@ describe("academy registration", () => {
 
     expect(result.ok).toBe(true);
     expect(result.ok && result.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
+      "sb-access-token",
     );
 
     const savedUsers = await db.query.user.findMany({
@@ -187,7 +187,7 @@ describe("academy registration", () => {
     expect(redirectResponse.status).toBe(302);
     expect(redirectResponse.headers.get("location")).toBe("/portal");
     expect(redirectResponse.headers.get("set-cookie")).toContain(
-      "better-auth.session_token",
+      "sb-access-token",
     );
     expect(await db.query.user.findMany()).toHaveLength(1);
     expect(await db.query.academies.findMany()).toHaveLength(1);
@@ -353,7 +353,7 @@ async function createTestAcademyAccessUser(input: { email: string }) {
   return {
     userId,
     headers: new Headers({
-      "set-cookie": `better-auth.session_token=${sessionToken}; Path=/; HttpOnly`,
+      "set-cookie": `sb-access-token=${sessionToken}; Path=/; HttpOnly`,
     }),
   };
 }

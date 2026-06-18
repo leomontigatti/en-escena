@@ -90,8 +90,8 @@ export const user = createTable("user", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const session = createTable(
-  "session",
+export const accessSession = createTable(
+  "access_session",
   {
     id: varchar("id", { length: 255 })
       .primaryKey()
@@ -120,34 +120,20 @@ export const session = createTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_user_id_idx").on(table.userId)],
+  (table) => [index("access_session_user_id_idx").on(table.userId)],
 );
 
-export const account = createTable(
-  "account",
+export const accessCredential = createTable(
+  "access_credential",
   {
     id: varchar("id", { length: 255 })
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
-    scope: text("scope"),
-    password: text("password"),
+    passwordHash: text("password_hash").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -161,37 +147,11 @@ export const account = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index("account_user_id_idx").on(table.userId)],
+  (table) => [uniqueIndex("access_credential_user_id_unique").on(table.userId)],
 );
 
-export const verification = createTable(
-  "verification",
-  {
-    id: varchar("id", { length: 255 })
-      .primaryKey()
-      .notNull()
-      .$defaultFn(() => crypto.randomUUID()),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: timestamp("updated_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
-);
+export const session = accessSession;
+export const account = accessCredential;
 
 export const academies = createTable(
   "academy",

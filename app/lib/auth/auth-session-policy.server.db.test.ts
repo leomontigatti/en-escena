@@ -2,13 +2,15 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { session, user } from "@/db/schema";
+import { accessSession, user } from "@/db/schema";
 import { signUpAcademyUser } from "@/lib/academies/registration-auth.server";
 import {
   ACCESS_SESSION_EXPIRES_IN_SECONDS,
   ACCESS_SESSION_UPDATE_AGE_SECONDS,
-  auth,
-} from "@/lib/auth/auth.server";
+  createLocalAccessRequestCookie,
+  createLocalAccessUser,
+  readLocalAccessSession,
+} from "@/lib/auth/access-test-auth.server";
 import {
   completeInternalUserInvitation,
   requestInternalUserInvitation,
@@ -26,13 +28,10 @@ describe("access session policy", () => {
   test("creates access sessions with an 8-hour inactivity lifetime", async () => {
     const beforeSignUp = Date.now();
 
-    const signUpResult = await auth.api.signUpEmail({
-      body: {
-        email: "sesion@example.com",
-        name: "sesion@example.com",
-        password: "password-segura",
-      },
-      returnHeaders: true,
+    const signUpResult = await createLocalAccessUser({
+      email: "sesion@example.com",
+      name: "sesion@example.com",
+      password: "password-segura",
     });
 
     const createdSession = await findSessionByUserId(
@@ -53,13 +52,13 @@ describe("access session policy", () => {
       Date.now() + ACCESS_SESSION_TTL_MS - ACCESS_SESSION_UPDATE_AGE_MS + 1_000,
     );
     await db
-      .update(session)
+      .update(accessSession)
       .set({ expiresAt: justBeforeThreshold })
-      .where(eq(session.token, sessionToken));
+      .where(eq(accessSession.token, sessionToken));
 
-    await auth.api.getSession({
-      headers: new Headers({ cookie: createRequestCookie(headers) }),
-    });
+    await readLocalAccessSession(
+      new Headers({ cookie: createLocalAccessRequestCookie(headers) }),
+    );
 
     const unrefreshedSession = await findSessionByToken(sessionToken);
     expect(unrefreshedSession.expiresAt.getTime()).toBe(
@@ -70,13 +69,13 @@ describe("access session policy", () => {
       Date.now() + ACCESS_SESSION_TTL_MS - ACCESS_SESSION_UPDATE_AGE_MS - 1_000,
     );
     await db
-      .update(session)
+      .update(accessSession)
       .set({ expiresAt: justAfterThreshold })
-      .where(eq(session.token, sessionToken));
+      .where(eq(accessSession.token, sessionToken));
 
-    await auth.api.getSession({
-      headers: new Headers({ cookie: createRequestCookie(headers) }),
-    });
+    await readLocalAccessSession(
+      new Headers({ cookie: createLocalAccessRequestCookie(headers) }),
+    );
 
     const refreshedSession = await findSessionByToken(sessionToken);
     expect(refreshedSession.userId).toBe(userId);
@@ -90,7 +89,7 @@ describe("access session policy", () => {
     const loginEmail = "login@example.com";
     const { userId } = await createVerifiedCredentialUser(loginEmail);
 
-    await db.delete(session).where(eq(session.userId, userId));
+    await db.delete(accessSession).where(eq(accessSession.userId, userId));
 
     const firstLoginStartedAt = Date.now();
     const firstLoginResponse = await expectThrownResponse(
@@ -104,8 +103,8 @@ describe("access session policy", () => {
     expectResponseToSetSessionCookie(firstLoginResponse);
     expectResponseToSetSessionCookie(secondLoginResponse);
 
-    const loginSessions = await db.query.session.findMany({
-      where: eq(session.userId, userId),
+    const loginSessions = await db.query.accessSession.findMany({
+      where: eq(accessSession.userId, userId),
       orderBy: (sessions, { asc }) => asc(sessions.createdAt),
     });
 
@@ -180,13 +179,10 @@ describe("access session policy", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await auth.api.signUpEmail({
-    body: {
-      email,
-      name: email,
-      password: "password-segura",
-    },
-    returnHeaders: true,
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
   });
 
   await db
@@ -201,8 +197,8 @@ async function createVerifiedCredentialUser(email: string) {
 }
 
 async function findSessionByToken(sessionToken: string) {
-  const savedSession = await db.query.session.findFirst({
-    where: eq(session.token, sessionToken),
+  const savedSession = await db.query.accessSession.findFirst({
+    where: eq(accessSession.token, sessionToken),
   });
 
   if (!savedSession) {
@@ -210,17 +206,6 @@ async function findSessionByToken(sessionToken: string) {
   }
 
   return savedSession;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth\.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected Better Auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 function createSignInRequest(email: string) {
@@ -287,8 +272,8 @@ function expectHeadersToSetSessionCookie(headers: Headers) {
 }
 
 async function findSessionByUserId(userId: string) {
-  const savedSession = await db.query.session.findFirst({
-    where: eq(session.userId, userId),
+  const savedSession = await db.query.accessSession.findFirst({
+    where: eq(accessSession.userId, userId),
   });
 
   if (!savedSession) {
