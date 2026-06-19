@@ -27,6 +27,7 @@ import {
 import { db } from "@/db";
 import {
   categories,
+  events,
   experienceLevels,
   modalities,
   prices,
@@ -227,6 +228,10 @@ describe.sequential("administracion Bases del evento routes", () => {
 
   test("creates Modalidades from the dedicated route and loads their detail route", async () => {
     const event = await createSavedEvent("Regional 2026");
+    await db
+      .update(events)
+      .set({ registrationReadinessDirty: false })
+      .where(eq(events.id, event.id));
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
       role: "admin",
@@ -243,6 +248,12 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
 
     expect(modality).toMatchObject({ eventId: event.id });
+    await expect(
+      db.query.events.findFirst({
+        columns: { registrationReadinessDirty: true },
+        where: eq(events.id, event.id),
+      }),
+    ).resolves.toMatchObject({ registrationReadinessDirty: true });
     expect(response.headers.get("location")).toBe(
       `/administracion/modalidades/${modality?.id}?notificacion=modalidad-guardada`,
     );
@@ -268,7 +279,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(detailMarkup).toContain("/administracion/modalidades");
     expect(detailMarkup).not.toContain("Volver a Modalidades");
     expect(detailMarkup).toContain("Guardar");
-    expect(detailMarkup).toContain("Submodalidades");
+    expect(detailMarkup).toContain("Agregar submodalidad");
     expect(detailMarkup).toContain("Acciones");
   });
 

@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
+import { db } from "@/db";
+import { events } from "@/db/schema";
 import {
   createCategory,
   createExperienceLevel,
@@ -10,7 +13,10 @@ import {
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
 import { createEvent } from "@/lib/events/management.server";
-import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import {
+  getEventRegistrationReadiness,
+  markEventRegistrationReadinessDirty,
+} from "@/lib/events/registration-readiness.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -148,6 +154,53 @@ describe("event registration readiness", () => {
       eventId: event.id,
       isReady: true,
       missingItems: [],
+    });
+  });
+
+  test("returns cached readiness until the event is marked dirty", async () => {
+    const event = await createSavedEvent("Cacheado 2026");
+
+    await db
+      .update(events)
+      .set({
+        registrationReady: true,
+        registrationReadinessMissingItems: [],
+        registrationReadinessDirty: false,
+        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+      })
+      .where(eq(events.id, event.id));
+
+    await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
+      eventId: event.id,
+      isReady: true,
+      missingItems: [],
+    });
+
+    await markEventRegistrationReadinessDirty(event.id);
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      eventId: event.id,
+      isReady: false,
+      missingItems: expect.arrayContaining([
+        expect.objectContaining({ code: "modalities" }),
+        expect.objectContaining({ code: "categories" }),
+      ]),
+    });
+    await expect(
+      db.query.events.findFirst({
+        columns: {
+          registrationReady: true,
+          registrationReadinessDirty: true,
+          registrationReadinessCalculatedAt: true,
+        },
+        where: eq(events.id, event.id),
+      }),
+    ).resolves.toMatchObject({
+      registrationReady: false,
+      registrationReadinessDirty: false,
+      registrationReadinessCalculatedAt: expect.any(Date),
     });
   });
 });

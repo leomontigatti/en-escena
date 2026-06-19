@@ -362,6 +362,29 @@ export const events = createTable(
       mode: "date",
       withTimezone: true,
     }).notNull(),
+    registrationReady: boolean("registration_ready").notNull().default(false),
+    registrationReadinessMissingItems: jsonb(
+      "registration_readiness_missing_items",
+    )
+      .$type<
+        Array<{
+          code: string;
+          label: string;
+          detail: string;
+        }>
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    registrationReadinessDirty: boolean("registration_readiness_dirty")
+      .notNull()
+      .default(true),
+    registrationReadinessCalculatedAt: timestamp(
+      "registration_readiness_calculated_at",
+      {
+        mode: "date",
+        withTimezone: true,
+      },
+    ),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

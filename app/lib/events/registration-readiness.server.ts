@@ -1,13 +1,14 @@
-import {
-  getEventBases,
-  resolveEventBasesPrice,
-  resolveEventBasesScheduleOptions,
-  type EventBases,
-} from "@/lib/events/bases.server";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { events } from "@/db/schema";
+import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 import type {
   EventRegistrationMissingItem,
   EventRegistrationReadiness,
 } from "@/lib/events/registration-readiness";
+
+type GroupType = "solo" | "duo" | "trio" | "grupal";
 
 type RegistrationPathDescriptor = {
   categoryName: string;
@@ -46,9 +47,58 @@ const baseMissingItemDefinitions = {
 export async function getEventRegistrationReadiness(
   eventId: string,
 ): Promise<EventRegistrationReadiness> {
+  const cachedReadiness = await db.query.events.findFirst({
+    columns: {
+      registrationReady: true,
+      registrationReadinessMissingItems: true,
+      registrationReadinessDirty: true,
+    },
+    where: eq(events.id, eventId),
+  });
+
+  if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+    return {
+      eventId,
+      isReady: cachedReadiness.registrationReady,
+      missingItems:
+        cachedReadiness.registrationReadinessMissingItems as EventRegistrationMissingItem[],
+    };
+  }
+
+  const readiness = await calculateEventRegistrationReadiness(eventId);
+
+  await saveEventRegistrationReadiness(readiness);
+
+  return readiness;
+}
+
+export async function markEventRegistrationReadinessDirty(eventId: string) {
+  await db
+    .update(events)
+    .set({ registrationReadinessDirty: true })
+    .where(eq(events.id, eventId));
+}
+
+async function calculateEventRegistrationReadiness(
+  eventId: string,
+): Promise<EventRegistrationReadiness> {
   const eventBases = await getEventBases(eventId);
 
   return getEventRegistrationReadinessForBases(eventId, eventBases);
+}
+
+async function saveEventRegistrationReadiness(
+  readiness: EventRegistrationReadiness,
+) {
+  await db
+    .update(events)
+    .set({
+      registrationReady: readiness.isReady,
+      registrationReadinessMissingItems: readiness.missingItems,
+      registrationReadinessDirty: false,
+      registrationReadinessCalculatedAt: new Date(),
+    })
+    .where(eq(events.id, readiness.eventId));
 }
 
 export async function getEventRegistrationReadinessForBases(
@@ -85,8 +135,7 @@ export async function getEventRegistrationReadinessForBases(
           requiresSubmodality,
           requiresExperienceLevel,
         });
-        const scheduleResolution = await resolveEventBasesScheduleOptions({
-          eventId,
+        const scheduleResolution = resolveScheduleOptionsFromBases(eventBases, {
           modalityId,
           groupType,
         });
@@ -101,8 +150,7 @@ export async function getEventRegistrationReadinessForBases(
         }
 
         for (const option of scheduleResolution.options) {
-          const priceResolution = await resolveEventBasesPrice({
-            eventId,
+          const priceResolution = resolvePriceFromBases(eventBases, {
             groupType,
             scheduleId: option.schedule.id,
           });
@@ -185,6 +233,112 @@ function countSubmodalitiesByModalityId(
   return counts;
 }
 
+function resolveScheduleOptionsFromBases(
+  eventBases: EventBases,
+  input: { modalityId: string; groupType: string },
+) {
+  if (!isGroupType(input.groupType)) {
+    return { status: "none" as const, options: [] };
+  }
+
+  const options = eventBases.schedules.flatMap((schedule) => {
+    if (!schedule.modalityIds.includes(input.modalityId)) {
+      return [];
+    }
+
+    return schedule.scheduleCapacities
+      .filter((capacity) => capacity.groupType === input.groupType)
+      .map((capacity) => ({
+        ...capacity,
+        schedule: {
+          id: schedule.id,
+          name: schedule.name,
+          scheduledDate: schedule.scheduledDate,
+          startTime: schedule.startTime,
+        },
+      }));
+  });
+
+  if (options.length === 0) {
+    return { status: "none" as const, options: [] };
+  }
+
+  if (options.length === 1) {
+    return {
+      status: "auto" as const,
+      scheduleCapacity: options[0],
+      options: [options[0]],
+    };
+  }
+
+  return { status: "multiple" as const, options };
+}
+
+function resolvePriceFromBases(
+  eventBases: EventBases,
+  input: { groupType: string; scheduleId: string | null },
+) {
+  if (!isGroupType(input.groupType)) {
+    return { ok: false as const };
+  }
+
+  if (input.scheduleId) {
+    const specificPrice = selectApplicablePrice(
+      eventBases.prices.filter(
+        (price) =>
+          price.groupType === input.groupType &&
+          price.scheduleId === input.scheduleId,
+      ),
+    );
+
+    if (specificPrice) {
+      return { ok: true as const, price: specificPrice };
+    }
+  }
+
+  const generalPrice = selectApplicablePrice(
+    eventBases.prices.filter(
+      (price) =>
+        price.groupType === input.groupType && price.scheduleId === null,
+    ),
+  );
+
+  if (generalPrice) {
+    return { ok: true as const, price: generalPrice };
+  }
+
+  return { ok: false as const };
+}
+
+function selectApplicablePrice(candidates: EventBases["prices"]) {
+  return [...candidates].sort(compareApplicablePrices)[0] ?? null;
+}
+
+function compareApplicablePrices(
+  first: EventBases["prices"][number],
+  second: EventBases["prices"][number],
+) {
+  if (first.paymentDeadline === null && second.paymentDeadline !== null) {
+    return 1;
+  }
+
+  if (first.paymentDeadline !== null && second.paymentDeadline === null) {
+    return -1;
+  }
+
+  if (first.paymentDeadline && second.paymentDeadline) {
+    const deadlineComparison = first.paymentDeadline.localeCompare(
+      second.paymentDeadline,
+    );
+
+    if (deadlineComparison !== 0) {
+      return deadlineComparison;
+    }
+  }
+
+  return first.amount - second.amount;
+}
+
 function describeRegistrationPath(input: RegistrationPathDescriptor) {
   const details = [
     `Categoría ${input.categoryName}`,
@@ -216,6 +370,15 @@ function formatGroupType(groupType: string) {
     default:
       return groupType;
   }
+}
+
+function isGroupType(value: string): value is GroupType {
+  return (
+    value === "solo" ||
+    value === "duo" ||
+    value === "trio" ||
+    value === "grupal"
+  );
 }
 
 function dedupeMissingItems(items: EventRegistrationMissingItem[]) {

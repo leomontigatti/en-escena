@@ -58,6 +58,13 @@ describe("administracion/eventos route", () => {
       endsAt: date("2027-05-03T12:00:00Z"),
       requiredDepositPercentage: 45,
     });
+    await createSavedEvent({
+      name: "Regional 2025",
+      registrationStartsAt: date("2025-03-01T12:00:00Z"),
+      registrationEndsAt: date("2025-04-30T12:00:00Z"),
+      startsAt: date("2025-05-01T12:00:00Z"),
+      endsAt: date("2025-05-03T12:00:00Z"),
+    });
 
     const { request } = await createSignedInRequest({
       email: "admin.listado@example.com",
@@ -70,7 +77,14 @@ describe("administracion/eventos route", () => {
     expect(data.events.map((event) => event.name)).toEqual([
       "Final 2027",
       "Regional 2026",
+      "Regional 2025",
     ]);
+    expect(
+      data.events.find((event) => event.name === "Regional 2025"),
+    ).toMatchObject({
+      shouldShowRegistrationReadiness: false,
+      temporalState: { value: "finished" },
+    });
     expect(markup).toContain(finalEvent.id);
     expect(markup).toContain("Evento activo");
     expect(markup).toContain("Regional 2026");

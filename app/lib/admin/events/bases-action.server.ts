@@ -51,6 +51,7 @@ import {
   createScheduleWithEntries,
 } from "@/lib/events/bases-repository.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
+import { markEventRegistrationReadinessDirty } from "@/lib/events/registration-readiness.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export type ActionData = {
@@ -226,7 +227,7 @@ export async function runEventBasesAction({
     );
   }
 
-  const result = await runEventBasesIntent(input);
+  const result = await runEventBasesIntentWithReadinessInvalidation(input);
 
   if (!result.ok) {
     return actionError(
@@ -238,6 +239,18 @@ export async function runEventBasesAction({
   }
 
   throw redirect(buildActionRedirectUrl(request.url, eventId, input, result));
+}
+
+async function runEventBasesIntentWithReadinessInvalidation(
+  input: EventBasesActionInput,
+) {
+  const result = await runEventBasesIntent(input);
+
+  if (result.ok) {
+    await markEventRegistrationReadinessDirty(input.eventId);
+  }
+
+  return result;
 }
 
 function isCategoryDetailPath(requestUrl: string) {

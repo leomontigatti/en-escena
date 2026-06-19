@@ -23,6 +23,7 @@ type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState = ReturnType<typeof getTemporalState>;
 type EventListRow = EventRow & {
   isRegistrationReady: boolean;
+  shouldShowRegistrationReadiness: boolean;
   temporalState: TemporalState;
 };
 type LoaderData = Awaited<ReturnType<typeof loader>>;
@@ -50,22 +51,46 @@ export async function loader({ request }: Route.LoaderArgs) {
     orderBy: [desc(eventsTable.startsAt)],
   });
   const now = new Date();
+  const eventsWithTemporalState = eventRows.map((event) => {
+    const temporalState = getTemporalState(event, now);
+
+    return {
+      event,
+      shouldShowRegistrationReadiness: shouldShowRegistrationReadiness(
+        event,
+        temporalState,
+      ),
+      temporalState,
+    };
+  });
   const eventReadinessById = new Map(
     await Promise.all(
-      eventRows.map(
-        async (event) =>
-          [event.id, await getEventRegistrationReadiness(event.id)] as const,
-      ),
+      eventsWithTemporalState
+        .filter((eventState) => eventState.shouldShowRegistrationReadiness)
+        .map(
+          async ({ event }) =>
+            [event.id, await getEventRegistrationReadiness(event.id)] as const,
+        ),
     ),
   );
 
   return {
-    events: eventRows.map((event) => ({
-      ...event,
-      isRegistrationReady: eventReadinessById.get(event.id)?.isReady ?? false,
-      temporalState: getTemporalState(event, now),
-    })),
+    events: eventsWithTemporalState.map(
+      ({ event, shouldShowRegistrationReadiness, temporalState }) => ({
+        ...event,
+        isRegistrationReady: eventReadinessById.get(event.id)?.isReady ?? false,
+        shouldShowRegistrationReadiness,
+        temporalState,
+      }),
+    ),
   };
+}
+
+function shouldShowRegistrationReadiness(
+  event: Pick<EventRow, "active">,
+  temporalState: TemporalState,
+) {
+  return event.active || temporalState.value !== "finished";
 }
 
 export function AdministracionEventosRouteView({
@@ -147,22 +172,25 @@ function EventTable({ events }: { events: EventListRow[] }) {
               {event.active ? "Activo" : "Inactivo"}
             </Badge>
             <Badge variant="outline">{event.temporalState.label}</Badge>
-            {event.isRegistrationReady ? null : (
+            {event.shouldShowRegistrationReadiness &&
+            !event.isRegistrationReady ? (
               <Badge variant="outline">Configuración pendiente</Badge>
-            )}
+            ) : null}
           </div>
         );
       },
       filterValue: (event) =>
         `${event.active ? "Activo" : "Inactivo"} ${event.temporalState.label} ${
-          event.isRegistrationReady ? "" : "Configuración pendiente"
+          event.shouldShowRegistrationReadiness && !event.isRegistrationReady
+            ? "Configuración pendiente"
+            : ""
         }`,
       filterValues: (event) => [
         event.active ? "active" : "inactive",
         event.temporalState.value,
-        event.isRegistrationReady
-          ? "registration-ready"
-          : "configuration-pending",
+        event.shouldShowRegistrationReadiness && !event.isRegistrationReady
+          ? "configuration-pending"
+          : "registration-ready",
       ],
     },
   ];
