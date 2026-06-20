@@ -211,10 +211,10 @@ function EventRegistrationReadinessAlert({
 
   return (
     <Alert>
-      <TriangleAlert aria-hidden="true" />
-      <AlertDescription>
+      <TriangleAlert aria-hidden="true" className="self-center !translate-y-0" />
+      <AlertDescription className="[&_p:not(:last-child)]:mb-1">
         <p>Este evento no está listo para inscribir coreografías.</p>
-        <ul className="mt-1 list-disc pl-5">
+        <ul className="list-disc pl-5">
           {summarizeMissingItems(readiness.missingItems).map((item) => (
             <li key={item.code}>
               {item.message}{" "}

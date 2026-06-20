@@ -5,10 +5,11 @@ import {
   GraduationCap,
   Music2,
   ShieldUser,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   HomeAccessCard,
   type HomeAccessCardItem,
@@ -82,13 +83,19 @@ export function AdministracionIndexRouteView({
 
       {readinessAlertEvent ? (
         <Alert>
-          <AlertTitle>Falta configurar bases para el evento activo.</AlertTitle>
-          <AlertDescription>
-            Podés revisarlas acá{" "}
+          <TriangleAlert
+            aria-hidden="true"
+            className="self-center !translate-y-0"
+          />
+          <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+            <span className="font-medium text-foreground">
+              Falta configurar bases para el evento activo.
+            </span>
+            <span>Podés revisarlas acá</span>
             <Link to={`/administracion/eventos/${readinessAlertEvent.id}`}>
               {readinessAlertEvent.name}
             </Link>
-            .
+            <span>.</span>
           </AlertDescription>
         </Alert>
       ) : null}
