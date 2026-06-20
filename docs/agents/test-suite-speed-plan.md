@@ -24,11 +24,44 @@ local requiere aprobacion elevada aunque no salga de la maquina. Por eso
 - `npm run test:db`
 - `docker compose up -d postgres`
 
-Medicion local tomada durante esta investigacion:
+## Linea base actual
 
-- `npm run test:db:file -- tests/db/harness.db.test.ts`: 2.77s, verde.
-- `npm run test:db`: 148.13s, con fallas existentes en el estado actual del
-  repo. La corrida paso por 27 archivos, 25 verdes y 2 fallidos.
+Medicion repetible tomada el 2026-06-20 en `sandcastle/issue-122`.
+
+Metodologia:
+
+- Tiempo de pared: `time` del shell sobre el comando completo.
+- Desglose interno: salida `Duration` de Vitest cuando aplica.
+- Para los comandos `test:db:file` y `test:db`, el tiempo de pared incluye
+  `npm run db:test:push`.
+
+### Medidas
+
+| Superficie              | Comando                                                                                   | Tiempo de pared | Desglose relevante                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------ |
+| Suite regular           | `npm test`                                                                                |          20.86s | 25 archivos / 120 tests verdes; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
+| Push de schema DB       | `npm run db:test:push`                                                                    |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
+| Harness DB enfocado     | `npm run test:db:file -- tests/db/harness.db.test.ts`                                     |           4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                           |
+| DB chico                | `npm run test:db:file -- app/lib/admin/users/internal-invitation-route.server.db.test.ts` |           5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                            |
+| DB mediano              | `npm run test:db:file -- app/lib/events/management.server.db.test.ts`                     |           5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                          |
+| DB grande / alto riesgo | `npm run test:db:file -- app/lib/admin/events/bases-route.server.db.test.ts`              |          19.39s | 22 tests; Vitest `Duration` 15.74s; `collect` 8.77s; `tests` 6.45s                         |
+| Suite DB completa       | `npm run test:db`                                                                         |          80.32s | 27 archivos / 238 tests verdes; Vitest `Duration` 77.40s; `collect` 28.10s; `tests` 42.99s |
+
+### Fallas preexistentes al momento de medir
+
+- Ninguna en esta corrida.
+- `npm test`: 25 archivos verdes, 120 tests verdes.
+- `npm run test:db`: 27 archivos verdes, 238 tests verdes.
+
+### Observaciones de la linea base
+
+- El costo fijo de `db:test:push` ya consume ~2.31s antes de ejecutar Vitest.
+- En archivos chicos o medianos, `collect` e importacion pesan mas que la
+  ejecucion real de tests.
+- En la suite DB completa, el tiempo dominante ya es la ejecucion de tests
+  (`42.99s`), pero `collect` sigue siendo un costo material (`28.10s`).
+- `app/lib/admin/events/bases-route.server.db.test.ts` queda confirmado como
+  superficie grande y de alto riesgo para comparar mejoras futuras.
 
 ## Referencia externa
 
@@ -94,6 +127,9 @@ Crear una linea base repetible:
    - ejecucion real de tests.
 
 Resultado esperado: una tabla con tiempos antes de cualquier refactor.
+
+Estado actual: completado. La tabla de linea base anterior es la referencia de
+comparacion para los issues hijos de este plan.
 
 ### Fase 2: estudiar compatibilidad PGlite
 
