@@ -1,18 +1,20 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
 
-const appRoot = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../../",
-);
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(currentDirectory, "../../");
+const dateFnsPackageRootImportPattern = /from ["']date-fns["']/;
+const sourceFilePattern = /\.(ts|tsx)$/;
+const testFilePattern = /\.test\.(ts|tsx)$/;
 
 describe("package-root imports audit", () => {
   test("avoids package-root date-fns imports in app code", () => {
     const sourceFiles = getSourceFiles(appRoot);
     const packageRootImports = sourceFiles.filter((filePath) =>
-      /from ["']date-fns["']/.test(readFileSync(filePath, "utf8")),
+      dateFnsPackageRootImportPattern.test(readFileSync(filePath, "utf8")),
     );
 
     expect(packageRootImports).toEqual([]);
@@ -29,8 +31,8 @@ function getSourceFiles(directoryPath: string): string[] {
       }
 
       if (
-        !/\.(ts|tsx)$/.test(entry.name) ||
-        /\.test\.(ts|tsx)$/.test(entry.name)
+        !sourceFilePattern.test(entry.name) ||
+        testFilePattern.test(entry.name)
       ) {
         return [];
       }
