@@ -27,6 +27,36 @@ If a command fails, fix that failure and rerun the same command before moving to
 Do not start a later validation command while an earlier command is still failing
 or while formatting changes are unverified.
 
+During the development loop, prefer focused validation for the area being
+changed before running the broader final checks:
+
+- Run the nearest relevant Vitest file or test name for small non-database
+  changes, then run `npm test` before finishing when the change affects runtime
+  behavior, shared modules, route behavior, or UI behavior with meaningful
+  regression risk.
+- Run `npm run test:db:file -- <path-to-db-test>` while iterating on database
+  schema, repositories, loaders/actions that persist data, or
+  persistence-backed business rules.
+- Run the full applicable command before finishing the work: `npm test` for the
+  regular suite, `npm run test:db` for database-backed work, and `npm run build`
+  for routing, server rendering, bundling, CSS, or deployment behavior.
+- Do not use focused runs as the only final validation when the change touches
+  a shared interface, cross-surface behavior, schema, or persistence-backed
+  business rule.
+
+For Codex sessions that run inside the managed sandbox, database tests need
+elevated local permission because `TEST_DATABASE_URL` points at Postgres over
+TCP on `localhost:5433`. When requesting persistent approval, use these scoped
+prefixes:
+
+- `npm run test:db:file`
+- `npm run test:db`
+- `docker compose up -d postgres` when the local Postgres container must be
+  started for the session
+
+This approval is operational only; it does not change the test target. Database
+tests must continue to use `TEST_DATABASE_URL`, not production or preview data.
+
 ## React Router Flat Routes
 
 This repo uses `@react-router/fs-routes` flat route naming. When adding a
