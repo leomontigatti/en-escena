@@ -93,6 +93,9 @@ keep two paths:
   `PGlite` paths backed by the cached schema snapshot.
 - `npm run test:db:final` (alias of `npm run test:db:postgres`): final reliable
   path that resets and pushes schema through `TEST_DATABASE_URL`.
+- `npm run test:db:file:final -- <archivo>` (alias of
+  `npm run test:db:file:postgres -- <archivo>`): focused final reliable path
+  for one DB test file through `TEST_DATABASE_URL`.
 
 Validation mode requirements:
 

@@ -16,6 +16,8 @@ En Escena separa tests regulares y tests DB con dos rutas:
   `PGlite` y snapshots de schema.
 - `npm run test:db:final`: alias explicito de la corrida final confiable sobre
   Postgres real.
+- `npm run test:db:file:final -- <archivo>`: alias explicito de la corrida
+  final enfocada sobre Postgres real.
 - `npm run test:db:file:postgres -- <archivo>`: conserva la ruta enfocada sobre
   Postgres real para comparar o depurar el harness rapido.
 
@@ -26,7 +28,9 @@ de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
 persistentes:
 
 - `npm run test:db:final`
+- `npm run test:db:postgres`
 - `npm run test:db:file:final`
+- `npm run test:db:file:postgres`
 - `docker compose up -d postgres`
 
 ## Implementacion issue #126

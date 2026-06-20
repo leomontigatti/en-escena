@@ -13,7 +13,7 @@
     "test:db:final": "npm run test:db:postgres",
     "test:db:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
     "test:db:file": "vitest --config vitest.db.fast.config.ts --run",
-    "test:db:file:final": "npm run test:db:file:postgres",
+    "test:db:file:final": "npm run test:db:file:postgres --",
     "test:db:file:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

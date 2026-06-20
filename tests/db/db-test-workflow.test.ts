@@ -52,16 +52,22 @@ describe("DB test workflow", () => {
   test("uses the fast harness for the default DB suite and keeps Postgres as a separate path", async () => {
     const scripts = await readPackageScripts();
     const defaultDatabaseSuite = scripts["test:db"];
+    const focusedDatabaseSuite = scripts["test:db:file"];
     const finalDatabaseSuite = scripts["test:db:final"];
     const postgresDatabaseSuite = scripts["test:db:postgres"];
     const focusedFinalDatabaseSuite = scripts["test:db:file:final"];
+    const focusedPostgresDatabaseSuite = scripts["test:db:file:postgres"];
 
     expect(defaultDatabaseSuite).toContain("vitest.db.fast.config.ts");
     expect(defaultDatabaseSuite).toContain("--run");
+    expect(focusedDatabaseSuite).toContain("vitest.db.fast.config.ts");
+    expect(focusedDatabaseSuite).toContain("--run");
     expect(finalDatabaseSuite).toBe("npm run test:db:postgres");
-    expect(focusedFinalDatabaseSuite).toBe("npm run test:db:file:postgres");
+    expect(focusedFinalDatabaseSuite).toBe("npm run test:db:file:postgres --");
     expect(postgresDatabaseSuite).toContain("vitest.db.config.ts");
     expect(postgresDatabaseSuite).toContain("--run");
+    expect(focusedPostgresDatabaseSuite).toContain("vitest.db.config.ts");
+    expect(focusedPostgresDatabaseSuite).toContain("--run");
   });
 
   test("keeps fast DB runs worker-safe and leaves the Postgres suite serialized", () => {
