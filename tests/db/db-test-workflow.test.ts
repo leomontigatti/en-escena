@@ -13,20 +13,24 @@ type DatabaseTestConfig = {
   };
 };
 
+const readPackageScripts = async () => {
+  const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
+    scripts: Record<string, string>;
+  };
+
+  return packageJson.scripts;
+};
+
 describe("DB test workflow", () => {
   test("uses the fast harness for the default DB suite and keeps Postgres as a separate path", async () => {
-    const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
-      scripts: Record<string, string>;
-    };
+    const scripts = await readPackageScripts();
+    const defaultDatabaseSuite = scripts["test:db"];
+    const postgresDatabaseSuite = scripts["test:db:postgres"];
 
-    expect(packageJson.scripts["test:db"]).toContain(
-      "vitest.db.fast.config.ts",
-    );
-    expect(packageJson.scripts["test:db:postgres"]).toContain(
-      "vitest.db.config.ts",
-    );
-    expect(packageJson.scripts["test:db"]).toContain("--run");
-    expect(packageJson.scripts["test:db:postgres"]).toContain("--run");
+    expect(defaultDatabaseSuite).toContain("vitest.db.fast.config.ts");
+    expect(defaultDatabaseSuite).toContain("--run");
+    expect(postgresDatabaseSuite).toContain("vitest.db.config.ts");
+    expect(postgresDatabaseSuite).toContain("--run");
   });
 
   test("keeps fast DB runs worker-safe and leaves the Postgres suite serialized", () => {
@@ -35,7 +39,7 @@ describe("DB test workflow", () => {
       .test;
 
     expect(fastTestConfig?.fileParallelism).toBe(true);
-    expect(fastTestConfig?.maxWorkers).not.toBe(1);
+    expect(fastTestConfig?.maxWorkers).toBe("50%");
     expect(fastTestConfig?.setupFiles).toEqual(["./tests/db/setup-fast.ts"]);
 
     expect(postgresTestConfig?.fileParallelism).toBe(false);
