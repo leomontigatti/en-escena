@@ -819,6 +819,7 @@ function getPriceRequiredFieldErrors(
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   const fieldErrors = getRequiredErrors({
+    name: formData.get("name"),
     groupType: formData.get("groupType"),
     amount: formData.get("amount"),
     paymentDeadline: formData.get("paymentDeadline"),

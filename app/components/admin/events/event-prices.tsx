@@ -21,6 +21,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -101,7 +102,7 @@ const priceTableDateFormatter = new Intl.DateTimeFormat("es-AR", {
 
 const priceFormSchema = z
   .object({
-    name: z.string(),
+    name: z.string().trim().min(1, requiredFieldMessage),
     isSpecialPrice: z.boolean(),
     groupType: z.string().min(1, requiredFieldMessage),
     amount: z
@@ -672,7 +673,9 @@ function PriceListTable({
     {
       id: "groupType",
       header: "Tipo de grupo",
-      cell: (price) => getGroupTypeLabel(price.groupType),
+      cell: (price) => (
+        <Badge variant="secondary">{getGroupTypeLabel(price.groupType)}</Badge>
+      ),
       filterValues: (price) => [price.groupType],
       filterValue: (price) => getGroupTypeLabel(price.groupType),
     },

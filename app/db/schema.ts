@@ -672,7 +672,7 @@ export const prices = createTable(
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    name: text("name"),
+    name: text("name").notNull(),
     eventId: varchar("event_id", { length: 255 })
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),

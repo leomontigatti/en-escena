@@ -1022,6 +1022,7 @@ describe.sequential("administracion Bases del evento routes", () => {
               requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
               body: formData({
                 intent: "create-price",
+                name: "Precio base",
                 groupType: "solo",
                 amount: "12000",
                 paymentDeadline: "2026-05-31",
@@ -1044,6 +1045,7 @@ describe.sequential("administracion Bases del evento routes", () => {
               requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
               body: formData({
                 intent: "create-price",
+                name: "Precio bloque",
                 groupType: "solo",
                 amount: "15000",
                 paymentDeadline: "2026-05-31",
@@ -1065,8 +1067,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     const markup = renderPreciosRoute(data);
 
     expect(markup).toContain("Precio base");
-    expect(markup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
-    expect(markup).toContain("Solo - Precio base - hasta 31/5/26");
+    expect(markup).toContain("Precio bloque");
     expect(markup).toContain("Nuevo precio");
     expect(markup).toContain("/administracion/precios/nuevo");
     expect(markup).not.toContain("Borrar precio");
@@ -1102,6 +1103,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
       body: formData({
         intent: "create-price",
+        name: "Precio bloque",
         groupType: "solo",
         amount: "15000",
         paymentDeadline: "2026-05-31",
@@ -1152,9 +1154,8 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const detailMarkup = renderPrecioDetalleRoute(detailData, price?.id ?? "");
 
-    expect(detailMarkup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
-    expect(detailMarkup).toContain("Sábado Mañana");
-    expect(detailMarkup).toContain("31/5/26");
+    expect(detailMarkup).toContain("Precio bloque");
+    expect(detailMarkup).toContain("31 de mayo de 2026");
     expect(detailMarkup).toContain('aria-label="Acciones"');
 
     const editPriceRequest = await createSignedInRequest({
@@ -1164,6 +1165,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       body: formData({
         intent: "update-price",
         id: price?.id ?? "",
+        name: "Precio actualizado",
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
@@ -1180,6 +1182,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(prices.id, price?.id ?? ""),
       }),
     ).resolves.toMatchObject({
+      name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
       scheduleId: null,
@@ -1375,6 +1378,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
+        name: "Precio bloque",
         groupType: "solo",
         amount: "15000",
         paymentDeadline: "2026-05-31",
@@ -1399,6 +1403,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
     expect(price).toMatchObject({
       eventId: event.id,
+      name: "Precio bloque",
       groupType: "solo",
       amount: 15000,
       paymentDeadline: "2026-05-31",
@@ -1418,10 +1423,9 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const markup = renderPreciosRoute(data);
 
-    expect(markup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
+    expect(markup).toContain("Precio bloque");
     expect(markup).toContain("Solo");
     expect(markup).toContain("$15000");
-    expect(markup).toContain("Sábado Mañana");
 
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",
@@ -1430,6 +1434,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       body: formData({
         intent: "update-price",
         id: price?.id ?? "",
+        name: "Precio actualizado",
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
@@ -1449,6 +1454,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(prices.id, price?.id ?? ""),
       }),
     ).resolves.toMatchObject({
+      name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
       scheduleId: null,
@@ -1799,6 +1805,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
+        name: "Precio base",
         groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-05-31",
@@ -1817,6 +1824,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
       body: formData({
         intent: "create-price",
+        name: "Precio duplicado",
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
@@ -1836,7 +1844,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         intent: "create-price",
       },
       values: {
-        name: "",
+        name: "Precio duplicado",
         isSpecialPrice: "",
         groupType: "solo",
         amount: "13000",
@@ -1865,6 +1873,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       status: "error",
       message: "Revisá los datos del precio.",
       fieldErrors: {
+        name: "Este campo es obligatorio.",
         groupType: "Este campo es obligatorio.",
         amount: "Este campo es obligatorio.",
         paymentDeadline: "Este campo es obligatorio.",

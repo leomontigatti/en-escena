@@ -23,6 +23,12 @@ type EventBaseEntityKind =
   | "schedule";
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
+const priceDefaultNames: Record<GroupType, string> = {
+  solo: "Precio Solo",
+  duo: "Precio Duo",
+  trio: "Precio Trio",
+  grupal: "Precio Grupal",
+};
 
 type EventBaseRecord =
   | typeof modalities.$inferSelect
@@ -198,7 +204,7 @@ export type PriceInput = {
 };
 
 type ValidPriceInput = {
-  name: string | null;
+  name: string;
   groupType: GroupType;
   amount: number;
   paymentDeadline: string;
@@ -1729,9 +1735,10 @@ async function validatePriceInput(
     };
   }
 
+  const groupType = input.groupType;
   const validInput = {
-    name,
-    groupType: input.groupType,
+    name: name ?? priceDefaultNames[groupType],
+    groupType,
     amount: input.amount,
     paymentDeadline,
     scheduleId,

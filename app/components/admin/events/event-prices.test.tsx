@@ -39,7 +39,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 12000,
       groupType: "solo",
       id: "price_1",
-      name: null,
+      name: "Precio Solo",
       paymentDeadline: "2026-05-31",
       scheduleId: null,
       scheduleName: null,
@@ -48,7 +48,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 18000,
       groupType: "duo",
       id: "price_2",
-      name: null,
+      name: "Precio Duo",
       paymentDeadline: "2026-06-30",
       scheduleId: "block_2",
       scheduleName: "Noche",
@@ -69,7 +69,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     expect(readInputValue(container, "groupType")).toBe("solo");
-    expect(readInputValue(container, "name")).toBe("");
+    expect(readInputValue(container, "name")).toBe("Precio Solo");
     expect(readInputValue(container, "amount")).toBe("12000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-05-31");
     expect(readInputValue(container, "scheduleId")).toBe("");
@@ -82,7 +82,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     expect(readInputValue(container, "groupType")).toBe("duo");
-    expect(readInputValue(container, "name")).toBe("");
+    expect(readInputValue(container, "name")).toBe("Precio Duo");
     expect(readInputValue(container, "amount")).toBe("18000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
     expect(readInputValue(container, "scheduleId")).toBe("block_2");
@@ -93,13 +93,13 @@ describe("EventPriceDetailRouteView", () => {
       amount: 18000,
       groupType: "solo",
       id: "price_1",
-      name: null,
+      name: "Precio Solo",
       paymentDeadline: "2026-11-10",
       scheduleId: "block_1",
       scheduleName: "Noche",
     });
 
-    expect(getPriceDisplayName(price)).toBe("Solo - Noche - hasta 10/11/26");
+    expect(getPriceDisplayName(price)).toBe("Precio Solo");
   });
 });
 
@@ -221,7 +221,7 @@ function createPrice({
   amount: number;
   groupType: PriceListItem["groupType"];
   id: string;
-  name: string | null;
+  name: string;
   paymentDeadline: string;
   scheduleId: string | null;
   scheduleName: string | null;

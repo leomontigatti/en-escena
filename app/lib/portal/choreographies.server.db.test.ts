@@ -2046,6 +2046,7 @@ async function createEventCatalog(eventId: string) {
   });
   await db.insert(prices).values({
     eventId,
+    name: "Precio Solo",
     groupType: "solo",
     amount: 10000,
     paymentDeadline: "2026-05-31",
