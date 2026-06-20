@@ -125,6 +125,24 @@ propiedades:
 - una corrida final confiable para cambios de schema, repositorios,
   loaders/actions persistentes y reglas de negocio respaldadas por datos.
 
+## Decision update 2026-06-20
+
+Issue `#125` cerro la decision pendiente del plan:
+
+- Comparacion decidida:
+  - `PGlite con schema snapshots`: gana como siguiente implementacion porque la
+    linea base actual tiene un costo fijo medido de `db:test:push` (~2.31s por
+    corrida), no hay fallas DB preexistentes, y el POC de `#124` ya cubrio con
+    exito schema, FKs, constraints, transacciones, `jsonb` y queries raw
+    relevantes.
+  - `Postgres real por worker`: queda como fallback de mayor fidelidad, pero
+    todavia exige template por worker, limpieza, `localhost:5433` y no tiene
+    una mejora medida en este repo que justifique tomarlo primero.
+- Decision: implementar primero un fast path con `PGlite` y snapshots de
+  schema, manteniendo `npm run test:db` sobre Postgres real como corrida final
+  de confianza hasta probar la nueva ruta.
+- ADR: ver `docs/adr/0007-db-test-isolation-model.md`.
+
 ## Propuesta de implementacion
 
 ### Fase 1: medir antes de cambiar

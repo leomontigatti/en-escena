@@ -27,6 +27,21 @@ const domainRuleRequirements = [
   "es un error de validación del formulario",
 ];
 
+const dbIsolationAdrRequirements = [
+  "# Decide fast DB test isolation around PGlite snapshots",
+  "**Status**: accepted",
+  "PGlite with schema snapshots",
+  "real Postgres per worker",
+  "We will implement PGlite with schema snapshots next",
+  "Fallback path",
+  "Evento",
+  "Academia",
+  "Coreografia",
+  "Usuario",
+  "Sesion de acceso",
+  "Bases del evento",
+];
+
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -52,6 +67,17 @@ describe("domain documentation", () => {
 
     for (const requirement of domainRuleRequirements) {
       expect(rules).toContain(requirement);
+    }
+  });
+
+  test("records the accepted fast DB isolation decision and fallback", async () => {
+    const adr = await readFile(
+      "docs/adr/0007-db-test-isolation-model.md",
+      "utf8",
+    );
+
+    for (const requirement of dbIsolationAdrRequirements) {
+      expect(adr).toContain(requirement);
     }
   });
 });
