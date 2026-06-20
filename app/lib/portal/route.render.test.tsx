@@ -14,7 +14,11 @@ vi.mock("@/lib/auth/access-recovery.server", () => ({
   requestAccessRecoveryEmail: requestAccessRecoveryEmailMock,
 }));
 
-import { PortalShell } from "@/components/portal/ui";
+import {
+  PortalCoreographiesSection,
+  PortalEmptyListSection,
+  PortalShell,
+} from "@/components/portal/ui";
 import { PortalRouteView } from "@/routes/portal";
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
@@ -271,6 +275,42 @@ describe("portal route view", () => {
     expect(markup).toContain(
       "Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo.",
     );
+  });
+
+  test("renders shared portal surfaces with shadcn components and semantic tokens", () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <PortalEmptyListSection
+          title="Profesores"
+          description="Gestioná el plantel docente de tu academia."
+          emptyTitle="Todavía no hay profesores"
+          emptyDescription="Cuando sumes profesores, van a aparecer en esta sección."
+        />
+        <PortalCoreographiesSection
+          eventContext={{
+            events: [eventSummary()],
+            selectedEvent: eventSummary(),
+            activeEvent: eventSummary(),
+            hasActiveEvent: true,
+            activeEventRegistrationReadiness: readiness(true),
+            hasEvents: true,
+            isReadOnly: false,
+            isRegistrationOpen: true,
+          }}
+        />
+      </>,
+    );
+
+    expect(markup).toContain('data-slot="card"');
+    expect(markup).toContain('data-slot="badge"');
+    expect(markup).toContain('data-slot="alert"');
+    expect(markup).not.toContain("border-slate-200");
+    expect(markup).not.toContain("bg-white");
+    expect(markup).not.toContain("text-slate-950");
+    expect(markup).not.toContain("text-slate-600");
+    expect(markup).not.toContain("bg-amber-50");
+    expect(markup).not.toContain("bg-emerald-50");
+    expect(markup).not.toContain("bg-slate-50");
   });
 
   test("shows the delete success notice on the Coreografías list", () => {
