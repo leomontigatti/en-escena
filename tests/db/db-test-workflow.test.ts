@@ -46,4 +46,27 @@ describe("DB test workflow", () => {
     expect(postgresTestConfig?.maxWorkers).toBe(1);
     expect(postgresTestConfig?.setupFiles).toEqual(["./tests/db/setup.ts"]);
   });
+
+  test("documents why Vitest project splitting stays deferred after the DB isolation rollout", async () => {
+    const speedPlan = await readFile(
+      "docs/agents/test-suite-speed-plan.md",
+      "utf8",
+    );
+
+    expect(speedPlan).toContain("Actualizacion issue #128");
+    expect(speedPlan).toContain(
+      "No se adopta por ahora una division de proyectos Vitest",
+    );
+    expect(speedPlan).toContain(
+      "app/lib/academies/registration.server.db.test.ts",
+    );
+    expect(speedPlan).toContain(
+      "app/lib/auth/access-recovery.server.db.test.ts",
+    );
+    expect(speedPlan).toContain("app/lib/shared/email.server.test.ts");
+    expect(speedPlan).toContain(
+      "app/lib/auth/access-auth-provider.server.test.ts",
+    );
+    expect(speedPlan).toContain("Sin una mejora material");
+  });
 });

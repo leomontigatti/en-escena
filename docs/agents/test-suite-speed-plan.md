@@ -164,6 +164,88 @@ Issue `#125` cerro la decision pendiente del plan:
   de confianza hasta probar la nueva ruta.
 - ADR: ver `docs/adr/0007-db-test-isolation-model.md`.
 
+## Actualizacion issue #128
+
+Issue `#128` evaluo la siguiente optimizacion pendiente: dividir Vitest en un
+proyecto compartido con `isolate: false` y un proyecto aislado para archivos
+riesgosos, o desactivar aislamiento de modulo de forma mas amplia.
+
+### Medicion aplicada
+
+Prueba tomada el 2026-06-20 en `sandcastle/issue-128` sobre la suite regular
+porque ahi vive la mayoria de los mocks y mutaciones globales que condicionan
+la decision:
+
+| Ruta experimental | Comando                                                                 | Tiempo de pared | Resultado |
+| ----------------- | ----------------------------------------------------------------------- | --------------: | --------- |
+| Baseline actual   | `vitest --run --exclude tests/db/db-test-workflow.test.ts`              |          13.45s | Verde     |
+| Sin aislamiento   | `vitest --run --no-isolate --exclude tests/db/db-test-workflow.test.ts` |          14.97s | 2 fallas  |
+
+Lectura operativa:
+
+- `isolate: false` fue `1.52s` mas lento en esta repo para la suite regular
+  medida, asi que no produjo una mejora material de tiempo.
+- La corrida experimental tambien introdujo fallas reales antes de considerar
+  DB tests o una mezcla de proyectos.
+
+### Fallas observadas con `--no-isolate`
+
+- `app/components/auth/access-ui.test.tsx` fallo con
+  `(0 , jsxDEV) is not a function`, señal de contaminacion entre archivos a
+  nivel de runtime o cache de modulos.
+- `app/lib/shared/route-notification-toasts.test.ts` dejo de observar la llamada
+  esperada a `toast.success`, señal de contaminacion entre mocks compartidos.
+
+### Archivos identificados como aislados obligatorios antes de cualquier adopcion
+
+DB tests con mocks o estado modular compartido:
+
+- `app/lib/academies/registration.server.db.test.ts`
+- `app/lib/auth/access-recovery.server.db.test.ts`
+
+Suite regular con mocks, stubs, reseteo de modulos o mutacion de entorno:
+
+- `app/lib/shared/email.server.test.ts`
+- `app/lib/shared/route-notification-toasts.test.ts`
+- `app/lib/auth/access-auth-provider.server.test.ts`
+- `app/lib/auth/private-header.render.test.tsx`
+- `app/lib/auth/access-ui.validation.test.ts`
+- `app/lib/auth/access-recovery.server.test.ts`
+- `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
+- `app/lib/portal/route.render.test.tsx`
+- `app/lib/admin/events/events-route.render.test.tsx`
+- `app/lib/admin/route.render.test.tsx`
+
+Suite regular con mutaciones globales de `window`, `document` o runtime DOM:
+
+- `app/components/admin/events/event-prices.test.tsx`
+- `app/components/shared/data-table.test.tsx`
+- `app/lib/portal/coreografia-dancer-editor.test.tsx`
+- `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`
+- `app/lib/portal/bailarines-dialog.test.tsx`
+- `app/lib/portal/coreografias-create-dialog.render.test.tsx`
+- `app/components/auth/access-ui.test.tsx`
+
+### Decision
+
+No se adopta por ahora una division de proyectos Vitest ni un modo compartido
+con `isolate: false`.
+
+Motivo medido:
+
+- Sin una mejora material de tiempo y con fallas inmediatas bajo
+  `--no-isolate`, agregar un proyecto `shared` obligaria a mantener una lista
+  amplia de excepciones sin justificar la complejidad extra.
+- Los dos DB tests con `vi.mock` ya fuerzan a separar rutas seguras si algun
+  dia se retoma esta idea.
+- La suite regular tambien requiere una lista larga de archivos aislados, y el
+  beneficio esperado quedo invalidado por la medicion actual.
+
+Conclusion operativa: mantener la configuracion actual de un solo proyecto por
+suite (`vitest.config.ts`, `vitest.db.fast.config.ts`, `vitest.db.config.ts`)
+hasta que aparezca una mejora medible y una estrategia de aislamiento mas
+acotada.
+
 ## Propuesta de implementacion
 
 ### Fase 1: medir antes de cambiar
