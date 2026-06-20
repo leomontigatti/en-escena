@@ -21,6 +21,19 @@ const readPackageScripts = async () => {
   return packageJson.scripts;
 };
 
+const deferredProjectSplitDocumentation = [
+  "Actualizacion issue #128",
+  "No se adopta por ahora una division de proyectos Vitest",
+  "Sin una mejora material",
+];
+
+const requiredIsolatedTestExamples = [
+  "app/lib/academies/registration.server.db.test.ts",
+  "app/lib/auth/access-recovery.server.db.test.ts",
+  "app/lib/shared/email.server.test.ts",
+  "app/lib/auth/access-auth-provider.server.test.ts",
+];
+
 describe("DB test workflow", () => {
   test("uses the fast harness for the default DB suite and keeps Postgres as a separate path", async () => {
     const scripts = await readPackageScripts();
@@ -53,20 +66,12 @@ describe("DB test workflow", () => {
       "utf8",
     );
 
-    expect(speedPlan).toContain("Actualizacion issue #128");
-    expect(speedPlan).toContain(
-      "No se adopta por ahora una division de proyectos Vitest",
-    );
-    expect(speedPlan).toContain(
-      "app/lib/academies/registration.server.db.test.ts",
-    );
-    expect(speedPlan).toContain(
-      "app/lib/auth/access-recovery.server.db.test.ts",
-    );
-    expect(speedPlan).toContain("app/lib/shared/email.server.test.ts");
-    expect(speedPlan).toContain(
-      "app/lib/auth/access-auth-provider.server.test.ts",
-    );
-    expect(speedPlan).toContain("Sin una mejora material");
+    for (const requiredText of deferredProjectSplitDocumentation) {
+      expect(speedPlan).toContain(requiredText);
+    }
+
+    for (const testPath of requiredIsolatedTestExamples) {
+      expect(speedPlan).toContain(testPath);
+    }
   });
 });

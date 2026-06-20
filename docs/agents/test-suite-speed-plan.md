@@ -246,6 +246,11 @@ suite (`vitest.config.ts`, `vitest.db.fast.config.ts`, `vitest.db.config.ts`)
 hasta que aparezca una mejora medible y una estrategia de aislamiento mas
 acotada.
 
+No se hicieron cambios de configuracion Vitest para esta decision. Por eso las
+corridas repetidas con orden aleatorio quedan fuera de alcance en `#128`: son
+criterio de aceptacion para una adopcion de proyecto compartido, no para una
+decision documentada de no adoptar el cambio.
+
 ## Propuesta de implementacion
 
 ### Fase 1: medir antes de cambiar
