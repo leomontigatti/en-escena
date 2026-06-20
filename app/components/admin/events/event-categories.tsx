@@ -268,14 +268,14 @@ function CategoriesTable({
         </Link>
       ),
       filterValue: (category) => category.name,
-      sortValue: (category) => category.name,
     },
     {
       id: "ages",
       header: "Edades",
+      className: "text-muted-foreground",
       cell: (category) => `${category.minAge} a ${category.maxAge} años`,
       filterValue: (category) => `${category.minAge} ${category.maxAge}`,
-      sortValue: (category) => category.minAge,
+      sortValue: getCategoryAgeSortValue,
     },
     {
       id: "groupTypes",
@@ -303,7 +303,6 @@ function CategoriesTable({
             experienceLevels,
             category.experienceLevelIds,
           )}
-          emptyLabel="Sin niveles"
         />
       ),
       filterValue: (category) =>
@@ -334,20 +333,30 @@ function CategoriesTable({
         },
       ]}
       emptyMessage="No hay categorías que coincidan con la búsqueda."
-      initialSort={{ columnId: "name", direction: "asc" }}
+      initialSort={{ columnId: "ages", direction: "asc" }}
     />
   );
+}
+
+function getCategoryAgeSortValue(category: CategoryRow) {
+  return [
+    category.minAge.toString().padStart(3, "0"),
+    category.maxAge.toString().padStart(3, "0"),
+    category.name,
+  ].join("-");
 }
 
 function BadgeList({
   emptyLabel,
   labels,
 }: {
-  emptyLabel: string;
+  emptyLabel?: string;
   labels: string[];
 }) {
   if (labels.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
+    return emptyLabel ? (
+      <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+    ) : null;
   }
 
   return (
