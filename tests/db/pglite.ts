@@ -7,10 +7,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 
-import * as schema from "@/db/schema";
-
-const { internalInvitationTokens: _internalInvitationTokens, ...pgliteSchema } =
-  schema;
+import { pgliteSchema } from "./pglite-schema";
 
 function quoteIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`;
@@ -22,7 +19,7 @@ const pushPgliteSchemaScriptPath = fileURLToPath(
 
 export async function createPgliteTestDatabase() {
   const dataDir = await mkdtemp(`${tmpdir()}/en-escena-pglite-`);
-  const result = spawnSync(
+  const schemaPushResult = spawnSync(
     process.execPath,
     ["--import", "tsx", pushPgliteSchemaScriptPath, dataDir],
     {
@@ -31,12 +28,14 @@ export async function createPgliteTestDatabase() {
     },
   );
 
-  if (result.error) {
-    throw result.error;
+  if (schemaPushResult.error) {
+    throw schemaPushResult.error;
   }
 
-  if (result.status !== 0) {
-    throw new Error(result.stderr || "Failed to apply the PGlite schema.");
+  if (schemaPushResult.status !== 0) {
+    throw new Error(
+      schemaPushResult.stderr || "Failed to apply the PGlite schema.",
+    );
   }
 
   const client = new PGlite(dataDir);

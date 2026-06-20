@@ -2,10 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { pushSchema } from "drizzle-kit/api";
 import { drizzle } from "drizzle-orm/pglite";
 
-import * as schema from "@/db/schema";
-
-const { internalInvitationTokens: _internalInvitationTokens, ...pgliteSchema } =
-  schema;
+import { pgliteSchema } from "./pglite-schema";
 
 const dataDir = process.argv[2];
 

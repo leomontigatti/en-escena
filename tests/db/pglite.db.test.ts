@@ -100,11 +100,11 @@ describe("PGlite pilot", () => {
 
     expect(foreignKeyError).toBeInstanceOf(Error);
     expect(
-      readCauseProperty(foreignKeyError, "code"),
+      readPgliteCauseProperty(foreignKeyError, "code"),
       "PGlite surfaces the Postgres violation code on error.cause",
     ).toBe("23503");
     expect(
-      readCauseProperty(foreignKeyError, "constraint"),
+      readPgliteCauseProperty(foreignKeyError, "constraint"),
       "PGlite uses error.cause.constraint instead of the postgres-js constraint_name field",
     ).toBe("en_escena_academy_user_id_en_escena_user_id_fk");
 
@@ -132,10 +132,12 @@ describe("PGlite pilot", () => {
       .catch((error) => error);
 
     expect(activeEventConstraintError).toBeInstanceOf(Error);
-    expect(readCauseProperty(activeEventConstraintError, "code")).toBe("23505");
-    expect(readCauseProperty(activeEventConstraintError, "constraint")).toBe(
-      "event_single_active_unique",
+    expect(readPgliteCauseProperty(activeEventConstraintError, "code")).toBe(
+      "23505",
     );
+    expect(
+      readPgliteCauseProperty(activeEventConstraintError, "constraint"),
+    ).toBe("event_single_active_unique");
 
     const savedEvent = await testDatabase.db.query.events.findFirst({
       where: eq(events.id, "event_1"),
@@ -214,7 +216,12 @@ describe("PGlite pilot", () => {
   });
 });
 
-function readCauseProperty(error: unknown, propertyName: string) {
+type PgliteCauseProperty = "code" | "constraint";
+
+function readPgliteCauseProperty(
+  error: unknown,
+  propertyName: PgliteCauseProperty,
+) {
   if (
     !error ||
     typeof error !== "object" ||
