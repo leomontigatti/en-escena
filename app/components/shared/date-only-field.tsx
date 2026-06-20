@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { useMemo, useState } from "react";
