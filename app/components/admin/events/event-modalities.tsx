@@ -1,4 +1,4 @@
-import { Check, Ellipsis, Plus, Trash } from "lucide-react";
+import { Check, Plus, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -21,6 +21,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,11 +36,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
@@ -435,23 +433,16 @@ function ModalityActions({ modality }: { modality: ModalityRow }) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon-sm" aria-label="Acciones">
-            <Ellipsis aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setDeleteDialogOpen(true)}
-            >
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ResourceActionsMenu contentClassName="w-48" size="icon-sm">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteDialogOpen(true)}
+          >
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
       <DeleteModalityDialog
         modality={modality}
         open={deleteDialogOpen}

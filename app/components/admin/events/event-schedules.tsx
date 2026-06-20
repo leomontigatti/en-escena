@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Check, Clock, Ellipsis, Plus, Trash } from "lucide-react";
+import { Check, Clock, Plus, Trash } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type * as React from "react";
 import type { ReactNode } from "react";
@@ -25,6 +25,7 @@ import {
 } from "@/components/shared/data-table";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { MultiCombobox } from "@/components/shared/multi-combobox";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   Dialog,
   DialogClose,
@@ -38,11 +39,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
@@ -1508,28 +1506,16 @@ function ScheduleActions({ schedule }: { schedule: ScheduleListItem }) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Acciones"
-            title="Acciones"
+      <ResourceActionsMenu contentClassName="w-48" size="icon">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteDialogOpen(true)}
           >
-            <Ellipsis aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setDeleteDialogOpen(true)}
-            >
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
       <DeleteScheduleDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

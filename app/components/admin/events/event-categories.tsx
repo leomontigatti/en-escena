@@ -1,4 +1,4 @@
-import { Check, Ellipsis, Trash } from "lucide-react";
+import { Check, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -20,6 +20,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,11 +34,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Field,
@@ -375,29 +373,16 @@ function CategoryActions({ category }: { category: CategoryRow }) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-lg"
-            aria-label="Acciones"
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteDialogOpen(true)}
           >
-            <Ellipsis aria-hidden="true" />
-            <span className="sr-only">Acciones</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setDeleteDialogOpen(true)}
-            >
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
       <DeleteCategoryDialog
         category={category}
         open={deleteDialogOpen}

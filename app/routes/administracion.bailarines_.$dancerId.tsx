@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, Lock, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Lock, Pencil, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import {
@@ -21,6 +21,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -34,12 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -58,12 +54,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   adminDancerCorrectionReasonMessage,
   adminDancerNotFoundMessage,
@@ -462,51 +452,31 @@ export function AdministracionBailarinDetalleRouteView({
       requireSelectedEvent={false}
       headerAction={
         loaderData.canEdit ? (
-          <DropdownMenu>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Acciones"
-                    >
-                      <Ellipsis aria-hidden="true" />
-                      <span className="sr-only">Acciones</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="left">Acciones</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DropdownMenuContent align="end" className="w-56">
-              {canVerifyIdentity ? (
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setDialogIntent("verify");
-                  }}
-                >
-                  Verificar
-                </DropdownMenuItem>
-              ) : null}
+          <ResourceActionsMenu>
+            {canVerifyIdentity ? (
               <DropdownMenuItem
-                variant={
-                  statusAction.intent === "archive-dancer"
-                    ? "destructive"
-                    : "default"
-                }
                 onSelect={(event) => {
                   event.preventDefault();
-                  setDialogIntent(statusAction.intent);
+                  setDialogIntent("verify");
                 }}
               >
-                {statusAction.label}
+                Verificar
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            ) : null}
+            <DropdownMenuItem
+              variant={
+                statusAction.intent === "archive-dancer"
+                  ? "destructive"
+                  : "default"
+              }
+              onSelect={(event) => {
+                event.preventDefault();
+                setDialogIntent(statusAction.intent);
+              }}
+            >
+              {statusAction.label}
+            </DropdownMenuItem>
+          </ResourceActionsMenu>
         ) : null
       }
     >

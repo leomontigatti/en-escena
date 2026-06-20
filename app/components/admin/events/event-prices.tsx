@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Check, Ellipsis, Info, Trash } from "lucide-react";
+import { Check, Info, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -20,6 +20,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,11 +34,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
@@ -670,28 +668,20 @@ function PriceActions({ price }: { price: PriceListItem }) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Acciones"
-            title="Borrar precio"
+      <ResourceActionsMenu
+        contentClassName="w-48"
+        contentProps={{ forceMount: true }}
+        size="icon"
+      >
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteDialogOpen(true)}
           >
-            <Ellipsis aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48" forceMount>
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setDeleteDialogOpen(true)}
-            >
-              Borrar precio
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Borrar precio
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
       <DeletePriceDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

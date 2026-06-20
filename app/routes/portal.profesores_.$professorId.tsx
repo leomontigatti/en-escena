@@ -1,11 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Archive,
-  Check,
-  Ellipsis,
-  RotateCcw,
-  TriangleAlert,
-} from "lucide-react";
+import { Archive, Check, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   Controller,
@@ -17,6 +11,7 @@ import { Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -29,12 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -50,12 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   archiveAcademyProfessor,
@@ -281,37 +265,17 @@ export function PortalProfesorRouteView({
               Actualizá los datos de este profesor.
             </p>
           </div>
-          <DropdownMenu>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Acciones"
-                    >
-                      <Ellipsis aria-hidden="true" />
-                      <span className="sr-only">Acciones</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="left">Acciones</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem
-                variant={statusAction.confirmButtonVariant}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setStatusDialogIntent(statusAction.intent);
-                }}
-              >
-                {statusAction.label}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ResourceActionsMenu contentClassName="w-40">
+            <DropdownMenuItem
+              variant={statusAction.confirmButtonVariant}
+              onSelect={(event) => {
+                event.preventDefault();
+                setStatusDialogIntent(statusAction.intent);
+              }}
+            >
+              {statusAction.label}
+            </DropdownMenuItem>
+          </ResourceActionsMenu>
         </div>
 
         <div className="flex flex-col gap-3">

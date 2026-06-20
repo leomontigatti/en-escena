@@ -1,11 +1,4 @@
-import {
-  Check,
-  Ellipsis,
-  LoaderCircle,
-  Lock,
-  Trash2,
-  TriangleAlert,
-} from "lucide-react";
+import { Check, LoaderCircle, Lock, Trash2, TriangleAlert } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -29,6 +22,7 @@ import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -42,11 +36,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Field,
@@ -65,12 +56,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   deleteChoreography,
@@ -355,39 +340,19 @@ export function PortalCoreografiaDetalleRouteView({
             </p>
           </div>
           {canDeleteChoreography ? (
-            <DropdownMenu>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-lg"
-                        aria-label="Acciones"
-                      >
-                        <Ellipsis aria-hidden="true" />
-                        <span className="sr-only">Acciones</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">Acciones</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ResourceActionsMenu contentClassName="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setIsDeleteDialogOpen(true);
+                  }}
+                >
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </ResourceActionsMenu>
           ) : null}
         </div>
 

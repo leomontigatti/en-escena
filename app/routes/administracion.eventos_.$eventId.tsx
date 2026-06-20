@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Check, Ellipsis, Trash, TriangleAlert } from "lucide-react";
+import { Check, Trash, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, redirect, useActionData } from "react-router";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -20,12 +21,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
@@ -211,7 +209,10 @@ function EventRegistrationReadinessAlert({
 
   return (
     <Alert>
-      <TriangleAlert aria-hidden="true" className="self-center !translate-y-0" />
+      <TriangleAlert
+        aria-hidden="true"
+        className="self-center !translate-y-0"
+      />
       <AlertDescription className="[&_p:not(:last-child)]:mb-1">
         <p>Este evento no está listo para inscribir coreografías.</p>
         <ul className="list-disc pl-5">
@@ -352,57 +353,42 @@ function EventActions({ event }: { event: EventRow }) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-lg"
-            aria-label="Acciones"
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuGroup>
+          <EventActionItem
+            action={eventActionPath(event.id)}
+            intent={event.active ? "deactivate" : "activate"}
+            confirmName={event.active ? "confirmDeactivation" : undefined}
+            confirmValue={event.active ? event.id : undefined}
+            label={event.active ? "Desactivar" : "Activar"}
+          />
+          <EventActionItem
+            action={eventActionPath(event.id)}
+            intent="set-program-visibility"
+            value={event.programVisible ? "false" : "true"}
+            label={
+              event.programVisible ? "Ocultar programa" : "Mostrar programa"
+            }
+          />
+          <EventActionItem
+            action={eventActionPath(event.id)}
+            intent="set-results-visibility"
+            value={event.resultsVisible ? "false" : "true"}
+            label={
+              event.resultsVisible ? "Ocultar resultados" : "Mostrar resultados"
+            }
+          />
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteDialogOpen(true)}
           >
-            <Ellipsis aria-hidden="true" />
-            <span className="sr-only">Acciones</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuGroup>
-            <EventActionItem
-              action={eventActionPath(event.id)}
-              intent={event.active ? "deactivate" : "activate"}
-              confirmName={event.active ? "confirmDeactivation" : undefined}
-              confirmValue={event.active ? event.id : undefined}
-              label={event.active ? "Desactivar" : "Activar"}
-            />
-            <EventActionItem
-              action={eventActionPath(event.id)}
-              intent="set-program-visibility"
-              value={event.programVisible ? "false" : "true"}
-              label={
-                event.programVisible ? "Ocultar programa" : "Mostrar programa"
-              }
-            />
-            <EventActionItem
-              action={eventActionPath(event.id)}
-              intent="set-results-visibility"
-              value={event.resultsVisible ? "false" : "true"}
-              label={
-                event.resultsVisible
-                  ? "Ocultar resultados"
-                  : "Mostrar resultados"
-              }
-            />
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setDeleteDialogOpen(true)}
-            >
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
       <DeleteEventDialog
         event={event}
         open={deleteDialogOpen}

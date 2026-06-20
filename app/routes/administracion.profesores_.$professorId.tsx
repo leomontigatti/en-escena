@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, Lock, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Lock, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -20,12 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -43,12 +39,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   adminProfessorCorrectionReasonMessage,
   adminProfessorNotFoundMessage,
@@ -628,37 +618,17 @@ function ProfessorActionsMenu({
   onSelect: (intent: "archive-professor" | "reactivate-professor") => void;
 }) {
   return (
-    <DropdownMenu>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                aria-label="Acciones"
-              >
-                <Ellipsis aria-hidden="true" />
-                <span className="sr-only">Acciones</span>
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="left">Acciones</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem
-          variant={active ? "destructive" : "default"}
-          onSelect={(event) => {
-            event.preventDefault();
-            onSelect(active ? "archive-professor" : "reactivate-professor");
-          }}
-        >
-          {active ? "Archivar" : "Reactivar"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ResourceActionsMenu contentClassName="w-40">
+      <DropdownMenuItem
+        variant={active ? "destructive" : "default"}
+        onSelect={(event) => {
+          event.preventDefault();
+          onSelect(active ? "archive-professor" : "reactivate-professor");
+        }}
+      >
+        {active ? "Archivar" : "Reactivar"}
+      </DropdownMenuItem>
+    </ResourceActionsMenu>
   );
 }
 

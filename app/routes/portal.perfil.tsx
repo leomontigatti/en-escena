@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Ellipsis, Info, KeyRound, Lock } from "lucide-react";
+import { Check, Info, KeyRound, Lock } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   Controller,
@@ -11,6 +11,7 @@ import { data, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -23,12 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -37,12 +33,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
@@ -430,37 +420,17 @@ function ProfileActionsMenu() {
 
   return (
     <>
-      <DropdownMenu>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-lg"
-                  aria-label="Acciones"
-                >
-                  <Ellipsis aria-hidden="true" />
-                  <span className="sr-only">Acciones</span>
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="left">Acciones</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              setIsPasswordDialogOpen(true);
-            }}
-          >
-            <KeyRound aria-hidden="true" />
-            Cambiar contraseña
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            setIsPasswordDialogOpen(true);
+          }}
+        >
+          <KeyRound aria-hidden="true" />
+          Cambiar contraseña
+        </DropdownMenuItem>
+      </ResourceActionsMenu>
       <AlertDialog
         open={isPasswordDialogOpen}
         onOpenChange={setIsPasswordDialogOpen}
