@@ -689,17 +689,46 @@ function DataTableFacetedFilterControl({
   const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const activeFilterSummary = getFacetedFilterSummary(filter, selectedValues);
   const triggerLabel = hasSelectedValues
     ? `${filter.label}: ${activeFilterSummary}`
     : filter.label;
 
+  const handleTooltipOpenChange = (open: boolean) => {
+    if (open && isDropdownOpen) {
+      return;
+    }
+
+    setIsTooltipOpen(open);
+  };
+
+  const handleDropdownOpenChange = (open: boolean) => {
+    setIsDropdownOpen(open);
+
+    if (open) {
+      setIsTooltipOpen(false);
+    }
+  };
+
+  const preventTriggerFocusAfterDropdownClose = (event: Event) => {
+    event.preventDefault();
+    triggerRef.current?.blur();
+    setIsTooltipOpen(false);
+  };
+
   return (
-    <Tooltip>
-      <DropdownMenu>
+    <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
+      <DropdownMenu
+        open={isDropdownOpen}
+        onOpenChange={handleDropdownOpenChange}
+      >
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button
+              ref={triggerRef}
               type="button"
               variant="outline"
               size="icon-sm"
@@ -720,7 +749,11 @@ function DataTableFacetedFilterControl({
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent
+          align="end"
+          className="w-56"
+          onCloseAutoFocus={preventTriggerFocusAfterDropdownClose}
+        >
           <DropdownMenuGroup>
             <DropdownMenuItem
               disabled={!hasSelectedValues}
