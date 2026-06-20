@@ -215,7 +215,7 @@ describe("Bases del evento repository", () => {
 
     const category = await expectCreated(
       createCategory(firstEvent.id, {
-        name: "Infantil",
+        name: " infantil ",
         minAge: 8,
         maxAge: 12,
         groupTypes: ["solo", "duo"],
@@ -223,6 +223,7 @@ describe("Bases del evento repository", () => {
         experienceLevelIds: [],
       }),
     );
+    expect(category.name).toBe("Infantil");
     await expect(
       createCategory(secondEvent.id, {
         name: "Infantil",
@@ -292,7 +293,7 @@ describe("Bases del evento repository", () => {
 
     await expect(
       updateCategory(category.id, {
-        name: "Infantil A",
+        name: " infantil a ",
         minAge: 8,
         maxAge: 12,
         groupTypes: ["solo", "duo"],
@@ -373,13 +374,14 @@ describe("Bases del evento repository", () => {
 
     const block = await expectCreated(
       createSchedule(firstEvent.id, {
-        name: "Sábado mañana",
+        name: " sábado mañana ",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
         totalCapacity: 20,
         modalityIds: [jazz.id, urbanas.id],
       }),
     );
+    expect(block.name).toBe("Sábado Mañana");
     await expectCreated(
       createSchedule(secondEvent.id, {
         name: "Sábado mañana",
@@ -394,7 +396,7 @@ describe("Bases del evento repository", () => {
       schedules: [
         {
           eventId: firstEvent.id,
-          name: "Sábado mañana",
+          name: "Sábado Mañana",
           modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
         },
       ],
@@ -404,7 +406,7 @@ describe("Bases del evento repository", () => {
       updateSchedule(
         block.id,
         {
-          name: "Sábado temprano",
+          name: " sábado temprano ",
           scheduledDate: "2026-05-02",
           startTime: "09:00",
           totalCapacity: 20,
@@ -414,7 +416,7 @@ describe("Bases del evento repository", () => {
       ),
     ).resolves.toMatchObject({
       ok: true,
-      record: { name: "Sábado temprano" },
+      record: { name: "Sábado Temprano" },
     });
     await expect(
       updateSchedule(
@@ -581,7 +583,7 @@ describe("Bases del evento repository", () => {
         {
           eventId: firstEvent.id,
           paymentDeadline: "2026-05-31",
-          schedule: { name: "Sábado mañana" },
+          schedule: { name: "Sábado Mañana" },
         },
         {
           eventId: firstEvent.id,

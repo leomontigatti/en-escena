@@ -14,6 +14,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 
 type EventBaseEntityKind =
   | "modality"
@@ -126,6 +127,10 @@ export type ScheduleInput = EventBaseNameInput & {
   startTime: string;
   totalCapacity: number;
   modalityIds: string[];
+};
+
+type ValidScheduleInput = ScheduleInput & {
+  name: string;
 };
 
 export type ScheduleCapacityInput = {
@@ -853,7 +858,7 @@ export async function createSchedule(
       .insert(schedules)
       .values({
         eventId,
-        name: input.name.trim(),
+        name: validation.input.name,
         scheduledDate: input.scheduledDate,
         startTime: normalizeTime(input.startTime),
         totalCapacity: input.totalCapacity,
@@ -901,7 +906,7 @@ export async function createScheduleWithEntries(
       .insert(schedules)
       .values({
         eventId,
-        name: input.name.trim(),
+        name: validation.input.name,
         scheduledDate: input.scheduledDate,
         startTime: normalizeTime(input.startTime),
         totalCapacity: input.totalCapacity,
@@ -972,7 +977,7 @@ export async function updateSchedule(
     const [record] = await tx
       .update(schedules)
       .set({
-        name: input.name.trim(),
+        name: validation.input.name,
         scheduledDate: input.scheduledDate,
         startTime: normalizeTime(input.startTime),
         totalCapacity: input.totalCapacity,
@@ -1057,7 +1062,7 @@ export async function updateScheduleWithEntries(
     const [record] = await tx
       .update(schedules)
       .set({
-        name: input.name.trim(),
+        name: validation.input.name,
         scheduledDate: input.scheduledDate,
         startTime: normalizeTime(input.startTime),
         totalCapacity: input.totalCapacity,
@@ -1598,11 +1603,12 @@ async function validateScheduleInput(
   eventId: string,
   input: ScheduleInput,
   options: { exceptId?: string } = {},
-): Promise<{ ok: true } | EventBaseFailure> {
+): Promise<{ ok: true; input: ValidScheduleInput } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
   const copy = eventBaseCopy["schedule"];
+  const name = toTitleCase(input.name);
 
-  if (input.name.trim().length === 0) {
+  if (name.length === 0) {
     fieldErrors.name = requiredFieldMessage;
   }
 
@@ -1653,7 +1659,7 @@ async function validateScheduleInput(
 
   const duplicate = await findDuplicateName({
     eventId,
-    name: input.name,
+    name,
     kind: "schedule",
     exceptId: options.exceptId,
   });
@@ -1667,7 +1673,7 @@ async function validateScheduleInput(
     };
   }
 
-  return { ok: true };
+  return { ok: true, input: { ...input, name } };
 }
 
 async function validatePriceInput(
@@ -2024,7 +2030,7 @@ async function validateCategoryInput(
   input: CategoryInput,
   exceptId?: string,
 ): Promise<{ ok: true; input: ValidCategoryInput } | EventBaseFailure> {
-  const name = input.name.trim();
+  const name = toTitleCase(input.name);
 
   if (name.length === 0) {
     return {
@@ -2307,15 +2313,6 @@ function normalizeEventBaseName(name: string) {
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLocaleLowerCase("es");
-}
-
-function toTitleCase(name: string) {
-  return name
-    .trim()
-    .toLocaleLowerCase("es")
-    .replace(/\S+/gu, (word) =>
-      word.replace(/^\p{L}/u, (letter) => letter.toLocaleUpperCase("es")),
-    );
 }
 
 async function findCompatibleScheduleCapacities(input: {
