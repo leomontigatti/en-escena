@@ -27,7 +27,7 @@ const domainRuleRequirements = [
   "es un error de validación del formulario",
 ];
 
-const dbIsolationAdrRequirements = [
+const fastDbIsolationAdrRequirements = [
   "# Decide fast DB test isolation around PGlite snapshots",
   "**Status**: accepted",
   "PGlite with schema snapshots",
@@ -76,7 +76,7 @@ describe("domain documentation", () => {
       "utf8",
     );
 
-    for (const requirement of dbIsolationAdrRequirements) {
+    for (const requirement of fastDbIsolationAdrRequirements) {
       expect(adr).toContain(requirement);
     }
   });

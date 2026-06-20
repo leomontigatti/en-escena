@@ -125,7 +125,7 @@ propiedades:
 - una corrida final confiable para cambios de schema, repositorios,
   loaders/actions persistentes y reglas de negocio respaldadas por datos.
 
-## Decision update 2026-06-20
+## Actualizacion de decision 2026-06-20
 
 Issue `#125` cerro la decision pendiente del plan:
 
