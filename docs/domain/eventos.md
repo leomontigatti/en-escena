@@ -10,7 +10,8 @@ Rules for event context, Bases del evento, administration and portal behavior.
 - `Visibilidad de resultados` is controlled by publish/unpublish actions and is independent from active status and temporal state.
 - `Cronograma` dates and times are local business dates/times, without their own timezone.
 - A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of cupo capacities cannot exceed cronograma capacity.
-- A coreografía can use a cupo de cronograma only when cronograma modality and cupo group type are compatible.
+- A coreografía first uses a `Cupo de cronograma` when cronograma modality and cupo group type are compatible.
+- If a compatible `Cronograma` has no `Cupo de cronograma` for the coreografía group type, the coreografía falls back to the Cronograma total capacity as global capacity.
 - `Bases del evento` includes modalidades, submodalidades, categorías, niveles de experiencia, cronogramas, cupos de cronograma and precios. It does not include Eventos.
 
 ## Administración y Portal

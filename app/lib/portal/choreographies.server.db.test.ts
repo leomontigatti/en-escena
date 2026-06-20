@@ -1192,7 +1192,7 @@ describe.sequential("portal choreographies reads", () => {
     });
   });
 
-  test("blocks roster save with a clear error when no compatible cupo de cronograma exists", async () => {
+  test("saves roster changes against cronograma global capacity when no specific cupo de cronograma exists", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Sin Cupo de cronograma",
       email: "coreografias.detail.dancers.schedule-none@example.com",
@@ -1259,25 +1259,29 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(response).toMatchObject({
-      status: "update-error",
-      section: "dancers",
-      message:
-        "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
-    });
+    expect(response).toBeInstanceOf(Response);
+
+    if (!(response instanceof Response)) {
+      throw new Error("Expected successful choreography update redirect.");
+    }
+
+    expect(response.headers.get("location")).toBe(
+      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
+    );
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
       }),
     ).resolves.toMatchObject({
-      groupType: "duo",
-      scheduleCapacityId: duoScheduleCapacity.id,
+      groupType: "trio",
+      scheduleId: catalog.schedule.id,
+      scheduleCapacityId: null,
     });
     await expect(
       db.query.choreographyDancers.findMany({
         where: eq(choreographyDancers.choreographyId, choreography.id),
       }),
-    ).resolves.toHaveLength(2);
+    ).resolves.toHaveLength(3);
   });
 
   test("revalidates cupo de cronograma cupo on confirmation and keeps the original roster when capacity is lost concurrently", async () => {

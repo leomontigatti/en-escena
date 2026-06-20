@@ -7,6 +7,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
+  schedules,
   scheduleCapacities,
 } from "@/db/schema";
 import {
@@ -251,5 +252,71 @@ describe.sequential("choreography registration confirmation", () => {
 
     const storedDancerLinks = await db.query.choreographyDancers.findMany();
     expect(storedDancerLinks).toHaveLength(1);
+  });
+
+  test("uses cronograma total capacity when confirming without a specific cupo de cronograma", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Cupo Global Confirmación",
+      email: "registro.coreografia.global.confirmacion@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const firstDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+    });
+    const secondDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-06-01",
+    });
+    const globalScheduleOptionId = `schedule:${catalog.schedule.id}:global`;
+
+    await db
+      .delete(scheduleCapacities)
+      .where(eq(scheduleCapacities.id, catalog.soloScheduleCapacity.id));
+    await db
+      .update(schedules)
+      .set({ totalCapacity: 1 })
+      .where(eq(schedules.id, catalog.schedule.id));
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Primera pieza global",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [firstDancer.id],
+        professorIds: [],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: globalScheduleOptionId,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      choreography: expect.objectContaining({
+        scheduleId: catalog.schedule.id,
+        scheduleCapacityId: null,
+      }),
+    });
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Segunda pieza global",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [secondDancer.id],
+        professorIds: [],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: globalScheduleOptionId,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "schedule-capacity-full",
+      error: "El Cronograma seleccionado ya no tiene cupo disponible.",
+    });
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(1);
   });
 });

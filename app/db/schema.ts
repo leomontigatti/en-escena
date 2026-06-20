@@ -768,9 +768,10 @@ export const choreographies = createTable(
     experienceLevelId: varchar("experience_level_id", {
       length: 255,
     }),
+    scheduleId: varchar("schedule_id", { length: 255 }),
     scheduleCapacityId: varchar("schedule_capacity_id", {
       length: 255,
-    }).notNull(),
+    }),
     musicStorageKey: text("music_storage_key"),
     hasPresentation: boolean("has_presentation").notNull().default(false),
     hasActiveFinancialLink: boolean("has_active_financial_link")
@@ -806,10 +807,16 @@ export const choreographies = createTable(
       name: "choreography_experience_level_fk",
     }),
     foreignKey({
+      columns: [table.scheduleId],
+      foreignColumns: [schedules.id],
+      name: "choreography_schedule_fk",
+    }),
+    foreignKey({
       columns: [table.scheduleCapacityId],
       foreignColumns: [scheduleCapacities.id],
       name: "choreography_schedule_capacity_fk",
     }),
+    index("choreography_schedule_id_idx").on(table.scheduleId),
     index("choreography_schedule_capacity_id_idx").on(table.scheduleCapacityId),
   ],
 );

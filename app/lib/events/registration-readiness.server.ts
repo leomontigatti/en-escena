@@ -18,6 +18,22 @@ type RegistrationPathDescriptor = {
   requiresExperienceLevel: boolean;
 };
 
+type ReadinessScheduleOption = {
+  id: string;
+  scheduleId: string;
+  scheduleCapacityId: string | null;
+  groupType: GroupType;
+  capacity: number;
+  createdAt: Date;
+  usesGlobalCapacity: boolean;
+  schedule: {
+    id: string;
+    name: string;
+    scheduledDate: string;
+    startTime: string;
+  };
+};
+
 const baseMissingItemDefinitions = {
   modalities: {
     label: "Modalidades",
@@ -200,17 +216,6 @@ function collectBaseMissingItems(eventBases: EventBases) {
     });
   }
 
-  const hasScheduleCapacities = eventBases.schedules.some(
-    (schedule) => schedule.scheduleCapacities.length > 0,
-  );
-
-  if (!hasScheduleCapacities) {
-    missingItems.push({
-      code: "schedule-entries",
-      ...baseMissingItemDefinitions["schedule-entries"],
-    });
-  }
-
   if (eventBases.prices.length === 0) {
     missingItems.push({ code: "prices", ...baseMissingItemDefinitions.prices });
   }
@@ -241,23 +246,52 @@ function resolveScheduleOptionsFromBases(
     return { status: "none" as const, options: [] };
   }
 
-  const options = eventBases.schedules.flatMap((schedule) => {
-    if (!schedule.modalityIds.includes(input.modalityId)) {
-      return [];
-    }
+  const groupType = input.groupType;
+  const options: ReadinessScheduleOption[] = eventBases.schedules.flatMap(
+    (schedule): ReadinessScheduleOption[] => {
+      if (!schedule.modalityIds.includes(input.modalityId)) {
+        return [];
+      }
 
-    return schedule.scheduleCapacities
-      .filter((capacity) => capacity.groupType === input.groupType)
-      .map((capacity) => ({
-        ...capacity,
-        schedule: {
-          id: schedule.id,
-          name: schedule.name,
-          scheduledDate: schedule.scheduledDate,
-          startTime: schedule.startTime,
+      const specificCapacity = schedule.scheduleCapacities.find(
+        (capacity) => capacity.groupType === groupType,
+      );
+
+      if (specificCapacity) {
+        return [
+          {
+            ...specificCapacity,
+            scheduleCapacityId: specificCapacity.id,
+            usesGlobalCapacity: false,
+            schedule: {
+              id: schedule.id,
+              name: schedule.name,
+              scheduledDate: schedule.scheduledDate,
+              startTime: schedule.startTime,
+            },
+          },
+        ];
+      }
+
+      return [
+        {
+          id: `schedule:${schedule.id}:global`,
+          scheduleId: schedule.id,
+          scheduleCapacityId: null,
+          groupType,
+          capacity: schedule.totalCapacity,
+          createdAt: schedule.createdAt,
+          usesGlobalCapacity: true,
+          schedule: {
+            id: schedule.id,
+            name: schedule.name,
+            scheduledDate: schedule.scheduledDate,
+            startTime: schedule.startTime,
+          },
         },
-      }));
-  });
+      ];
+    },
+  );
 
   if (options.length === 0) {
     return { status: "none" as const, options: [] };

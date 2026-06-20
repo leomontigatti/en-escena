@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -206,9 +206,10 @@ type ChoreographyRow = {
 type ChoreographyDetailRow = ChoreographyRow & {
   hasActiveFinancialLink: boolean;
   hasPresentation: boolean;
+  scheduleId: string;
   scheduleName: string;
   scheduleDate: string;
-  scheduleCapacityId: string;
+  scheduleCapacityId: string | null;
   scheduleTime: string;
 };
 
@@ -270,6 +271,7 @@ export async function findChoreographyForAcademyEvent(
       submodalityName: submodalities.name,
       categoryName: categories.name,
       experienceLevelName: experienceLevels.name,
+      scheduleId: schedules.id,
       scheduleName: schedules.name,
       scheduleDate: schedules.scheduledDate,
       scheduleCapacityId: scheduleCapacities.id,
@@ -283,11 +285,17 @@ export async function findChoreographyForAcademyEvent(
       experienceLevels,
       eq(choreographies.experienceLevelId, experienceLevels.id),
     )
-    .innerJoin(
+    .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
-    .innerJoin(schedules, eq(scheduleCapacities.scheduleId, schedules.id))
+    .innerJoin(
+      schedules,
+      or(
+        eq(choreographies.scheduleId, schedules.id),
+        eq(scheduleCapacities.scheduleId, schedules.id),
+      ),
+    )
     .where(
       and(
         eq(choreographies.id, choreographyId),
@@ -341,7 +349,9 @@ export async function findChoreographyForAcademyEvent(
     }),
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
-    scheduleCapacityId: row.scheduleCapacityId,
+    scheduleCapacityId:
+      row.scheduleCapacityId ??
+      getGlobalScheduleCapacityOptionId(row.scheduleId),
     scheduleName: row.scheduleName,
     scheduleLabel: formatScheduleDateTime({
       name: row.scheduleName,
@@ -373,6 +383,10 @@ function formatScheduleDateTime(input: {
   const formattedTime = input.startTime.slice(0, 5);
 
   return `${formattedDate} - ${formattedTime} hs.`;
+}
+
+function getGlobalScheduleCapacityOptionId(scheduleId: string) {
+  return `schedule:${scheduleId}:global`;
 }
 
 export async function listProfessorOptionsForChoreography(
@@ -606,34 +620,83 @@ export async function updateChoreographyDancers(input: {
 
   try {
     await db.transaction(async (tx) => {
-      const [lockedScheduleCapacity] = await tx
+      const [lockedSchedule] = await tx
         .select({
-          id: scheduleCapacities.id,
-          capacity: scheduleCapacities.capacity,
+          id: schedules.id,
+          totalCapacity: schedules.totalCapacity,
         })
-        .from(scheduleCapacities)
-        .where(eq(scheduleCapacities.id, resolvedScheduleCapacityId.value))
+        .from(schedules)
+        .where(eq(schedules.id, resolvedScheduleCapacityId.value.scheduleId))
         .for("update");
 
-      if (!lockedScheduleCapacity) {
-        throw new Error("Expected selected schedule entry to exist.");
+      if (!lockedSchedule) {
+        throw new Error("Expected selected schedule to exist.");
       }
 
-      const [occupancyRow] = await tx
+      if (resolvedScheduleCapacityId.value.scheduleCapacityId) {
+        const [lockedScheduleCapacity] = await tx
+          .select({
+            id: scheduleCapacities.id,
+            capacity: scheduleCapacities.capacity,
+          })
+          .from(scheduleCapacities)
+          .where(
+            eq(
+              scheduleCapacities.id,
+              resolvedScheduleCapacityId.value.scheduleCapacityId,
+            ),
+          )
+          .for("update");
+
+        if (!lockedScheduleCapacity) {
+          throw new Error("Expected selected schedule entry to exist.");
+        }
+
+        const [specificOccupancyRow] = await tx
+          .select({
+            occupiedCount: sql<number>`count(*)`,
+          })
+          .from(choreographies)
+          .where(
+            and(
+              eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+              ne(choreographies.id, input.choreographyId),
+            ),
+          );
+
+        const specificOccupiedCount = Number(
+          specificOccupancyRow?.occupiedCount ?? 0,
+        );
+
+        if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
+          throw new Error("schedule-capacity-full");
+        }
+      }
+
+      const [scheduleOccupancyRow] = await tx
         .select({
           occupiedCount: sql<number>`count(*)`,
         })
         .from(choreographies)
+        .leftJoin(
+          scheduleCapacities,
+          eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+        )
         .where(
           and(
-            eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
             ne(choreographies.id, input.choreographyId),
+            or(
+              eq(choreographies.scheduleId, lockedSchedule.id),
+              eq(scheduleCapacities.scheduleId, lockedSchedule.id),
+            ),
           ),
         );
 
-      const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
+      const scheduleOccupiedCount = Number(
+        scheduleOccupancyRow?.occupiedCount ?? 0,
+      );
 
-      if (occupiedCount >= lockedScheduleCapacity.capacity) {
+      if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
         throw new Error("schedule-capacity-full");
       }
 
@@ -660,7 +723,9 @@ export async function updateChoreographyDancers(input: {
           categoryCalculationMode: resolution.categoryCalculationMode,
           categoryAgeBasis: resolution.categoryAgeBasis,
           experienceLevelId: resolvedExperienceLevelId.value,
-          scheduleCapacityId: lockedScheduleCapacity.id,
+          scheduleId: lockedSchedule.id,
+          scheduleCapacityId:
+            resolvedScheduleCapacityId.value.scheduleCapacityId,
         })
         .where(eq(choreographies.id, input.choreographyId));
     });
@@ -1044,7 +1109,13 @@ function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   schedule: ChoreographyDancerScheduleResolution;
   scheduleCapacityId: string | null;
 }):
-  | { ok: true; value: string }
+  | {
+      ok: true;
+      value: {
+        scheduleId: string;
+        scheduleCapacityId: string | null;
+      };
+    }
   | {
       ok: false;
       message: string;
@@ -1056,9 +1127,14 @@ function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
     input.schedule.status === "keep-current" ||
     input.schedule.status === "auto"
   ) {
+    const [option] = input.schedule.options;
+
     return {
       ok: true,
-      value: input.schedule.selectedScheduleCapacityId,
+      value: {
+        scheduleId: option.scheduleId,
+        scheduleCapacityId: option.scheduleCapacityId,
+      },
     };
   }
 
@@ -1072,12 +1148,11 @@ function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
     };
   }
 
-  if (
-    !input.scheduleCapacityId ||
-    !input.schedule.options.some(
-      (option) => option.id === input.scheduleCapacityId,
-    )
-  ) {
+  const selectedOption = input.schedule.options.find(
+    (option) => option.id === input.scheduleCapacityId,
+  );
+
+  if (!selectedOption) {
     return {
       ok: false,
       message: compatibleScheduleSelectionRequiredMessage,
@@ -1089,7 +1164,10 @@ function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
 
   return {
     ok: true,
-    value: input.scheduleCapacityId,
+    value: {
+      scheduleId: selectedOption.scheduleId,
+      scheduleCapacityId: selectedOption.scheduleCapacityId,
+    },
   };
 }
 
@@ -1119,7 +1197,8 @@ type ResolvedChoreographyDancerUpdateContext =
         submodalityId: string | null;
         categoryId: string | null;
         experienceLevelId: string | null;
-        scheduleCapacityId: string;
+        scheduleId: string | null;
+        scheduleCapacityId: string | null;
         hasActiveFinancialLink: boolean;
         hasPresentation: boolean;
       };
@@ -1149,6 +1228,7 @@ async function resolveChoreographyDancerUpdateContext(input: {
       submodalityId: true,
       categoryId: true,
       experienceLevelId: true,
+      scheduleId: true,
       scheduleCapacityId: true,
       hasActiveFinancialLink: true,
       hasPresentation: true,
@@ -1268,10 +1348,25 @@ async function resolveChoreographyDancerUpdateContext(input: {
     resolvedDancers,
     resolution: resolution.resolution,
     scheduleResolution: resolveDancerUpdateScheduleSelection(
-      choreography.scheduleCapacityId,
+      getCurrentScheduleSelectionId(choreography),
       resolution.resolution,
     ),
   };
+}
+
+function getCurrentScheduleSelectionId(input: {
+  scheduleId: string | null;
+  scheduleCapacityId: string | null;
+}) {
+  if (input.scheduleCapacityId) {
+    return input.scheduleCapacityId;
+  }
+
+  if (input.scheduleId) {
+    return getGlobalScheduleCapacityOptionId(input.scheduleId);
+  }
+
+  return "";
 }
 
 function getAgeAtDate(

@@ -82,6 +82,49 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
+  test("falls back to the cronograma global capacity when the matching cupo de cronograma does not exist", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Cupo Global",
+      email: "registro.coreografia.global@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog({ active: true });
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2013-05-01",
+    });
+
+    await db
+      .delete(scheduleCapacities)
+      .where(eq(scheduleCapacities.id, catalog.soloScheduleCapacity.id));
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
+        schedule: {
+          status: "auto",
+          canConfirm: true,
+          scheduleCapacityId: `schedule:${catalog.schedule.id}:global`,
+          options: [
+            {
+              id: `schedule:${catalog.schedule.id}:global`,
+              scheduleId: catalog.schedule.id,
+              scheduleCapacityId: null,
+              usesGlobalCapacity: true,
+              capacity: catalog.schedule.totalCapacity,
+            },
+          ],
+        },
+      },
+    });
+  });
+
   test("validates active Evento, registration window, and readiness before resolving the operation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Estado",
@@ -398,7 +441,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("returns compatible cupos de cronograma when they exist and blocks confirmation with a clear message when none match the selection", async () => {
+  test("returns compatible cupos de cronograma and falls back to cronograma global capacity when no specific cupo matches", async () => {
     const owner = await createAcademySession({
       academyName: "Academia cupo de cronograma",
       email: "registro.coreografia.cupo-cronograma@example.com",
@@ -516,10 +559,17 @@ describe.sequential("choreography registration resolution", () => {
           reason: "no-compatible-category",
         },
         schedule: {
-          status: "none",
-          canConfirm: false,
-          error:
-            "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
+          status: "auto",
+          canConfirm: true,
+          scheduleCapacityId: `schedule:${soloOnlyBlock.id}:global`,
+          options: [
+            expect.objectContaining({
+              id: `schedule:${soloOnlyBlock.id}:global`,
+              scheduleId: soloOnlyBlock.id,
+              scheduleCapacityId: null,
+              usesGlobalCapacity: true,
+            }),
+          ],
         },
       },
     });

@@ -112,11 +112,10 @@ type CategoryRelationRow = {
   categoryId: string;
 };
 
-type CompatibleScheduleCapacityRow = typeof scheduleCapacities.$inferSelect & {
-  scheduleName: string;
-  scheduleDate: string;
-  scheduleTime: string;
-};
+type CompatibleScheduleRow = Pick<
+  typeof schedules.$inferSelect,
+  "id" | "name" | "scheduledDate" | "startTime" | "totalCapacity" | "createdAt"
+>;
 
 type EventBasesTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
@@ -171,13 +170,19 @@ export type CompatibleScheduleCapacityResolution =
       options: CompatibleScheduleCapacity[];
     };
 
-export type CompatibleScheduleCapacity =
-  typeof scheduleCapacities.$inferSelect & {
-    schedule: Pick<
-      typeof schedules.$inferSelect,
-      "id" | "name" | "scheduledDate" | "startTime"
-    >;
-  };
+export type CompatibleScheduleCapacity = {
+  id: string;
+  scheduleId: string;
+  scheduleCapacityId: string | null;
+  groupType: GroupType;
+  capacity: number;
+  createdAt: Date;
+  usesGlobalCapacity: boolean;
+  schedule: Pick<
+    typeof schedules.$inferSelect,
+    "id" | "name" | "scheduledDate" | "startTime"
+  >;
+};
 
 export type PriceInput = {
   groupType: string;
@@ -2318,19 +2323,16 @@ async function findCompatibleScheduleCapacities(input: {
   modalityId: string;
   groupType: GroupType;
 }): Promise<CompatibleScheduleCapacity[]> {
-  const rows = await db
+  const compatibleSchedules = await db
     .select({
-      id: scheduleCapacities.id,
-      scheduleId: scheduleCapacities.scheduleId,
-      groupType: scheduleCapacities.groupType,
-      capacity: scheduleCapacities.capacity,
-      createdAt: scheduleCapacities.createdAt,
-      scheduleName: schedules.name,
-      scheduleDate: schedules.scheduledDate,
-      scheduleTime: schedules.startTime,
+      id: schedules.id,
+      name: schedules.name,
+      scheduledDate: schedules.scheduledDate,
+      startTime: schedules.startTime,
+      totalCapacity: schedules.totalCapacity,
+      createdAt: schedules.createdAt,
     })
-    .from(scheduleCapacities)
-    .innerJoin(schedules, eq(scheduleCapacities.scheduleId, schedules.id))
+    .from(schedules)
     .innerJoin(
       scheduleModalities,
       eq(schedules.id, scheduleModalities.scheduleId),
@@ -2339,34 +2341,80 @@ async function findCompatibleScheduleCapacities(input: {
       and(
         eq(schedules.eventId, input.eventId),
         eq(scheduleModalities.modalityId, input.modalityId),
-        eq(scheduleCapacities.groupType, input.groupType),
       ),
     )
-    .orderBy(
-      asc(schedules.scheduledDate),
-      asc(schedules.startTime),
-      asc(scheduleCapacities.groupType),
-    );
+    .orderBy(asc(schedules.scheduledDate), asc(schedules.startTime));
 
-  return rows.map(toCompatibleScheduleCapacity);
+  if (compatibleSchedules.length === 0) {
+    return [];
+  }
+
+  const specificCapacities = await db.query.scheduleCapacities.findMany({
+    where: and(
+      inArray(
+        scheduleCapacities.scheduleId,
+        compatibleSchedules.map((schedule) => schedule.id),
+      ),
+      eq(scheduleCapacities.groupType, input.groupType),
+    ),
+  });
+  const specificCapacityByScheduleId = new Map(
+    specificCapacities.map((capacity) => [capacity.scheduleId, capacity]),
+  );
+
+  return compatibleSchedules.map((schedule) => {
+    const specificCapacity = specificCapacityByScheduleId.get(schedule.id);
+
+    return specificCapacity
+      ? toSpecificCompatibleScheduleCapacity(schedule, specificCapacity)
+      : toGlobalCompatibleScheduleCapacity(schedule, input.groupType);
+  });
 }
 
-function toCompatibleScheduleCapacity(
-  row: CompatibleScheduleCapacityRow,
+function toSpecificCompatibleScheduleCapacity(
+  schedule: CompatibleScheduleRow,
+  capacity: typeof scheduleCapacities.$inferSelect,
 ): CompatibleScheduleCapacity {
   return {
-    id: row.id,
-    scheduleId: row.scheduleId,
-    groupType: row.groupType,
-    capacity: row.capacity,
-    createdAt: row.createdAt,
+    id: capacity.id,
+    scheduleId: schedule.id,
+    scheduleCapacityId: capacity.id,
+    groupType: capacity.groupType,
+    capacity: capacity.capacity,
+    createdAt: capacity.createdAt,
+    usesGlobalCapacity: false,
     schedule: {
-      id: row.scheduleId,
-      name: row.scheduleName,
-      scheduledDate: row.scheduleDate,
-      startTime: row.scheduleTime,
+      id: schedule.id,
+      name: schedule.name,
+      scheduledDate: schedule.scheduledDate,
+      startTime: schedule.startTime,
     },
   };
+}
+
+function toGlobalCompatibleScheduleCapacity(
+  schedule: CompatibleScheduleRow,
+  groupType: GroupType,
+): CompatibleScheduleCapacity {
+  return {
+    id: getGlobalScheduleCapacityOptionId(schedule.id),
+    scheduleId: schedule.id,
+    scheduleCapacityId: null,
+    groupType,
+    capacity: schedule.totalCapacity,
+    createdAt: schedule.createdAt,
+    usesGlobalCapacity: true,
+    schedule: {
+      id: schedule.id,
+      name: schedule.name,
+      scheduledDate: schedule.scheduledDate,
+      startTime: schedule.startTime,
+    },
+  };
+}
+
+function getGlobalScheduleCapacityOptionId(scheduleId: string) {
+  return `schedule:${scheduleId}:global`;
 }
 
 async function findDuplicateScheduleCapacity(

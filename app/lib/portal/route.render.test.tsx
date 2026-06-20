@@ -506,8 +506,11 @@ describe("portal route view", () => {
             options: [
               {
                 id: "schedule_auto",
+                scheduleId: "block_1",
+                scheduleCapacityId: "schedule_auto",
                 capacity: 5,
                 groupType: "grupal",
+                usesGlobalCapacity: false,
                 schedule: {
                   id: "block_1",
                   name: "Bloque tarde",
@@ -642,8 +645,11 @@ describe("portal route view", () => {
             options: [
               {
                 id: "schedule_auto",
+                scheduleId: "block_1",
+                scheduleCapacityId: "schedule_auto",
                 capacity: 5,
                 groupType: "trio",
+                usesGlobalCapacity: false,
                 schedule: {
                   id: "block_1",
                   name: "Bloque tarde",
@@ -701,8 +707,11 @@ describe("portal route view", () => {
             options: [
               {
                 id: "schedule_1",
+                scheduleId: "block_1",
+                scheduleCapacityId: "schedule_1",
                 capacity: 5,
                 groupType: "trio",
+                usesGlobalCapacity: false,
                 schedule: {
                   id: "block_1",
                   name: "Bloque mañana",
@@ -712,8 +721,11 @@ describe("portal route view", () => {
               },
               {
                 id: "schedule_2",
+                scheduleId: "block_2",
+                scheduleCapacityId: "schedule_2",
                 capacity: 3,
                 groupType: "trio",
+                usesGlobalCapacity: false,
                 schedule: {
                   id: "block_2",
                   name: "Bloque tarde",

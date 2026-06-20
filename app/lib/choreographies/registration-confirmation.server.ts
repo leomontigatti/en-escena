@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -6,6 +6,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
+  schedules,
   scheduleCapacities,
 } from "@/db/schema";
 import {
@@ -104,13 +105,13 @@ export async function createChoreographyRegistration(
     return experienceLevelId.failure;
   }
 
-  const scheduleCapacityId = resolveSelectedScheduleCapacityId({
+  const scheduleSelection = resolveSelectedScheduleSelection({
     resolution: operation.resolution,
     scheduleCapacityId: input.scheduleCapacityId,
   });
 
-  if (!scheduleCapacityId.ok) {
-    return scheduleCapacityId.failure;
+  if (!scheduleSelection.ok) {
+    return scheduleSelection.failure;
   }
 
   const validProfessorIds = await resolveProfessorIds({
@@ -126,37 +127,89 @@ export async function createChoreographyRegistration(
 
   try {
     choreography = await db.transaction(async (tx) => {
-      const [lockedScheduleCapacity] = await tx
+      const [lockedSchedule] = await tx
         .select({
-          id: scheduleCapacities.id,
-          capacity: scheduleCapacities.capacity,
+          id: schedules.id,
+          totalCapacity: schedules.totalCapacity,
         })
-        .from(scheduleCapacities)
-        .where(eq(scheduleCapacities.id, scheduleCapacityId.value))
+        .from(schedules)
+        .where(eq(schedules.id, scheduleSelection.value.scheduleId))
         .for("update");
 
-      if (!lockedScheduleCapacity) {
+      if (!lockedSchedule) {
         throw createFailure(
           "invalid-schedule-capacity",
           INVALID_SCHEDULE_ENTRY_ERROR,
         );
       }
 
-      const [occupancyRow] = await tx
+      if (scheduleSelection.value.scheduleCapacityId) {
+        const [lockedScheduleCapacity] = await tx
+          .select({
+            id: scheduleCapacities.id,
+            capacity: scheduleCapacities.capacity,
+          })
+          .from(scheduleCapacities)
+          .where(
+            eq(
+              scheduleCapacities.id,
+              scheduleSelection.value.scheduleCapacityId,
+            ),
+          )
+          .for("update");
+
+        if (!lockedScheduleCapacity) {
+          throw createFailure(
+            "invalid-schedule-capacity",
+            INVALID_SCHEDULE_ENTRY_ERROR,
+          );
+        }
+
+        const [specificOccupancyRow] = await tx
+          .select({
+            occupiedCount: sql<number>`count(*)`,
+          })
+          .from(choreographies)
+          .where(
+            eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+          );
+
+        const specificOccupiedCount = Number(
+          specificOccupancyRow?.occupiedCount ?? 0,
+        );
+
+        if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
+          throw createFailure(
+            "schedule-capacity-full",
+            "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+          );
+        }
+      }
+
+      const [scheduleOccupancyRow] = await tx
         .select({
           occupiedCount: sql<number>`count(*)`,
         })
         .from(choreographies)
+        .leftJoin(
+          scheduleCapacities,
+          eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+        )
         .where(
-          eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+          or(
+            eq(choreographies.scheduleId, lockedSchedule.id),
+            eq(scheduleCapacities.scheduleId, lockedSchedule.id),
+          ),
         );
 
-      const occupiedCount = Number(occupancyRow?.occupiedCount ?? 0);
+      const scheduleOccupiedCount = Number(
+        scheduleOccupancyRow?.occupiedCount ?? 0,
+      );
 
-      if (occupiedCount >= lockedScheduleCapacity.capacity) {
+      if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
         throw createFailure(
           "schedule-capacity-full",
-          "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+          "El Cronograma seleccionado ya no tiene cupo disponible.",
         );
       }
 
@@ -176,7 +229,8 @@ export async function createChoreographyRegistration(
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
-          scheduleCapacityId: lockedScheduleCapacity.id,
+          scheduleId: lockedSchedule.id,
+          scheduleCapacityId: scheduleSelection.value.scheduleCapacityId,
         })
         .returning();
 
@@ -351,11 +405,17 @@ function resolveSelectedExperienceLevelId(input: {
   return { ok: true, value: input.experienceLevelId };
 }
 
-function resolveSelectedScheduleCapacityId(input: {
+function resolveSelectedScheduleSelection(input: {
   resolution: ChoreographyRegistrationOperationResolution;
   scheduleCapacityId: string;
 }):
-  | { ok: true; value: string }
+  | {
+      ok: true;
+      value: {
+        scheduleId: string;
+        scheduleCapacityId: string | null;
+      };
+    }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
   if (input.resolution.schedule.status === "none") {
     return {
@@ -380,14 +440,22 @@ function resolveSelectedScheduleCapacityId(input: {
       };
     }
 
-    return { ok: true, value: input.resolution.schedule.scheduleCapacityId };
+    const [option] = input.resolution.schedule.options;
+
+    return {
+      ok: true,
+      value: {
+        scheduleId: option.scheduleId,
+        scheduleCapacityId: option.scheduleCapacityId,
+      },
+    };
   }
 
-  const isValidOption = input.resolution.schedule.options.some(
+  const selectedOption = input.resolution.schedule.options.find(
     (option) => option.id === input.scheduleCapacityId,
   );
 
-  if (!isValidOption) {
+  if (!selectedOption) {
     return {
       ok: false,
       failure: createFailure(
@@ -397,7 +465,13 @@ function resolveSelectedScheduleCapacityId(input: {
     };
   }
 
-  return { ok: true, value: input.scheduleCapacityId };
+  return {
+    ok: true,
+    value: {
+      scheduleId: selectedOption.scheduleId,
+      scheduleCapacityId: selectedOption.scheduleCapacityId,
+    },
+  };
 }
 
 function createFailure(

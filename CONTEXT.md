@@ -21,7 +21,7 @@ Condición que indica si los resultados de un evento están visibles u ocultos.
 _Evitar_: Estado del evento, active
 
 **Cronograma**:
-Franja de programación de un evento, con nombre, fecha local, hora local, modalidades aceptadas y cupo total de coreografías.
+Franja de programación de un evento, con nombre, fecha local, hora local, modalidades aceptadas y cupo total de coreografías. Cuando no existe un Cupo de cronograma específico para el tipo de grupo de una coreografía, la coreografía puede consumir el cupo total del Cronograma como cupo global.
 _Evitar_: Bloque horario, horario suelto, agenda completa
 
 **Cupo de cronograma**:

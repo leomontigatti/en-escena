@@ -42,6 +42,7 @@ Rules for people, choreography registration, locks and Bases del evento.
 - `Registro de coreografía` works with temporary data and creates the coreografía only on final confirmation.
 - Before final confirmation it does not consume capacity, generate financial state, or leave abandoned incomplete coreografías.
 - Looking up available cupos de cronograma does not reserve capacity.
+- Schedule resolution prefers a cupo de cronograma for the calculated group type. If a compatible cronograma has no specific cupo for that group type, the cronograma total capacity is a global fallback option.
 - Submodalidad step exists only when selected modalidad has submodalidades.
 - If no category is assigned, level step is skipped and level remains empty until recalculation.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
@@ -50,7 +51,7 @@ Rules for people, choreography registration, locks and Bases del evento.
 - Solo, duo and trio summaries list names and ages; group summaries show dancer count.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.
-- Backend revalidates cupo de cronograma capacity on confirmation.
+- Backend revalidates the selected specific cupo when present and always revalidates cronograma total capacity on confirmation.
 
 ## Choreography Locks
 

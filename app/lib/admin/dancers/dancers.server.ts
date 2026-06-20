@@ -8,6 +8,7 @@ import {
   choreographyDancers,
   dancers,
   scheduleCapacities,
+  schedules,
   user,
 } from "@/db/schema";
 import { getDancerVerificationStatus } from "@/lib/dancers/verification";
@@ -364,16 +365,23 @@ async function findAdministrativeDancerInscriptions(input: {
       id: choreographies.id,
       name: choreographies.name,
       groupType: choreographies.groupType,
-      scheduleId: scheduleCapacities.scheduleId,
+      scheduleId: schedules.id,
     })
     .from(choreographyDancers)
     .innerJoin(
       choreographies,
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
-    .innerJoin(
+    .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .innerJoin(
+      schedules,
+      or(
+        eq(choreographies.scheduleId, schedules.id),
+        eq(scheduleCapacities.scheduleId, schedules.id),
+      ),
     )
     .where(
       and(

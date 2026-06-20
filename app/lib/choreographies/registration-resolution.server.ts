@@ -40,7 +40,12 @@ type ExperienceLevelSummary = {
 
 type ScheduleOptionSummary = Pick<
   CompatibleScheduleCapacity,
-  "id" | "capacity" | "groupType"
+  | "id"
+  | "scheduleId"
+  | "scheduleCapacityId"
+  | "capacity"
+  | "groupType"
+  | "usesGlobalCapacity"
 > & {
   schedule: CompatibleScheduleCapacity["schedule"];
 };
@@ -594,8 +599,11 @@ function toScheduleOptionSummary(
 ): ScheduleOptionSummary {
   return {
     id: option.id,
+    scheduleId: option.scheduleId,
+    scheduleCapacityId: option.scheduleCapacityId,
     capacity: option.capacity,
     groupType: option.groupType,
+    usesGlobalCapacity: option.usesGlobalCapacity,
     schedule: option.schedule,
   };
 }
