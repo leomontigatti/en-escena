@@ -56,14 +56,15 @@ No hubo fallas preexistentes en esta corrida base:
 - `npm test`: 25 archivos verdes, 120 tests verdes.
 - `npm run test:db`: 27 archivos verdes, 238 tests verdes.
 
-Revalidacion de issue `#123`, corrida el 2026-06-20 sobre
-`sandcastle/issue-123` despues de integrar `#122`:
+Resultado de issue `#123`: se revalido la linea base DB el 2026-06-20 sobre
+`sandcastle/issue-123`, despues de integrar `#122`, para identificar fallas
+preexistentes antes de optimizar el harness:
 
 - `npm run test:db:file -- tests/db/harness.db.test.ts`: 1 archivo verde, 2
   tests verdes.
 - `npm run test:db`: 27 archivos verdes, 238 tests verdes.
-- Archivos DB con falla: ninguno.
-- Modos de falla DB a aislar de cambios de harness: ninguno en esta linea base.
+- Archivos DB con falla preexistente: ninguno.
+- Modos de falla DB a aislar de cambios de harness: ninguno.
 
 Conclusion operativa: la linea base vigente para el trabajo de optimizacion no
 tiene fallas DB preexistentes pendientes. Cualquier falla DB nueva sobre esta
