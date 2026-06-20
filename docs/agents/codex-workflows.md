@@ -47,17 +47,18 @@ changed before running the broader final checks:
 
 For Codex sessions that run inside the managed sandbox, the final reliable DB
 validation path still needs elevated local permission because
-`TEST_DATABASE_URL` points at Postgres over TCP on `localhost:5433`. When
-requesting persistent approval, use these scoped prefixes:
+`TEST_DATABASE_URL` points at Postgres over TCP on `localhost:5433`. The fast
+PGlite paths do not need that TCP access. When requesting persistent approval,
+use these scoped prefixes:
 
-- `npm run test:db:file`
-- `npm run test:db`
+- `npm run test:db:postgres`
+- `npm run test:db:file:postgres`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
 This approval is operational only; it does not change the reliable validation
-target. `npm run test:db` must continue to use `TEST_DATABASE_URL`, not
-production or preview data.
+target. `npm run test:db:postgres` must continue to use `TEST_DATABASE_URL`,
+not production or preview data.
 
 ## React Router Flat Routes
 
@@ -187,9 +188,11 @@ Principles:
 
 The repo has two DB validation paths:
 
-- `npm run test:db:file -- <path>` uses the fast focused PGlite harness with a
-  cached schema snapshot.
-- `npm run test:db` stays on PostgreSQL for final reliable validation. The
+- `npm run test:db` and `npm run test:db:file -- <path>` use the fast PGlite
+  harness with a cached schema snapshot. The full-suite command enables
+  file-level worker parallelism while keeping one isolated in-memory database
+  per worker.
+- `npm run test:db:postgres` preserves the PostgreSQL validation path. The
   script creates the configured test database when needed, pushes the Drizzle
   schema, and runs `*.db.test.ts` with serial file execution.
 
@@ -200,6 +203,8 @@ npm run test:db:file -- app/lib/example.db.test.ts
 ```
 
 Run the full `npm run test:db` command before finishing database-backed work.
+When you need a production-like semantic check or are touching harness-level
+behavior, also run `npm run test:db:postgres`.
 
 ## Frontend State TDD
 

@@ -39,16 +39,11 @@ export default mergeConfig(
     },
     test: {
       exclude: ["**/.sandcastle/**"],
-      fileParallelism: false,
+      fileParallelism: true,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
-      maxWorkers: 1,
+      maxWorkers: "50%",
       minWorkers: 1,
-      poolOptions: {
-        threads: {
-          singleThread: true,
-        },
-      },
       setupFiles: ["./tests/db/setup-fast.ts"],
       sequence: {
         concurrent: false,

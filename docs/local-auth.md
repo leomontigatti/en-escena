@@ -71,10 +71,10 @@ Confirm `.env` points at the local container before running `npm run db:push`.
 
 For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
 connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
-at local Postgres so `npm run test:db` stays isolated from hosted data. The
-focused command `npm run test:db:file -- <archivo>` now uses an in-process
-PGlite harness with a cached schema snapshot instead of connecting to
-`TEST_DATABASE_URL`.
+at local Postgres so `npm run test:db:postgres` stays isolated from hosted
+data. The default suite command `npm run test:db` and the focused command
+`npm run test:db:file -- <archivo>` both use an in-process PGlite harness with
+a cached schema snapshot instead of connecting to `TEST_DATABASE_URL`.
 
 Choose the connection mode for the runtime:
 
@@ -89,9 +89,10 @@ For schema changes against Supabase, run `npm run db:push` only after verifying
 that `DATABASE_URL` points at the intended hosted database. Database-backed tests
 keep two paths:
 
-- `npm run test:db:file -- <archivo>`: focused fast path on isolated `PGlite`.
-- `npm run test:db`: final reliable path that resets and pushes schema through
-  `TEST_DATABASE_URL`.
+- `npm run test:db` and `npm run test:db:file -- <archivo>`: fast isolated
+  `PGlite` paths backed by the cached schema snapshot.
+- `npm run test:db:postgres`: final reliable path that resets and pushes
+  schema through `TEST_DATABASE_URL`.
 
 When local development needs production-like data, create and restore a fresh
 production dump with [docs/db/production-dump.md](db/production-dump.md).

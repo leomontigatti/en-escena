@@ -11,6 +11,13 @@ persisted in Postgres. The measured baseline from 2026-06-20 was:
 - Existing DB failures at decision time: none. Issue `#123` revalidated the
   baseline and confirmed there were no preexisting DB failures to discount.
 
+Issue `#127` then scaled the chosen model to the full DB suite with these
+results on 2026-06-20:
+
+- `npm run test:db`: 45.23s wall clock for 28 files and 241 passing tests.
+- `npm run test:db:postgres`: 79.05s wall clock for the same 28 files and 241
+  passing tests, including the schema push through `TEST_DATABASE_URL`.
+
 Issue `#124` also completed a PGlite POC against the current schema. The pilot
 found functional parity for the behaviors exercised in the repo today:
 
@@ -43,8 +50,8 @@ The pilot also found two real integration gaps:
 
 **Decision Details**
 
-We will implement PGlite with schema snapshots next as the fast DB test
-isolation model for En Escena.
+En Escena adopts PGlite with schema snapshots as the default full DB test
+isolation model.
 
 Why this option won now:
 
@@ -57,10 +64,10 @@ Why this option won now:
 - Real Postgres per worker remains plausible, but it adds more moving parts
   before it removes any measured cost in this repo.
 
-This decision is about the next implementation path, not about deleting the
-real Postgres harness immediately. The existing Postgres-backed `npm run test:db`
-path stays as the high-fidelity validation path while the PGlite fast path is
-implemented and proven.
+This decision does not delete the real Postgres harness. The default
+`npm run test:db` path now uses the worker-local PGlite snapshot harness for
+fast feedback, while `npm run test:db:postgres` preserves the high-fidelity
+validation path through `TEST_DATABASE_URL`.
 
 **Fidelity Risks**
 
@@ -96,7 +103,8 @@ unacceptable error-shape adapter burden, unstable schema bootstrap, or a
 surface-specific regression in Evento, Academia, Coreografia, Usuario, Sesion
 de acceso, or Bases del evento, the fallback is real Postgres per worker:
 
-1. Keep `npm run test:db` on real Postgres as the final confidence path.
+1. Keep `npm run test:db:postgres` on real Postgres as the final confidence
+   path.
 2. Build a template DB or schema once per run with the current Drizzle schema.
 3. Provision one isolated DB or schema per Vitest worker using
    `VITEST_POOL_ID`.
@@ -105,10 +113,9 @@ de acceso, or Bases del evento, the fallback is real Postgres per worker:
 
 **Consequences**
 
-- The next child implementation should add a PGlite snapshot bootstrap and a
-  fast DB command without replacing the existing real Postgres validation path.
-- Any rollout beyond the pilot should prioritize the highest-risk surfaces
-  above, especially Evento, Bases del evento, Coreografia, Usuario, and Sesion
-  de acceso.
-- If PGlite becomes the only DB path later, a follow-up ADR or ADR update
-  should record the removal of the real Postgres final-validation path.
+- The full DB suite now runs on PGlite snapshots by default with file
+  parallelism enabled and worker-local in-memory state.
+- Any future tuning must preserve worker isolation; mutable DB state cannot be
+  shared across workers.
+- The real Postgres validation path remains available as
+  `npm run test:db:postgres` for schema-push fidelity and semantic spot checks.

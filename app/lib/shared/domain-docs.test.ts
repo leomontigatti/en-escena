@@ -32,7 +32,7 @@ const fastDbIsolationAdrRequirements = [
   "**Status**: accepted",
   "PGlite with schema snapshots",
   "real Postgres per worker",
-  "We will implement PGlite with schema snapshots next",
+  "adopts PGlite with schema snapshots as the default full DB test",
   "Fallback path",
   "Evento",
   "Academia",
@@ -40,6 +40,7 @@ const fastDbIsolationAdrRequirements = [
   "Usuario",
   "Sesion de acceso",
   "Bases del evento",
+  "npm run test:db:postgres",
 ];
 
 describe("domain documentation", () => {
