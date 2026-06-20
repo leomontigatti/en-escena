@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement, type ReactElement } from "react";
+import { readFileSync } from "node:fs";
 import { createRoutesStub, MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
@@ -108,6 +109,68 @@ describe("private route headers", () => {
       expect(markup).toContain(`href="${href}"`);
       expect(markup).toContain(label);
     }
+  });
+
+  test("admin, auditoría y root error usan tokens semánticos en sus superficies compartidas", () => {
+    const adminRoutesStub = createRoutesStub([
+      {
+        path: "/administracion",
+        Component: AdministracionRouteView,
+      },
+    ]);
+    const adminMarkup = renderToStaticMarkup(
+      createElement(adminRoutesStub, {
+        initialEntries: ["/administracion"],
+        hydrationData: {
+          loaderData: {
+            "0": {
+              email: "admin@example.com",
+              events: [
+                { id: "evento_2026", name: "Evento 2026", active: true },
+              ],
+              selectedEventId: "evento_2026",
+            },
+          },
+        },
+      }),
+    );
+    const auditoriaMarkup = renderPrivateRoute(
+      <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+    );
+    const rootSource = readFileSync("app/root.tsx", "utf8");
+
+    expect(adminMarkup).toContain("focus-visible:bg-background");
+    expect(adminMarkup).toContain("focus-visible:text-foreground");
+    expect(adminMarkup).toContain("focus-visible:ring-ring/50");
+    expect(adminMarkup).not.toContain("focus-visible:bg-white");
+    expect(adminMarkup).not.toContain("focus-visible:text-slate-950");
+    expect(adminMarkup).not.toContain("focus-visible:ring-teal-100");
+
+    expect(auditoriaMarkup).toContain("border-border");
+    expect(auditoriaMarkup).toContain("bg-card");
+    expect(auditoriaMarkup).toContain("text-card-foreground");
+    expect(auditoriaMarkup).toContain("text-muted-foreground");
+    expect(auditoriaMarkup).toContain("hover:bg-accent");
+    expect(auditoriaMarkup).toContain("hover:border-accent");
+    expect(auditoriaMarkup).toContain("focus-visible:ring-ring/50");
+    expect(auditoriaMarkup).not.toContain("border-slate-200");
+    expect(auditoriaMarkup).not.toContain("bg-white");
+    expect(auditoriaMarkup).not.toContain("bg-slate-50");
+    expect(auditoriaMarkup).not.toContain("text-slate-950");
+    expect(auditoriaMarkup).not.toContain("text-slate-600");
+    expect(auditoriaMarkup).not.toContain("hover:bg-teal-50");
+    expect(auditoriaMarkup).not.toContain("hover:border-teal-300");
+    expect(auditoriaMarkup).not.toContain("focus-visible:ring-teal-100");
+
+    expect(rootSource).toContain("border-border");
+    expect(rootSource).toContain("bg-card");
+    expect(rootSource).toContain("text-card-foreground");
+    expect(rootSource).toContain("text-muted-foreground");
+    expect(rootSource).not.toContain("border-slate-200");
+    expect(rootSource).not.toContain("bg-white");
+    expect(rootSource).not.toContain("text-slate-500");
+    expect(rootSource).not.toContain("text-slate-950");
+    expect(rootSource).not.toContain("text-slate-600");
   });
 });
 

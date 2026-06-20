@@ -11,7 +11,7 @@ import type { Route } from "./+types/auditoria";
 type AuditoriaRouteProps = Pick<Route.ComponentProps, "loaderData">;
 
 const auditoriaLinkCardClassName =
-  "rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100";
+  "rounded-lg border border-border bg-card p-5 text-card-foreground transition-colors hover:border-accent hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const auditoriaLinks = [
   {
@@ -53,11 +53,9 @@ export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
         }
       />
 
-      <div className="mt-8 rounded-lg bg-slate-50 p-5">
-        <p className="text-sm font-semibold text-slate-950">
-          Vistas de auditoría
-        </p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+      <div className="mt-8 rounded-lg border border-border bg-card p-5 text-card-foreground">
+        <p className="text-sm font-semibold">Vistas de auditoría</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Consultá las vistas compartidas del Panel de administración. Estas
           rutas usan el Evento activo y se mantienen en solo lectura para
           Auditoría.
@@ -74,10 +72,8 @@ export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
             to={link.to}
             className={auditoriaLinkCardClassName}
           >
-            <span className="text-sm font-semibold text-slate-950">
-              {link.title}
-            </span>
-            <span className="mt-2 block text-sm leading-6 text-slate-600">
+            <span className="text-sm font-semibold">{link.title}</span>
+            <span className="mt-2 block text-sm leading-6 text-muted-foreground">
               {link.description}
             </span>
           </Link>
