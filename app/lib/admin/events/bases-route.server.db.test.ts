@@ -490,7 +490,7 @@ describe.sequential("administracion Bases del evento routes", () => {
 
     expect(markup).toContain("Ocupación");
     expect(markup).toContain("8/24");
-    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("Sábado Mañana");
     expect(markup).toContain("2 de mayo de 2026");
     expect(markup).toContain("09:00");
     expect(markup).toContain("Jazz");
@@ -1009,7 +1009,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado mañana"),
+      where: eq(schedules.name, "Sábado Mañana"),
     });
 
     await expectThrownResponse(
@@ -1065,7 +1065,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     const markup = renderPreciosRoute(data);
 
     expect(markup).toContain("Precio base");
-    expect(markup).toContain("Precio por cronograma");
+    expect(markup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
     expect(markup).toContain("Solo - Precio base - hasta 31/5/26");
     expect(markup).toContain("Nuevo precio");
     expect(markup).toContain("/administracion/precios/nuevo");
@@ -1094,7 +1094,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado mañana"),
+      where: eq(schedules.name, "Sábado Mañana"),
     });
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
@@ -1137,9 +1137,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       ),
     );
     const createMarkup = renderPrecioNuevoRoute(createData);
-    expect(createMarkup).toContain(
-      "El precio base aplica cuando no existe un precio específico para el cronograma.",
-    );
+    expect(createMarkup).toContain("Precio especial");
 
     const detailData = await loader(
       routeArgs(
@@ -1154,10 +1152,10 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const detailMarkup = renderPrecioDetalleRoute(detailData, price?.id ?? "");
 
-    expect(detailMarkup).toContain("Precio por cronograma");
-    expect(detailMarkup).toContain("Sábado mañana");
+    expect(detailMarkup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
+    expect(detailMarkup).toContain("Sábado Mañana");
     expect(detailMarkup).toContain("31/5/26");
-    expect(detailMarkup).toContain("Borrar precio");
+    expect(detailMarkup).toContain('aria-label="Acciones"');
 
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",
@@ -1259,7 +1257,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado mañana"),
+      where: eq(schedules.name, "Sábado Mañana"),
     });
     expect(schedule).toMatchObject({
       eventId: event.id,
@@ -1281,7 +1279,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const markup = renderBloquesHorariosRoute(data);
 
-    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("Sábado Mañana");
     expect(markup).toContain("2 de mayo de 2026");
     expect(markup).toContain("09:00");
     expect(markup).toContain("0/24");
@@ -1318,7 +1316,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(schedules.id, schedule?.id ?? ""),
       }),
     ).resolves.toMatchObject({
-      name: "Sábado tarde",
+      name: "Sábado Tarde",
       startTime: "14:30",
       totalCapacity: 18,
     });
@@ -1369,7 +1367,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado mañana"),
+      where: eq(schedules.name, "Sábado Mañana"),
     });
     const createPriceRequest = await createSignedInRequest({
       email: "admin.crea.precio@example.com",
@@ -1420,10 +1418,10 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     const markup = renderPreciosRoute(data);
 
-    expect(markup).toContain("Solo - Sábado mañana - hasta 31/5/26");
+    expect(markup).toContain("Solo - Sábado Mañana - hasta 31/5/26");
     expect(markup).toContain("Solo");
     expect(markup).toContain("$15000");
-    expect(markup).toContain("Sábado mañana");
+    expect(markup).toContain("Sábado Mañana");
 
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",
@@ -1503,7 +1501,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     await expectThrownResponse(action(routeArgs(scheduleRequest.request)), 302);
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado mañana"),
+      where: eq(schedules.name, "Sábado Mañana"),
     });
     const createScheduleCapacityRequest = await createSignedInRequest({
       email: "admin.crea.cupo-cronograma@example.com",
@@ -1631,7 +1629,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
 
     const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Domingo tarde"),
+      where: eq(schedules.name, "Domingo Tarde"),
     });
     const createdEntries = await db.query.scheduleCapacities.findMany({
       where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
