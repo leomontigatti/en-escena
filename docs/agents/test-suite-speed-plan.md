@@ -31,7 +31,9 @@ Medicion repetible tomada el 2026-06-20 en `sandcastle/issue-122`.
 Metodologia:
 
 - Tiempo de pared: `time` del shell sobre el comando completo.
-- Desglose interno: salida `Duration` de Vitest cuando aplica.
+- Desglose interno: salida `Duration` de Vitest cuando aplica. Los campos como
+  `collect` y `tests` son tiempos agregados de Vitest y pueden superar el
+  tiempo de pared cuando hay trabajo en paralelo.
 - Para los comandos `test:db:file` y `test:db`, el tiempo de pared incluye
   `npm run db:test:push`.
 
@@ -49,7 +51,8 @@ Metodologia:
 
 ### Fallas preexistentes al momento de medir
 
-- Ninguna en esta corrida.
+No hubo fallas preexistentes en esta corrida:
+
 - `npm test`: 25 archivos verdes, 120 tests verdes.
 - `npm run test:db`: 27 archivos verdes, 238 tests verdes.
 
