@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   AudioLines,
   CalendarDays,
@@ -154,7 +154,8 @@ type CoreographyCreationState = {
   details: string[];
 };
 
-type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>["variant"]>;
+type AlertVariant = ComponentProps<typeof Alert>["variant"];
+type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
@@ -166,25 +167,33 @@ const portalNavigationItems = [
 const creationAvailabilityToneProps: Record<
   CoreographyCreationState["tone"],
   {
-    alertVariant: "default" | "destructive";
-    badgeLabel: string;
-    badgeVariant: BadgeVariant;
+    alertVariant: AlertVariant;
+    badge: {
+      label: string;
+      variant: BadgeVariant;
+    };
   }
 > = {
   ready: {
     alertVariant: "default",
-    badgeLabel: "Disponible",
-    badgeVariant: "default",
+    badge: {
+      label: "Disponible",
+      variant: "default",
+    },
   },
   blocked: {
     alertVariant: "destructive",
-    badgeLabel: "Bloqueado",
-    badgeVariant: "destructive",
+    badge: {
+      label: "Bloqueado",
+      variant: "destructive",
+    },
   },
   info: {
     alertVariant: "default",
-    badgeLabel: "Información",
-    badgeVariant: "secondary",
+    badge: {
+      label: "Información",
+      variant: "secondary",
+    },
   },
 };
 
@@ -520,8 +529,8 @@ export function PortalCoreographiesSection({
               <Alert variant={creationAvailabilityTone.alertVariant}>
                 <AlertTitle className="flex flex-wrap items-center gap-2">
                   <span>{creationAvailability.message}</span>
-                  <Badge variant={creationAvailabilityTone.badgeVariant}>
-                    {creationAvailabilityTone.badgeLabel}
+                  <Badge variant={creationAvailabilityTone.badge.variant}>
+                    {creationAvailabilityTone.badge.label}
                   </Badge>
                 </AlertTitle>
                 {creationAvailability.details.length > 0 ? (
