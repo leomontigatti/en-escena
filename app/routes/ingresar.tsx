@@ -179,7 +179,7 @@ export default function IngresarRoute() {
       <AccessHeader
         eyebrow="En Escena"
         title="Ingresar"
-        description="Accedé al portal de academias o al panel interno según tu permiso."
+        description="Accedé al portal de academias del certamen"
       />
 
       <Form
@@ -192,7 +192,7 @@ export default function IngresarRoute() {
           <AccessTextField
             controller={form}
             autoComplete="username"
-            label="Correo o Nombre de usuario interno"
+            label="Correo electrónico"
             name="identifier"
             spellCheck={false}
             type="text"
@@ -213,13 +213,13 @@ export default function IngresarRoute() {
       </Form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        ¿No recordás tu contraseña?{" "}
-        <AccessTextLink to="/recuperar-acceso">Recuperar acceso</AccessTextLink>
+        ¿No te acordás tu contraseña?{" "}
+        <AccessTextLink to="/recuperar-acceso">Recuperala</AccessTextLink>
       </p>
 
       <p className="mt-3 text-center text-sm text-muted-foreground">
-        ¿Tu academia todavía no está registrada?{" "}
-        <AccessTextLink to="/registro">Pedir enlace</AccessTextLink>
+        ¿Todavía no te registraste?{" "}
+        <AccessTextLink to="/registro">Hacelo acá</AccessTextLink>
       </p>
     </AccessPage>
   );

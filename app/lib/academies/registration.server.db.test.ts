@@ -95,8 +95,12 @@ describe("academy registration", () => {
     });
     expect(sentEmails[1]).toMatchObject({
       to: "nueva@example.com",
-      subject: "Completá tu registro en En Escena",
+      subject: "Tu enlace para registrar la academia",
     });
+    expect(sentEmails[1]?.text).toContain(
+      "Te dejamos el enlace para terminar el registro de tu academia en En Escena:",
+    );
+    expect(sentEmails[1]?.text).toContain("El equipo de En Escena");
 
     const existingUserTokens =
       await db.query.academyRegistrationTokens.findMany({

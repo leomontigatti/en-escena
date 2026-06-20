@@ -67,8 +67,20 @@ export async function requestAcademyRegistrationEmail(input: {
 
   await sendEmail({
     to: email,
-    subject: "Completá tu registro en En Escena",
-    text: `Usá este enlace dentro de las próximas 24 horas para registrar tu academia: ${registrationUrl.toString()}`,
+    subject: "Tu enlace para registrar la academia",
+    text: [
+      "Hola,",
+      "",
+      "Te dejamos el enlace para terminar el registro de tu academia en En Escena:",
+      "",
+      registrationUrl.toString(),
+      "",
+      "El enlace dura 24 horas y se puede usar una sola vez. Cuando ingreses, vas a poder cargar los datos de la academia y crear tu contraseña de acceso.",
+      "",
+      "Si no solicitaste este registro, no hace falta que hagas nada.",
+      "",
+      "El equipo de En Escena",
+    ].join("\n"),
   });
 }
 

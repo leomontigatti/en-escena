@@ -172,7 +172,7 @@ export default function CompletarRegistroRoute() {
   return (
     <AccessPage width="lg">
       <AccessHeader
-        eyebrow="Registro habilitado"
+        eyebrow="Portal de academias"
         title="Completá los datos"
         description="Estos datos pertenecen a la academia. El usuario de acceso queda asociado al correo confirmado por el enlace."
       />
@@ -211,7 +211,6 @@ export default function CompletarRegistroRoute() {
             <AccessTextField
               autoComplete="new-password"
               controller={form}
-              description="Usá al menos 8 caracteres."
               label="Contraseña"
               name="password"
               type="password"
