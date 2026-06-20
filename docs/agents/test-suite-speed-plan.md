@@ -7,22 +7,43 @@ workflows.
 
 ## Contexto actual
 
-En Escena separa tests regulares y tests con Postgres local:
+En Escena separa tests regulares y tests DB con dos rutas:
 
 - `npm test`: corre Vitest excluyendo `*.db.test.ts`.
-- `npm run test:db:file -- <archivo>`: empuja schema con Drizzle y corre un
-  archivo DB enfocado.
+- `npm run test:db:file -- <archivo>`: usa el harness rapido con `PGlite` y un
+  snapshot cacheado del schema para un archivo DB enfocado.
 - `npm run test:db`: empuja schema con Drizzle y corre todos los
   `*.db.test.ts` en serie.
+- `npm run test:db:file:postgres -- <archivo>`: conserva la ruta enfocada sobre
+  Postgres real para comparar o depurar el harness rapido.
 
-La suite DB usa un Postgres local en `localhost:5433`, configurado por
-`TEST_DATABASE_URL`. En sesiones Codex con sandbox administrado, ese acceso TCP
-local requiere aprobacion elevada aunque no salga de la maquina. Por eso
-`docs/agents/codex-workflows.md` documenta los prefijos persistentes:
+La corrida final confiable usa un Postgres local en `localhost:5433`,
+configurado por `TEST_DATABASE_URL`. En sesiones Codex con sandbox
+administrado, ese acceso TCP local requiere aprobacion elevada aunque no salga
+de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
+persistentes:
 
 - `npm run test:db:file`
 - `npm run test:db`
 - `docker compose up -d postgres`
+
+## Implementacion issue #126
+
+Medicion tomada el 2026-06-20 en `sandcastle/issue-126` sobre el harness DB
+enfocado:
+
+| Ruta                | Comando                                                        | Tiempo de pared | Desglose relevante                     |
+| ------------------- | -------------------------------------------------------------- | --------------: | -------------------------------------- |
+| Postgres preservado | `npm run test:db:file:postgres -- tests/db/harness.db.test.ts` |           3.95s | Vitest `Duration` 1.03s; `tests` 130ms |
+| Fast path PGlite    | `npm run test:db:file -- tests/db/harness.db.test.ts`          |           3.18s | Vitest `Duration` 2.13s; `tests` 705ms |
+
+Lectura operativa:
+
+- La mejora medida del comando enfocado es `770ms` menos de pared para el test
+  de harness en esta rama.
+- `npm run test:db` queda sin cambios como ruta final de validacion confiable.
+- El snapshot del schema queda cacheado por hash de schema para repetir
+  corridas enfocadas sin tocar `TEST_DATABASE_URL`.
 
 ## Linea base actual
 

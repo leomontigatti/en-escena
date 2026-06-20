@@ -36,7 +36,8 @@ changed before running the broader final checks:
   regression risk.
 - Run `npm run test:db:file -- <path-to-db-test>` while iterating on database
   schema, repositories, loaders/actions that persist data, or
-  persistence-backed business rules.
+  persistence-backed business rules. This focused path uses the fast PGlite
+  harness.
 - Run the full applicable command before finishing the work: `npm test` for the
   regular suite, `npm run test:db` for database-backed work, and `npm run build`
   for routing, server rendering, bundling, CSS, or deployment behavior.
@@ -44,18 +45,19 @@ changed before running the broader final checks:
   a shared interface, cross-surface behavior, schema, or persistence-backed
   business rule.
 
-For Codex sessions that run inside the managed sandbox, database tests need
-elevated local permission because `TEST_DATABASE_URL` points at Postgres over
-TCP on `localhost:5433`. When requesting persistent approval, use these scoped
-prefixes:
+For Codex sessions that run inside the managed sandbox, the final reliable DB
+validation path still needs elevated local permission because
+`TEST_DATABASE_URL` points at Postgres over TCP on `localhost:5433`. When
+requesting persistent approval, use these scoped prefixes:
 
 - `npm run test:db:file`
 - `npm run test:db`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
-This approval is operational only; it does not change the test target. Database
-tests must continue to use `TEST_DATABASE_URL`, not production or preview data.
+This approval is operational only; it does not change the reliable validation
+target. `npm run test:db` must continue to use `TEST_DATABASE_URL`, not
+production or preview data.
 
 ## React Router Flat Routes
 
@@ -183,10 +185,13 @@ Principles:
 - Focus tests on runtime behavior: ordering, relationships after mutation, constraints, conflict handling, and domain edge cases.
 - Add one failing test at a time, make it pass, then continue.
 
-The repo has a PostgreSQL test harness under `tests/db/`. Use
-`npm run test:db` for database-backed behavior. The script creates the configured
-test database when needed, pushes the Drizzle schema, and runs `*.db.test.ts`
-with serial file execution.
+The repo has two DB validation paths:
+
+- `npm run test:db:file -- <path>` uses the fast focused PGlite harness with a
+  cached schema snapshot.
+- `npm run test:db` stays on PostgreSQL for final reliable validation. The
+  script creates the configured test database when needed, pushes the Drizzle
+  schema, and runs `*.db.test.ts` with serial file execution.
 
 For a focused DB test file during development, use:
 

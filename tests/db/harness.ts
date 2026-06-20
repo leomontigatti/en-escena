@@ -11,11 +11,13 @@ function quoteIdentifier(identifier: string) {
 
 export async function resetTestDatabase() {
   await db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${testDatabaseLockKey}))`,
-    );
+    if (getDatabaseTestBackend() === "postgres") {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${testDatabaseLockKey}))`,
+      );
+    }
 
-    const existingTables = await tx.execute<{ tablename: string }>(
+    const existingTablesResult = await tx.execute<{ tablename: string }>(
       sql.raw(`
         select tablename
         from pg_tables
@@ -24,7 +26,9 @@ export async function resetTestDatabase() {
         order by tablename
       `),
     );
-    const tablesToTruncate = existingTables.map((table) => table.tablename);
+    const tablesToTruncate = readRows(existingTablesResult).map(
+      (table) => table.tablename,
+    );
 
     if (tablesToTruncate.length === 0) {
       return;
@@ -44,4 +48,12 @@ export function installDatabaseTestHooks() {
   beforeEach(async () => {
     await resetTestDatabase();
   });
+}
+
+export function getDatabaseTestBackend() {
+  return process.env.DB_TEST_BACKEND === "pglite" ? "pglite" : "postgres";
+}
+
+function readRows<Row extends object>(result: { rows: Row[] } | Row[]) {
+  return Array.isArray(result) ? result : result.rows;
 }
