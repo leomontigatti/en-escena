@@ -82,6 +82,7 @@ type EventBasesActionInput = {
   maxAge: number;
   groupTypes: string[];
   groupType: string;
+  isSpecialPrice: boolean;
   modalityIds: string[];
   modalityId: string;
   newExperienceLevelName: string;
@@ -124,6 +125,8 @@ export type ModalityActionValues = NameActionValues & {
   submodalities: NameActionValuesWithId[];
 };
 export type PriceActionValues = {
+  name: string;
+  isSpecialPrice: string;
   groupType: string;
   amount: string;
   paymentDeadline: string;
@@ -321,6 +324,7 @@ function readEventBasesActionInput(
     maxAge: Number(formData.get("maxAge")),
     groupTypes: formData.getAll("groupTypes").map(String),
     groupType: String(formData.get("groupType") ?? ""),
+    isSpecialPrice: String(formData.get("isSpecialPrice") ?? "") === "true",
     modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
     newExperienceLevelName: String(
@@ -493,6 +497,8 @@ function readModalityActionValues(formData: FormData): ModalityActionValues {
 
 function readPriceActionValues(formData: FormData): PriceActionValues {
   return {
+    name: String(formData.get("name") ?? ""),
+    isSpecialPrice: String(formData.get("isSpecialPrice") ?? ""),
     groupType: String(formData.get("groupType") ?? ""),
     amount: String(formData.get("amount") ?? ""),
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
@@ -817,6 +823,12 @@ function getPriceRequiredFieldErrors(
     amount: formData.get("amount"),
     paymentDeadline: formData.get("paymentDeadline"),
   });
+  const isSpecialPrice =
+    String(formData.get("isSpecialPrice") ?? "") === "true";
+
+  if (isSpecialPrice && !formData.get("scheduleId")) {
+    fieldErrors.scheduleId = requiredFieldMessage;
+  }
 
   return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
 }
@@ -1158,6 +1170,7 @@ function getScheduleWithEntriesInput(
 
 function getPriceInput(input: EventBasesActionInput): PriceInput {
   return {
+    name: input.name,
     groupType: input.groupType,
     amount: input.amount,
     paymentDeadline: input.paymentDeadline,

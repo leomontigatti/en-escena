@@ -190,6 +190,7 @@ export type CompatibleScheduleCapacity = {
 };
 
 export type PriceInput = {
+  name?: string;
   groupType: string;
   amount: number;
   paymentDeadline: string;
@@ -197,6 +198,7 @@ export type PriceInput = {
 };
 
 type ValidPriceInput = {
+  name: string | null;
   groupType: GroupType;
   amount: number;
   paymentDeadline: string;
@@ -1682,6 +1684,7 @@ async function validatePriceInput(
   options: { exceptId?: string } = {},
 ): Promise<{ ok: true; input: ValidPriceInput } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
+  const name = normalizeNullableName(input.name ?? "");
   const paymentDeadline = input.paymentDeadline.trim();
   const scheduleId = input.scheduleId?.trim() || null;
 
@@ -1727,6 +1730,7 @@ async function validatePriceInput(
   }
 
   const validInput = {
+    name,
     groupType: input.groupType,
     amount: input.amount,
     paymentDeadline,
@@ -2313,6 +2317,12 @@ function normalizeEventBaseName(name: string) {
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLocaleLowerCase("es");
+}
+
+function normalizeNullableName(name: string) {
+  const trimmedName = name.trim();
+
+  return trimmedName.length > 0 ? trimmedName : null;
 }
 
 async function findCompatibleScheduleCapacities(input: {

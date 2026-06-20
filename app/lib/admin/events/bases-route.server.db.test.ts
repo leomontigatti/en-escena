@@ -1838,6 +1838,8 @@ describe.sequential("administracion Bases del evento routes", () => {
         intent: "create-price",
       },
       values: {
+        name: "",
+        isSpecialPrice: "",
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
@@ -1873,6 +1875,8 @@ describe.sequential("administracion Bases del evento routes", () => {
         intent: "create-price",
       },
       values: {
+        name: "",
+        isSpecialPrice: "",
         groupType: "",
         amount: "",
         paymentDeadline: "",

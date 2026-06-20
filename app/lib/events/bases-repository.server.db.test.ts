@@ -223,6 +223,9 @@ describe("Bases del evento repository", () => {
         experienceLevelIds: [],
       }),
     );
+    if (!("name" in category)) {
+      throw new Error("Expected created category to include a name.");
+    }
     expect(category.name).toBe("Infantil");
     await expect(
       createCategory(secondEvent.id, {
@@ -381,6 +384,9 @@ describe("Bases del evento repository", () => {
         modalityIds: [jazz.id, urbanas.id],
       }),
     );
+    if (!("name" in block)) {
+      throw new Error("Expected created schedule to include a name.");
+    }
     expect(block.name).toBe("Sábado Mañana");
     await expectCreated(
       createSchedule(secondEvent.id, {
@@ -769,10 +775,10 @@ async function createSavedEvent(name: string) {
   return result.event;
 }
 
-async function expectCreated(
+async function expectCreated<TRecord extends { id: string }>(
   resultPromise: Promise<{
     ok: boolean;
-    record?: { id: string };
+    record?: TRecord;
   }>,
 ) {
   const result = await resultPromise;

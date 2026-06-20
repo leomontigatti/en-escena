@@ -77,6 +77,7 @@ export type DataTableColumn<TData> = {
   id: string;
   header: string;
   cell: (row: TData) => React.ReactNode;
+  hidden?: boolean;
   className?: string;
   headerClassName?: string;
   filterValue?: (row: TData) => string;
@@ -181,6 +182,15 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
   const serverTotalPages =
     props.mode === "server" ? props.totalPages : undefined;
   const serverTotalRows = props.mode === "server" ? props.totalRows : undefined;
+  const columnVisibility = useMemo(
+    () =>
+      Object.fromEntries(
+        columns
+          .filter((column) => column.hidden)
+          .map((column) => [column.id, false]),
+      ),
+    [columns],
+  );
   const resolvedBasePath = serverBasePath ?? location.pathname;
   const [searchQuery, setSearchQuery] = useState(initialSearchValue);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -299,6 +309,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
     columns: tableColumns,
     state: {
       columnFilters: isServerMode ? [] : columnFilters,
+      columnVisibility,
       globalFilter: tableGlobalFilter,
       pagination: tablePagination,
       sorting,

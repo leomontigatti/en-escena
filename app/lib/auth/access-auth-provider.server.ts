@@ -87,7 +87,10 @@ export const accessAuthProvider = {
       throw error;
     }
 
-    const appUserId = await findAppUserIdForAccessUser(verifiedUser);
+    const appUserId = await findAppUserIdForAccessUser({
+      email: verifiedUser.email,
+      id: verifiedUser.id,
+    });
 
     return {
       session: {

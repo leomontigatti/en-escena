@@ -45,6 +45,13 @@ const columns: DataTableColumn<Row>[] = [
     filterValue: (row) => (row.status === "active" ? "Activo" : "Archivado"),
     filterValues: (row) => [row.status],
   },
+  {
+    id: "filters",
+    header: "Filtros",
+    cell: () => null,
+    hidden: true,
+    filterValues: (row) => [row.status],
+  },
 ];
 
 describe("DataTable", () => {
@@ -87,7 +94,7 @@ describe("DataTable", () => {
             textFilterColumnId="name"
             facetedFilters={[
               {
-                columnId: "status",
+                columnId: "filters",
                 label: "Filtros",
                 groups: [
                   {
@@ -106,6 +113,10 @@ describe("DataTable", () => {
     });
 
     expect(container.textContent).toContain("Evento Nacional");
+    const tableHeaders = Array.from(container.querySelectorAll("th")).map(
+      (header) => header.textContent,
+    );
+    expect(tableHeaders).not.toContain("Filtros");
     expect(container.textContent).toContain("1 de 1 registro");
   });
 

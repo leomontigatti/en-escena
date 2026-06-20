@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Check, Info, Trash } from "lucide-react";
+import { Check, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -21,7 +21,6 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -58,6 +57,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   PriceListItem,
   ScheduleListItem,
@@ -79,8 +85,6 @@ type EventBaseAreaProps = {
   actionData?: ActionData;
 };
 
-const PRICE_SCHEDULE_ALERT_TEXT =
-  "El precio base aplica cuando no existe un precio específico para el cronograma.";
 const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
 const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
@@ -88,22 +92,45 @@ const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
   year: "2-digit",
   timeZone: "UTC",
 });
-
-const priceFormSchema = z.object({
-  groupType: z.string().min(1, requiredFieldMessage),
-  amount: z
-    .string()
-    .min(1, requiredFieldMessage)
-    .refine((value) => {
-      const amount = Number(value);
-
-      return Number.isInteger(amount) && amount > 0;
-    }, "Ingresá un monto mayor a cero."),
-  paymentDeadline: z.string().trim().min(1, requiredFieldMessage),
-  scheduleId: z.string(),
+const priceTableDateFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
 });
 
+const priceFormSchema = z
+  .object({
+    name: z.string(),
+    isSpecialPrice: z.boolean(),
+    groupType: z.string().min(1, requiredFieldMessage),
+    amount: z
+      .string()
+      .min(1, requiredFieldMessage)
+      .refine((value) => {
+        const amount = Number(value);
+
+        return Number.isInteger(amount) && amount > 0;
+      }, "Ingresá un monto mayor a cero."),
+    paymentDeadline: z.string().trim().min(1, requiredFieldMessage),
+    scheduleId: z.string(),
+  })
+  .superRefine((values, context) => {
+    if (
+      values.isSpecialPrice &&
+      values.scheduleId.trim() === EMPTY_SCHEDULE_VALUE
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: requiredFieldMessage,
+        path: ["scheduleId"],
+      });
+    }
+  });
+
 type PriceFormValues = z.infer<typeof priceFormSchema>;
+type PriceTextFieldName = "amount";
+type PriceSelectFieldName = "groupType" | "scheduleId";
 type PriceFormController = UseFormReturn<PriceFormValues>;
 
 const emptyPriceFieldErrors: Record<string, string> = {};
@@ -151,7 +178,6 @@ export function NewEventPriceRouteView({
       title="Nuevo precio"
       description="Configurá tipo de grupo, importe y si el precio aplica como base o para un cronograma específico."
     >
-      <PriceScheduleAlert />
       <PriceFormPanel>
         <PriceForm
           formId={createPriceFormId}
@@ -188,13 +214,13 @@ export function EventPriceDetailRouteView({
     >
       {price ? (
         <div className="flex flex-col gap-6">
-          <PriceScheduleAlert />
           <PriceFormPanel>
             <PriceForm
               formId="update-price-form"
               id={price.id}
               intent="update-price"
               schedules={loaderData.schedules}
+              name={price.name}
               groupType={price.groupType}
               amount={price.amount}
               paymentDeadline={price.paymentDeadline ?? ""}
@@ -272,6 +298,8 @@ function isPriceActionValues(
     "groupType" in values &&
     "amount" in values &&
     "paymentDeadline" in values &&
+    "name" in values &&
+    "isSpecialPrice" in values &&
     "scheduleId" in values
   );
 }
@@ -283,6 +311,7 @@ function PriceForm({
   groupType,
   id,
   intent,
+  name,
   paymentDeadline,
   scheduleId,
   schedules,
@@ -294,6 +323,7 @@ function PriceForm({
   groupType?: string;
   id?: string;
   intent: string;
+  name?: string | null;
   paymentDeadline?: string;
   scheduleId?: string | null;
   schedules: ScheduleListItem[];
@@ -303,16 +333,24 @@ function PriceForm({
     () =>
       submittedValues
         ? {
-            ...submittedValues,
+            name: submittedValues.name,
+            isSpecialPrice:
+              submittedValues.isSpecialPrice === "true" ||
+              submittedValues.scheduleId.length > 0,
+            groupType: submittedValues.groupType,
+            amount: submittedValues.amount,
+            paymentDeadline: submittedValues.paymentDeadline,
             scheduleId: submittedValues.scheduleId || EMPTY_SCHEDULE_VALUE,
           }
         : {
+            name: name ?? "",
+            isSpecialPrice: Boolean(scheduleId),
             groupType: groupType ?? "",
             amount: amount ? String(amount) : "",
             paymentDeadline: paymentDeadline ?? "",
             scheduleId: scheduleId ?? EMPTY_SCHEDULE_VALUE,
           },
-    [amount, groupType, paymentDeadline, scheduleId, submittedValues],
+    [amount, groupType, name, paymentDeadline, scheduleId, submittedValues],
   );
   const form = useForm<PriceFormValues>({
     defaultValues,
@@ -326,11 +364,7 @@ function PriceForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  const selectedScheduleValue = form.watch("scheduleId");
-  const priceScopeLabel =
-    selectedScheduleValue === EMPTY_SCHEDULE_VALUE
-      ? "Precio base"
-      : "Precio por cronograma";
+  const isSpecialPrice = form.watch("isSpecialPrice");
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -352,40 +386,22 @@ function PriceForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <p className="text-sm font-medium">{priceScopeLabel}</p>
-      <FieldGroup className="grid gap-4 sm:grid-cols-2">
-        <SelectField
-          form={form}
-          label="Tipo de grupo"
-          name="groupType"
-          options={groupTypeOptions}
-          placeholder="Elegí un tipo"
-        />
-        <SelectField
-          form={form}
-          label="Cronograma"
-          name="scheduleId"
-          options={[
-            {
-              label: "Sin cronograma",
-              value: EMPTY_SCHEDULE_VALUE,
-            },
-            ...schedules.map((schedule) => ({
+      <FieldGroup>
+        <NameField form={form} />
+        {isSpecialPrice ? (
+          <SelectField
+            form={form}
+            label="Cronograma"
+            name="scheduleId"
+            options={schedules.map((schedule) => ({
               label: schedule.name,
               value: schedule.id,
-            })),
-          ]}
-          placeholder="Sin cronograma"
-          submitValue={(value) => (value === EMPTY_SCHEDULE_VALUE ? "" : value)}
-        />
-        <TextField
-          form={form}
-          label="Monto"
-          min="1"
-          name="amount"
-          step="1"
-          type="number"
-        />
+            }))}
+            placeholder="Elegí un cronograma"
+          />
+        ) : (
+          <input type="hidden" name="scheduleId" value="" />
+        )}
         <Controller
           control={form.control}
           name="paymentDeadline"
@@ -402,17 +418,25 @@ function PriceForm({
             />
           )}
         />
+        <FieldGroup className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            form={form}
+            label="Tipo de grupo"
+            name="groupType"
+            options={groupTypeOptions}
+            placeholder="Elegí un tipo"
+          />
+          <TextField
+            form={form}
+            label="Monto"
+            min="1"
+            name="amount"
+            step="1"
+            type="number"
+          />
+        </FieldGroup>
       </FieldGroup>
     </form>
-  );
-}
-
-function PriceScheduleAlert() {
-  return (
-    <Alert>
-      <Info aria-hidden="true" />
-      <AlertDescription>{PRICE_SCHEDULE_ALERT_TEXT}</AlertDescription>
-    </Alert>
   );
 }
 
@@ -444,6 +468,38 @@ function PriceFormPanel({ children }: { children: ReactNode }) {
   );
 }
 
+function NameField({ form }: { form: PriceFormController }) {
+  const id = useId();
+  const errorId = `${id}-error`;
+  const error = form.formState.errors.name?.message;
+
+  return (
+    <Field data-invalid={error ? true : undefined}>
+      <FieldLabel htmlFor={id}>Nombre</FieldLabel>
+      <Controller
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <div className="relative">
+            <Input
+              id={id}
+              aria-describedby={error ? errorId : undefined}
+              aria-invalid={error ? true : undefined}
+              autoComplete="off"
+              className="pr-14"
+              {...field}
+            />
+            <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center">
+              <SpecialPriceSwitch form={form} />
+            </div>
+          </div>
+        )}
+      />
+      <FieldError id={errorId}>{error}</FieldError>
+    </Field>
+  );
+}
+
 function TextField({
   className,
   form,
@@ -454,7 +510,7 @@ function TextField({
   className?: string;
   form: PriceFormController;
   label: string;
-  name: keyof PriceFormValues;
+  name: PriceTextFieldName;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "form" | "name">) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -482,6 +538,52 @@ function TextField({
   );
 }
 
+function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
+  const id = useId();
+
+  return (
+    <Controller
+      control={form.control}
+      name="isSpecialPrice"
+      render={({ field }) => (
+        <>
+          <input
+            type="hidden"
+            name={field.name}
+            value={field.value ? "true" : "false"}
+          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Switch
+                  id={id}
+                  aria-label="Precio especial"
+                  className={`border-border shadow-xs ${
+                    field.value ? "!bg-primary" : "!bg-muted"
+                  }`}
+                  checked={field.value}
+                  onBlur={field.onBlur}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+
+                    if (!checked) {
+                      form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>Precio especial</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </>
+      )}
+    />
+  );
+}
+
 function SelectField({
   className,
   form,
@@ -494,7 +596,7 @@ function SelectField({
   className?: string;
   form: PriceFormController;
   label: string;
-  name: keyof PriceFormValues;
+  name: PriceSelectFieldName;
   options: Array<{ label: string; value: string }>;
   placeholder: string;
   submitValue?: (value: string) => string;
@@ -553,8 +655,8 @@ function PriceListTable({
 }) {
   const columns: DataTableColumn<PriceListItem>[] = [
     {
-      id: "groupType",
-      header: "Tipo de grupo",
+      id: "name",
+      header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (price) => (
         <Link
@@ -562,30 +664,24 @@ function PriceListTable({
           className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label={getPriceDisplayName(price)}
         >
-          {getGroupTypeLabel(price.groupType)}
+          {getPriceName(price)}
         </Link>
       ),
-      filterValues: (price) => [price.groupType],
-      filterValue: (price) => getGroupTypeLabel(price.groupType),
-      sortValue: (price) => getGroupTypeLabel(price.groupType),
+      filterValue: getPriceName,
     },
     {
-      id: "scope",
-      header: "Cronograma",
-      cell: (price) => (
-        <div className="flex flex-col">
-          <span className="text-muted-foreground">
-            {getPriceScopeLabel(price)}
-          </span>
-          {price.schedule ? (
-            <span className="text-muted-foreground">{price.schedule.name}</span>
-          ) : null}
-        </div>
-      ),
-      filterValue: (price) =>
-        price.schedule
-          ? `${getPriceScopeLabel(price)} ${price.schedule.name}`
-          : getPriceScopeLabel(price),
+      id: "groupType",
+      header: "Tipo de grupo",
+      cell: (price) => getGroupTypeLabel(price.groupType),
+      filterValues: (price) => [price.groupType],
+      filterValue: (price) => getGroupTypeLabel(price.groupType),
+    },
+    {
+      id: "filters",
+      header: "Filtros",
+      cell: () => null,
+      hidden: true,
+      filterValues: (price) => [price.groupType, price.schedule ? "yes" : "no"],
     },
     {
       id: "paymentDeadline",
@@ -610,16 +706,23 @@ function PriceListTable({
       rows={prices}
       columns={columns}
       getRowKey={(price) => price.id}
-      searchPlaceholder="Buscar precio por cronograma"
-      textFilterColumnId="scope"
+      searchPlaceholder="Buscar precio por nombre"
+      textFilterColumnId="name"
       facetedFilters={[
         {
-          columnId: "groupType",
+          columnId: "filters",
           label: "Filtros",
           groups: [
             {
               label: "Tipo de grupo",
               options: groupTypeOptions,
+            },
+            {
+              label: "Cronograma",
+              options: [
+                { label: "Sí", value: "yes" },
+                { label: "No", value: "no" },
+              ],
             },
           ],
         },
@@ -634,6 +737,10 @@ function getGroupTypeLabel(groupType: string) {
 }
 
 export function getPriceDisplayName(price: PriceListItem) {
+  if (price.name) {
+    return price.name;
+  }
+
   const groupTypeLabel = getGroupTypeLabel(price.groupType);
   const scopeLabel = price.schedule?.name ?? getPriceScopeLabel(price);
   const deadlineLabel = formatPaymentDeadlineForDisplay(price.paymentDeadline);
@@ -647,6 +754,10 @@ function getPriceScopeLabel(price: PriceListItem) {
   return price.schedule ? "Precio por cronograma" : "Precio base";
 }
 
+function getPriceName(price: PriceListItem) {
+  return price.name ?? getPriceDisplayName(price);
+}
+
 function formatPaymentDeadlineForDisplay(paymentDeadline: string | null) {
   if (!paymentDeadline) {
     return "";
@@ -656,7 +767,13 @@ function formatPaymentDeadlineForDisplay(paymentDeadline: string | null) {
 }
 
 function formatPaymentDeadlineForTable(paymentDeadline: string | null) {
-  return formatPaymentDeadlineForDisplay(paymentDeadline);
+  if (!paymentDeadline) {
+    return "";
+  }
+
+  return priceTableDateFormatter.format(
+    new Date(`${paymentDeadline}T00:00:00Z`),
+  );
 }
 
 function formatAmount(amount: number) {

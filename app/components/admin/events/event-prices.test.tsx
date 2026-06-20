@@ -39,6 +39,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 12000,
       groupType: "solo",
       id: "price_1",
+      name: null,
       paymentDeadline: "2026-05-31",
       scheduleId: null,
       scheduleName: null,
@@ -47,6 +48,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 18000,
       groupType: "duo",
       id: "price_2",
+      name: null,
       paymentDeadline: "2026-06-30",
       scheduleId: "block_2",
       scheduleName: "Noche",
@@ -67,6 +69,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     expect(readInputValue(container, "groupType")).toBe("solo");
+    expect(readInputValue(container, "name")).toBe("");
     expect(readInputValue(container, "amount")).toBe("12000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-05-31");
     expect(readInputValue(container, "scheduleId")).toBe("");
@@ -79,6 +82,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     expect(readInputValue(container, "groupType")).toBe("duo");
+    expect(readInputValue(container, "name")).toBe("");
     expect(readInputValue(container, "amount")).toBe("18000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
     expect(readInputValue(container, "scheduleId")).toBe("block_2");
@@ -89,6 +93,7 @@ describe("EventPriceDetailRouteView", () => {
       amount: 18000,
       groupType: "solo",
       id: "price_1",
+      name: null,
       paymentDeadline: "2026-11-10",
       scheduleId: "block_1",
       scheduleName: "Noche",
@@ -121,6 +126,12 @@ function installReactTestEnvironment() {
     removeEventListener() {},
     removeListener() {},
   })) as typeof window.matchMedia;
+
+  window.ResizeObserver = class ResizeObserver {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  };
 }
 
 async function renderPriceDetailRoute({
@@ -202,6 +213,7 @@ function createPrice({
   amount,
   groupType,
   id,
+  name,
   paymentDeadline,
   scheduleId,
   scheduleName,
@@ -209,12 +221,14 @@ function createPrice({
   amount: number;
   groupType: PriceListItem["groupType"];
   id: string;
+  name: string | null;
   paymentDeadline: string;
   scheduleId: string | null;
   scheduleName: string | null;
 }): PriceListItem {
   return {
     id,
+    name,
     eventId: "event_1",
     groupType,
     amount,
