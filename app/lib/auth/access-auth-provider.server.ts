@@ -51,17 +51,41 @@ export const accessAuthProvider = {
     }
 
     const { client } = createSupabaseServerClientForRequest(request);
-    const {
-      data: { user: verifiedUser },
-    } = await client.auth.getUser();
+    let verifiedUser: { email?: string | null; id?: string | null } | null;
+
+    try {
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+
+      verifiedUser = user;
+    } catch (error) {
+      if (isMissingSupabaseRefreshTokenError(error)) {
+        return null;
+      }
+
+      throw error;
+    }
 
     if (!verifiedUser?.id || !verifiedUser.email) {
       return null;
     }
 
-    const {
-      data: { session },
-    } = await client.auth.getSession();
+    let session: { access_token?: string | null } | null;
+
+    try {
+      const {
+        data: { session: activeSession },
+      } = await client.auth.getSession();
+
+      session = activeSession;
+    } catch (error) {
+      if (isMissingSupabaseRefreshTokenError(error)) {
+        return null;
+      }
+
+      throw error;
+    }
 
     const appUserId = await findAppUserIdForAccessUser(verifiedUser);
 
@@ -280,6 +304,15 @@ export const accessAuthProvider = {
 
 function isTestAccessAuthMode() {
   return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+}
+
+function isMissingSupabaseRefreshTokenError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "refresh_token_not_found"
+  );
 }
 
 function mergeTestHeaders(...headerSets: Headers[]) {

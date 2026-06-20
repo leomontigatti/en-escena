@@ -86,6 +86,9 @@ For schema changes against Supabase, run `npm run db:push` only after verifying
 that `DATABASE_URL` points at the intended hosted database. Database-backed tests
 continue to reset and push schema through `TEST_DATABASE_URL`.
 
+When local development needs production-like data, create and restore a fresh
+production dump with [docs/db/production-dump.md](db/production-dump.md).
+
 ## Running Locally
 
 From a fresh checkout, install dependencies, start Postgres, push the schema and

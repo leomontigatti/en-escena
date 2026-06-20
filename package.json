@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "prepare": "husky",
     "db:push": "node --env-file=.env node_modules/drizzle-kit/bin.cjs push",
+    "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
     "db:test:push": "node --import tsx tests/db/push-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
     "sandcastle": "npx tsx .sandcastle/main.mts"
