@@ -34,30 +34,3 @@ This repo uses a single-context domain documentation layout. See `docs/agents/do
 
 Local database, Better Auth and email-log operation are documented in
 `docs/local-auth.md`.
-
-### Vendored reference skills
-
-Selected Vercel Labs agent skills are vendored under `docs/agents/vendor/vercel-labs/agent-skills/`.
-Selected Better Auth agent skills are vendored under `docs/agents/vendor/better-auth/skills/`.
-Use them as reference material when relevant, but keep this repo's workflows, glossary, and coding standards authoritative.
-
-Better Auth skills:
-
-- `better-auth/best-practices`: Better Auth server/client setup, adapters, session, and migration guidance.
-- `better-auth/create-auth`: setup workflow guidance for adding Better Auth to TypeScript apps.
-- `better-auth/emailAndPassword`: email/password, verification, password reset, and password policy guidance.
-- `security`: general Better Auth security review guidance.
-
-Excluded Better Auth skills:
-
-- `better-auth/organization`: excluded because this repo models `Academia` in the app domain and does not use Better Auth organizations in v1.
-- `better-auth/twoFactor`: excluded until 2FA becomes an explicit product requirement.
-
-Vercel Labs skills:
-
-- `react-best-practices`: React performance and data-fetching review guidance.
-- `web-design-guidelines`: UI, accessibility, UX, and frontend quality review guidance.
-- `composition-patterns`: React component API and composition refactoring guidance.
-- `react-view-transitions`: route and component transition guidance for React view transitions.
-- `vercel-optimize`: post-deploy Vercel cost, performance, and reliability audit guidance.
-- `writing-guidelines`: docs and product prose review guidance.
