@@ -10,6 +10,10 @@ Use `npm run typecheck` for type validation.
 
 Do not run `npx tsc` directly. `npm run typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app.
 
+Out of scope: do not rename these commands for the pnpm migration. This repo's
+DB validation workflow stays on the `npm run ...` scripts documented here until
+the separate pnpm migration work lands.
+
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
 `sed -n '1,220p' 'app/routes/administracion.eventos_.$eventId.tsx'`.
@@ -38,6 +42,10 @@ changed before running the broader final checks:
   schema, repositories, loaders/actions that persist data, or
   persistence-backed business rules. This focused path uses the fast PGlite
   harness.
+- For database-backed work, finish with both layers of confidence:
+  `npm run test:db` for the full fast suite and `npm run test:db:final` for the
+  final reliable Postgres path when the change must prove behavior through
+  `TEST_DATABASE_URL`.
 - Run the full applicable command before finishing the work: `npm test` for the
   regular suite, `npm run test:db` for database-backed work, and `npm run build`
   for routing, server rendering, bundling, CSS, or deployment behavior.
@@ -51,7 +59,9 @@ validation path still needs elevated local permission because
 PGlite paths do not need that TCP access. When requesting persistent approval,
 use these scoped prefixes:
 
+- `npm run test:db:final`
 - `npm run test:db:postgres`
+- `npm run test:db:file:final`
 - `npm run test:db:file:postgres`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
@@ -192,9 +202,11 @@ The repo has two DB validation paths:
   harness with a cached schema snapshot. The full-suite command enables
   file-level worker parallelism while keeping one isolated in-memory database
   per worker.
-- `npm run test:db:postgres` preserves the PostgreSQL validation path. The
-  script creates the configured test database when needed, pushes the Drizzle
-  schema, and runs `*.db.test.ts` with serial file execution.
+- `npm run test:db:final` is the explicit final reliable alias. It currently
+  delegates to `npm run test:db:postgres`, which preserves the PostgreSQL
+  validation path. The script creates the configured test database when needed,
+  pushes the Drizzle schema, and runs `*.db.test.ts` with serial file
+  execution.
 
 For a focused DB test file during development, use:
 
@@ -202,9 +214,12 @@ For a focused DB test file during development, use:
 npm run test:db:file -- app/lib/example.db.test.ts
 ```
 
-Run the full `npm run test:db` command before finishing database-backed work.
-When you need a production-like semantic check or are touching harness-level
-behavior, also run `npm run test:db:postgres`.
+Use `npm run test:db:file -- <path-to-db-test>` while iterating.
+Run the full `npm run test:db:final` command before finishing work that must
+prove the final reliable DB path, and keep `npm run test:db` in the loop for
+the parallel fast suite.
+When you need the focused PostgreSQL path for comparison or harness debugging,
+run `npm run test:db:file:final -- <path-to-db-test>`.
 
 ## Frontend State TDD
 

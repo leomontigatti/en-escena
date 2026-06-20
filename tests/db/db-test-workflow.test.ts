@@ -27,6 +27,20 @@ const deferredProjectSplitDocumentation = [
   "Sin una mejora material",
 ];
 
+const dbWorkflowScopeGuardrails = [
+  "Out of scope: do not rename these commands for the pnpm migration",
+  "Use `npm run test:db:file -- <path-to-db-test>` while iterating",
+  "Run the full `npm run test:db:final` command before finishing",
+  "Do not run `npx tsc` directly",
+];
+
+const localAuthDatabaseModes = [
+  "Fast DB validation (`npm run test:db`, `npm run test:db:file -- <archivo>`)",
+  "does not require local Postgres",
+  "Final DB validation (`npm run test:db:final` or `npm run test:db:postgres`)",
+  "requires local Postgres through `TEST_DATABASE_URL`",
+];
+
 const requiredIsolatedTestExamples = [
   "app/lib/academies/registration.server.db.test.ts",
   "app/lib/auth/access-recovery.server.db.test.ts",
@@ -38,10 +52,14 @@ describe("DB test workflow", () => {
   test("uses the fast harness for the default DB suite and keeps Postgres as a separate path", async () => {
     const scripts = await readPackageScripts();
     const defaultDatabaseSuite = scripts["test:db"];
+    const finalDatabaseSuite = scripts["test:db:final"];
     const postgresDatabaseSuite = scripts["test:db:postgres"];
+    const focusedFinalDatabaseSuite = scripts["test:db:file:final"];
 
     expect(defaultDatabaseSuite).toContain("vitest.db.fast.config.ts");
     expect(defaultDatabaseSuite).toContain("--run");
+    expect(finalDatabaseSuite).toBe("npm run test:db:postgres");
+    expect(focusedFinalDatabaseSuite).toBe("npm run test:db:file:postgres");
     expect(postgresDatabaseSuite).toContain("vitest.db.config.ts");
     expect(postgresDatabaseSuite).toContain("--run");
   });
@@ -72,6 +90,25 @@ describe("DB test workflow", () => {
 
     for (const testPath of requiredIsolatedTestExamples) {
       expect(speedPlan).toContain(testPath);
+    }
+  });
+
+  test("documents the fast-vs-final DB validation workflow without mixing in the pnpm migration", async () => {
+    const workflowDoc = await readFile(
+      "docs/agents/codex-workflows.md",
+      "utf8",
+    );
+
+    for (const requiredText of dbWorkflowScopeGuardrails) {
+      expect(workflowDoc).toContain(requiredText);
+    }
+  });
+
+  test("documents which DB validation modes require local Postgres", async () => {
+    const localAuthDoc = await readFile("docs/local-auth.md", "utf8");
+
+    for (const requiredText of localAuthDatabaseModes) {
+      expect(localAuthDoc).toContain(requiredText);
     }
   });
 });

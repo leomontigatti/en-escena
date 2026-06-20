@@ -12,8 +12,10 @@ En Escena separa tests regulares y tests DB con dos rutas:
 - `npm test`: corre Vitest excluyendo `*.db.test.ts`.
 - `npm run test:db:file -- <archivo>`: usa el harness rapido con `PGlite` y un
   snapshot cacheado del schema para un archivo DB enfocado.
-- `npm run test:db`: empuja schema con Drizzle y corre todos los
-  `*.db.test.ts` en serie.
+- `npm run test:db`: corre la suite DB completa sobre el harness rapido con
+  `PGlite` y snapshots de schema.
+- `npm run test:db:final`: alias explicito de la corrida final confiable sobre
+  Postgres real.
 - `npm run test:db:file:postgres -- <archivo>`: conserva la ruta enfocada sobre
   Postgres real para comparar o depurar el harness rapido.
 
@@ -23,8 +25,8 @@ administrado, ese acceso TCP local requiere aprobacion elevada aunque no salga
 de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
 persistentes:
 
-- `npm run test:db:file`
-- `npm run test:db`
+- `npm run test:db:final`
+- `npm run test:db:file:final`
 - `docker compose up -d postgres`
 
 ## Implementacion issue #126
@@ -41,7 +43,9 @@ Lectura operativa:
 
 - La mejora medida del comando enfocado es `770ms` menos de pared para el test
   de harness en esta rama.
-- `npm run test:db` queda sin cambios como ruta final de validacion confiable.
+- `npm run test:db:file` queda como ruta enfocada rapida y
+  `npm run test:db:final` queda como alias explicito de la ruta final
+  confiable.
 - El snapshot del schema queda cacheado por hash de schema para repetir
   corridas enfocadas sin tocar `TEST_DATABASE_URL`.
 
@@ -160,8 +164,8 @@ Issue `#125` cerro la decision pendiente del plan:
     todavia exige template por worker, limpieza, `localhost:5433` y no tiene
     una mejora medida en este repo que justifique tomarlo primero.
 - Decision: implementar primero un fast path con `PGlite` y snapshots de
-  schema, manteniendo `npm run test:db` sobre Postgres real como corrida final
-  de confianza hasta probar la nueva ruta.
+  schema, manteniendo una corrida final confiable sobre Postgres real, ahora
+  expuesta como `npm run test:db:final`, hasta probar la nueva ruta.
 - ADR: ver `docs/adr/0007-db-test-isolation-model.md`.
 
 ## Actualizacion issue #128

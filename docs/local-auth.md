@@ -91,8 +91,18 @@ keep two paths:
 
 - `npm run test:db` and `npm run test:db:file -- <archivo>`: fast isolated
   `PGlite` paths backed by the cached schema snapshot.
-- `npm run test:db:postgres`: final reliable path that resets and pushes
-  schema through `TEST_DATABASE_URL`.
+- `npm run test:db:final` (alias of `npm run test:db:postgres`): final reliable
+  path that resets and pushes schema through `TEST_DATABASE_URL`.
+
+Validation mode requirements:
+
+- Fast DB validation (`npm run test:db`, `npm run test:db:file -- <archivo>`)
+  does not require local Postgres once the repo dependencies are installed.
+- Final DB validation (`npm run test:db:final` or `npm run test:db:postgres`)
+  requires local Postgres through `TEST_DATABASE_URL`.
+- Focused final DB validation (`npm run test:db:file:final -- <archivo>` or
+  `npm run test:db:file:postgres -- <archivo>`) also requires local Postgres
+  through `TEST_DATABASE_URL`.
 
 When local development needs production-like data, create and restore a fresh
 production dump with [docs/db/production-dump.md](db/production-dump.md).
