@@ -28,6 +28,9 @@ describe("event registration readiness", () => {
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
+    const contemporaneo = await expectCreated(
+      createModality(event.id, { name: "Contemporáneo" }),
+    );
     const inicial = await expectCreated(
       createExperienceLevel(event.id, { name: "Inicial" }),
     );
@@ -46,6 +49,16 @@ describe("event registration readiness", () => {
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
         experienceLevelIds: [inicial.id],
+      }),
+    );
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [contemporaneo.id],
+        experienceLevelIds: [],
       }),
     );
     const block = await expectCreated(
