@@ -307,7 +307,7 @@ describe.sequential("portal Perfil route", () => {
         id: session.academyId,
         name: "Academia Perfil",
         contactName: "Contacto",
-        phone: "11 1234-5678",
+        phone: "1112345678",
       },
     });
   });
@@ -326,7 +326,7 @@ describe.sequential("portal Perfil route", () => {
           academyProfileFormData({
             name: " Academia Manipulada ",
             contactName: " responsable nueva ",
-            phone: " 11 9999-0000 ",
+            phone: "1199990000",
           }),
         ),
       }),
@@ -344,7 +344,46 @@ describe.sequential("portal Perfil route", () => {
     ).resolves.toMatchObject({
       name: "Academia Original",
       contactName: "Responsable Nueva",
-      phone: "11 9999-0000",
+      phone: "1199990000",
+    });
+  });
+
+  test("returns a field error without persisting profile phone numbers with spaces", async () => {
+    const session = await createAcademySession({
+      email: "perfil.phone.validation@example.com",
+      academyName: "Academia Sin Cambios",
+    });
+
+    const result = await perfilAction({
+      request: createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "Academia Sin Cambios",
+          contactName: "Responsable",
+          phone: "11 9999 0000",
+        }),
+      ),
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        phone: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
+      },
+      values: {
+        phone: "11 9999 0000",
+      },
+    });
+
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      name: "Academia Sin Cambios",
+      contactName: "Contacto",
+      phone: "1112345678",
     });
   });
 
@@ -386,7 +425,7 @@ describe.sequential("portal Perfil route", () => {
     ).resolves.toMatchObject({
       name: "Academia Sin Cambios",
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     });
   });
 });
@@ -1751,7 +1790,7 @@ async function createAcademySession({
       userId: signUpResult.response.user.id,
       name: academyName,
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     })
     .returning();
 
@@ -1881,7 +1920,7 @@ async function createAcademyRecord({
       userId: record.id,
       name: academyName,
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     })
     .returning();
 

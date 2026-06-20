@@ -120,7 +120,7 @@ describe("academy registration", () => {
       createCompleteRegistrationInput("valid-token", {
         academyName: " academia en escena ",
         contactName: " contacto responsable ",
-        phone: " 11 1234-5678 ",
+        phone: "1112345678",
       }),
     );
 
@@ -149,7 +149,7 @@ describe("academy registration", () => {
         userId: savedUsers[0]?.id,
         name: "Academia En Escena",
         contactName: "Contacto Responsable",
-        phone: "11 1234-5678",
+        phone: "1112345678",
       },
     ]);
 
@@ -179,7 +179,7 @@ describe("academy registration", () => {
         request: createCompleteRegistrationRequest("portal-token", {
           academyName: "Academia Portal",
           contactName: "Contacto Portal",
-          phone: "11 2222-3333",
+          phone: "1122223333",
           password: "password-segura",
           confirmPassword: "password-segura",
         }),
@@ -195,6 +195,60 @@ describe("academy registration", () => {
     );
     expect(await db.query.user.findMany()).toHaveLength(1);
     expect(await db.query.academies.findMany()).toHaveLength(1);
+  });
+
+  test("final registration rejects phone numbers with spaces or separators", async () => {
+    await insertRegistrationToken({
+      email: "telefono-invalido@example.com",
+      token: "invalid-phone-token",
+    });
+
+    const result = await completeRegistrationAction({
+      url: new URL("http://localhost/registro/invalid-phone-token"),
+      pattern: "/registro/:token",
+      request: createCompleteRegistrationRequest("invalid-phone-token", {
+        academyName: "Academia Telefono",
+        contactName: "Contacto Telefono",
+        phone: "11 1234-5678",
+        password: "password-segura",
+        confirmPassword: "password-segura",
+      }),
+      params: { token: "invalid-phone-token" },
+      context: {},
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        phone: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
+      },
+      values: {
+        phone: "11 1234-5678",
+      },
+    });
+    expect(await db.query.user.findMany()).toEqual([]);
+    expect(await db.query.academies.findMany()).toEqual([]);
+  });
+
+  test("server registration rejects invalid phone numbers before creating access", async () => {
+    await insertRegistrationToken({
+      email: "telefono-server@example.com",
+      token: "server-invalid-phone-token",
+    });
+
+    const result = await completeAcademyRegistration(
+      createCompleteRegistrationInput("server-invalid-phone-token", {
+        phone: "111234 567",
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
+    });
+    expect(signUpAcademyUserMock).not.toHaveBeenCalled();
+    expect(await db.query.user.findMany()).toEqual([]);
+    expect(await db.query.academies.findMany()).toEqual([]);
   });
 
   test("a valid token opens the final registration step", async () => {
@@ -271,7 +325,7 @@ describe("academy registration", () => {
       createCompleteRegistrationInput("single-use-token", {
         academyName: "Academia Duplicada",
         contactName: "Otro Contacto",
-        phone: "11 0000-0000",
+        phone: "1100000000",
       }),
     );
 
@@ -399,7 +453,7 @@ function createCompleteRegistrationInput(
     token,
     academyName: "Academia",
     contactName: "Contacto",
-    phone: "11 1234-5678",
+    phone: "1112345678",
     password: "password-segura",
     request: new Request(`http://localhost/registro/${token}`),
     ...overrides,

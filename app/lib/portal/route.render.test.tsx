@@ -1304,7 +1304,10 @@ describe("portal Perfil view", () => {
     expect(markup).toContain("Nombre de contacto");
     expect(markup).toContain('name="contactName" value="Contacto"');
     expect(markup).toContain("Teléfono de contacto");
-    expect(markup).toContain('name="phone" value="11 1234-5678"');
+    expect(markup).toContain(
+      'placeholder="Código de área sin 0 y número sin 15"',
+    );
+    expect(markup).toContain('name="phone" value="1112345678"');
     expect(markup).toContain("Email de acceso");
     expect(markup).toContain('value="portal@example.com"');
     expect(markup).toContain("disabled");
@@ -1328,7 +1331,7 @@ describe("portal Perfil action", () => {
         id: "academy_1",
         name: "Academia de Prueba",
         contactName: "Contacto",
-        phone: "11 1234-5678",
+        phone: "1112345678",
       },
     });
 
@@ -1388,7 +1391,7 @@ function renderPortal(input: {
       userId: "user_1",
       name: "Academia de Prueba",
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     },
     eventContext: input.eventContext,
   } satisfies PortalLoaderData;
@@ -1638,7 +1641,7 @@ function academyLoaderData({
       userId: "user_1",
       name: "Academia de Prueba",
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     },
     eventContext,
     dancers,
@@ -1692,7 +1695,7 @@ function coreografiasLoaderData({
       userId: "user_1",
       name: "Academia de Prueba",
       contactName: "Contacto",
-      phone: "11 1234-5678",
+      phone: "1112345678",
     },
     choreographies,
     activeDancers,

@@ -40,6 +40,10 @@ import {
   type AcademyProfileField,
 } from "@/lib/portal/academy-profile.server";
 import {
+  argentinePhoneField,
+  argentinePhonePlaceholder,
+} from "@/lib/shared/argentine-phone";
+import {
   createValidatedNativeSubmitHandler,
   requiredFieldMessage,
   useApplyServerFieldErrors,
@@ -54,7 +58,7 @@ const requestPasswordRecoveryIntent = "request-password-recovery";
 const academyProfileSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
-  phone: z.string().trim().min(1, requiredFieldMessage),
+  phone: argentinePhoneField(),
 });
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
@@ -247,7 +251,9 @@ export function PortalPerfilRouteView({
                 form={form.form}
                 inputMode="tel"
                 label="Teléfono de contacto"
+                maxLength={10}
                 name="phone"
+                placeholder={argentinePhonePlaceholder}
                 type="tel"
               />
             </FieldGroup>
@@ -310,7 +316,9 @@ function AcademyProfileTextField({
   form,
   inputMode,
   label,
+  maxLength,
   name,
+  placeholder,
   type = "text",
 }: {
   autoComplete: string;
@@ -318,7 +326,9 @@ function AcademyProfileTextField({
   form: AcademyProfileFormReturn;
   inputMode?: "tel";
   label: string;
+  maxLength?: number;
   name: FieldPath<AcademyProfileFormValues>;
+  placeholder?: string;
   type?: "tel" | "text";
 }) {
   const id = useId();
@@ -338,6 +348,8 @@ function AcademyProfileTextField({
               aria-invalid={fieldState.error || error ? true : undefined}
               aria-describedby={fieldState.error || error ? errorId : undefined}
               inputMode={inputMode}
+              maxLength={maxLength}
+              placeholder={placeholder}
               type={type}
               {...field}
             />

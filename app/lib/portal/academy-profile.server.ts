@@ -2,6 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
+import {
+  invalidArgentinePhoneMessage,
+  isValidArgentinePhone,
+} from "@/lib/shared/argentine-phone";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 export type AcademyProfileInput = {
@@ -36,7 +40,7 @@ export async function updateAcademyProfile(
   const normalizedValues = {
     name: toTitleCase(input.name),
     contactName: toTitleCase(input.contactName),
-    phone: input.phone.trim(),
+    phone: input.phone,
   };
   const fieldErrors = getAcademyProfileFieldErrors(normalizedValues);
 
@@ -69,8 +73,18 @@ function getAcademyProfileFieldErrors(input: AcademyProfileInput) {
   return {
     name: input.name ? undefined : requiredFieldMessage,
     contactName: input.contactName ? undefined : requiredFieldMessage,
-    phone: input.phone ? undefined : requiredFieldMessage,
+    phone: getPhoneFieldError(input.phone),
   } satisfies Partial<Record<AcademyProfileField, string>>;
+}
+
+function getPhoneFieldError(phone: string) {
+  if (!phone) {
+    return requiredFieldMessage;
+  }
+
+  return isValidArgentinePhone(phone)
+    ? undefined
+    : invalidArgentinePhoneMessage;
 }
 
 function hasFieldErrors(fieldErrors: Partial<Record<string, string>>) {

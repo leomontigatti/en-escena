@@ -11,6 +11,10 @@ import {
   hashRegistrationToken,
   normalizeEmail,
 } from "@/lib/academies/registration-token.server";
+import {
+  invalidArgentinePhoneMessage,
+  isValidArgentinePhone,
+} from "@/lib/shared/argentine-phone";
 import { sendEmail } from "@/lib/shared/email.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
@@ -119,6 +123,10 @@ export async function completeAcademyRegistration(input: {
     return { ok: false as const, error: "El enlace no es válido o expiró." };
   }
 
+  if (!isValidArgentinePhone(input.phone)) {
+    return { ok: false as const, error: invalidArgentinePhoneMessage };
+  }
+
   const signUpResult = await signUpAcademyUser({
     email: registrationToken.email,
     password: input.password,
@@ -164,7 +172,7 @@ export async function completeAcademyRegistration(input: {
         userId: signUpResult.userId,
         name: toTitleCase(input.academyName),
         contactName: toTitleCase(input.contactName),
-        phone: input.phone.trim(),
+        phone: input.phone,
       });
 
       await tx

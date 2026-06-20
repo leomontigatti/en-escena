@@ -22,6 +22,10 @@ import {
 } from "@/lib/auth/access-form.shared";
 import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import {
+  argentinePhoneField,
+  argentinePhonePlaceholder,
+} from "@/lib/shared/argentine-phone";
+import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
@@ -33,7 +37,7 @@ const completeRegistrationSchema = z
   .object({
     academyName: requiredTextField(),
     contactName: requiredTextField(),
-    phone: requiredTextField(),
+    phone: argentinePhoneField(),
     password: passwordField(),
     confirmPassword: requiredTextField(),
   })
@@ -203,7 +207,9 @@ export default function CompletarRegistroRoute() {
             controller={form}
             inputMode="tel"
             label="Teléfono"
+            maxLength={10}
             name="phone"
+            placeholder={argentinePhonePlaceholder}
             type="tel"
           />
 
