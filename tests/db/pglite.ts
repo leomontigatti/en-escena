@@ -1,43 +1,21 @@
-import { spawnSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 
 import { pgliteSchema } from "./pglite-schema";
+import { runPgliteSchemaPush } from "./pglite-schema-runner";
 
 function quoteIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-const pushPgliteSchemaScriptPath = fileURLToPath(
-  new URL("./push-pglite-schema.ts", import.meta.url),
-);
-
 export async function createPgliteTestDatabase() {
-  const dataDir = await mkdtemp(`${tmpdir()}/en-escena-pglite-`);
-  const schemaPushResult = spawnSync(
-    process.execPath,
-    ["--import", "tsx", pushPgliteSchemaScriptPath, dataDir],
-    {
-      env: process.env,
-      encoding: "utf8",
-    },
-  );
-
-  if (schemaPushResult.error) {
-    throw schemaPushResult.error;
-  }
-
-  if (schemaPushResult.status !== 0) {
-    throw new Error(
-      schemaPushResult.stderr || "Failed to apply the PGlite schema.",
-    );
-  }
-
+  const dataDir = await mkdtemp(path.join(tmpdir(), "en-escena-pglite-"));
+  runPgliteSchemaPush(dataDir);
   const client = new PGlite(dataDir);
   const db = drizzle(client, { schema: pgliteSchema });
 

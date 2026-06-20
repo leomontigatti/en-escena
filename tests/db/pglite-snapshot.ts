@@ -1,23 +1,21 @@
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
+
+import { runPgliteSchemaPush } from "./pglite-schema-runner";
 
 const snapshotStateKey = Symbol.for("en-escena.db-test.pglite-snapshot");
 const snapshotCacheDirectory = path.join(
   tmpdir(),
   "en-escena-pglite-snapshots",
 );
-const pushPgliteSchemaScriptPath = fileURLToPath(
-  new URL("./push-pglite-schema.ts", import.meta.url),
-);
 const snapshotInputs = [
   new URL("../../app/db/schema.ts", import.meta.url),
   new URL("./pglite-schema.ts", import.meta.url),
+  new URL("./pglite-schema-runner.ts", import.meta.url),
   new URL("./push-pglite-schema.ts", import.meta.url),
 ];
 
@@ -69,28 +67,12 @@ async function buildSnapshotKey() {
 }
 
 async function buildSnapshotArchive(snapshotPath: string) {
-  const dataDir = await mkdtemp(`${tmpdir()}/en-escena-pglite-schema-`);
+  const dataDir = await mkdtemp(
+    path.join(tmpdir(), "en-escena-pglite-schema-"),
+  );
 
   try {
-    const schemaPushResult = spawnSync(
-      process.execPath,
-      ["--import", "tsx", pushPgliteSchemaScriptPath, dataDir],
-      {
-        env: process.env,
-        encoding: "utf8",
-      },
-    );
-
-    if (schemaPushResult.error) {
-      throw schemaPushResult.error;
-    }
-
-    if (schemaPushResult.status !== 0) {
-      throw new Error(
-        schemaPushResult.stderr || "Failed to apply the PGlite schema.",
-      );
-    }
-
+    runPgliteSchemaPush(dataDir);
     const client = new PGlite(dataDir);
 
     try {
