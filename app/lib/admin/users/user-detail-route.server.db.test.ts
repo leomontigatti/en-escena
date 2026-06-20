@@ -52,8 +52,8 @@ describe("administracion/usuarios/:userId route", () => {
       targetUser.userId,
     );
 
-    expect(initialDetailMarkup).toContain("Suspender Usuario");
-    expect(initialDetailMarkup).not.toContain("Reactivar Usuario");
+    expect(initialDetailMarkup).toContain("Acciones");
+    expect(initialDetailMarkup).not.toContain("Reactivar usuario");
     await expect(
       db.query.user.findFirst({
         columns: { suspended: true },
@@ -118,8 +118,8 @@ describe("administracion/usuarios/:userId route", () => {
     expect(suspendedDetailMarkup).not.toContain(
       "Guardamos el estado del Usuario interno.",
     );
-    expect(suspendedDetailMarkup).toContain("Reactivar Usuario");
-    expect(suspendedDetailMarkup).not.toContain("Suspender Usuario");
+    expect(suspendedDetailMarkup).toContain("Acciones");
+    expect(suspendedDetailMarkup).not.toContain("Suspender usuario");
 
     const reactivateResponse = await expectThrownResponse(
       detailAction(
@@ -592,20 +592,27 @@ describe("administracion/usuarios/:userId route", () => {
       internalUser.userId,
     );
 
+    expect(internalMarkup).toContain("Editar usuario");
     expect(internalMarkup).toContain("Ada Admin");
     expect(internalMarkup).toContain("ada.admin");
     expect(internalMarkup).toContain("admin.detalle.usuario@example.com");
     expect(internalMarkup).toContain("Permiso principal");
-    expect(internalMarkup).toContain("Administrador");
-    expect(internalMarkup).toContain("Estado");
-    expect(internalMarkup).toContain("Cambio obligatorio");
-    expect(internalMarkup).toContain("Editar datos");
-    expect(internalMarkup).toContain("Restablecer contraseña");
-    expect(internalMarkup).toContain("Suspender Usuario");
+    expect(internalDetailData.user.mainRole).toBe("admin");
+    expect(internalMarkup).toContain(
+      "Actualizá los datos del usuario interno y sus permisos.",
+    );
+    expect(internalMarkup).toContain("Guardar");
+    expect(internalMarkup).toContain("lucide-lock");
+    expect(internalMarkup).not.toContain("Detalle del Usuario");
+    expect(internalMarkup).not.toContain("Volver a Usuarios");
+    expect(internalMarkup).not.toContain("Editar datos");
+    expect(internalMarkup).toContain("Acciones");
+    expect(internalMarkup).not.toContain("Restablecer contraseña");
+    expect(internalMarkup).not.toContain("Suspender usuario");
     expect(auditorInternalMarkup).not.toContain("Editar datos");
     expect(auditorInternalMarkup).not.toContain("Restablecer contraseña");
-    expect(auditorInternalMarkup).not.toContain("Suspender Usuario");
-    expect(auditorInternalMarkup).not.toContain("Guardar cambios");
+    expect(auditorInternalMarkup).not.toContain("Suspender usuario");
+    expect(auditorInternalMarkup).not.toContain("Guardar");
 
     const academyDetailRequest = new Request(
       `http://localhost/administracion/usuarios/${academyUser.userId}`,
@@ -626,11 +633,13 @@ describe("administracion/usuarios/:userId route", () => {
     expect(academyMarkup).toContain("academia.detalle.usuario@example.com");
     expect(academyMarkup).toContain("Usuario de academia");
     expect(academyMarkup).toContain("Academia");
-    expect(academyMarkup).toContain(
+    expect(academyMarkup).toContain("lucide-lock");
+    expect(academyMarkup).not.toContain("Detalle del Usuario");
+    expect(academyMarkup).not.toContain(
       `/administracion/academias/${academyUser.academy.id}`,
     );
     expect(academyMarkup).not.toContain("Permiso principal");
-    expect(academyMarkup).not.toContain("Suspender Usuario");
+    expect(academyMarkup).not.toContain("Suspender usuario");
     expect(academyMarkup).not.toContain("Restablecer contraseña");
     expect(academyMarkup).not.toContain("Cambiar contraseña");
     expect(listData).not.toHaveProperty("email");

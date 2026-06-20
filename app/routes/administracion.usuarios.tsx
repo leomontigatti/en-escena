@@ -39,11 +39,14 @@ type FilterSelectOption = {
 const stateFilterOptions = [
   { label: "Activo", value: "active" },
   { label: "Cambio obligatorio", value: "mandatory-password-change" },
+  { label: "Suspendido", value: "suspended" },
 ] satisfies FilterSelectOption[];
 
-const typeFilterOptions = [
-  { label: "Interno", value: "internal" },
+const roleFilterOptions = [
+  { label: "Administrador", value: "admin" },
   { label: "Academia", value: "academy" },
+  { label: "Auditor", value: "auditor" },
+  { label: "Juez", value: "judge" },
 ] satisfies FilterSelectOption[];
 
 const archivedFilterOptions = [
@@ -107,6 +110,7 @@ function hasActiveUserFilters(filters: AdministrativeUserListFilters) {
   return (
     filters.query.length > 0 ||
     filters.archived ||
+    filters.role !== "all" ||
     filters.state !== "all" ||
     filters.type !== "all"
   );
@@ -138,11 +142,6 @@ function UsersTable({
           >
             {savedUser.name}
           </Link>
-          {savedUser.academyName ? (
-            <span className="text-xs text-muted-foreground">
-              {savedUser.academyName}
-            </span>
-          ) : null}
         </div>
       ),
       filterValue: (savedUser) =>
@@ -151,15 +150,11 @@ function UsersTable({
           .join(" "),
     },
     {
-      id: "identifier",
-      header: "Identificador",
-      className: "align-top",
-      cell: (savedUser) => (
-        <code className="rounded bg-muted px-2 py-1 text-xs font-medium">
-          {savedUser.identifier}
-        </code>
-      ),
-      filterValue: (savedUser) => savedUser.identifier,
+      id: "academy",
+      header: "Academia",
+      className: "align-top whitespace-normal text-muted-foreground",
+      cell: (savedUser) => <span>{savedUser.academyName ?? ""}</span>,
+      filterValue: (savedUser) => savedUser.academyName ?? "",
     },
     {
       id: "status",
@@ -168,13 +163,13 @@ function UsersTable({
       cell: (savedUser) => (
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{getRoleLabel(savedUser.mainRole)}</Badge>
-          <Badge variant="outline">{getTypeLabel(savedUser.userType)}</Badge>
           <Badge variant={getStateBadgeVariant(savedUser.state)}>
             {getStateLabel(savedUser.state)}
           </Badge>
         </div>
       ),
       filterValues: (savedUser) => [
+        savedUser.mainRole,
         savedUser.userType,
         savedUser.state,
         savedUser.state === "suspended" ? "si" : "",
@@ -194,7 +189,7 @@ function UsersTable({
       rows={users}
       columns={columns}
       getRowKey={(savedUser) => savedUser.id}
-      searchPlaceholder="Buscar usuario por nombre o identificador"
+      searchPlaceholder="Buscar usuario por nombre o email"
       initialSearchValue={filters.query}
       facetedFilters={[
         {
@@ -202,9 +197,9 @@ function UsersTable({
           label: "Filtros",
           groups: [
             {
-              id: "tipo",
-              label: "Tipo",
-              options: typeFilterOptions,
+              id: "rol",
+              label: "Rol",
+              options: roleFilterOptions,
             },
             {
               id: "estado",
@@ -232,6 +227,10 @@ function buildInitialUserFilterValues(
   filters: AdministrativeUserListFilters,
 ): Record<string, Record<string, string>> {
   const values: Record<string, string> = {};
+
+  if (filters.role !== "all") {
+    values.rol = filters.role;
+  }
 
   if (filters.state !== "all") {
     values.estado = filters.state;
@@ -268,6 +267,10 @@ function buildDetailSearch(filters: AdministrativeUserListFilters) {
 
   if (filters.state !== "all") {
     searchParams.set("estado", filters.state);
+  }
+
+  if (filters.role !== "all") {
+    searchParams.set("rol", filters.role);
   }
 
   if (filters.type !== "all") {
@@ -312,7 +315,7 @@ function getStateLabel(state: AdministrativeUserListState) {
     case "mandatory-password-change":
       return "Cambio obligatorio";
     case "suspended":
-      return "Archivado";
+      return "Suspendido";
   }
 }
 

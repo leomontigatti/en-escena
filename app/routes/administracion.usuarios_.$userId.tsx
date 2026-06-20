@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { eq } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { useEffect, useId, type ReactNode } from "react";
 import {
   Controller,
@@ -12,9 +12,19 @@ import { Form, Link, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { Badge } from "@/components/ui/badge";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -55,7 +65,6 @@ import {
   type RouteNotificationKey,
 } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { cn } from "@/lib/shared/utils";
 
 import type { Route } from "./+types/administracion.usuarios_.$userId";
 
@@ -350,13 +359,10 @@ export function AdministracionUsuarioDetalleRouteView({
   loaderData,
 }: AdministracionUsuarioDetalleRouteProps) {
   const savedUser = loaderData.user;
-  const isEditing =
-    loaderData.canManage &&
-    savedUser.userType === "internal" &&
-    (loaderData.isEditing || actionData?.form === "edit");
+  const canManageInternalUser =
+    loaderData.canManage && savedUser.userType === "internal";
   const isResettingPassword =
-    loaderData.canManage &&
-    savedUser.userType === "internal" &&
+    canManageInternalUser &&
     (loaderData.isResettingPassword || actionData?.form === "reset-password");
 
   useServerActionToast(actionData, {
@@ -365,61 +371,35 @@ export function AdministracionUsuarioDetalleRouteView({
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          to={loaderData.backToList}
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Volver a Usuarios
-        </Link>
-        {loaderData.canManage &&
-        savedUser.userType === "internal" &&
-        !isEditing &&
-        !isResettingPassword ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusActionButton user={savedUser} />
-            <Button asChild variant="outline">
-              <Link to={loaderData.resetPasswordHref}>
-                Restablecer contraseña
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to={loaderData.editHref}>Editar datos</Link>
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          <h2 className="text-xl font-semibold">{savedUser.name}</h2>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              {getRoleLabel(savedUser.mainRole)}
-            </Badge>
-            <Badge variant="outline">{getTypeLabel(savedUser.userType)}</Badge>
-            <Badge variant={getStateBadgeVariant(savedUser.state)}>
-              {getStateLabel(savedUser.state)}
-            </Badge>
-          </div>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Editar usuario</h2>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            {getDetailDescription(savedUser.userType, loaderData.canManage)}
+          </p>
         </div>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          {getDetailDescription(savedUser.userType, loaderData.canManage)}
-        </p>
+        {canManageInternalUser ? (
+          <UserActionsMenu
+            resetPasswordHref={loaderData.resetPasswordHref}
+            user={savedUser}
+          />
+        ) : null}
       </header>
 
       {savedUser.userType === "academy" ? (
-        <AcademyUserDetailCard user={savedUser} />
+        <AcademyUserFormCard
+          backToList={loaderData.backToList}
+          user={savedUser}
+        />
       ) : isResettingPassword ? (
         <InternalUserResetPasswordCard
           actionData={actionData}
           cancelHref={loaderData.cancelHref}
         />
-      ) : isEditing ? (
+      ) : canManageInternalUser ? (
         <InternalUserEditCard
           actionData={actionData}
-          cancelHref={loaderData.cancelHref}
+          cancelHref={loaderData.backToList}
           user={savedUser}
         />
       ) : (
@@ -514,29 +494,42 @@ export default function AdministracionUsuarioDetalleRoute({
 
 function InternalUserDetailCard({ user }: { user: DetailUser }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Detalle del Usuario</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-6 sm:grid-cols-2">
-        <DetailItem label="Nombre" value={user.name} />
-        <DetailItem label="Identificador" value={user.identifier} isCode />
-        <DetailItem
-          label="Correo"
-          value={user.email ?? "No informado"}
-          muted={user.email === null}
-        />
-        <DetailItem
-          label="Permiso principal"
-          value={getRoleLabel(user.mainRole)}
-        />
-        <DetailItem label="Estado" value={getStateLabel(user.state)} />
-      </CardContent>
-    </Card>
+    <UserFormCard>
+      <LockedUserField label="Nombre" value={user.name} />
+      <LockedUserField
+        label="Nombre de usuario interno"
+        value={user.identifier}
+      />
+      <LockedUserField label="Correo" value={user.email ?? ""} />
+      <LockedUserField
+        label="Permiso principal"
+        value={getRoleLabel(user.mainRole)}
+      />
+      <LockedUserField label="Estado" value={getStateLabel(user.state)} />
+    </UserFormCard>
   );
 }
 
-function StatusActionButton({ user }: { user: DetailUser }) {
+function UserActionsMenu({
+  resetPasswordHref,
+  user,
+}: {
+  resetPasswordHref: string;
+  user: DetailUser;
+}) {
+  return (
+    <ResourceActionsMenu contentClassName="w-56">
+      <DropdownMenuGroup>
+        <DropdownMenuItem asChild>
+          <Link to={resetPasswordHref}>Restablecer contraseña</Link>
+        </DropdownMenuItem>
+        <StatusActionItem user={user} />
+      </DropdownMenuGroup>
+    </ResourceActionsMenu>
+  );
+}
+
+function StatusActionItem({ user }: { user: DetailUser }) {
   const isSuspended = user.state === "suspended";
 
   return (
@@ -546,9 +539,17 @@ function StatusActionButton({ user }: { user: DetailUser }) {
         name="intent"
         value={isSuspended ? "reactivate-user" : "suspend-user"}
       />
-      <Button type="submit" variant={isSuspended ? "default" : "outline"}>
-        {isSuspended ? "Reactivar Usuario" : "Suspender Usuario"}
-      </Button>
+      <DropdownMenuItem
+        asChild
+        variant={isSuspended ? undefined : "destructive"}
+      >
+        <button
+          type="submit"
+          className="w-full justify-start whitespace-nowrap"
+        >
+          {isSuspended ? "Reactivar usuario" : "Suspender usuario"}
+        </button>
+      </DropdownMenuItem>
     </Form>
   );
 }
@@ -599,64 +600,40 @@ function InternalUserEditCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Editar Usuario</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form
-          method="post"
-          noValidate
-          className="grid gap-6"
-          onSubmit={handleSubmit}
-        >
-          <FieldGroup>
-            <InternalUserEditTextField
-              autoComplete="name"
-              control={form.control}
-              label="Nombre visible"
-              name="name"
-            />
-
-            <Field orientation="responsive">
-              <FieldLabel htmlFor="identifier">
-                Nombre de usuario interno
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="identifier"
-                  value={user.identifier}
-                  readOnly
-                  disabled
-                  aria-readonly="true"
-                />
-                <FieldDescription>
-                  Se mantiene fijo después de crear el Usuario.
-                </FieldDescription>
-              </FieldContent>
-            </Field>
-
-            <InternalUserEditRoleField control={form.control} />
-
-            <InternalUserEditTextField
-              autoComplete="email"
-              control={form.control}
-              description="Opcional. No se usa como credencial principal."
-              label="Correo"
-              name="email"
-              type="email"
-            />
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button type="submit">Guardar cambios</Button>
-              <Button asChild variant="outline">
-                <Link to={cancelHref}>Cancelar</Link>
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+    <form method="post" noValidate onSubmit={handleSubmit}>
+      <UserFormCard
+        footer={
+          <>
+            <Button asChild variant="outline" size="lg">
+              <Link to={cancelHref}>Volver</Link>
+            </Button>
+            <Button type="submit" size="lg">
+              <Check aria-hidden="true" data-icon="inline-start" />
+              Guardar
+            </Button>
+          </>
+        }
+      >
+        <InternalUserEditTextField
+          autoComplete="name"
+          control={form.control}
+          label="Nombre"
+          name="name"
+        />
+        <LockedUserField
+          label="Nombre de usuario interno"
+          value={user.identifier}
+        />
+        <InternalUserEditTextField
+          autoComplete="email"
+          control={form.control}
+          label="Correo"
+          name="email"
+          type="email"
+        />
+        <InternalUserEditRoleField control={form.control} />
+      </UserFormCard>
+    </form>
   );
 }
 
@@ -683,26 +660,21 @@ function InternalUserEditTextField({
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <Field
-          data-invalid={fieldState.error ? true : undefined}
-          orientation="responsive"
-        >
+        <Field data-invalid={fieldState.error ? true : undefined}>
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              aria-describedby={fieldState.error ? errorId : undefined}
-              aria-invalid={fieldState.error ? true : undefined}
-              autoComplete={autoComplete}
-              type={type}
-              {...field}
-              value={field.value ?? ""}
-            />
-            {description ? (
-              <FieldDescription>{description}</FieldDescription>
-            ) : null}
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
+          <Input
+            id={id}
+            aria-describedby={fieldState.error ? errorId : undefined}
+            aria-invalid={fieldState.error ? true : undefined}
+            autoComplete={autoComplete}
+            type={type}
+            {...field}
+            value={field.value ?? ""}
+          />
+          {description ? (
+            <FieldDescription>{description}</FieldDescription>
+          ) : null}
+          <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
         </Field>
       )}
     />
@@ -722,36 +694,27 @@ function InternalUserEditRoleField({
       control={control}
       name="role"
       render={({ field, fieldState }) => (
-        <Field
-          data-invalid={fieldState.error ? true : undefined}
-          orientation="responsive"
-        >
+        <Field data-invalid={fieldState.error ? true : undefined}>
           <FieldLabel htmlFor={id}>Permiso principal</FieldLabel>
-          <FieldContent>
-            <Select
-              name={field.name}
-              value={field.value}
-              onValueChange={field.onChange}
+          <Select
+            name={field.name}
+            value={field.value}
+            onValueChange={field.onChange}
+          >
+            <SelectTrigger
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
             >
-              <SelectTrigger
-                id={id}
-                aria-describedby={fieldState.error ? errorId : undefined}
-                aria-invalid={fieldState.error ? true : undefined}
-              >
-                <SelectValue placeholder="Elegí un permiso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="auditor">Auditor</SelectItem>
-                <SelectItem value="judge">Juez</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              Si cambia, el sistema cerrará las sesiones activas de este
-              Usuario.
-            </FieldDescription>
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
+              <SelectValue placeholder="Elegí un permiso" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Administrador</SelectItem>
+              <SelectItem value="auditor">Auditor</SelectItem>
+              <SelectItem value="judge">Juez</SelectItem>
+            </SelectContent>
+          </Select>
+          <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
         </Field>
       )}
     />
@@ -798,61 +761,66 @@ function InternalUserResetPasswordField({
   );
 }
 
-function AcademyUserDetailCard({ user }: { user: DetailUser }) {
+function AcademyUserFormCard({
+  backToList,
+  user,
+}: {
+  backToList: string;
+  user: DetailUser;
+}) {
+  return (
+    <UserFormCard
+      footer={
+        <Button asChild variant="outline" size="lg">
+          <Link to={backToList}>Volver</Link>
+        </Button>
+      }
+    >
+      <LockedUserField label="Nombre" value={user.name} />
+      <LockedUserField label="Correo de acceso" value={user.email ?? ""} />
+      <LockedUserField label="Tipo" value="Usuario de academia" />
+      <LockedUserField label="Academia" value={user.academyName ?? ""} />
+    </UserFormCard>
+  );
+}
+
+function UserFormCard({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Detalle del Usuario</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-6 sm:grid-cols-2">
-        <DetailItem label="Nombre" value={user.name} />
-        <DetailItem label="Correo de acceso" value={user.email ?? "-"} />
-        <DetailItem label="Tipo" value="Usuario de academia" />
-        <DetailItem
-          label="Academia"
-          value={
-            user.academyId && user.academyName ? (
-              <Link
-                to={`/administracion/academias/${user.academyId}`}
-                className="font-medium underline-offset-4 hover:underline"
-              >
-                {user.academyName}
-              </Link>
-            ) : (
-              "Sin Academia vinculada"
-            )
-          }
-          muted={!user.academyId || !user.academyName}
-        />
+      <CardContent>
+        <FieldGroup className="grid gap-5 md:grid-cols-2">
+          {children}
+        </FieldGroup>
       </CardContent>
+      {footer ? (
+        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+          {footer}
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
 
-function DetailItem({
-  isCode = false,
-  label,
-  muted = false,
-  value,
-}: {
-  isCode?: boolean;
-  label: string;
-  muted?: boolean;
-  value: ReactNode;
-}) {
+function LockedUserField({ label, value }: { label: string; value: string }) {
+  const id = useId();
+
   return (
-    <div className="grid gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">{label}</h3>
-      {isCode && typeof value === "string" ? (
-        <code className="w-fit rounded bg-muted px-2 py-1 text-sm font-medium">
-          {value}
-        </code>
-      ) : (
-        <div className={cn("text-sm", muted && "text-muted-foreground")}>
-          {value}
-        </div>
-      )}
-    </div>
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <div className="relative">
+        <Input id={id} value={value} disabled readOnly className="pr-9" />
+        <Lock
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+        />
+      </div>
+    </Field>
   );
 }
 
@@ -964,7 +932,7 @@ function getDetailDescription(userType: DetailUserType, canManage: boolean) {
   }
 
   if (canManage) {
-    return "Actualizá los datos del Usuario interno y su Permiso principal sin modificar el Nombre de usuario interno.";
+    return "Actualizá los datos del usuario interno y sus permisos.";
   }
 
   return "Consultá la identidad interna en modo solo lectura.";
@@ -1064,15 +1032,6 @@ function getRoleLabel(role: LoaderData["user"]["mainRole"]) {
   }
 }
 
-function getTypeLabel(type: LoaderData["user"]["userType"]) {
-  switch (type) {
-    case "internal":
-      return "Interno";
-    case "academy":
-      return "Usuario de academia";
-  }
-}
-
 function getStateLabel(state: LoaderData["user"]["state"]) {
   switch (state) {
     case "active":
@@ -1081,17 +1040,6 @@ function getStateLabel(state: LoaderData["user"]["state"]) {
       return "Cambio obligatorio";
     case "suspended":
       return "Suspendido";
-  }
-}
-
-function getStateBadgeVariant(state: LoaderData["user"]["state"]) {
-  switch (state) {
-    case "active":
-      return "default";
-    case "mandatory-password-change":
-      return "secondary";
-    case "suspended":
-      return "outline";
   }
 }
 

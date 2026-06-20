@@ -16,13 +16,15 @@ export type AdministrativeUserListState =
 
 export type AdministrativeUserListStateFilter =
   | "active"
-  | "mandatory-password-change";
+  | "mandatory-password-change"
+  | "suspended";
 
 export type AdministrativeUserListType = "academy" | "internal";
 
 export type AdministrativeUserListFilters = {
   archived: boolean;
   query: string;
+  role: AdministrativeUserListRole | "all";
   state: AdministrativeUserListStateFilter | "all";
   type: AdministrativeUserListType | "all";
 };
@@ -43,10 +45,9 @@ export function readAdministrativeUserFilters(
   const stateValue = searchParams.get("estado");
 
   return {
-    archived:
-      readArchivedFilter(searchParams.get("archivado")) ||
-      stateValue === "suspended",
+    archived: readArchivedFilter(searchParams.get("archivado")),
     query: searchParams.get("q")?.trim() ?? "",
+    role: readRoleFilter(searchParams.get("rol")),
     state: readStateFilter(stateValue),
     type: readTypeFilter(searchParams.get("tipo")),
   };
@@ -132,10 +133,14 @@ function buildAdministrativeUserWhere(
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
 
+  if (filters.role !== "all") {
+    clauses.push(eq(user.role, filters.role));
+  }
+
   if (filters.archived) {
     clauses.push(eq(user.suspended, true));
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
-  } else {
+  } else if (filters.state !== "suspended") {
     clauses.push(
       or(eq(user.role, "academy"), eq(user.suspended, false)) ?? sql`false`,
     );
@@ -152,6 +157,9 @@ function buildAdministrativeUserWhere(
     clauses.push(eq(user.requiresPasswordChange, true));
     clauses.push(eq(user.suspended, false));
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
+  } else if (filters.state === "suspended") {
+    clauses.push(eq(user.suspended, true));
+    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   }
 
   if (clauses.length === 0) {
@@ -167,6 +175,21 @@ function readStateFilter(
   switch (value) {
     case "active":
     case "mandatory-password-change":
+    case "suspended":
+      return value;
+    default:
+      return "all";
+  }
+}
+
+function readRoleFilter(
+  value: string | null,
+): AdministrativeUserListFilters["role"] {
+  switch (value) {
+    case "academy":
+    case "admin":
+    case "auditor":
+    case "judge":
       return value;
     default:
       return "all";

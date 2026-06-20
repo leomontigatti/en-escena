@@ -94,16 +94,16 @@ describe("administracion/usuarios route", () => {
     expect(defaultData).not.toHaveProperty("selectedEventId");
     expect(defaultMarkup).toContain("Usuarios");
     expect(defaultMarkup).toContain("Nombre");
-    expect(defaultMarkup).toContain("Identificador");
+    expect(defaultMarkup).toContain("Academia");
     expect(defaultMarkup).toContain("Estado");
     expect(defaultMarkup).toContain("Ada Admin");
     expect(defaultMarkup).toContain("Nora Norte");
-    expect(defaultMarkup).toContain("ada.admin");
-    expect(defaultMarkup).toContain("academia.usuarios@example.com");
     expect(defaultMarkup).toContain("Administrador");
     expect(defaultMarkup).toContain("Auditor");
-    expect(defaultMarkup).toContain("Usuario de academia");
-    expect(defaultMarkup).toContain("Interno");
+    expect(defaultMarkup).toContain("Academia Norte");
+    expect(defaultMarkup).not.toContain("Identificador");
+    expect(defaultMarkup).not.toContain("ada.admin");
+    expect(defaultMarkup).not.toContain("academia.usuarios@example.com");
     expect(defaultMarkup).toContain("Activo");
     expect(defaultMarkup).toContain("Cambio obligatorio");
     expect(defaultMarkup).not.toContain("Susana Suspendida");
@@ -170,11 +170,25 @@ describe("administracion/usuarios route", () => {
       ),
     ).toBe(true);
 
+    const byRoleRequest = await createSignedInRequest({
+      email: "admin.rol.usuarios@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios?rol=auditor",
+      userName: "Admin Rol",
+      internalUsername: "admin.rol",
+    });
+    const byRoleData = await loader(routeArgs(byRoleRequest.request));
+
+    expect(byRoleData.users.map((savedUser) => savedUser.mainRole)).toEqual([
+      "auditor",
+    ]);
+
     const bySuspendedStatusRequest = await createSignedInRequest({
       email: "admin.suspendidos.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: "http://localhost/administracion/usuarios?archivado=si",
+      requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
       userName: "Admin Suspendidos",
       internalUsername: "admin.suspendidos",
     });
@@ -210,6 +224,7 @@ function renderRoute(
             filters: {
               archived: false,
               query: "",
+              role: "all",
               state: "all",
               type: "all",
             },
