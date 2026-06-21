@@ -93,8 +93,12 @@ When validation output is long, use the failing test names, error summaries, and
 focused reruns to diagnose. Do not paste or re-read full logs when a narrower
 command gives the needed signal.
 During development, use focused test commands for the code you are changing.
-For focused DB tests, use `npm run test:db:file -- <path-to-db-test>`; do not
-expect `npm run test:db -- <path>` to narrow the suite.
+For focused DB tests, use `npm run test:db:file -- <path-to-db-test>`; this
+uses the fast PGlite harness for one file. Do not expect
+`npm run test:db -- <path>` to narrow the suite.
+For final database-backed validation, use `npm run test:db`; this is the
+reliable Postgres path through `TEST_DATABASE_URL`. Do not use the experimental
+full PGlite suite (`npm run test:db:fast:full`) as the final confidence check.
 Run the full validation sequence once at the end. If `npm run test:db` fails
 because of infrastructure or unrelated database state, do a focused diagnosis
 before repeating the full DB suite. Do not run multiple DB validation commands

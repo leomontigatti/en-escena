@@ -1,6 +1,6 @@
 # Decide fast DB test isolation around PGlite snapshots
 
-**Status**: accepted
+**Status**: amended
 
 En Escena needs a faster DB feedback loop without losing confidence on rules
 persisted in Postgres. The measured baseline from 2026-06-20 was:
@@ -50,8 +50,8 @@ The pilot also found two real integration gaps:
 
 **Decision Details**
 
-En Escena adopts PGlite with schema snapshots as the default full DB test
-isolation model.
+En Escena adopts PGlite with schema snapshots for focused DB feedback, while
+keeping the full default DB suite on the reliable Postgres validation path.
 
 Why this option won now:
 
@@ -64,10 +64,25 @@ Why this option won now:
 - Real Postgres per worker remains plausible, but it adds more moving parts
   before it removes any measured cost in this repo.
 
-This decision does not delete the real Postgres harness. The default
-`npm run test:db` path now uses the worker-local PGlite snapshot harness for
-fast feedback, while `npm run test:db:postgres` preserves the high-fidelity
-validation path through `TEST_DATABASE_URL`.
+This decision does not delete the real Postgres harness. The focused
+`npm run test:db:file -- <path>` path uses the PGlite snapshot harness for fast
+feedback, while `npm run test:db` and `npm run test:db:postgres` preserve the
+high-fidelity validation path through `TEST_DATABASE_URL`. The full PGlite
+suite remains available as `npm run test:db:fast:full` for harness debugging,
+but it is not the default confidence command.
+
+**Amendment on 2026-06-21**
+
+After the implementation issues closed, the default full PGlite suite was
+rechecked. Focused PGlite files passed individually, and the full PGlite suite
+also passed when forced to one worker, but the default parallel full-suite mode
+failed with `PGlite failed to initialize properly` in worker-initialization
+paths. The reliable Postgres suite passed 28 files and 241 tests in about 80s.
+
+Because the parallel PGlite full suite is not currently reliable,
+`npm run test:db` now delegates to the final Postgres path. PGlite remains
+useful for focused TDD via `npm run test:db:file -- <path>`, where it avoids
+the repeated schema push and does not require local Postgres.
 
 **Fidelity Risks**
 
@@ -113,9 +128,10 @@ de acceso, or Bases del evento, the fallback is real Postgres per worker:
 
 **Consequences**
 
-- The full DB suite now runs on PGlite snapshots by default with file
-  parallelism enabled and worker-local in-memory state.
-- Any future tuning must preserve worker isolation; mutable DB state cannot be
-  shared across workers.
-- The real Postgres validation path remains available as
-  `npm run test:db:postgres` for schema-push fidelity and semantic spot checks.
+- Focused DB iteration can use PGlite snapshots without local Postgres.
+- The default full DB suite uses the real Postgres validation path for
+  schema-push fidelity and confidence.
+- The full PGlite suite is experimental until worker-initialization instability
+  is fixed.
+- Any future PGlite full-suite tuning must preserve worker isolation; mutable
+  DB state cannot be shared across workers.

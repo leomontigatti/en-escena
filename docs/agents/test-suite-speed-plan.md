@@ -12,10 +12,13 @@ En Escena separa tests regulares y tests DB con dos rutas:
 - `npm test`: corre Vitest excluyendo `*.db.test.ts`.
 - `npm run test:db:file -- <archivo>`: usa el harness rapido con `PGlite` y un
   snapshot cacheado del schema para un archivo DB enfocado.
-- `npm run test:db`: corre la suite DB completa sobre el harness rapido con
-  `PGlite` y snapshots de schema.
-- `npm run test:db:final`: alias explicito de la corrida final confiable sobre
-  Postgres real.
+- `npm run test:db`: corre la suite DB completa sobre la ruta final confiable
+  con Postgres real.
+- `npm run test:db:final`: alias explicito de la misma corrida final confiable
+  sobre Postgres real.
+- `npm run test:db:fast:full`: conserva la suite DB completa sobre el harness
+  rapido con `PGlite`, pero queda como ruta experimental para depurar el
+  harness. No es el comando default de confianza.
 - `npm run test:db:file:final -- <archivo>`: alias explicito de la corrida
   final enfocada sobre Postgres real.
 - `npm run test:db:file:postgres -- <archivo>`: conserva la ruta enfocada sobre
@@ -28,6 +31,7 @@ de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
 persistentes:
 
 - `npm run test:db:final`
+- `npm run test:db`
 - `npm run test:db:postgres`
 - `npm run test:db:file:final`
 - `npm run test:db:file:postgres`
@@ -48,10 +52,27 @@ Lectura operativa:
 - La mejora medida del comando enfocado es `770ms` menos de pared para el test
   de harness en esta rama.
 - `npm run test:db:file` queda como ruta enfocada rapida y
-  `npm run test:db:final` queda como alias explicito de la ruta final
-  confiable.
+  `npm run test:db` queda como ruta final confiable.
 - El snapshot del schema queda cacheado por hash de schema para repetir
   corridas enfocadas sin tocar `TEST_DATABASE_URL`.
+
+## Enmienda operativa 2026-06-21
+
+Despues de cerrar los issues de implementacion, se revalido el estado de las
+suites:
+
+- `npm test`: verde, 27 archivos y 127 tests, ~24s.
+- `npm run test:db:final`: verde contra Postgres real, 28 archivos y 241
+  tests, ~80s.
+- `npm run test:db:file -- <archivo>`: verde para los archivos enfocados
+  probados con `PGlite`.
+- `npm run test:db:fast:full`: falla en modo paralelo default con el error
+  `PGlite failed to initialize properly`; la misma suite pasa serializada con
+  `--maxWorkers=1 --no-file-parallelism`, pero tarda ~99s.
+
+Decision operativa: `PGlite` queda como ruta enfocada rapida para TDD y la
+suite completa default vuelve a Postgres real. Investigar la concurrencia de
+`PGlite` queda fuera de este ajuste.
 
 ## Linea base actual
 

@@ -99,7 +99,10 @@ During development, focused DB tests can target one file:
 npm run test:db:file -- app/lib/example.db.test.ts
 ```
 
-Use full `npm run test:db` before finishing database-backed work.
+Focused DB tests use the fast PGlite harness. Use full `npm run test:db` before
+finishing database-backed work; it is the reliable Postgres path through
+`TEST_DATABASE_URL`. `npm run test:db:fast:full` is an experimental full PGlite
+suite for harness debugging, not a final confidence check.
 
 Do not use `npx tsc` directly in this repo. `npm run typecheck` generates React
 Router route types before running TypeScript.

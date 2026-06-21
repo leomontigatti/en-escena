@@ -71,10 +71,10 @@ Confirm `.env` points at the local container before running `npm run db:push`.
 
 For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
 connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
-at local Postgres so `npm run test:db:postgres` stays isolated from hosted
-data. The default suite command `npm run test:db` and the focused command
-`npm run test:db:file -- <archivo>` both use an in-process PGlite harness with
-a cached schema snapshot instead of connecting to `TEST_DATABASE_URL`.
+at local Postgres so the default DB suite and `npm run test:db:postgres` stay
+isolated from hosted data. The focused command
+`npm run test:db:file -- <archivo>` uses an in-process PGlite harness with a
+cached schema snapshot instead of connecting to `TEST_DATABASE_URL`.
 
 Choose the connection mode for the runtime:
 
@@ -89,20 +89,24 @@ For schema changes against Supabase, run `npm run db:push` only after verifying
 that `DATABASE_URL` points at the intended hosted database. Database-backed tests
 keep two paths:
 
-- `npm run test:db` and `npm run test:db:file -- <archivo>`: fast isolated
-  `PGlite` paths backed by the cached schema snapshot.
-- `npm run test:db:final` (alias of `npm run test:db:postgres`): final reliable
-  path that resets and pushes schema through `TEST_DATABASE_URL`.
+- `npm run test:db:file -- <archivo>`: fast focused `PGlite` path backed by the
+  cached schema snapshot.
+- `npm run test:db` and `npm run test:db:final` (alias of
+  `npm run test:db:postgres`): final reliable path that resets and pushes
+  schema through `TEST_DATABASE_URL`.
 - `npm run test:db:file:final -- <archivo>` (alias of
   `npm run test:db:file:postgres -- <archivo>`): focused final reliable path
   for one DB test file through `TEST_DATABASE_URL`.
+- `npm run test:db:fast:full`: experimental full-suite PGlite path for harness
+  debugging.
 
 Validation mode requirements:
 
-- Fast DB validation (`npm run test:db`, `npm run test:db:file -- <archivo>`)
-  does not require local Postgres once the repo dependencies are installed.
-- Final DB validation (`npm run test:db:final` or `npm run test:db:postgres`)
-  requires local Postgres through `TEST_DATABASE_URL`.
+- Fast focused DB validation (`npm run test:db:file -- <archivo>`) does not
+  require local Postgres once the repo dependencies are installed.
+- Final DB validation (`npm run test:db`, `npm run test:db:final` or
+  `npm run test:db:postgres`) requires local Postgres through
+  `TEST_DATABASE_URL`.
 - Focused final DB validation (`npm run test:db:file:final -- <archivo>` or
   `npm run test:db:file:postgres -- <archivo>`) also requires local Postgres
   through `TEST_DATABASE_URL`.

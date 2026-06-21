@@ -68,7 +68,7 @@ they fail, change state, or are the validation result.
 If you find improvements to make:
 
 1. Make the changes directly on this branch
-2. Run validation in this exact order: `npm run format`, `npm run format:check`, `npm run typecheck`, `npm run test`, `npm run test:db` if the branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules, and `npm run build` if the branch touches routing, server rendering, bundling, CSS, or deployment behavior. If a command fails, fix it and rerun that same command before starting the next one. Do not run validation commands in parallel when later commands depend on earlier code state.
+2. Run validation in this exact order: `npm run format`, `npm run format:check`, `npm run typecheck`, `npm run test`, `npm run test:db` if the branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules, and `npm run build` if the branch touches routing, server rendering, bundling, CSS, or deployment behavior. For focused DB diagnosis use `npm run test:db:file -- <path-to-db-test>`; for final database-backed validation use `npm run test:db`, which is the reliable Postgres path through `TEST_DATABASE_URL`. Do not use the experimental full PGlite suite (`npm run test:db:fast:full`) as the final confidence check. If a command fails, fix it and rerun that same command before starting the next one. Do not run validation commands in parallel when later commands depend on earlier code state.
 3. Commit describing the refinements
 
 If the code is already clean and well-structured, do nothing.
