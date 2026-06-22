@@ -89,11 +89,20 @@ export const handle = {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   await requireAdminPanelUser(request);
-  const event = await loadEvent(params.eventId);
+  const eventId = params.eventId;
+
+  if (!eventId) {
+    throw new Response("No encontramos ese evento.", { status: 404 });
+  }
+
+  const [event, registrationReadiness] = await Promise.all([
+    loadEvent(eventId),
+    getEventRegistrationReadiness(eventId),
+  ]);
 
   return {
     event,
-    registrationReadiness: await getEventRegistrationReadiness(event.id),
+    registrationReadiness,
   };
 }
 
@@ -570,11 +579,7 @@ function eventActionPath(eventId: string) {
   return `/administracion/eventos/${eventId}`;
 }
 
-async function loadEvent(eventId: string | undefined) {
-  if (!eventId) {
-    throw new Response("No encontramos ese evento.", { status: 404 });
-  }
-
+async function loadEvent(eventId: string) {
   const event = await db.query.events.findFirst({
     where: eq(eventsTable.id, eventId),
   });

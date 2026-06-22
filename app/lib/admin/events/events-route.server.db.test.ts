@@ -8,7 +8,10 @@ import { db } from "@/db";
 import { events, user } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { createEvent } from "@/lib/events/management.server";
-import { AdministracionRouteView } from "@/routes/administracion";
+import {
+  AdministracionRouteView,
+  loader as adminLoader,
+} from "@/routes/administracion";
 import {
   AdministracionEventosRouteView,
   handle as eventosHandle,
@@ -98,6 +101,37 @@ describe("administracion/eventos route", () => {
     expect(markup).not.toContain("Resultados ocultos");
     expect(markup).toContain("Final 2027");
     expect(markup).toContain("No iniciado");
+  });
+
+  test("loads only the active Evento summary in the admin shell for the Eventos family", async () => {
+    const activeEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: true,
+    });
+    await createSavedEvent({
+      name: "Final 2027",
+      startsAt: date("2027-05-01T12:00:00Z"),
+      endsAt: date("2027-05-03T12:00:00Z"),
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.shell.eventos@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/eventos",
+    });
+
+    const shellData = await adminLoader(adminRouteArgs(request));
+    const routeData = await loader(routeArgs(request));
+
+    expect(shellData).toMatchObject({
+      email: "admin.shell.eventos@example.com",
+      events: [{ id: activeEvent.id, name: "Regional 2026", active: true }],
+      selectedEventId: activeEvent.id,
+    });
+    expect(shellData.events).toHaveLength(1);
+    expect(routeData.events.map((event) => event.name)).toEqual([
+      "Final 2027",
+      "Regional 2026",
+    ]);
   });
 
   test("keeps Eventos child route data focused on resource content", async () => {
@@ -389,6 +423,16 @@ function routeArgs(request: Request) {
     context: {},
     url: new URL(request.url),
     pattern: "/administracion/eventos",
+  };
+}
+
+function adminRouteArgs(request: Request) {
+  return {
+    request,
+    params: {},
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion",
   };
 }
 

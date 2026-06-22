@@ -6,8 +6,8 @@ import {
   getAdminShellOptions,
 } from "@/components/admin/shell";
 import {
-  loadAdminEventContext,
-  type AdminEventContext,
+  loadAdminShellEventContext,
+  type AdminShellEventContext,
 } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -21,7 +21,7 @@ export const meta: Route.MetaFunction = () => [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadAdminShellEventContext();
 
   return {
     email: user.email,
@@ -29,8 +29,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     selectedEventId: eventContext.selectedEventId,
   } satisfies {
     email: string;
-    events: AdminEventContext["events"];
-    selectedEventId: AdminEventContext["selectedEventId"];
+    events: AdminShellEventContext["events"];
+    selectedEventId: AdminShellEventContext["selectedEventId"];
   };
 }
 

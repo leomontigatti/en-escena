@@ -1,12 +1,16 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import type { AdminEventOption } from "@/lib/admin/event-context.shared";
 
 type ResolveAdminEventContextInput = {
-  requestUrl: string;
   events: AdminEventOption[];
+};
+
+export type AdminShellEventContext = {
+  events: AdminEventOption[];
+  selectedEventId: string | null;
 };
 
 export type AdminEventContext = {
@@ -14,6 +18,23 @@ export type AdminEventContext = {
   selectedEventId: string | null;
   redirectTo: string | null;
 };
+
+export async function loadAdminShellEventContext(): Promise<AdminShellEventContext> {
+  const activeEvent = await db.query.events.findFirst({
+    columns: {
+      id: true,
+      name: true,
+      active: true,
+    },
+    where: eq(eventsTable.active, true),
+    orderBy: [desc(eventsTable.startsAt)],
+  });
+
+  return {
+    events: activeEvent ? [activeEvent] : [],
+    selectedEventId: activeEvent?.id ?? null,
+  };
+}
 
 export async function loadAdminEventContext(
   request: Request,
@@ -29,10 +50,7 @@ export async function loadAdminEventContext(
 
   return {
     events,
-    ...resolveAdminEventContext({
-      requestUrl: request.url,
-      events,
-    }),
+    ...resolveAdminEventContext({ events }),
   };
 }
 
