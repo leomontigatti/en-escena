@@ -87,6 +87,7 @@ import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
   requiredFieldMessage,
+  type RouteFormPendingScope,
   useApplyServerFieldErrors,
   useOptionalFormAction,
   useOptionalNavigation,
@@ -446,7 +447,7 @@ function ScheduleFormActions({
   submitLabel,
 }: {
   formId: string;
-  pendingScope: { intent: string; fields?: Record<string, string> };
+  pendingScope: RouteFormPendingScope;
   pendingLabel: string;
   submitLabel: string;
 }) {
@@ -1336,10 +1337,23 @@ function ScheduleCapacityForm({
     fieldErrors,
     resolveScheduleCapacityFieldName,
   );
-  const isPending = isRouteFormPending(navigation, {
+  const pendingScope: RouteFormPendingScope = {
     intent,
-    fields: id ? { id } : scheduleId ? { scheduleId } : undefined,
-  });
+    fields: getScheduleCapacityPendingFields({ id, scheduleId }),
+  };
+  let buttonIcon: ReactNode = null;
+  let buttonText = buttonLabel;
+
+  const isPending = isRouteFormPending(navigation, pendingScope);
+
+  if (isPending) {
+    buttonIcon = (
+      <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+    );
+    buttonText = "Guardando cupo...";
+  } else if (buttonLabel === "Nuevo cupo") {
+    buttonIcon = <Plus data-icon="inline-start" />;
+  }
 
   return (
     <form
@@ -1374,21 +1388,31 @@ function ScheduleCapacityForm({
         </div>
         <div>
           <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : buttonLabel === "Nuevo cupo" ? (
-              <Plus data-icon="inline-start" />
-            ) : null}
-            {isPending ? "Guardando cupo..." : buttonLabel}
+            {buttonIcon}
+            {buttonText}
           </Button>
         </div>
       </FieldGroup>
     </form>
   );
+}
+
+function getScheduleCapacityPendingFields({
+  id,
+  scheduleId,
+}: {
+  id?: string;
+  scheduleId?: string;
+}): Record<string, string> | undefined {
+  if (id) {
+    return { id };
+  }
+
+  if (scheduleId) {
+    return { scheduleId };
+  }
+
+  return undefined;
 }
 
 function getScheduleFieldErrors(actionData?: ActionData, scheduleId?: string) {

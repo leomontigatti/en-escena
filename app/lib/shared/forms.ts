@@ -7,7 +7,12 @@ import type {
   UseFormReturn,
 } from "react-hook-form";
 import { useFormAction, useNavigation, useSubmit } from "react-router";
-import type { FormEncType, HTMLFormMethod, SubmitFunction } from "react-router";
+import type {
+  FormEncType,
+  HTMLFormMethod,
+  SubmitFunction,
+  SubmitTarget,
+} from "react-router";
 
 export const requiredFieldMessage = "Este campo es obligatorio.";
 
@@ -84,7 +89,7 @@ export function useOptionalSubmit() {
   try {
     return useSubmit();
   } catch {
-    return (() => {}) as SubmitFunction;
+    return async () => {};
   }
 }
 
@@ -96,7 +101,7 @@ export function useOptionalNavigation() {
   }
 }
 
-type PendingFormScope = {
+export type RouteFormPendingScope = {
   intent: string;
   fields?: Record<string, string>;
 };
@@ -112,20 +117,11 @@ export function createValidatedRouteSubmitHandler<
     event.preventDefault();
 
     const formElement = event.currentTarget;
-    const nativeEvent = event.nativeEvent;
-    const submitter =
-      nativeEvent instanceof SubmitEvent ? nativeEvent.submitter : null;
+    const submitTarget = getRouteSubmitTarget(event);
 
     const submitRouteForm: SubmitHandler<TFieldValues> = () => {
-      const actionUrl = new URL(formElement.action);
-      const submitTarget =
-        submitter instanceof HTMLButtonElement ||
-        submitter instanceof HTMLInputElement
-          ? submitter
-          : formElement;
-
       submit(submitTarget, {
-        action: action ?? `${actionUrl.pathname}${actionUrl.search}`,
+        action: action ?? getFormActionPath(formElement),
         encType: formElement.enctype as FormEncType,
         method: formElement.method as HTMLFormMethod,
       });
@@ -141,7 +137,7 @@ export function isRouteFormPending(
     formMethod?: string | null;
     state: string;
   },
-  scope: PendingFormScope,
+  scope: RouteFormPendingScope,
 ) {
   if (
     navigation.state === "idle" ||
@@ -158,4 +154,32 @@ export function isRouteFormPending(
   }
 
   return true;
+}
+
+function getRouteSubmitTarget(
+  event: Parameters<SubmitEventHandler<HTMLFormElement>>[0],
+): SubmitTarget {
+  let submitter: SubmitEvent["submitter"] = null;
+
+  if (
+    typeof SubmitEvent !== "undefined" &&
+    event.nativeEvent instanceof SubmitEvent
+  ) {
+    submitter = event.nativeEvent.submitter;
+  }
+
+  if (
+    submitter instanceof HTMLButtonElement ||
+    submitter instanceof HTMLInputElement
+  ) {
+    return submitter;
+  }
+
+  return event.currentTarget;
+}
+
+function getFormActionPath(formElement: HTMLFormElement) {
+  const actionUrl = new URL(formElement.action);
+
+  return `${actionUrl.pathname}${actionUrl.search}`;
 }

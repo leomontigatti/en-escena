@@ -63,6 +63,7 @@ import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
   requiredFieldMessage,
+  type RouteFormPendingScope,
   useApplyServerFieldErrors,
   useOptionalFormAction,
   useOptionalNavigation,
@@ -409,7 +410,7 @@ function ModalityFormActions({
   submitLabel,
 }: {
   formId: string;
-  pendingScope: { intent: string; fields?: Record<string, string> };
+  pendingScope: RouteFormPendingScope;
   pendingLabel: string;
   submitLabel: string;
 }) {
