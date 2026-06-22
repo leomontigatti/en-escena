@@ -72,7 +72,7 @@ import { listChoreographiesForAcademyEvent } from "@/lib/portal/choreographies.s
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import { listAcademyProfessors } from "@/lib/portal/professors.server";
 import { listDancersForAcademy } from "@/lib/portal/dancers.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
+import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import {
   getChoreographyRegistrationBaseOptions,
   getEventBases,
@@ -178,7 +178,7 @@ export const handle = {
 
 export async function loader({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
-  const eventContext = await getPortalEventContext(request);
+  const eventContext = await getPortalActiveEventReadinessContext(request);
   const selectedEventId = eventContext.selectedEvent?.id ?? null;
   const [choreographies, activeDancers, activeProfessors, baseOptions] =
     await Promise.all([

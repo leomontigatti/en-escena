@@ -71,7 +71,7 @@ import {
   formatGroupTypeLabel,
   formatOperationalPendingItemLabel,
 } from "@/lib/portal/choreographies";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
+import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
@@ -204,7 +204,7 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const eventContext = await getPortalEventContext(request);
+  const eventContext = await getPortalActiveEventContext(request);
   const selectedEventId = eventContext.selectedEvent?.id;
 
   if (!selectedEventId) {
@@ -256,7 +256,7 @@ export async function action({
 }) {
   const { academy } = await requireAcademyUser(request);
   const choreographyId = readChoreographyId(params);
-  const eventContext = await getPortalEventContext(request);
+  const eventContext = await getPortalActiveEventContext(request);
   const selectedEventId = eventContext.selectedEvent?.id;
 
   if (!selectedEventId) {

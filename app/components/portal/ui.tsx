@@ -52,14 +52,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import type { PortalEventContext } from "@/lib/portal/event-context";
+import type {
+  PortalEventContext,
+  PortalShellEventContext,
+} from "@/lib/portal/event-context";
 import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 type PortalShellProps = {
   userEmail: string;
   contactName: string | null;
   academyName: string;
-  eventContext: PortalEventContext;
+  eventContext: PortalShellEventContext;
   children: ReactNode;
   breadcrumbItems?: PortalShellBreadcrumbItem[];
 };
@@ -382,7 +385,7 @@ function PortalBreadcrumbSegment({
 function PortalActiveEventSummary({
   eventContext,
 }: {
-  eventContext: PortalEventContext;
+  eventContext: PortalShellEventContext;
 }) {
   const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
 

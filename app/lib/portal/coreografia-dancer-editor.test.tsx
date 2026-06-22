@@ -229,7 +229,6 @@ function buildLoaderData(
       warningMessage: null,
     },
     eventContext: {
-      events: [eventSummary],
       selectedEvent: eventSummary,
       activeEvent: eventSummary,
       hasActiveEvent: true,

@@ -54,8 +54,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("portal loader Evento activo", () => {
-  test("uses the active Evento and exposes every Evento for future display", async () => {
-    const historicalEvent = await createSavedEvent({
+  test("uses the active Evento in the shell summary", async () => {
+    await createSavedEvent({
       name: "Regional 2025",
       registrationStartsAt: date("2025-03-01T12:00:00Z"),
       registrationEndsAt: date("2025-04-30T12:00:00Z"),
@@ -71,15 +71,11 @@ describe.sequential("portal loader Evento activo", () => {
 
     const loaderData = await loadPortal("http://localhost/portal");
 
-    expect(loaderData.eventContext.selectedEvent).toMatchObject({
+    expect(loaderData.eventContext.activeEvent).toMatchObject({
       id: activeEvent.id,
       name: "Regional 2026",
       active: true,
     });
-    expect(loaderData.eventContext.events.map((event) => event.id)).toEqual([
-      activeEvent.id,
-      historicalEvent.id,
-    ]);
   });
 
   test("ignores the event URL query and keeps using the active Evento", async () => {
@@ -97,23 +93,22 @@ describe.sequential("portal loader Evento activo", () => {
       `http://localhost/portal?evento=${selectedEvent.id}`,
     );
 
-    expect(loaderData.eventContext.selectedEvent).toMatchObject({
+    expect(loaderData.eventContext.activeEvent).toMatchObject({
       id: activeEvent.id,
       name: "Activo",
       active: true,
     });
-    expect(loaderData.eventContext.isReadOnly).toBe(false);
   });
 
   test("does not fall back to the most recent Evento when no Evento is active", async () => {
-    const olderEvent = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2025",
       registrationStartsAt: date("2025-03-01T12:00:00Z"),
       registrationEndsAt: date("2025-04-30T12:00:00Z"),
       startsAt: date("2025-05-01T12:00:00Z"),
       endsAt: date("2025-05-03T12:00:00Z"),
     });
-    const recentEvent = await createSavedEvent({
+    await createSavedEvent({
       name: "Regional 2026",
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),
@@ -121,11 +116,7 @@ describe.sequential("portal loader Evento activo", () => {
 
     const loaderData = await loadPortal("http://localhost/portal");
 
-    expect(loaderData.eventContext.selectedEvent).toBeNull();
-    expect(loaderData.eventContext.events.map((event) => event.id)).toEqual([
-      recentEvent.id,
-      olderEvent.id,
-    ]);
+    expect(loaderData.eventContext.activeEvent).toBeNull();
   });
 
   test("keeps the portal accessible when there are no Eventos", async () => {
@@ -135,10 +126,7 @@ describe.sequential("portal loader Evento activo", () => {
       name: "Academia de Prueba",
     });
     expect(loaderData.eventContext).toMatchObject({
-      hasEvents: false,
-      selectedEvent: null,
-      isReadOnly: true,
-      isRegistrationOpen: false,
+      activeEvent: null,
     });
   });
 

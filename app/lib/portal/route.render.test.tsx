@@ -34,14 +34,7 @@ describe("portal route view", () => {
   test("renders the portal shell", () => {
     const markup = renderPortal({
       eventContext: {
-        events: [eventSummary({ name: "Regional 2026" })],
-        selectedEvent: eventSummary({ name: "Regional 2026" }),
         activeEvent: eventSummary({ name: "Regional 2026" }),
-        hasActiveEvent: true,
-        activeEventRegistrationReadiness: readiness(true),
-        hasEvents: true,
-        isReadOnly: false,
-        isRegistrationOpen: true,
       },
     });
 
@@ -69,14 +62,7 @@ describe("portal route view", () => {
   test("shows the shell no-active-event state", () => {
     const markup = renderPortal({
       eventContext: {
-        events: [],
-        selectedEvent: null,
         activeEvent: null,
-        hasActiveEvent: false,
-        activeEventRegistrationReadiness: null,
-        hasEvents: false,
-        isReadOnly: true,
-        isRegistrationOpen: false,
       },
     });
 
@@ -94,21 +80,7 @@ describe("portal route view", () => {
 
     const markup = renderPortal({
       eventContext: {
-        events: [selectedEvent],
-        selectedEvent,
         activeEvent: selectedEvent,
-        hasActiveEvent: true,
-        activeEventRegistrationReadiness: readiness(false, [
-          {
-            code: "price-coverage",
-            label: "Precios aplicables",
-            detail:
-              "Falta un precio aplicable para categoría Juvenil, Modalidad Jazz, tipo de grupo Solo.",
-          },
-        ]),
-        hasEvents: true,
-        isReadOnly: false,
-        isRegistrationOpen: true,
       },
     });
 
@@ -147,7 +119,6 @@ describe("portal route view", () => {
           }),
         ],
         eventContext: {
-          events: [selectedEvent],
           selectedEvent,
           activeEvent: selectedEvent,
           hasActiveEvent: true,
@@ -208,7 +179,6 @@ describe("portal route view", () => {
     const markup = renderCoreografias({
       loaderData: coreografiasLoaderData({
         eventContext: {
-          events: [selectedEvent],
           selectedEvent,
           activeEvent: selectedEvent,
           hasActiveEvent: true,
@@ -243,7 +213,6 @@ describe("portal route view", () => {
     const markup = renderCoreografias({
       loaderData: coreografiasLoaderData({
         eventContext: {
-          events: [],
           selectedEvent: null,
           activeEvent: null,
           hasActiveEvent: false,
@@ -289,7 +258,6 @@ describe("portal route view", () => {
           warningMessage: null,
         },
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -360,7 +328,6 @@ describe("portal route view", () => {
           },
         ],
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -418,7 +385,6 @@ describe("portal route view", () => {
           },
         ],
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -550,7 +516,6 @@ describe("portal route view", () => {
           },
         ],
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -601,7 +566,6 @@ describe("portal route view", () => {
       },
       loaderData: coreografiaDetalleLoaderData({
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -663,7 +627,6 @@ describe("portal route view", () => {
       },
       loaderData: coreografiaDetalleLoaderData({
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -739,7 +702,6 @@ describe("portal route view", () => {
       },
       loaderData: coreografiaDetalleLoaderData({
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -769,7 +731,6 @@ describe("portal route view", () => {
     const markup = renderCoreografiaDetalle({
       loaderData: coreografiaDetalleLoaderData({
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -806,7 +767,6 @@ describe("portal route view", () => {
             "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
         },
         eventContext: {
-          events: [eventSummary()],
           selectedEvent: eventSummary(),
           activeEvent: eventSummary(),
           hasActiveEvent: true,
@@ -1382,7 +1342,7 @@ function expectActivePortalNavigationItem(markup: string, path: string) {
 }
 
 function renderPortal(input: {
-  eventContext: PortalLoaderData["eventContext"];
+  eventContext: Parameters<typeof PortalShell>[0]["eventContext"];
 }) {
   const loaderData = {
     email: "portal@example.com",
@@ -1566,15 +1526,8 @@ function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
 function renderPortalShellForTest(
   activePath: string,
   children: ReactNode,
-  eventContext: PortalLoaderData["eventContext"] = {
-    events: [eventSummary()],
-    selectedEvent: eventSummary(),
+  eventContext: Parameters<typeof PortalShell>[0]["eventContext"] = {
     activeEvent: eventSummary(),
-    hasActiveEvent: true,
-    activeEventRegistrationReadiness: readiness(true),
-    hasEvents: true,
-    isReadOnly: false,
-    isRegistrationOpen: true,
   },
 ) {
   return (
@@ -1616,7 +1569,6 @@ function academyLoaderData({
   statusFilter = "active",
   successMessage = null,
   eventContext = {
-    events: [eventSummary()],
     selectedEvent: eventSummary(),
     activeEvent: eventSummary(),
     hasActiveEvent: true,
@@ -1632,7 +1584,7 @@ function academyLoaderData({
   professors?: ProfesoresViewProps["loaderData"]["professors"];
   statusFilter?: "active" | "archived";
   successMessage?: string | null;
-  eventContext?: PortalLoaderData["eventContext"];
+  eventContext?: CoreografiasViewProps["loaderData"]["eventContext"];
 } = {}) {
   return {
     email: "portal@example.com",
@@ -1662,7 +1614,6 @@ function coreografiasLoaderData({
     ],
   },
   eventContext = {
-    events: [eventSummary()],
     selectedEvent: eventSummary(),
     activeEvent: eventSummary(),
     hasActiveEvent: true,
@@ -1854,7 +1805,9 @@ function dancerDetailRow(
 
 function eventSummary(
   overrides: Partial<
-    NonNullable<PortalLoaderData["eventContext"]["selectedEvent"]>
+    NonNullable<
+      CoreografiasViewProps["loaderData"]["eventContext"]["selectedEvent"]
+    >
   > = {},
 ) {
   return {
@@ -1879,11 +1832,9 @@ function date(value: string) {
 
 function readiness(
   isReady: boolean,
-  missingItems: PortalLoaderData["eventContext"]["activeEventRegistrationReadiness"] extends infer T
-    ? T extends { missingItems: infer M }
-      ? M
-      : never
-    : never = [],
+  missingItems: NonNullable<
+    CoreografiasViewProps["loaderData"]["eventContext"]["activeEventRegistrationReadiness"]
+  >["missingItems"] = [],
 ) {
   return {
     eventId: "event_1",

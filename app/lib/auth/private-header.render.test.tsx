@@ -122,14 +122,7 @@ function renderPortal(email: string) {
       phone: "11 1234-5678",
     },
     eventContext: {
-      events: [],
-      selectedEvent: null,
       activeEvent: null,
-      hasActiveEvent: false,
-      activeEventRegistrationReadiness: null,
-      hasEvents: false,
-      isReadOnly: true,
-      isRegistrationOpen: false,
     },
   };
   return renderPrivateRoute(
