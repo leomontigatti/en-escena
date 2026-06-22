@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement, type ReactElement } from "react";
+import { readFileSync } from "node:fs";
 import { createRoutesStub, MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
@@ -64,28 +65,7 @@ describe("private route headers", () => {
   );
 
   test("panel de administración renders session context in the sidebar dropdown trigger", () => {
-    const RoutesStub = createRoutesStub([
-      {
-        path: "/administracion",
-        Component: AdministracionRouteView,
-      },
-    ]);
-    const markup = renderToStaticMarkup(
-      createElement(RoutesStub, {
-        initialEntries: ["/administracion"],
-        hydrationData: {
-          loaderData: {
-            "0": {
-              email: "admin@example.com",
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
-            },
-          },
-        },
-      }),
-    );
+    const markup = renderAdminRoute();
 
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Usuario interno");
@@ -109,7 +89,106 @@ describe("private route headers", () => {
       expect(markup).toContain(label);
     }
   });
+
+  test("admin, auditoría y root error usan tokens semánticos en sus superficies compartidas", () => {
+    const adminMarkup = renderAdminRoute();
+    const auditoriaMarkup = renderPrivateRoute(
+      <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+    );
+    const rootSource = readFileSync("app/root.tsx", "utf8");
+
+    expectClassFragments(adminMarkup, {
+      includes: [
+        "focus-visible:bg-background",
+        "focus-visible:text-foreground",
+        "focus-visible:ring-ring/50",
+      ],
+      excludes: [
+        "focus-visible:bg-white",
+        "focus-visible:text-slate-950",
+        "focus-visible:ring-teal-100",
+      ],
+    });
+
+    expectClassFragments(auditoriaMarkup, {
+      includes: [
+        "border-border",
+        "bg-card",
+        "text-card-foreground",
+        "text-muted-foreground",
+        "hover:bg-accent",
+        "hover:border-accent",
+        "focus-visible:ring-ring/50",
+      ],
+      excludes: [
+        "border-slate-200",
+        "bg-white",
+        "bg-slate-50",
+        "text-slate-950",
+        "text-slate-600",
+        "hover:bg-teal-50",
+        "hover:border-teal-300",
+        "focus-visible:ring-teal-100",
+      ],
+    });
+
+    expectClassFragments(rootSource, {
+      includes: [
+        "border-border",
+        "bg-card",
+        "text-card-foreground",
+        "text-muted-foreground",
+      ],
+      excludes: [
+        "border-slate-200",
+        "bg-white",
+        "text-slate-500",
+        "text-slate-950",
+        "text-slate-600",
+      ],
+    });
+  });
 });
+
+function expectClassFragments(
+  markupOrSource: string,
+  fragments: {
+    includes: string[];
+    excludes: string[];
+  },
+) {
+  for (const classFragment of fragments.includes) {
+    expect(markupOrSource).toContain(classFragment);
+  }
+
+  for (const classFragment of fragments.excludes) {
+    expect(markupOrSource).not.toContain(classFragment);
+  }
+}
+
+function renderAdminRoute() {
+  const RoutesStub = createRoutesStub([
+    {
+      path: "/administracion",
+      Component: AdministracionRouteView,
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: ["/administracion"],
+      hydrationData: {
+        loaderData: {
+          "0": {
+            email: "admin@example.com",
+            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+            selectedEventId: "evento_2026",
+          },
+        },
+      },
+    }),
+  );
+}
 
 function renderPortal(email: string) {
   const loaderData = {
