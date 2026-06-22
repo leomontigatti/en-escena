@@ -2,7 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
-import { Link, redirect, useFetcher } from "react-router";
+import {
+  Link,
+  redirect,
+  useFetcher,
+  useViewTransitionState,
+} from "react-router";
 import { z } from "zod";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -49,6 +54,7 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -237,14 +243,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       header: "Nombre",
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
-      cell: (dancer) => (
-        <Link
-          to={`/portal/bailarines/${dancer.id}`}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
-          {dancer.firstName} {dancer.lastName}
-        </Link>
-      ),
+      cell: (dancer) => <DancerDetailLink dancer={dancer} />,
       filterValue: (dancer) =>
         `${dancer.firstName} ${dancer.lastName} ${dancer.documentNumber ?? ""}`,
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
@@ -320,6 +319,22 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
+  );
+}
+
+function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
+  const href = `/portal/bailarines/${dancer.id}`;
+  const isTransitioning = useViewTransitionState(href);
+
+  return (
+    <Link
+      to={href}
+      viewTransition
+      style={getPortalRecordTitleViewTransitionStyle(isTransitioning)}
+      className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      {dancer.firstName} {dancer.lastName}
+    </Link>
   );
 }
 

@@ -153,6 +153,38 @@ Implication for child issues:
   portal create/edit dialogs as separate families because they do not all want
   navigation after submit.
 
+## View Transition Evaluation
+
+Navigation map after the request-flow and pending-state fixes from PRD #130:
+
+- `Portal / Bailarines`: list -> detail and detail -> list should animate.
+  This path has a stable record name on both screens and the navigation changes
+  context without replacing the persistent shell.
+- `Portal / Profesores`: list -> detail and detail -> list should animate.
+  This has the same continuity signal as `Bailarines`.
+- `Portal / Coreografías`: list -> detail should not animate.
+  The destination is an editing surface dominated by mutable roster state,
+  operational alerts, and resolver-driven pending feedback instead of a stable
+  shared visual target.
+- `Portal / Bailarines` create dialog and `Portal / Profesores` create dialog
+  should not animate with View Transitions.
+  They are local dialog toggles, not route navigations, so regular dialog
+  motion remains the clearer default.
+- `Portal / Coreografías` create flow should not animate with View Transitions.
+  The stepper and deferred calculations already communicate progress, and a
+  route transition would only mask request work.
+- `Administración` list/detail and Bases del evento routes should not animate.
+  Those screens sit under persistent shells with dense operational forms, so a
+  route-wide transition would add motion without improving continuity.
+
+Implementation decision for issue #142:
+
+- Keep View Transitions scoped to `Portal / Bailarines` and
+  `Portal / Profesores` list-detail navigation only.
+- Do not add a root or shell-level route transition.
+- Use an explicit shared-element transition name with a 160ms default and
+  reduced-motion fallback.
+
 ## Revalidated Assumptions
 
 Still true:

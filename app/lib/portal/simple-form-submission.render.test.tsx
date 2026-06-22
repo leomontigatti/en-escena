@@ -11,6 +11,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const useFetcherMock = vi.hoisted(() => vi.fn());
 const useNavigationMock = vi.hoisted(() => vi.fn());
 const useSubmitMock = vi.hoisted(() => vi.fn());
+const useViewTransitionStateMock = vi.hoisted(() => vi.fn((_: string) => false));
 
 vi.mock("react-router", async () => {
   const actual =
@@ -22,6 +23,7 @@ vi.mock("react-router", async () => {
     useFetcher: useFetcherMock,
     useNavigation: useNavigationMock,
     useSubmit: useSubmitMock,
+    useViewTransitionState: useViewTransitionStateMock,
   };
 });
 
@@ -46,6 +48,8 @@ describe("portal simple form submissions", () => {
     useFetcherMock.mockReset();
     useNavigationMock.mockReset();
     useSubmitMock.mockReset();
+    useViewTransitionStateMock.mockReset();
+    useViewTransitionStateMock.mockReturnValue(false);
   });
 
   test("keeps the professor create dialog mounted and disables duplicate submits while saving", async () => {

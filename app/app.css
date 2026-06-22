@@ -129,3 +129,14 @@
     @apply font-sans;
   }
 }
+
+::view-transition-group(portal-record-title) {
+  animation-duration: 160ms;
+  animation-timing-function: ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(portal-record-title) {
+    animation-duration: 1ms;
+  }
+}

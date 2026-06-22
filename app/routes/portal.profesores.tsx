@@ -2,7 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
-import { Link, redirect, useFetcher } from "react-router";
+import {
+  Link,
+  redirect,
+  useFetcher,
+  useViewTransitionState,
+} from "react-router";
 import { z } from "zod";
 
 import {
@@ -47,6 +52,7 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -229,14 +235,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       header: "Nombre",
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
-      cell: (professor) => (
-        <Link
-          to={`/portal/profesores/${professor.id}`}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
-          {professor.firstName} {professor.lastName}
-        </Link>
-      ),
+      cell: (professor) => <ProfessorDetailLink professor={professor} />,
       filterValue: (professor) =>
         `${professor.firstName} ${professor.lastName} ${professor.documentNumber ?? ""}`,
       sortValue: (professor) => `${professor.firstName} ${professor.lastName}`,
@@ -310,6 +309,22 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
+  );
+}
+
+function ProfessorDetailLink({ professor }: { professor: ProfessorRow }) {
+  const href = `/portal/profesores/${professor.id}`;
+  const isTransitioning = useViewTransitionState(href);
+
+  return (
+    <Link
+      to={href}
+      viewTransition
+      style={getPortalRecordTitleViewTransitionStyle(isTransitioning)}
+      className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      {professor.firstName} {professor.lastName}
+    </Link>
   );
 }
 

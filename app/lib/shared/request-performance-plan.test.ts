@@ -8,6 +8,7 @@ const requiredSections = [
   "## Critical Administración Routes",
   "## Critical Portal Routes",
   "## Current Submit Patterns",
+  "## View Transition Evaluation",
   "## Revalidated Assumptions",
 ];
 
@@ -24,6 +25,15 @@ const requiredAssumptions = [
   "`createValidatedNativeSubmitHandler` still ends in `formElement.submit()`",
   "`npm run typecheck` remains the required TypeScript entrypoint",
   "`npm run test:db` is the final reliable database-backed validation path",
+];
+
+const requiredViewTransitionDecisions = [
+  "`Portal / Bailarines`: list -> detail and detail -> list should animate.",
+  "`Portal / Profesores`: list -> detail and detail -> list should animate.",
+  "`Portal / Coreografías`: list -> detail should not animate.",
+  "Do not add a root or shell-level route transition.",
+  "shared-element transition name with a 160ms default",
+  "reduced-motion fallback",
 ];
 
 const permanentRuleDocuments = [
@@ -97,6 +107,10 @@ describe("request performance refactor plan", () => {
 
     for (const assumption of requiredAssumptions) {
       expect(plan).toContain(assumption);
+    }
+
+    for (const decision of requiredViewTransitionDecisions) {
+      expect(plan).toContain(decision);
     }
   });
 

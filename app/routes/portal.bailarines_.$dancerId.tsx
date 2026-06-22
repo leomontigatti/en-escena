@@ -8,6 +8,7 @@ import {
   useActionData,
   useNavigation,
   useSubmit,
+  useViewTransitionState,
 } from "react-router";
 import { z } from "zod";
 
@@ -58,6 +59,7 @@ import {
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
 
 const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 const formId = "portal-bailarin-form";
@@ -292,6 +294,10 @@ export function PortalBailarinDetalleRouteView({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
+  const detailHref = `/portal/bailarines/${loaderData.dancer.id}`;
+  const isDetailTransitioning = useViewTransitionState(detailHref);
+  const isListTransitioning = useViewTransitionState("/portal/bailarines");
+  const title = `${loaderData.dancer.firstName} ${loaderData.dancer.lastName}`;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -305,8 +311,14 @@ export function PortalBailarinDetalleRouteView({
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1">
-            <h1 id="bailarin-detail-title" className="text-xl font-semibold">
-              Editar bailarín
+            <h1
+              id="bailarin-detail-title"
+              className="text-xl font-semibold"
+              style={getPortalRecordTitleViewTransitionStyle(
+                isDetailTransitioning || isListTransitioning,
+              )}
+            >
+              {title}
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               Actualizá los datos de este bailarín.
@@ -448,7 +460,9 @@ export function PortalBailarinDetalleRouteView({
           </CardContent>
           <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
             <Button asChild variant="outline" size="lg">
-              <Link to="/portal/bailarines">Volver</Link>
+              <Link to="/portal/bailarines" viewTransition>
+                Volver
+              </Link>
             </Button>
             <Button
               type="submit"

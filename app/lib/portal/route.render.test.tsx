@@ -935,7 +935,8 @@ describe("portal route view", () => {
       },
     });
 
-    expect(markup).toContain("Editar bailarín");
+    expect(markup).toContain(">Ana Alvarez</h1>");
+    expect(markup).not.toContain("Editar bailarín");
     expect(markup).not.toContain("Editar Bailarín");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Bailarines");
@@ -1140,7 +1141,7 @@ describe("portal Profesor edit view", () => {
       },
     });
 
-    expect(markup).toContain("Editar profesor");
+    expect(markup).toContain(">Ana Perez</h1>");
     expect(markup).not.toContain("Editar Profesor");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Profesores");
@@ -1200,7 +1201,7 @@ describe("portal Profesor edit view", () => {
       },
     });
 
-    expect(markup).toContain("Editar profesor");
+    expect(markup).toContain(">Ana Zapata</h1>");
     expect(markup).not.toContain("Faltan datos de identificación.");
   });
 

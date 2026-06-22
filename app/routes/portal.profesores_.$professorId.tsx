@@ -13,6 +13,7 @@ import {
   useActionData,
   useNavigation,
   useSubmit,
+  useViewTransitionState,
 } from "react-router";
 import { z } from "zod";
 
@@ -62,6 +63,7 @@ import {
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
 
 const professorNotFoundMessage = "No encontramos ese Profesor.";
 const formId = "portal-profesor-form";
@@ -259,6 +261,10 @@ export function PortalProfesorRouteView({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-professor";
+  const detailHref = `/portal/profesores/${loaderData.professor.id}`;
+  const isDetailTransitioning = useViewTransitionState(detailHref);
+  const isListTransitioning = useViewTransitionState("/portal/profesores");
+  const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
@@ -272,8 +278,14 @@ export function PortalProfesorRouteView({
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1">
-            <h1 id="profesor-detail-title" className="text-xl font-semibold">
-              Editar profesor
+            <h1
+              id="profesor-detail-title"
+              className="text-xl font-semibold"
+              style={getPortalRecordTitleViewTransitionStyle(
+                isDetailTransitioning || isListTransitioning,
+              )}
+            >
+              {title}
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               Actualizá los datos de este profesor.
@@ -362,7 +374,9 @@ export function PortalProfesorRouteView({
           </CardContent>
           <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
             <Button asChild variant="outline" size="lg">
-              <Link to="/portal/profesores">Volver</Link>
+              <Link to="/portal/profesores" viewTransition>
+                Volver
+              </Link>
             </Button>
             <Button
               type="submit"
