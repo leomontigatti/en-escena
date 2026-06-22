@@ -29,11 +29,11 @@ const domainRuleRequirements = [
 
 const fastDbIsolationAdrRequirements = [
   "# Decide fast DB test isolation around PGlite snapshots",
-  "**Status**: accepted",
+  "**Status**: amended",
   "PGlite with schema snapshots",
   "real Postgres per worker",
-  "adopts PGlite with schema snapshots as the default full DB test",
-  "Fallback path",
+  "default full DB suite uses the real Postgres validation path",
+  "**Fallback path**",
   "Evento",
   "Academia",
   "Coreografia",

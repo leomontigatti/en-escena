@@ -1,0 +1,185 @@
+# Request Performance Refactor Plan
+
+Revalidation baseline for PRD #130 before child implementation starts.
+
+## Current Validation Workflow
+
+Confirmed against `docs/agents/codex-workflows.md`, `package.json`, and
+`docs/local-auth.md`.
+
+Final validation order for this refactor:
+
+1. `npm run format`
+2. `npm run format:check`
+3. `npm run typecheck`
+4. `npm run test`
+5. `npm run test:db` for database-backed route, loader, action, repository, or
+   business-rule changes
+6. `npm run build` for routing, server-rendering, bundling, CSS, or deployment
+   changes
+
+Implementation guardrails that still matter for this PRD:
+
+- `npm run typecheck` remains the required TypeScript entrypoint because it runs
+  React Router type generation before `tsc`.
+- `npm run test:db:file -- <path-to-db-test>` is the fast focused DB loop.
+- `npm run test:db` is the final reliable database-backed validation path.
+- `npm run test:db:fast:full` remains experimental and is not the final signoff
+  command.
+
+## Critical Administración Routes
+
+Layout and shared event context:
+
+- `app/routes/administracion.tsx`
+- `app/lib/admin/event-context.server.ts`
+
+Current high-value request paths for this refactor:
+
+- `app/routes/administracion.eventos.tsx`
+  Event list loader plus readiness fan-out per row.
+- `app/routes/administracion.eventos_.$eventId.tsx`
+  Event edit action path and readiness loader.
+- `app/routes/administracion.eventos_.nuevo.tsx`
+  Event creation form/action path.
+- `app/lib/admin/events/bases-route.server.ts`
+  Shared loader/action seam behind event configuration screens.
+- `app/routes/administracion.modalidades.tsx`
+- `app/routes/administracion.modalidades_.$modalityId.tsx`
+- `app/routes/administracion.modalidades_.nueva.tsx`
+- `app/routes/administracion.categorias.tsx`
+- `app/routes/administracion.categorias_.$categoryId.tsx`
+- `app/routes/administracion.categorias_.nueva.tsx`
+- `app/routes/administracion.cronogramas.tsx`
+- `app/routes/administracion.cronogramas_.$scheduleId.tsx`
+- `app/routes/administracion.cronogramas_.nuevo.tsx`
+- `app/routes/administracion.precios.tsx`
+- `app/routes/administracion.precios_.$priceId.tsx`
+- `app/routes/administracion.precios_.nuevo.tsx`
+
+Routes that currently reload admin event context in addition to the layout and
+should stay in the measurement set:
+
+- `app/routes/administracion.bailarines.tsx`
+- `app/routes/administracion.bailarines_.$dancerId.tsx`
+- `app/routes/administracion.profesores.tsx`
+- `app/routes/administracion.profesores_.$professorId.tsx`
+
+## Critical Portal Routes
+
+Layout and shared event context:
+
+- `app/routes/portal.tsx`
+- `app/lib/portal/event-context.server.ts`
+
+Current high-value request paths for this refactor:
+
+- `app/routes/portal.bailarines.tsx`
+  List loader plus create dialog action.
+- `app/routes/portal.bailarines_.$dancerId.tsx`
+  Detail/edit action path.
+- `app/routes/portal.profesores.tsx`
+  List loader plus create dialog action.
+- `app/routes/portal.profesores_.$professorId.tsx`
+  Detail/edit action path.
+- `app/routes/portal.coreografias.tsx`
+  List loader plus create flow with calculation and submission fetchers.
+- `app/routes/portal.coreografias_.$choreographyId.tsx`
+  Detail/edit flow with `shouldRevalidate`, resolution fetcher, and mutation
+  actions.
+- `app/routes/portal.perfil.tsx`
+  RHF-backed profile form that still posts through the native submit helper.
+
+Routes that currently reload portal event context in addition to the layout and
+should stay in the measurement set:
+
+- `app/routes/portal.bailarines.tsx`
+- `app/routes/portal.profesores.tsx`
+- `app/routes/portal.coreografias.tsx`
+- `app/routes/portal.coreografias_.$choreographyId.tsx`
+
+## Current Submit Patterns
+
+Current patterns are mixed. The repo has not yet converged on one React
+Router-native form path.
+
+Native React Router `<Form>` without RHF helper:
+
+- Auth and access flows such as `app/routes/ingresar.tsx`,
+  `app/routes/registro.tsx`, `app/routes/registro_.$token.tsx`,
+  `app/routes/recuperar-acceso.tsx`, `app/routes/cambiar-contrasena.tsx`, and
+  `app/routes/invitacion_.$token.tsx`
+- `app/routes/administracion.usuarios_.$userId.tsx` also includes a plain
+  `<Form method="post">` path alongside RHF-backed submits
+
+RHF validation followed by native `form.submit()`:
+
+- `app/lib/shared/forms.ts`
+  `createValidatedNativeSubmitHandler` still ends in `formElement.submit()`
+- `app/components/admin/events/form.tsx`
+- `app/components/admin/events/event-modalities.tsx`
+- `app/components/admin/events/event-categories.tsx`
+- `app/components/admin/events/event-schedules.tsx`
+- `app/components/admin/events/event-prices.tsx`
+- `app/routes/administracion.usuarios_.nuevo.tsx`
+- `app/routes/administracion.usuarios_.$userId.tsx`
+- `app/routes/administracion.profesores_.$professorId.tsx`
+- `app/routes/administracion.bailarines_.$dancerId.tsx`
+- `app/routes/portal.bailarines.tsx`
+- `app/routes/portal.bailarines_.$dancerId.tsx`
+- `app/routes/portal.profesores.tsx`
+- `app/routes/portal.profesores_.$professorId.tsx`
+- `app/routes/portal.perfil.tsx`
+- `app/components/auth/access-form.tsx`
+
+React Router `useFetcher` / `fetcher.submit` patterns already present:
+
+- `app/routes/portal.coreografias.tsx`
+  uses separate calculation and submission fetchers
+- `app/routes/portal.coreografias_.$choreographyId.tsx`
+  uses a resolution fetcher and skips full revalidation for that intent via
+  `shouldRevalidate`
+
+Implication for child issues:
+
+- The PRD assumption that native submit patterns still exist is correct.
+- The first migration slice should treat the event configuration forms and the
+  portal create/edit dialogs as separate families because they do not all want
+  navigation after submit.
+
+## Revalidated Assumptions
+
+Still true:
+
+- `app/routes/administracion.tsx` loads shell-wide email plus active event
+  context, and child admin routes still load additional route data below it.
+- `app/routes/portal.tsx` loads shell-wide academy plus event context, and key
+  portal child routes still query event context again inside their own
+  loaders/actions.
+- Critical performance seams are still React Router loaders and actions, not a
+  separate client-side data layer.
+- `portal.coreografias` is still the most advanced React Router-native submit
+  surface and remains the best reference route for later migrations.
+
+Changed or stale versus PRD #130:
+
+- The local plan file referenced by PRD #130 did not exist. This document now
+  becomes the repo-local source of truth for the pre-implementation inventory.
+- The PRD points to a generic local plan reference, but the repo now needs this
+  explicit route and submit inventory before issues #132 onward start.
+- The repo has a stronger DB validation split than the PRD text implied:
+  focused iteration uses `npm run test:db:file -- <path-to-db-test>`, while
+  final database-backed validation uses `npm run test:db`.
+- `docs/agents/codex-workflows.md` still documents `npm test` in prose, while
+  the current implementation task contract and script inventory use
+  `npm run test`. They are equivalent in npm, but child issues should cite the
+  `npm run ...` form for consistency with the repo task contract.
+
+Decisions for child issues:
+
+- Use this file plus PRD #130 as the starting point for issues #132 onward.
+- Keep administration event configuration, portal create flows, and
+  event-context deduplication as separate measurement/migration tracks.
+- Do not assume every RHF form should move to `useFetcher`; preserve
+  `useSubmit` or `<Form>` navigation semantics where redirect-on-success is the
+  intended behavior.

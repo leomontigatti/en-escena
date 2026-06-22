@@ -30,15 +30,15 @@ const deferredProjectSplitDocumentation = [
 const dbWorkflowScopeGuardrails = [
   "Out of scope: do not rename these commands for the pnpm migration",
   "Use `npm run test:db:file -- <path-to-db-test>` while iterating",
-  "Run the full `npm run test:db:final` command before finishing",
+  "Run the full `npm run test:db` command before finishing",
   "Do not run `npx tsc` directly",
 ];
 
 const localAuthDatabaseModes = [
-  "Fast DB validation (`npm run test:db`, `npm run test:db:file -- <archivo>`)",
-  "does not require local Postgres",
-  "Final DB validation (`npm run test:db:final` or `npm run test:db:postgres`)",
-  "requires local Postgres through `TEST_DATABASE_URL`",
+  "Fast focused DB validation (`npm run test:db:file -- <archivo>`)",
+  "repo dependencies are installed.",
+  "Final DB validation (`npm run test:db`, `npm run test:db:final` or",
+  "`TEST_DATABASE_URL`.",
 ];
 
 const requiredIsolatedTestExamples = [
@@ -58,8 +58,7 @@ describe("DB test workflow", () => {
     const focusedFinalDatabaseSuite = scripts["test:db:file:final"];
     const focusedPostgresDatabaseSuite = scripts["test:db:file:postgres"];
 
-    expect(defaultDatabaseSuite).toContain("vitest.db.fast.config.ts");
-    expect(defaultDatabaseSuite).toContain("--run");
+    expect(defaultDatabaseSuite).toBe("npm run test:db:final");
     expect(focusedDatabaseSuite).toContain("vitest.db.fast.config.ts");
     expect(focusedDatabaseSuite).toContain("--run");
     expect(finalDatabaseSuite).toBe("npm run test:db:postgres");
