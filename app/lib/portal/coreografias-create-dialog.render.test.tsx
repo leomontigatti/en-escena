@@ -51,6 +51,10 @@ describe("coreografía creation dialog render", () => {
             />
           ),
         },
+        {
+          path: "/portal/coreografias/crear",
+          loader: async () => buildCreateDialogLoaderData(),
+        },
       ],
       { initialEntries: ["/portal/coreografias"] },
     );
@@ -85,6 +89,26 @@ function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
 
   return {
     choreographies: [],
+    activeDancerCount: 1,
+    eventContext: {
+      events: [eventSummary],
+      selectedEvent: eventSummary,
+      activeEvent: eventSummary,
+      hasActiveEvent: true,
+      activeEventRegistrationReadiness: {
+        eventId: "event_1",
+        isReady: true,
+        missingItems: [],
+      },
+      hasEvents: true,
+      isReadOnly: false,
+      isRegistrationOpen: true,
+    },
+  };
+}
+
+function buildCreateDialogLoaderData() {
+  return {
     activeDancers: [
       {
         id: "dancer_1",
@@ -119,20 +143,6 @@ function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
           modalityId: "modality_1",
         },
       ],
-    },
-    eventContext: {
-      events: [eventSummary],
-      selectedEvent: eventSummary,
-      activeEvent: eventSummary,
-      hasActiveEvent: true,
-      activeEventRegistrationReadiness: {
-        eventId: "event_1",
-        isReady: true,
-        missingItems: [],
-      },
-      hasEvents: true,
-      isReadOnly: false,
-      isRegistrationOpen: true,
     },
   };
 }

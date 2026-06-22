@@ -136,6 +136,17 @@ export async function listDancersForAcademy(
   }));
 }
 
+export async function countActiveDancersForAcademy(academyId: string) {
+  const [{ count }] = await db
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(dancers)
+    .where(getDancerListWhere(academyId, "active"));
+
+  return Number(count);
+}
+
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,

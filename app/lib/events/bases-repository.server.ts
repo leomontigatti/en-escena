@@ -349,6 +349,28 @@ export async function listEventBasesData(eventId: string) {
   };
 }
 
+export async function listChoreographyRegistrationInitialOptions(
+  eventId: string,
+) {
+  const [eventModalities, eventSubmodalities] = await Promise.all([
+    db.query.modalities.findMany({
+      where: eq(modalities.eventId, eventId),
+      columns: { id: true, name: true },
+      orderBy: [asc(modalities.name)],
+    }),
+    db.query.submodalities.findMany({
+      where: eq(submodalities.eventId, eventId),
+      columns: { id: true, name: true, modalityId: true },
+      orderBy: [asc(submodalities.name)],
+    }),
+  ]);
+
+  return {
+    modalities: eventModalities,
+    submodalities: eventSubmodalities,
+  };
+}
+
 export async function createModality(
   eventId: string,
   input: EventBaseNameInput,

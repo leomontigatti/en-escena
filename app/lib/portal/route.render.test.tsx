@@ -190,7 +190,7 @@ describe("portal route view", () => {
   test("disables Nueva coreografía when there are no bailarines activos", () => {
     const markup = renderCoreografias({
       loaderData: coreografiasLoaderData({
-        activeDancers: [],
+        activeDancerCount: 0,
       }),
     });
 
@@ -1653,14 +1653,7 @@ function academyLoaderData({
 
 function coreografiasLoaderData({
   choreographies = [],
-  activeDancers = [dancerListItem()],
-  activeProfessors = [professorListItem()],
-  registrationBaseOptions = {
-    modalities: [{ id: "modality_1", name: "Jazz" }],
-    submodalities: [
-      { id: "submodality_1", name: "Lyrical", modalityId: "modality_1" },
-    ],
-  },
+  activeDancerCount = 1,
   eventContext = {
     events: [eventSummary()],
     selectedEvent: eventSummary(),
@@ -1675,15 +1668,9 @@ function coreografiasLoaderData({
   choreographies?: Parameters<
     typeof PortalCoreografiasRouteView
   >[0]["loaderData"]["choreographies"];
-  activeDancers?: Parameters<
+  activeDancerCount?: Parameters<
     typeof PortalCoreografiasRouteView
-  >[0]["loaderData"]["activeDancers"];
-  activeProfessors?: Parameters<
-    typeof PortalCoreografiasRouteView
-  >[0]["loaderData"]["activeProfessors"];
-  registrationBaseOptions?: Parameters<
-    typeof PortalCoreografiasRouteView
-  >[0]["loaderData"]["registrationBaseOptions"];
+  >[0]["loaderData"]["activeDancerCount"];
   eventContext?: Parameters<
     typeof PortalCoreografiasRouteView
   >[0]["loaderData"]["eventContext"];
@@ -1698,9 +1685,7 @@ function coreografiasLoaderData({
       phone: "1112345678",
     },
     choreographies,
-    activeDancers,
-    activeProfessors,
-    registrationBaseOptions,
+    activeDancerCount,
     eventContext,
   };
 }
