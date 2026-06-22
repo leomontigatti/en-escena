@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
 import {
   categoryExperienceLevels,
@@ -49,6 +49,35 @@ export async function createModality(
     .returning();
 
   return created(record);
+}
+
+export async function listChoreographyRegistrationBaseOptionsData(
+  eventId: string,
+) {
+  const [eventModalities, eventSubmodalities] = await Promise.all([
+    db.query.modalities.findMany({
+      where: eq(modalities.eventId, eventId),
+      orderBy: [asc(modalities.name)],
+      columns: {
+        id: true,
+        name: true,
+      },
+    }),
+    db.query.submodalities.findMany({
+      where: eq(submodalities.eventId, eventId),
+      orderBy: [asc(submodalities.name)],
+      columns: {
+        id: true,
+        name: true,
+        modalityId: true,
+      },
+    }),
+  ]);
+
+  return {
+    modalities: eventModalities,
+    submodalities: eventSubmodalities,
+  };
 }
 
 export async function updateModality(

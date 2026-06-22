@@ -74,9 +74,8 @@ import { listAcademyProfessors } from "@/lib/portal/professors.server";
 import { listDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
-  getChoreographyRegistrationBaseOptions,
-  getEventBases,
   type ChoreographyRegistrationBaseOptions,
+  getChoreographyRegistrationInitialOptions,
 } from "@/lib/events/bases.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -187,7 +186,9 @@ export async function loader({ request }: { request: Request }) {
         : Promise.resolve([]),
       listDancersForAcademy(academy.id, { status: "active" }),
       listAcademyProfessors(academy.id, { status: "active" }),
-      selectedEventId ? getEventBases(selectedEventId) : Promise.resolve(null),
+      selectedEventId
+        ? getChoreographyRegistrationInitialOptions(selectedEventId)
+        : Promise.resolve(null),
     ]);
 
   return {
@@ -195,9 +196,7 @@ export async function loader({ request }: { request: Request }) {
     eventContext,
     activeDancers,
     activeProfessors,
-    registrationBaseOptions: baseOptions
-      ? getChoreographyRegistrationBaseOptions(baseOptions)
-      : null,
+    registrationBaseOptions: baseOptions,
   };
 }
 

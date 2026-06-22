@@ -1,4 +1,5 @@
 import {
+  listChoreographyRegistrationBaseOptionsData,
   listEventBasesData,
   resolveApplicablePrice,
   resolveCompatibleScheduleCapacities,
@@ -27,6 +28,12 @@ export type ChoreographyRegistrationBaseOptions = {
   modalities: Array<{ id: string; name: string }>;
   submodalities: Array<{ id: string; name: string; modalityId: string }>;
 };
+
+export async function getChoreographyRegistrationInitialOptions(
+  eventId: string,
+): Promise<ChoreographyRegistrationBaseOptions> {
+  return listChoreographyRegistrationBaseOptionsData(eventId);
+}
 
 export function getChoreographyRegistrationBaseOptions(
   eventBases: EventBases,

@@ -50,6 +50,7 @@ export {
   deleteModality,
   deleteSubmodality,
   ensureExperienceLevelsForEvent,
+  listChoreographyRegistrationBaseOptionsData,
   updateExperienceLevel,
   updateModality,
   updateModalityWithSubmodalities,
