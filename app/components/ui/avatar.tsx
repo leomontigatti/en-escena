@@ -74,6 +74,8 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
 function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
+      // Avatar groups intentionally overlap; `gap` cannot reproduce this layout.
+      data-layout="overlap"
       data-slot="avatar-group"
       className={cn(
         "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
