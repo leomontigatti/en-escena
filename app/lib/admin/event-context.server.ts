@@ -5,7 +5,6 @@ import { events as eventsTable } from "@/db/schema";
 import type { AdminEventOption } from "@/lib/admin/event-context.shared";
 
 type ResolveAdminEventContextInput = {
-  requestUrl: string;
   events: AdminEventOption[];
 };
 
@@ -20,9 +19,7 @@ export type AdminEventContext = {
   redirectTo: string | null;
 };
 
-export async function loadAdminShellEventContext(
-  request: Request,
-): Promise<AdminShellEventContext> {
+export async function loadAdminShellEventContext(): Promise<AdminShellEventContext> {
   const activeEvent = await db.query.events.findFirst({
     columns: {
       id: true,
@@ -53,10 +50,7 @@ export async function loadAdminEventContext(
 
   return {
     events,
-    ...resolveAdminEventContext({
-      requestUrl: request.url,
-      events,
-    }),
+    ...resolveAdminEventContext({ events }),
   };
 }
 

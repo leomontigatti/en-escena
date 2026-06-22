@@ -21,7 +21,7 @@ export const meta: Route.MetaFunction = () => [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAdminPanelUser(request);
-  const eventContext = await loadAdminShellEventContext(request);
+  const eventContext = await loadAdminShellEventContext();
 
   return {
     email: user.email,
