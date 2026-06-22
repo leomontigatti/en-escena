@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Check, Trash, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, redirect, useActionData, useNavigation } from "react-router";
+import { Link, redirect, useActionData } from "react-router";
 import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
@@ -44,7 +44,7 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
-import { isRouteFormPending } from "@/lib/shared/forms";
+import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import {
   routeNotificationToastIds,
   type RouteNotificationKey,
@@ -426,7 +426,7 @@ function DeleteEventDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const navigation = useNavigation();
+  const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
     intent: "delete",
     fields: { confirmDeletion: event.id },
@@ -482,7 +482,7 @@ function EventActionItem({
   value?: string;
   variant?: "destructive";
 }) {
-  const navigation = useNavigation();
+  const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
     intent,
     fields: value ? { value } : undefined,
@@ -521,16 +521,32 @@ function getEventActionPendingLabel(intent: string, value?: string) {
     case "deactivate":
       return "Desactivando...";
     case "set-program-visibility":
-      return value === "true"
-        ? "Mostrando programa..."
-        : "Ocultando programa...";
+      return getVisibilityPendingLabel({
+        isShowing: value === "true",
+        resourceLabel: "programa",
+      });
     case "set-results-visibility":
-      return value === "true"
-        ? "Mostrando resultados..."
-        : "Ocultando resultados...";
+      return getVisibilityPendingLabel({
+        isShowing: value === "true",
+        resourceLabel: "resultados",
+      });
     default:
       return "Actualizando...";
   }
+}
+
+function getVisibilityPendingLabel({
+  isShowing,
+  resourceLabel,
+}: {
+  isShowing: boolean;
+  resourceLabel: string;
+}) {
+  if (isShowing) {
+    return `Mostrando ${resourceLabel}...`;
+  }
+
+  return `Ocultando ${resourceLabel}...`;
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {

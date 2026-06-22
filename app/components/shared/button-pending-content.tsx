@@ -14,14 +14,17 @@ export function ButtonPendingContent({
   idleLabel,
   idleIcon,
 }: ButtonPendingContentProps) {
+  const icon = isPending ? (
+    <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+  ) : (
+    idleIcon
+  );
+  const label = isPending ? pendingLabel : idleLabel;
+
   return (
     <>
-      {isPending ? (
-        <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
-      ) : (
-        idleIcon
-      )}
-      {isPending ? pendingLabel : idleLabel}
+      {icon}
+      {label}
     </>
   );
 }
