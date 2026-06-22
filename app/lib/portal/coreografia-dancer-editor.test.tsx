@@ -112,6 +112,21 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
   });
 
+  test("keeps professors read-only when the choreography already has a presentation", async () => {
+    await renderRoute(
+      buildLoaderData({
+        choreography: {
+          ...buildLoaderData().choreography,
+          hasPresentation: true,
+        },
+      }),
+    );
+
+    expect(document.body.textContent).toContain(
+      "No podés editar profesores porque la coreografía ya tiene una presentación asociada.",
+    );
+  });
+
   async function renderRoute(
     loaderData: PortalCoreografiaDetalleRouteViewProps["loaderData"] = buildLoaderData(),
   ) {
@@ -191,6 +206,7 @@ function buildLoaderData(
       name: "Mi Pieza",
       modalityName: "Jazz",
       submodalityName: "Lyrical",
+      hasPresentation: false,
       groupType: "solo",
       categoryId: "category_1",
       categoryName: "Juvenil",
