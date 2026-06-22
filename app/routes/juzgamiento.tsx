@@ -34,11 +34,11 @@ export function JuzgamientoRouteView({ loaderData }: JuzgamientoRouteProps) {
         }
       />
 
-      <div className="mt-8 rounded-lg bg-slate-50 p-5">
-        <p className="text-sm font-semibold text-slate-950">
+      <div className="mt-8 rounded-lg bg-muted p-5">
+        <p className="text-sm font-semibold text-foreground">
           Presentaciones asignadas
         </p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Todavía no hay una lista de evaluación disponible para este usuario.
         </p>
       </div>
