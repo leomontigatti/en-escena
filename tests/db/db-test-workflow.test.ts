@@ -36,8 +36,10 @@ const dbWorkflowScopeGuardrails = [
 
 const localAuthDatabaseModes = [
   "Fast focused DB validation (`npm run test:db:file -- <archivo>`)",
-  "repo dependencies are installed.",
+  "does not",
+  "require local Postgres once the repo dependencies are installed.",
   "Final DB validation (`npm run test:db`, `npm run test:db:final` or",
+  "requires local Postgres through",
   "`TEST_DATABASE_URL`.",
 ];
 
@@ -49,7 +51,7 @@ const requiredIsolatedTestExamples = [
 ];
 
 describe("DB test workflow", () => {
-  test("uses the fast harness for the default DB suite and keeps Postgres as a separate path", async () => {
+  test("uses Postgres for the default DB suite and keeps PGlite focused", async () => {
     const scripts = await readPackageScripts();
     const defaultDatabaseSuite = scripts["test:db"];
     const focusedDatabaseSuite = scripts["test:db:file"];
