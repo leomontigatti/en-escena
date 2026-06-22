@@ -71,8 +71,13 @@ Guideline:
 - Keep a soft maintainability limit around 5500 tokens for routinely edited
   route, component, and module files. Use `bytes / 4` as the practical estimate
   when you need a quick check.
+- Exclude docs, generated files, lockfiles, and public assets from this rule.
+  Use normal review judgment there instead of forcing the same threshold.
 - Do not split a file just to hit the number. Split when there is a clear
   module boundary that reduces cognitive load for future work.
+- This repo currently documents the rule instead of enforcing a blocking size
+  check, so existing large files can be migrated when a real refactor boundary
+  appears.
 
 Good boundaries include:
 
@@ -94,3 +99,7 @@ Avoid shallow extractions:
 When a file grows past the soft limit and no clear module boundary exists yet,
 prefer tightening naming, removing dead branches, and clarifying sections before
 creating a forced abstraction.
+
+When validating work around a file-size refactor, use the current repo commands
+and order from `docs/agents/codex-workflows.md`, including `npm run typecheck`
+and `npm run test`.
