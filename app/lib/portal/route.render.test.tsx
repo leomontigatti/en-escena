@@ -1411,16 +1411,15 @@ type ProfesoresViewProps = Parameters<typeof PortalProfesoresRouteView>[0];
 type PerfilViewProps = Parameters<typeof PortalPerfilRouteView>[0];
 
 function renderPerfil(input: Partial<PerfilViewProps> = {}) {
-  return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/portal/perfil"]}>
-      {renderPortalShellForTest(
-        "/portal/perfil",
-        <PortalPerfilRouteView
-          loaderData={input.loaderData ?? academyLoaderData()}
-          actionData={input.actionData}
-        />,
-      )}
-    </MemoryRouter>,
+  return renderPortalDataRoute(
+    "/portal/perfil",
+    renderPortalShellForTest(
+      "/portal/perfil",
+      <PortalPerfilRouteView
+        loaderData={input.loaderData ?? academyLoaderData()}
+        actionData={input.actionData}
+      />,
+    ),
   );
 }
 

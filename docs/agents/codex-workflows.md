@@ -279,6 +279,17 @@ Check duplicate work before deeper optimization:
 - RHF forms validating in React and then calling `form.submit()` into a second
   full route cycle.
 
+Current form-submit standard:
+
+- RHF forms validate on the client and then submit through React Router, not
+  through `form.submit()` or `HTMLFormElement.prototype.submit()`.
+- Use `useSubmit` for route submissions that should navigate or redirect.
+- Use `useFetcher.submit` for submissions that should keep the current route,
+  modal, or dialog mounted on recoverable errors.
+- Shared RHF + React Router submit helpers should pass `FormData`, not
+  `Record<string, string>`, so repeated fields, arrays, checkboxes, and file
+  inputs survive the abstraction.
+
 Use `docs/agents/request-performance-refactor-plan.md` as the current route
 inventory, submit-pattern inventory, and measurement starting point for this
 refactor family. Keep it discoverable from child issues and update it when the

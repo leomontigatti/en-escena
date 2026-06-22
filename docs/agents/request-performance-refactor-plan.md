@@ -94,7 +94,7 @@ Current high-value request paths for this refactor:
   Detail/edit flow with `shouldRevalidate`, resolution fetcher, and mutation
   actions.
 - `app/routes/portal.perfil.tsx`
-  RHF-backed profile form that still posts through the native submit helper.
+  RHF-backed profile form migrated to React Router `useSubmit`.
 
 Routes that currently reload portal event context in addition to the layout and
 should stay in the measurement set:
@@ -122,21 +122,36 @@ RHF validation followed by native `form.submit()`:
 
 - `app/lib/shared/forms.ts`
   `createValidatedNativeSubmitHandler` still ends in `formElement.submit()`
+- `app/routes/administracion.usuarios_.$userId.tsx`
+- `app/routes/administracion.profesores_.$professorId.tsx`
+- `app/routes/administracion.bailarines_.$dancerId.tsx`
+
+Migrated RHF + React Router submit patterns:
+
+- `app/components/auth/access-form.tsx`
+  Auth forms validate with RHF and submit through React Router.
 - `app/components/admin/events/form.tsx`
 - `app/components/admin/events/event-modalities.tsx`
 - `app/components/admin/events/event-categories.tsx`
 - `app/components/admin/events/event-schedules.tsx`
 - `app/components/admin/events/event-prices.tsx`
 - `app/routes/administracion.usuarios_.nuevo.tsx`
-- `app/routes/administracion.usuarios_.$userId.tsx`
-- `app/routes/administracion.profesores_.$professorId.tsx`
-- `app/routes/administracion.bailarines_.$dancerId.tsx`
 - `app/routes/portal.bailarines.tsx`
 - `app/routes/portal.bailarines_.$dancerId.tsx`
 - `app/routes/portal.profesores.tsx`
 - `app/routes/portal.profesores_.$professorId.tsx`
 - `app/routes/portal.perfil.tsx`
-- `app/components/auth/access-form.tsx`
+
+Submit helper standard:
+
+- RHF-backed forms should not call `form.submit()` after validation.
+- Use `useSubmit` when the route should preserve navigation or redirect
+  semantics.
+- Use `useFetcher.submit` when the current screen, modal, or dialog should stay
+  mounted.
+- Shared RHF + React Router submit helpers should pass `FormData`, not
+  `Record<string, string>`, to preserve repeated fields, arrays, checkboxes and
+  future file inputs.
 
 React Router `useFetcher` / `fetcher.submit` patterns already present:
 
@@ -148,10 +163,12 @@ React Router `useFetcher` / `fetcher.submit` patterns already present:
 
 Implication for child issues:
 
-- The PRD assumption that native submit patterns still exist is correct.
-- The first migration slice should treat the event configuration forms and the
-  portal create/edit dialogs as separate families because they do not all want
-  navigation after submit.
+- The PRD assumption that native submit patterns still exist remains true for
+  the remaining administration user/professor/dancer detail gaps.
+- New or touched RHF forms should use the migrated React Router submit standard
+  above instead of copying the remaining legacy native-submit paths.
+- Preserve `useSubmit` versus `useFetcher.submit` intentionally because not all
+  forms want navigation after submit.
 
 ## View Transition Evaluation
 

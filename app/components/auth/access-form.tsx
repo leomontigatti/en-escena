@@ -1,17 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
-import {
-  Controller,
-  type Path,
-  type Resolver,
-  type SubmitHandler,
-  useForm,
-} from "react-hook-form";
+import { Controller, type Path, type Resolver, useForm } from "react-hook-form";
 import type {
   DefaultValues,
   FieldValues,
   UseFormReturn,
 } from "react-hook-form";
+import { useSubmit } from "react-router";
 import type { ZodTypeAny } from "zod";
 
 import {
@@ -22,7 +17,10 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useApplyServerFieldErrors } from "@/lib/shared/forms";
+import {
+  createValidatedRouteSubmitHandler,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
 import type { ServerFieldErrors } from "@/lib/shared/forms";
 
 export type AccessFormController<TFieldValues extends FieldValues> = {
@@ -56,16 +54,8 @@ export function useAccessForm<TFieldValues extends FieldValues>({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<TFieldValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
+  const submit = useSubmit();
+  const handleSubmit = createValidatedRouteSubmitHandler(form, submit);
 
   return { form, handleSubmit };
 }

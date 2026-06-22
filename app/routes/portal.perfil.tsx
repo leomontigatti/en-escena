@@ -7,10 +7,17 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "react-hook-form";
-import { data, redirect, useActionData } from "react-router";
+import {
+  data,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -44,7 +51,8 @@ import {
   argentinePhonePlaceholder,
 } from "@/lib/shared/argentine-phone";
 import {
-  createValidatedNativeSubmitHandler,
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -186,6 +194,10 @@ export function PortalPerfilRouteView({
     fieldErrors: actionData?.fieldErrors,
     values,
   });
+  const navigation = useNavigation();
+  const isProfileSaving = isRouteFormPending(navigation, {
+    intent: updateAcademyProfileIntent,
+  });
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-perfil:error",
@@ -260,9 +272,18 @@ export function PortalPerfilRouteView({
           </form>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <Button type="submit" form={profileFormId} size="lg">
-            <Check aria-hidden="true" data-icon="inline-start" />
-            Guardar
+          <Button
+            type="submit"
+            form={profileFormId}
+            size="lg"
+            disabled={isProfileSaving}
+          >
+            <ButtonPendingContent
+              isPending={isProfileSaving}
+              pendingLabel="Guardando perfil..."
+              idleLabel="Guardar"
+              idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
+            />
           </Button>
         </CardFooter>
       </Card>
@@ -306,8 +327,12 @@ function useAcademyProfileForm({
   }, [form, values.contactName, values.name, values.phone]);
 
   useApplyServerFieldErrors(form, fieldErrors);
+  const submit = useSubmit();
 
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+  return {
+    form,
+    handleSubmit: createValidatedRouteSubmitHandler(form, submit),
+  };
 }
 
 function AcademyProfileTextField({

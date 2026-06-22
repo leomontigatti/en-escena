@@ -80,6 +80,57 @@ describe("portal simple form submissions", () => {
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
+  test("submits the professor create dialog as FormData through the fetcher", async () => {
+    const nativeSubmitSpy = vi
+      .spyOn(HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => {});
+    const submitSpy = vi.fn();
+
+    useFetcherMock.mockReturnValue({
+      data: undefined,
+      state: "idle",
+      submit: submitSpy,
+    });
+    useNavigationMock.mockReturnValue({ formData: undefined, state: "idle" });
+    useSubmitMock.mockReturnValue(vi.fn());
+
+    await render(
+      <MemoryRouter initialEntries={["/portal/profesores"]}>
+        <PortalProfesoresRouteView loaderData={buildProfessorLoaderData()} />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      clickButton("Nuevo profesor");
+    });
+
+    const form = document.querySelector("form");
+    const firstNameInput = document.querySelector('input[name="firstName"]');
+    const lastNameInput = document.querySelector('input[name="lastName"]');
+
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(firstNameInput).toBeInstanceOf(HTMLInputElement);
+    expect(lastNameInput).toBeInstanceOf(HTMLInputElement);
+
+    await act(async () => {
+      setInputValue(firstNameInput as HTMLInputElement, "Ana");
+      setInputValue(lastNameInput as HTMLInputElement, "Paz");
+      (form as HTMLFormElement).requestSubmit(getButton("Guardar"));
+      await Promise.resolve();
+    });
+
+    expect(nativeSubmitSpy).not.toHaveBeenCalled();
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+
+    const [submission, options] = submitSpy.mock.calls[0]!;
+
+    expect(submission).toBeInstanceOf(FormData);
+    expect((submission as FormData).get("intent")).toBe("create-professor");
+    expect((submission as FormData).get("firstName")).toBe("Ana");
+    expect((submission as FormData).get("lastName")).toBe("Paz");
+    expect(options).toEqual({ method: "post" });
+  });
+
   test("disables the Bailarín save action while the edit submission is pending", async () => {
     const formData = new FormData();
     formData.set("intent", "update-dancer");
@@ -152,6 +203,16 @@ function buildDancerDetailLoaderData(): Parameters<
 
 function clickButton(label: string) {
   getButton(label).click();
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  const valueSetter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set;
+
+  valueSetter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function getButton(label: string) {

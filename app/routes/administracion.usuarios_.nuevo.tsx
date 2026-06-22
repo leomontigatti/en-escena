@@ -1,16 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleAlert } from "lucide-react";
 import { useEffect, useId } from "react";
+import { Controller, type Control, useForm } from "react-hook-form";
 import {
-  Controller,
-  type Control,
-  type SubmitHandler,
-  useForm,
-} from "react-hook-form";
-import { Link, redirect, useActionData } from "react-router";
+  Link,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 import { z } from "zod";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +34,8 @@ import {
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -45,6 +49,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { Route } from "./+types/administracion.usuarios_.nuevo";
 
 const internalUserRoles = ["admin", "auditor", "judge"] as const;
+const createInternalUserIntent = "create-internal-user";
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
@@ -216,18 +221,12 @@ export function AdministracionUsuariosNuevoRouteView({
     toastId: routeNotificationToastIds["user-form-error"],
   });
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<
-      CreateInternalUserFormValues
-    > = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const isCreatingUser = isRouteFormPending(navigation, {
+    intent: createInternalUserIntent,
+  });
+  const handleSubmit = createValidatedRouteSubmitHandler(form, submit);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -256,6 +255,7 @@ export function AdministracionUsuariosNuevoRouteView({
         className="rounded-lg border bg-card p-6 shadow-sm"
         onSubmit={handleSubmit}
       >
+        <input type="hidden" name="intent" value={createInternalUserIntent} />
         <FieldGroup>
           <CreateInternalUserTextField
             autoComplete="name"
@@ -294,7 +294,13 @@ export function AdministracionUsuariosNuevoRouteView({
           />
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="submit">Nuevo usuario</Button>
+            <Button type="submit" disabled={isCreatingUser}>
+              <ButtonPendingContent
+                isPending={isCreatingUser}
+                pendingLabel="Creando usuario..."
+                idleLabel="Nuevo usuario"
+              />
+            </Button>
             <Button asChild variant="outline">
               <Link to="/administracion">Volver al panel</Link>
             </Button>

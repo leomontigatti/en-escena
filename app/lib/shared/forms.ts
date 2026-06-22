@@ -81,30 +81,19 @@ type ReactRouterSubmitOptions = {
   method?: "delete" | "get" | "patch" | "post" | "put";
 };
 
-type ReactRouterFormSubmission = Record<string, string>;
-
 export type ReactRouterFormSubmit = (
-  target: HTMLFormElement | ReactRouterFormSubmission,
+  target: HTMLFormElement | FormData,
   options?: ReactRouterSubmitOptions,
 ) => void;
 
 function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
   formElement: HTMLFormElement,
   values: TFieldValues,
-): ReactRouterFormSubmission {
-  const submission: ReactRouterFormSubmission = {};
-
-  for (const [fieldName, fieldValue] of new FormData(formElement).entries()) {
-    submission[fieldName] = String(fieldValue);
-  }
+): FormData {
+  const submission = new FormData(formElement);
 
   for (const [fieldName, fieldValue] of Object.entries(values)) {
-    if (typeof fieldValue === "string") {
-      submission[fieldName] = fieldValue;
-      continue;
-    }
-
-    submission[fieldName] = String(fieldValue ?? "");
+    submission.set(fieldName, String(fieldValue ?? ""));
   }
 
   return submission;

@@ -55,6 +55,64 @@ The rerunnable harness lives in
 | `portal.perfil` loader                               |      3.32 |        3.32 |          3.13 |           0.00 |        0.00 |                      0.00 |     0.00 |           0.00 |
 | `portal.perfil` update action                        |      8.04 |       11.43 |          3.68 |           0.00 |        0.00 |                      0.00 |     2.92 |           3.38 |
 
+## Follow-up: RHF Submit Standard
+
+Follow-up captured on 2026-06-22 after migrating the remaining auth shared
+forms, `portal.perfil`, and `administracion.usuarios_.nuevo` away from native
+`form.submit()` and changing the shared RHF + React Router helper to submit
+`FormData` instead of `Record<string, string>`.
+
+Command:
+
+```bash
+REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+```
+
+Notes:
+
+- This harness measures server loader/action timings and post-action
+  revalidation. It does not measure browser remount cost, duplicate-click
+  prevention, or perceived pending-state improvements from the submit refactor.
+- The main expectation for this slice is preserved server timing with better
+  client request flow and safer form serialization.
+- Use this table as the `now` point for later loader/query optimizations.
+
+| Route                                                   | requestMs | roundTripMs | authSessionMs | eventContextMs | mainQueryMs | readiness/configurationMs | actionMs | revalidationMs |
+| ------------------------------------------------------- | --------: | ----------: | ------------: | -------------: | ----------: | ------------------------: | -------: | -------------: |
+| `administracion` loader                                 |     24.44 |       24.44 |         14.92 |           0.00 |        0.00 |                      0.00 |     0.00 |           0.00 |
+| `administracion.eventos` loader                         |     55.25 |       55.25 |          5.32 |           0.00 |        1.38 |                     91.82 |     0.00 |           0.00 |
+| `administracion.eventos_.nuevo` action                  |     15.01 |       30.70 |          5.20 |           0.00 |        0.00 |                      0.00 |     2.60 |          15.68 |
+| `administracion.eventos_.$eventId` loader               |      5.12 |        5.12 |          3.35 |           0.00 |        2.51 |                      1.21 |     0.00 |           0.00 |
+| `administracion.eventos_.$eventId` update action        |     11.84 |       17.48 |          3.75 |           0.00 |        0.00 |                      0.00 |     6.04 |           5.64 |
+| `administracion.modalidades` shared bases loader        |     12.78 |       12.78 |          4.27 |           1.54 |        0.00 |                      6.57 |     0.00 |           0.00 |
+| `administracion.modalidades_.nueva` shared bases action |     16.60 |       28.38 |          4.23 |           1.92 |        0.00 |                      0.00 |     9.72 |          11.78 |
+| `administracion.bailarines` loader                      |     12.98 |       12.98 |          3.01 |           0.57 |        8.90 |                      0.00 |     0.00 |           0.00 |
+| `administracion.profesores` loader                      |     11.28 |       11.28 |          3.36 |           0.56 |        6.86 |                      0.00 |     0.00 |           0.00 |
+| `portal` loader                                         |     11.37 |       11.37 |          6.40 |           4.50 |        0.00 |                      0.00 |     0.00 |           0.00 |
+| `portal.bailarines` loader                              |      7.80 |        7.80 |          4.43 |           1.26 |        1.83 |                      0.00 |     0.00 |           0.00 |
+| `portal.bailarines` create action                       |      9.54 |       18.43 |          4.85 |           0.00 |        0.00 |                      0.00 |     3.20 |           8.90 |
+| `portal.bailarines_.$dancerId` loader                   |      5.34 |        5.34 |          3.97 |           0.00 |        1.07 |                      0.00 |     0.00 |           0.00 |
+| `portal.bailarines_.$dancerId` update action            |     13.11 |       18.76 |          4.44 |           0.00 |        0.00 |                      0.00 |     7.46 |           5.65 |
+| `portal.profesores` loader                              |      6.05 |        6.05 |          3.57 |           0.67 |        1.59 |                      0.00 |     0.00 |           0.00 |
+| `portal.profesores` create action                       |      8.71 |       15.47 |          3.82 |           0.00 |        0.00 |                      0.00 |     3.73 |           6.75 |
+| `portal.profesores_.$professorId` loader                |      4.74 |        4.74 |          3.55 |           0.00 |        0.89 |                      0.00 |     0.00 |           0.00 |
+| `portal.profesores_.$professorId` update action         |     13.58 |       18.91 |          3.96 |           0.00 |        0.00 |                      0.00 |     8.75 |           5.33 |
+| `portal.coreografias` loader                            |     33.40 |       33.40 |          3.40 |           9.58 |       23.09 |                     25.04 |     0.00 |           0.00 |
+| `portal.coreografias` create action                     |      7.23 |       22.98 |          4.48 |           0.00 |        0.00 |                      0.00 |     1.65 |          15.76 |
+| `portal.coreografias_.$choreographyId` loader           |     15.16 |       15.16 |          4.02 |           1.87 |        8.87 |                      0.00 |     0.00 |           0.00 |
+| `portal.coreografias_.$choreographyId` update action    |      8.09 |       24.52 |          4.15 |           0.64 |        0.00 |                      0.00 |     1.51 |          16.43 |
+| `portal.perfil` loader                                  |      3.93 |        3.93 |          3.71 |           0.00 |        0.00 |                      0.00 |     0.00 |           0.00 |
+| `portal.perfil` update action                           |      8.13 |       12.57 |          3.68 |           0.00 |        0.00 |                      0.00 |     2.88 |           4.44 |
+
+Comparison protocol for future runs:
+
+1. Keep the same command and Postgres-backed test path for comparable numbers.
+2. Record the date, branch or commit, and the implementation slice that changed.
+3. Compare the same route ids by `requestMs`, `roundTripMs`, phase timings, and
+   request source (`useSubmit`, `fetcher.submit`, or native form path).
+4. Treat one-run timing shifts as directional only. Confirm meaningful wins with
+   repeated runs or query-count evidence before changing optimization priority.
+
 ## First Optimization Targets
 
 1. `administracion.eventos` loader.

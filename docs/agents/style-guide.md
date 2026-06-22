@@ -252,6 +252,16 @@ Reglas:
   `FieldDescription`; usar `field.id` como key.
 - Integrar errores server con `form.setError` cuando la acción devuelve
   `fieldErrors`.
+- Los formularios RHF no deben terminar en `form.submit()` ni en
+  `HTMLFormElement.prototype.submit()`. Después de validar con RHF, enviar por
+  React Router con `useSubmit`, `useFetcher.submit` o el helper compartido que
+  corresponda.
+- Usar `useSubmit` cuando el submit debe conservar la semántica de navegación o
+  redirect de la ruta. Usar `useFetcher.submit` cuando la pantalla, modal o
+  diálogo debe permanecer montado durante errores recuperables.
+- Los helpers compartidos de submit deben construir y enviar `FormData`, no un
+  `Record<string, string>`, para preservar campos repetidos, arrays,
+  checkboxes múltiples y futuros archivos.
 - Mostrar feedback de acciones server con toasts:
   - Éxito confirmado por el servidor: `toast.success`.
   - Error no asociado a un campo concreto: `toast.error`.
