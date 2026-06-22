@@ -24,28 +24,26 @@ import {
 import {
   CoreografiaPeopleEditorForm,
   type CoreografiaPeopleEditorActionData,
+  type CoreografiaPeopleEditorLoaderData,
 } from "@/lib/portal/coreografia-people-editor";
+import type { PortalEventContext } from "@/lib/portal/event-context";
+import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
 import { deleteChoreographyIntent } from "@/lib/portal/coreografia-detail.shared";
 
-type PeopleEditorLoaderData =
-  Parameters<typeof CoreografiaPeopleEditorForm>[0]["loaderData"];
+type PortalCoreografiaDetalleLoaderData = CoreografiaPeopleEditorLoaderData & {
+  choreography: CoreografiaPeopleEditorLoaderData["choreography"] &
+    Record<string, unknown>;
+  deletionAvailability: {
+    canDelete: boolean;
+    warningMessage: string | null;
+  };
+  eventContext: PortalEventContext;
+} & Record<string, unknown>;
 
 export type PortalCoreografiaDetalleRouteViewProps = {
-  loaderData: {
-    choreography: {
-      id: string;
-      dancers: Array<{ id: string; [key: string]: any }>;
-      operationalStatus: ChoreographyOperationalStatus;
-      [key: string]: any;
-    };
-    deletionAvailability: {
-      canDelete: boolean;
-      warningMessage: string | null;
-    };
-    [key: string]: any;
-  };
+  loaderData: PortalCoreografiaDetalleLoaderData;
   actionData?: CoreografiaPeopleEditorActionData;
-  initialDancerResolution?: unknown;
+  initialDancerResolution?: ResolveChoreographyDancersResult;
   initialDeleteDialogOpen?: boolean;
 };
 
@@ -54,7 +52,6 @@ export function PortalCoreografiaDetalleRouteView({
   actionData,
   initialDeleteDialogOpen = false,
 }: PortalCoreografiaDetalleRouteViewProps) {
-  const peopleEditorLoaderData = loaderData as unknown as PeopleEditorLoaderData;
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
@@ -97,7 +94,7 @@ export function PortalCoreografiaDetalleRouteView({
 
       <CoreografiaPeopleEditorForm
         actionData={actionData}
-        loaderData={peopleEditorLoaderData}
+        loaderData={loaderData}
       />
 
       {canDeleteChoreography ? (

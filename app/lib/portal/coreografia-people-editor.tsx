@@ -37,8 +37,17 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
+import {
+  formatGroupTypeLabel,
+  type ChoreographyGroupType,
+  type ChoreographyOperationalStatus,
+} from "@/lib/portal/choreographies";
+import type {
+  ChoreographyDancerOption,
+  ChoreographyProfessorOption,
+  DancerEditingEligibility,
+  ResolveChoreographyDancersResult,
+} from "@/lib/portal/choreographies.server";
 
 export const choreographyResolutionErrorToastId =
   "coreografia-resolution-error";
@@ -88,29 +97,9 @@ export type CoreografiaPeopleEditorActionData =
     }
   | undefined;
 
-type GroupType = "solo" | "duo" | "trio" | "grupal";
+type ChoreographyProfessor = ChoreographyProfessorOption;
 
-type ChoreographyOperationalStatus = {
-  pendingItems: string[];
-};
-
-type DancerOption = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  active: boolean;
-};
-
-type ProfessorOption = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  active: boolean;
-};
-
-type ChoreographyProfessor = ProfessorOption;
-
-type ChoreographyDancer = DancerOption & {
+type ChoreographyDancer = ChoreographyDancerOption & {
   ageAtEventStart: number | null;
 };
 
@@ -120,9 +109,10 @@ type ChoreographySummary = {
   modalityName: string;
   submodalityName: string | null;
   hasPresentation?: boolean;
-  groupType: GroupType;
+  groupType: ChoreographyGroupType;
   categoryId: string | null;
   categoryName: string | null;
+  dancerEditingEligibility: DancerEditingEligibility;
   experienceLevelId: string | null;
   experienceLevelName: string | null;
   operationalStatus: ChoreographyOperationalStatus;
@@ -133,13 +123,10 @@ type ChoreographySummary = {
 };
 
 export type CoreografiaPeopleEditorLoaderData = {
-  availableDancers: DancerOption[];
-  availableProfessors: ProfessorOption[];
+  availableDancers: ChoreographyDancerOption[];
+  availableProfessors: ChoreographyProfessorOption[];
   choreography: ChoreographySummary;
-  dancerEditingEligibility: {
-    canEdit: boolean;
-    reasonText: string | null;
-  };
+  dancerEditingEligibility: DancerEditingEligibility;
   eventContext: {
     isReadOnly: boolean;
   };

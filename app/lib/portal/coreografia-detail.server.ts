@@ -4,6 +4,7 @@ import {
   choreographyEditSchema,
   resolveChoreographyDancersIntent,
   rosterEditorReviewMessage,
+  updateChoreographyIntent,
   type CoreografiaPeopleEditorActionData,
 } from "@/lib/portal/coreografia-people-editor";
 import { deleteChoreographyIntent } from "@/lib/portal/coreografia-detail.shared";
@@ -18,7 +19,6 @@ import {
 const choreographyDeletedSearchParam = "eliminada";
 const routeNotificationSearchParam = "notificacion";
 const choreographySavedNotification = "coreografia-guardada";
-const updateChoreographyIntent = "update-choreography";
 const unsupportedActionMessage = "Acción no soportada.";
 
 type DancerResolutionActionData = {
