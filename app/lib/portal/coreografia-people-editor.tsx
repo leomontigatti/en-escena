@@ -608,7 +608,7 @@ export function CoreografiaPeopleEditorForm({
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}
-            Guardar
+            Guardar coreografía
           </Button>
         </CardFooter>
       </Card>

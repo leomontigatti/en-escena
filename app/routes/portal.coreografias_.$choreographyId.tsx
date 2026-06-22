@@ -15,7 +15,7 @@ import {
   findChoreographyForAcademyEvent,
   getChoreographyDeletionAvailability,
 } from "@/lib/portal/choreographies.server";
-import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
+import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const readOnlyEventMessage = "Este Evento es de solo lectura.";
@@ -79,7 +79,7 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const eventContext = await getPortalActiveEventContext(request);
+  const eventContext = await getPortalActiveEventReadinessContext(request);
   const selectedEventId = eventContext.selectedEvent?.id;
 
   if (!selectedEventId) {
@@ -128,7 +128,7 @@ export async function action({
 }) {
   const { academy } = await requireAcademyUser(request);
   const choreographyId = readChoreographyId(params);
-  const eventContext = await getPortalActiveEventContext(request);
+  const eventContext = await getPortalActiveEventReadinessContext(request);
   const selectedEventId = eventContext.selectedEvent?.id;
 
   if (!selectedEventId) {

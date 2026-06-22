@@ -53,7 +53,7 @@ describe("coreografía creation dialog render", () => {
         },
         {
           path: "/portal/coreografias/crear",
-          loader: async () => buildCreateOptionsData(),
+          loader: async () => buildCreateDialogLoaderData(),
           element: null,
         },
       ],
@@ -66,10 +66,6 @@ describe("coreografía creation dialog render", () => {
 
     await act(async () => {
       root?.render(<RouterProvider router={router} />);
-    });
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     const markup = document.body.innerHTML;
@@ -111,7 +107,7 @@ function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
   };
 }
 
-function buildCreateOptionsData() {
+function buildCreateDialogLoaderData() {
   return {
     eventId: "event_1",
     activeDancers: [

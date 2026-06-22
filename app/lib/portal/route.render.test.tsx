@@ -264,6 +264,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: true,
           isRegistrationOpen: false,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           name: "Mi Pieza",
@@ -333,6 +334,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: false,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           operationalStatus: {
@@ -389,6 +391,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: true,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           dancerEditingEligibility: {
@@ -519,6 +522,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: true,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           categoryId: "category_1",
@@ -568,6 +572,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: true,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           dancerEditingEligibility: {
@@ -628,6 +633,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: true,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           dancerEditingEligibility: {
@@ -702,6 +708,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: true,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           dancerEditingEligibility: {
@@ -730,6 +737,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: false,
+          activeEventRegistrationReadiness: null,
         },
         choreography: choreographyDetailRow({
           dancerEditingEligibility: {
@@ -765,6 +773,7 @@ describe("portal route view", () => {
           hasEvents: true,
           isReadOnly: false,
           isRegistrationOpen: false,
+          activeEventRegistrationReadiness: null,
         },
       }),
     });

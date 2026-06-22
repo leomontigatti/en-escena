@@ -251,6 +251,7 @@ function buildLoaderData(
       hasEvents: true,
       isReadOnly: false,
       isRegistrationOpen: true,
+      activeEventRegistrationReadiness: null,
     },
     successMessage: null,
     ...overrides,
