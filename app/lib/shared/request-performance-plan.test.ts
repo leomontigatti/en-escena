@@ -26,38 +26,53 @@ const requiredAssumptions = [
   "`npm run test:db` is the final reliable database-backed validation path",
 ];
 
-const workflowRuleRequirements = [
-  "## Request Performance and Loading",
-  "Measure before diagnosing latency.",
-  "loader or action timing around the real route seam",
-  "auth",
-  "event/context lookup",
-  "main query or mutation",
-  "serialization/readiness work",
-  "revalidation follow-up",
-  "`docs/agents/request-performance-refactor-plan.md`",
-  "`npm run test`",
+const permanentRuleDocuments = [
+  {
+    path: "docs/agents/codex-workflows.md",
+    requiredText: [
+      "## Request Performance and Loading",
+      "Measure before diagnosing latency.",
+      "loader or action timing around the real route seam",
+      "auth",
+      "event/context lookup",
+      "main query or mutation",
+      "serialization/readiness work",
+      "revalidation follow-up",
+      "`docs/agents/request-performance-refactor-plan.md`",
+      "`npm run test`",
+    ],
+  },
+  {
+    path: "docs/agents/style-guide.md",
+    requiredText: [
+      "## Pending, loading y transiciones",
+      "Usar estado pendiente en el botón",
+      "spinner inline",
+      "Mantener las filas o resultados actuales visibles",
+      "Usar skeletons solo",
+      "No usar skeletons",
+      "View Transitions",
+    ],
+  },
+  {
+    path: "docs/agents/coding-standards.md",
+    requiredText: [
+      "## File Size And Boundaries",
+      "soft maintainability limit around 5500 tokens",
+      "`bytes / 4`",
+      "clear module boundary",
+      "loader/action server module",
+      "form controller",
+      "table column definitions",
+    ],
+  },
 ];
 
-const styleGuideRuleRequirements = [
-  "## Pending, loading y transiciones",
-  "Usar estado pendiente en el botón",
-  "spinner inline",
-  "Mantener las filas o resultados actuales visibles",
-  "Usar skeletons solo",
-  "No usar skeletons",
-  "View Transitions",
-];
-
-const codingStandardsRuleRequirements = [
-  "## File Size And Boundaries",
-  "soft maintainability limit around 5500 tokens",
-  "`bytes / 4`",
-  "clear module boundary",
-  "loader/action server module",
-  "form controller",
-  "table column definitions",
-];
+const expectTextToContainAll = (text: string, requiredText: string[]) => {
+  for (const requiredPhrase of requiredText) {
+    expect(text).toContain(requiredPhrase);
+  }
+};
 
 describe("request performance refactor plan", () => {
   test("documents the current validation workflow and route inventory", async () => {
@@ -80,22 +95,15 @@ describe("request performance refactor plan", () => {
   });
 
   test("documents permanent performance, loading, and maintainability rules in the repo docs", async () => {
-    const [workflowDoc, styleGuide, codingStandards] = await Promise.all([
-      readFile("docs/agents/codex-workflows.md", "utf8"),
-      readFile("docs/agents/style-guide.md", "utf8"),
-      readFile("docs/agents/coding-standards.md", "utf8"),
-    ]);
+    const documents = await Promise.all(
+      permanentRuleDocuments.map(async (document) => ({
+        requiredText: document.requiredText,
+        text: await readFile(document.path, "utf8"),
+      })),
+    );
 
-    for (const rule of workflowRuleRequirements) {
-      expect(workflowDoc).toContain(rule);
-    }
-
-    for (const rule of styleGuideRuleRequirements) {
-      expect(styleGuide).toContain(rule);
-    }
-
-    for (const rule of codingStandardsRuleRequirements) {
-      expect(codingStandards).toContain(rule);
+    for (const document of documents) {
+      expectTextToContainAll(document.text, document.requiredText);
     }
   });
 });
