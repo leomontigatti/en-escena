@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Check, Clock, Plus, Trash } from "lucide-react";
+import { Check, Clock, LoaderCircle, Plus, Trash } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type * as React from "react";
 import type { ReactNode } from "react";
@@ -9,7 +9,6 @@ import {
   useFieldArray,
   useWatch,
   type FieldPath,
-  type SubmitHandler,
   useForm,
   type UseFormReturn,
 } from "react-hook-form";
@@ -85,8 +84,13 @@ import { formatGroupTypes, groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
   useApplyServerFieldErrors,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
@@ -230,6 +234,8 @@ export function NewEventScheduleRouteView({
         />
         <ScheduleFormActions
           formId={createScheduleFormId}
+          pendingLabel="Guardando cronograma..."
+          pendingScope={{ intent: "create-schedule" }}
           submitLabel="Guardar"
         />
       </ScheduleFormPanel>
@@ -282,6 +288,11 @@ export function EventScheduleDetailRouteView({
           />
           <ScheduleFormActions
             formId="update-schedule-form"
+            pendingLabel="Guardando cronograma..."
+            pendingScope={{
+              intent: "update-schedule",
+              fields: { id: schedule.id },
+            }}
             submitLabel="Guardar"
           />
         </ScheduleFormPanel>
@@ -354,6 +365,8 @@ function ScheduleForm({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues,
   });
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -361,22 +374,12 @@ function ScheduleForm({
 
   useApplyServerFieldErrors(form, fieldErrors, resolveScheduleFieldName);
 
-  const submitForm: SubmitHandler<ScheduleFormValues> = (_, event) => {
-    const formElement = event?.target as HTMLFormElement | undefined;
-    formElement?.submit();
-  };
-
-  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
-    event.preventDefault();
-    void form.handleSubmit(submitForm)(event);
-  };
-
   return (
     <form
       id={formId}
       method="post"
       className="flex w-full flex-col gap-5"
-      onSubmit={handleSubmit}
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
@@ -438,19 +441,30 @@ function ScheduleForm({
 
 function ScheduleFormActions({
   formId,
+  pendingScope,
+  pendingLabel,
   submitLabel,
 }: {
   formId: string;
+  pendingScope: { intent: string; fields?: Record<string, string> };
+  pendingLabel: string;
   submitLabel: string;
 }) {
+  const navigation = useOptionalNavigation();
+  const isPending = isRouteFormPending(navigation, pendingScope);
+
   return (
     <div className="flex justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildSchedulesPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId}>
-        <Check data-icon="inline-start" />
-        {submitLabel}
+      <Button type="submit" form={formId} disabled={isPending}>
+        {isPending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <Check aria-hidden="true" data-icon="inline-start" />
+        )}
+        {isPending ? pendingLabel : submitLabel}
       </Button>
     </div>
   );
@@ -1309,6 +1323,9 @@ function ScheduleCapacityForm({
     resolver: zodResolver(scheduleCapacityFormSchema),
     defaultValues,
   });
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
+  const navigation = useOptionalNavigation();
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -1319,19 +1336,17 @@ function ScheduleCapacityForm({
     fieldErrors,
     resolveScheduleCapacityFieldName,
   );
-
-  const submitForm: SubmitHandler<ScheduleCapacityFormValues> = (_, event) => {
-    const formElement = event?.target as HTMLFormElement | undefined;
-    formElement?.submit();
-  };
-
-  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
-    event.preventDefault();
-    void form.handleSubmit(submitForm)(event);
-  };
+  const isPending = isRouteFormPending(navigation, {
+    intent,
+    fields: id ? { id } : scheduleId ? { scheduleId } : undefined,
+  });
 
   return (
-    <form method="post" onSubmit={handleSubmit} className="mt-3">
+    <form
+      method="post"
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
+      className="mt-3"
+    >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
       {scheduleId ? (
@@ -1358,11 +1373,17 @@ function ScheduleCapacityForm({
           />
         </div>
         <div>
-          <Button type="submit">
-            {buttonLabel === "Nuevo cupo" ? (
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : buttonLabel === "Nuevo cupo" ? (
               <Plus data-icon="inline-start" />
             ) : null}
-            {buttonLabel}
+            {isPending ? "Guardando cupo..." : buttonLabel}
           </Button>
         </div>
       </FieldGroup>

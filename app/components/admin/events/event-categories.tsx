@@ -1,14 +1,9 @@
-import { Check, Trash } from "lucide-react";
+import { Check, LoaderCircle, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Controller,
-  type SubmitHandler,
-  useForm,
-  type UseFormReturn,
-} from "react-hook-form";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 import {
@@ -58,8 +53,13 @@ import type {
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
   useApplyServerFieldErrors,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
@@ -181,6 +181,8 @@ export function NewEventCategoryRouteView({
         />
         <CategoryFormActions
           formId="create-category-form"
+          pendingLabel="Guardando categoría..."
+          pendingScope={{ intent: "create-category" }}
           submitLabel="Guardar"
         />
       </CategoryFormPanel>
@@ -233,6 +235,11 @@ export function EventCategoryDetailRouteView({
           />
           <CategoryFormActions
             formId="update-category-form"
+            pendingLabel="Guardando categoría..."
+            pendingScope={{
+              intent: "update-category",
+              fields: { id: category.id },
+            }}
             submitLabel="Guardar"
           />
         </CategoryFormPanel>
@@ -497,6 +504,8 @@ function CategoryForm({
     mode: "onSubmit",
     resolver: zodResolver(categoryFormSchema),
   });
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -504,23 +513,12 @@ function CategoryForm({
 
   useApplyServerFieldErrors(form, fieldErrors, resolveCategoryFieldName);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<CategoryFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
   return (
     <form
       id={formId}
       method="post"
       className="flex w-full flex-col gap-5"
-      onSubmit={handleSubmit}
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
@@ -618,19 +616,30 @@ function CategoryTextField({
 
 function CategoryFormActions({
   formId,
+  pendingScope,
+  pendingLabel,
   submitLabel,
 }: {
   formId: string;
+  pendingScope: { intent: string; fields?: Record<string, string> };
+  pendingLabel: string;
   submitLabel: string;
 }) {
+  const navigation = useOptionalNavigation();
+  const isPending = isRouteFormPending(navigation, pendingScope);
+
   return (
     <div className="flex items-center justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildCategoriasListPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId}>
-        <Check aria-hidden="true" data-icon="inline-start" />
-        {submitLabel}
+      <Button type="submit" form={formId} disabled={isPending}>
+        {isPending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <Check aria-hidden="true" data-icon="inline-start" />
+        )}
+        {isPending ? pendingLabel : submitLabel}
       </Button>
     </div>
   );

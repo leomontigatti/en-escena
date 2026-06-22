@@ -12,6 +12,8 @@ if (typeof window !== "undefined") {
   testWindow.__vite_plugin_react_preamble_installed__ = true;
   testWindow.$RefreshReg$ = () => {};
   testWindow.$RefreshSig$ = () => (type) => type;
+  globalThis.FormData = window.FormData;
+  globalThis.URLSearchParams = window.URLSearchParams;
 
   window.matchMedia ??= (() => ({
     addEventListener() {},
@@ -25,4 +27,12 @@ if (typeof window !== "undefined") {
     removeEventListener() {},
     removeListener() {},
   })) as typeof window.matchMedia;
+
+  class ResizeObserverMock {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  }
+
+  globalThis.ResizeObserver ??= ResizeObserverMock as typeof ResizeObserver;
 }
