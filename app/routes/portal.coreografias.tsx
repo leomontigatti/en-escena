@@ -372,25 +372,29 @@ function OperationalStatusBadge({
 function getCoreografiasEmptyTitle(
   eventContext: PortalCoreografiasEventContext,
 ) {
-  if (!eventContext.selectedEvent) {
-    return eventContext.hasEvents
-      ? "Todavía no hay un evento activo"
-      : "Todavía no hay eventos configurados";
+  if (eventContext.selectedEvent) {
+    return "No hay coreografías registradas para este evento";
   }
 
-  return "No hay coreografías registradas para este evento";
+  if (eventContext.hasEvents) {
+    return "Todavía no hay un evento activo";
+  }
+
+  return "Todavía no hay eventos configurados";
 }
 
 function getCoreografiasEmptyDescription(
   eventContext: PortalCoreografiasEventContext,
 ) {
-  if (!eventContext.selectedEvent) {
-    return eventContext.hasEvents
-      ? "Cuando administración active un evento, vas a poder consultar las coreografías de tu academia desde esta sección."
-      : "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
+  if (eventContext.selectedEvent) {
+    return "Cuando registres una coreografía para el evento activo, la vas a poder seguir acá junto con su estado operativo.";
   }
 
-  return "Cuando registres una coreografía para el evento activo, la vas a poder seguir acá junto con su estado operativo.";
+  if (eventContext.hasEvents) {
+    return "Cuando administración active un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
+  }
+
+  return "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
 }
 
 function formatPrimaryAndSecondaryValue(

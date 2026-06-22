@@ -127,19 +127,16 @@ export function getSubmissionError(data: CreateActionData | undefined) {
 export function formatGroupTypeLabel(
   groupType: RegistrationResolution["groupType"] | string,
 ) {
-  if (groupType === "solo") {
-    return "Solo";
+  switch (groupType) {
+    case "solo":
+      return "Solo";
+    case "duo":
+      return "Dúo";
+    case "trio":
+      return "Trío";
+    default:
+      return "Grupal";
   }
-
-  if (groupType === "duo") {
-    return "Dúo";
-  }
-
-  if (groupType === "trio") {
-    return "Trío";
-  }
-
-  return "Grupal";
 }
 
 export function buildResolveChoreographyFormData(input: {

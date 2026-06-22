@@ -76,8 +76,8 @@ export function CreateChoreographyDialog({
   professors: ActiveProfessor[];
   onClose: () => void;
 }) {
-  const calculationFetcher = useFetcher();
-  const submissionFetcher = useFetcher();
+  const calculationFetcher = useFetcher<CalculationActionData>();
+  const submissionFetcher = useFetcher<CreateActionData>();
   const nameFieldId = useId();
   const modalityFieldId = useId();
   const submodalityFieldId = useId();
@@ -118,14 +118,11 @@ export function CreateChoreographyDialog({
       ),
     [professors, selectedProfessorIds],
   );
-  const calculationData = calculationFetcher.data as
-    | CalculationActionData
-    | undefined;
-  const submissionData = submissionFetcher.data as CreateActionData | undefined;
+  const calculationData = calculationFetcher.data;
   const canChooseSubmodality = selectedSubmodalities.length > 0;
   const isResolving = calculationFetcher.state !== "idle";
   const isSubmitting = submissionFetcher.state !== "idle";
-  const submissionError = getSubmissionError(submissionData);
+  const submissionError = getSubmissionError(submissionFetcher.data);
   const registrationSteps = useMemo(
     () => getCreateChoreographySteps({ canChooseSubmodality, resolution }),
     [canChooseSubmodality, resolution],
@@ -659,17 +656,19 @@ function ChoreographyCreationSummary({
       label: "Categoría",
       value: formatCategoryAndGroupTypeSummary(resolution),
     },
-    ...(resolution.experienceLevel.required
-      ? [
-          {
-            label: "Nivel de experiencia",
-            value: formatExperienceLevelSummary(
-              resolution,
-              selectedExperienceLevelId,
-            ),
-          },
-        ]
-      : []),
+  ];
+
+  if (resolution.experienceLevel.required) {
+    summaryItems.push({
+      label: "Nivel de experiencia",
+      value: formatExperienceLevelSummary(
+        resolution,
+        selectedExperienceLevelId,
+      ),
+    });
+  }
+
+  summaryItems.push(
     {
       label: "Cronograma",
       value: formatScheduleSummary(resolution, selectedScheduleCapacityId),
@@ -688,7 +687,7 @@ function ChoreographyCreationSummary({
       label: "Profesores",
       value: formatPeopleSummary(selectedProfessors, "profesores"),
     },
-  ];
+  );
 
   return (
     <section aria-label="Resumen de coreografía">
@@ -902,9 +901,11 @@ function formatPeopleSummary(
   noun: "bailarines" | "profesores",
 ) {
   if (people.length === 0) {
-    return noun === "profesores"
-      ? "Sin profesores seleccionados"
-      : "Sin bailarines seleccionados";
+    if (noun === "profesores") {
+      return "Sin profesores seleccionados";
+    }
+
+    return "Sin bailarines seleccionados";
   }
 
   if (people.length > 3) {
