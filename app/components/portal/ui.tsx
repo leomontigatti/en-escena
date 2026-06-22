@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   AudioLines,
   CalendarDays,
@@ -11,7 +11,6 @@ import {
   Users,
 } from "lucide-react";
 import { Link, NavLink, useLocation, type UIMatch } from "react-router";
-import { clsx } from "clsx";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -37,6 +36,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -149,6 +157,18 @@ type CoreographyCreationState = {
   details: string[];
 };
 
+type AlertVariant = NonNullable<ComponentProps<typeof Alert>["variant"]>;
+type BadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
+type CreationAvailabilityPresentation = {
+  alertVariant: AlertVariant;
+  badgeLabel: string;
+  badgeVariant: BadgeVariant;
+};
+type EventStatusPresentation = {
+  label: string;
+  variant: BadgeVariant;
+};
+
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
   { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
@@ -156,13 +176,25 @@ const portalNavigationItems = [
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
 ] as const;
 
-const creationAvailabilityToneClassNames: Record<
+const creationAvailabilityPresentationByTone: Record<
   CoreographyCreationState["tone"],
-  string
+  CreationAvailabilityPresentation
 > = {
-  ready: "bg-emerald-50 text-emerald-900",
-  blocked: "bg-amber-50 text-amber-900",
-  info: "bg-slate-50 text-slate-700",
+  ready: {
+    alertVariant: "default",
+    badgeLabel: "Disponible",
+    badgeVariant: "default",
+  },
+  blocked: {
+    alertVariant: "destructive",
+    badgeLabel: "Bloqueado",
+    badgeVariant: "destructive",
+  },
+  info: {
+    alertVariant: "default",
+    badgeLabel: "Información",
+    badgeVariant: "secondary",
+  },
 };
 
 export function PortalShell({
@@ -415,10 +447,12 @@ type PortalEmptyListProps = {
 
 export function PortalEmptyList({ title, description }: PortalEmptyListProps) {
   return (
-    <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-      <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-    </div>
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription className="leading-6">{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -440,10 +474,12 @@ export function PortalEmptyListSection({
   return (
     <section className="mt-8" aria-labelledby={titleId}>
       <div>
-        <p id={titleId} className="text-sm font-semibold text-slate-950">
+        <p id={titleId} className="text-sm font-semibold text-foreground">
           {title}
         </p>
-        <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
       </div>
       <PortalEmptyList title={emptyTitle} description={emptyDescription} />
     </section>
@@ -458,6 +494,8 @@ export function PortalCoreographiesSection({
   const selectedEvent = eventContext.selectedEvent;
   const creationAvailability = getCoreographyCreationState(eventContext);
   const eventStatus = getPortalEventStatus(eventContext.isReadOnly);
+  const creationAvailabilityPresentation =
+    creationAvailabilityPresentationByTone[creationAvailability.tone];
 
   return (
     <section className="mt-8" aria-labelledby="coreografias-title">
@@ -465,59 +503,61 @@ export function PortalCoreographiesSection({
         <div>
           <p
             id="coreografias-title"
-            className="text-sm font-semibold text-slate-950"
+            className="text-sm font-semibold text-foreground"
           >
             Coreografías
           </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Esta sección muestra información específica del Evento activo.
           </p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+      <Card className="mt-4">
         {selectedEvent ? (
           <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-slate-950">
-                  {selectedEvent.name}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-2">
+                <CardTitle>{selectedEvent.name}</CardTitle>
+                <CardDescription className="leading-6">
                   No hay coreografías registradas para este evento.
-                </p>
+                </CardDescription>
               </div>
-              <span className={eventStatus.className}>{eventStatus.label}</span>
-            </div>
-            <div
-              className={clsx(
-                "mt-4 rounded-lg px-4 py-3 text-sm leading-6",
-                creationAvailabilityToneClassNames[creationAvailability.tone],
-              )}
-            >
-              <p>{creationAvailability.message}</p>
-              {creationAvailability.details.length > 0 ? (
-                <ul className="mt-2 space-y-1">
-                  {creationAvailability.details.map((detail) => (
-                    <li key={detail}>{detail}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
+              <Badge variant={eventStatus.variant}>{eventStatus.label}</Badge>
+            </CardHeader>
+            <CardContent>
+              <Alert variant={creationAvailabilityPresentation.alertVariant}>
+                <AlertTitle className="flex flex-wrap items-center gap-2">
+                  <span>{creationAvailability.message}</span>
+                  <Badge
+                    variant={creationAvailabilityPresentation.badgeVariant}
+                  >
+                    {creationAvailabilityPresentation.badgeLabel}
+                  </Badge>
+                </AlertTitle>
+                {creationAvailability.details.length > 0 ? (
+                  <AlertDescription>
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {creationAvailability.details.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                ) : null}
+              </Alert>
+            </CardContent>
           </>
         ) : (
-          <div>
-            <h2 className="text-base font-semibold text-slate-950">
-              Todavía no hay Eventos configurados
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+          <CardHeader>
+            <CardTitle>Todavía no hay Eventos configurados</CardTitle>
+            <CardDescription className="leading-6">
               Cuando administración cree un Evento, vas a poder consultarlo
               desde esta sección. La gestión de profesores y bailarines sigue
               disponible como información de la academia.
-            </p>
-          </div>
+            </CardDescription>
+          </CardHeader>
         )}
-      </div>
+      </Card>
     </section>
   );
 }
@@ -559,19 +599,17 @@ function isNavigationItemActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-function getPortalEventStatus(isReadOnly: boolean) {
+function getPortalEventStatus(isReadOnly: boolean): EventStatusPresentation {
   if (isReadOnly) {
     return {
       label: getPortalEventStatusLabel(true),
-      className:
-        "inline-flex w-fit rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800",
+      variant: "secondary",
     };
   }
 
   return {
     label: getPortalEventStatusLabel(false),
-    className:
-      "inline-flex w-fit rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800",
+    variant: "default",
   };
 }
 
