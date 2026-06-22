@@ -13,7 +13,15 @@ import {
   type Control,
   type UseFormReturn,
 } from "react-hook-form";
-import { Link, redirect, useFetcher, useSearchParams } from "react-router";
+import {
+  Link,
+  redirect,
+  useActionData,
+  useFetcher,
+  useNavigation,
+  useSearchParams,
+  useSubmit,
+} from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -78,9 +86,10 @@ import {
   getEventBases,
   type ChoreographyRegistrationBaseOptions,
 } from "@/lib/events/bases.server";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import { isRouteFormPending, requiredFieldMessage } from "@/lib/shared/forms";
 
 type PortalCoreografiasRouteProps = {
+  actionData?: CreateActionData;
   loaderData: Awaited<ReturnType<typeof loader>>;
   created?: boolean;
   deleted?: boolean;
@@ -101,8 +110,10 @@ type CalculationActionData = {
 };
 
 type CreateActionData = {
+  status: "create-error";
   intent: "create-choreography";
   result: Exclude<CreateChoreographyRegistrationResult, { ok: true }>;
+  modalOpen: true;
 };
 
 const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
@@ -234,7 +245,9 @@ export async function action({ request }: { request: Request }) {
 
     if (!result.ok) {
       return {
+        status: "create-error",
         intent,
+        modalOpen: true,
         result,
       } satisfies CreateActionData;
     }
@@ -246,6 +259,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export function PortalCoreografiasRouteView({
+  actionData,
   loaderData,
   created = false,
   deleted = false,
@@ -257,14 +271,24 @@ export function PortalCoreografiasRouteView({
     eventContext: loaderData.eventContext,
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(
-    initialCreateDialogOpen,
+    initialCreateDialogOpen || actionData?.modalOpen === true,
   );
+  const [dismissServerState, setDismissServerState] = useState(false);
+
+  useEffect(() => {
+    if (actionData?.modalOpen === true) {
+      setIsCreateModalOpen(true);
+      setDismissServerState(false);
+    }
+  }, [actionData]);
 
   useEffect(() => {
     if (created) {
       showRouteNotificationToast("coreografia-creada");
     }
   }, [created]);
+
+  const visibleActionData = dismissServerState ? undefined : actionData;
 
   return (
     <>
@@ -277,7 +301,10 @@ export function PortalCoreografiasRouteView({
             <Button
               type="button"
               disabled={!creationAvailability.canCreate}
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => {
+                setDismissServerState(true);
+                setIsCreateModalOpen(true);
+              }}
             >
               <Plus aria-hidden="true" data-icon />
               Nueva coreografía
@@ -307,11 +334,15 @@ export function PortalCoreografiasRouteView({
       selectedEvent &&
       loaderData.registrationBaseOptions ? (
         <CreateChoreographyModal
+          actionData={visibleActionData}
           baseOptions={loaderData.registrationBaseOptions}
           dancers={loaderData.activeDancers}
           eventId={selectedEvent.id}
           professors={loaderData.activeProfessors}
-          onClose={() => setIsCreateModalOpen(false)}
+          onClose={() => {
+            setDismissServerState(true);
+            setIsCreateModalOpen(false);
+          }}
         />
       ) : null}
     </>
@@ -323,10 +354,14 @@ export default function PortalCoreografiasRoute({
 }: {
   loaderData: Awaited<ReturnType<typeof loader>>;
 }) {
+  const actionData = useActionData() as CreateActionData | undefined;
   const [searchParams] = useSearchParams();
 
   return (
     <PortalCoreografiasRouteView
+      actionData={
+        actionData?.status === "create-error" ? actionData : undefined
+      }
       created={searchParams.get("creada") === "1"}
       deleted={searchParams.get("eliminada") === "1"}
       loaderData={loaderData}
@@ -532,12 +567,14 @@ function formatPrimaryAndSecondaryValue(
 }
 
 function CreateChoreographyModal({
+  actionData,
   baseOptions,
   dancers,
   eventId,
   professors,
   onClose,
 }: {
+  actionData?: CreateActionData;
   baseOptions: ChoreographyRegistrationBaseOptions;
   dancers: PortalCoreografiasLoaderData["activeDancers"];
   eventId: string;
@@ -545,7 +582,8 @@ function CreateChoreographyModal({
   onClose: () => void;
 }) {
   const calculationFetcher = useFetcher<typeof action>();
-  const submissionFetcher = useFetcher<typeof action>();
+  const navigation = useNavigation();
+  const submit = useSubmit();
   const nameFieldId = useId();
   const modalityFieldId = useId();
   const submodalityFieldId = useId();
@@ -555,7 +593,6 @@ function CreateChoreographyModal({
   const [resolution, setResolution] = useState<RegistrationResolution | null>(
     null,
   );
-  const hasSubmittedChoreographyRef = useRef(false);
   const processedCalculationDataRef = useRef<CalculationActionData | undefined>(
     undefined,
   );
@@ -589,11 +626,12 @@ function CreateChoreographyModal({
   const calculationData = calculationFetcher.data as
     | CalculationActionData
     | undefined;
-  const submissionData = submissionFetcher.data as CreateActionData | undefined;
   const canChooseSubmodality = selectedSubmodalities.length > 0;
   const isResolving = calculationFetcher.state !== "idle";
-  const isSubmitting = submissionFetcher.state !== "idle";
-  const submissionError = getSubmissionError(submissionData);
+  const isSubmitting = isRouteFormPending(navigation, {
+    intent: CREATE_CHOREOGRAPHY_INTENT,
+  });
+  const submissionError = getSubmissionError(actionData);
   const registrationSteps = useMemo(
     () => getCreateChoreographySteps({ canChooseSubmodality, resolution }),
     [canChooseSubmodality, resolution],
@@ -668,23 +706,6 @@ function CreateChoreographyModal({
       }),
     );
   }, [canChooseSubmodality, calculationData, form]);
-
-  useEffect(() => {
-    if (!hasSubmittedChoreographyRef.current) {
-      return;
-    }
-
-    if (submissionFetcher.state !== "idle") {
-      return;
-    }
-
-    if (submissionError) {
-      return;
-    }
-
-    hasSubmittedChoreographyRef.current = false;
-    onClose();
-  }, [onClose, submissionError, submissionFetcher.state]);
 
   function resetResolutionState() {
     setResolution(null);
@@ -779,8 +800,7 @@ function CreateChoreographyModal({
   }
 
   function handleConfirm() {
-    hasSubmittedChoreographyRef.current = true;
-    submissionFetcher.submit(
+    submit(
       buildCreateChoreographyFormData({
         eventId,
         name: watchedValues.name,
@@ -817,7 +837,14 @@ function CreateChoreographyModal({
     ((currentStepIndex + 1) / registrationSteps.length) * 100;
 
   return (
-    <Dialog open onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !isSubmitting) {
+          handleClose();
+        }
+      }}
+    >
       <DialogContent
         className="max-h-[90vh] max-w-3xl overflow-visible"
         overlayClassName="backdrop-blur-sm"
@@ -981,6 +1008,7 @@ function CreateChoreographyModal({
           <Button
             type="button"
             variant="outline"
+            disabled={isSubmitting}
             onClick={
               currentStepIndex === 0
                 ? handleClose
@@ -1033,7 +1061,6 @@ function CreateChoreographyModal({
                 disabled={!canResolve || isResolving}
                 onClick={handleResolveStep}
               >
-                Siguiente
                 {isResolving ? (
                   <LoaderCircle
                     aria-hidden="true"
@@ -1043,6 +1070,9 @@ function CreateChoreographyModal({
                 ) : (
                   <ChevronRight aria-hidden="true" data-icon />
                 )}
+                {isResolving
+                  ? "Calculando categoría y cupo..."
+                  : "Calcular categoría y cupo"}
               </Button>
             ) : null}
 
@@ -1090,7 +1120,9 @@ function CreateChoreographyModal({
                 ) : (
                   <Check aria-hidden="true" data-icon />
                 )}
-                Guardar
+                {isSubmitting
+                  ? "Guardando coreografía..."
+                  : "Guardar coreografía"}
               </Button>
             ) : null}
           </div>
@@ -1338,7 +1370,11 @@ function setRequiredFieldError(
 }
 
 function getSubmissionError(data: CreateActionData | undefined) {
-  return data?.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
+  if (!data || data.status !== "create-error") {
+    return null;
+  }
+
+  return data.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
 }
 
 function formatGroupTypeLabel(

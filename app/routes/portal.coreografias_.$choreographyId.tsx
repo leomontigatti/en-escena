@@ -73,6 +73,7 @@ import {
 } from "@/lib/portal/choreographies";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import {
+  isRouteFormPending,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -464,9 +465,9 @@ function ChoreographyEditForm({
   const canEditProfessors =
     !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
   const isResolving = resolutionFetcher.state !== "idle";
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formData?.get("intent") === updateChoreographyIntent;
+  const isSubmitting = isRouteFormPending(navigation, {
+    intent: updateChoreographyIntent,
+  });
   const hasResolvedRosterChange =
     hasRosterChanged &&
     dancerSelectionKey === resolvedSelectionKey &&
@@ -836,7 +837,11 @@ function ChoreographyEditForm({
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}
-            Guardar
+            {isSubmitting
+              ? "Guardando coreografía..."
+              : isResolving
+                ? "Calculando cambios..."
+                : "Guardar coreografía"}
           </Button>
         </CardFooter>
       </Card>
