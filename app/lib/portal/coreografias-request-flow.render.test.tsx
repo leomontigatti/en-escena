@@ -341,5 +341,7 @@ function buildListLoaderData() {
       isReadOnly: false,
       isRegistrationOpen: true,
     },
-  } as unknown as Parameters<typeof PortalCoreografiasRouteView>[0]["loaderData"];
+  } as unknown as Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"];
 }

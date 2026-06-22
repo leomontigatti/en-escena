@@ -379,7 +379,7 @@ export function PortalCoreografiaDetalleRouteView({
 export default function PortalCoreografiaDetalleRoute({
   loaderData,
 }: PortalCoreografiaDetalleRouteProps) {
-  const actionData = useActionData() as ActionData;
+  const actionData = getUpdateActionData(useActionData<typeof action>());
 
   return (
     <PortalCoreografiaDetalleRouteView
@@ -387,6 +387,16 @@ export default function PortalCoreografiaDetalleRoute({
       actionData={actionData}
     />
   );
+}
+
+function getUpdateActionData(
+  actionData: ActionData | DancerResolutionActionData,
+): ActionData {
+  if (!actionData || !("status" in actionData)) {
+    return undefined;
+  }
+
+  return actionData.status === "update-error" ? actionData : undefined;
 }
 
 function ChoreographyEditForm({
@@ -837,16 +847,27 @@ function ChoreographyEditForm({
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}
-            {isSubmitting
-              ? "Guardando coreografía..."
-              : isResolving
-                ? "Calculando cambios..."
-                : "Guardar coreografía"}
+            {getChoreographyEditSubmitLabel({ isResolving, isSubmitting })}
           </Button>
         </CardFooter>
       </Card>
     </Form>
   );
+}
+
+function getChoreographyEditSubmitLabel(input: {
+  isResolving: boolean;
+  isSubmitting: boolean;
+}) {
+  if (input.isSubmitting) {
+    return "Guardando coreografía...";
+  }
+
+  if (input.isResolving) {
+    return "Calculando cambios...";
+  }
+
+  return "Guardar coreografía";
 }
 
 function ReadonlyDetailField({

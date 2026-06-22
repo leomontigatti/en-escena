@@ -354,14 +354,13 @@ export default function PortalCoreografiasRoute({
 }: {
   loaderData: Awaited<ReturnType<typeof loader>>;
 }) {
-  const actionData = useActionData() as CreateActionData | undefined;
+  const actionData = useActionData<typeof action>();
+  const createActionData = getCreateActionData(actionData);
   const [searchParams] = useSearchParams();
 
   return (
     <PortalCoreografiasRouteView
-      actionData={
-        actionData?.status === "create-error" ? actionData : undefined
-      }
+      actionData={createActionData}
       created={searchParams.get("creada") === "1"}
       deleted={searchParams.get("eliminada") === "1"}
       loaderData={loaderData}
@@ -1375,6 +1374,14 @@ function getSubmissionError(data: CreateActionData | undefined) {
   }
 
   return data.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
+}
+
+function getCreateActionData(
+  actionData: CalculationActionData | CreateActionData | undefined,
+) {
+  return actionData?.intent === CREATE_CHOREOGRAPHY_INTENT
+    ? actionData
+    : undefined;
 }
 
 function formatGroupTypeLabel(
