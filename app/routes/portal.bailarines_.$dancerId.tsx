@@ -8,7 +8,6 @@ import {
   useActionData,
   useNavigation,
   useSubmit,
-  useViewTransitionState,
 } from "react-router";
 import { z } from "zod";
 
@@ -59,7 +58,7 @@ import {
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
+import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 const formId = "portal-bailarin-form";
@@ -295,8 +294,10 @@ export function PortalBailarinDetalleRouteView({
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
   const detailHref = `/portal/bailarines/${loaderData.dancer.id}`;
-  const isDetailTransitioning = useViewTransitionState(detailHref);
-  const isListTransitioning = useViewTransitionState("/portal/bailarines");
+  const viewTransitionStyle = usePortalRecordTitleDetailTransitionStyle({
+    detailHref,
+    listHref: "/portal/bailarines",
+  });
   const title = `${loaderData.dancer.firstName} ${loaderData.dancer.lastName}`;
 
   useServerActionToast(getGeneralActionError(actionData), {
@@ -314,9 +315,7 @@ export function PortalBailarinDetalleRouteView({
             <h1
               id="bailarin-detail-title"
               className="text-xl font-semibold"
-              style={getPortalRecordTitleViewTransitionStyle(
-                isDetailTransitioning || isListTransitioning,
-              )}
+              style={viewTransitionStyle}
             >
               {title}
             </h1>

@@ -13,7 +13,6 @@ import {
   useActionData,
   useNavigation,
   useSubmit,
-  useViewTransitionState,
 } from "react-router";
 import { z } from "zod";
 
@@ -63,7 +62,7 @@ import {
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { getPortalRecordTitleViewTransitionStyle } from "@/lib/shared/view-transitions";
+import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 const professorNotFoundMessage = "No encontramos ese Profesor.";
 const formId = "portal-profesor-form";
@@ -262,8 +261,10 @@ export function PortalProfesorRouteView({
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-professor";
   const detailHref = `/portal/profesores/${loaderData.professor.id}`;
-  const isDetailTransitioning = useViewTransitionState(detailHref);
-  const isListTransitioning = useViewTransitionState("/portal/profesores");
+  const viewTransitionStyle = usePortalRecordTitleDetailTransitionStyle({
+    detailHref,
+    listHref: "/portal/profesores",
+  });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
 
   useServerActionToast(getGeneralActionError(actionData), {
@@ -281,9 +282,7 @@ export function PortalProfesorRouteView({
             <h1
               id="profesor-detail-title"
               className="text-xl font-semibold"
-              style={getPortalRecordTitleViewTransitionStyle(
-                isDetailTransitioning || isListTransitioning,
-              )}
+              style={viewTransitionStyle}
             >
               {title}
             </h1>

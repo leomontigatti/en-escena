@@ -11,7 +11,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const useFetcherMock = vi.hoisted(() => vi.fn());
 const useNavigationMock = vi.hoisted(() => vi.fn());
 const useSubmitMock = vi.hoisted(() => vi.fn());
-const useViewTransitionStateMock = vi.hoisted(() => vi.fn((_: string) => false));
+const useViewTransitionStateMock = vi.hoisted(() =>
+  vi.fn((_: string) => false),
+);
 
 vi.mock("react-router", async () => {
   const actual =
