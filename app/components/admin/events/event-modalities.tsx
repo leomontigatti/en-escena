@@ -1,4 +1,4 @@
-import { Check, Plus, Trash } from "lucide-react";
+import { Check, LoaderCircle, Plus, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -7,7 +7,6 @@ import {
   Controller,
   useFieldArray,
   type FieldPath,
-  type SubmitHandler,
   useForm,
   type UseFormReturn,
 } from "react-hook-form";
@@ -61,8 +60,14 @@ import type {
 } from "@/lib/admin/events/bases-action.server";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
+  type RouteFormPendingScope,
   useApplyServerFieldErrors,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
 } from "@/lib/shared/forms";
 import {
   Tooltip,
@@ -152,6 +157,8 @@ export function NewEventModalityRouteView({
         />
         <ModalityFormActions
           formId="create-modality-form"
+          pendingLabel="Guardando modalidad..."
+          pendingScope={{ intent: "create-modality" }}
           submitLabel="Guardar"
         />
       </ModalityFormPanel>
@@ -203,6 +210,11 @@ export function EventModalityDetailRouteView({
           />
           <ModalityFormActions
             formId="update-modality-form"
+            pendingLabel="Guardando modalidad..."
+            pendingScope={{
+              intent: "update-modality",
+              fields: { id: modality.id },
+            }}
             submitLabel="Guardar"
           />
         </ModalityFormPanel>
@@ -332,6 +344,8 @@ function ModalityForm({
     mode: "onSubmit",
     resolver: zodResolver(modalityFormSchema),
   });
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -339,23 +353,12 @@ function ModalityForm({
 
   useApplyServerFieldErrors(form, fieldErrors, resolveModalityFieldName);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<ModalityFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
   return (
     <form
       id={formId}
       method="post"
       className="flex w-full flex-col gap-4"
-      onSubmit={handleSubmit}
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
@@ -402,19 +405,30 @@ function NameField({
 
 function ModalityFormActions({
   formId,
+  pendingScope,
+  pendingLabel,
   submitLabel,
 }: {
   formId: string;
+  pendingScope: RouteFormPendingScope;
+  pendingLabel: string;
   submitLabel: string;
 }) {
+  const navigation = useOptionalNavigation();
+  const isPending = isRouteFormPending(navigation, pendingScope);
+
   return (
     <div className="flex justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildModalidadesListPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId}>
-        <Check data-icon="inline-start" />
-        {submitLabel}
+      <Button type="submit" form={formId} disabled={isPending}>
+        {isPending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <Check aria-hidden="true" data-icon="inline-start" />
+        )}
+        {isPending ? pendingLabel : submitLabel}
       </Button>
     </div>
   );

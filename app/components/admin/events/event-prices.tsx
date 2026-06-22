@@ -1,14 +1,9 @@
 import { Link } from "react-router";
-import { Check, Trash } from "lucide-react";
+import { Check, LoaderCircle, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  Controller,
-  type SubmitHandler,
-  useForm,
-  type UseFormReturn,
-} from "react-hook-form";
+import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 import {
@@ -76,8 +71,14 @@ import type {
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   requiredFieldMessage,
+  type RouteFormPendingScope,
   useApplyServerFieldErrors,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -187,7 +188,12 @@ export function NewEventPriceRouteView({
           fieldErrors={actionData?.fieldErrors}
           submittedValues={getPriceSubmittedValues(actionData, "create-price")}
         />
-        <PriceFormActions formId={createPriceFormId} submitLabel="Guardar" />
+        <PriceFormActions
+          formId={createPriceFormId}
+          pendingLabel="Guardando precio..."
+          pendingScope={{ intent: "create-price" }}
+          submitLabel="Guardar"
+        />
       </PriceFormPanel>
     </AdminResourceLayout>
   );
@@ -235,6 +241,11 @@ export function EventPriceDetailRouteView({
             />
             <PriceFormActions
               formId="update-price-form"
+              pendingLabel="Guardando precio..."
+              pendingScope={{
+                intent: "update-price",
+                fields: { id: price.id },
+              }}
               submitLabel="Guardar"
             />
           </PriceFormPanel>
@@ -358,6 +369,8 @@ function PriceForm({
     mode: "onSubmit",
     resolver: zodResolver(priceFormSchema),
   });
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -367,23 +380,12 @@ function PriceForm({
 
   const isSpecialPrice = form.watch("isSpecialPrice");
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<PriceFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
   return (
     <form
       id={formId}
       method="post"
       className="flex w-full flex-col gap-5"
-      onSubmit={handleSubmit}
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
@@ -443,19 +445,30 @@ function PriceForm({
 
 function PriceFormActions({
   formId,
+  pendingScope,
+  pendingLabel,
   submitLabel,
 }: {
   formId: string;
+  pendingScope: RouteFormPendingScope;
+  pendingLabel: string;
   submitLabel: string;
 }) {
+  const navigation = useOptionalNavigation();
+  const isPending = isRouteFormPending(navigation, pendingScope);
+
   return (
     <div className="flex justify-end gap-2">
       <Button asChild variant="outline">
         <Link to={buildPriceListPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId}>
-        <Check data-icon="inline-start" />
-        {submitLabel}
+      <Button type="submit" form={formId} disabled={isPending}>
+        {isPending ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <Check aria-hidden="true" data-icon="inline-start" />
+        )}
+        {isPending ? pendingLabel : submitLabel}
       </Button>
     </div>
   );
