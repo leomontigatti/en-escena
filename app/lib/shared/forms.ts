@@ -74,10 +74,34 @@ type ReactRouterSubmitOptions = {
   method?: "delete" | "get" | "patch" | "post" | "put";
 };
 
+type ReactRouterFormSubmission = Record<string, string>;
+
 export type ReactRouterFormSubmit = (
-  target: HTMLFormElement | Record<string, string>,
+  target: HTMLFormElement | ReactRouterFormSubmission,
   options?: ReactRouterSubmitOptions,
 ) => void;
+
+function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
+  formElement: HTMLFormElement,
+  values: TFieldValues,
+): ReactRouterFormSubmission {
+  const submission: ReactRouterFormSubmission = {};
+
+  for (const [fieldName, fieldValue] of new FormData(formElement).entries()) {
+    submission[fieldName] = String(fieldValue);
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(values)) {
+    if (typeof fieldValue === "string") {
+      submission[fieldName] = fieldValue;
+      continue;
+    }
+
+    submission[fieldName] = String(fieldValue ?? "");
+  }
+
+  return submission;
+}
 
 export function createValidatedReactRouterSubmitHandler<
   TFieldValues extends FieldValues,
@@ -89,18 +113,10 @@ export function createValidatedReactRouterSubmitHandler<
   return (event) => {
     const formElement = event.currentTarget;
     const submitRouterForm: SubmitHandler<TFieldValues> = (values) => {
-      const submission = Object.fromEntries(
-        new FormData(formElement).entries(),
-      ) as Record<string, string>;
-
-      for (const [fieldName, fieldValue] of Object.entries(values)) {
-        submission[fieldName] =
-          typeof fieldValue === "string"
-            ? fieldValue
-            : String(fieldValue ?? "");
-      }
-
-      submit(submission, submitOptions);
+      submit(
+        createReactRouterFormSubmission(formElement, values),
+        submitOptions,
+      );
     };
 
     void form.handleSubmit(submitRouterForm)(event);

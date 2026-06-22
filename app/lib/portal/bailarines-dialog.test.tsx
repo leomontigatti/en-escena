@@ -2,7 +2,7 @@
 
 import "@/test/react-test-env";
 
-import { act } from "react";
+import { act, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
@@ -48,36 +48,24 @@ describe("PortalBailarinesRouteView dialog", () => {
     root = createRoot(container);
 
     await act(async () => {
-      root?.render(
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              {
-                path: "/portal/bailarines",
-                action: async () => null,
-                element: (
-                  <PortalBailarinesRouteView
-                    loaderData={createDancerLoaderData()}
-                    actionData={{
-                      status: "error",
-                      fieldErrors: {
-                        firstName: "Este campo es obligatorio.",
-                        birthDate:
-                          "La fecha de nacimiento no puede ser futura.",
-                      },
-                      values: {
-                        firstName: "",
-                        lastName: "López",
-                        birthDate: "2999-01-01",
-                      },
-                      modalOpen: true,
-                    }}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ["/portal/bailarines"] },
-          )}
+      renderRoute(
+        root,
+        "/portal/bailarines",
+        <PortalBailarinesRouteView
+          loaderData={createDancerLoaderData()}
+          actionData={{
+            status: "error",
+            fieldErrors: {
+              firstName: "Este campo es obligatorio.",
+              birthDate: "La fecha de nacimiento no puede ser futura.",
+            },
+            values: {
+              firstName: "",
+              lastName: "López",
+              birthDate: "2999-01-01",
+            },
+            modalOpen: true,
+          }}
         />,
       );
     });
@@ -105,23 +93,10 @@ describe("PortalBailarinesRouteView dialog", () => {
     root = createRoot(container);
 
     await act(async () => {
-      root?.render(
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              {
-                path: "/portal/bailarines",
-                action: async () => null,
-                element: (
-                  <PortalBailarinesRouteView
-                    loaderData={createDancerLoaderData()}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ["/portal/bailarines"] },
-          )}
-        />,
+      renderRoute(
+        root,
+        "/portal/bailarines",
+        <PortalBailarinesRouteView loaderData={createDancerLoaderData()} />,
       );
     });
 
@@ -134,35 +109,23 @@ describe("PortalBailarinesRouteView dialog", () => {
     ).toBe("");
 
     await act(async () => {
-      root?.render(
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              {
-                path: "/portal/bailarines",
-                action: async () => null,
-                element: (
-                  <PortalBailarinesRouteView
-                    loaderData={createDancerLoaderData()}
-                    actionData={{
-                      status: "error",
-                      fieldErrors: {
-                        birthDate:
-                          "La fecha de nacimiento no puede ser futura.",
-                      },
-                      values: {
-                        firstName: "Ana",
-                        lastName: "López",
-                        birthDate: "2999-01-01",
-                      },
-                      modalOpen: true,
-                    }}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ["/portal/bailarines"] },
-          )}
+      renderRoute(
+        root,
+        "/portal/bailarines",
+        <PortalBailarinesRouteView
+          loaderData={createDancerLoaderData()}
+          actionData={{
+            status: "error",
+            fieldErrors: {
+              birthDate: "La fecha de nacimiento no puede ser futura.",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "López",
+              birthDate: "2999-01-01",
+            },
+            modalOpen: true,
+          }}
         />,
       );
     });
@@ -186,23 +149,10 @@ describe("PortalBailarinesRouteView dialog", () => {
     root = createRoot(container);
 
     await act(async () => {
-      root?.render(
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              {
-                path: "/portal/profesores",
-                action: async () => null,
-                element: (
-                  <PortalProfesoresRouteView
-                    loaderData={createProfessorLoaderData()}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ["/portal/profesores"] },
-          )}
-        />,
+      renderRoute(
+        root,
+        "/portal/profesores",
+        <PortalProfesoresRouteView loaderData={createProfessorLoaderData()} />,
       );
     });
 
@@ -215,33 +165,22 @@ describe("PortalBailarinesRouteView dialog", () => {
     ).toBe("");
 
     await act(async () => {
-      root?.render(
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              {
-                path: "/portal/profesores",
-                action: async () => null,
-                element: (
-                  <PortalProfesoresRouteView
-                    loaderData={createProfessorLoaderData()}
-                    actionData={{
-                      status: "error",
-                      fieldErrors: {
-                        firstName: "Este campo es obligatorio.",
-                      },
-                      values: {
-                        firstName: "",
-                        lastName: "Pérez",
-                      },
-                      modalOpen: true,
-                    }}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ["/portal/profesores"] },
-          )}
+      renderRoute(
+        root,
+        "/portal/profesores",
+        <PortalProfesoresRouteView
+          loaderData={createProfessorLoaderData()}
+          actionData={{
+            status: "error",
+            fieldErrors: {
+              firstName: "Este campo es obligatorio.",
+            },
+            values: {
+              firstName: "",
+              lastName: "Pérez",
+            },
+            modalOpen: true,
+          }}
         />,
       );
     });
@@ -262,6 +201,27 @@ function createProfessorLoaderData(): PortalProfesoresRouteViewProps["loaderData
   return {
     professors: [],
   };
+}
+
+function renderRoute(
+  root: ReturnType<typeof createRoot> | null,
+  path: string,
+  element: ReactElement,
+) {
+  root?.render(
+    <RouterProvider
+      router={createMemoryRouter(
+        [
+          {
+            path,
+            action: async () => null,
+            element,
+          },
+        ],
+        { initialEntries: [path] },
+      )}
+    />,
+  );
 }
 
 function clickButton(label: string) {

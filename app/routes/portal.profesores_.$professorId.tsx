@@ -245,12 +245,13 @@ export function PortalProfesorRouteView({
     documentType: loaderData.professor.documentType ?? "",
     documentNumber: loaderData.professor.documentNumber ?? "",
   };
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const form = useProfessorForm({
     fieldErrors: actionData?.fieldErrors,
-    submit: useSubmit(),
+    submit,
     values: formValues,
   });
-  const navigation = useNavigation();
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getProfessorStatusAction(loaderData.professor.active);

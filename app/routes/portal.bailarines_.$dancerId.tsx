@@ -264,12 +264,13 @@ export function PortalBailarinDetalleRouteView({
     documentBackImageStorageKey:
       loaderData.dancer.documentBackImageStorageKey ?? "",
   };
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const form = useDancerForm({
     fieldErrors: actionData?.fieldErrors,
-    submit: useSubmit(),
+    submit,
     values: formValues,
   });
-  const navigation = useNavigation();
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);

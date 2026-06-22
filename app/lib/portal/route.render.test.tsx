@@ -1418,30 +1418,22 @@ function renderBailarines(
     >[0]["loaderData"]["dancers"];
   } = {},
 ) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/portal/bailarines",
-        action: async () => null,
-        element: renderPortalShellForTest(
-          "/portal/bailarines",
-          <PortalBailarinesRouteView
-            actionData={input.actionData}
-            loaderData={
-              input.loaderData ??
-              academyLoaderData({
-                dancers: input.dancers ?? [],
-                statusFilter: "active",
-              })
-            }
-          />,
-        ),
-      },
-    ],
-    { initialEntries: ["/portal/bailarines"] },
+  return renderPortalDataRoute(
+    "/portal/bailarines",
+    renderPortalShellForTest(
+      "/portal/bailarines",
+      <PortalBailarinesRouteView
+        actionData={input.actionData}
+        loaderData={
+          input.loaderData ??
+          academyLoaderData({
+            dancers: input.dancers ?? [],
+            statusFilter: "active",
+          })
+        }
+      />,
+    ),
   );
-
-  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 type BailarinDetalleViewProps = Parameters<
@@ -1449,25 +1441,18 @@ type BailarinDetalleViewProps = Parameters<
 >[0];
 
 function renderBailarinDetalle(input: Partial<BailarinDetalleViewProps>) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/portal/bailarines/:dancerId",
-        action: async () => null,
-        element: renderPortalShellForTest(
-          "/portal/bailarines",
-          <PortalBailarinDetalleRouteView
-            loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
-            actionData={input.actionData}
-            initialStatusDialogIntent={input.initialStatusDialogIntent}
-          />,
-        ),
-      },
-    ],
-    { initialEntries: ["/portal/bailarines/dancer_edit_1"] },
+  return renderPortalDataRoute(
+    "/portal/bailarines/:dancerId",
+    renderPortalShellForTest(
+      "/portal/bailarines",
+      <PortalBailarinDetalleRouteView
+        loaderData={input.loaderData ?? bailarinDetalleLoaderData()}
+        actionData={input.actionData}
+        initialStatusDialogIntent={input.initialStatusDialogIntent}
+      />,
+    ),
+    "/portal/bailarines/dancer_edit_1",
   );
-
-  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 type ProfesoresViewProps = Parameters<typeof PortalProfesoresRouteView>[0];
@@ -1488,24 +1473,16 @@ function renderPerfil(input: Partial<PerfilViewProps> = {}) {
 }
 
 function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/portal/profesores",
-        action: async () => null,
-        element: renderPortalShellForTest(
-          "/portal/profesores",
-          <PortalProfesoresRouteView
-            loaderData={input.loaderData ?? academyLoaderData()}
-            actionData={input.actionData}
-          />,
-        ),
-      },
-    ],
-    { initialEntries: ["/portal/profesores"] },
+  return renderPortalDataRoute(
+    "/portal/profesores",
+    renderPortalShellForTest(
+      "/portal/profesores",
+      <PortalProfesoresRouteView
+        loaderData={input.loaderData ?? academyLoaderData()}
+        actionData={input.actionData}
+      />,
+    ),
   );
-
-  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 type CoreografiasViewProps = Parameters<typeof PortalCoreografiasRouteView>[0];
@@ -1563,29 +1540,41 @@ function renderCoreografiaDetalle(
 type ProfesorEditViewProps = Parameters<typeof PortalProfesorRouteView>[0];
 
 function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
+  return renderPortalDataRoute(
+    "/portal/profesores/:professorId",
+    renderPortalShellForTest(
+      "/portal/profesores",
+      <PortalProfesorRouteView
+        loaderData={{
+          ...academyLoaderData(),
+          professor: {
+            ...professorListItem(),
+            isIncomplete: true,
+          },
+          ...input.loaderData,
+        }}
+        actionData={input.actionData}
+        initialStatusDialogIntent={input.initialStatusDialogIntent}
+      />,
+    ),
+    "/portal/profesores/profesor_1",
+  );
+}
+
+function renderPortalDataRoute(
+  path: string,
+  element: ReactNode,
+  initialEntry = path,
+) {
   const router = createMemoryRouter(
     [
       {
-        path: "/portal/profesores/:professorId",
+        path,
         action: async () => null,
-        element: renderPortalShellForTest(
-          "/portal/profesores",
-          <PortalProfesorRouteView
-            loaderData={{
-              ...academyLoaderData(),
-              professor: {
-                ...professorListItem(),
-                isIncomplete: true,
-              },
-              ...input.loaderData,
-            }}
-            actionData={input.actionData}
-            initialStatusDialogIntent={input.initialStatusDialogIntent}
-          />,
-        ),
+        element,
       },
     ],
-    { initialEntries: ["/portal/profesores/profesor_1"] },
+    { initialEntries: [initialEntry] },
   );
 
   return renderToStaticMarkup(<RouterProvider router={router} />);
