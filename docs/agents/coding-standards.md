@@ -61,3 +61,36 @@ that is harder to inspect, especially nested ternaries and dense conditionals.
 
 Use comments only when they explain non-obvious intent or constraints. Avoid
 comments that narrate what the next line already says.
+
+## File Size And Boundaries
+
+Use file size as a maintainability signal, not as a lint rule to game.
+
+Guideline:
+
+- Keep a soft maintainability limit around 5500 tokens for routinely edited
+  route, component, and module files. Use `bytes / 4` as the practical estimate
+  when you need a quick check.
+- Do not split a file just to hit the number. Split when there is a clear
+  module boundary that reduces cognitive load for future work.
+
+Good boundaries include:
+
+- loader/action server module
+- form controller
+- presentational view
+- table column definitions
+- reusable domain helper
+- test fixtures or factory data
+
+Avoid shallow extractions:
+
+- Pulling out a helper that only forwards a few props and leaves the calling
+  file with the same branching complexity.
+- Creating generic wrappers with many booleans just to shorten one file.
+- Splitting server and UI code when they still share one tightly coupled,
+  unstable decision surface.
+
+When a file grows past the soft limit and no clear module boundary exists yet,
+prefer tightening naming, removing dead branches, and clarifying sections before
+creating a forced abstraction.

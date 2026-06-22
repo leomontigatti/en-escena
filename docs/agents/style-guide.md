@@ -133,6 +133,40 @@ tener texto claro y confirmación cuando el efecto sea irreversible. Los botones
 solo con icono deben tener nombre accesible y tooltip cuando el icono no sea
 obvio.
 
+## Pending, loading y transiciones
+
+El feedback pendiente debe ser específico de la operación. No usar un spinner o
+estado global para tapar cuál request está trabajando.
+
+Reglas:
+
+- Usar estado pendiente en el botón cuando una acción nace de un botón o submit
+  concreto y el usuario puede intentar repetirla. Deshabilitar la acción
+  mientras la request está en vuelo y cambiar el label o el icono para mostrar
+  progreso.
+- Usar spinner inline pequeño cuando se actualiza un fragmento puntual de la
+  pantalla sin bloquear el resto: cálculos auxiliares, badges, resúmenes,
+  contadores o paneles chicos.
+- Mantener las filas o resultados actuales visibles mientras la tabla se
+  actualiza por filtros, búsqueda, paginación o refresh. Mostrar el estado
+  updating dentro de la tabla o en su barra de controles; no vaciar la lista ni
+  reemplazarla por un loader de página completa.
+- Usar skeletons solo cuando exista reveal diferido real o una carga inicial
+  donde la estructura final ya es conocida y mejora la lectura. El skeleton
+  debe parecerse al contenido que va a llegar.
+- No usar skeletons para rutas que siguen bloqueando hasta que el loader termina
+  ni para mutaciones cortas donde alcanza con estado pendiente en botón o
+  spinner inline.
+- Mantener shells, breadcrumbs, títulos y contexto visible durante requests
+  cuando la pantalla ya tiene datos útiles. Evitar el parpadeo de desmontar y
+  volver a montar toda la vista por una operación puntual.
+- Evaluar View Transitions recién después de corregir request flow y pending
+  states. Usarlas solo cuando comunican continuidad real entre vistas o estados
+  estables, por ejemplo lista a detalle, apertura/cierre de diálogo o reveal de
+  contenido diferido.
+- No usar View Transitions como maquillaje para loaders lentos, revalidaciones
+  amplias o shells persistentes que no cambian de contexto visual.
+
 ## Formularios
 
 Los formularios usan labels visibles arriba del campo. El placeholder puede

@@ -2,6 +2,12 @@
 
 Revalidation baseline for PRD #130 before child implementation starts.
 
+Permanent implementation rules now live in:
+
+- `docs/agents/codex-workflows.md` for measurement workflow and validation entrypoints
+- `docs/agents/style-guide.md` for pending/loading/View Transition guidance
+- `docs/agents/coding-standards.md` for maintainable file-boundary guidance
+
 ## Current Validation Workflow
 
 Confirmed against `docs/agents/codex-workflows.md`, `package.json`, and
@@ -170,10 +176,9 @@ Changed or stale versus PRD #130:
 - The repo has a stronger DB validation split than the PRD text implied:
   focused iteration uses `npm run test:db:file -- <path-to-db-test>`, while
   final database-backed validation uses `npm run test:db`.
-- `docs/agents/codex-workflows.md` still documents `npm test` in prose, while
-  the current implementation task contract and script inventory use
-  `npm run test`. They are equivalent in npm, but child issues should cite the
-  `npm run ...` form for consistency with the repo task contract.
+- `docs/agents/codex-workflows.md` now standardizes the regular test command as
+  `npm run test` for consistency with the repo task contract and the rest of
+  the documented `npm run ...` workflow.
 
 Decisions for child issues:
 

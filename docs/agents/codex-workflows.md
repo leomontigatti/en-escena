@@ -23,7 +23,7 @@ Recommended validation order after code changes:
 1. `npm run format`
 2. `npm run format:check`
 3. `npm run typecheck`
-4. `npm test`
+4. `npm run test`
 5. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
 6. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
@@ -35,18 +35,19 @@ During the development loop, prefer focused validation for the area being
 changed before running the broader final checks:
 
 - Run the nearest relevant Vitest file or test name for small non-database
-  changes, then run `npm test` before finishing when the change affects runtime
-  behavior, shared modules, route behavior, or UI behavior with meaningful
-  regression risk.
+  changes, then run `npm run test` before finishing when the change affects
+  runtime behavior, shared modules, route behavior, or UI behavior with
+  meaningful regression risk.
 - Run `npm run test:db:file -- <path-to-db-test>` while iterating on database
   schema, repositories, loaders/actions that persist data, or
   persistence-backed business rules. This focused path uses the fast PGlite
   harness.
 - For database-backed work, finish with `npm run test:db`. This default DB
   suite is the reliable Postgres path through `TEST_DATABASE_URL`.
-- Run the full applicable command before finishing the work: `npm test` for the
-  regular suite, `npm run test:db` for database-backed work, and `npm run build`
-  for routing, server rendering, bundling, CSS, or deployment behavior.
+- Run the full applicable command before finishing the work: `npm run test` for
+  the regular suite, `npm run test:db` for database-backed work, and
+  `npm run build` for routing, server rendering, bundling, CSS, or deployment
+  behavior.
 - Do not use focused runs as the only final validation when the change touches
   a shared interface, cross-surface behavior, schema, or persistence-backed
   business rule.
@@ -247,6 +248,41 @@ Watch for:
 - Hiding expensive behavior behind helper functions with broad names.
 
 Prefer slim query variants when a route only needs IDs, labels, status flags, or counts. Keep route loaders focused on data needed by that route.
+
+## Request Performance and Loading
+
+Use this when a route, form, table, or navigation path feels slow.
+
+Measure before diagnosing latency. Do not start with "the VPS is far from
+Supabase" or "React Router is slow" until you have loader or action timing
+around the real route seam.
+
+Measure loader or action timing around the real route seam and separate the
+major layers that can hide inside one request:
+
+- auth
+- event/context lookup
+- main query or mutation
+- serialization/readiness work
+- revalidation follow-up
+
+Record the route id, intent, and whether the request came from navigation,
+`useSubmit`, `fetcher.submit`, or a native `<Form>` path. If a request triggers
+revalidation, measure the follow-up loader separately instead of blaming the
+original action for the whole wait.
+
+Check duplicate work before deeper optimization:
+
+- A layout loader and child loader both fetching the same event context.
+- Independent queries running sequentially instead of in parallel.
+- Loader helpers returning more nested data than the route renders.
+- RHF forms validating in React and then calling `form.submit()` into a second
+  full route cycle.
+
+Use `docs/agents/request-performance-refactor-plan.md` as the current route
+inventory, submit-pattern inventory, and measurement starting point for this
+refactor family. Keep it discoverable from child issues and update it when the
+baseline assumptions materially change.
 
 ## PRD Workflow
 
