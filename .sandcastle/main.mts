@@ -8,8 +8,8 @@
 //                               createSandbox(). The implementer runs first
 //                               (100 iterations). If it produces commits, a
 //                               reviewer runs in the same sandbox on the same
-//                               branch (1 iteration). All issue pipelines run
-//                               concurrently via Promise.allSettled().
+//                               branch (1 iteration). Issue pipelines run
+//                               concurrently up to MAX_PARALLEL.
 //   Phase 3 (Merge):            A single agent merges all completed branches
 //                               into the current branch.
 //
@@ -64,6 +64,7 @@ const issueContextSchema = z.object({
 // Maximum number of plan→execute→merge cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
+const MAX_PARALLEL = 4;
 const CODEX_MODEL = "gpt-5.4";
 const REVIEWER_CODEX_MODEL = "gpt-5.5";
 const CODEX_EFFORT = "medium";
@@ -141,11 +142,14 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // and reviewer share the same sandbox instance per branch. The implementer
   // runs first; if it produces commits, the reviewer runs in the same sandbox.
   //
-  // Promise.allSettled means one failing pipeline doesn't cancel the others.
+  // Settled-result collection means one failing pipeline doesn't cancel the others.
+  // runWithConcurrency limits pressure on Docker, npm install, and Postgres.
   // -------------------------------------------------------------------------
 
-  const settled = await Promise.allSettled(
-    issues.map(async (issue) => {
+  const settled = await runWithConcurrency(
+    issues,
+    Math.min(MAX_PARALLEL, issues.length),
+    async (issue) => {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
         sandbox: createDockerSandbox({ databaseNameSuffix: `issue-${issue.id}` }),
@@ -193,7 +197,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
       } finally {
         await sandbox.close();
       }
-    }),
+    },
   );
 
   // Log any agents that threw (network error, sandbox crash, etc.).
@@ -310,7 +314,40 @@ function createCodexAgent(model = CODEX_MODEL): ReturnType<typeof sandcastle.cod
   };
 }
 
-function createDockerSandbox(options: { databaseNameSuffix?: string } = {}): ReturnType<typeof docker> {
+async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex++;
+
+      try {
+        results[currentIndex] = {
+          status: "fulfilled",
+          value: await worker(items[currentIndex]!),
+        };
+      } catch (reason) {
+        results[currentIndex] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.max(1, limit) }, () => runWorker()),
+  );
+
+  return results;
+}
+
+function createDockerSandbox(
+  options: { databaseNameSuffix?: string } = {},
+): ReturnType<typeof docker> {
   const env = readSandcastleEnv();
   const ghToken = getGitHubToken();
   const codexAuthJsonPath = getCodexAuthJsonPath();
@@ -408,7 +445,10 @@ function getIssueContext(issueId: string): string {
   );
   const issue = issueContextSchema.parse(JSON.parse(issueJson));
   const labels = issue.labels.map((label) => label.name).join(", ") || "(none)";
-  const body = truncateText(redactSensitiveText(issue.body || ""), ISSUE_BODY_MAX_LENGTH);
+  const body = truncateText(
+    redactSensitiveText(issue.body || ""),
+    ISSUE_BODY_MAX_LENGTH,
+  );
   const recentComments = issue.comments.slice(-ISSUE_COMMENT_MAX_COUNT);
 
   return [
@@ -548,7 +588,11 @@ function assertCodexChatGptAuthWorks(): void {
 
 function getCodexAuthJsonPath(): string {
   const env = readSandcastleEnv();
-  return env.CODEX_AUTH_JSON || process.env.CODEX_AUTH_JSON || defaultCodexAuthJsonPath();
+  return (
+    env.CODEX_AUTH_JSON ||
+    process.env.CODEX_AUTH_JSON ||
+    defaultCodexAuthJsonPath()
+  );
 }
 
 function defaultCodexAuthJsonPath(): string {

@@ -1,3 +1,4 @@
 .env
+locks/
 logs/
 worktrees/
