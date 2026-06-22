@@ -41,7 +41,7 @@ import {
   type CreateDancerInput,
   type DancerListItem,
 } from "@/lib/portal/dancers.server";
-import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
+import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import {
   createValidatedNativeSubmitHandler,
   requiredFieldMessage,
@@ -95,7 +95,7 @@ export const handle = {
 
 export async function loader({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
-  const eventContext = await getPortalActiveEventContext(request);
+  const eventContext = await getPortalActiveEventSummaryContext(request);
   const dancers = await listDancersForAcademy(academy.id, {
     selectedEventId: eventContext.activeEvent?.id ?? null,
     status: "all",

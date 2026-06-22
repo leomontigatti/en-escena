@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import type {
   PortalActiveEventContext,
+  PortalActiveEventSummaryContext,
   PortalEventContext,
   PortalShellEventContext,
   PortalEventSummary,
@@ -10,11 +11,16 @@ import type {
 export async function getPortalShellEventContext(
   _request: Request,
 ): Promise<PortalShellEventContext> {
-  const events = await listPortalEventSummaries();
-  const activeEvent = events.find((event) => event.active) ?? null;
-
   return {
-    activeEvent,
+    activeEvent: await findPortalActiveEventSummary(),
+  };
+}
+
+export async function getPortalActiveEventSummaryContext(
+  _request: Request,
+): Promise<PortalActiveEventSummaryContext> {
+  return {
+    activeEvent: await findPortalActiveEventSummary(),
   };
 }
 
@@ -50,9 +56,12 @@ export async function getPortalActiveEventReadinessContext(
   };
 }
 
-export const getPortalEventContext = getPortalActiveEventReadinessContext;
+async function findPortalActiveEventSummary() {
+  const events = await listPortalEventSummaries();
+  return events.find((event) => event.active) ?? null;
+}
 
-async function listPortalEventSummaries() {
+async function listPortalEventSummaries(): Promise<PortalEventSummary[]> {
   return db.query.events.findMany({
     columns: {
       id: true,

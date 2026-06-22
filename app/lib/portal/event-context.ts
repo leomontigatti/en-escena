@@ -10,9 +10,11 @@ export type PortalEventSummary = {
   endsAt: Date;
 };
 
-export type PortalShellEventContext = {
+export type PortalActiveEventSummaryContext = {
   activeEvent: PortalEventSummary | null;
 };
+
+export type PortalShellEventContext = PortalActiveEventSummaryContext;
 
 export type PortalActiveEventContext = {
   selectedEvent: PortalEventSummary | null;
@@ -21,7 +23,6 @@ export type PortalActiveEventContext = {
   hasEvents: boolean;
   isReadOnly: boolean;
   isRegistrationOpen: boolean;
-  activeEventRegistrationReadiness?: EventRegistrationReadiness | null;
 };
 
 export type PortalEventContext = PortalActiveEventContext & {

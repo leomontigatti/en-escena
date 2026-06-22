@@ -232,11 +232,6 @@ function buildLoaderData(
       selectedEvent: eventSummary,
       activeEvent: eventSummary,
       hasActiveEvent: true,
-      activeEventRegistrationReadiness: {
-        eventId: eventSummary.id,
-        isReady: true,
-        missingItems: [],
-      },
       hasEvents: true,
       isReadOnly: false,
       isRegistrationOpen: true,

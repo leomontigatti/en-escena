@@ -20,6 +20,7 @@ vi.mock("@/lib/events/registration-readiness.server", () => ({
 import {
   getPortalActiveEventContext,
   getPortalActiveEventReadinessContext,
+  getPortalActiveEventSummaryContext,
   getPortalShellEventContext,
 } from "@/lib/portal/event-context.server";
 
@@ -28,7 +29,7 @@ describe("portal event context helpers", () => {
     vi.clearAllMocks();
   });
 
-  test("keeps shell and summary contexts on the active-event summary path without readiness work", async () => {
+  test("keeps shell and child summary contexts on the active-event summary path without readiness work", async () => {
     findEvents.mockResolvedValue([
       buildEventSummary({
         id: "event_active",
@@ -44,6 +45,14 @@ describe("portal event context helpers", () => {
 
     await expect(
       getPortalShellEventContext(new Request("http://localhost/portal")),
+    ).resolves.toMatchObject({
+      activeEvent: { id: "event_active", name: "Regional 2026" },
+    });
+
+    await expect(
+      getPortalActiveEventSummaryContext(
+        new Request("http://localhost/portal/profesores"),
+      ),
     ).resolves.toMatchObject({
       activeEvent: { id: "event_active", name: "Regional 2026" },
     });
