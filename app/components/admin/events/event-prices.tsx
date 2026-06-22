@@ -707,7 +707,7 @@ function PriceListTable({
           {formatPaymentDeadlineForTable(price.paymentDeadline)}
         </span>
       ),
-      sortValue: (price) => price.paymentDeadline ?? "",
+      sortValue: (price) => price.paymentDeadline,
     },
     {
       id: "amount",
@@ -744,6 +744,7 @@ function PriceListTable({
         },
       ]}
       emptyMessage="No hay precios que coincidan con la búsqueda."
+      initialSort={{ columnId: "paymentDeadline", direction: "asc" }}
     />
   );
 }

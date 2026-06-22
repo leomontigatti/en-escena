@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import type { EventPriceDetailRouteView as EventPriceDetailRouteViewType } from "@/components/admin/events/event-prices";
+import type { EventPricesRouteView as EventPricesRouteViewType } from "@/components/admin/events/event-prices";
 import type { getPriceDisplayName as GetPriceDisplayName } from "@/components/admin/events/event-prices";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import type { PriceListItem } from "@/lib/events/bases.server";
@@ -14,12 +15,13 @@ describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
   let EventPriceDetailRouteView: typeof EventPriceDetailRouteViewType;
+  let EventPricesRouteView: typeof EventPricesRouteViewType;
   let getPriceDisplayName: typeof GetPriceDisplayName;
 
   beforeAll(async () => {
     installReactTestEnvironment();
 
-    ({ EventPriceDetailRouteView, getPriceDisplayName } =
+    ({ EventPriceDetailRouteView, EventPricesRouteView, getPriceDisplayName } =
       await import("@/components/admin/events/event-prices"));
   }, 20_000);
 
@@ -101,6 +103,46 @@ describe("EventPriceDetailRouteView", () => {
 
     expect(getPriceDisplayName(price)).toBe("Precio Solo");
   });
+
+  test("orders the list by payment deadline by default", async () => {
+    const latePrice = createPrice({
+      amount: 18000,
+      groupType: "duo",
+      id: "price_late",
+      name: "Precio Junio",
+      paymentDeadline: "2026-06-30",
+      scheduleId: null,
+      scheduleName: null,
+    });
+    const earlyPrice = createPrice({
+      amount: 12000,
+      groupType: "solo",
+      id: "price_early",
+      name: "Precio Mayo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+      scheduleName: null,
+    });
+    const loaderData = createLoaderData({
+      prices: [latePrice, earlyPrice],
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPricesRoute({
+      EventPricesRouteView,
+      loaderData,
+      root,
+    });
+
+    const priceNames = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("tbody a"),
+    ).map((link) => link.textContent);
+
+    expect(priceNames).toEqual(["Precio Mayo", "Precio Junio"]);
+  });
 });
 
 function installReactTestEnvironment() {
@@ -149,6 +191,24 @@ async function renderPriceDetailRoute({
     root.render(
       <MemoryRouter>
         <EventPriceDetailRouteView loaderData={loaderData} priceId={priceId} />
+      </MemoryRouter>,
+    );
+  });
+}
+
+async function renderPricesRoute({
+  EventPricesRouteView,
+  loaderData,
+  root,
+}: {
+  EventPricesRouteView: typeof EventPricesRouteViewType;
+  loaderData: EventBasesLoaderData;
+  root: ReturnType<typeof createRoot>;
+}) {
+  await act(async () => {
+    root.render(
+      <MemoryRouter>
+        <EventPricesRouteView loaderData={loaderData} />
       </MemoryRouter>,
     );
   });
