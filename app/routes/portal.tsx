@@ -2,7 +2,7 @@ import { Outlet, useMatches } from "react-router";
 
 import { getPortalBreadcrumbItems, PortalShell } from "@/components/portal/ui";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalEventContext } from "@/lib/portal/event-context.server";
+import { getPortalShellEventContext } from "@/lib/portal/event-context.server";
 
 import type { Route } from "./+types/portal";
 
@@ -14,7 +14,7 @@ export const meta: Route.MetaFunction = () => [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { user, academy } = await requireAcademyUser(request);
-  const eventContext = await getPortalEventContext(request);
+  const eventContext = await getPortalShellEventContext(request);
 
   return {
     email: user.email,

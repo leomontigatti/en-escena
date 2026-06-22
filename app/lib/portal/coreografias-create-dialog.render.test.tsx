@@ -121,7 +121,6 @@ function buildLoaderData(): PortalCoreografiasRouteViewProps["loaderData"] {
       ],
     },
     eventContext: {
-      events: [eventSummary],
       selectedEvent: eventSummary,
       activeEvent: eventSummary,
       hasActiveEvent: true,

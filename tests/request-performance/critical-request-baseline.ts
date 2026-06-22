@@ -392,7 +392,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalShellEventContext",
           "eventContextMs",
         ),
       ],
@@ -408,7 +408,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalActiveEventSummaryContext",
           "eventContextMs",
         ),
         trackAsync(portalDancersModule, "listDancersForAcademy", "mainQueryMs"),
@@ -506,7 +506,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalActiveEventSummaryContext",
           "eventContextMs",
         ),
         trackAsync(
@@ -616,7 +616,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalActiveEventReadinessContext",
           "eventContextMs",
         ),
         trackAsync(
@@ -685,7 +685,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalActiveEventContext",
           "eventContextMs",
         ),
         trackAsync(
@@ -721,7 +721,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(
           portalEventContextModule,
-          "getPortalEventContext",
+          "getPortalActiveEventContext",
           "eventContextMs",
         ),
         trackAsync(
