@@ -97,40 +97,74 @@ describe("private route headers", () => {
     );
     const rootSource = readFileSync("app/root.tsx", "utf8");
 
-    expect(adminMarkup).toContain("focus-visible:bg-background");
-    expect(adminMarkup).toContain("focus-visible:text-foreground");
-    expect(adminMarkup).toContain("focus-visible:ring-ring/50");
-    expect(adminMarkup).not.toContain("focus-visible:bg-white");
-    expect(adminMarkup).not.toContain("focus-visible:text-slate-950");
-    expect(adminMarkup).not.toContain("focus-visible:ring-teal-100");
+    expectClassFragments(adminMarkup, {
+      includes: [
+        "focus-visible:bg-background",
+        "focus-visible:text-foreground",
+        "focus-visible:ring-ring/50",
+      ],
+      excludes: [
+        "focus-visible:bg-white",
+        "focus-visible:text-slate-950",
+        "focus-visible:ring-teal-100",
+      ],
+    });
 
-    expect(auditoriaMarkup).toContain("border-border");
-    expect(auditoriaMarkup).toContain("bg-card");
-    expect(auditoriaMarkup).toContain("text-card-foreground");
-    expect(auditoriaMarkup).toContain("text-muted-foreground");
-    expect(auditoriaMarkup).toContain("hover:bg-accent");
-    expect(auditoriaMarkup).toContain("hover:border-accent");
-    expect(auditoriaMarkup).toContain("focus-visible:ring-ring/50");
-    expect(auditoriaMarkup).not.toContain("border-slate-200");
-    expect(auditoriaMarkup).not.toContain("bg-white");
-    expect(auditoriaMarkup).not.toContain("bg-slate-50");
-    expect(auditoriaMarkup).not.toContain("text-slate-950");
-    expect(auditoriaMarkup).not.toContain("text-slate-600");
-    expect(auditoriaMarkup).not.toContain("hover:bg-teal-50");
-    expect(auditoriaMarkup).not.toContain("hover:border-teal-300");
-    expect(auditoriaMarkup).not.toContain("focus-visible:ring-teal-100");
+    expectClassFragments(auditoriaMarkup, {
+      includes: [
+        "border-border",
+        "bg-card",
+        "text-card-foreground",
+        "text-muted-foreground",
+        "hover:bg-accent",
+        "hover:border-accent",
+        "focus-visible:ring-ring/50",
+      ],
+      excludes: [
+        "border-slate-200",
+        "bg-white",
+        "bg-slate-50",
+        "text-slate-950",
+        "text-slate-600",
+        "hover:bg-teal-50",
+        "hover:border-teal-300",
+        "focus-visible:ring-teal-100",
+      ],
+    });
 
-    expect(rootSource).toContain("border-border");
-    expect(rootSource).toContain("bg-card");
-    expect(rootSource).toContain("text-card-foreground");
-    expect(rootSource).toContain("text-muted-foreground");
-    expect(rootSource).not.toContain("border-slate-200");
-    expect(rootSource).not.toContain("bg-white");
-    expect(rootSource).not.toContain("text-slate-500");
-    expect(rootSource).not.toContain("text-slate-950");
-    expect(rootSource).not.toContain("text-slate-600");
+    expectClassFragments(rootSource, {
+      includes: [
+        "border-border",
+        "bg-card",
+        "text-card-foreground",
+        "text-muted-foreground",
+      ],
+      excludes: [
+        "border-slate-200",
+        "bg-white",
+        "text-slate-500",
+        "text-slate-950",
+        "text-slate-600",
+      ],
+    });
   });
 });
+
+function expectClassFragments(
+  markupOrSource: string,
+  fragments: {
+    includes: string[];
+    excludes: string[];
+  },
+) {
+  for (const classFragment of fragments.includes) {
+    expect(markupOrSource).toContain(classFragment);
+  }
+
+  for (const classFragment of fragments.excludes) {
+    expect(markupOrSource).not.toContain(classFragment);
+  }
+}
 
 function renderAdminRoute() {
   const RoutesStub = createRoutesStub([
