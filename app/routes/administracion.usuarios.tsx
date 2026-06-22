@@ -49,10 +49,6 @@ const roleFilterOptions = [
   { label: "Juez", value: "judge" },
 ] satisfies FilterSelectOption[];
 
-const archivedFilterOptions = [
-  { label: "Archivado", value: "si" },
-] satisfies FilterSelectOption[];
-
 export const meta: Route.MetaFunction = () => [
   { title: "Usuarios | Panel de administración | En Escena" },
 ];
@@ -208,8 +204,8 @@ function UsersTable({
             },
             {
               id: "archivado",
-              label: "Archivado",
-              options: archivedFilterOptions,
+              label: "Archivo",
+              options: [{ label: "Archivado", value: "si" }],
             },
           ],
         },

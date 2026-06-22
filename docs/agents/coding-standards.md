@@ -62,6 +62,11 @@ that is harder to inspect, especially nested ternaries and dense conditionals.
 Use comments only when they explain non-obvious intent or constraints. Avoid
 comments that narrate what the next line already says.
 
+For local option arrays passed to components, keep short one-off options inline
+at the call site so the visible label and submitted value can be read together.
+Extract options to a named constant or helper when they are reused, long, dynamic,
+or the name captures meaningful domain intent.
+
 ## File Size And Boundaries
 
 Use file size as a maintainability signal, not as a lint rule to game.
