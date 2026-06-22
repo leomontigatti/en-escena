@@ -123,8 +123,21 @@ describe("coreografías request flow", () => {
       state: "idle",
       load: vi.fn(),
     });
-    useFetcherMock.mockReturnValue({
+    useFetcherMock.mockReturnValueOnce({
       data: undefined,
+      state: "idle",
+      submit: vi.fn(),
+    });
+    useFetcherMock.mockReturnValue({
+      data: {
+        intent: "create-choreography",
+        result: {
+          ok: false,
+          code: "schedule-capacity-full",
+          error:
+            "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+        },
+      },
       state: "idle",
       submit: vi.fn(),
     });
@@ -141,17 +154,7 @@ describe("coreografías request flow", () => {
           action: async () => null,
           element: (
             <PortalCoreografiasRouteView
-              actionData={{
-                status: "create-error",
-                intent: "create-choreography",
-                modalOpen: true,
-                result: {
-                  ok: false,
-                  code: "schedule-capacity-full",
-                  error:
-                    "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
-                },
-              }}
+              initialCreateDialogOpen
               loaderData={buildListLoaderData()}
             />
           ),

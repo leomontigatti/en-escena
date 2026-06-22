@@ -1,5 +1,5 @@
 import {
-  listChoreographyRegistrationInitialOptions,
+  listChoreographyRegistrationBaseOptionsData,
   listEventBasesData,
   resolveApplicablePrice,
   resolveCompatibleScheduleCapacities,
@@ -32,7 +32,7 @@ export type ChoreographyRegistrationBaseOptions = {
 export async function getChoreographyRegistrationInitialOptions(
   eventId: string,
 ): Promise<ChoreographyRegistrationBaseOptions> {
-  return listChoreographyRegistrationInitialOptions(eventId);
+  return listChoreographyRegistrationBaseOptionsData(eventId);
 }
 
 export function getChoreographyRegistrationBaseOptions(

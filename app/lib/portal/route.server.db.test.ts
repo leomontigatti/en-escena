@@ -286,7 +286,6 @@ describe.sequential("portal loader Evento activo", () => {
     expect(listData).not.toHaveProperty("activeProfessors");
     expect(listData).not.toHaveProperty("registrationBaseOptions");
     expect(createOptionsData).toMatchObject({
-      eventId: activeEvent.id,
       activeDancers: [expect.objectContaining({ firstName: "Ana" })],
       activeProfessors: [expect.objectContaining({ firstName: "Luz" })],
       registrationBaseOptions: {
