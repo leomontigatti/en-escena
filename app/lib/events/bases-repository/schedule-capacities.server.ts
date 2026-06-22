@@ -265,9 +265,7 @@ export async function validateInlineScheduleCapacityDependencies({
   nextEntries: ValidInlineScheduleCapacityInput[];
 }): Promise<{ ok: true } | EventBaseFailure> {
   const nextEntryById = new Map(
-    nextEntries
-      .filter((entry) => entry.id)
-      .map((entry) => [entry.id as string, entry]),
+    nextEntries.filter(hasScheduleCapacityId).map((entry) => [entry.id, entry]),
   );
 
   for (const existingEntry of existingEntries) {
@@ -306,6 +304,12 @@ export async function validateInlineScheduleCapacityDependencies({
   }
 
   return { ok: true };
+}
+
+function hasScheduleCapacityId(
+  entry: ValidInlineScheduleCapacityInput,
+): entry is ValidInlineScheduleCapacityInput & { id: string } {
+  return Boolean(entry.id);
 }
 
 export function groupScheduleCapacities(

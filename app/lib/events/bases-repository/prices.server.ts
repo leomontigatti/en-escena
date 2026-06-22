@@ -10,9 +10,11 @@ import {
   priceNotFound,
   prices,
   schedules,
+  toDateOnly,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
 import type {
+  EventBaseFailure,
   EventBasesDeleteResult,
   EventBasesMutationResult,
   PriceDependencies,
@@ -212,7 +214,7 @@ async function validatePriceInput(
   eventId: string,
   input: PriceInput,
   options: { exceptId?: string } = {},
-) {
+): Promise<{ ok: true; input: ValidPriceInput } | EventBaseFailure> {
   const fieldErrors: Record<string, string> = {};
   const name = normalizeNullableName(input.name ?? "");
   const paymentDeadline = input.paymentDeadline.trim();
@@ -250,8 +252,8 @@ async function validatePriceInput(
       fieldErrorKeys.length === 1 && fieldErrorKeys[0] === "scheduleId";
 
     return {
-      ok: false as const,
-      code: "invalid-event-bases" as const,
+      ok: false,
+      code: "invalid-event-bases",
       error: onlyScheduleError
         ? "Elegí un cronograma del evento activo."
         : "Revisá los datos del precio.",
@@ -270,8 +272,8 @@ async function validatePriceInput(
 
   if (await findDuplicatePrice(eventId, validInput, options.exceptId)) {
     return {
-      ok: false as const,
-      code: "duplicate-name" as const,
+      ok: false,
+      code: "duplicate-name",
       error: scheduleId
         ? "Ya existe un precio para ese tipo de grupo y cronograma."
         : "Ya existe un precio general para ese tipo de grupo.",
@@ -281,7 +283,7 @@ async function validatePriceInput(
     };
   }
 
-  return { ok: true as const, input: validInput };
+  return { ok: true, input: validInput };
 }
 
 async function findDuplicatePrice(
@@ -358,10 +360,7 @@ function selectApplicablePrice(
   candidates: Array<typeof prices.$inferSelect>,
   paymentDate: Date | string | null | undefined,
 ) {
-  const dateOnly =
-    paymentDate instanceof Date
-      ? paymentDate.toISOString().slice(0, 10)
-      : (paymentDate?.slice(0, 10) ?? null);
+  const dateOnly = paymentDate ? toDateOnly(paymentDate) : null;
   const applicableCandidates = dateOnly
     ? candidates.filter(
         (price) =>

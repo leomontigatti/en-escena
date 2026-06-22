@@ -333,7 +333,7 @@ async function findOverlappingCategory(
 
   return possibleOverlaps.some((category) => {
     const hasSharedGroupType = category.groupTypes.some((groupType) =>
-      input.groupTypes.includes(groupType as GroupType),
+      input.groupTypes.some((inputGroupType) => inputGroupType === groupType),
     );
     const hasSharedModality = relationRows.some(
       (relation) =>
