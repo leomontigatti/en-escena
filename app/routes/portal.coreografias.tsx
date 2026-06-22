@@ -136,7 +136,7 @@ const CREATE_CHOREOGRAPHY_STEP_LABELS: Record<CreateChoreographyStep, string> =
     submodality: "Submodalidad",
     dancers: "Bailarines",
     experienceLevel: "Nivel",
-    schedule: "Cupo de cronograma",
+    schedule: "Cronograma",
     professors: "Profesores",
     summary: "Resumen",
   };
@@ -279,6 +279,8 @@ export function PortalCoreografiasRouteView({
 
   useEffect(() => {
     if (created) {
+      setIsCreateModalOpen(false);
+      setDismissServerState(true);
       showRouteNotificationToast("coreografia-creada");
     }
   }, [created]);
@@ -1016,12 +1018,12 @@ function CreateChoreographyModal({
                   control={form.control}
                   fieldName="scheduleCapacityId"
                   id={scheduleCapacityFieldId}
-                  label="Cupo de cronograma"
+                  label="Cronograma"
                   options={
                     resolution.schedule.status === "multiple"
                       ? resolution.schedule.options.map((option) => ({
                           value: option.id,
-                          label: `${option.schedule.name} · ${formatGroupTypeLabel(option.groupType)} · Cupo ${option.capacity}`,
+                          label: formatScheduleDateTime(option.schedule),
                         }))
                       : []
                   }
@@ -1118,6 +1120,7 @@ function CreateChoreographyModal({
                 disabled={!canResolve || isResolving}
                 onClick={handleResolveStep}
               >
+                Siguiente
                 {isResolving ? (
                   <LoaderCircle
                     aria-hidden="true"
@@ -1127,9 +1130,6 @@ function CreateChoreographyModal({
                 ) : (
                   <ChevronRight aria-hidden="true" data-icon />
                 )}
-                {isResolving
-                  ? "Calculando categoría y cupo..."
-                  : "Calcular categoría y cupo"}
               </Button>
             ) : null}
 
@@ -1177,9 +1177,7 @@ function CreateChoreographyModal({
                 ) : (
                   <Check aria-hidden="true" data-icon />
                 )}
-                {isSubmitting
-                  ? "Guardando coreografía..."
-                  : "Guardar coreografía"}
+                Guardar
               </Button>
             ) : null}
           </div>
@@ -1537,12 +1535,12 @@ function formatScheduleDateTime(input: {
     weekday: "long",
   }).format(date);
   const normalizedWeekday = capitalizeFirstLetter(weekday);
-  const formattedDate = `${String(day).padStart(2, "0")}/${String(
-    month,
-  ).padStart(2, "0")}`;
+  const monthName = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+  }).format(date);
   const formattedTime = input.startTime.slice(0, 5);
 
-  return `${normalizedWeekday} ${formattedDate} - ${formattedTime} hs.`;
+  return `${normalizedWeekday} ${day} de ${monthName} - ${formattedTime} hs.`;
 }
 
 function capitalizeFirstLetter(value: string) {

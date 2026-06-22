@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Check, Clock, LoaderCircle, Plus, Trash } from "lucide-react";
+import { Clock, LoaderCircle, Plus, Trash } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type * as React from "react";
 import type { ReactNode } from "react";
@@ -18,6 +18,10 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import {
+  DestroyButton,
+  SubmitButton,
+} from "@/components/shared/action-buttons";
 import {
   DataTable,
   type DataTableColumn,
@@ -235,9 +239,7 @@ export function NewEventScheduleRouteView({
         />
         <ScheduleFormActions
           formId={createScheduleFormId}
-          pendingLabel="Guardando cronograma..."
           pendingScope={{ intent: "create-schedule" }}
-          submitLabel="Guardar"
         />
       </ScheduleFormPanel>
     </AdminResourceLayout>
@@ -289,12 +291,10 @@ export function EventScheduleDetailRouteView({
           />
           <ScheduleFormActions
             formId="update-schedule-form"
-            pendingLabel="Guardando cronograma..."
             pendingScope={{
               intent: "update-schedule",
               fields: { id: schedule.id },
             }}
-            submitLabel="Guardar"
           />
         </ScheduleFormPanel>
       ) : (
@@ -443,13 +443,9 @@ function ScheduleForm({
 function ScheduleFormActions({
   formId,
   pendingScope,
-  pendingLabel,
-  submitLabel,
 }: {
   formId: string;
   pendingScope: RouteFormPendingScope;
-  pendingLabel: string;
-  submitLabel: string;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, pendingScope);
@@ -459,14 +455,7 @@ function ScheduleFormActions({
       <Button asChild variant="outline">
         <Link to={buildSchedulesPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId} disabled={isPending}>
-        {isPending ? (
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
-        ) : (
-          <Check aria-hidden="true" data-icon="inline-start" />
-        )}
-        {isPending ? pendingLabel : submitLabel}
-      </Button>
+      <SubmitButton form={formId} isPending={isPending} />
     </div>
   );
 }
@@ -1599,10 +1588,7 @@ function DeleteScheduleDialog({
             <input type="hidden" name="intent" value="delete-schedule" />
             <input type="hidden" name="id" value={schedule.id} />
             <input type="hidden" name="confirmDelete" value="yes" />
-            <Button type="submit" variant="destructive">
-              <Trash data-icon="inline-start" />
-              Eliminar
-            </Button>
+            <DestroyButton />
           </form>
         </DialogFooter>
       </DialogContent>

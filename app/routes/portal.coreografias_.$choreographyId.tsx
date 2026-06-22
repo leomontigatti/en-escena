@@ -849,27 +849,12 @@ function ChoreographyEditForm({
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}
-            {getChoreographyEditSubmitLabel({ isResolving, isSubmitting })}
+            Guardar coreografía
           </Button>
         </CardFooter>
       </Card>
     </Form>
   );
-}
-
-function getChoreographyEditSubmitLabel(input: {
-  isResolving: boolean;
-  isSubmitting: boolean;
-}) {
-  if (input.isSubmitting) {
-    return "Guardando coreografía...";
-  }
-
-  if (input.isResolving) {
-    return "Calculando cambios...";
-  }
-
-  return "Guardar coreografía";
 }
 
 function ReadonlyDetailField({

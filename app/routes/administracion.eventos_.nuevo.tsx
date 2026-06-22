@@ -1,10 +1,9 @@
 import { Link, redirect, useActionData } from "react-router";
-import { Check } from "lucide-react";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
+import { SubmitButton } from "@/components/shared/action-buttons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
@@ -105,14 +104,7 @@ export function AdministracionEventoNuevoRouteView({
             <Button asChild variant="outline" size="lg">
               <Link to="/administracion/eventos">Volver</Link>
             </Button>
-            <Button type="submit" size="lg" disabled={eventForm.isPending}>
-              <ButtonPendingContent
-                isPending={eventForm.isPending}
-                pendingLabel="Guardando evento..."
-                idleLabel="Guardar"
-                idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
-              />
-            </Button>
+            <SubmitButton size="lg" isPending={eventForm.isPending} />
           </CardFooter>
         </Card>
       </form>

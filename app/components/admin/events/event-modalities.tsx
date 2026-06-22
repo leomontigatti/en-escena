@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, Plus, Trash } from "lucide-react";
+import { Plus, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -16,6 +16,10 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import {
+  DestroyButton,
+  SubmitButton,
+} from "@/components/shared/action-buttons";
 import {
   DataTable,
   type DataTableColumn,
@@ -157,9 +161,7 @@ export function NewEventModalityRouteView({
         />
         <ModalityFormActions
           formId="create-modality-form"
-          pendingLabel="Guardando modalidad..."
           pendingScope={{ intent: "create-modality" }}
-          submitLabel="Guardar"
         />
       </ModalityFormPanel>
     </AdminResourceLayout>
@@ -210,12 +212,10 @@ export function EventModalityDetailRouteView({
           />
           <ModalityFormActions
             formId="update-modality-form"
-            pendingLabel="Guardando modalidad..."
             pendingScope={{
               intent: "update-modality",
               fields: { id: modality.id },
             }}
-            submitLabel="Guardar"
           />
         </ModalityFormPanel>
       ) : (
@@ -406,13 +406,9 @@ function NameField({
 function ModalityFormActions({
   formId,
   pendingScope,
-  pendingLabel,
-  submitLabel,
 }: {
   formId: string;
   pendingScope: RouteFormPendingScope;
-  pendingLabel: string;
-  submitLabel: string;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, pendingScope);
@@ -422,14 +418,7 @@ function ModalityFormActions({
       <Button asChild variant="outline">
         <Link to={buildModalidadesListPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId} disabled={isPending}>
-        {isPending ? (
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
-        ) : (
-          <Check aria-hidden="true" data-icon="inline-start" />
-        )}
-        {isPending ? pendingLabel : submitLabel}
-      </Button>
+      <SubmitButton form={formId} isPending={isPending} />
     </div>
   );
 }
@@ -495,10 +484,7 @@ function DeleteModalityDialog({
             <input type="hidden" name="intent" value="delete-modality" />
             <input type="hidden" name="id" value={modality.id} />
             <input type="hidden" name="confirmDeletion" value={modality.id} />
-            <Button type="submit" variant="destructive">
-              <Trash data-icon="inline-start" />
-              Eliminar
-            </Button>
+            <DestroyButton />
           </form>
         </DialogFooter>
       </DialogContent>

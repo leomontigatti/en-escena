@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, Check, Lock, RotateCcw, TriangleAlert } from "lucide-react";
+import { Archive, Lock, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import {
@@ -12,7 +12,7 @@ import {
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
+import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
@@ -463,19 +463,7 @@ export function PortalBailarinDetalleRouteView({
                 Volver
               </Link>
             </Button>
-            <Button
-              type="submit"
-              form={formId}
-              size="lg"
-              disabled={isSubmitting}
-            >
-              <ButtonPendingContent
-                isPending={isSubmitting}
-                pendingLabel="Guardando..."
-                idleLabel="Guardar"
-                idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
-              />
-            </Button>
+            <SubmitButton form={formId} size="lg" isPending={isSubmitting} />
           </CardFooter>
         </Card>
       </section>

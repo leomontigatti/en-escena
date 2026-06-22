@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Plus } from "lucide-react";
-import { useEffect, useId, useState, type ComponentProps } from "react";
+import { Plus } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Link, redirect, useFetcher } from "react-router";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import {
   PortalListPage,
   type PortalRouteHandle,
 } from "@/components/portal/ui";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
+import { SubmitButton } from "@/components/shared/action-buttons";
 import {
   DataTable,
   type DataTableColumn,
@@ -157,6 +157,9 @@ export function PortalProfesoresRouteView({
   );
   const [dismissServerState, setDismissServerState] = useState(false);
   const [dialogResetKey, setDialogResetKey] = useState(0);
+  const previousCreateProfessorFetcherState = useRef(
+    createProfessorFetcher.state,
+  );
 
   useEffect(() => {
     if (actionData?.modalOpen === true) {
@@ -164,6 +167,21 @@ export function PortalProfesoresRouteView({
       setDismissServerState(false);
     }
   }, [actionData]);
+
+  useEffect(() => {
+    const previousState = previousCreateProfessorFetcherState.current;
+    previousCreateProfessorFetcherState.current = createProfessorFetcher.state;
+
+    if (
+      previousState !== "idle" &&
+      createProfessorFetcher.state === "idle" &&
+      createProfessorFetcher.data?.status !== "error"
+    ) {
+      setIsCreateDialogOpen(false);
+      setDismissServerState(true);
+      setDialogResetKey((currentValue) => currentValue + 1);
+    }
+  }, [createProfessorFetcher.data, createProfessorFetcher.state]);
 
   const visibleActionData = dismissServerState ? undefined : actionData;
 
@@ -395,14 +413,7 @@ function CreateProfessorDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting}>
-              <ButtonPendingContent
-                isPending={isSubmitting}
-                pendingLabel="Guardando..."
-                idleLabel="Guardar"
-                idleIcon={<Check aria-hidden="true" data-icon />}
-              />
-            </Button>
+            <SubmitButton isPending={isSubmitting} />
           </DialogFooter>
         </form>
       </DialogContent>

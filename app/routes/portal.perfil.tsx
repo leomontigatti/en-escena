@@ -17,7 +17,7 @@ import {
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
+import { SubmitButton } from "@/components/shared/action-buttons";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -272,19 +272,11 @@ export function PortalPerfilRouteView({
           </form>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <Button
-            type="submit"
+          <SubmitButton
             form={profileFormId}
             size="lg"
-            disabled={isProfileSaving}
-          >
-            <ButtonPendingContent
-              isPending={isProfileSaving}
-              pendingLabel="Guardando perfil..."
-              idleLabel="Guardar"
-              idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
-            />
-          </Button>
+            isPending={isProfileSaving}
+          />
         </CardFooter>
       </Card>
 

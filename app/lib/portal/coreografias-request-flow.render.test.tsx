@@ -76,7 +76,7 @@ describe("coreografías request flow", () => {
 
     await render(<RouterProvider router={router} />);
 
-    expect(getButton("Calculando cambios...").disabled).toBe(true);
+    expect(getButton("Guardar coreografía").disabled).toBe(true);
   });
 
   test("shows save-specific pending feedback while the detail form is saving", async () => {
@@ -113,7 +113,7 @@ describe("coreografías request flow", () => {
 
     await render(<RouterProvider router={router} />);
 
-    expect(getButton("Guardando coreografía...").disabled).toBe(true);
+    expect(getButton("Guardar coreografía").disabled).toBe(true);
   });
 
   test("keeps the create modal open with recoverable save errors", async () => {

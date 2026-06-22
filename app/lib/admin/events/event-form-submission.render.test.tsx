@@ -157,7 +157,7 @@ describe("Evento RHF + React Router form submission", () => {
       />,
     );
 
-    const submitButton = getButton("Guardando evento...");
+    const submitButton = getButton("Guardar");
 
     expect(submitButton.disabled).toBe(true);
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useEffect, useId } from "react";
 import { Controller, type Control, useForm } from "react-hook-form";
 import {
@@ -12,7 +12,6 @@ import {
 import { z } from "zod";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -295,11 +294,14 @@ export function AdministracionUsuariosNuevoRouteView({
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button type="submit" disabled={isCreatingUser}>
-              <ButtonPendingContent
-                isPending={isCreatingUser}
-                pendingLabel="Creando usuario..."
-                idleLabel="Nuevo usuario"
-              />
+              {isCreatingUser ? (
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="animate-spin"
+                  data-icon
+                />
+              ) : null}
+              Nuevo usuario
             </Button>
             <Button asChild variant="outline">
               <Link to="/administracion">Volver al panel</Link>

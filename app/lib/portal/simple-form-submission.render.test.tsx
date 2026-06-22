@@ -30,10 +30,17 @@ vi.mock("react-router", async () => {
 });
 
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dancerId";
+import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
 import { PortalProfesoresRouteView } from "@/routes/portal.profesores";
 
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;
+
+type FetcherState = {
+  data: undefined;
+  state: "idle" | "submitting";
+  submit: ReturnType<typeof vi.fn>;
+};
 
 describe("portal simple form submissions", () => {
   afterEach(() => {
@@ -74,10 +81,86 @@ describe("portal simple form submissions", () => {
     });
 
     expect(document.body.textContent).toContain("Nuevo profesor");
-    const submitButton = getButton("Guardando...");
+    const submitButton = getButton("Guardar");
 
     expect(submitButton.disabled).toBe(true);
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
+  });
+
+  test("closes the professor create dialog after a successful fetcher submission", async () => {
+    let fetcherState: FetcherState = {
+      data: undefined,
+      state: "submitting",
+      submit: vi.fn(),
+    };
+
+    useFetcherMock.mockImplementation(() => fetcherState);
+    useNavigationMock.mockReturnValue({ formData: undefined, state: "idle" });
+    useSubmitMock.mockReturnValue(vi.fn());
+
+    const buildElement = () => (
+      <MemoryRouter initialEntries={["/portal/profesores"]}>
+        <PortalProfesoresRouteView loaderData={buildProfessorLoaderData()} />
+      </MemoryRouter>
+    );
+
+    await render(buildElement());
+
+    await act(async () => {
+      clickButton("Nuevo profesor");
+    });
+
+    expect(document.body.textContent).toContain("Nuevo profesor");
+
+    fetcherState = {
+      data: undefined,
+      state: "idle",
+      submit: fetcherState.submit,
+    };
+
+    await act(async () => {
+      root?.render(buildElement());
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("closes the dancer create dialog after a successful fetcher submission", async () => {
+    let fetcherState: FetcherState = {
+      data: undefined,
+      state: "submitting",
+      submit: vi.fn(),
+    };
+
+    useFetcherMock.mockImplementation(() => fetcherState);
+    useNavigationMock.mockReturnValue({ formData: undefined, state: "idle" });
+    useSubmitMock.mockReturnValue(vi.fn());
+
+    const buildElement = () => (
+      <MemoryRouter initialEntries={["/portal/bailarines"]}>
+        <PortalBailarinesRouteView loaderData={buildDancersLoaderData()} />
+      </MemoryRouter>
+    );
+
+    await render(buildElement());
+
+    await act(async () => {
+      clickButton("Nuevo bailarín");
+    });
+
+    expect(document.body.textContent).toContain("Nuevo bailarín");
+
+    fetcherState = {
+      data: undefined,
+      state: "idle",
+      submit: fetcherState.submit,
+    };
+
+    await act(async () => {
+      root?.render(buildElement());
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
   test("submits the professor create dialog as FormData through the fetcher", async () => {
@@ -154,7 +237,7 @@ describe("portal simple form submissions", () => {
       </MemoryRouter>,
     );
 
-    const submitButton = getButton("Guardando...");
+    const submitButton = getButton("Guardar");
 
     expect(submitButton.disabled).toBe(true);
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
@@ -176,6 +259,14 @@ function buildProfessorLoaderData(): Parameters<
 >[0]["loaderData"] {
   return {
     professors: [],
+  };
+}
+
+function buildDancersLoaderData(): Parameters<
+  typeof PortalBailarinesRouteView
+>[0]["loaderData"] {
+  return {
+    dancers: [],
   };
 }
 

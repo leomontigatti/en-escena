@@ -72,17 +72,17 @@ describe("Evento bases migrated forms", () => {
     document.body.innerHTML = "";
   });
 
-  for (const { description, formId, navigation, pendingLabel, renderView } of [
+  for (const { description, formId, navigation, renderView, submitLabel } of [
     {
       description: "modalidades",
       formId: "update-modality-form",
-      pendingLabel: "Guardando modalidad...",
       renderView: () => (
         <EventModalityDetailRouteView
           loaderData={buildLoaderData()}
           modalityId="modality_1"
         />
       ),
+      submitLabel: "Guardar",
       navigation: buildPendingNavigation({
         intent: "update-modality",
         id: "modality_1",
@@ -91,13 +91,13 @@ describe("Evento bases migrated forms", () => {
     {
       description: "categorías",
       formId: "update-category-form",
-      pendingLabel: "Guardando categoría...",
       renderView: () => (
         <EventCategoryDetailRouteView
           loaderData={buildLoaderData()}
           categoryId="category_1"
         />
       ),
+      submitLabel: "Guardar",
       navigation: buildPendingNavigation({
         intent: "update-category",
         id: "category_1",
@@ -106,13 +106,13 @@ describe("Evento bases migrated forms", () => {
     {
       description: "cronogramas",
       formId: "update-schedule-form",
-      pendingLabel: "Guardando cronograma...",
       renderView: () => (
         <EventScheduleDetailRouteView
           loaderData={buildLoaderData()}
           scheduleId="schedule_1"
         />
       ),
+      submitLabel: "Guardar",
       navigation: buildPendingNavigation({
         intent: "update-schedule",
         id: "schedule_1",
@@ -121,13 +121,13 @@ describe("Evento bases migrated forms", () => {
     {
       description: "precios",
       formId: "update-price-form",
-      pendingLabel: "Guardando precio...",
       renderView: () => (
         <EventPriceDetailRouteView
           loaderData={buildLoaderData()}
           priceId="price_1"
         />
       ),
+      submitLabel: "Guardar",
       navigation: buildPendingNavigation({
         intent: "update-price",
         id: "price_1",
@@ -144,7 +144,7 @@ describe("Evento bases migrated forms", () => {
       const submitButton = document.querySelector(`button[form="${formId}"]`);
 
       expect(submitButton).toBeInstanceOf(HTMLButtonElement);
-      expect(submitButton?.textContent).toContain(pendingLabel);
+      expect(submitButton?.textContent).toContain(submitLabel);
       expect((submitButton as HTMLButtonElement).disabled).toBe(true);
     });
   }

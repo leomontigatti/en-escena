@@ -1,12 +1,15 @@
 import { eq } from "drizzle-orm";
-import { Check, Trash, TriangleAlert } from "lucide-react";
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, redirect, useActionData } from "react-router";
 import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { ButtonPendingContent } from "@/components/shared/button-pending-content";
+import {
+  DestroyButton,
+  SubmitButton,
+} from "@/components/shared/action-buttons";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
@@ -350,14 +353,7 @@ function EditEventPanel({
           <Button asChild variant="outline" size="lg">
             <Link to="/administracion/eventos">Volver</Link>
           </Button>
-          <Button type="submit" size="lg" disabled={eventForm.isPending}>
-            <ButtonPendingContent
-              isPending={eventForm.isPending}
-              pendingLabel="Guardando evento..."
-              idleLabel="Guardar"
-              idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
-            />
-          </Button>
+          <SubmitButton size="lg" isPending={eventForm.isPending} />
         </CardFooter>
       </Card>
     </form>
@@ -450,14 +446,7 @@ function DeleteEventDialog({
           <form method="post" action={eventActionPath(event.id)}>
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="confirmDeletion" value={event.id} />
-            <Button type="submit" variant="destructive" disabled={isPending}>
-              <ButtonPendingContent
-                isPending={isPending}
-                pendingLabel="Eliminando..."
-                idleLabel="Eliminar"
-                idleIcon={<Trash data-icon="inline-start" />}
-              />
-            </Button>
+            <DestroyButton isPending={isPending} />
           </form>
         </DialogFooter>
       </DialogContent>
@@ -502,51 +491,19 @@ function EventActionItem({
           className="w-full justify-start whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-2">
-            <ButtonPendingContent
-              isPending={isPending}
-              pendingLabel={getEventActionPendingLabel(intent, value)}
-              idleLabel={label}
-            />
+            {isPending ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
+            {label}
           </span>
         </button>
       </DropdownMenuItem>
     </form>
   );
-}
-
-function getEventActionPendingLabel(intent: string, value?: string) {
-  switch (intent) {
-    case "activate":
-      return "Activando...";
-    case "deactivate":
-      return "Desactivando...";
-    case "set-program-visibility":
-      return getVisibilityPendingLabel({
-        isShowing: value === "true",
-        resourceLabel: "programa",
-      });
-    case "set-results-visibility":
-      return getVisibilityPendingLabel({
-        isShowing: value === "true",
-        resourceLabel: "resultados",
-      });
-    default:
-      return "Actualizando...";
-  }
-}
-
-function getVisibilityPendingLabel({
-  isShowing,
-  resourceLabel,
-}: {
-  isShowing: boolean;
-  resourceLabel: string;
-}) {
-  if (isShowing) {
-    return `Mostrando ${resourceLabel}...`;
-  }
-
-  return `Ocultando ${resourceLabel}...`;
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {

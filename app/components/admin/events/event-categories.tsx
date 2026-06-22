@@ -1,4 +1,3 @@
-import { Check, LoaderCircle, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as React from "react";
 import { Link } from "react-router";
@@ -10,6 +9,10 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import {
+  DestroyButton,
+  SubmitButton,
+} from "@/components/shared/action-buttons";
 import {
   DataTable,
   type DataTableColumn,
@@ -182,9 +185,7 @@ export function NewEventCategoryRouteView({
         />
         <CategoryFormActions
           formId="create-category-form"
-          pendingLabel="Guardando categoría..."
           pendingScope={{ intent: "create-category" }}
-          submitLabel="Guardar"
         />
       </CategoryFormPanel>
     </AdminResourceLayout>
@@ -236,12 +237,10 @@ export function EventCategoryDetailRouteView({
           />
           <CategoryFormActions
             formId="update-category-form"
-            pendingLabel="Guardando categoría..."
             pendingScope={{
               intent: "update-category",
               fields: { id: category.id },
             }}
-            submitLabel="Guardar"
           />
         </CategoryFormPanel>
       ) : (
@@ -429,10 +428,7 @@ function DeleteCategoryDialog({
             <input type="hidden" name="intent" value="delete-category" />
             <input type="hidden" name="id" value={category.id} />
             <input type="hidden" name="confirmDeletion" value={category.id} />
-            <Button type="submit" variant="destructive">
-              <Trash data-icon="inline-start" />
-              Eliminar
-            </Button>
+            <DestroyButton />
           </form>
         </DialogFooter>
       </DialogContent>
@@ -618,13 +614,9 @@ function CategoryTextField({
 function CategoryFormActions({
   formId,
   pendingScope,
-  pendingLabel,
-  submitLabel,
 }: {
   formId: string;
   pendingScope: RouteFormPendingScope;
-  pendingLabel: string;
-  submitLabel: string;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, pendingScope);
@@ -634,14 +626,7 @@ function CategoryFormActions({
       <Button asChild variant="outline">
         <Link to={buildCategoriasListPath(null)}>Volver</Link>
       </Button>
-      <Button type="submit" form={formId} disabled={isPending}>
-        {isPending ? (
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
-        ) : (
-          <Check aria-hidden="true" data-icon="inline-start" />
-        )}
-        {isPending ? pendingLabel : submitLabel}
-      </Button>
+      <SubmitButton form={formId} isPending={isPending} />
     </div>
   );
 }
