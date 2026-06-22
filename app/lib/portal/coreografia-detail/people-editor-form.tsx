@@ -6,7 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type SubmitEvent,
+  type SubmitEventHandler,
 } from "react";
 import { useForm } from "react-hook-form";
 import { Form, Link, useFetcher, useNavigation } from "react-router";
@@ -51,6 +51,13 @@ import {
 import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
 
 const emptyChoreographyEditFieldErrors: ChoreographyEditFieldErrors = {};
+type ChoreographySummary = CoreografiaPeopleEditorLoaderData["choreography"];
+type ScheduleResolution =
+  | Extract<
+      ResolveChoreographyDancersResult,
+      { ok: true }
+    >["resolution"]["schedule"]
+  | null;
 
 export function CoreografiaPeopleEditorForm({
   actionData,
@@ -78,18 +85,12 @@ export function CoreografiaPeopleEditorForm({
     actionData?.selectedProfessorIds ?? initialProfessorIds;
   const form = useForm<ChoreographyEditValues>({
     resolver: zodResolver(choreographyEditSchema),
-    defaultValues: {
-      dancerIds: selectedDancerIds,
-      professorIds: selectedProfessorIds,
-      experienceLevelId:
-        actionData?.selectedExperienceLevelId ??
-        choreography.experienceLevelId ??
-        "",
-      scheduleCapacityId:
-        actionData?.selectedScheduleCapacityId ??
-        choreography.scheduleCapacityId ??
-        "",
-    },
+    defaultValues: buildChoreographyEditDefaultValues({
+      actionData,
+      choreography,
+      selectedDancerIds,
+      selectedProfessorIds,
+    }),
   });
   const persistedSelectionKey = useMemo(
     () => getSelectionKey(initialDancerIds),
@@ -142,6 +143,27 @@ export function CoreografiaPeopleEditorForm({
     ? resolution.resolution.schedule
     : null;
   const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
+  const experienceLevelOptions = derivedResolution.experienceLevelOptions.map(
+    (option) => ({
+      value: option.id,
+      label: option.name,
+    }),
+  );
+  const scheduleSelectOptions = scheduleOptions.map((option) => ({
+    value: option.id,
+    label: formatScheduleOptionDateTime(option),
+  }));
+  const readonlyExperienceLevelName = hasResolvedRosterChange
+    ? ""
+    : (choreography.experienceLevelName ?? "");
+  let readonlyScheduleLabel = choreography.scheduleLabel;
+
+  if (hasResolvedRosterChange && scheduleResolution?.status === "auto") {
+    readonlyScheduleLabel = formatScheduleOptionDateTime(
+      scheduleResolution.options[0],
+    );
+  }
+
   const fieldErrors =
     actionData?.status === "update-error" && actionData.section === "dancers"
       ? (actionData.fieldErrors ?? emptyChoreographyEditFieldErrors)
@@ -162,35 +184,32 @@ export function CoreografiaPeopleEditorForm({
       })),
     [loaderData.availableProfessors],
   );
-  const canSubmit =
-    (hasRosterChanged || hasProfessorsChanged) &&
-    !isResolving &&
-    !isSubmitting &&
-    (!hasRosterChanged ||
-      (canEditDancers &&
-        watchedDancerIds.length > 0 &&
-        dancerSelectionKey === resolvedSelectionKey &&
-        resolution?.ok === true &&
-        scheduleResolution?.status !== "none" &&
-        (scheduleResolution?.status !== "multiple" ||
-          watchedScheduleCapacityId.length > 0) &&
-        (!derivedResolution.experienceLevelRequired ||
-          watchedExperienceLevelId.length > 0))) &&
-    (!hasProfessorsChanged || canEditProfessors);
+  const canSubmit = canSubmitChoreographyEdit({
+    canEditDancers,
+    canEditProfessors,
+    dancerSelectionKey,
+    derivedResolution,
+    hasProfessorsChanged,
+    hasRosterChanged,
+    isResolving,
+    isSubmitting,
+    resolution,
+    resolvedSelectionKey,
+    scheduleResolution,
+    watchedDancerIds,
+    watchedExperienceLevelId,
+    watchedScheduleCapacityId,
+  });
 
   useEffect(() => {
-    form.reset({
-      dancerIds: selectedDancerIds,
-      professorIds: selectedProfessorIds,
-      experienceLevelId:
-        actionData?.selectedExperienceLevelId ??
-        choreography.experienceLevelId ??
-        "",
-      scheduleCapacityId:
-        actionData?.selectedScheduleCapacityId ??
-        choreography.scheduleCapacityId ??
-        "",
-    });
+    form.reset(
+      buildChoreographyEditDefaultValues({
+        actionData,
+        choreography,
+        selectedDancerIds,
+        selectedProfessorIds,
+      }),
+    );
     setDerivedResolution(persistedResolution);
     setResolution(null);
     setResolvedSelectionKey(persistedSelectionKey);
@@ -332,7 +351,7 @@ export function CoreografiaPeopleEditorForm({
     watchedScheduleCapacityId,
   ]);
 
-  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     if (!canSubmit) {
       event.preventDefault();
       return;
@@ -409,21 +428,12 @@ export function CoreografiaPeopleEditorForm({
                 fieldName="experienceLevelId"
                 id={experienceLevelFieldId}
                 label="Nivel de experiencia"
-                options={derivedResolution.experienceLevelOptions.map(
-                  (option) => ({
-                    value: option.id,
-                    label: option.name,
-                  }),
-                )}
+                options={experienceLevelOptions}
               />
             ) : (
               <ReadonlyDetailField
                 label="Nivel de experiencia"
-                value={
-                  hasResolvedRosterChange
-                    ? ""
-                    : (choreography.experienceLevelName ?? "")
-                }
+                value={readonlyExperienceLevelName}
               />
             )}
             {hasResolvedRosterChange &&
@@ -433,22 +443,12 @@ export function CoreografiaPeopleEditorForm({
                 fieldName="scheduleCapacityId"
                 id={scheduleFieldId}
                 label="Cupo de cronograma"
-                options={scheduleOptions.map((option) => ({
-                  value: option.id,
-                  label: formatScheduleOptionDateTime(option),
-                }))}
+                options={scheduleSelectOptions}
               />
             ) : (
               <ReadonlyDetailField
                 label="Cupo de cronograma"
-                value={
-                  hasResolvedRosterChange &&
-                  scheduleResolution?.status === "auto"
-                    ? formatScheduleOptionDateTime(
-                        scheduleResolution.options[0],
-                      )
-                    : choreography.scheduleLabel
-                }
+                value={readonlyScheduleLabel}
               />
             )}
           </FieldGroup>
@@ -512,5 +512,100 @@ export function CoreografiaPeopleEditorForm({
         </CardFooter>
       </Card>
     </Form>
+  );
+}
+
+function buildChoreographyEditDefaultValues({
+  actionData,
+  choreography,
+  selectedDancerIds,
+  selectedProfessorIds,
+}: {
+  actionData: CoreografiaPeopleEditorActionData;
+  choreography: ChoreographySummary;
+  selectedDancerIds: string[];
+  selectedProfessorIds: string[];
+}): ChoreographyEditValues {
+  return {
+    dancerIds: selectedDancerIds,
+    professorIds: selectedProfessorIds,
+    experienceLevelId:
+      actionData?.selectedExperienceLevelId ??
+      choreography.experienceLevelId ??
+      "",
+    scheduleCapacityId:
+      actionData?.selectedScheduleCapacityId ??
+      choreography.scheduleCapacityId ??
+      "",
+  };
+}
+
+function canSubmitChoreographyEdit({
+  canEditDancers,
+  canEditProfessors,
+  dancerSelectionKey,
+  derivedResolution,
+  hasProfessorsChanged,
+  hasRosterChanged,
+  isResolving,
+  isSubmitting,
+  resolution,
+  resolvedSelectionKey,
+  scheduleResolution,
+  watchedDancerIds,
+  watchedExperienceLevelId,
+  watchedScheduleCapacityId,
+}: {
+  canEditDancers: boolean;
+  canEditProfessors: boolean;
+  dancerSelectionKey: string;
+  derivedResolution: DancerResolutionState;
+  hasProfessorsChanged: boolean;
+  hasRosterChanged: boolean;
+  isResolving: boolean;
+  isSubmitting: boolean;
+  resolution: ResolveChoreographyDancersResult | null;
+  resolvedSelectionKey: string;
+  scheduleResolution: ScheduleResolution;
+  watchedDancerIds: string[];
+  watchedExperienceLevelId: string;
+  watchedScheduleCapacityId: string;
+}) {
+  if (!hasRosterChanged && !hasProfessorsChanged) {
+    return false;
+  }
+
+  if (isResolving || isSubmitting) {
+    return false;
+  }
+
+  if (hasProfessorsChanged && !canEditProfessors) {
+    return false;
+  }
+
+  if (!hasRosterChanged) {
+    return true;
+  }
+
+  if (
+    !canEditDancers ||
+    watchedDancerIds.length === 0 ||
+    dancerSelectionKey !== resolvedSelectionKey ||
+    resolution?.ok !== true ||
+    scheduleResolution?.status === "none"
+  ) {
+    return false;
+  }
+
+  if (
+    scheduleResolution?.status === "multiple" &&
+    watchedScheduleCapacityId.length === 0
+  ) {
+    return false;
+  }
+
+  return (
+    !derivedResolution.experienceLevelRequired ||
+    watchedExperienceLevelId.length > 0
   );
 }

@@ -202,14 +202,12 @@ export function mapResolvedDancerResolutionState(
 }
 
 export function buildResolveChoreographyDancersFormData(dancerIds: string[]) {
-  const UrlSearchParamsCtor =
-    typeof window !== "undefined" ? window.URLSearchParams : URLSearchParams;
-  const searchParams = new UrlSearchParamsCtor();
-  searchParams.set("intent", resolveChoreographyDancersIntent);
+  const formData = new FormData();
+  formData.set("intent", resolveChoreographyDancersIntent);
 
   for (const dancerId of dancerIds) {
-    searchParams.append("dancerIds", dancerId);
+    formData.append("dancerIds", dancerId);
   }
 
-  return searchParams;
+  return formData;
 }
