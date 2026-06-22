@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
-import { Link, redirect, useActionData } from "react-router";
+import { Link, redirect, useFetcher } from "react-router";
 import { z } from "zod";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -43,7 +43,8 @@ import {
 } from "@/lib/portal/dancers.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
-  createValidatedNativeSubmitHandler,
+  createValidatedReactRouterSubmitHandler,
+  type ReactRouterFormSubmit,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -152,7 +153,11 @@ export function PortalBailarinesRouteView({
   loaderData: LoaderData;
   actionData?: ActionData;
 }) {
-  const actionData = providedActionData;
+  const createDancerFetcher = useFetcher<typeof action>();
+  const actionData =
+    createDancerFetcher.data?.status === "error"
+      ? createDancerFetcher.data
+      : providedActionData;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -201,6 +206,7 @@ export function PortalBailarinesRouteView({
         key={dialogResetKey}
         actionData={visibleActionData}
         isOpen={isCreateDialogOpen}
+        isSubmitting={createDancerFetcher.state !== "idle"}
         onOpenChange={(nextOpen) => {
           setIsCreateDialogOpen(nextOpen);
 
@@ -209,6 +215,7 @@ export function PortalBailarinesRouteView({
             setDialogResetKey((currentValue) => currentValue + 1);
           }
         }}
+        submit={createDancerFetcher.submit}
       />
     </>
   );
@@ -219,14 +226,7 @@ export default function PortalBailarinesRoute({
 }: {
   loaderData: LoaderData;
 }) {
-  const actionData = useActionData<typeof action>();
-
-  return (
-    <PortalBailarinesRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <PortalBailarinesRouteView loaderData={loaderData} />;
 }
 
 function DancersTable({ dancers }: { dancers: DancerRow[] }) {
@@ -325,11 +325,15 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
 function CreateDancerDialog({
   actionData,
   isOpen,
+  isSubmitting,
   onOpenChange,
+  submit,
 }: {
   actionData?: ActionData;
   isOpen: boolean;
+  isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
+  submit: ReactRouterFormSubmit;
 }) {
   const firstNameId = useId();
   const lastNameId = useId();
@@ -358,7 +362,9 @@ function CreateDancerDialog({
 
         <form
           method="post"
-          onSubmit={createValidatedNativeSubmitHandler(form)}
+          onSubmit={createValidatedReactRouterSubmitHandler(form, submit, {
+            method: "post",
+          })}
           className="flex flex-col gap-5"
         >
           <input type="hidden" name="intent" value={createDancerIntent} />
@@ -408,13 +414,13 @@ function CreateDancerDialog({
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={isSubmitting}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">
+            <Button type="submit" disabled={isSubmitting}>
               <Check aria-hidden="true" data-icon />
-              Guardar
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </form>

@@ -69,3 +69,40 @@ export function createValidatedNativeSubmitHandler<
     void form.handleSubmit(submitNativeForm)(event);
   };
 }
+
+type ReactRouterSubmitOptions = {
+  method?: "delete" | "get" | "patch" | "post" | "put";
+};
+
+export type ReactRouterFormSubmit = (
+  target: HTMLFormElement | Record<string, string>,
+  options?: ReactRouterSubmitOptions,
+) => void;
+
+export function createValidatedReactRouterSubmitHandler<
+  TFieldValues extends FieldValues,
+>(
+  form: Pick<UseFormReturn<TFieldValues>, "handleSubmit">,
+  submit: ReactRouterFormSubmit,
+  submitOptions?: ReactRouterSubmitOptions,
+): SubmitEventHandler<HTMLFormElement> {
+  return (event) => {
+    const formElement = event.currentTarget;
+    const submitRouterForm: SubmitHandler<TFieldValues> = (values) => {
+      const submission = Object.fromEntries(
+        new FormData(formElement).entries(),
+      ) as Record<string, string>;
+
+      for (const [fieldName, fieldValue] of Object.entries(values)) {
+        submission[fieldName] =
+          typeof fieldValue === "string"
+            ? fieldValue
+            : String(fieldValue ?? "");
+      }
+
+      submit(submission, submitOptions);
+    };
+
+    void form.handleSubmit(submitRouterForm)(event);
+  };
+}

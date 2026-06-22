@@ -7,7 +7,13 @@ import {
   type FieldPath,
   type UseFormReturn,
 } from "react-hook-form";
-import { Link, redirect, useActionData } from "react-router";
+import {
+  Link,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
@@ -49,7 +55,8 @@ import {
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
 import {
-  createValidatedNativeSubmitHandler,
+  createValidatedReactRouterSubmitHandler,
+  type ReactRouterFormSubmit,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -240,11 +247,16 @@ export function PortalProfesorRouteView({
   };
   const form = useProfessorForm({
     fieldErrors: actionData?.fieldErrors,
+    submit: useSubmit(),
     values: formValues,
   });
+  const navigation = useNavigation();
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getProfessorStatusAction(loaderData.professor.active);
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formData?.get("intent") === "update-professor";
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
@@ -350,9 +362,14 @@ export function PortalProfesorRouteView({
             <Button asChild variant="outline" size="lg">
               <Link to="/portal/profesores">Volver</Link>
             </Button>
-            <Button type="submit" form={formId} size="lg">
+            <Button
+              type="submit"
+              form={formId}
+              size="lg"
+              disabled={isSubmitting}
+            >
               <Check aria-hidden="true" data-icon="inline-start" />
-              Guardar
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </CardFooter>
         </Card>
@@ -382,9 +399,11 @@ export default function PortalProfesorRoute({
 
 function useProfessorForm({
   fieldErrors = emptyProfessorFieldErrors,
+  submit,
   values,
 }: {
   fieldErrors?: ProfessorFieldErrors;
+  submit: ReactRouterFormSubmit;
   values: ProfessorFormValues;
 }) {
   const form = useForm<ProfessorFormValues, unknown, ProfessorFormValues>({
@@ -405,7 +424,12 @@ function useProfessorForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+  return {
+    form,
+    handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
+      method: "post",
+    }),
+  };
 }
 
 function ProfessorTextField({

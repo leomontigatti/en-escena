@@ -2,7 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, Check, Lock, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
-import { Link, redirect, useActionData } from "react-router";
+import {
+  Link,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
@@ -45,7 +51,8 @@ import {
   type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
 import {
-  createValidatedNativeSubmitHandler,
+  createValidatedReactRouterSubmitHandler,
+  type ReactRouterFormSubmit,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -259,8 +266,10 @@ export function PortalBailarinDetalleRouteView({
   };
   const form = useDancerForm({
     fieldErrors: actionData?.fieldErrors,
+    submit: useSubmit(),
     values: formValues,
   });
+  const navigation = useNavigation();
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);
@@ -278,6 +287,9 @@ export function PortalBailarinDetalleRouteView({
     : formValues;
   const showsIdentificationAlert = !hasDocumentData;
   const showsMissingImagesAlert = hasDocumentData && !isIdentityVerified;
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formData?.get("intent") === "update-dancer";
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -436,9 +448,14 @@ export function PortalBailarinDetalleRouteView({
             <Button asChild variant="outline" size="lg">
               <Link to="/portal/bailarines">Volver</Link>
             </Button>
-            <Button type="submit" form={formId} size="lg">
+            <Button
+              type="submit"
+              form={formId}
+              size="lg"
+              disabled={isSubmitting}
+            >
               <Check aria-hidden="true" data-icon="inline-start" />
-              Guardar
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </CardFooter>
         </Card>
@@ -471,9 +488,11 @@ export default function PortalBailarinDetalleRoute({
 
 function useDancerForm({
   fieldErrors = emptyDancerFieldErrors,
+  submit,
   values,
 }: {
   fieldErrors?: DancerFieldErrors;
+  submit: ReactRouterFormSubmit;
   values: DancerFormValues;
 }) {
   const form = useForm<DancerFormValues, unknown, DancerFormValues>({
@@ -497,7 +516,12 @@ function useDancerForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+  return {
+    form,
+    handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
+      method: "post",
+    }),
+  };
 }
 
 function ReadonlyLockedFormField({

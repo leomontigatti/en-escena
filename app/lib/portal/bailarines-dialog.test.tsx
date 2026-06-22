@@ -4,7 +4,7 @@ import "@/test/react-test-env";
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 type PortalBailarinesRouteViewComponent =
@@ -49,24 +49,36 @@ describe("PortalBailarinesRouteView dialog", () => {
 
     await act(async () => {
       root?.render(
-        <MemoryRouter initialEntries={["/portal/bailarines"]}>
-          <PortalBailarinesRouteView
-            loaderData={createDancerLoaderData()}
-            actionData={{
-              status: "error",
-              fieldErrors: {
-                firstName: "Este campo es obligatorio.",
-                birthDate: "La fecha de nacimiento no puede ser futura.",
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/portal/bailarines",
+                action: async () => null,
+                element: (
+                  <PortalBailarinesRouteView
+                    loaderData={createDancerLoaderData()}
+                    actionData={{
+                      status: "error",
+                      fieldErrors: {
+                        firstName: "Este campo es obligatorio.",
+                        birthDate:
+                          "La fecha de nacimiento no puede ser futura.",
+                      },
+                      values: {
+                        firstName: "",
+                        lastName: "López",
+                        birthDate: "2999-01-01",
+                      },
+                      modalOpen: true,
+                    }}
+                  />
+                ),
               },
-              values: {
-                firstName: "",
-                lastName: "López",
-                birthDate: "2999-01-01",
-              },
-              modalOpen: true,
-            }}
-          />
-        </MemoryRouter>,
+            ],
+            { initialEntries: ["/portal/bailarines"] },
+          )}
+        />,
       );
     });
 
@@ -94,9 +106,22 @@ describe("PortalBailarinesRouteView dialog", () => {
 
     await act(async () => {
       root?.render(
-        <MemoryRouter initialEntries={["/portal/bailarines"]}>
-          <PortalBailarinesRouteView loaderData={createDancerLoaderData()} />
-        </MemoryRouter>,
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/portal/bailarines",
+                action: async () => null,
+                element: (
+                  <PortalBailarinesRouteView
+                    loaderData={createDancerLoaderData()}
+                  />
+                ),
+              },
+            ],
+            { initialEntries: ["/portal/bailarines"] },
+          )}
+        />,
       );
     });
 
@@ -110,23 +135,35 @@ describe("PortalBailarinesRouteView dialog", () => {
 
     await act(async () => {
       root?.render(
-        <MemoryRouter initialEntries={["/portal/bailarines"]}>
-          <PortalBailarinesRouteView
-            loaderData={createDancerLoaderData()}
-            actionData={{
-              status: "error",
-              fieldErrors: {
-                birthDate: "La fecha de nacimiento no puede ser futura.",
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/portal/bailarines",
+                action: async () => null,
+                element: (
+                  <PortalBailarinesRouteView
+                    loaderData={createDancerLoaderData()}
+                    actionData={{
+                      status: "error",
+                      fieldErrors: {
+                        birthDate:
+                          "La fecha de nacimiento no puede ser futura.",
+                      },
+                      values: {
+                        firstName: "Ana",
+                        lastName: "López",
+                        birthDate: "2999-01-01",
+                      },
+                      modalOpen: true,
+                    }}
+                  />
+                ),
               },
-              values: {
-                firstName: "Ana",
-                lastName: "López",
-                birthDate: "2999-01-01",
-              },
-              modalOpen: true,
-            }}
-          />
-        </MemoryRouter>,
+            ],
+            { initialEntries: ["/portal/bailarines"] },
+          )}
+        />,
       );
     });
 
@@ -150,9 +187,22 @@ describe("PortalBailarinesRouteView dialog", () => {
 
     await act(async () => {
       root?.render(
-        <MemoryRouter initialEntries={["/portal/profesores"]}>
-          <PortalProfesoresRouteView loaderData={createProfessorLoaderData()} />
-        </MemoryRouter>,
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/portal/profesores",
+                action: async () => null,
+                element: (
+                  <PortalProfesoresRouteView
+                    loaderData={createProfessorLoaderData()}
+                  />
+                ),
+              },
+            ],
+            { initialEntries: ["/portal/profesores"] },
+          )}
+        />,
       );
     });
 
@@ -166,22 +216,33 @@ describe("PortalBailarinesRouteView dialog", () => {
 
     await act(async () => {
       root?.render(
-        <MemoryRouter initialEntries={["/portal/profesores"]}>
-          <PortalProfesoresRouteView
-            loaderData={createProfessorLoaderData()}
-            actionData={{
-              status: "error",
-              fieldErrors: {
-                firstName: "Este campo es obligatorio.",
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/portal/profesores",
+                action: async () => null,
+                element: (
+                  <PortalProfesoresRouteView
+                    loaderData={createProfessorLoaderData()}
+                    actionData={{
+                      status: "error",
+                      fieldErrors: {
+                        firstName: "Este campo es obligatorio.",
+                      },
+                      values: {
+                        firstName: "",
+                        lastName: "Pérez",
+                      },
+                      modalOpen: true,
+                    }}
+                  />
+                ),
               },
-              values: {
-                firstName: "",
-                lastName: "Pérez",
-              },
-              modalOpen: true,
-            }}
-          />
-        </MemoryRouter>,
+            ],
+            { initialEntries: ["/portal/profesores"] },
+          )}
+        />,
       );
     });
 

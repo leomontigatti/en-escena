@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Plus } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
-import { Link, redirect, useActionData } from "react-router";
+import { Link, redirect, useFetcher } from "react-router";
 import { z } from "zod";
 
 import {
@@ -41,7 +41,8 @@ import {
 } from "@/lib/portal/professors.server";
 import { getPortalEventContext } from "@/lib/portal/event-context.server";
 import {
-  createValidatedNativeSubmitHandler,
+  createValidatedReactRouterSubmitHandler,
+  type ReactRouterFormSubmit,
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
@@ -144,7 +145,11 @@ export function PortalProfesoresRouteView({
   loaderData: LoaderData;
   actionData?: ActionData;
 }) {
-  const actionData = providedActionData;
+  const createProfessorFetcher = useFetcher<typeof action>();
+  const actionData =
+    createProfessorFetcher.data?.status === "error"
+      ? createProfessorFetcher.data
+      : providedActionData;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -193,6 +198,7 @@ export function PortalProfesoresRouteView({
         key={dialogResetKey}
         actionData={visibleActionData}
         isOpen={isCreateDialogOpen}
+        isSubmitting={createProfessorFetcher.state !== "idle"}
         onOpenChange={(nextOpen) => {
           setIsCreateDialogOpen(nextOpen);
 
@@ -201,6 +207,7 @@ export function PortalProfesoresRouteView({
             setDialogResetKey((currentValue) => currentValue + 1);
           }
         }}
+        submit={createProfessorFetcher.submit}
       />
     </>
   );
@@ -211,14 +218,7 @@ export default function PortalProfesoresRoute({
 }: {
   loaderData: LoaderData;
 }) {
-  const actionData = useActionData<typeof action>();
-
-  return (
-    <PortalProfesoresRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <PortalProfesoresRouteView loaderData={loaderData} />;
 }
 
 function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
@@ -315,11 +315,15 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
 function CreateProfessorDialog({
   actionData,
   isOpen,
+  isSubmitting,
   onOpenChange,
+  submit,
 }: {
   actionData?: ActionData;
   isOpen: boolean;
+  isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
+  submit: ReactRouterFormSubmit;
 }) {
   const firstNameId = useId();
   const lastNameId = useId();
@@ -348,7 +352,9 @@ function CreateProfessorDialog({
 
         <form
           method="post"
-          onSubmit={createValidatedNativeSubmitHandler(form)}
+          onSubmit={createValidatedReactRouterSubmitHandler(form, submit, {
+            method: "post",
+          })}
           className="flex flex-col gap-5"
         >
           <input type="hidden" name="intent" value="create-professor" />
@@ -374,13 +380,13 @@ function CreateProfessorDialog({
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={isSubmitting}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">
+            <Button type="submit" disabled={isSubmitting}>
               <Check aria-hidden="true" data-icon />
-              Guardar
+              {isSubmitting ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </form>
