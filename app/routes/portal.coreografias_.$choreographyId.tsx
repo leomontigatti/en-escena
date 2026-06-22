@@ -225,14 +225,16 @@ export async function loader({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const availableProfessors = await listProfessorOptionsForChoreography(
-    academy.id,
-    choreography.professors.map((professor) => professor.id),
-  );
-  const availableDancers = await listDancerOptionsForChoreography(
-    academy.id,
-    choreography.dancers.map((dancer) => dancer.id),
-  );
+  const [availableProfessors, availableDancers] = await Promise.all([
+    listProfessorOptionsForChoreography(
+      academy.id,
+      choreography.professors.map((professor) => professor.id),
+    ),
+    listDancerOptionsForChoreography(
+      academy.id,
+      choreography.dancers.map((dancer) => dancer.id),
+    ),
+  ]);
 
   return {
     choreography,

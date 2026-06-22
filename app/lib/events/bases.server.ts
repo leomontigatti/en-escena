@@ -1,4 +1,5 @@
 import {
+  listChoreographyRegistrationBaseOptionsData,
   listEventBasesData,
   resolveApplicablePrice,
   resolveCompatibleScheduleCapacities,
@@ -42,6 +43,12 @@ export function getChoreographyRegistrationBaseOptions(
       modalityId: submodality.modalityId,
     })),
   };
+}
+
+export async function getChoreographyRegistrationInitialOptions(
+  eventId: string,
+): Promise<ChoreographyRegistrationBaseOptions> {
+  return listChoreographyRegistrationBaseOptionsData(eventId);
 }
 
 export async function resolveEventBasesPrice(input: {

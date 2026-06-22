@@ -118,6 +118,11 @@ describe("coreografías request flow", () => {
 
   test("keeps the create modal open with recoverable save errors", async () => {
     useActionDataMock.mockReturnValue(undefined);
+    useFetcherMock.mockReturnValueOnce({
+      data: buildCreateOptionsData(),
+      state: "idle",
+      load: vi.fn(),
+    });
     useFetcherMock.mockReturnValue({
       data: undefined,
       state: "idle",
@@ -293,6 +298,28 @@ function buildListLoaderData() {
 
   return {
     choreographies: [],
+    activeDancerCount: 1,
+    eventContext: {
+      selectedEvent: eventSummary,
+      activeEvent: eventSummary,
+      hasActiveEvent: true,
+      activeEventRegistrationReadiness: {
+        eventId: eventSummary.id,
+        isReady: true,
+        missingItems: [],
+      },
+      hasEvents: true,
+      isReadOnly: false,
+      isRegistrationOpen: true,
+    },
+  } as unknown as Parameters<
+    typeof PortalCoreografiasRouteView
+  >[0]["loaderData"];
+}
+
+function buildCreateOptionsData() {
+  return {
+    eventId: "event_1",
     activeDancers: [
       {
         id: "dancer_1",
@@ -328,20 +355,5 @@ function buildListLoaderData() {
         },
       ],
     },
-    eventContext: {
-      selectedEvent: eventSummary,
-      activeEvent: eventSummary,
-      hasActiveEvent: true,
-      activeEventRegistrationReadiness: {
-        eventId: eventSummary.id,
-        isReady: true,
-        missingItems: [],
-      },
-      hasEvents: true,
-      isReadOnly: false,
-      isRegistrationOpen: true,
-    },
-  } as unknown as Parameters<
-    typeof PortalCoreografiasRouteView
-  >[0]["loaderData"];
+  };
 }

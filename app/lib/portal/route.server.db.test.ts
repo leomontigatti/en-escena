@@ -36,6 +36,7 @@ import {
   action as coreografiasAction,
   loader as coreografiasLoader,
 } from "@/routes/portal.coreografias";
+import { loader as coreografiasCreateOptionsLoader } from "@/routes/portal.coreografias_.crear";
 import {
   action as perfilAction,
   loader as perfilLoader,
@@ -228,6 +229,76 @@ describe.sequential("portal loader Evento activo", () => {
       missingItems: expect.arrayContaining([
         expect.objectContaining({ code: "price-coverage" }),
       ]),
+    });
+  });
+
+  test("keeps Coreografías list loader focused and loads create options from the create resource", async () => {
+    const session = await createAcademySession({
+      email: "coreografias.crear@example.com",
+      academyName: "Academia Crear Coreografía",
+    });
+    const activeEvent = await createSavedEvent({
+      name: "Regional 2026",
+      registrationStartsAt: date("2026-06-01T12:00:00Z"),
+      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      startsAt: date("2026-07-01T12:00:00Z"),
+      endsAt: date("2026-07-03T12:00:00Z"),
+    });
+    await activateEvent(activeEvent.id);
+    const modality = await expectCreated(
+      createModality(activeEvent.id, { name: "Jazz" }),
+    );
+    const submodality = await expectCreated(
+      createSubmodality(activeEvent.id, {
+        modalityId: modality.id,
+        name: "Lyrical",
+      }),
+    );
+    await db.insert(dancers).values({
+      academyId: session.academyId,
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2014-01-01",
+      active: true,
+    });
+    await db.insert(professors).values({
+      academyId: session.academyId,
+      firstName: "Luz",
+      lastName: "Suárez",
+      active: true,
+    });
+    const request = new Request("http://localhost/portal/coreografias", {
+      headers: { cookie: session.cookie },
+    });
+
+    const listData = await coreografiasLoader({ request });
+    const createOptionsData = await coreografiasCreateOptionsLoader({
+      request: new Request("http://localhost/portal/coreografias/crear", {
+        headers: { cookie: session.cookie },
+      }),
+    });
+
+    expect(listData).toMatchObject({
+      activeDancerCount: 1,
+      choreographies: [],
+    });
+    expect(listData).not.toHaveProperty("activeDancers");
+    expect(listData).not.toHaveProperty("activeProfessors");
+    expect(listData).not.toHaveProperty("registrationBaseOptions");
+    expect(createOptionsData).toMatchObject({
+      eventId: activeEvent.id,
+      activeDancers: [expect.objectContaining({ firstName: "Ana" })],
+      activeProfessors: [expect.objectContaining({ firstName: "Luz" })],
+      registrationBaseOptions: {
+        modalities: [{ id: modality.id, name: "Jazz" }],
+        submodalities: [
+          {
+            id: submodality.id,
+            modalityId: modality.id,
+            name: "Lyrical",
+          },
+        ],
+      },
     });
   });
 });

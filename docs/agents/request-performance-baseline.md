@@ -130,3 +130,119 @@ Comparison protocol for future runs:
 5. `portal` layout event-context loader.
    The shell-level `getPortalEventContext` work is already a noticeable fixed
    cost before child route queries start.
+
+## Follow-up: Administración Eventos Readiness Batching
+
+Follow-up captured on 2026-06-22 after changing the `administracion.eventos`
+loader to use a list-oriented registration-readiness helper that reads cached
+readiness for all visible event ids in one query before recalculating dirty
+entries.
+
+Command:
+
+```bash
+REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+```
+
+Target comparison against the RHF Submit Standard follow-up:
+
+| Route                           | requestMs before | requestMs after | readiness/configurationMs before | readiness/configurationMs after |
+| ------------------------------- | ---------------: | --------------: | -------------------------------: | ------------------------------: |
+| `administracion.eventos` loader |            55.25 |           53.44 |                            91.82 |                           49.47 |
+
+Interpretation:
+
+- The readiness phase moved in the expected direction because the list route no
+  longer performs one cached-read query per relevant row.
+- The total request timing should still be treated as directional; this is a
+  single local run and other routes moved around due to normal test/runtime
+  variance.
+- The next real loader/query slice remains `portal.coreografias`, especially
+  separating route-critical list data from create-flow data.
+
+## Follow-up: Portal Coreografías Create Options Deferral
+
+Follow-up captured on 2026-06-22 after splitting `portal.coreografias` data
+loading into:
+
+- the list route loader, which now returns event context, the choreography list,
+  and an active dancer count for the create button; and
+- `/portal/coreografias/crear`, a resource loader that fetches active dancers,
+  active professors, and event base options only when the create dialog opens.
+
+Command:
+
+```bash
+REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+```
+
+Target comparison against the RHF Submit Standard follow-up:
+
+| Route                                       | requestMs before | requestMs after | mainQueryMs before | mainQueryMs after | readiness/configurationMs before | readiness/configurationMs after |
+| ------------------------------------------- | ---------------: | --------------: | -----------------: | ----------------: | -------------------------------: | ------------------------------: |
+| `portal.coreografias` loader                |            33.40 |           22.56 |              23.09 |              9.46 |                            25.04 |                            0.00 |
+| `portal.coreografias` create-options loader |              n/a |           21.35 |                n/a |              6.59 |                              n/a |                           15.71 |
+
+Interpretation:
+
+- The initial navigation no longer waits for create-flow dancers, professors, or
+  event-base option loading.
+- Opening the create dialog now pays that cost explicitly through a localized
+  pending state, so this is a route-navigation improvement rather than a total
+  elimination of work.
+- Future optimization can target the create-options loader itself if first modal
+  open feels slow, especially by slimming event-base option loading.
+
+## Follow-up: Portal Coreografías Slim Create Options
+
+Follow-up captured on 2026-06-22 after replacing full `getEventBases` loading
+inside `/portal/coreografias/crear` with a slim registration-options query that
+returns only modalities and submodalities for the first create-flow steps.
+
+Command:
+
+```bash
+REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+```
+
+Target comparison against the create-options deferral follow-up:
+
+| Route                                       | requestMs before | requestMs after | mainQueryMs before | mainQueryMs after | readiness/configurationMs before | readiness/configurationMs after |
+| ------------------------------------------- | ---------------: | --------------: | -----------------: | ----------------: | -------------------------------: | ------------------------------: |
+| `portal.coreografias` create-options loader |            21.35 |            7.73 |               6.59 |              4.21 |                            15.71 |                            0.00 |
+
+Interpretation:
+
+- The create dialog options resource no longer loads categories, schedules,
+  schedule capacities, prices, or other base data that the initial create steps
+  do not render.
+- The remaining cost is mostly auth/event context plus the active
+  dancers/professors option lists.
+- Further improvements should be driven by real list sizes or UX feedback
+  before splitting dancers/professors into later step-specific requests.
+
+## Follow-up: Portal Coreografía Detail Option Parallelization
+
+Follow-up captured on 2026-06-22 after loading available dancer and professor
+options in parallel inside the `portal.coreografias_.$choreographyId` loader.
+
+Command:
+
+```bash
+REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+```
+
+Target comparison against the slim create-options follow-up:
+
+| Route                                                | requestMs before | requestMs after | roundTripMs before | roundTripMs after |
+| ---------------------------------------------------- | ---------------: | --------------: | -----------------: | ----------------: |
+| `portal.coreografias_.$choreographyId` loader        |            15.20 |           13.73 |              15.20 |             13.73 |
+| `portal.coreografias_.$choreographyId` update action |             7.26 |            7.25 |              21.24 |             19.31 |
+
+Interpretation:
+
+- The win is smaller than the earlier over-fetching fixes because the detail
+  loader still needs choreography data plus both option lists to render the
+  editing surface.
+- This was still worth doing because it removes an unnecessary sequential wait
+  on every direct detail load and post-update revalidation.

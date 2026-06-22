@@ -42,6 +42,7 @@ import {
   action as portalCoreografiaAction,
   loader as portalCoreografiaLoader,
 } from "@/routes/portal.coreografias";
+import { loader as portalCoreografiaCreateOptionsLoader } from "@/routes/portal.coreografias_.crear";
 import {
   action as portalCoreografiaDetailAction,
   loader as portalCoreografiaDetailLoader,
@@ -138,7 +139,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         trackAsync(db.query.events, "findMany", "mainQueryMs"),
         trackAsync(
           eventReadinessModule,
-          "getEventRegistrationReadiness",
+          "getEventRegistrationReadinessByEventId",
           "readinessConfigurationMs",
         ),
       ],
@@ -284,7 +285,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           eventBasesModule,
-          "getEventBases",
+          "getChoreographyRegistrationInitialOptions",
           "readinessConfigurationMs",
         ),
       ],
@@ -624,6 +625,29 @@ export async function measureCriticalRequestBaseline(): Promise<
           "listChoreographiesForAcademyEvent",
           "mainQueryMs",
         ),
+        trackAsync(
+          portalDancersModule,
+          "countActiveDancersForAcademy",
+          "mainQueryMs",
+        ),
+      ],
+      run: () =>
+        portalCoreografiaLoader({
+          request: fixture.portalRequest("/portal/coreografias"),
+        }),
+    }),
+    await measureScenario({
+      id: "portal-coreografias-create-options-loader",
+      kind: "loader",
+      route: "/portal/coreografias/crear",
+      surface: "portal",
+      setupSpies: [
+        trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
+        trackAsync(
+          portalEventContextModule,
+          "getPortalActiveEventReadinessContext",
+          "eventContextMs",
+        ),
         trackAsync(portalDancersModule, "listDancersForAcademy", "mainQueryMs"),
         trackAsync(
           portalProfessorsModule,
@@ -637,8 +661,8 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
       ],
       run: () =>
-        portalCoreografiaLoader({
-          request: fixture.portalRequest("/portal/coreografias"),
+        portalCoreografiaCreateOptionsLoader({
+          request: fixture.portalRequest("/portal/coreografias/crear"),
         }),
     }),
     await measureScenario({

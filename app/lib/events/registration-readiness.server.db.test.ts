@@ -15,6 +15,7 @@ import {
 import { createEvent } from "@/lib/events/management.server";
 import {
   getEventRegistrationReadiness,
+  getEventRegistrationReadinessByEventId,
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
@@ -212,6 +213,57 @@ describe("event registration readiness", () => {
       }),
     ).resolves.toMatchObject({
       registrationReady: false,
+      registrationReadinessDirty: false,
+      registrationReadinessCalculatedAt: expect.any(Date),
+    });
+  });
+
+  test("loads readiness for multiple eventos while recalculating dirty entries", async () => {
+    const cachedReadyEvent = await createSavedEvent("Cache listo 2026");
+    const dirtyEvent = await createSavedEvent("Dirty 2026");
+    await createSavedEvent("No solicitado 2026");
+
+    await db
+      .update(events)
+      .set({
+        registrationReady: true,
+        registrationReadinessMissingItems: [],
+        registrationReadinessDirty: false,
+        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+      })
+      .where(eq(events.id, cachedReadyEvent.id));
+
+    const readinessByEventId = await getEventRegistrationReadinessByEventId([
+      cachedReadyEvent.id,
+      dirtyEvent.id,
+      cachedReadyEvent.id,
+    ]);
+
+    expect([...readinessByEventId.keys()].sort()).toEqual(
+      [cachedReadyEvent.id, dirtyEvent.id].sort(),
+    );
+    expect(readinessByEventId.get(cachedReadyEvent.id)).toEqual({
+      eventId: cachedReadyEvent.id,
+      isReady: true,
+      missingItems: [],
+    });
+    expect(readinessByEventId.get(dirtyEvent.id)).toMatchObject({
+      eventId: dirtyEvent.id,
+      isReady: false,
+      missingItems: expect.arrayContaining([
+        expect.objectContaining({ code: "modalities" }),
+        expect.objectContaining({ code: "categories" }),
+      ]),
+    });
+    await expect(
+      db.query.events.findFirst({
+        columns: {
+          registrationReadinessDirty: true,
+          registrationReadinessCalculatedAt: true,
+        },
+        where: eq(events.id, dirtyEvent.id),
+      }),
+    ).resolves.toMatchObject({
       registrationReadinessDirty: false,
       registrationReadinessCalculatedAt: expect.any(Date),
     });

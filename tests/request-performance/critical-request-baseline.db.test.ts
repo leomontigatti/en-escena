@@ -33,6 +33,7 @@ describe.sequential("critical request performance baseline", () => {
         "portal-profesor-detail-loader",
         "portal-profesor-update-action",
         "portal-coreografias-loader",
+        "portal-coreografias-create-options-loader",
         "portal-coreografias-create-action",
         "portal-coreografia-detail-loader",
         "portal-coreografia-update-action",
@@ -41,7 +42,7 @@ describe.sequential("critical request performance baseline", () => {
       ]),
     );
 
-    expect(results).toHaveLength(24);
+    expect(results).toHaveLength(25);
 
     for (const result of results) {
       expect(result.requestMs).toBeGreaterThan(0);

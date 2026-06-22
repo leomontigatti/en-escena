@@ -78,15 +78,11 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { listChoreographiesForAcademyEvent } from "@/lib/portal/choreographies.server";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
-import { listAcademyProfessors } from "@/lib/portal/professors.server";
-import { listDancersForAcademy } from "@/lib/portal/dancers.server";
+import { countActiveDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
-import {
-  getChoreographyRegistrationBaseOptions,
-  getEventBases,
-  type ChoreographyRegistrationBaseOptions,
-} from "@/lib/events/bases.server";
+import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import { isRouteFormPending, requiredFieldMessage } from "@/lib/shared/forms";
+import type { loader as createChoreographyOptionsLoader } from "@/routes/portal.coreografias_.crear";
 
 type PortalCoreografiasRouteProps = {
   actionData?: CreateActionData;
@@ -99,6 +95,9 @@ type PortalCoreografiasRouteProps = {
 type PortalCoreografiasLoaderData = PortalCoreografiasRouteProps["loaderData"];
 type PortalCoreografiasEventContext =
   PortalCoreografiasLoaderData["eventContext"];
+type CreateChoreographyOptionsLoaderData = Awaited<
+  ReturnType<typeof createChoreographyOptionsLoader>
+>;
 type RegistrationResolution = Extract<
   ChoreographyRegistrationOperationResult,
   { ok: true }
@@ -191,24 +190,17 @@ export async function loader({ request }: { request: Request }) {
   const { academy } = await requireAcademyUser(request);
   const eventContext = await getPortalActiveEventReadinessContext(request);
   const selectedEventId = eventContext.selectedEvent?.id ?? null;
-  const [choreographies, activeDancers, activeProfessors, baseOptions] =
-    await Promise.all([
-      selectedEventId
-        ? listChoreographiesForAcademyEvent(academy.id, selectedEventId)
-        : Promise.resolve([]),
-      listDancersForAcademy(academy.id, { status: "active" }),
-      listAcademyProfessors(academy.id, { status: "active" }),
-      selectedEventId ? getEventBases(selectedEventId) : Promise.resolve(null),
-    ]);
+  const [choreographies, activeDancerCount] = await Promise.all([
+    selectedEventId
+      ? listChoreographiesForAcademyEvent(academy.id, selectedEventId)
+      : Promise.resolve([]),
+    countActiveDancersForAcademy(academy.id),
+  ]);
 
   return {
     choreographies,
     eventContext,
-    activeDancers,
-    activeProfessors,
-    registrationBaseOptions: baseOptions
-      ? getChoreographyRegistrationBaseOptions(baseOptions)
-      : null,
+    activeDancerCount,
   };
 }
 
@@ -267,9 +259,12 @@ export function PortalCoreografiasRouteView({
 }: PortalCoreografiasRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const creationAvailability = getPortalChoreographyCreationAvailability({
-    activeDancerCount: loaderData.activeDancers.length,
+    activeDancerCount: loaderData.activeDancerCount,
     eventContext: loaderData.eventContext,
   });
+  const creationOptionsFetcher =
+    useFetcher<typeof createChoreographyOptionsLoader>();
+  const creationOptionsData = creationOptionsFetcher.data;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(
     initialCreateDialogOpen || actionData?.modalOpen === true,
   );
@@ -288,7 +283,32 @@ export function PortalCoreografiasRouteView({
     }
   }, [created]);
 
+  useEffect(() => {
+    if (!isCreateModalOpen || !selectedEvent) {
+      return;
+    }
+
+    if (
+      creationOptionsFetcher.state !== "idle" ||
+      creationOptionsData?.eventId === selectedEvent.id
+    ) {
+      return;
+    }
+
+    void creationOptionsFetcher.load("/portal/coreografias/crear");
+  }, [
+    creationOptionsData?.eventId,
+    creationOptionsFetcher,
+    creationOptionsFetcher.state,
+    isCreateModalOpen,
+    selectedEvent,
+  ]);
+
   const visibleActionData = dismissServerState ? undefined : actionData;
+  const createModalOptions =
+    creationOptionsData?.eventId === selectedEvent?.id
+      ? creationOptionsData
+      : null;
 
   return (
     <>
@@ -330,20 +350,27 @@ export function PortalCoreografiasRouteView({
         )}
       </PortalListPage>
 
-      {isCreateModalOpen &&
-      selectedEvent &&
-      loaderData.registrationBaseOptions ? (
-        <CreateChoreographyModal
-          actionData={visibleActionData}
-          baseOptions={loaderData.registrationBaseOptions}
-          dancers={loaderData.activeDancers}
-          eventId={selectedEvent.id}
-          professors={loaderData.activeProfessors}
-          onClose={() => {
-            setDismissServerState(true);
-            setIsCreateModalOpen(false);
-          }}
-        />
+      {isCreateModalOpen && selectedEvent ? (
+        createModalOptions ? (
+          <CreateChoreographyModal
+            actionData={visibleActionData}
+            baseOptions={createModalOptions.registrationBaseOptions}
+            dancers={createModalOptions.activeDancers}
+            eventId={selectedEvent.id}
+            professors={createModalOptions.activeProfessors}
+            onClose={() => {
+              setDismissServerState(true);
+              setIsCreateModalOpen(false);
+            }}
+          />
+        ) : (
+          <CreateChoreographyOptionsLoadingDialog
+            onClose={() => {
+              setDismissServerState(true);
+              setIsCreateModalOpen(false);
+            }}
+          />
+        )
       ) : null}
     </>
   );
@@ -565,6 +592,37 @@ function formatPrimaryAndSecondaryValue(
   return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
+function CreateChoreographyOptionsLoadingDialog({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-w-lg" overlayClassName="backdrop-blur-sm">
+        <DialogHeader>
+          <DialogTitle>Nueva coreografía</DialogTitle>
+          <DialogDescription>
+            Estamos preparando las opciones para registrar la coreografía.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+          Cargando bailarines, profesores y bases del evento...
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateChoreographyModal({
   actionData,
   baseOptions,
@@ -575,9 +633,9 @@ function CreateChoreographyModal({
 }: {
   actionData?: CreateActionData;
   baseOptions: ChoreographyRegistrationBaseOptions;
-  dancers: PortalCoreografiasLoaderData["activeDancers"];
+  dancers: CreateChoreographyOptionsLoaderData["activeDancers"];
   eventId: string;
-  professors: PortalCoreografiasLoaderData["activeProfessors"];
+  professors: CreateChoreographyOptionsLoaderData["activeProfessors"];
   onClose: () => void;
 }) {
   const calculationFetcher = useFetcher<typeof action>();
@@ -1146,7 +1204,7 @@ function ChoreographyCreationSummary({
   resolution: RegistrationResolution;
   selectedExperienceLevelId: string;
   selectedModalityId: string;
-  selectedProfessors: PortalCoreografiasLoaderData["activeProfessors"];
+  selectedProfessors: CreateChoreographyOptionsLoaderData["activeProfessors"];
   selectedScheduleCapacityId: string;
   selectedSubmodalityId: string;
 }) {

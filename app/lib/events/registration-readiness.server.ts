@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
@@ -86,6 +86,58 @@ export async function getEventRegistrationReadiness(
   await saveEventRegistrationReadiness(readiness);
 
   return readiness;
+}
+
+export async function getEventRegistrationReadinessByEventId(
+  eventIds: string[],
+): Promise<Map<string, EventRegistrationReadiness>> {
+  const uniqueEventIds = [...new Set(eventIds)];
+
+  if (uniqueEventIds.length === 0) {
+    return new Map();
+  }
+
+  const cachedReadinessRows = await db.query.events.findMany({
+    columns: {
+      id: true,
+      registrationReady: true,
+      registrationReadinessMissingItems: true,
+      registrationReadinessDirty: true,
+    },
+    where: inArray(events.id, uniqueEventIds),
+  });
+  const cachedReadinessByEventId = new Map(
+    cachedReadinessRows.map((row) => [row.id, row]),
+  );
+  const readinessByEventId = new Map<string, EventRegistrationReadiness>();
+  const dirtyOrMissingEventIds: string[] = [];
+
+  for (const eventId of uniqueEventIds) {
+    const cachedReadiness = cachedReadinessByEventId.get(eventId);
+
+    if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+      readinessByEventId.set(eventId, {
+        eventId,
+        isReady: cachedReadiness.registrationReady,
+        missingItems:
+          cachedReadiness.registrationReadinessMissingItems as EventRegistrationMissingItem[],
+      });
+      continue;
+    }
+
+    dirtyOrMissingEventIds.push(eventId);
+  }
+
+  await Promise.all(
+    dirtyOrMissingEventIds.map(async (eventId) => {
+      readinessByEventId.set(
+        eventId,
+        await getEventRegistrationReadiness(eventId),
+      );
+    }),
+  );
+
+  return readinessByEventId;
 }
 
 export async function markEventRegistrationReadinessDirty(eventId: string) {

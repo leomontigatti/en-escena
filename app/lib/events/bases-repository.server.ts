@@ -272,6 +272,35 @@ const eventBaseCopy = {
   }
 >;
 
+export async function listChoreographyRegistrationBaseOptionsData(
+  eventId: string,
+) {
+  const [eventModalities, eventSubmodalities] = await Promise.all([
+    db.query.modalities.findMany({
+      columns: {
+        id: true,
+        name: true,
+      },
+      where: eq(modalities.eventId, eventId),
+      orderBy: [asc(modalities.name)],
+    }),
+    db.query.submodalities.findMany({
+      columns: {
+        id: true,
+        name: true,
+        modalityId: true,
+      },
+      where: eq(submodalities.eventId, eventId),
+      orderBy: [asc(submodalities.name)],
+    }),
+  ]);
+
+  return {
+    modalities: eventModalities,
+    submodalities: eventSubmodalities,
+  };
+}
+
 export async function listEventBasesData(eventId: string) {
   const [
     eventModalities,

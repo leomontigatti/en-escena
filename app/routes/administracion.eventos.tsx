@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { getEventRegistrationReadinessByEventId } from "@/lib/events/registration-readiness.server";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
@@ -63,15 +63,10 @@ export async function loader({ request }: Route.LoaderArgs) {
       temporalState,
     };
   });
-  const eventReadinessById = new Map(
-    await Promise.all(
-      eventsWithTemporalState
-        .filter((eventState) => eventState.shouldShowRegistrationReadiness)
-        .map(
-          async ({ event }) =>
-            [event.id, await getEventRegistrationReadiness(event.id)] as const,
-        ),
-    ),
+  const eventReadinessById = await getEventRegistrationReadinessByEventId(
+    eventsWithTemporalState
+      .filter((eventState) => eventState.shouldShowRegistrationReadiness)
+      .map(({ event }) => event.id),
   );
 
   return {
