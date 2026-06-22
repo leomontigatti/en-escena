@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
@@ -9,11 +9,35 @@ type ResolveAdminEventContextInput = {
   events: AdminEventOption[];
 };
 
+export type AdminShellEventContext = {
+  events: AdminEventOption[];
+  selectedEventId: string | null;
+};
+
 export type AdminEventContext = {
   events: AdminEventOption[];
   selectedEventId: string | null;
   redirectTo: string | null;
 };
+
+export async function loadAdminShellEventContext(
+  request: Request,
+): Promise<AdminShellEventContext> {
+  const activeEvent = await db.query.events.findFirst({
+    columns: {
+      id: true,
+      name: true,
+      active: true,
+    },
+    where: eq(eventsTable.active, true),
+    orderBy: [desc(eventsTable.startsAt)],
+  });
+
+  return {
+    events: activeEvent ? [activeEvent] : [],
+    selectedEventId: activeEvent?.id ?? null,
+  };
+}
 
 export async function loadAdminEventContext(
   request: Request,
