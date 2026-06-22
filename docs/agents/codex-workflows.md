@@ -22,10 +22,11 @@ Recommended validation order after code changes:
 
 1. `npm run format`
 2. `npm run format:check`
-3. `npm run typecheck`
-4. `npm run test`
-5. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-6. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
+3. `npm run guardrail:repo-style`
+4. `npm run typecheck`
+5. `npm run test`
+6. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+7. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 Do not start a later validation command while an earlier command is still failing
@@ -34,6 +35,10 @@ or while formatting changes are unverified.
 During the development loop, prefer focused validation for the area being
 changed before running the broader final checks:
 
+- Run `npm run guardrail:repo-style` when the change adds or edits app UI code.
+  This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`
+  utilities in application source, while keeping explicit coded exceptions for
+  intentional patterns such as the overlapping `AvatarGroup`.
 - Run the nearest relevant Vitest file or test name for small non-database
   changes, then run `npm run test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with
