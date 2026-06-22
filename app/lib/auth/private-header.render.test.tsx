@@ -65,28 +65,7 @@ describe("private route headers", () => {
   );
 
   test("panel de administración renders session context in the sidebar dropdown trigger", () => {
-    const RoutesStub = createRoutesStub([
-      {
-        path: "/administracion",
-        Component: AdministracionRouteView,
-      },
-    ]);
-    const markup = renderToStaticMarkup(
-      createElement(RoutesStub, {
-        initialEntries: ["/administracion"],
-        hydrationData: {
-          loaderData: {
-            "0": {
-              email: "admin@example.com",
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
-            },
-          },
-        },
-      }),
-    );
+    const markup = renderAdminRoute();
 
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Usuario interno");
@@ -112,28 +91,7 @@ describe("private route headers", () => {
   });
 
   test("admin, auditoría y root error usan tokens semánticos en sus superficies compartidas", () => {
-    const adminRoutesStub = createRoutesStub([
-      {
-        path: "/administracion",
-        Component: AdministracionRouteView,
-      },
-    ]);
-    const adminMarkup = renderToStaticMarkup(
-      createElement(adminRoutesStub, {
-        initialEntries: ["/administracion"],
-        hydrationData: {
-          loaderData: {
-            "0": {
-              email: "admin@example.com",
-              events: [
-                { id: "evento_2026", name: "Evento 2026", active: true },
-              ],
-              selectedEventId: "evento_2026",
-            },
-          },
-        },
-      }),
-    );
+    const adminMarkup = renderAdminRoute();
     const auditoriaMarkup = renderPrivateRoute(
       <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
     );
@@ -173,6 +131,30 @@ describe("private route headers", () => {
     expect(rootSource).not.toContain("text-slate-600");
   });
 });
+
+function renderAdminRoute() {
+  const RoutesStub = createRoutesStub([
+    {
+      path: "/administracion",
+      Component: AdministracionRouteView,
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: ["/administracion"],
+      hydrationData: {
+        loaderData: {
+          "0": {
+            email: "admin@example.com",
+            events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
+            selectedEventId: "evento_2026",
+          },
+        },
+      },
+    }),
+  );
+}
 
 function renderPortal(email: string) {
   const loaderData = {
