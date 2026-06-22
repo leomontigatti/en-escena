@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const appDirectory = path.resolve("app");
 const sourceFilePattern = /\.(ts|tsx)$/;
@@ -22,6 +23,11 @@ const spaceUtilityPattern = new RegExp(
 );
 
 type RepoStyleRule = "no-tailwind-hardcoded-colors" | "prefer-gap-over-space";
+
+type RepoStyleRuleCheck = {
+  pattern: RegExp;
+  rule: RepoStyleRule;
+};
 
 export type RepoStyleViolation = {
   filePath: string;
@@ -52,6 +58,17 @@ const repoStyleExceptions: RepoStyleException[] = [
   },
 ];
 
+const repoStyleRuleChecks: RepoStyleRuleCheck[] = [
+  {
+    pattern: hardcodedColorUtilityPattern,
+    rule: "no-tailwind-hardcoded-colors",
+  },
+  {
+    pattern: spaceUtilityPattern,
+    rule: "prefer-gap-over-space",
+  },
+];
+
 export async function checkRepoStyle(
   options: CheckRepoStyleOptions = {},
 ): Promise<RepoStyleViolation[]> {
@@ -69,24 +86,15 @@ export async function checkRepoStyle(
     return lines.flatMap((line, index) => {
       const lineNumber = index + 1;
 
-      return [
-        ...findViolations({
+      return repoStyleRuleChecks.flatMap((ruleCheck) =>
+        findViolations({
           filePath: relativePath,
           line,
           lineNumber,
-          pattern: hardcodedColorUtilityPattern,
           repoRelativePath,
-          rule: "no-tailwind-hardcoded-colors",
+          ...ruleCheck,
         }),
-        ...findViolations({
-          filePath: relativePath,
-          line,
-          lineNumber,
-          pattern: spaceUtilityPattern,
-          repoRelativePath,
-          rule: "prefer-gap-over-space",
-        }),
-      ];
+      );
     });
   });
 }
@@ -192,7 +200,7 @@ function getSourceFiles(directoryPath: string): string[] {
   );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
   runRepoStyleGuardrail().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
