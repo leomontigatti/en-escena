@@ -19,6 +19,7 @@ import {
   PortalEmptyListSection,
   PortalShell,
 } from "@/components/portal/ui";
+import type { PortalEventContext } from "@/lib/portal/event-context";
 import { PortalRouteView } from "@/routes/portal";
 import { PortalBailarinDetalleRouteView } from "@/routes/portal.bailarines_.$dancerId";
 import { PortalBailarinesRouteView } from "@/routes/portal.bailarines";
@@ -286,18 +287,7 @@ describe("portal route view", () => {
           emptyTitle="Todavía no hay profesores"
           emptyDescription="Cuando sumes profesores, van a aparecer en esta sección."
         />
-        <PortalCoreographiesSection
-          eventContext={{
-            events: [eventSummary()],
-            selectedEvent: eventSummary(),
-            activeEvent: eventSummary(),
-            hasActiveEvent: true,
-            activeEventRegistrationReadiness: readiness(true),
-            hasEvents: true,
-            isReadOnly: false,
-            isRegistrationOpen: true,
-          }}
-        />
+        <PortalCoreographiesSection eventContext={portalEventContext()} />
       </>,
     );
 
@@ -315,18 +305,7 @@ describe("portal route view", () => {
 
   test("renders shared coreografía availability states with shadcn alert and badge variants", () => {
     const readyMarkup = renderToStaticMarkup(
-      <PortalCoreographiesSection
-        eventContext={{
-          events: [eventSummary()],
-          selectedEvent: eventSummary(),
-          activeEvent: eventSummary(),
-          hasActiveEvent: true,
-          activeEventRegistrationReadiness: readiness(true),
-          hasEvents: true,
-          isReadOnly: false,
-          isRegistrationOpen: true,
-        }}
-      />,
+      <PortalCoreographiesSection eventContext={portalEventContext()} />,
     );
 
     expect(readyMarkup).toContain('data-slot="alert"');
@@ -335,16 +314,9 @@ describe("portal route view", () => {
 
     const blockedMarkup = renderToStaticMarkup(
       <PortalCoreographiesSection
-        eventContext={{
-          events: [eventSummary()],
-          selectedEvent: eventSummary(),
-          activeEvent: eventSummary(),
-          hasActiveEvent: true,
+        eventContext={portalEventContext({
           activeEventRegistrationReadiness: readiness(false),
-          hasEvents: true,
-          isReadOnly: false,
-          isRegistrationOpen: true,
-        }}
+        })}
       />,
     );
 
@@ -354,16 +326,10 @@ describe("portal route view", () => {
 
     const infoMarkup = renderToStaticMarkup(
       <PortalCoreographiesSection
-        eventContext={{
-          events: [eventSummary()],
-          selectedEvent: eventSummary(),
-          activeEvent: eventSummary(),
-          hasActiveEvent: true,
-          activeEventRegistrationReadiness: readiness(true),
-          hasEvents: true,
+        eventContext={portalEventContext({
           isReadOnly: true,
           isRegistrationOpen: false,
-        }}
+        })}
       />,
     );
 
@@ -1589,6 +1555,8 @@ function renderProfesores(input: Partial<ProfesoresViewProps> = {}) {
 type CoreografiasViewProps = Parameters<typeof PortalCoreografiasRouteView>[0];
 
 function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
+  const loaderData = input.loaderData ?? coreografiasLoaderData();
+
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/portal/coreografias"]}>
       {renderPortalShellForTest(
@@ -1597,9 +1565,9 @@ function renderCoreografias(input: Partial<CoreografiasViewProps> = {}) {
           created={input.created}
           deleted={input.deleted}
           initialCreateDialogOpen={input.initialCreateDialogOpen}
-          loaderData={input.loaderData ?? coreografiasLoaderData()}
+          loaderData={loaderData}
         />,
-        (input.loaderData ?? coreografiasLoaderData()).eventContext,
+        loaderData.eventContext,
       )}
     </MemoryRouter>,
   );
@@ -1665,16 +1633,7 @@ function renderProfesorEdit(input: Partial<ProfesorEditViewProps> = {}) {
 function renderPortalShellForTest(
   activePath: string,
   children: ReactNode,
-  eventContext: PortalLoaderData["eventContext"] = {
-    events: [eventSummary()],
-    selectedEvent: eventSummary(),
-    activeEvent: eventSummary(),
-    hasActiveEvent: true,
-    activeEventRegistrationReadiness: readiness(true),
-    hasEvents: true,
-    isReadOnly: false,
-    isRegistrationOpen: true,
-  },
+  eventContext: PortalLoaderData["eventContext"] = portalEventContext(),
 ) {
   return (
     <PortalShell
@@ -1714,16 +1673,7 @@ function academyLoaderData({
   professors = [],
   statusFilter = "active",
   successMessage = null,
-  eventContext = {
-    events: [eventSummary()],
-    selectedEvent: eventSummary(),
-    activeEvent: eventSummary(),
-    hasActiveEvent: true,
-    activeEventRegistrationReadiness: readiness(true),
-    hasEvents: true,
-    isReadOnly: false,
-    isRegistrationOpen: true,
-  },
+  eventContext = portalEventContext(),
 }: {
   dancers?: Parameters<
     typeof PortalBailarinesRouteView
@@ -1760,16 +1710,7 @@ function coreografiasLoaderData({
       { id: "submodality_1", name: "Lyrical", modalityId: "modality_1" },
     ],
   },
-  eventContext = {
-    events: [eventSummary()],
-    selectedEvent: eventSummary(),
-    activeEvent: eventSummary(),
-    hasActiveEvent: true,
-    activeEventRegistrationReadiness: readiness(true),
-    hasEvents: true,
-    isReadOnly: false,
-    isRegistrationOpen: true,
-  },
+  eventContext = portalEventContext(),
 }: {
   choreographies?: Parameters<
     typeof PortalCoreografiasRouteView
@@ -1964,6 +1905,24 @@ function eventSummary(
     registrationEndsAt: date("2026-04-30T12:00:00Z"),
     startsAt: date("2026-05-01T12:00:00Z"),
     endsAt: date("2026-05-03T12:00:00Z"),
+    ...overrides,
+  };
+}
+
+function portalEventContext(
+  overrides: Partial<PortalEventContext> = {},
+): PortalEventContext {
+  const event = eventSummary();
+
+  return {
+    events: [event],
+    selectedEvent: event,
+    activeEvent: event,
+    hasActiveEvent: true,
+    activeEventRegistrationReadiness: readiness(true),
+    hasEvents: true,
+    isReadOnly: false,
+    isRegistrationOpen: true,
     ...overrides,
   };
 }

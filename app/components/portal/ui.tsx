@@ -154,8 +154,17 @@ type CoreographyCreationState = {
   details: string[];
 };
 
-type AlertVariant = ComponentProps<typeof Alert>["variant"];
-type BadgeVariant = ComponentProps<typeof Badge>["variant"];
+type AlertVariant = NonNullable<ComponentProps<typeof Alert>["variant"]>;
+type BadgeVariant = NonNullable<ComponentProps<typeof Badge>["variant"]>;
+type CreationAvailabilityPresentation = {
+  alertVariant: AlertVariant;
+  badgeLabel: string;
+  badgeVariant: BadgeVariant;
+};
+type EventStatusPresentation = {
+  label: string;
+  variant: BadgeVariant;
+};
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
@@ -164,36 +173,24 @@ const portalNavigationItems = [
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
 ] as const;
 
-const creationAvailabilityToneProps: Record<
+const creationAvailabilityPresentationByTone: Record<
   CoreographyCreationState["tone"],
-  {
-    alertVariant: AlertVariant;
-    badge: {
-      label: string;
-      variant: BadgeVariant;
-    };
-  }
+  CreationAvailabilityPresentation
 > = {
   ready: {
     alertVariant: "default",
-    badge: {
-      label: "Disponible",
-      variant: "default",
-    },
+    badgeLabel: "Disponible",
+    badgeVariant: "default",
   },
   blocked: {
     alertVariant: "destructive",
-    badge: {
-      label: "Bloqueado",
-      variant: "destructive",
-    },
+    badgeLabel: "Bloqueado",
+    badgeVariant: "destructive",
   },
   info: {
     alertVariant: "default",
-    badge: {
-      label: "Información",
-      variant: "secondary",
-    },
+    badgeLabel: "Información",
+    badgeVariant: "secondary",
   },
 };
 
@@ -494,8 +491,8 @@ export function PortalCoreographiesSection({
   const selectedEvent = eventContext.selectedEvent;
   const creationAvailability = getCoreographyCreationState(eventContext);
   const eventStatus = getPortalEventStatus(eventContext.isReadOnly);
-  const creationAvailabilityTone =
-    creationAvailabilityToneProps[creationAvailability.tone];
+  const creationAvailabilityPresentation =
+    creationAvailabilityPresentationByTone[creationAvailability.tone];
 
   return (
     <section className="mt-8" aria-labelledby="coreografias-title">
@@ -526,11 +523,13 @@ export function PortalCoreographiesSection({
               <Badge variant={eventStatus.variant}>{eventStatus.label}</Badge>
             </CardHeader>
             <CardContent>
-              <Alert variant={creationAvailabilityTone.alertVariant}>
+              <Alert variant={creationAvailabilityPresentation.alertVariant}>
                 <AlertTitle className="flex flex-wrap items-center gap-2">
                   <span>{creationAvailability.message}</span>
-                  <Badge variant={creationAvailabilityTone.badge.variant}>
-                    {creationAvailabilityTone.badge.label}
+                  <Badge
+                    variant={creationAvailabilityPresentation.badgeVariant}
+                  >
+                    {creationAvailabilityPresentation.badgeLabel}
                   </Badge>
                 </AlertTitle>
                 {creationAvailability.details.length > 0 ? (
@@ -597,17 +596,17 @@ function isNavigationItemActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-function getPortalEventStatus(isReadOnly: boolean) {
+function getPortalEventStatus(isReadOnly: boolean): EventStatusPresentation {
   if (isReadOnly) {
     return {
       label: getPortalEventStatusLabel(true),
-      variant: "secondary" as const,
+      variant: "secondary",
     };
   }
 
   return {
     label: getPortalEventStatusLabel(false),
-    variant: "default" as const,
+    variant: "default",
   };
 }
 
