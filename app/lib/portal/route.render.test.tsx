@@ -313,6 +313,65 @@ describe("portal route view", () => {
     expect(markup).not.toContain("bg-slate-50");
   });
 
+  test("renders shared coreografía availability states with shadcn alert and badge variants", () => {
+    const readyMarkup = renderToStaticMarkup(
+      <PortalCoreographiesSection
+        eventContext={{
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        }}
+      />,
+    );
+
+    expect(readyMarkup).toContain('data-slot="alert"');
+    expect(readyMarkup).toContain('data-variant="default"');
+    expect(readyMarkup).toContain(">Disponible<");
+
+    const blockedMarkup = renderToStaticMarkup(
+      <PortalCoreographiesSection
+        eventContext={{
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(false),
+          hasEvents: true,
+          isReadOnly: false,
+          isRegistrationOpen: true,
+        }}
+      />,
+    );
+
+    expect(blockedMarkup).toContain('data-slot="alert"');
+    expect(blockedMarkup).toContain(">Bloqueado<");
+    expect(blockedMarkup).toContain('data-variant="destructive"');
+
+    const infoMarkup = renderToStaticMarkup(
+      <PortalCoreographiesSection
+        eventContext={{
+          events: [eventSummary()],
+          selectedEvent: eventSummary(),
+          activeEvent: eventSummary(),
+          hasActiveEvent: true,
+          activeEventRegistrationReadiness: readiness(true),
+          hasEvents: true,
+          isReadOnly: true,
+          isRegistrationOpen: false,
+        }}
+      />,
+    );
+
+    expect(infoMarkup).toContain('data-slot="alert"');
+    expect(infoMarkup).toContain(">Información<");
+    expect(infoMarkup).toContain('data-variant="secondary"');
+  });
+
   test("shows the delete success notice on the Coreografías list", () => {
     const markup = renderCoreografias({
       deleted: true,
