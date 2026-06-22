@@ -329,6 +329,7 @@ function EditEventPanel({
   const eventForm = useEventForm({
     values: defaultValues,
     fieldErrors: actionData?.fieldErrors,
+    pendingScope: { intent: "update" },
   });
 
   return (
@@ -347,9 +348,9 @@ function EditEventPanel({
           <Button asChild variant="outline" size="lg">
             <Link to="/administracion/eventos">Volver</Link>
           </Button>
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" disabled={eventForm.isPending}>
             <Check aria-hidden="true" data-icon="inline-start" />
-            Guardar
+            {eventForm.isPending ? "Guardando evento..." : "Guardar"}
           </Button>
         </CardFooter>
       </Card>

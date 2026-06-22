@@ -81,6 +81,7 @@ export function AdministracionEventoNuevoRouteView({
   const eventForm = useEventForm({
     values: defaultValues,
     fieldErrors: actionData?.fieldErrors,
+    pendingScope: { intent: "create" },
   });
 
   useServerActionToast(actionData, {
@@ -94,6 +95,7 @@ export function AdministracionEventoNuevoRouteView({
       requireSelectedEvent={false}
     >
       <form method="post" noValidate onSubmit={eventForm.handleSubmit}>
+        <input type="hidden" name="intent" value="create" />
         <Card>
           <CardContent>
             <EventFormFields controller={eventForm} />
@@ -102,9 +104,9 @@ export function AdministracionEventoNuevoRouteView({
             <Button asChild variant="outline" size="lg">
               <Link to="/administracion/eventos">Volver</Link>
             </Button>
-            <Button type="submit" size="lg">
+            <Button type="submit" size="lg" disabled={eventForm.isPending}>
               <Check aria-hidden="true" data-icon="inline-start" />
-              Guardar
+              {eventForm.isPending ? "Guardando evento..." : "Guardar"}
             </Button>
           </CardFooter>
         </Card>

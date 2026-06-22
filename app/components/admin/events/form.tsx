@@ -3,7 +3,6 @@ import { useEffect, useId } from "react";
 import {
   Controller,
   type FieldPathByValue,
-  type SubmitHandler,
   useForm,
   useWatch,
   type UseFormReturn,
@@ -25,13 +24,22 @@ import {
   type EventFormValues,
   type FieldErrors,
 } from "@/lib/admin/events/form-values";
-import { useApplyServerFieldErrors } from "@/lib/shared/forms";
+import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
+  type RouteFormPendingScope,
+  useApplyServerFieldErrors,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
+} from "@/lib/shared/forms";
 
 type EventFormReturn = UseFormReturn<EventFormValues, unknown, EventFormValues>;
 type EventFormStringFieldName = FieldPathByValue<EventFormValues, string>;
 
 export type EventFormController = {
   form: EventFormReturn;
+  isPending: boolean;
   handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
 };
 
@@ -44,15 +52,20 @@ const emptyEventFieldErrors: FieldErrors = {};
 export function useEventForm({
   values,
   fieldErrors = emptyEventFieldErrors,
+  pendingScope,
 }: {
   values: EventFormValues;
   fieldErrors?: FieldErrors;
+  pendingScope?: RouteFormPendingScope;
 }): EventFormController {
   const form = useForm<EventFormValues, unknown, EventFormValues>({
     defaultValues: values,
     mode: "onSubmit",
     resolver: zodResolver(eventFormSchema),
   });
+  const formAction = useOptionalFormAction();
+  const navigation = useOptionalNavigation();
+  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(values);
@@ -68,20 +81,12 @@ export function useEventForm({
 
   useApplyServerFieldErrors(form, fieldErrors);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<EventFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
-
   return {
     form,
-    handleSubmit,
+    handleSubmit: createValidatedRouteSubmitHandler(form, submit, formAction),
+    isPending: pendingScope
+      ? isRouteFormPending(navigation, pendingScope)
+      : false,
   };
 }
 
