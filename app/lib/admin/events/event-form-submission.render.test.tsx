@@ -160,6 +160,7 @@ describe("Evento RHF + React Router form submission", () => {
     const submitButton = getButton("Guardando evento...");
 
     expect(submitButton.disabled).toBe(true);
+    expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
   test("keeps server field errors visible on the Evento detail form", () => {

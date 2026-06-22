@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
@@ -455,8 +456,12 @@ export function PortalBailarinDetalleRouteView({
               size="lg"
               disabled={isSubmitting}
             >
-              <Check aria-hidden="true" data-icon="inline-start" />
-              {isSubmitting ? "Guardando..." : "Guardar"}
+              <ButtonPendingContent
+                isPending={isSubmitting}
+                pendingLabel="Guardando..."
+                idleLabel="Guardar"
+                idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
+              />
             </Button>
           </CardFooter>
         </Card>

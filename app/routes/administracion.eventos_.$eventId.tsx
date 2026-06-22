@@ -1,11 +1,12 @@
 import { eq } from "drizzle-orm";
 import { Check, Trash, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, redirect, useActionData } from "react-router";
+import { Link, redirect, useActionData, useNavigation } from "react-router";
 import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { isRouteFormPending } from "@/lib/shared/forms";
 import {
   routeNotificationToastIds,
   type RouteNotificationKey,
@@ -349,8 +351,12 @@ function EditEventPanel({
             <Link to="/administracion/eventos">Volver</Link>
           </Button>
           <Button type="submit" size="lg" disabled={eventForm.isPending}>
-            <Check aria-hidden="true" data-icon="inline-start" />
-            {eventForm.isPending ? "Guardando evento..." : "Guardar"}
+            <ButtonPendingContent
+              isPending={eventForm.isPending}
+              pendingLabel="Guardando evento..."
+              idleLabel="Guardar"
+              idleIcon={<Check aria-hidden="true" data-icon="inline-start" />}
+            />
           </Button>
         </CardFooter>
       </Card>
@@ -363,7 +369,10 @@ function EventActions({ event }: { event: EventRow }) {
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-48">
+      <ResourceActionsMenu
+        contentClassName="w-48"
+        contentProps={{ forceMount: true }}
+      >
         <DropdownMenuGroup>
           <EventActionItem
             action={eventActionPath(event.id)}
@@ -417,6 +426,12 @@ function DeleteEventDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const navigation = useNavigation();
+  const isPending = isRouteFormPending(navigation, {
+    intent: "delete",
+    fields: { confirmDeletion: event.id },
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -435,9 +450,13 @@ function DeleteEventDialog({
           <form method="post" action={eventActionPath(event.id)}>
             <input type="hidden" name="intent" value="delete" />
             <input type="hidden" name="confirmDeletion" value={event.id} />
-            <Button type="submit" variant="destructive">
-              <Trash data-icon="inline-start" />
-              Eliminar
+            <Button type="submit" variant="destructive" disabled={isPending}>
+              <ButtonPendingContent
+                isPending={isPending}
+                pendingLabel="Eliminando..."
+                idleLabel="Eliminar"
+                idleIcon={<Trash data-icon="inline-start" />}
+              />
             </Button>
           </form>
         </DialogFooter>
@@ -463,6 +482,12 @@ function EventActionItem({
   value?: string;
   variant?: "destructive";
 }) {
+  const navigation = useNavigation();
+  const isPending = isRouteFormPending(navigation, {
+    intent,
+    fields: value ? { value } : undefined,
+  });
+
   return (
     <form method="post" action={action}>
       <input type="hidden" name="intent" value={intent} />
@@ -473,13 +498,39 @@ function EventActionItem({
       <DropdownMenuItem asChild variant={variant}>
         <button
           type="submit"
+          disabled={isPending}
           className="w-full justify-start whitespace-nowrap"
         >
-          {label}
+          <span className="inline-flex items-center gap-2">
+            <ButtonPendingContent
+              isPending={isPending}
+              pendingLabel={getEventActionPendingLabel(intent, value)}
+              idleLabel={label}
+            />
+          </span>
         </button>
       </DropdownMenuItem>
     </form>
   );
+}
+
+function getEventActionPendingLabel(intent: string, value?: string) {
+  switch (intent) {
+    case "activate":
+      return "Activando...";
+    case "deactivate":
+      return "Desactivando...";
+    case "set-program-visibility":
+      return value === "true"
+        ? "Mostrando programa..."
+        : "Ocultando programa...";
+    case "set-results-visibility":
+      return value === "true"
+        ? "Mostrando resultados..."
+        : "Ocultando resultados...";
+    default:
+      return "Actualizando...";
+  }
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {

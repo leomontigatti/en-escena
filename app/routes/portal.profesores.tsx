@@ -10,6 +10,7 @@ import {
   PortalListPage,
   type PortalRouteHandle,
 } from "@/components/portal/ui";
+import { ButtonPendingContent } from "@/components/shared/button-pending-content";
 import {
   DataTable,
   type DataTableColumn,
@@ -385,8 +386,12 @@ function CreateProfessorDialog({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={isSubmitting}>
-              <Check aria-hidden="true" data-icon />
-              {isSubmitting ? "Guardando..." : "Guardar"}
+              <ButtonPendingContent
+                isPending={isSubmitting}
+                pendingLabel="Guardando..."
+                idleLabel="Guardar"
+                idleIcon={<Check aria-hidden="true" data-icon />}
+              />
             </Button>
           </DialogFooter>
         </form>

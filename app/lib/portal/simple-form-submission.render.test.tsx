@@ -68,7 +68,10 @@ describe("portal simple form submissions", () => {
     });
 
     expect(document.body.textContent).toContain("Nuevo profesor");
-    expect(getButton("Guardando...").disabled).toBe(true);
+    const submitButton = getButton("Guardando...");
+
+    expect(submitButton.disabled).toBe(true);
+    expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
   test("disables the Bailarín save action while the edit submission is pending", async () => {
@@ -94,7 +97,10 @@ describe("portal simple form submissions", () => {
       </MemoryRouter>,
     );
 
-    expect(getButton("Guardando...").disabled).toBe(true);
+    const submitButton = getButton("Guardando...");
+
+    expect(submitButton.disabled).toBe(true);
+    expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 });
 
