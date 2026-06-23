@@ -3,16 +3,16 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { accessCredential, internalUserInvitations, user } from "@/db/schema";
 import {
-  createRegistrationToken,
-  hashRegistrationToken,
-  normalizeEmail,
-} from "@/lib/academies/registration-token.server";
+  createInternalUserInvitationToken,
+  hashInternalUserInvitationToken,
+} from "@/lib/admin/users/internal-user-invitation-token.server";
 import {
   accessAuthProvider,
   type AccessCredentialUser,
 } from "@/lib/auth/access-auth-provider.server";
 import { createLocalAccessPasswordHash } from "@/lib/auth/access-test-auth.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 import {
   INTERNAL_USER_ROLES,
   type InternalUserRole,
@@ -54,7 +54,7 @@ export async function requestInternalUserInvitation(
 ) {
   const email = normalizeEmail(input.email);
   assertInternalUserRole(input.role);
-  const token = createRegistrationToken();
+  const token = createInternalUserInvitationToken();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + INTERNAL_INVITATION_TOKEN_TTL_MS);
 
@@ -72,7 +72,7 @@ export async function requestInternalUserInvitation(
     await tx.insert(internalUserInvitations).values({
       email,
       role: input.role,
-      tokenHash: hashRegistrationToken(token),
+      tokenHash: hashInternalUserInvitationToken(token),
       expiresAt,
     });
   });
@@ -167,7 +167,10 @@ function findUsableInternalInvitation(
   return db.query.internalUserInvitations.findFirst({
     columns,
     where: and(
-      eq(internalUserInvitations.tokenHash, hashRegistrationToken(token)),
+      eq(
+        internalUserInvitations.tokenHash,
+        hashInternalUserInvitationToken(token),
+      ),
       isNull(internalUserInvitations.consumedAt),
       gt(internalUserInvitations.expiresAt, now),
     ),

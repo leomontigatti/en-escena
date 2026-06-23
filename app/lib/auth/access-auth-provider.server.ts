@@ -29,6 +29,7 @@ type EmailSignUpInput = CredentialUserInput & {
 };
 type EmailSignUpResult = {
   headers: Headers;
+  debugConfirmationTokenHash?: string;
 };
 
 type AccessSession = {
@@ -53,6 +54,13 @@ export type AccessCredentialUser = {
 
 const TEST_SUPABASE_RECOVERY_COOKIE_NAME = "sb-recovery-user";
 const testRecoveryCodes = new Map<string, string>();
+const testPendingEmailSignUps = new Map<
+  string,
+  {
+    email: string;
+    password: string;
+  }
+>();
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
@@ -131,16 +139,6 @@ export const accessAuthProvider = {
     }
 
     return await signUpSupabaseCredentialUser(input);
-  },
-
-  async registerAcademyAccessUser(
-    input: CredentialUserInput,
-  ): Promise<AccessCredentialUser> {
-    if (isTestAccessAuthMode()) {
-      return await signUpTestCredentialUser(input);
-    }
-
-    return await registerAcademySupabaseAccessUser(input);
   },
 
   async startEmailSignUp(input: EmailSignUpInput): Promise<EmailSignUpResult> {
@@ -295,6 +293,10 @@ export const accessAuthProvider = {
     tokenHash: string;
     type: "signup";
   }) {
+    if (isTestAccessAuthMode()) {
+      return await confirmTestEmailOtp(input);
+    }
+
     const { client, responseHeaders } = createSupabaseServerClientForRequest(
       input.request,
     );
@@ -392,14 +394,46 @@ async function signUpTestCredentialUser(
 async function startTestEmailSignUp(
   input: EmailSignUpInput,
 ): Promise<EmailSignUpResult> {
-  await createLocalAccessUser({
+  const tokenHash = crypto.randomUUID();
+
+  testPendingEmailSignUps.set(tokenHash, {
     email: input.email,
-    name: input.email,
     password: input.password,
   });
 
   return {
     headers: new Headers(),
+    debugConfirmationTokenHash: tokenHash,
+  };
+}
+
+async function confirmTestEmailOtp(input: {
+  request: Request;
+  tokenHash: string;
+  type: "signup";
+}) {
+  const pendingSignUp = testPendingEmailSignUps.get(input.tokenHash);
+
+  if (!pendingSignUp) {
+    throw new Error("Supabase email confirmation failed.");
+  }
+
+  testPendingEmailSignUps.delete(input.tokenHash);
+
+  const result = await createLocalAccessUser({
+    email: pendingSignUp.email,
+    name: pendingSignUp.email,
+    password: pendingSignUp.password,
+  });
+
+  await db
+    .update(user)
+    .set({ emailVerified: true })
+    .where(eq(user.id, result.user.id));
+
+  return {
+    headers: result.headers,
+    userId: result.user.id,
   };
 }
 
@@ -451,44 +485,6 @@ async function startSupabaseEmailSignUp(
   }
 
   return {
-    headers: responseHeaders,
-  };
-}
-
-async function registerAcademySupabaseAccessUser(
-  input: CredentialUserInput,
-): Promise<AccessCredentialUser> {
-  const adminClient = createSupabaseAdminClient();
-  const { data: createdUserData, error: createUserError } =
-    await adminClient.auth.admin.createUser({
-      email: input.email,
-      email_confirm: true,
-      password: input.password,
-      user_metadata: {
-        name: input.email,
-      },
-    });
-
-  if (createUserError || !createdUserData.user?.id) {
-    throw createUserError ?? new Error("Supabase academy registration failed.");
-  }
-
-  const { client, responseHeaders } = createSupabaseServerClientForRequest(
-    input.request,
-  );
-  const { data: signInData, error: signInError } =
-    await client.auth.signInWithPassword({
-      email: input.email,
-      password: input.password,
-    });
-
-  if (signInError || !signInData.user?.id) {
-    await adminClient.auth.admin.deleteUser(createdUserData.user.id);
-    throw signInError ?? new Error("Supabase academy sign-in failed.");
-  }
-
-  return {
-    userId: createdUserData.user.id,
     headers: responseHeaders,
   };
 }

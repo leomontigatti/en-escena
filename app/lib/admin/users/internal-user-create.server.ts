@@ -2,7 +2,6 @@ import { eq, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { administrativeAuditEntries, user } from "@/db/schema";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { assertValidInternalUsername } from "@/lib/auth/internal-username.server";
 import {
@@ -13,6 +12,7 @@ import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
 

@@ -229,36 +229,6 @@ export const dancers = createTable(
   ],
 );
 
-export const academyRegistrationTokens = createTable(
-  "academy_registration_token",
-  {
-    id: varchar("id", { length: 255 })
-      .primaryKey()
-      .notNull()
-      .$defaultFn(() => crypto.randomUUID()),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    expiresAt: timestamp("expires_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
-    consumedAt: timestamp("consumed_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [
-    uniqueIndex("academy_registration_token_hash_unique").on(table.tokenHash),
-    index("academy_registration_token_email_idx").on(table.email),
-  ],
-);
-
 export const professors = createTable(
   "professor",
   {
@@ -329,8 +299,6 @@ export const internalUserInvitations = createTable(
     index("internal_user_invitation_email_idx").on(table.email),
   ],
 );
-
-export const internalInvitationTokens = internalUserInvitations;
 
 export const events = createTable(
   "event",

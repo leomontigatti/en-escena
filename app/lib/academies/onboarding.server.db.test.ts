@@ -166,6 +166,49 @@ describe("academy onboarding route", () => {
     ).resolves.toEqual([{ id: "existing-domain-user" }]);
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
+
+  test("validates academy onboarding phone input without creating domain records", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue({
+      headers: new Headers({
+        "set-cookie": "sb-access-token=confirmado; Path=/; HttpOnly",
+      }),
+      session: {
+        id: "session-token",
+        issuedAt: new Date("2026-06-23T00:00:00.000Z"),
+      },
+      user: {
+        email: "telefono@example.com",
+        id: "supabase-phone-user",
+      },
+    });
+
+    await expect(
+      academyOnboardingAction(
+        routeActionArgs(
+          createOnboardingRequest({
+            academyName: "Academia Telefono",
+            contactName: "Contacto Telefono",
+            phone: "11 1234-5678",
+          }),
+        ),
+      ),
+    ).resolves.toEqual({
+      fieldErrors: {
+        academyName: undefined,
+        contactName: undefined,
+        phone: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
+      },
+      message: "Revisá los campos marcados.",
+      status: "error",
+      values: {
+        academyName: "Academia Telefono",
+        contactName: "Contacto Telefono",
+        phone: "11 1234-5678",
+      },
+    });
+    await expect(db.query.user.findMany()).resolves.toEqual([]);
+    await expect(db.query.academies.findMany()).resolves.toEqual([]);
+  });
 });
 
 function createOnboardingRequest(input: {

@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const RECOVERY_REQUEST_MESSAGE =
   "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.";
