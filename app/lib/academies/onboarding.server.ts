@@ -9,6 +9,7 @@ import {
   invalidArgentinePhoneMessage,
   isValidArgentinePhone,
 } from "@/lib/shared/argentine-phone";
+import { readErrorProperty } from "@/lib/shared/error-properties.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const ACADEMY_ONBOARDING_CONFLICT_ERROR =
@@ -94,8 +95,6 @@ export async function completeAcademyOnboarding(input: {
   return { headers: onboardingUser.headers, ok: true as const };
 }
 
-type ErrorPropertyKey = "code" | "constraint_name" | "detail" | "message";
-
 function isAcademyOnboardingConflict(error: unknown) {
   const code = readErrorProperty(error, "code");
 
@@ -115,27 +114,4 @@ function isAcademyOnboardingConflict(error: unknown) {
     message?.includes("email") === true ||
     message?.includes("user_id") === true
   );
-}
-
-function readErrorProperty(error: unknown, key: ErrorPropertyKey) {
-  let current: unknown = error;
-
-  while (current && typeof current === "object") {
-    if (key in current) {
-      const propertyValue = current[key as keyof typeof current];
-
-      if (propertyValue !== null && typeof propertyValue !== "object") {
-        const stringValue = String(propertyValue);
-
-        if (stringValue) {
-          return stringValue;
-        }
-      }
-    }
-
-    const cause = "cause" in current ? current.cause : null;
-    current = cause && typeof cause === "object" ? cause : null;
-  }
-
-  return null;
 }

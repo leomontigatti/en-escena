@@ -50,7 +50,7 @@ const testRecoveryCodes = new Map<string, string>();
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
-    const verifiedIdentity = await getVerifiedAccessIdentity(request);
+    const verifiedIdentity = await readVerifiedAccessIdentity(request);
 
     if (!verifiedIdentity) {
       return null;
@@ -73,7 +73,7 @@ export const accessAuthProvider = {
   async getVerifiedAccessIdentity(
     request: Request,
   ): Promise<VerifiedAccessIdentity | null> {
-    return await getVerifiedAccessIdentity(request);
+    return await readVerifiedAccessIdentity(request);
   },
 
   async signInCredentialUser(
@@ -442,7 +442,7 @@ async function registerAcademySupabaseAccessUser(
 async function getTestAccessSession(
   request: Request,
 ): Promise<AccessSession | null> {
-  const verifiedIdentity = await getTestVerifiedAccessIdentity(request);
+  const verifiedIdentity = await readTestVerifiedAccessIdentity(request);
 
   if (!verifiedIdentity) {
     return null;
@@ -557,11 +557,11 @@ function createSupabaseAdminClient() {
   );
 }
 
-async function getVerifiedAccessIdentity(
+async function readVerifiedAccessIdentity(
   request: Request,
 ): Promise<VerifiedAccessIdentity | null> {
   if (isTestAccessAuthMode()) {
-    return await getTestVerifiedAccessIdentity(request);
+    return await readTestVerifiedAccessIdentity(request);
   }
 
   const { client, responseHeaders } =
@@ -615,7 +615,7 @@ async function getVerifiedAccessIdentity(
   };
 }
 
-async function getTestVerifiedAccessIdentity(
+async function readTestVerifiedAccessIdentity(
   request: Request,
 ): Promise<VerifiedAccessIdentity | null> {
   const sessionToken = readTestSupabaseSessionToken(request);
