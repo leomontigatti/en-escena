@@ -1,5 +1,12 @@
-import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -70,6 +77,7 @@ async function buildSnapshotArchive(snapshotPath: string) {
   const dataDir = await mkdtemp(
     path.join(tmpdir(), "en-escena-pglite-schema-"),
   );
+  const temporarySnapshotPath = `${snapshotPath}.${process.pid}.${randomUUID()}.tmp`;
 
   try {
     runPgliteSchemaPush(dataDir);
@@ -79,11 +87,13 @@ async function buildSnapshotArchive(snapshotPath: string) {
       const snapshot = await client.dumpDataDir("none");
       const snapshotBytes = Buffer.from(await snapshot.arrayBuffer());
 
-      await writeFile(snapshotPath, snapshotBytes);
+      await writeFile(temporarySnapshotPath, snapshotBytes);
+      await rename(temporarySnapshotPath, snapshotPath);
     } finally {
       await client.close();
     }
   } finally {
+    await rm(temporarySnapshotPath, { force: true });
     await rm(dataDir, { force: true, recursive: true });
   }
 }
