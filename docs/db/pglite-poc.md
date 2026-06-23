@@ -36,13 +36,7 @@ comportan como espera la app.
    (`tests/db/push-pglite-schema.ts`) en lugar de importar `pushSchema`
    directamente desde el test o un `globalSetup` Vitest sin ajustes extra.
 
-2. `app/db/schema.ts` exporta la misma tabla de invitaciones internas dos veces
-   (`internalUserInvitations` e `internalInvitationTokens`).
-   Impacto: `pushSchema` detecta indices duplicados al consumir el namespace
-   completo del modulo, asi que el bootstrap PGlite filtra ese alias antes de
-   aplicar el schema.
-
-3. Los errores del driver PGlite no tienen la misma forma que los errores del
+2. Los errores del driver PGlite no tienen la misma forma que los errores del
    harness actual con `postgres`.
    Impacto: los metadatos de constraint quedan en `error.cause.code` y
    `error.cause.constraint`, no en propiedades top-level como

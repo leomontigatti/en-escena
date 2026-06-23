@@ -23,7 +23,7 @@ We will replace Better Auth with Supabase Auth as the provider for access creden
 - Public academy registration confirmation must verify Supabase email links server-side, write the SSR auth headers/cookies, and redirect the confirmed user into academy onboarding.
 - Access recovery by email is for academy users. Internal users recover access through administrative password reset, even when they have an optional real email.
 - Suspended users are blocked in server guards and should have Supabase Auth sessions revoked when suspended.
-- Supabase Auth must use custom SMTP through Resend from the start. The app keeps Resend for domain emails such as public academy registration.
+- Supabase Auth must use custom SMTP through Resend from the start. The app keeps Resend only for app-owned domain emails such as internal invitations.
 - Drizzle remains the app server's data access layer for domain tables. This migration does not expose domain data through Supabase Data API or move authorization into RLS.
 - The implementation should introduce an app-owned access provider boundary before replacing Better Auth calls, so route code and database tests do not depend directly on Supabase SDK details.
 

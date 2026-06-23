@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { signUpAcademyUser } from "@/lib/academies/registration-auth.server";
+import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import {
   ACCESS_SESSION_EXPIRES_IN_SECONDS,
   ACCESS_SESSION_UPDATE_AGE_SECONDS,
@@ -119,21 +119,59 @@ describe("access session policy", () => {
     );
   });
 
-  test("public academy registration sessions use the base policy", async () => {
-    const registrationStartedAt = Date.now();
+  test("public academy signup waits for confirmation before creating the local auth session", async () => {
+    const registrationEmail = "registro-sesion@example.com";
 
-    const result = await signUpAcademyUser({
-      email: "registro-sesion@example.com",
+    const signUpResult = await accessAuthProvider.startEmailSignUp({
+      email: registrationEmail,
       password: "password-segura",
-      request: new Request("http://localhost/registro/token"),
+      redirectTo: "http://localhost/registro/confirmar",
+      request: new Request("http://localhost/registro"),
     });
 
-    const registrationSession = await findSessionByUserId(result.userId);
+    const unconfirmedUser = await db.query.user.findFirst({
+      columns: { id: true },
+      where: eq(user.email, registrationEmail),
+    });
+    const unconfirmedSessions = await db.query.accessSession.findMany();
 
-    expectHeadersToSetSessionCookie(result.headers);
+    expect(unconfirmedUser).toBeUndefined();
+    expect(unconfirmedSessions).toEqual([]);
+
+    const confirmationTokenHash = signUpResult.debugConfirmationTokenHash;
+
+    expect(confirmationTokenHash).toEqual(expect.any(String));
+
+    if (typeof confirmationTokenHash !== "string") {
+      throw new Error("Expected debug confirmation token hash.");
+    }
+
+    const confirmationStartedAt = Date.now();
+    const confirmationResult = await accessAuthProvider.confirmEmailOtp({
+      request: new Request(
+        `http://localhost/registro/confirmar?token_hash=${confirmationTokenHash}&type=signup`,
+      ),
+      tokenHash: confirmationTokenHash,
+      type: "signup",
+    });
+
+    const confirmedUser = await db.query.user.findFirst({
+      columns: { id: true },
+      where: eq(user.email, registrationEmail),
+    });
+
+    expect(confirmedUser).toEqual({ id: expect.any(String) });
+    expectHeadersToSetSessionCookie(confirmationResult.headers);
+
+    if (!confirmedUser) {
+      throw new Error("Expected confirmed user to exist.");
+    }
+
+    const registrationSession = await findSessionByUserId(confirmedUser.id);
+
     expectSessionExpiresInPolicyWindow(
       registrationSession.expiresAt,
-      registrationStartedAt,
+      confirmationStartedAt,
     );
   });
 

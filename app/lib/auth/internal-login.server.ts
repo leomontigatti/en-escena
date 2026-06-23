@@ -3,12 +3,12 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { normalizeInternalUsername } from "@/lib/auth/internal-username.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const emailSchema = z.email();
 

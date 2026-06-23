@@ -2,7 +2,6 @@ import { and, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession, administrativeAuditEntries, user } from "@/db/schema";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import {
   buildInternalCredentialEmail,
   getInternalOptionalEmail,
@@ -11,6 +10,7 @@ import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 type UpdateInternalUserInput = {
   userId: string;

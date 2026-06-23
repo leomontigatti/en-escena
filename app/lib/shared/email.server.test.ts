@@ -39,16 +39,16 @@ describe("sendEmail", () => {
 
     await sendEmail({
       to: "academia@example.com",
-      subject: "Completá tu registro en En Escena",
-      text: "Usá este enlace para registrar tu academia: http://localhost/registro/token",
+      subject: "Te invitaron a En Escena",
+      text: "Usá este enlace para confirmar tu correo: http://localhost/invitacion/token-prueba",
     });
 
     expect(infoSpy).toHaveBeenCalledWith(
       [
         "[email:dev]",
         "To: academia@example.com",
-        "Subject: Completá tu registro en En Escena",
-        "Usá este enlace para registrar tu academia: http://localhost/registro/token",
+        "Subject: Te invitaron a En Escena",
+        "Usá este enlace para confirmar tu correo: http://localhost/invitacion/token-prueba",
       ].join("\n"),
     );
     expect(sendEmailMock).not.toHaveBeenCalled();

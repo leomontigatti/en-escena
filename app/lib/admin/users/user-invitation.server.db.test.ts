@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { internalUserInvitations, user } from "@/db/schema";
-import { hashRegistrationToken } from "@/lib/academies/registration-token.server";
+import { hashInternalUserInvitationToken } from "@/lib/admin/users/internal-user-invitation-token.server";
 import {
   completeInternalUserInvitation,
   getInternalInvitationTokenStatus,
@@ -178,7 +178,7 @@ describe("internal user invitations", () => {
     await db.insert(internalUserInvitations).values({
       email: "vencida@example.com",
       role: "auditor",
-      tokenHash: hashRegistrationToken(token),
+      tokenHash: hashInternalUserInvitationToken(token),
       expiresAt: new Date(Date.now() - 1_000),
     });
 
