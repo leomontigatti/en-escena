@@ -24,24 +24,12 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 const SESSION_TTL_MS = vi.hoisted(() => 7 * 24 * 60 * 60 * 1000);
 const TOKEN_TEST_TTL_MS = 60_000;
 
-const sentEmails = vi.hoisted(
-  () =>
-    [] as Array<{
-      to: string;
-      subject: string;
-      text: string;
-    }>,
-);
+const startAcademyUserSignUpMock = vi.hoisted(() => vi.fn());
 const signUpAcademyUserMock = vi.hoisted(() => vi.fn());
 const deleteAcademyUserAccessMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/shared/email.server", () => ({
-  sendEmail: vi.fn(async (input) => {
-    sentEmails.push(input);
-  }),
-}));
-
 vi.mock("@/lib/academies/registration-auth.server", () => ({
+  startAcademyUserSignUp: startAcademyUserSignUpMock,
   signUpAcademyUser: signUpAcademyUserMock,
   deleteAcademyUserAccess: deleteAcademyUserAccessMock,
 }));
@@ -50,13 +38,36 @@ installDatabaseTestHooks();
 
 describe("academy registration", () => {
   beforeEach(() => {
-    sentEmails.length = 0;
+    startAcademyUserSignUpMock.mockReset();
     signUpAcademyUserMock.mockReset();
     deleteAcademyUserAccessMock.mockReset();
     installDefaultAcademyAuthMocks();
   });
 
-  test("only registrable emails create tokens while existing users receive guidance", async () => {
+  test("registration start validates email and password confirmation", async () => {
+    const result = await requestRegistrationEmail("correo-invalido", {
+      password: "123",
+      confirmPassword: "456",
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Revisá los campos marcados.",
+      fieldErrors: {
+        email: "Ingresá un correo electrónico válido.",
+        password: "La contraseña debe tener al menos 8 caracteres.",
+        confirmPassword: "Las contraseñas no coinciden.",
+      },
+      values: {
+        email: "correo-invalido",
+        password: "",
+        confirmPassword: "",
+      },
+    });
+    expect(startAcademyUserSignUpMock).not.toHaveBeenCalled();
+  });
+
+  test("registration start keeps the public response generic when the email already exists", async () => {
     await db.insert(user).values({
       id: "existing_user",
       name: "Existente",
@@ -67,47 +78,17 @@ describe("academy registration", () => {
     const existingEmailResult = await requestRegistrationEmail(
       "existente@example.com",
     );
-    const registrableEmailResult =
-      await requestRegistrationEmail("nueva@example.com");
 
     expect(existingEmailResult).toMatchObject({
-      status: "success",
-      message:
-        "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
-      values: { email: "existente@example.com" },
+      data: {
+        status: "success",
+        message:
+          "Si el correo puede registrarse, enviamos un enlace para confirmar la cuenta y seguir con el alta.",
+        values: { email: "existente@example.com" },
+      },
     });
-    expect(registrableEmailResult).toMatchObject({
-      status: "success",
-      message:
-        "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
-      values: { email: "nueva@example.com" },
-    });
-
-    const tokens = await db.query.academyRegistrationTokens.findMany({
-      columns: { email: true, consumedAt: true },
-    });
-
-    expect(tokens).toEqual([{ email: "nueva@example.com", consumedAt: null }]);
-    expect(sentEmails).toHaveLength(2);
-    expect(sentEmails[0]).toMatchObject({
-      to: "existente@example.com",
-      subject: "Ya tenés acceso a En Escena",
-    });
-    expect(sentEmails[1]).toMatchObject({
-      to: "nueva@example.com",
-      subject: "Tu enlace para registrar la academia",
-    });
-    expect(sentEmails[1]?.text).toContain(
-      "Te dejamos el enlace para terminar el registro de tu academia en En Escena:",
-    );
-    expect(sentEmails[1]?.text).toContain("El equipo de En Escena");
-
-    const existingUserTokens =
-      await db.query.academyRegistrationTokens.findMany({
-        where: eq(academyRegistrationTokens.email, "existente@example.com"),
-      });
-
-    expect(existingUserTokens).toEqual([]);
+    expect(startAcademyUserSignUpMock).not.toHaveBeenCalled();
+    expect(await db.query.academyRegistrationTokens.findMany()).toEqual([]);
   });
 
   test("consumes a valid token to create a verified academy user with a session", async () => {
@@ -268,24 +249,6 @@ describe("academy registration", () => {
     ).resolves.toEqual({ tokenStatus: "valid" });
   });
 
-  test("requesting a new registration link consumes previous pending tokens for that email", async () => {
-    await requestRegistrationEmail("reintento@example.com");
-    await requestRegistrationEmail("reintento@example.com");
-
-    const tokens = await db.query.academyRegistrationTokens.findMany({
-      columns: { email: true, consumedAt: true },
-      where: eq(academyRegistrationTokens.email, "reintento@example.com"),
-      orderBy: (tokensTable, { asc }) => asc(tokensTable.createdAt),
-    });
-
-    expect(tokens).toHaveLength(2);
-    expect(tokens[0]?.consumedAt).toBeInstanceOf(Date);
-    expect(tokens[1]).toEqual({
-      email: "reintento@example.com",
-      consumedAt: null,
-    });
-  });
-
   test("rejects expired, consumed, and unknown tokens without creating access", async () => {
     await insertRegistrationToken({
       email: "expirada@example.com",
@@ -384,6 +347,7 @@ describe("academy registration", () => {
 });
 
 function installDefaultAcademyAuthMocks() {
+  startAcademyUserSignUpMock.mockResolvedValue({ headers: new Headers() });
   signUpAcademyUserMock.mockImplementation(createTestAcademyAccessUser);
   deleteAcademyUserAccessMock.mockImplementation(deleteTestAcademyAccessUser);
 }
@@ -460,9 +424,20 @@ function createCompleteRegistrationInput(
   };
 }
 
-async function requestRegistrationEmail(email: string) {
+async function requestRegistrationEmail(
+  email: string,
+  overrides: {
+    password?: string;
+    confirmPassword?: string;
+  } = {},
+) {
   const formData = new FormData();
   formData.set("email", email);
+  formData.set("password", overrides.password ?? "password-segura");
+  formData.set(
+    "confirmPassword",
+    overrides.confirmPassword ?? overrides.password ?? "password-segura",
+  );
 
   return await requestRegistrationAction({
     url: new URL("http://localhost/registro"),

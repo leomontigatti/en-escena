@@ -5,7 +5,9 @@ import { academies, academyRegistrationTokens, user } from "@/db/schema";
 import {
   deleteAcademyUserAccess,
   signUpAcademyUser,
+  startAcademyUserSignUp,
 } from "@/lib/academies/registration-auth.server";
+import { PUBLIC_REGISTRATION_CONFIRMATION_PATH } from "@/lib/auth/access-paths.shared";
 import {
   createRegistrationToken,
   hashRegistrationToken,
@@ -21,10 +23,63 @@ import { toTitleCase } from "@/lib/shared/text-normalization";
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const REGISTRATION_EMAIL_CONFLICT_ERROR =
   "Ese correo ya tiene un usuario en En Escena.";
+const REGISTRATION_START_MESSAGE =
+  "Si el correo puede registrarse, enviamos un enlace para confirmar la cuenta y seguir con el alta.";
 const REGISTRATION_GENERIC_ERROR =
   "No pudimos completar el registro. Intentá nuevamente.";
 
 export type RegistrationTokenStatus = "valid" | "invalid";
+type StartAcademyUserSignUp = typeof startAcademyUserSignUp;
+type IsRegistrationEligible = (email: string) => Promise<boolean>;
+
+export async function startAcademyRegistration(input: {
+  email: string;
+  password: string;
+  requestUrl: string;
+  request: Request;
+  startAcademyUserSignUp?: StartAcademyUserSignUp;
+  isRegistrationEligible?: IsRegistrationEligible;
+}) {
+  const email = normalizeEmail(input.email);
+  const isRegistrationEligible = await (
+    input.isRegistrationEligible ?? isEligibleAcademyRegistrationEmail
+  )(email);
+
+  if (!isRegistrationEligible) {
+    return {
+      headers: new Headers(),
+      message: REGISTRATION_START_MESSAGE,
+    };
+  }
+
+  try {
+    const result = await (
+      input.startAcademyUserSignUp ?? startAcademyUserSignUp
+    )({
+      email,
+      password: input.password,
+      redirectTo: new URL(
+        PUBLIC_REGISTRATION_CONFIRMATION_PATH,
+        input.requestUrl,
+      ).toString(),
+      request: input.request,
+    });
+
+    return {
+      headers: result.headers,
+      message: REGISTRATION_START_MESSAGE,
+    };
+  } catch (error) {
+    if (isRegistrationEmailConflict(error)) {
+      return {
+        headers: new Headers(),
+        message: REGISTRATION_START_MESSAGE,
+      };
+    }
+
+    throw error;
+  }
+}
 
 export async function requestAcademyRegistrationEmail(input: {
   email: string;
@@ -86,6 +141,15 @@ export async function requestAcademyRegistrationEmail(input: {
       "El equipo de En Escena",
     ].join("\n"),
   });
+}
+
+async function isEligibleAcademyRegistrationEmail(email: string) {
+  const existingUser = await db.query.user.findFirst({
+    columns: { id: true },
+    where: eq(user.email, email),
+  });
+
+  return existingUser === null;
 }
 
 export async function getRegistrationTokenStatus(token: string) {

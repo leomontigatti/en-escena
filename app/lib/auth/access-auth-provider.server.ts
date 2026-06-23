@@ -24,6 +24,9 @@ type CredentialUserInput = {
   password: string;
   request: Request;
 };
+type EmailSignUpInput = CredentialUserInput & {
+  redirectTo: string;
+};
 
 type AccessSession = {
   session: {
@@ -163,6 +166,14 @@ export const accessAuthProvider = {
     }
 
     return await registerAcademySupabaseAccessUser(input);
+  },
+
+  async startEmailSignUp(input: EmailSignUpInput) {
+    if (isTestAccessAuthMode()) {
+      return await startTestEmailSignUp(input);
+    }
+
+    return await startSupabaseEmailSignUp(input);
   },
 
   async deleteAccessUser(userId: string) {
@@ -403,6 +414,18 @@ async function signUpTestCredentialUser(
   };
 }
 
+async function startTestEmailSignUp(input: EmailSignUpInput) {
+  await createLocalAccessUser({
+    email: input.email,
+    name: input.email,
+    password: input.password,
+  });
+
+  return {
+    headers: new Headers(),
+  };
+}
+
 async function signUpSupabaseCredentialUser(
   input: CredentialUserInput,
 ): Promise<AccessCredentialUser> {
@@ -425,6 +448,30 @@ async function signUpSupabaseCredentialUser(
 
   return {
     userId: await findOrCreateAppUserForAccessUser(data.user),
+    headers: responseHeaders,
+  };
+}
+
+async function startSupabaseEmailSignUp(input: EmailSignUpInput) {
+  const { client, responseHeaders } = createSupabaseServerClientForRequest(
+    input.request,
+  );
+  const { error } = await client.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: {
+        name: input.email,
+      },
+      emailRedirectTo: input.redirectTo,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return {
     headers: responseHeaders,
   };
 }

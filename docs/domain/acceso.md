@@ -2,7 +2,7 @@
 
 Rules for public academy registration, users, sessions and internal invitations.
 
-- Public academy registration starts with an email-only page and sends a one-use link valid for one day.
+- Public academy registration starts with email plus password and asks Supabase Auth to send the confirmation link.
 - Supabase Auth owns public registration email confirmation and the confirmed academy identity session created from that email link.
 - The academy onboarding form uses the confirmed session identity, keeps the confirmed email fixed, and collects academy data.
 - If email already belongs to an existing user, public response must not reveal it.

@@ -128,7 +128,7 @@ npm run dev
 
 The main local auth routes are:
 
-- `/registro`: request a public academy registration email.
+- `/registro`: start a public academy registration with email and password.
 - `/registro/confirmar?token_hash=...&type=signup`: verify the Supabase email
   confirmation link and start the academy onboarding session.
 - `/registro/academia`: complete academy onboarding after the email was
@@ -145,28 +145,29 @@ In non-production environments, `app/lib/email.server.ts` logs messages to the
 server console with an `[email:dev]` prefix and does not require provider
 credentials.
 
-The registration and invitation links are built from the incoming request URL.
-With the default dev server, test registration links locally with this flow:
+Invitation links are built from the incoming request URL. Public academy
+registration confirmation and recovery emails are sent by Supabase Auth, so
+local verification of those flows depends on the target Supabase project and
+its configured redirect URLs. With the default dev server, test registration
+locally with this flow:
 
 1. Run `npm run dev`.
 2. Open `http://localhost:5173/registro`.
-3. Submit an email address.
-4. Copy the `/registro/<token>` URL from the `[email:dev]` console output.
-5. Open that URL in the browser and complete the academy form.
+3. Submit an email address plus password.
+4. Open the Supabase confirmation email for that project.
+5. Follow the `/registro/confirmar?...` link and complete the academy form.
 
-The same console logging pattern applies to internal invitation emails. Academy
-recovery emails are sent by Supabase Auth, so local verification of that flow
-depends on the target Supabase project and its configured redirect URLs.
+The same console logging pattern still applies to internal invitation emails.
 
 If the submitted registration email already belongs to a user, the browser still
-shows the generic response. The dev email logs guidance toward `/ingresar` or
-`/recuperar-acceso` instead of creating a new registration token.
+shows the generic response and does not reveal whether the account already
+exists.
 
 ## Production Email
 
 Production access emails use the app email boundary in
 `app/lib/shared/email.server.ts`. Until the En Escena sending domain is ready,
-use Brevo for app-owned registration and invitation emails:
+use Brevo for app-owned internal invitation emails:
 
 ```sh
 EMAIL_PROVIDER="brevo"
@@ -186,7 +187,7 @@ EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 ```
 
 `EMAIL_FROM` must use an address on the verified Resend sending domain.
-Registration and internal invitation emails use this sender.
+Internal invitation emails use this sender.
 
 Supabase Auth recovery emails in production also require Custom SMTP to be
 enabled in the Supabase project. While Brevo is the temporary provider, configure
@@ -208,7 +209,7 @@ Configure these Supabase Auth dashboard values for academy recovery:
   receive password recovery links, plus `http://localhost:5173/cambiar-contrasena`
   for local development.
 - Custom SMTP must use the same sender configured in `EMAIL_FROM` so Supabase
-  recovery emails and app-owned invitation/registration emails share the same
+  registration/recovery emails and app-owned invitation emails share the same
   sender identity.
 
 ## Access Auth Scope

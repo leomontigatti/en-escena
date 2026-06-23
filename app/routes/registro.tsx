@@ -1,4 +1,4 @@
-import { Form, useActionData } from "react-router";
+import { data, Form, useActionData } from "react-router";
 import { z } from "zod";
 
 import {
@@ -9,11 +9,14 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { requestAcademyRegistrationEmail } from "@/lib/academies/registration.server";
+import { startAcademyRegistration } from "@/lib/academies/registration.server";
 import {
   authToastIds,
   emailField,
+  passwordField,
+  passwordMismatchMessage,
   readFormValue,
+  requiredTextField,
 } from "@/lib/auth/access-form.shared";
 import { redirectSignedInUserFromPublicRoute } from "@/lib/auth/internal-navigation.server";
 import {
@@ -24,17 +27,28 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro";
 
-const requestRegistrationSchema = z.object({
-  email: emailField(),
-});
-const registrationFields = ["email"] as const;
+const requestRegistrationSchema = z
+  .object({
+    email: emailField(),
+    password: passwordField(),
+    confirmPassword: requiredTextField(),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: passwordMismatchMessage,
+    path: ["confirmPassword"],
+  });
+const registrationFields = ["email", "password", "confirmPassword"] as const;
 type RegistrationField = (typeof registrationFields)[number];
 type RegistrationValues = {
   email: string;
+  password: string;
+  confirmPassword: string;
 };
 
 const emptyRegistrationValues: RegistrationValues = {
   email: "",
+  password: "",
+  confirmPassword: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -51,9 +65,13 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const values = {
     email: readFormValue(formData.get("email")),
+    password: "",
+    confirmPassword: "",
   } satisfies RegistrationValues;
   const parsed = requestRegistrationSchema.safeParse({
     email: formData.get("email"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
   });
 
   if (!parsed.success) {
@@ -65,18 +83,24 @@ export async function action({ request }: Route.ActionArgs) {
     };
   }
 
-  await requestAcademyRegistrationEmail({
+  const result = await startAcademyRegistration({
     email: parsed.data.email,
+    password: parsed.data.password,
+    request,
     requestUrl: request.url,
   });
 
-  return {
-    status: "success" as const,
-    message:
-      "Si el correo puede registrarse, enviamos un enlace para completar el alta.",
-    fieldErrors: getEmptyFieldErrors<RegistrationField>(),
-    values,
-  };
+  return data(
+    {
+      status: "success" as const,
+      message: result.message,
+      fieldErrors: getEmptyFieldErrors<RegistrationField>(),
+      values,
+    },
+    {
+      headers: result.headers,
+    },
+  );
 }
 
 export default function RegistroRoute() {
@@ -96,7 +120,7 @@ export default function RegistroRoute() {
       <AccessHeader
         eyebrow="Portal de academias"
         title="Registrá tu academia"
-        description="Ingresá tu correo. Te vamos a enviar un enlace de uso único para completar los datos de la academia."
+        description="Ingresá tu correo y definí una contraseña. Si el correo puede registrarse, te vamos a enviar un enlace para confirmar la cuenta y seguir con el alta."
       />
 
       <Form
@@ -116,8 +140,24 @@ export default function RegistroRoute() {
             type="email"
           />
 
+          <AccessTextField
+            autoComplete="new-password"
+            controller={form}
+            label="Contraseña"
+            name="password"
+            type="password"
+          />
+
+          <AccessTextField
+            autoComplete="new-password"
+            controller={form}
+            label="Confirmar contraseña"
+            name="confirmPassword"
+            type="password"
+          />
+
           <Button className="w-full" type="submit">
-            Enviar enlace
+            Continuar con el registro
           </Button>
         </FieldGroup>
       </Form>

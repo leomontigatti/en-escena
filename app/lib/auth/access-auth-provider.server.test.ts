@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const getUser = vi.hoisted(() => vi.fn());
 const getSession = vi.hoisted(() => vi.fn());
 const verifyOtp = vi.hoisted(() => vi.fn());
+const signUp = vi.hoisted(() => vi.fn());
 const findAppUser = vi.hoisted(() => vi.fn());
 const insertUserValues = vi.hoisted(() => vi.fn());
 const insertUser = vi.hoisted(() =>
@@ -43,6 +44,7 @@ vi.mock("@/lib/auth/supabase-auth-ssr.server", () => ({
       auth: {
         getSession,
         getUser,
+        signUp,
         verifyOtp,
       },
     },
@@ -140,5 +142,45 @@ describe("accessAuthProvider", () => {
       id: "supabase-user-id",
       name: "academia@example.com",
     });
+  });
+
+  test("starts Supabase signup with the confirmation redirect", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VITEST", "false");
+    signUp.mockResolvedValue({
+      data: {
+        user: {
+          email: "academia@example.com",
+          id: "supabase-user-id",
+        },
+      },
+      error: null,
+    });
+
+    const { accessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.server");
+
+    await expect(
+      accessAuthProvider.startEmailSignUp({
+        email: "academia@example.com",
+        password: "password-segura",
+        redirectTo: "http://localhost/registro/confirmar",
+        request: new Request("http://localhost/registro"),
+      }),
+    ).resolves.toEqual({
+      headers: new Headers(),
+    });
+
+    expect(signUp).toHaveBeenCalledWith({
+      email: "academia@example.com",
+      password: "password-segura",
+      options: {
+        data: {
+          name: "academia@example.com",
+        },
+        emailRedirectTo: "http://localhost/registro/confirmar",
+      },
+    });
+    expect(insertUserValues).not.toHaveBeenCalled();
   });
 });
