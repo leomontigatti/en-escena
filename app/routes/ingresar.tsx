@@ -17,6 +17,7 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
@@ -93,28 +94,30 @@ export async function action({ request }: Route.ActionArgs) {
     const credentialUser = await findCredentialUserForIdentifier(
       parsed.data.identifier,
     );
+    const accessEmail =
+      credentialUser?.email ?? getEmailIdentifier(parsed.data.identifier);
 
-    if (!credentialUser) {
+    if (!accessEmail) {
       return genericLoginError(values);
     }
 
-    if (credentialUser.match === "email" && !credentialUser.emailVerified) {
+    if (credentialUser?.match === "email" && !credentialUser.emailVerified) {
       return genericLoginError(values);
     }
 
-    if (credentialUser.suspended) {
+    if (credentialUser?.suspended) {
       return genericLoginError(values);
     }
 
     const result = await accessAuthProvider.signInCredentialUser({
-      email: credentialUser.email,
+      email: accessEmail,
       password: parsed.data.password,
       request,
     });
 
     throw redirect(
       await getPostLoginPathForUserId(
-        credentialUser.id,
+        result.userId,
         getSafeRedirectTo(request),
       ),
       withSupabaseSsrHeaders({ headers: result.headers }),
@@ -232,6 +235,14 @@ function genericLoginError(values: SignInValues) {
     fieldErrors: getEmptyFieldErrors<SignInField>(),
     values,
   };
+}
+
+function getEmailIdentifier(identifier: string) {
+  const normalizedEmail = normalizeEmail(identifier);
+
+  return z.string().email().safeParse(normalizedEmail).success
+    ? normalizedEmail
+    : null;
 }
 
 function useLoginNoticeToast(loginNotice: LoginNotice | null) {

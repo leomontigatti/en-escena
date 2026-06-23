@@ -95,6 +95,42 @@ describe("access UI validation", () => {
     expect(response.headers.get("location")).toBe("/administracion");
   });
 
+  test("allows confirmed academy identities without an app user to resume onboarding from login", async () => {
+    findCredentialUserForIdentifier.mockResolvedValue(null);
+    signInCredentialUser.mockResolvedValue({
+      userId: "supabase_user_123",
+      headers: new Headers({
+        "set-cookie": "sb-access-token=signed.token; Path=/; HttpOnly",
+      }),
+    });
+    getPostLoginPathForUserId.mockResolvedValue("/registro/academia");
+
+    const formData = new FormData();
+    formData.set("identifier", "pendiente@example.com");
+    formData.set("password", "password-segura");
+
+    const response = await expectThrownResponse(
+      loginAction({
+        request: new Request("http://localhost:3000/ingresar", {
+          method: "POST",
+          body: formData,
+        }),
+        params: {},
+        context: {},
+        url: new URL("http://localhost:3000/ingresar"),
+        pattern: "/ingresar",
+      }),
+      302,
+    );
+
+    expect(signInCredentialUser).toHaveBeenCalledWith({
+      email: "pendiente@example.com",
+      password: "password-segura",
+      request: expect.any(Request),
+    });
+    expect(response.headers.get("location")).toBe("/registro/academia");
+  });
+
   test("returns the logout completion notice for login", () => {
     expect(getLoginNotice(new URLSearchParams("sesion=cerrada"))).toEqual({
       id: "auth:sesion-cerrada",

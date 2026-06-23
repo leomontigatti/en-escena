@@ -7,6 +7,8 @@ Rules for public academy registration, users, sessions and internal invitations.
 - The academy onboarding form uses the confirmed session identity, keeps the confirmed email fixed, and collects academy data.
 - If email already belongs to an existing user, public response must not reveal it.
 - `Identidad confirmada pendiente de academia` means Supabase Auth already confirmed the academy access identity, but academy onboarding has not created the `Academia` yet.
+- If that confirmed identity returns from login or direct navigation, the app must let it resume academy onboarding instead of forcing a new registration.
+- No hay limpieza automática para esta primera política de mantenimiento; el estado incompleto queda reanudable y el mantenimiento debe listar `Usuario` academia confirmados sin `Academia` para decisión operativa posterior.
 - Completing academy onboarding creates the academy, keeps the confirmed academy user, authenticates the academy, and does not require admin approval.
 - A `Usuario` has one main permission: academia, administración, auditoría or juzgamiento.
 - Academy users sign in with a verified email and password.
