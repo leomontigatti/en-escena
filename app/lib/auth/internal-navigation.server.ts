@@ -9,6 +9,7 @@ import {
   PUBLIC_ACADEMY_ONBOARDING_PATH,
 } from "@/lib/auth/access-paths.shared";
 import {
+  requireSignedInAccessState,
   requireInternalUser,
   requireSignedInUser,
 } from "@/lib/auth/internal-access.server";
@@ -29,7 +30,13 @@ const landingPaths = {
 } satisfies Record<AppRole, LandingPath>;
 
 export async function getLandingPathForSignedInUser(request: Request) {
-  const appUser = await requireSignedInUser(request);
+  const accessState = await requireSignedInAccessState(request);
+
+  if (accessState.kind === "academy-onboarding") {
+    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+  }
+
+  const appUser = accessState.user;
 
   return landingPaths[appUser.role];
 }
@@ -76,13 +83,46 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
     return null;
   }
 
-  const landingPath = await getPostLoginPathForUserId(session.user.id);
+  const landingPath = await getPostLoginPathForRequest(request);
 
   if (!landingPath) {
     return null;
   }
 
   throw redirect(landingPath);
+}
+
+export async function getPostLoginPathForRequest(
+  request: Request,
+  redirectTo?: string | null,
+) {
+  const accessState = await requireSignedInAccessState(request, {
+    allowMandatoryPasswordChange: true,
+  });
+
+  if (accessState.kind === "academy-onboarding") {
+    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+  }
+
+  if (
+    accessState.user.role !== "academy" &&
+    accessState.user.requiresPasswordChange
+  ) {
+    return MANDATORY_PASSWORD_CHANGE_PATH;
+  }
+
+  if (accessState.user.role === "academy") {
+    const academy = await db.query.academies.findFirst({
+      columns: { id: true },
+      where: eq(academies.userId, accessState.user.id),
+    });
+
+    if (!academy) {
+      return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    }
+  }
+
+  return redirectTo ?? landingPaths[accessState.user.role];
 }
 
 async function findLandingPathForUserId(userId: string) {

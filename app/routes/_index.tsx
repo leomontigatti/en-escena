@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
+import { getPostLoginPathForRequest } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/_index";
 
@@ -20,7 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw redirect("/ingresar");
   }
 
-  throw redirect(await getPostLoginPathForUserId(session.user.id));
+  throw redirect(await getPostLoginPathForRequest(request));
 }
 
 export default function IndexRoute() {
