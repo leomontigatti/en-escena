@@ -48,6 +48,7 @@ const signInSchema = z.object({
   identifier: requiredTextField(),
   password: requiredTextField(),
 });
+const emailIdentifierSchema = z.email();
 const signInFields = ["identifier", "password"] as const;
 type SignInField = (typeof signInFields)[number];
 type SignInValues = {
@@ -240,7 +241,7 @@ function genericLoginError(values: SignInValues) {
 function getEmailIdentifier(identifier: string) {
   const normalizedEmail = normalizeEmail(identifier);
 
-  return z.string().email().safeParse(normalizedEmail).success
+  return emailIdentifierSchema.safeParse(normalizedEmail).success
     ? normalizedEmail
     : null;
 }

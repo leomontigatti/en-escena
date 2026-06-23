@@ -47,4 +47,45 @@ describe("academy onboarding maintenance", () => {
       },
     ]);
   });
+
+  test("can limit incomplete onboarding users to older confirmed identities", async () => {
+    const older = await createLocalAccessUser({
+      email: "antigua.mantenimiento@example.com",
+      name: "antigua.mantenimiento@example.com",
+      password: "password-segura",
+    });
+    const recent = await createLocalAccessUser({
+      email: "reciente.mantenimiento@example.com",
+      name: "reciente.mantenimiento@example.com",
+      password: "password-segura",
+    });
+    const cutoff = new Date("2026-06-01T00:00:00.000Z");
+
+    await db
+      .update(user)
+      .set({
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        emailVerified: true,
+        role: "academy",
+      })
+      .where(eq(user.id, older.user.id));
+    await db
+      .update(user)
+      .set({
+        createdAt: new Date("2026-06-15T00:00:00.000Z"),
+        emailVerified: true,
+        role: "academy",
+      })
+      .where(eq(user.id, recent.user.id));
+
+    await expect(
+      listIncompleteAcademyOnboardingUsers({ createdBefore: cutoff }),
+    ).resolves.toEqual([
+      {
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        email: "antigua.mantenimiento@example.com",
+        userId: older.user.id,
+      },
+    ]);
+  });
 });

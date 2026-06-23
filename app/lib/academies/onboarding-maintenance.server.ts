@@ -9,17 +9,21 @@ export type IncompleteAcademyOnboardingUser = {
   userId: string;
 };
 
-export async function listIncompleteAcademyOnboardingUsers(input?: {
+type IncompleteAcademyOnboardingFilters = {
   createdBefore?: Date;
-}) {
-  const filters: SQL[] = [
+};
+
+export async function listIncompleteAcademyOnboardingUsers(
+  filters: IncompleteAcademyOnboardingFilters = {},
+): Promise<IncompleteAcademyOnboardingUser[]> {
+  const queryConditions: SQL[] = [
     eq(user.role, "academy"),
     eq(user.emailVerified, true),
     isNull(academies.id),
   ];
 
-  if (input?.createdBefore) {
-    filters.push(lt(user.createdAt, input.createdBefore));
+  if (filters.createdBefore) {
+    queryConditions.push(lt(user.createdAt, filters.createdBefore));
   }
 
   return await db
@@ -30,6 +34,6 @@ export async function listIncompleteAcademyOnboardingUsers(input?: {
     })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .where(and(...filters))
+    .where(and(...queryConditions))
     .orderBy(asc(user.createdAt), asc(user.email));
 }
