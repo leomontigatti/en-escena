@@ -3,13 +3,12 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const getAccessSession = vi.hoisted(() => vi.fn());
 const getVerifiedAccessIdentity = vi.hoisted(() => vi.fn());
 const findUser = vi.hoisted(() => vi.fn());
-const findAcademy = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db", () => ({
   db: {
     query: {
       academies: {
-        findFirst: findAcademy,
+        findFirst: vi.fn(),
       },
       user: {
         findFirst: findUser,
@@ -38,16 +37,7 @@ describe("internal access authorization", () => {
   });
 
   test("treats a confirmed academy identity without app user as pending onboarding", async () => {
-    const pendingSession = {
-      session: {
-        id: "session-id",
-        issuedAt: new Date("2026-06-23T00:00:00.000Z"),
-      },
-      user: {
-        email: "pendiente@example.com",
-        id: "supabase-user-id",
-      },
-    };
+    const pendingSession = createPendingOnboardingSession();
 
     getAccessSession.mockResolvedValue(pendingSession);
     getVerifiedAccessIdentity.mockResolvedValue({
@@ -68,16 +58,7 @@ describe("internal access authorization", () => {
   });
 
   test("redirects pending academy onboarding sessions away from internal routes", async () => {
-    const pendingSession = {
-      session: {
-        id: "session-id",
-        issuedAt: new Date("2026-06-23T00:00:00.000Z"),
-      },
-      user: {
-        email: "pendiente@example.com",
-        id: "supabase-user-id",
-      },
-    };
+    const pendingSession = createPendingOnboardingSession();
 
     getAccessSession.mockResolvedValue(pendingSession);
     getVerifiedAccessIdentity.mockResolvedValue({
@@ -97,6 +78,19 @@ describe("internal access authorization", () => {
     expect(response.headers.get("location")).toBe("/registro/academia");
   });
 });
+
+function createPendingOnboardingSession() {
+  return {
+    session: {
+      id: "session-id",
+      issuedAt: new Date("2026-06-23T00:00:00.000Z"),
+    },
+    user: {
+      email: "pendiente@example.com",
+      id: "supabase-user-id",
+    },
+  };
+}
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {
   try {

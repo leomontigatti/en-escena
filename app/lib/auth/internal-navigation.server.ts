@@ -58,22 +58,13 @@ export async function getPostLoginPathForUserId(
     return "/ingresar";
   }
 
-  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
-    return MANDATORY_PASSWORD_CHANGE_PATH;
-  }
-
-  if (appUser.role === "academy") {
-    const academy = await db.query.academies.findFirst({
-      columns: { id: true },
-      where: eq(academies.userId, userId),
-    });
-
-    if (!academy) {
-      return PUBLIC_ACADEMY_ONBOARDING_PATH;
-    }
-  }
-
-  return redirectTo ?? landingPaths[appUser.role];
+  return await getPostLoginPathForAppUser(
+    {
+      ...appUser,
+      id: userId,
+    },
+    redirectTo,
+  );
 }
 
 export async function redirectSignedInUserFromPublicRoute(request: Request) {
@@ -104,17 +95,25 @@ export async function getPostLoginPathForRequest(
     return PUBLIC_ACADEMY_ONBOARDING_PATH;
   }
 
-  if (
-    accessState.user.role !== "academy" &&
-    accessState.user.requiresPasswordChange
-  ) {
+  return await getPostLoginPathForAppUser(accessState.user, redirectTo);
+}
+
+async function getPostLoginPathForAppUser(
+  appUser: {
+    id: string;
+    requiresPasswordChange: boolean;
+    role: AppRole;
+  },
+  redirectTo?: string | null,
+) {
+  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
     return MANDATORY_PASSWORD_CHANGE_PATH;
   }
 
-  if (accessState.user.role === "academy") {
+  if (appUser.role === "academy") {
     const academy = await db.query.academies.findFirst({
       columns: { id: true },
-      where: eq(academies.userId, accessState.user.id),
+      where: eq(academies.userId, appUser.id),
     });
 
     if (!academy) {
@@ -122,7 +121,7 @@ export async function getPostLoginPathForRequest(
     }
   }
 
-  return redirectTo ?? landingPaths[accessState.user.role];
+  return redirectTo ?? landingPaths[appUser.role];
 }
 
 async function findLandingPathForUserId(userId: string) {

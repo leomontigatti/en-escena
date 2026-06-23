@@ -37,16 +37,7 @@ describe("internal navigation", () => {
   });
 
   test("redirects signed-in pending onboarding sessions away from public routes", async () => {
-    const pendingSession = {
-      session: {
-        id: "session-id",
-        issuedAt: new Date("2026-06-23T00:00:00.000Z"),
-      },
-      user: {
-        email: "pendiente@example.com",
-        id: "supabase-user-id",
-      },
-    };
+    const pendingSession = createPendingOnboardingSession();
 
     getAccessSession.mockResolvedValue(pendingSession);
     getVerifiedAccessIdentity.mockResolvedValue({
@@ -68,6 +59,19 @@ describe("internal navigation", () => {
     expect(response.headers.get("location")).toBe("/registro/academia");
   });
 });
+
+function createPendingOnboardingSession() {
+  return {
+    session: {
+      id: "session-id",
+      issuedAt: new Date("2026-06-23T00:00:00.000Z"),
+    },
+    user: {
+      email: "pendiente@example.com",
+      id: "supabase-user-id",
+    },
+  };
+}
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {
   try {
