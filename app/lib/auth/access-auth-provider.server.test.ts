@@ -2,10 +2,16 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 const getUser = vi.hoisted(() => vi.fn());
 const getSession = vi.hoisted(() => vi.fn());
+const verifyOtp = vi.hoisted(() => vi.fn());
 const findAppUser = vi.hoisted(() => vi.fn());
+const insertUserValues = vi.hoisted(() => vi.fn());
+const insertUser = vi.hoisted(() =>
+  vi.fn(() => ({ values: insertUserValues })),
+);
 
 vi.mock("@/db", () => ({
   db: {
+    insert: insertUser,
     query: {
       user: {
         findFirst: findAppUser,
@@ -37,6 +43,7 @@ vi.mock("@/lib/auth/supabase-auth-ssr.server", () => ({
       auth: {
         getSession,
         getUser,
+        verifyOtp,
       },
     },
     responseHeaders: new Headers(),
@@ -92,6 +99,46 @@ describe("accessAuthProvider", () => {
       ),
     ).rejects.toMatchObject({
       code: "bad_jwt",
+    });
+  });
+
+  test("verifies Supabase signup OTPs and creates the confirmed academy user", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VITEST", "false");
+    findAppUser.mockResolvedValue(null);
+    insertUserValues.mockResolvedValue(undefined);
+    verifyOtp.mockResolvedValue({
+      data: {
+        user: {
+          email: "academia@example.com",
+          id: "supabase-user-id",
+        },
+      },
+      error: null,
+    });
+
+    const { accessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.server");
+
+    await expect(
+      accessAuthProvider.confirmEmailOtp({
+        request: new Request("http://localhost/registro/confirmar"),
+        tokenHash: "hash-confirmacion",
+        type: "signup",
+      }),
+    ).resolves.toMatchObject({
+      userId: "supabase-user-id",
+    });
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      token_hash: "hash-confirmacion",
+      type: "signup",
+    });
+    expect(insertUserValues).toHaveBeenCalledWith({
+      email: "academia@example.com",
+      emailVerified: true,
+      id: "supabase-user-id",
+      name: "academia@example.com",
     });
   });
 });

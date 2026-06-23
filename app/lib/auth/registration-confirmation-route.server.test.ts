@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import {
+  PUBLIC_ACADEMY_ONBOARDING_PATH,
+  PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
+  PUBLIC_REGISTRATION_CONFIRMATION_PATH,
+} from "@/lib/auth/access-paths.shared";
+
 const confirmEmailOtp = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/access-auth-provider.server", () => ({
@@ -25,17 +31,9 @@ describe("registro confirm loader", () => {
     });
 
     const response = await expectRedirect(
-      loader({
-        request: new Request(
-          "http://localhost/registro/confirmar?token_hash=hash-confirmacion&type=signup",
-        ),
-        params: {},
-        context: {},
-        url: new URL(
-          "http://localhost/registro/confirmar?token_hash=hash-confirmacion&type=signup",
-        ),
-        pattern: "/registro/confirmar",
-      }),
+      loadRegistrationConfirmationRoute(
+        "token_hash=hash-confirmacion&type=signup",
+      ),
     );
 
     expect(confirmEmailOtp).toHaveBeenCalledWith({
@@ -43,7 +41,9 @@ describe("registro confirm loader", () => {
       tokenHash: "hash-confirmacion",
       type: "signup",
     });
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe(
+      PUBLIC_ACADEMY_ONBOARDING_PATH,
+    );
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain("sb-access-token");
   });
@@ -52,41 +52,39 @@ describe("registro confirm loader", () => {
     confirmEmailOtp.mockRejectedValue(new Error("otp_expired"));
 
     const response = await expectRedirect(
-      loader({
-        request: new Request(
-          "http://localhost/registro/confirmar?token_hash=hash-vencido&type=signup",
-        ),
-        params: {},
-        context: {},
-        url: new URL(
-          "http://localhost/registro/confirmar?token_hash=hash-vencido&type=signup",
-        ),
-        pattern: "/registro/confirmar",
-      }),
+      loadRegistrationConfirmationRoute("token_hash=hash-vencido&type=signup"),
     );
 
     expect(response.headers.get("location")).toBe(
-      "/registro/error-confirmacion",
+      PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
     );
   });
 
   test("redirects malformed confirmation links to the access error path", async () => {
     const response = await expectRedirect(
-      loader({
-        request: new Request("http://localhost/registro/confirmar?type=email"),
-        params: {},
-        context: {},
-        url: new URL("http://localhost/registro/confirmar?type=email"),
-        pattern: "/registro/confirmar",
-      }),
+      loadRegistrationConfirmationRoute("type=email"),
     );
 
     expect(confirmEmailOtp).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe(
-      "/registro/error-confirmacion",
+      PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
     );
   });
 });
+
+function loadRegistrationConfirmationRoute(search: string) {
+  const url = new URL(
+    `http://localhost${PUBLIC_REGISTRATION_CONFIRMATION_PATH}?${search}`,
+  );
+
+  return loader({
+    request: new Request(url),
+    params: {},
+    context: {},
+    url,
+    pattern: PUBLIC_REGISTRATION_CONFIRMATION_PATH,
+  });
+}
 
 async function expectRedirect(resultPromise: Promise<unknown>) {
   try {
