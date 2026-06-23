@@ -17,7 +17,6 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { normalizeEmail } from "@/lib/academies/registration-token.server";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
@@ -40,6 +39,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { normalizeEmail } from "@/lib/shared/email-normalization";
 import { showToastMessage, useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/ingresar";
