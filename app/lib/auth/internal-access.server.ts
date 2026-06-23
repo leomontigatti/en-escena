@@ -24,12 +24,25 @@ export type AppUser = {
   sessionInvalidBefore: Date | null;
 };
 
+export type SignedInAccessState =
+  | {
+      kind: "app-user";
+      user: AppUser;
+    }
+  | {
+      kind: "academy-onboarding";
+      user: {
+        email: string;
+        id: string;
+      };
+    };
+
 const DEFAULT_FORBIDDEN_MESSAGE = "No tenés permiso para acceder a esta vista.";
 
-export async function requireSignedInUser(
+export async function requireSignedInAccessState(
   request: Request,
   options?: { allowMandatoryPasswordChange?: boolean },
-) {
+): Promise<SignedInAccessState> {
   const session = await accessAuthProvider.getAccessSession(request);
 
   if (!session) {
@@ -49,31 +62,61 @@ export async function requireSignedInUser(
     where: eq(user.id, session.user.id),
   });
 
-  if (!appUser) {
-    redirectToLoginForRequest(request);
+  if (appUser) {
+    if (appUser.suspended) {
+      await revokeAppUserSessionsAndRedirect(request, appUser.id);
+    }
+
+    if (
+      appUser.sessionInvalidBefore &&
+      session.session.issuedAt &&
+      session.session.issuedAt < appUser.sessionInvalidBefore
+    ) {
+      await revokeAppUserSessionsAndRedirect(request, appUser.id);
+    }
+
+    if (
+      !options?.allowMandatoryPasswordChange &&
+      appUser.role !== "academy" &&
+      appUser.requiresPasswordChange
+    ) {
+      throw redirect(MANDATORY_PASSWORD_CHANGE_PATH);
+    }
+
+    return {
+      kind: "app-user",
+      user: appUser satisfies AppUser,
+    };
   }
 
-  if (appUser.suspended) {
-    await revokeAppUserSessionsAndRedirect(request, appUser.id);
-  }
+  const verifiedIdentity =
+    await accessAuthProvider.getVerifiedAccessIdentity(request);
 
   if (
-    appUser.sessionInvalidBefore &&
-    session.session.issuedAt &&
-    session.session.issuedAt < appUser.sessionInvalidBefore
+    verifiedIdentity &&
+    verifiedIdentity.user.id === session.user.id &&
+    verifiedIdentity.user.email === session.user.email
   ) {
-    await revokeAppUserSessionsAndRedirect(request, appUser.id);
+    return {
+      kind: "academy-onboarding",
+      user: verifiedIdentity.user,
+    };
   }
 
-  if (
-    !options?.allowMandatoryPasswordChange &&
-    appUser.role !== "academy" &&
-    appUser.requiresPasswordChange
-  ) {
-    throw redirect(MANDATORY_PASSWORD_CHANGE_PATH);
+  redirectToLoginForRequest(request);
+}
+
+export async function requireSignedInUser(
+  request: Request,
+  options?: { allowMandatoryPasswordChange?: boolean },
+) {
+  const accessState = await requireSignedInAccessState(request, options);
+
+  if (accessState.kind === "academy-onboarding") {
+    throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH);
   }
 
-  return appUser satisfies AppUser;
+  return accessState.user;
 }
 
 export async function requireAcademyUser(request: Request) {

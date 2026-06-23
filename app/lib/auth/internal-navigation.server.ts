@@ -9,6 +9,7 @@ import {
   PUBLIC_ACADEMY_ONBOARDING_PATH,
 } from "@/lib/auth/access-paths.shared";
 import {
+  requireSignedInAccessState,
   requireInternalUser,
   requireSignedInUser,
 } from "@/lib/auth/internal-access.server";
@@ -29,7 +30,13 @@ const landingPaths = {
 } satisfies Record<AppRole, LandingPath>;
 
 export async function getLandingPathForSignedInUser(request: Request) {
-  const appUser = await requireSignedInUser(request);
+  const accessState = await requireSignedInAccessState(request);
+
+  if (accessState.kind === "academy-onboarding") {
+    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+  }
+
+  const appUser = accessState.user;
 
   return landingPaths[appUser.role];
 }
@@ -51,22 +58,13 @@ export async function getPostLoginPathForUserId(
     return "/ingresar";
   }
 
-  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
-    return MANDATORY_PASSWORD_CHANGE_PATH;
-  }
-
-  if (appUser.role === "academy") {
-    const academy = await db.query.academies.findFirst({
-      columns: { id: true },
-      where: eq(academies.userId, userId),
-    });
-
-    if (!academy) {
-      return PUBLIC_ACADEMY_ONBOARDING_PATH;
-    }
-  }
-
-  return redirectTo ?? landingPaths[appUser.role];
+  return await getPostLoginPathForAppUser(
+    {
+      ...appUser,
+      id: userId,
+    },
+    redirectTo,
+  );
 }
 
 export async function redirectSignedInUserFromPublicRoute(request: Request) {
@@ -76,13 +74,54 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
     return null;
   }
 
-  const landingPath = await getPostLoginPathForUserId(session.user.id);
+  const landingPath = await getPostLoginPathForRequest(request);
 
   if (!landingPath) {
     return null;
   }
 
   throw redirect(landingPath);
+}
+
+export async function getPostLoginPathForRequest(
+  request: Request,
+  redirectTo?: string | null,
+) {
+  const accessState = await requireSignedInAccessState(request, {
+    allowMandatoryPasswordChange: true,
+  });
+
+  if (accessState.kind === "academy-onboarding") {
+    return PUBLIC_ACADEMY_ONBOARDING_PATH;
+  }
+
+  return await getPostLoginPathForAppUser(accessState.user, redirectTo);
+}
+
+async function getPostLoginPathForAppUser(
+  appUser: {
+    id: string;
+    requiresPasswordChange: boolean;
+    role: AppRole;
+  },
+  redirectTo?: string | null,
+) {
+  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
+    return MANDATORY_PASSWORD_CHANGE_PATH;
+  }
+
+  if (appUser.role === "academy") {
+    const academy = await db.query.academies.findFirst({
+      columns: { id: true },
+      where: eq(academies.userId, appUser.id),
+    });
+
+    if (!academy) {
+      return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    }
+  }
+
+  return redirectTo ?? landingPaths[appUser.role];
 }
 
 async function findLandingPathForUserId(userId: string) {
