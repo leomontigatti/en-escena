@@ -23,6 +23,7 @@ import {
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 
 import type { Route } from "./+types/registro.academia";
 
@@ -97,7 +98,10 @@ export async function action({ request }: Route.ActionArgs) {
     };
   }
 
-  throw redirect("/portal");
+  throw redirect(
+    "/portal",
+    withSupabaseSsrHeaders({ headers: result.headers }),
+  );
 }
 
 export default function AcademyOnboardingRoute() {

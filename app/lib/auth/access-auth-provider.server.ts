@@ -36,6 +36,10 @@ type AccessSession = {
   };
 };
 
+type VerifiedAccessIdentity = AccessSession & {
+  headers: Headers;
+};
+
 export type AccessCredentialUser = {
   userId: string;
   headers: Headers;
@@ -46,62 +50,30 @@ const testRecoveryCodes = new Map<string, string>();
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
-    if (isTestAccessAuthMode()) {
-      return await getTestAccessSession(request);
-    }
+    const verifiedIdentity = await getVerifiedAccessIdentity(request);
 
-    const { client } = createSupabaseServerClientForRequest(request);
-    let verifiedUser: { email?: string | null; id?: string | null } | null;
-
-    try {
-      const {
-        data: { user },
-      } = await client.auth.getUser();
-
-      verifiedUser = user;
-    } catch (error) {
-      if (isMissingSupabaseRefreshTokenError(error)) {
-        return null;
-      }
-
-      throw error;
-    }
-
-    if (!verifiedUser?.id || !verifiedUser.email) {
+    if (!verifiedIdentity) {
       return null;
     }
 
-    let session: { access_token?: string | null } | null;
-
-    try {
-      const {
-        data: { session: activeSession },
-      } = await client.auth.getSession();
-
-      session = activeSession;
-    } catch (error) {
-      if (isMissingSupabaseRefreshTokenError(error)) {
-        return null;
-      }
-
-      throw error;
-    }
-
     const appUserId = await findAppUserIdForAccessUser({
-      email: verifiedUser.email,
-      id: verifiedUser.id,
+      email: verifiedIdentity.user.email,
+      id: verifiedIdentity.user.id,
     });
 
     return {
-      session: {
-        id: session?.access_token ?? null,
-        issuedAt: getIssuedAtForAccessToken(session?.access_token ?? null),
-      },
+      session: verifiedIdentity.session,
       user: {
-        id: appUserId ?? verifiedUser.id,
-        email: verifiedUser.email,
+        id: appUserId ?? verifiedIdentity.user.id,
+        email: verifiedIdentity.user.email,
       },
     };
+  },
+
+  async getVerifiedAccessIdentity(
+    request: Request,
+  ): Promise<VerifiedAccessIdentity | null> {
+    return await getVerifiedAccessIdentity(request);
   },
 
   async signInCredentialUser(
@@ -323,7 +295,7 @@ export const accessAuthProvider = {
 
     return {
       headers: responseHeaders,
-      userId: await findOrCreateAppUserForAccessUser(data.user),
+      userId: data.user.id,
     };
   },
 };
@@ -470,27 +442,15 @@ async function registerAcademySupabaseAccessUser(
 async function getTestAccessSession(
   request: Request,
 ): Promise<AccessSession | null> {
-  const sessionToken = readTestSupabaseSessionToken(request);
+  const verifiedIdentity = await getTestVerifiedAccessIdentity(request);
 
-  if (!sessionToken) {
-    return null;
-  }
-
-  const savedSession = await readLocalAccessSession(request.headers);
-
-  if (!savedSession) {
+  if (!verifiedIdentity) {
     return null;
   }
 
   return {
-    session: {
-      id: savedSession.session.id,
-      issuedAt: savedSession.session.issuedAt,
-    },
-    user: {
-      email: savedSession.user.email,
-      id: savedSession.user.id,
-    },
+    session: verifiedIdentity.session,
+    user: verifiedIdentity.user,
   };
 }
 
@@ -595,6 +555,92 @@ function createSupabaseAdminClient() {
       },
     },
   );
+}
+
+async function getVerifiedAccessIdentity(
+  request: Request,
+): Promise<VerifiedAccessIdentity | null> {
+  if (isTestAccessAuthMode()) {
+    return await getTestVerifiedAccessIdentity(request);
+  }
+
+  const { client, responseHeaders } =
+    createSupabaseServerClientForRequest(request);
+  let verifiedUser: { email?: string | null; id?: string | null } | null;
+
+  try {
+    const {
+      data: { user: currentUser },
+    } = await client.auth.getUser();
+
+    verifiedUser = currentUser;
+  } catch (error) {
+    if (isMissingSupabaseRefreshTokenError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  if (!verifiedUser?.id || !verifiedUser.email) {
+    return null;
+  }
+
+  let session: { access_token?: string | null } | null;
+
+  try {
+    const {
+      data: { session: activeSession },
+    } = await client.auth.getSession();
+
+    session = activeSession;
+  } catch (error) {
+    if (isMissingSupabaseRefreshTokenError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  return {
+    headers: responseHeaders,
+    session: {
+      id: session?.access_token ?? null,
+      issuedAt: getIssuedAtForAccessToken(session?.access_token ?? null),
+    },
+    user: {
+      email: verifiedUser.email,
+      id: verifiedUser.id,
+    },
+  };
+}
+
+async function getTestVerifiedAccessIdentity(
+  request: Request,
+): Promise<VerifiedAccessIdentity | null> {
+  const sessionToken = readTestSupabaseSessionToken(request);
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  const savedSession = await readLocalAccessSession(request.headers);
+
+  if (!savedSession) {
+    return null;
+  }
+
+  return {
+    headers: new Headers(),
+    session: {
+      id: savedSession.session.id,
+      issuedAt: savedSession.session.issuedAt,
+    },
+    user: {
+      email: savedSession.user.email,
+      id: savedSession.user.id,
+    },
+  };
 }
 
 function signTestSupabaseSession(sessionToken: string) {
