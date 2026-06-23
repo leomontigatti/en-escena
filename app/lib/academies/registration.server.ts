@@ -18,6 +18,7 @@ import {
   isValidArgentinePhone,
 } from "@/lib/shared/argentine-phone";
 import { sendEmail } from "@/lib/shared/email.server";
+import { readErrorProperty } from "@/lib/shared/error-properties.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const REGISTRATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -261,8 +262,6 @@ export async function completeAcademyRegistration(input: {
   return { ok: true as const, headers: signUpResult.headers };
 }
 
-type ErrorPropertyKey = "code" | "constraint_name" | "detail" | "message";
-
 function isRegistrationEmailConflict(error: unknown): boolean {
   const code = readErrorProperty(error, "code");
 
@@ -284,27 +283,4 @@ function isRegistrationEmailConflict(error: unknown): boolean {
       detail?.includes("(email)=") === true ||
       message?.includes("email") === true)
   );
-}
-
-function readErrorProperty(error: unknown, key: ErrorPropertyKey) {
-  let current: unknown = error;
-
-  while (current && typeof current === "object") {
-    if (key in current) {
-      const propertyValue = current[key as keyof typeof current];
-
-      if (propertyValue !== null && typeof propertyValue !== "object") {
-        const stringValue = String(propertyValue);
-
-        if (stringValue) {
-          return stringValue;
-        }
-      }
-    }
-
-    const cause = "cause" in current ? current.cause : null;
-    current = cause && typeof cause === "object" ? cause : null;
-  }
-
-  return null;
 }
