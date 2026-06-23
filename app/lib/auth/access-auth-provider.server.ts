@@ -27,6 +27,9 @@ type CredentialUserInput = {
 type EmailSignUpInput = CredentialUserInput & {
   redirectTo: string;
 };
+type EmailSignUpResult = {
+  headers: Headers;
+};
 
 type AccessSession = {
   session: {
@@ -168,7 +171,7 @@ export const accessAuthProvider = {
     return await registerAcademySupabaseAccessUser(input);
   },
 
-  async startEmailSignUp(input: EmailSignUpInput) {
+  async startEmailSignUp(input: EmailSignUpInput): Promise<EmailSignUpResult> {
     if (isTestAccessAuthMode()) {
       return await startTestEmailSignUp(input);
     }
@@ -414,7 +417,9 @@ async function signUpTestCredentialUser(
   };
 }
 
-async function startTestEmailSignUp(input: EmailSignUpInput) {
+async function startTestEmailSignUp(
+  input: EmailSignUpInput,
+): Promise<EmailSignUpResult> {
   await createLocalAccessUser({
     email: input.email,
     name: input.email,
@@ -452,7 +457,9 @@ async function signUpSupabaseCredentialUser(
   };
 }
 
-async function startSupabaseEmailSignUp(input: EmailSignUpInput) {
+async function startSupabaseEmailSignUp(
+  input: EmailSignUpInput,
+): Promise<EmailSignUpResult> {
   const { client, responseHeaders } = createSupabaseServerClientForRequest(
     input.request,
   );

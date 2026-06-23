@@ -31,6 +31,10 @@ const REGISTRATION_GENERIC_ERROR =
 export type RegistrationTokenStatus = "valid" | "invalid";
 type StartAcademyUserSignUp = typeof startAcademyUserSignUp;
 type IsRegistrationEligible = (email: string) => Promise<boolean>;
+type AcademyRegistrationStartResult = {
+  headers: Headers;
+  message: string;
+};
 
 export async function startAcademyRegistration(input: {
   email: string;
@@ -39,23 +43,19 @@ export async function startAcademyRegistration(input: {
   request: Request;
   startAcademyUserSignUp?: StartAcademyUserSignUp;
   isRegistrationEligible?: IsRegistrationEligible;
-}) {
+}): Promise<AcademyRegistrationStartResult> {
   const email = normalizeEmail(input.email);
-  const isRegistrationEligible = await (
-    input.isRegistrationEligible ?? isEligibleAcademyRegistrationEmail
-  )(email);
+  const checkRegistrationEligibility =
+    input.isRegistrationEligible ?? isEligibleAcademyRegistrationEmail;
+  const canStartRegistration = await checkRegistrationEligibility(email);
 
-  if (!isRegistrationEligible) {
-    return {
-      headers: new Headers(),
-      message: REGISTRATION_START_MESSAGE,
-    };
+  if (!canStartRegistration) {
+    return createRegistrationStartResult();
   }
 
   try {
-    const result = await (
-      input.startAcademyUserSignUp ?? startAcademyUserSignUp
-    )({
+    const startSignUp = input.startAcademyUserSignUp ?? startAcademyUserSignUp;
+    const result = await startSignUp({
       email,
       password: input.password,
       redirectTo: new URL(
@@ -65,20 +65,23 @@ export async function startAcademyRegistration(input: {
       request: input.request,
     });
 
-    return {
-      headers: result.headers,
-      message: REGISTRATION_START_MESSAGE,
-    };
+    return createRegistrationStartResult(result.headers);
   } catch (error) {
     if (isRegistrationEmailConflict(error)) {
-      return {
-        headers: new Headers(),
-        message: REGISTRATION_START_MESSAGE,
-      };
+      return createRegistrationStartResult();
     }
 
     throw error;
   }
+}
+
+function createRegistrationStartResult(
+  headers = new Headers(),
+): AcademyRegistrationStartResult {
+  return {
+    headers,
+    message: REGISTRATION_START_MESSAGE,
+  };
 }
 
 export async function requestAcademyRegistrationEmail(input: {
