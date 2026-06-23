@@ -43,6 +43,18 @@ const fastDbIsolationAdrRequirements = [
   "npm run test:db:postgres",
 ];
 
+const accessDomainRequirements = [
+  "Supabase Auth owns public registration email confirmation",
+  "Identidad confirmada pendiente de academia",
+  "academy onboarding",
+];
+
+const accessAdrRequirements = [
+  "Supabase Auth owns email confirmation for the academy identity",
+  "Identidad confirmada pendiente de academia",
+  "redirect the confirmed user into academy onboarding",
+];
+
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -78,6 +90,25 @@ describe("domain documentation", () => {
     );
 
     for (const requirement of fastDbIsolationAdrRequirements) {
+      expect(adr).toContain(requirement);
+    }
+  });
+
+  test("documents the pending academy onboarding access state", async () => {
+    const rules = await readFile("docs/domain/acceso.md", "utf8");
+
+    for (const requirement of accessDomainRequirements) {
+      expect(rules).toContain(requirement);
+    }
+  });
+
+  test("records Supabase confirmation ownership for public registration", async () => {
+    const adr = await readFile(
+      "docs/adr/0006-use-supabase-auth-for-access.md",
+      "utf8",
+    );
+
+    for (const requirement of accessAdrRequirements) {
       expect(adr).toContain(requirement);
     }
   });

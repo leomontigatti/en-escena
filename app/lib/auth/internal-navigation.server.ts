@@ -2,9 +2,12 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
+import {
+  MANDATORY_PASSWORD_CHANGE_PATH,
+  PUBLIC_ACADEMY_ONBOARDING_PATH,
+} from "@/lib/auth/access-paths.shared";
 import {
   requireInternalUser,
   requireSignedInUser,
@@ -50,6 +53,17 @@ export async function getPostLoginPathForUserId(
 
   if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
     return MANDATORY_PASSWORD_CHANGE_PATH;
+  }
+
+  if (appUser.role === "academy") {
+    const academy = await db.query.academies.findFirst({
+      columns: { id: true },
+      where: eq(academies.userId, userId),
+    });
+
+    if (!academy) {
+      return PUBLIC_ACADEMY_ONBOARDING_PATH;
+    }
   }
 
   return redirectTo ?? landingPaths[appUser.role];

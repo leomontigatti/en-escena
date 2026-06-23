@@ -34,8 +34,8 @@ RESEND_API_KEY=""
   Supabase Auth SSR client for per-request cookie handling inside the access
   boundary. Drizzle server-side queries do not use them.
 - `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
-  must create or delete confirmed access users without sending extra Supabase
-  confirmation emails during public academy registration. Keep it server-only.
+  create or delete access users and other server-side Supabase Auth operations.
+  Keep it server-only.
 - `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
   required when `NODE_ENV=production`. Leave provider keys empty for local
   development.
@@ -129,7 +129,10 @@ npm run dev
 The main local auth routes are:
 
 - `/registro`: request a public academy registration email.
-- `/registro/:token`: complete academy registration from the emailed link.
+- `/registro/confirmar?token_hash=...&type=signup`: verify the Supabase email
+  confirmation link and start the academy onboarding session.
+- `/registro/academia`: complete academy onboarding after the email was
+  confirmed.
 - `/ingresar`: sign in with email and password.
 - `/recuperar-acceso`: request an access recovery email.
 - `/cambiar-contrasena?code=...`: complete the Supabase Auth academy recovery
@@ -210,12 +213,12 @@ Configure these Supabase Auth dashboard values for academy recovery:
 
 ## Access Auth Scope
 
-For v1, Supabase Auth owns academy and internal credentials, password recovery
-and sessions. The app owns domain-specific access flows and the local test
-harness:
+For v1, Supabase Auth owns academy and internal credentials, public academy
+email confirmation, password recovery and sessions. The app owns domain-specific
+access flows and the local test harness:
 
-- Public academy registration tokens create an `Academia` and its single academy
-  user.
+- Public academy onboarding creates an `Academia` for an already confirmed
+  academy identity.
 - Internal invitation tokens create or activate one internal user role:
   administration, audit or judging.
 - Internal password recovery remains an administrative reset with a temporary

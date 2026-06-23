@@ -16,10 +16,11 @@ We will replace Better Auth with Supabase Auth as the provider for access creden
 
 - `en_escena_user.id` will match `auth.users.id` for newly created users.
 - Existing Better Auth users do not need migration; users can be recreated in Supabase Auth.
-- Public academy registration remains an app-owned domain flow: a registration token creates a Supabase Auth user, a `Usuario`, and an `Academia`, then starts a session.
+- Public academy registration splits into two boundaries: Supabase Auth owns email confirmation for the academy identity, and the app owns academy onboarding after confirmation.
+- A confirmed academy identity can exist before academy onboarding completes. This `Identidad confirmada pendiente de academia` state has a valid Supabase-authenticated academy user but no `Academia` row yet.
 - Internal users keep `Nombre de usuario interno` as their login identifier; the server maps it to the technical email used by Supabase Auth before password sign-in.
 - Internal users keep `Cambio obligatorio de contraseña`; Supabase Auth changes the password, and `Usuario.requiresPasswordChange` tracks the domain rule.
-- Academy registration should not send an additional Supabase confirmation email; the app registration token is enough to prove email access before creating the Supabase Auth user.
+- Public academy registration confirmation must verify Supabase email links server-side, write the SSR auth headers/cookies, and redirect the confirmed user into academy onboarding.
 - Access recovery by email is for academy users. Internal users recover access through administrative password reset, even when they have an optional real email.
 - Suspended users are blocked in server guards and should have Supabase Auth sessions revoked when suspended.
 - Supabase Auth must use custom SMTP through Resend from the start. The app keeps Resend for domain emails such as public academy registration.

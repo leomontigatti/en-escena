@@ -320,6 +320,28 @@ describe("internal navigation", () => {
     },
   );
 
+  test("routes academy users without an Academia to onboarding after login", async () => {
+    const { request } = await createSignedInRequest({
+      email: "registro.pendiente@example.com",
+      role: "academy",
+      requestUrl: "http://localhost/registro",
+      withAcademy: false,
+    });
+
+    const response = await expectThrownResponse(
+      registrationLoader({
+        request,
+        params: {},
+        context: {},
+        url: new URL("http://localhost/registro"),
+        pattern: "/registro",
+      }),
+      302,
+    );
+
+    expect(response.headers.get("location")).toBe("/registro/academia");
+  });
+
   test("keeps auditor and judge placeholders separate from mutation surfaces", async () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditoria@example.com",
@@ -348,10 +370,11 @@ async function createSignedInRequest(input: {
   email: string;
   role: "academy" | InternalUserRole;
   requestUrl?: string;
+  withAcademy?: boolean;
 }) {
   const credentialUser = await createCredentialUser(input);
 
-  if (input.role === "academy") {
+  if (input.role === "academy" && input.withAcademy !== false) {
     await db.insert(academies).values({
       id: `academy_${credentialUser.userId}`,
       userId: credentialUser.userId,

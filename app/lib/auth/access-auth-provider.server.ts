@@ -303,6 +303,29 @@ export const accessAuthProvider = {
       headers: responseHeaders,
     };
   },
+
+  async confirmEmailOtp(input: {
+    request: Request;
+    tokenHash: string;
+    type: "signup";
+  }) {
+    const { client, responseHeaders } = createSupabaseServerClientForRequest(
+      input.request,
+    );
+    const { data, error } = await client.auth.verifyOtp({
+      token_hash: input.tokenHash,
+      type: input.type,
+    });
+
+    if (error || !data.user?.id || !data.user.email) {
+      throw error ?? new Error("Supabase email confirmation failed.");
+    }
+
+    return {
+      headers: responseHeaders,
+      userId: await findOrCreateAppUserForAccessUser(data.user),
+    };
+  },
 };
 
 function isTestAccessAuthMode() {

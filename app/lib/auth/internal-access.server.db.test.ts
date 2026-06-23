@@ -165,6 +165,18 @@ describe("internal access authorization", () => {
     });
   });
 
+  test("redirects academy users without an Academia to onboarding", async () => {
+    const { request } = await createSignedInRequest({
+      email: "pendiente.onboarding@example.com",
+      role: "academy",
+    });
+
+    const response = await expectThrownResponse(requireAcademyUser(request));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/registro/academia");
+  });
+
   test("rejects internal users from academy-owned context", async () => {
     const { request } = await createSignedInRequest({
       email: "admin@example.com",

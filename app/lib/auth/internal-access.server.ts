@@ -5,7 +5,10 @@ import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
-import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
+import {
+  MANDATORY_PASSWORD_CHANGE_PATH,
+  PUBLIC_ACADEMY_ONBOARDING_PATH,
+} from "@/lib/auth/access-paths.shared";
 import {
   INTERNAL_USER_ROLES,
   isInternalUserRole,
@@ -92,7 +95,7 @@ export async function requireAcademyUser(request: Request) {
   });
 
   if (!academy) {
-    throwForbidden("Este usuario no tiene una academia vinculada.");
+    throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH);
   }
 
   return { user: appUser, academy };
