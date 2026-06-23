@@ -168,6 +168,6 @@ describe("accessAuthProvider", () => {
         emailRedirectTo: "http://localhost/registro/confirmar",
       },
     });
-    expect(insertUserValues).not.toHaveBeenCalled();
+    expect(findAppUser).not.toHaveBeenCalled();
   });
 });
