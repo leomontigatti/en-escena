@@ -123,7 +123,7 @@ describe("access session policy", () => {
     const registrationEmail = "registro-sesion@example.com";
 
     const signUpResult = await accessAuthProvider.startEmailSignUp({
-      email: "registro-sesion@example.com",
+      email: registrationEmail,
       password: "password-segura",
       redirectTo: "http://localhost/registro/confirmar",
       request: new Request("http://localhost/registro"),
@@ -137,14 +137,21 @@ describe("access session policy", () => {
 
     expect(unconfirmedUser).toBeUndefined();
     expect(unconfirmedSessions).toEqual([]);
-    expect(signUpResult.debugConfirmationTokenHash).toEqual(expect.any(String));
+
+    const confirmationTokenHash = signUpResult.debugConfirmationTokenHash;
+
+    expect(confirmationTokenHash).toEqual(expect.any(String));
+
+    if (typeof confirmationTokenHash !== "string") {
+      throw new Error("Expected debug confirmation token hash.");
+    }
 
     const confirmationStartedAt = Date.now();
     const confirmationResult = await accessAuthProvider.confirmEmailOtp({
       request: new Request(
-        `http://localhost/registro/confirmar?token_hash=${signUpResult.debugConfirmationTokenHash}&type=signup`,
+        `http://localhost/registro/confirmar?token_hash=${confirmationTokenHash}&type=signup`,
       ),
-      tokenHash: signUpResult.debugConfirmationTokenHash!,
+      tokenHash: confirmationTokenHash,
       type: "signup",
     });
 
@@ -156,7 +163,11 @@ describe("access session policy", () => {
     expect(confirmedUser).toEqual({ id: expect.any(String) });
     expectHeadersToSetSessionCookie(confirmationResult.headers);
 
-    const registrationSession = await findSessionByUserId(confirmedUser!.id);
+    if (!confirmedUser) {
+      throw new Error("Expected confirmed user to exist.");
+    }
+
+    const registrationSession = await findSessionByUserId(confirmedUser.id);
 
     expectSessionExpiresInPolicyWindow(
       registrationSession.expiresAt,

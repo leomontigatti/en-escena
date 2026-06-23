@@ -6,8 +6,10 @@ import { startAcademyUserSignUp } from "@/lib/academies/registration-auth.server
 import { PUBLIC_REGISTRATION_CONFIRMATION_PATH } from "@/lib/auth/access-paths.shared";
 import { readErrorProperty } from "@/lib/shared/error-properties.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
+
 const REGISTRATION_START_MESSAGE =
   "Si el correo puede registrarse, enviamos un enlace para confirmar la cuenta y seguir con el alta.";
+
 type StartAcademyUserSignUp = typeof startAcademyUserSignUp;
 type IsRegistrationEligible = (email: string) => Promise<boolean>;
 type AcademyRegistrationStartResult = {

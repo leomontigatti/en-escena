@@ -31,6 +31,11 @@ type EmailSignUpResult = {
   headers: Headers;
   debugConfirmationTokenHash?: string;
 };
+type EmailOtpConfirmationInput = {
+  request: Request;
+  tokenHash: string;
+  type: "signup";
+};
 
 type AccessSession = {
   session: {
@@ -52,15 +57,14 @@ export type AccessCredentialUser = {
   headers: Headers;
 };
 
+type PendingTestEmailSignUp = {
+  email: string;
+  password: string;
+};
+
 const TEST_SUPABASE_RECOVERY_COOKIE_NAME = "sb-recovery-user";
 const testRecoveryCodes = new Map<string, string>();
-const testPendingEmailSignUps = new Map<
-  string,
-  {
-    email: string;
-    password: string;
-  }
->();
+const pendingTestEmailSignUps = new Map<string, PendingTestEmailSignUp>();
 
 export const accessAuthProvider = {
   async getAccessSession(request: Request): Promise<AccessSession | null> {
@@ -288,11 +292,7 @@ export const accessAuthProvider = {
     };
   },
 
-  async confirmEmailOtp(input: {
-    request: Request;
-    tokenHash: string;
-    type: "signup";
-  }) {
+  async confirmEmailOtp(input: EmailOtpConfirmationInput) {
     if (isTestAccessAuthMode()) {
       return await confirmTestEmailOtp(input);
     }
@@ -396,7 +396,7 @@ async function startTestEmailSignUp(
 ): Promise<EmailSignUpResult> {
   const tokenHash = crypto.randomUUID();
 
-  testPendingEmailSignUps.set(tokenHash, {
+  pendingTestEmailSignUps.set(tokenHash, {
     email: input.email,
     password: input.password,
   });
@@ -407,18 +407,14 @@ async function startTestEmailSignUp(
   };
 }
 
-async function confirmTestEmailOtp(input: {
-  request: Request;
-  tokenHash: string;
-  type: "signup";
-}) {
-  const pendingSignUp = testPendingEmailSignUps.get(input.tokenHash);
+async function confirmTestEmailOtp(input: EmailOtpConfirmationInput) {
+  const pendingSignUp = pendingTestEmailSignUps.get(input.tokenHash);
 
   if (!pendingSignUp) {
     throw new Error("Supabase email confirmation failed.");
   }
 
-  testPendingEmailSignUps.delete(input.tokenHash);
+  pendingTestEmailSignUps.delete(input.tokenHash);
 
   const result = await createLocalAccessUser({
     email: pendingSignUp.email,
