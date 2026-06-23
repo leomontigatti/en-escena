@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
+import { TriangleAlert } from "lucide-react";
 import {
   Controller,
   type FieldPathByValue,
@@ -139,7 +140,8 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
       />
 
       {showRegistrationStartWarning ? (
-        <Alert className="md:col-span-2">
+        <Alert variant="warning" className="md:col-span-2">
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>
             La inscripción empieza después del inicio del evento. Podés guardar
             esta configuración si es intencional.

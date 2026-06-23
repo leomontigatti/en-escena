@@ -163,13 +163,15 @@ function EventTable({ events }: { events: EventListRow[] }) {
       cell: (event) => {
         return (
           <div className="flex flex-wrap gap-2">
-            <Badge variant={event.active ? "default" : "secondary"}>
+            <Badge variant={event.active ? "success" : "secondary"}>
               {event.active ? "Activo" : "Inactivo"}
             </Badge>
-            <Badge variant="outline">{event.temporalState.label}</Badge>
+            <Badge variant={getTemporalStateBadgeVariant(event.temporalState)}>
+              {event.temporalState.label}
+            </Badge>
             {event.shouldShowRegistrationReadiness &&
             !event.isRegistrationReady ? (
-              <Badge variant="outline">Configuración pendiente</Badge>
+              <Badge variant="warning">Configuración pendiente</Badge>
             ) : null}
           </div>
         );
@@ -228,6 +230,17 @@ function getTemporalState(
   }
 
   return { label: "En curso", value: "in-progress" };
+}
+
+function getTemporalStateBadgeVariant(temporalState: TemporalState) {
+  switch (temporalState.value) {
+    case "not-started":
+      return "info";
+    case "in-progress":
+      return "success";
+    case "finished":
+      return "secondary";
+  }
 }
 
 function formatDate(date: Date) {

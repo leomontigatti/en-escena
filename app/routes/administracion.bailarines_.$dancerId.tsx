@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Lock, Pencil, TriangleAlert } from "lucide-react";
+import { Check, CircleAlert, Lock, Pencil, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import {
@@ -685,7 +685,7 @@ export function AdministracionBailarinDetalleRouteView({
               )}
             </AlertDialogHeader>
             {birthDateMayNeedRecalculation ? (
-              <Alert>
+              <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
                   Si cambiás la fecha de nacimiento, las coreografías vinculadas
@@ -857,7 +857,9 @@ function DancerStatusAlerts({
   return (
     <div className="flex flex-col gap-3">
       {!active ? (
-        <DancerAlert>Este bailarín está archivado.</DancerAlert>
+        <DancerAlert icon={CircleAlert} variant="destructive">
+          Este bailarín está archivado.
+        </DancerAlert>
       ) : null}
       {identificationAlert ? (
         <DancerAlert
@@ -880,16 +882,20 @@ function DancerStatusAlerts({
 function DancerAlert({
   action,
   children,
+  icon: Icon = TriangleAlert,
+  variant = "warning",
 }: {
   action?: {
     label: string;
     onClick: () => void;
   };
   children: ReactNode;
+  icon?: typeof TriangleAlert;
+  variant?: "destructive" | "warning";
 }) {
   return (
-    <Alert>
-      <TriangleAlert aria-hidden="true" />
+    <Alert variant={variant}>
+      <Icon aria-hidden="true" />
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

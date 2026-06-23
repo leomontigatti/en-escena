@@ -359,11 +359,11 @@ function OperationalStatusBadge({
   choreography: ChoreographyListItem;
 }) {
   if (choreography.operationalStatus.code === "complete") {
-    return <Badge variant="secondary">Completa</Badge>;
+    return <Badge variant="success">Completa</Badge>;
   }
 
   return (
-    <Badge variant="outline">
+    <Badge variant="warning">
       {formatOperationalStatusLabel(choreography.operationalStatus)}
     </Badge>
   );

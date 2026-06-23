@@ -20,7 +20,7 @@ export function OperationalStatusSummary({
   }
 
   return (
-    <Alert>
+    <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
       <AlertDescription>
         {academyPendingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}

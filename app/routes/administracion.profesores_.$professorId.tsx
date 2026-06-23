@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Lock, Pencil, TriangleAlert } from "lucide-react";
+import { Check, CircleAlert, Lock, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { Link, redirect, useActionData } from "react-router";
@@ -391,8 +391,8 @@ export function AdministracionProfesorDetalleRouteView({
       <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           {!professor.active ? (
-            <Alert>
-              <TriangleAlert aria-hidden="true" />
+            <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>
                 Este profesor está archivado. Reactivalo para que vuelva a
                 aparecer en las vistas activas y en próximas selecciones del
@@ -420,7 +420,7 @@ export function AdministracionProfesorDetalleRouteView({
             </Alert>
           ) : null}
           {professor.isIncomplete ? (
-            <Alert>
+            <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
               <AlertDescription>
                 Faltan datos de identificación.

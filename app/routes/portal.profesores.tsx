@@ -485,19 +485,19 @@ function getProfessorStateBadges(professor: ProfessorRow) {
       label: getProfessorParticipationLabel(professor.participationStatus),
       variant:
         professor.participationStatus === "participating"
-          ? ("outline" as const)
+          ? ("success" as const)
           : ("secondary" as const),
     },
   ];
 
   if (!professor.active) {
-    badges.unshift({ label: "Archivado", variant: "outline" as const });
+    badges.unshift({ label: "Archivado", variant: "destructive" as const });
   }
 
   badges.push(
     professor.isIncomplete
-      ? { label: "Incompleto", variant: "secondary" as const }
-      : { label: "Completo", variant: "default" as const },
+      ? { label: "Incompleto", variant: "warning" as const }
+      : { label: "Completo", variant: "success" as const },
   );
 
   return badges;

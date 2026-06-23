@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, LoaderCircle } from "lucide-react";
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useId } from "react";
 import { Controller, type Control, useForm } from "react-hook-form";
 import {
@@ -237,8 +237,8 @@ export function AdministracionUsuariosNuevoRouteView({
         </p>
       </section>
 
-      <Alert>
-        <CircleAlert aria-hidden="true" />
+      <Alert variant="warning">
+        <TriangleAlert aria-hidden="true" />
         <AlertTitle>
           Compartí la contraseña temporal por un canal seguro
         </AlertTitle>

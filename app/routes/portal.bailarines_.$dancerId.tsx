@@ -1,5 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, Lock, RotateCcw, TriangleAlert } from "lucide-react";
+import {
+  Archive,
+  CircleAlert,
+  Lock,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import {
@@ -338,8 +344,8 @@ export function PortalBailarinDetalleRouteView({
 
         <div className="flex flex-col gap-3">
           {!loaderData.dancer.active ? (
-            <Alert>
-              <TriangleAlert aria-hidden="true" />
+            <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>
                 Este bailarín está archivado. Reactivalo para que vuelva a
                 aparecer en las listas activas y en próximas selecciones de
@@ -360,7 +366,7 @@ export function PortalBailarinDetalleRouteView({
             </Alert>
           ) : null}
           {showsIdentificationAlert ? (
-            <Alert>
+            <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
               <AlertDescription>
                 Faltan datos de identificación para completar la verificación.
@@ -368,7 +374,7 @@ export function PortalBailarinDetalleRouteView({
             </Alert>
           ) : null}
           {showsMissingImagesAlert ? (
-            <Alert>
+            <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
               <AlertDescription>
                 Faltan imágenes del documento para completar la verificación.

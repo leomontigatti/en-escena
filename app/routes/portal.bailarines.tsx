@@ -499,18 +499,18 @@ function getDancerStateBadges(dancer: DancerRow) {
   const badges: DancerBadge[] = [];
 
   if (!dancer.active) {
-    badges.push({ label: "Archivado", variant: "outline" });
+    badges.push({ label: "Archivado", variant: "destructive" });
   }
 
   badges.push({
     label: getDancerParticipationLabel(dancer.participationStatus),
     variant:
-      dancer.participationStatus === "participating" ? "outline" : "secondary",
+      dancer.participationStatus === "participating" ? "success" : "secondary",
   });
 
   badges.push({
     label: getDancerVerificationLabel(dancer.verificationStatus),
-    variant: dancer.verificationStatus === "verified" ? "default" : "secondary",
+    variant: dancer.verificationStatus === "verified" ? "success" : "warning",
   });
 
   return badges;

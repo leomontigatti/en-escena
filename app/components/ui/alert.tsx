@@ -10,7 +10,12 @@ const alertVariants = cva(
       variant: {
         default: "bg-card text-card-foreground",
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
+          "border-destructive/20 bg-destructive/10 text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current dark:border-destructive/30 dark:bg-destructive/20",
+        success:
+          "border-success/20 bg-success/10 text-success *:data-[slot=alert-description]:text-success/90 *:[svg]:text-current dark:border-success/30",
+        info: "border-info/20 bg-info/10 text-info *:data-[slot=alert-description]:text-info/90 *:[svg]:text-current dark:border-info/30",
+        warning:
+          "border-warning/20 bg-warning/10 text-warning *:data-[slot=alert-description]:text-warning/90 *:[svg]:text-current dark:border-warning/30",
       },
     },
     defaultVariants: {
@@ -67,7 +72,10 @@ function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-action"
-      className={cn("absolute top-2 right-2", className)}
+      className={cn(
+        "absolute top-2 right-2 [&_[data-slot=button][data-variant=link]]:text-current",
+        className,
+      )}
       {...props}
     />
   );

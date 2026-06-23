@@ -222,7 +222,7 @@ function EventRegistrationReadinessAlert({
   }
 
   return (
-    <Alert>
+    <Alert variant="warning">
       <TriangleAlert
         aria-hidden="true"
         className="self-center !translate-y-0"

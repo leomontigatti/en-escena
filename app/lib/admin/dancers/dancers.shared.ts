@@ -186,21 +186,21 @@ export function formatAdminDancerDocument(input: {
 export function getAdminDancerParticipationBadgeVariant(
   participationStatus: AdminDancerParticipationStatus,
 ) {
-  return participationStatus === "participating" ? "outline" : "secondary";
+  return participationStatus === "participating" ? "success" : "secondary";
 }
 
 export function getAdminDancerIdentificationBadgeVariant(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
   if (identificationStatus === "verified") {
-    return "default";
+    return "success";
   }
 
   if (identificationStatus === "pending-verification") {
-    return "outline";
+    return "warning";
   }
 
-  return "secondary";
+  return "warning";
 }
 
 export function formatAdminDancerBirthDate(value: string) {

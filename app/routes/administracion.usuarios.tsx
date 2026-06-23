@@ -318,10 +318,10 @@ function getStateLabel(state: AdministrativeUserListState) {
 function getStateBadgeVariant(state: AdministrativeUserListState) {
   switch (state) {
     case "active":
-      return "default";
+      return "success";
     case "mandatory-password-change":
-      return "secondary";
+      return "warning";
     case "suspended":
-      return "outline";
+      return "destructive";
   }
 }

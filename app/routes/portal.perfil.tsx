@@ -221,7 +221,7 @@ export function PortalPerfilRouteView({
         <ProfileActionsMenu />
       </header>
 
-      <Alert>
+      <Alert variant="info">
         <Info aria-hidden="true" />
         <AlertDescription>
           Para cambiar el nombre de la academia o el email de acceso, comunicate

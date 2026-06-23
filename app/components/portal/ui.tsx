@@ -3,10 +3,13 @@ import {
   AudioLines,
   CalendarDays,
   ChevronsUpDown,
+  CircleCheck,
   GraduationCap,
   Home,
   Inbox,
+  Info,
   LogOut,
+  TriangleAlert,
   User,
   Users,
 } from "lucide-react";
@@ -163,6 +166,7 @@ type CreationAvailabilityPresentation = {
   alertVariant: AlertVariant;
   badgeLabel: string;
   badgeVariant: BadgeVariant;
+  Icon: typeof CircleCheck;
 };
 type EventStatusPresentation = {
   label: string;
@@ -181,19 +185,22 @@ const creationAvailabilityPresentationByTone: Record<
   CreationAvailabilityPresentation
 > = {
   ready: {
-    alertVariant: "default",
+    alertVariant: "success",
     badgeLabel: "Disponible",
-    badgeVariant: "default",
+    badgeVariant: "success",
+    Icon: CircleCheck,
   },
   blocked: {
-    alertVariant: "destructive",
+    alertVariant: "warning",
     badgeLabel: "Bloqueado",
-    badgeVariant: "destructive",
+    badgeVariant: "warning",
+    Icon: TriangleAlert,
   },
   info: {
-    alertVariant: "default",
+    alertVariant: "info",
     badgeLabel: "Información",
-    badgeVariant: "secondary",
+    badgeVariant: "info",
+    Icon: Info,
   },
 };
 
@@ -527,6 +534,7 @@ export function PortalCoreographiesSection({
             </CardHeader>
             <CardContent>
               <Alert variant={creationAvailabilityPresentation.alertVariant}>
+                <creationAvailabilityPresentation.Icon aria-hidden="true" />
                 <AlertTitle className="flex flex-wrap items-center gap-2">
                   <span>{creationAvailability.message}</span>
                   <Badge

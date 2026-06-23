@@ -278,7 +278,7 @@ describe("portal route view", () => {
     );
 
     expect(readyMarkup).toContain('data-slot="alert"');
-    expect(readyMarkup).toContain('data-variant="default"');
+    expect(readyMarkup).toContain('data-variant="success"');
     expect(readyMarkup).toContain(">Disponible<");
 
     const blockedMarkup = renderToStaticMarkup(
@@ -291,7 +291,7 @@ describe("portal route view", () => {
 
     expect(blockedMarkup).toContain('data-slot="alert"');
     expect(blockedMarkup).toContain(">Bloqueado<");
-    expect(blockedMarkup).toContain('data-variant="destructive"');
+    expect(blockedMarkup).toContain('data-variant="warning"');
 
     const infoMarkup = renderToStaticMarkup(
       <PortalCoreographiesSection
@@ -304,7 +304,7 @@ describe("portal route view", () => {
 
     expect(infoMarkup).toContain('data-slot="alert"');
     expect(infoMarkup).toContain(">Información<");
-    expect(infoMarkup).toContain('data-variant="secondary"');
+    expect(infoMarkup).toContain('data-variant="info"');
   });
 
   test("shows the delete success notice on the Coreografías list", () => {

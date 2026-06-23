@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-export type ToastVariant = "success" | "error";
+export type ToastVariant = "success" | "error" | "info" | "warning";
 
 export type ToastMessage = {
   id?: string;
@@ -21,6 +21,12 @@ export function showToastMessage({ id, message, variant }: ToastMessage) {
       return;
     case "error":
       toast.error(message, { id });
+      return;
+    case "info":
+      toast.info(message, { id });
+      return;
+    case "warning":
+      toast.warning(message, { id });
       return;
   }
 }

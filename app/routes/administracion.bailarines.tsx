@@ -150,7 +150,9 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
               participationStatus={dancer.participationStatus}
             />
           ) : null}
-          {!dancer.active ? <Badge variant="secondary">Archivado</Badge> : null}
+          {!dancer.active ? (
+            <Badge variant="destructive">Archivado</Badge>
+          ) : null}
           <IdentificationBadge
             identificationStatus={dancer.identificationStatus}
           />

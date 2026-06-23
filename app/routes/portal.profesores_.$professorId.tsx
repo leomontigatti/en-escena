@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
+import { Archive, CircleAlert, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   Controller,
@@ -305,8 +305,8 @@ export function PortalProfesorRouteView({
 
         <div className="flex flex-col gap-3">
           {!loaderData.professor.active ? (
-            <Alert>
-              <TriangleAlert aria-hidden="true" />
+            <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>
                 Este profesor está archivado. Reactivalo para que vuelva a
                 aparecer en las listas activas y en próximas selecciones de
@@ -327,7 +327,7 @@ export function PortalProfesorRouteView({
             </Alert>
           ) : null}
           {loaderData.professor.isIncomplete ? (
-            <Alert>
+            <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
               <AlertDescription>
                 Faltan datos de identificación.

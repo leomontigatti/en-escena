@@ -44,7 +44,7 @@ export const recoverySuccessNotice = {
 
 export const logoutSuccessNotice = {
   id: authToastIds.loginLogoutNotice,
-  variant: "success",
+  variant: "info",
   message: "Cerraste sesión.",
 } satisfies LoginNotice;
 

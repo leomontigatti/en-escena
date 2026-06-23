@@ -148,7 +148,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
             />
           ) : null}
           {!professor.active ? (
-            <Badge variant="secondary">Archivado</Badge>
+            <Badge variant="destructive">Archivado</Badge>
           ) : null}
         </div>
       ),
@@ -185,7 +185,7 @@ function ParticipationBadge({
   participationStatus: AdminProfessorParticipationStatus;
 }) {
   const variant =
-    participationStatus === "participating" ? "outline" : "secondary";
+    participationStatus === "participating" ? "success" : "secondary";
 
   return (
     <Badge variant={variant}>

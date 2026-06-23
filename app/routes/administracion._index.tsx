@@ -82,7 +82,7 @@ export function AdministracionIndexRouteView({
       </section>
 
       {readinessAlertEvent ? (
-        <Alert>
+        <Alert variant="warning">
           <TriangleAlert
             aria-hidden="true"
             className="self-center !translate-y-0"
