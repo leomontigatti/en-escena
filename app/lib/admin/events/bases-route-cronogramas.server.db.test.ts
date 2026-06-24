@@ -531,5 +531,52 @@ describe.sequential(
       expect(updateScheduleMarkup).toContain("Ajustá el cupo.");
       expect(updateScheduleMarkup).not.toContain("Este campo es obligatorio.");
     });
+
+    test("returns inline cupo required errors from the cronograma action", async () => {
+      const event = await createSavedEvent("Regional 2026");
+      const modality = await expectCreated(
+        createModality(event.id, { name: "Jazz" }),
+      );
+      const request = await createSignedInRequest({
+        email: "admin.inline.cupos.requeridos@example.com",
+        role: "admin",
+        requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+        body: formData({
+          intent: "create-schedule",
+          name: "Domingo tarde",
+          scheduledDate: "2026-05-03",
+          startTime: "15:00",
+          totalCapacity: "12",
+          modalityIds: [modality.id],
+          "scheduleCapacities.0.groupType": "",
+          "scheduleCapacities.0.capacity": "",
+          "scheduleCapacities.1.groupType": "grupal",
+          "scheduleCapacities.1.capacity": "7",
+        }),
+      });
+
+      await expect(action(routeArgs(request.request))).resolves.toEqual({
+        status: "error",
+        message: "Revisá los datos del cronograma.",
+        fieldErrors: {
+          "scheduleCapacities.0.groupType": "Este campo es obligatorio.",
+          "scheduleCapacities.0.capacity": "Este campo es obligatorio.",
+        },
+        scope: {
+          intent: "create-schedule",
+        },
+        values: {
+          name: "Domingo tarde",
+          scheduledDate: "2026-05-03",
+          startTime: "15:00",
+          totalCapacity: "12",
+          modalityIds: [modality.id],
+          scheduleCapacities: [
+            { groupType: "", capacity: "" },
+            { groupType: "grupal", capacity: "7" },
+          ],
+        },
+      });
+    });
   },
 );
