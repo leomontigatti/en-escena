@@ -5,6 +5,9 @@ import type {
   ScheduleCapacityActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 
+const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;
+const submodalityFieldNames = ["id", "name"] as const;
+
 export function readEventBasesActionInput(
   eventId: string,
   formData: FormData,
@@ -63,70 +66,105 @@ export function readScheduleCapacityActionValues(
 }
 
 export function readScheduleCapacityActionValuesList(formData: FormData) {
-  const entriesByIndex = new Map<
-    number,
-    { id?: string; groupType: string; capacity: string }
-  >();
-
-  for (const [key, value] of formData.entries()) {
-    const match = /^scheduleCapacities\.(\d+)\.(id|groupType|capacity)$/.exec(
-      key,
-    );
-
-    if (!match || typeof value !== "string") {
-      continue;
-    }
-
-    const index = Number.parseInt(match[1] ?? "", 10);
-    const fieldName = match[2];
-    const entry = entriesByIndex.get(index) ?? {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "scheduleCapacities",
+    fieldNames: scheduleCapacityFieldNames,
+    createEntry: (): ScheduleCapacityActionValues => ({
       groupType: "",
       capacity: "",
-    };
+    }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
 
-    if (fieldName === "id" && value.trim().length > 0) {
-      entry.id = value;
-    }
+      if (fieldName === "groupType") {
+        entry.groupType = value;
+      }
 
-    if (fieldName === "groupType") {
-      entry.groupType = value;
-    }
-
-    if (fieldName === "capacity") {
-      entry.capacity = value;
-    }
-
-    entriesByIndex.set(index, entry);
-  }
-
-  return Array.from(entriesByIndex.entries())
-    .sort(([firstIndex], [secondIndex]) => firstIndex - secondIndex)
-    .map(([, entry]) => entry);
+      if (fieldName === "capacity") {
+        entry.capacity = value;
+      }
+    },
+  });
 }
 
 export function readSubmodalitiesInput(formData: FormData) {
-  const entriesByIndex = new Map<number, { id?: string; name: string }>();
+  return readIndexedFormEntries({
+    formData,
+    prefix: "submodalities",
+    fieldNames: submodalityFieldNames,
+    createEntry: (): NameActionValuesWithId => ({ name: "" }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
+
+      if (fieldName === "name") {
+        entry.name = value;
+      }
+    },
+  });
+}
+
+function readScheduleCapacitiesInput(formData: FormData) {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "scheduleCapacities",
+    fieldNames: scheduleCapacityFieldNames,
+    createEntry: (): ScheduleCapacityInputWithOptionalId => ({
+      groupType: "",
+      capacity: Number.NaN,
+    }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
+
+      if (fieldName === "groupType") {
+        entry.groupType = value;
+      }
+
+      if (fieldName === "capacity") {
+        entry.capacity = Number.parseInt(value, 10);
+      }
+    },
+  });
+}
+
+type ScheduleCapacityInputWithOptionalId = {
+  id?: string;
+  groupType: string;
+  capacity: number;
+};
+
+function readIndexedFormEntries<FieldName extends string, Entry>({
+  formData,
+  prefix,
+  fieldNames,
+  createEntry,
+  setField,
+}: {
+  formData: FormData;
+  prefix: string;
+  fieldNames: readonly FieldName[];
+  createEntry: () => Entry;
+  setField: (entry: Entry, fieldName: FieldName, value: string) => void;
+}) {
+  const entriesByIndex = new Map<number, Entry>();
 
   for (const [key, value] of formData.entries()) {
-    const match = /^submodalities\.(\d+)\.(id|name)$/.exec(key);
+    const field = getIndexedFormField(key, prefix, fieldNames);
 
-    if (!match || typeof value !== "string") {
+    if (!field || typeof value !== "string") {
       continue;
     }
 
-    const index = Number.parseInt(match[1] ?? "", 10);
-    const fieldName = match[2];
-    const entry = entriesByIndex.get(index) ?? { name: "" };
+    const entry = entriesByIndex.get(field.index) ?? createEntry();
 
-    if (fieldName === "id" && value.trim().length > 0) {
-      entry.id = value;
-    }
-
-    if (fieldName === "name") {
-      entry.name = value;
-    }
-
-    entriesByIndex.set(index, entry);
+    setField(entry, field.fieldName, value);
+    entriesByIndex.set(field.index, entry);
   }
 
   return Array.from(entriesByIndex.entries())
@@ -134,44 +172,30 @@ export function readSubmodalitiesInput(formData: FormData) {
     .map(([, entry]) => entry);
 }
 
-function readScheduleCapacitiesInput(formData: FormData) {
-  const entriesByIndex = new Map<
-    number,
-    { id?: string; groupType: string; capacity: number }
-  >();
+function getIndexedFormField<FieldName extends string>(
+  key: string,
+  prefix: string,
+  fieldNames: readonly FieldName[],
+): { index: number; fieldName: FieldName } | null {
+  const [entryPrefix, indexValue, fieldName, ...extraSegments] = key.split(".");
 
-  for (const [key, value] of formData.entries()) {
-    const match = /^scheduleCapacities\.(\d+)\.(id|groupType|capacity)$/.exec(
-      key,
-    );
-
-    if (!match || typeof value !== "string") {
-      continue;
-    }
-
-    const index = Number.parseInt(match[1] ?? "", 10);
-    const fieldName = match[2];
-    const entry = entriesByIndex.get(index) ?? {
-      groupType: "",
-      capacity: Number.NaN,
-    };
-
-    if (fieldName === "id" && value.trim().length > 0) {
-      entry.id = value;
-    }
-
-    if (fieldName === "groupType") {
-      entry.groupType = value;
-    }
-
-    if (fieldName === "capacity") {
-      entry.capacity = Number.parseInt(value, 10);
-    }
-
-    entriesByIndex.set(index, entry);
+  if (
+    entryPrefix !== prefix ||
+    extraSegments.length > 0 ||
+    !indexValue ||
+    !/^\d+$/.test(indexValue)
+  ) {
+    return null;
   }
 
-  return Array.from(entriesByIndex.entries())
-    .sort(([firstIndex], [secondIndex]) => firstIndex - secondIndex)
-    .map(([, entry]) => entry);
+  const matchedFieldName = fieldNames.find((name) => name === fieldName);
+
+  if (!matchedFieldName) {
+    return null;
+  }
+
+  return {
+    index: Number.parseInt(indexValue, 10),
+    fieldName: matchedFieldName,
+  };
 }
