@@ -1,10 +1,12 @@
 import { useEffect } from "react";
+import { LoaderCircle } from "lucide-react";
 import {
   Form,
   redirect,
   useActionData,
   useLocation,
   useNavigate,
+  useNavigation,
   useSearchParams,
 } from "react-router";
 import { z } from "zod";
@@ -166,7 +168,9 @@ function isLoginRedirectReason(
 export default function IngresarRoute() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
   const loginNotice = getLoginNotice(searchParams);
+  const isSubmitting = navigation.state !== "idle";
   const form = useAccessForm({
     schema: signInSchema,
     values: actionData?.values ?? emptySignInValues,
@@ -210,7 +214,14 @@ export default function IngresarRoute() {
             type="password"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
             Ingresar
           </Button>
         </FieldGroup>

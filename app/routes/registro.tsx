@@ -1,4 +1,5 @@
-import { data, Form, useActionData } from "react-router";
+import { LoaderCircle } from "lucide-react";
+import { data, Form, useActionData, useNavigation } from "react-router";
 import { z } from "zod";
 
 import {
@@ -105,6 +106,8 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function RegistroRoute() {
   const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state !== "idle";
   const form = useAccessForm({
     schema: requestRegistrationSchema,
     values: actionData?.values ?? emptyRegistrationValues,
@@ -156,7 +159,14 @@ export default function RegistroRoute() {
             type="password"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
             Continuar con el registro
           </Button>
         </FieldGroup>

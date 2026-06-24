@@ -1,4 +1,5 @@
-import { data, Form, useActionData } from "react-router";
+import { LoaderCircle } from "lucide-react";
+import { data, Form, useActionData, useNavigation } from "react-router";
 import { z } from "zod";
 
 import {
@@ -86,6 +87,8 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function RecuperarAccesoRoute() {
   const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state !== "idle";
   const form = useAccessForm({
     schema: requestRecoverySchema,
     values: actionData?.values ?? emptyRecoveryValues,
@@ -121,7 +124,14 @@ export default function RecuperarAccesoRoute() {
             type="email"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
             Enviar enlace
           </Button>
         </FieldGroup>
