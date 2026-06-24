@@ -170,7 +170,9 @@ export default function IngresarRoute() {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const loginNotice = getLoginNotice(searchParams);
-  const isSubmitting = navigation.state !== "idle";
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toLowerCase() === "post";
   const form = useAccessForm({
     schema: signInSchema,
     values: actionData?.values ?? emptySignInValues,

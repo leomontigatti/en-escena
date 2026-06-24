@@ -88,7 +88,9 @@ export async function action({ request }: Route.ActionArgs) {
 export default function RecuperarAccesoRoute() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const isSubmitting = navigation.state !== "idle";
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toLowerCase() === "post";
   const form = useAccessForm({
     schema: requestRecoverySchema,
     values: actionData?.values ?? emptyRecoveryValues,
