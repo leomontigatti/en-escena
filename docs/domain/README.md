@@ -16,3 +16,7 @@ Read order for domain work:
 - [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
 - [finanzas.md](./finanzas.md) - financial states, invoices, payments, account balance and pricing.
 - [rules.md](./rules.md) - index for compatibility.
+
+Implementation entry points live in
+[docs/agents/codebase-map.md](../agents/codebase-map.md). Keep domain files
+focused on behavior and use the codebase map for routes, modules and tests.

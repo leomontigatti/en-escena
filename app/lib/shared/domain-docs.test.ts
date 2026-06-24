@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
@@ -57,6 +57,44 @@ const accessAdrRequirements = [
   "redirect the confirmed user into academy onboarding",
 ];
 
+const codebaseMapRequirements = [
+  "# Codebase Map",
+  "## Public Academy Registration",
+  "## Access And Internal Users",
+  "## Event Context And Bases Del Evento",
+  "## Portal People",
+  "## Portal Coreografias",
+  "## Admin People",
+  "## Judging And Results",
+  "`app/routes/portal.coreografias.tsx`",
+  "`app/lib/portal/choreographies.server.ts`",
+  "`app/lib/portal/choreographies.server.db.test.ts`",
+  "`app/routes/administracion.usuarios.tsx`",
+  "`app/lib/admin/users/users-route.server.db.test.ts`",
+  "`app/lib/storage/dancer-documents.server.ts`",
+  "`app/lib/storage/dancer-documents.server.test.ts`",
+];
+
+const adrIndexRequirements = [
+  "# Architecture Decisions",
+  "Access and authentication",
+  "Event context",
+  "Code organization",
+  "Database test strategy",
+  "Uploaded assets",
+  "[ADR-0006: Supabase Auth for access credentials]",
+  "[ADR-0008: Supabase Storage for uploaded assets]",
+];
+
+const accessPermissionRequirements = [
+  "## Permission Matrix",
+  "| academia",
+  "| admin",
+  "| auditor",
+  "| juzgamiento",
+  "Server guards",
+];
+
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -112,6 +150,61 @@ describe("domain documentation", () => {
 
     for (const requirement of accessAdrRequirements) {
       expect(adr).toContain(requirement);
+    }
+  });
+
+  test("keeps a compact implementation map for agent navigation", async () => {
+    const map = await readFile("docs/agents/codebase-map.md", "utf8");
+
+    for (const requirement of codebaseMapRequirements) {
+      expect(map).toContain(requirement);
+    }
+  });
+
+  test("keeps an ADR topic index", async () => {
+    const index = await readFile("docs/adr/README.md", "utf8");
+
+    for (const requirement of adrIndexRequirements) {
+      expect(index).toContain(requirement);
+    }
+  });
+
+  test("documents access permissions as domain authority", async () => {
+    const rules = await readFile("docs/domain/acceso.md", "utf8");
+
+    for (const requirement of accessPermissionRequirements) {
+      expect(rules).toContain(requirement);
+    }
+  });
+
+  test("keeps ADR index links pointed at existing files", async () => {
+    const index = await readFile("docs/adr/README.md", "utf8");
+    const linkedFiles = [...index.matchAll(/\]\(\.\/(000\d-[^)]+\.md)\)/g)].map(
+      ([, file]) => file,
+    );
+    const adrFiles = await readdir("docs/adr");
+
+    expect(linkedFiles).toHaveLength(8);
+
+    for (const file of linkedFiles) {
+      expect(adrFiles).toContain(file);
+    }
+  });
+
+  test("keeps codebase map file references pointed at existing files", async () => {
+    const map = await readFile("docs/agents/codebase-map.md", "utf8");
+    const referencedPaths = [
+      ...new Set(
+        [...map.matchAll(/`((?:app|docs)\/[^`]+|CONTEXT\.md)`/g)]
+          .map(([, path]) => path)
+          .filter((path) => !path.includes(" -- ")),
+      ),
+    ];
+
+    expect(referencedPaths.length).toBeGreaterThan(50);
+
+    for (const path of referencedPaths) {
+      await expect(stat(path), path).resolves.toBeTruthy();
     }
   });
 });

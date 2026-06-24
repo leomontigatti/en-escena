@@ -23,3 +23,15 @@ Rules for public academy registration, users, sessions and internal invitations.
 - Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes must keep administrative traceability without storing raw passwords or password hashes in audit payloads.
 - Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
 - Supabase Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, invitations and the local test harness.
+
+## Permission Matrix
+
+This matrix describes domain authority, not component visibility. Server guards
+and actions must enforce it even when UI controls are hidden.
+
+| Permiso     | Alcance principal                              | Puede mutar                                                                                                                            | No puede mutar                                                                                                    |
+| ----------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| academia    | Datos propios del Portal de academias          | Perfil de academia, profesores, bailarines y coreografías propias dentro de las reglas del Evento activo                               | Panel de administración, usuarios internos, publicaciones, correcciones administrativas, datos de otras academias |
+| admin       | Operación del Panel de administración          | Eventos, Bases del evento, usuarios internos, correcciones administrativas, publicaciones y acciones permitidas sobre datos operativos | Credenciales técnicas fuera de los flujos definidos, acciones sin trazabilidad cuando el dominio exige razón      |
+| auditor     | Lectura de administración y auditoría          | Nada en flujos de negocio                                                                                                              | Crear, editar, publicar, despublicar, cancelar, corregir, anular, suspender o reactivar                           |
+| juzgamiento | Evaluación asignada en el Panel de juzgamiento | Puntajes, devoluciones y descalificaciones dentro del flujo de evaluación asignado                                                     | Administración general, Bases del evento, usuarios, datos financieros y datos de otras áreas                      |

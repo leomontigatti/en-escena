@@ -7,3 +7,5 @@
 - [coreografias.md](./coreografias.md) - people, choreography registration, locks and Bases del evento.
 - [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
 - [finanzas.md](./finanzas.md) - financial states, invoices, payments, account balance and pricing.
+
+Implementation entry points live in [docs/agents/codebase-map.md](../agents/codebase-map.md).
