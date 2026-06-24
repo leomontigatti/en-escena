@@ -23,7 +23,7 @@ import type {
   DancerResolutionState,
 } from "@/lib/portal/coreografia-detail/people-editor.shared";
 import { resolveChoreographyDancersIntent } from "@/lib/portal/coreografia-detail/people-editor.shared";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-people.server";
 
 export function ReadonlyDetailField({
   className,

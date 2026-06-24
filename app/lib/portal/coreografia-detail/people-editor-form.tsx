@@ -48,7 +48,7 @@ import {
   type DancerResolutionState,
   updateChoreographyIntent,
 } from "@/lib/portal/coreografia-detail/people-editor.shared";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-people.server";
 
 const emptyChoreographyEditFieldErrors: ChoreographyEditFieldErrors = {};
 type ChoreographySummary = CoreografiaPeopleEditorLoaderData["choreography"];
