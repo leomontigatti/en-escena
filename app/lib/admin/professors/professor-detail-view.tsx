@@ -23,14 +23,15 @@ import {
   getInitialDialogIntent,
   getProfessorConfirmationAction,
   getProfessorEditFieldErrors,
+  getProfessorEditValues,
   getProfessorReasonFieldErrors,
-  isProfessorStatusValues,
-  isProfessorUpdateValues,
-  toProfessorEditValues,
+  getProfessorReasonValues,
+  getSubmittedProfessorUpdateValues,
   type ProfessorActionError,
   type ProfessorDetailLoaderData,
   type ProfessorDialogIntent,
   type ProfessorEditFormValues,
+  toProfessorEditValues,
 } from "./professor-detail.shared";
 
 type AdministracionProfesorDetalleRouteViewProps = {
@@ -49,23 +50,9 @@ export function AdministracionProfesorDetalleRouteView({
   const professor = loaderData.professor;
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
-  const submittedUpdateValues = isProfessorUpdateValues(actionData?.values)
-    ? actionData.values
-    : null;
-  const editValues: ProfessorEditFormValues = {
-    firstName: submittedUpdateValues?.firstName ?? professor.firstName,
-    lastName: submittedUpdateValues?.lastName ?? professor.lastName,
-    documentType:
-      submittedUpdateValues?.documentType ?? professor.documentType ?? "",
-    documentNumber:
-      submittedUpdateValues?.documentNumber ?? professor.documentNumber ?? "",
-  };
-  const reasonValues = {
-    correctionReason: actionData?.values.correctionReason ?? "",
-    statusIntent: isProfessorStatusValues(actionData?.values)
-      ? actionData.values.statusIntent
-      : "",
-  };
+  const submittedUpdateValues = getSubmittedProfessorUpdateValues(actionData);
+  const editValues = getProfessorEditValues({ actionData, professor });
+  const reasonValues = getProfessorReasonValues(actionData);
   const editForm = useProfessorEditForm({
     fieldErrors: getProfessorEditFieldErrors(actionData?.fieldErrors),
     values: editValues,

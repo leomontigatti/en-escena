@@ -254,6 +254,41 @@ export function isProfessorStatusValues(
   return values !== undefined && "statusIntent" in values;
 }
 
+export function getSubmittedProfessorUpdateValues(
+  actionData: ProfessorActionError | undefined,
+): AdministrativeProfessorUpdateInput | null {
+  return isProfessorUpdateValues(actionData?.values) ? actionData.values : null;
+}
+
+export function getProfessorEditValues({
+  actionData,
+  professor,
+}: {
+  actionData: ProfessorActionError | undefined;
+  professor: ProfessorDetailLoaderData["professor"];
+}): ProfessorEditFormValues {
+  const submittedValues = getSubmittedProfessorUpdateValues(actionData);
+
+  return {
+    firstName: submittedValues?.firstName ?? professor.firstName,
+    lastName: submittedValues?.lastName ?? professor.lastName,
+    documentType: submittedValues?.documentType ?? professor.documentType ?? "",
+    documentNumber:
+      submittedValues?.documentNumber ?? professor.documentNumber ?? "",
+  };
+}
+
+export function getProfessorReasonValues(
+  actionData: ProfessorActionError | undefined,
+): ProfessorReasonFormValues {
+  return {
+    correctionReason: actionData?.values.correctionReason ?? "",
+    statusIntent: isProfessorStatusValues(actionData?.values)
+      ? actionData.values.statusIntent
+      : "",
+  };
+}
+
 export function getProfessorEditFieldErrors(
   fieldErrors: AdministrativeProfessorFieldErrors | undefined,
 ): AdministrativeProfessorFieldErrors {
