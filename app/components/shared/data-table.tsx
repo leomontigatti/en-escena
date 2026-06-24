@@ -40,7 +40,7 @@ import {
   createColumnFilters,
   getActiveFacetedFilterValues,
   getNextServerSortDirection,
-  getSelectedFacetedFilterValue,
+  getVisibleFacetedFilterValue,
   getServerSortDirection,
   isFacetedFilterValue,
   mergeBaseFacetedFilterValue,
@@ -51,9 +51,15 @@ import {
 } from "@/components/shared/data-table-helpers";
 import { cn } from "@/lib/shared/utils";
 
-type SortDirection = "asc" | "desc";
+export type DataTableSortDirection = "asc" | "desc";
 
-type SortValue = string | number | Date | boolean | null | undefined;
+export type DataTableSortValue =
+  | string
+  | number
+  | Date
+  | boolean
+  | null
+  | undefined;
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -71,7 +77,7 @@ export type DataTableColumn<TData> = {
   headerClassName?: string;
   filterValue?: (row: TData) => string;
   filterValues?: (row: TData) => string[];
-  sortValue?: (row: TData) => SortValue;
+  sortValue?: (row: TData) => DataTableSortValue;
 };
 
 export type DataTableFacetedFilter = {
@@ -91,7 +97,7 @@ type DataTableFacetedFilterOption = {
   value: string;
 };
 
-type DataTableFacetedFilterValue = Record<string, string>;
+export type DataTableFacetedFilterValue = Record<string, string>;
 
 type DataTableBaseProps<TData> = {
   rows: TData[];
@@ -111,7 +117,7 @@ type DataTableClientProps<TData> = DataTableBaseProps<TData> & {
   textFilterColumnId?: string;
   initialSort?: {
     columnId: string;
-    direction: SortDirection;
+    direction: DataTableSortDirection;
   };
 };
 
@@ -123,7 +129,7 @@ type DataTableServerProps<TData> = DataTableBaseProps<TData> & {
   basePath?: string;
   initialSort?: {
     columnId: string;
-    direction: SortDirection;
+    direction: DataTableSortDirection;
   };
   loading?: boolean;
   pageParamName?: string;
@@ -703,7 +709,7 @@ function getSelectedFilterValues<TData>(
     return {};
   }
 
-  return getSelectedFacetedFilterValue(
+  return getVisibleFacetedFilterValue(
     baseFacetedFilterValues[columnId],
     filterValue,
   );

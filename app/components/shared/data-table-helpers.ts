@@ -1,14 +1,13 @@
 import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 
-import type { DataTableFacetedFilter } from "@/components/shared/data-table";
-
-type SortDirection = "asc" | "desc";
-
-type DataTableFacetedFilterValue = Record<string, string>;
+import type {
+  DataTableFacetedFilter,
+  DataTableFacetedFilterValue,
+  DataTableSortDirection,
+  DataTableSortValue,
+} from "@/components/shared/data-table";
 
 type DataTableFacetedFilterGroup = DataTableFacetedFilter["groups"][number];
-
-type SortValue = string | number | Date | boolean | null | undefined;
 
 export function getPaginationPages(pageCount: number, currentPage: number) {
   if (pageCount <= 1) {
@@ -49,7 +48,7 @@ export function getPaginationPages(pageCount: number, currentPage: number) {
   });
 }
 
-export function toSortDirection(sortValue: false | SortDirection) {
+export function toSortDirection(sortValue: false | DataTableSortDirection) {
   return sortValue === "asc" || sortValue === "desc" ? sortValue : false;
 }
 
@@ -65,8 +64,8 @@ export function getServerSortDirection(
 }
 
 export function getNextServerSortDirection(
-  currentDirection: SortDirection | false,
-): SortDirection {
+  currentDirection: DataTableSortDirection | false,
+): DataTableSortDirection {
   return currentDirection === "asc" ? "desc" : "asc";
 }
 
@@ -156,7 +155,7 @@ export function mergeBaseFacetedFilterValue(
   };
 }
 
-export function getSelectedFacetedFilterValue(
+export function getVisibleFacetedFilterValue(
   baseValue: DataTableFacetedFilterValue | undefined,
   selectedValue: DataTableFacetedFilterValue,
 ) {
@@ -173,6 +172,22 @@ export function getSelectedFacetedFilterValue(
   }
 
   return visibleValue;
+}
+
+export function toggleFacetedFilterValue(
+  selectedValues: DataTableFacetedFilterValue,
+  groupId: string,
+  nextValue: string,
+) {
+  const updatedValues = { ...selectedValues };
+
+  if (nextValue === selectedValues[groupId]) {
+    delete updatedValues[groupId];
+  } else {
+    updatedValues[groupId] = nextValue;
+  }
+
+  return updatedValues;
 }
 
 export function mergeServerFilterValues(
@@ -287,7 +302,7 @@ export function buildDataTableSortHref({
   basePath: string;
   columnId: string;
   currentSearch: string;
-  direction: SortDirection;
+  direction: DataTableSortDirection;
   pageParamName?: string;
   sortParamName?: string;
 }) {
@@ -309,8 +324,8 @@ export function buildTableHref(
 }
 
 export function compareSortValues(
-  firstValue: SortValue,
-  secondValue: SortValue,
+  firstValue: DataTableSortValue,
+  secondValue: DataTableSortValue,
 ) {
   if (firstValue === secondValue) {
     return 0;

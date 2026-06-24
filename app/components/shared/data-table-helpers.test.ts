@@ -5,10 +5,11 @@ import {
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,
   getPaginationPages,
-  getSelectedFacetedFilterValue,
+  getVisibleFacetedFilterValue,
   getServerSortDirection,
   mergeBaseFacetedFilterValues,
   mergeServerFilterValues,
+  toggleFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 import type { DataTableFacetedFilter } from "@/components/shared/data-table";
 
@@ -85,7 +86,7 @@ describe("data-table helpers", () => {
 
   test("hides base faceted values from the visible selected state", () => {
     expect(
-      getSelectedFacetedFilterValue(
+      getVisibleFacetedFilterValue(
         {
           estado: "active",
         },
@@ -101,6 +102,34 @@ describe("data-table helpers", () => {
     expect(getActiveFacetedFilterValues({ estado: "", sede: "north" })).toEqual(
       ["north"],
     );
+  });
+
+  test("toggles one faceted filter group without mutating other groups", () => {
+    expect(
+      toggleFacetedFilterValue(
+        {
+          estado: "active",
+          sede: "north",
+        },
+        "estado",
+        "active",
+      ),
+    ).toEqual({
+      sede: "north",
+    });
+
+    expect(
+      toggleFacetedFilterValue(
+        {
+          estado: "active",
+        },
+        "sede",
+        "north",
+      ),
+    ).toEqual({
+      estado: "active",
+      sede: "north",
+    });
   });
 
   test("summarizes only active faceted filter labels", () => {

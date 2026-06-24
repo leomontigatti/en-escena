@@ -28,28 +28,47 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { DataTableFacetedFilter } from "@/components/shared/data-table";
+import type {
+  DataTableFacetedFilter,
+  DataTableFacetedFilterValue,
+  DataTableSortDirection,
+} from "@/components/shared/data-table";
 import {
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,
   getFilterGroupQueryParamKey,
   getPaginationPages,
+  toggleFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 import { cn } from "@/lib/shared/utils";
 
-type SortDirection = "asc" | "desc";
+type DataTableFacetedFilterControlProps = {
+  filter: DataTableFacetedFilter;
+  selectedValues: DataTableFacetedFilterValue;
+  onChange: (values: DataTableFacetedFilterValue) => void;
+};
 
-type DataTableFacetedFilterValue = Record<string, string>;
+type DataTablePaginationProps = {
+  basePath: string;
+  pageCount: number;
+  currentPage: number;
+  canPreviousPage: boolean;
+  canNextPage: boolean;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
+  onPageChange?: (page: number) => void;
+  pageHrefBuilder?: (page: number) => string;
+};
+
+type SortIconProps = {
+  direction?: DataTableSortDirection | false;
+};
 
 export function DataTableFacetedFilterControl({
   filter,
   selectedValues,
   onChange,
-}: {
-  filter: DataTableFacetedFilter;
-  selectedValues: DataTableFacetedFilterValue;
-  onChange: (values: DataTableFacetedFilterValue) => void;
-}) {
+}: DataTableFacetedFilterControlProps) {
   const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
@@ -137,15 +156,13 @@ export function DataTableFacetedFilterControl({
                 <DropdownMenuRadioGroup
                   value={selectedValue}
                   onValueChange={(nextValue) => {
-                    const nextValues = { ...selectedValues };
-
-                    if (nextValue === selectedValue) {
-                      delete nextValues[groupId];
-                    } else {
-                      nextValues[groupId] = nextValue;
-                    }
-
-                    onChange(nextValues);
+                    onChange(
+                      toggleFacetedFilterValue(
+                        selectedValues,
+                        groupId,
+                        nextValue,
+                      ),
+                    );
                   }}
                 >
                   {group.options.map((option) => (
@@ -179,17 +196,7 @@ export function DataTablePagination({
   onNextPage,
   onPageChange,
   pageHrefBuilder,
-}: {
-  basePath: string;
-  pageCount: number;
-  currentPage: number;
-  canPreviousPage: boolean;
-  canNextPage: boolean;
-  onPreviousPage?: () => void;
-  onNextPage?: () => void;
-  onPageChange?: (page: number) => void;
-  pageHrefBuilder?: (page: number) => string;
-}) {
+}: DataTablePaginationProps) {
   const pages = getPaginationPages(pageCount, currentPage);
   const previousHref =
     pageHrefBuilder?.(Math.max(1, currentPage - 1)) ?? basePath;
@@ -270,7 +277,7 @@ export function DataTablePagination({
   );
 }
 
-export function SortIcon({ direction }: { direction?: SortDirection | false }) {
+export function SortIcon({ direction }: SortIconProps) {
   if (direction === "asc") {
     return <ArrowUp data-icon="inline-end" />;
   }
