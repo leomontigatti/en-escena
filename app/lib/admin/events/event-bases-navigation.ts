@@ -1,121 +1,115 @@
-const categoryRoutes = {
-  detail: "/administracion/categorias",
-  list: "/administracion/categorias",
-  new: "/administracion/categorias/nueva",
-} as const;
-
-const modalityRoutes = {
-  detail: "/administracion/modalidades",
-  list: "/administracion/modalidades",
-  new: "/administracion/modalidades/nueva",
-} as const;
-
-const scheduleRoutes = {
-  detail: "/administracion/cronogramas",
-  list: "/administracion/cronogramas",
-  new: "/administracion/cronogramas/nuevo",
-} as const;
-
-const priceRoutes = {
-  detail: "/administracion/precios",
-  list: "/administracion/precios",
-  new: "/administracion/precios/nuevo",
-} as const;
+const categoryBasePath = "/administracion/categorias";
+const modalityBasePath = "/administracion/modalidades";
+const scheduleBasePath = "/administracion/cronogramas";
+const priceBasePath = "/administracion/precios";
 
 export function buildCategoryCreatePath(selectedEventId: string | null) {
-  return appendSelectedEventId(categoryRoutes.new, selectedEventId);
+  return appendSelectedEventId(`${categoryBasePath}/nueva`, selectedEventId);
 }
 
 export function buildCategoriasListPath(selectedEventId: string | null) {
-  return appendSelectedEventId(categoryRoutes.list, selectedEventId);
+  return appendSelectedEventId(categoryBasePath, selectedEventId);
 }
 
 export function buildCategoryDetailPath(
   categoryId: string,
   selectedEventId: string | null,
 ) {
-  return appendSelectedEventId(
-    `${categoryRoutes.detail}/${categoryId}`,
+  return buildEventBaseDetailPath(
+    categoryBasePath,
+    categoryId,
     selectedEventId,
   );
 }
 
 export function isCategoryDetailPath(requestUrl: string) {
-  return new RegExp(`^${categoryRoutes.detail}/[^/]+$`).test(
-    new URL(requestUrl).pathname,
-  );
+  return isEventBaseDetailPath(categoryBasePath, requestUrl);
 }
 
 export function buildModalidadesListPath(selectedEventId: string | null) {
-  return appendSelectedEventId(modalityRoutes.list, selectedEventId);
+  return appendSelectedEventId(modalityBasePath, selectedEventId);
 }
 
 export function buildNuevaModalidadPath(selectedEventId: string | null) {
-  return appendSelectedEventId(modalityRoutes.new, selectedEventId);
+  return appendSelectedEventId(`${modalityBasePath}/nueva`, selectedEventId);
 }
 
 export function buildModalidadDetallePath(
   modalityId: string,
   selectedEventId: string | null,
 ) {
-  return appendSelectedEventId(
-    `${modalityRoutes.detail}/${modalityId}`,
+  return buildEventBaseDetailPath(
+    modalityBasePath,
+    modalityId,
     selectedEventId,
   );
 }
 
 export function isModalityDetailPath(requestUrl: string) {
-  return new RegExp(`^${modalityRoutes.detail}/[^/]+$`).test(
-    new URL(requestUrl).pathname,
-  );
+  return isEventBaseDetailPath(modalityBasePath, requestUrl);
 }
 
 export function buildSchedulesPath(selectedEventId: string | null) {
-  return appendSelectedEventId(scheduleRoutes.list, selectedEventId);
+  return appendSelectedEventId(scheduleBasePath, selectedEventId);
 }
 
 export function buildNewSchedulePath(selectedEventId: string | null) {
-  return appendSelectedEventId(scheduleRoutes.new, selectedEventId);
+  return appendSelectedEventId(`${scheduleBasePath}/nuevo`, selectedEventId);
 }
 
 export function buildScheduleDetailPath(
   scheduleId: string,
   selectedEventId: string | null,
 ) {
-  return appendSelectedEventId(
-    `${scheduleRoutes.detail}/${scheduleId}`,
+  return buildEventBaseDetailPath(
+    scheduleBasePath,
+    scheduleId,
     selectedEventId,
   );
 }
 
 export function isScheduleDetailPath(requestUrl: string) {
-  return new RegExp(`^${scheduleRoutes.detail}/[^/]+$`).test(
-    new URL(requestUrl).pathname,
-  );
+  return isEventBaseDetailPath(scheduleBasePath, requestUrl);
 }
 
 export function buildPriceListPath(selectedEventId: string | null) {
-  return appendSelectedEventId(priceRoutes.list, selectedEventId);
+  return appendSelectedEventId(priceBasePath, selectedEventId);
 }
 
 export function buildPriceCreatePath(selectedEventId: string | null) {
-  return appendSelectedEventId(priceRoutes.new, selectedEventId);
+  return appendSelectedEventId(`${priceBasePath}/nuevo`, selectedEventId);
 }
 
 export function buildPriceDetailPath(
   priceId: string,
   selectedEventId: string | null,
 ) {
-  return appendSelectedEventId(
-    `${priceRoutes.detail}/${priceId}`,
-    selectedEventId,
-  );
+  return buildEventBaseDetailPath(priceBasePath, priceId, selectedEventId);
 }
 
 export function isPriceDetailPath(requestUrl: string) {
-  return new RegExp(`^${priceRoutes.detail}/[^/]+$`).test(
-    new URL(requestUrl).pathname,
-  );
+  return isEventBaseDetailPath(priceBasePath, requestUrl);
+}
+
+function buildEventBaseDetailPath(
+  basePath: string,
+  recordId: string,
+  selectedEventId: string | null,
+) {
+  return appendSelectedEventId(`${basePath}/${recordId}`, selectedEventId);
+}
+
+function isEventBaseDetailPath(basePath: string, requestUrl: string) {
+  const detailPrefix = `${basePath}/`;
+  const pathname = new URL(requestUrl).pathname;
+
+  if (!pathname.startsWith(detailPrefix)) {
+    return false;
+  }
+
+  const detailSegment = pathname.slice(detailPrefix.length);
+
+  return detailSegment.length > 0 && !detailSegment.includes("/");
 }
 
 function appendSelectedEventId(
