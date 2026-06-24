@@ -32,7 +32,7 @@ import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
   DataTableSortDirection,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table.shared";
 import {
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,

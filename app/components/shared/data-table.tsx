@@ -49,17 +49,23 @@ import {
   normalizeSearchValue,
   toSortDirection,
 } from "@/components/shared/data-table-helpers";
+import type {
+  DataTableColumn,
+  DataTableFacetedFilter,
+  DataTableFacetedFilterValue,
+  DataTableSortDirection,
+} from "@/components/shared/data-table.shared";
 import { cn } from "@/lib/shared/utils";
 
-export type DataTableSortDirection = "asc" | "desc";
-
-export type DataTableSortValue =
-  | string
-  | number
-  | Date
-  | boolean
-  | null
-  | undefined;
+export type {
+  DataTableColumn,
+  DataTableFacetedFilter,
+  DataTableFacetedFilterGroup,
+  DataTableFacetedFilterOption,
+  DataTableFacetedFilterValue,
+  DataTableSortDirection,
+  DataTableSortValue,
+} from "@/components/shared/data-table.shared";
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -67,37 +73,6 @@ declare module "@tanstack/react-table" {
     headerClassName?: string;
   }
 }
-
-export type DataTableColumn<TData> = {
-  id: string;
-  header: string;
-  cell: (row: TData) => React.ReactNode;
-  hidden?: boolean;
-  className?: string;
-  headerClassName?: string;
-  filterValue?: (row: TData) => string;
-  filterValues?: (row: TData) => string[];
-  sortValue?: (row: TData) => DataTableSortValue;
-};
-
-export type DataTableFacetedFilter = {
-  columnId: string;
-  label: string;
-  groups: DataTableFacetedFilterGroup[];
-};
-
-type DataTableFacetedFilterGroup = {
-  id?: string;
-  label: string;
-  options: DataTableFacetedFilterOption[];
-};
-
-type DataTableFacetedFilterOption = {
-  label: string;
-  value: string;
-};
-
-export type DataTableFacetedFilterValue = Record<string, string>;
 
 type DataTableBaseProps<TData> = {
   rows: TData[];

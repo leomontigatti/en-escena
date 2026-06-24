@@ -11,7 +11,7 @@ import {
   mergeServerFilterValues,
   toggleFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
-import type { DataTableFacetedFilter } from "@/components/shared/data-table";
+import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 
 describe("data-table helpers", () => {
   const statusFilter: DataTableFacetedFilter = {

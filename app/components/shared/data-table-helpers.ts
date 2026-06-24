@@ -2,12 +2,11 @@ import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 
 import type {
   DataTableFacetedFilter,
+  DataTableFacetedFilterGroup,
   DataTableFacetedFilterValue,
   DataTableSortDirection,
   DataTableSortValue,
-} from "@/components/shared/data-table";
-
-type DataTableFacetedFilterGroup = DataTableFacetedFilter["groups"][number];
+} from "@/components/shared/data-table.shared";
 
 export function getPaginationPages(pageCount: number, currentPage: number) {
   if (pageCount <= 1) {
