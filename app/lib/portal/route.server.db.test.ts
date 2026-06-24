@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -52,7 +52,50 @@ import {
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
+const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
+const uploadDocumentImageMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/storage/dancer-documents.server", () => ({
+  createDefaultDancerDocumentStorage: () => ({
+    createDocumentImageSignedUrl: createDocumentImageSignedUrlMock,
+    uploadDocumentImage: uploadDocumentImageMock,
+  }),
+}));
+
 installDatabaseTestHooks();
+
+beforeEach(() => {
+  createDocumentImageSignedUrlMock.mockReset();
+  uploadDocumentImageMock.mockReset();
+  createDocumentImageSignedUrlMock.mockImplementation(
+    async (storageKey: string) => `signed:${storageKey}`,
+  );
+  uploadDocumentImageMock.mockImplementation(
+    async ({
+      academyId,
+      dancerId,
+      file,
+      side,
+    }: {
+      academyId: string;
+      dancerId: string;
+      file: File;
+      side: "back" | "front";
+    }) => {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        throw new Error("Document image must be a JPEG, PNG, or WebP file.");
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("Document image must be 10 MB or smaller.");
+      }
+
+      const extension = file.type === "image/png" ? "png" : "jpg";
+
+      return `academies/${academyId}/dancers/${dancerId}/document-${side}.${extension}`;
+    },
+  );
+});
 
 describe.sequential("portal loader Evento activo", () => {
   test("uses the active Evento in the shell summary", async () => {
@@ -867,6 +910,223 @@ describe.sequential("portal Bailarines route", () => {
     });
   });
 
+  test("uploads Bailarín document images and stores their canonical keys", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.imagenes@example.com",
+      academyName: "Academia Imagenes",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Luz",
+        lastName: "Mar",
+        birthDate: "2012-03-04",
+      })
+      .returning();
+    const formData = dancerEditFormData({
+      firstName: "Luz",
+      lastName: "Mar",
+      birthDate: "2012-03-04",
+      documentType: "dni",
+      documentNumber: "12.345.678",
+    });
+    formData.set(
+      "documentFrontImage",
+      new File(["front"], "frente.png", { type: "image/png" }),
+    );
+    formData.set(
+      "documentBackImage",
+      new File(["back"], "dorso.jpg", { type: "image/jpeg" }),
+    );
+
+    await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          formData,
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      302,
+    );
+
+    expect(uploadDocumentImageMock).toHaveBeenCalledWith({
+      academyId: session.academyId,
+      dancerId: dancer.id,
+      file: formData.get("documentFrontImage"),
+      side: "front",
+    });
+    expect(uploadDocumentImageMock).toHaveBeenCalledWith({
+      academyId: session.academyId,
+      dancerId: dancer.id,
+      file: formData.get("documentBackImage"),
+      side: "back",
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentFrontImageStorageKey: `academies/${session.academyId}/dancers/${dancer.id}/document-front.png`,
+      documentBackImageStorageKey: `academies/${session.academyId}/dancers/${dancer.id}/document-back.jpg`,
+    });
+  });
+
+  test("rejects unsupported Bailarín document image files without saving", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.imagenes-invalidas@example.com",
+      academyName: "Academia Imagenes Invalidas",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Sol",
+        lastName: "Río",
+        birthDate: "2012-03-04",
+      })
+      .returning();
+    const formData = dancerEditFormData({
+      firstName: "Sol",
+      lastName: "Río",
+      birthDate: "2012-03-04",
+      documentType: "dni",
+      documentNumber: "12.345.678",
+    });
+    formData.set(
+      "documentFrontImage",
+      new File(["html"], "confirmar-email.html", { type: "text/html" }),
+    );
+
+    await expect(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          formData,
+        ),
+        params: { dancerId: dancer.id },
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      message: "El archivo del frente debe ser JPG, PNG o WEBP.",
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentFrontImageStorageKey: null,
+      documentBackImageStorageKey: null,
+      documentType: null,
+      documentNumber: null,
+    });
+  });
+
+  test("keeps client-side document image validation errors from saving", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.imagenes-cliente@example.com",
+      academyName: "Academia Validacion Cliente",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Uma",
+        lastName: "Sol",
+        birthDate: "2012-03-04",
+      })
+      .returning();
+    const formData = dancerEditFormData({
+      firstName: "Uma",
+      lastName: "Sol",
+      birthDate: "2012-03-04",
+      documentType: "dni",
+      documentNumber: "12.345.678",
+    });
+    formData.set(
+      "documentFrontImageValidationError",
+      "El archivo debe ser JPG, PNG o WEBP.",
+    );
+
+    await expect(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          formData,
+        ),
+        params: { dancerId: dancer.id },
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      message: "El archivo debe ser JPG, PNG o WEBP.",
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: null,
+      documentNumber: null,
+    });
+  });
+
+  test("rejects oversized Bailarín document image files without saving", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.imagenes-pesadas@example.com",
+      academyName: "Academia Imagenes Pesadas",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Nina",
+        lastName: "Luz",
+        birthDate: "2012-03-04",
+      })
+      .returning();
+    const formData = dancerEditFormData({
+      firstName: "Nina",
+      lastName: "Luz",
+      birthDate: "2012-03-04",
+      documentType: "dni",
+      documentNumber: "12.345.678",
+    });
+    formData.set(
+      "documentFrontImage",
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], "frente.png", {
+        type: "image/png",
+      }),
+    );
+
+    await expect(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          formData,
+        ),
+        params: { dancerId: dancer.id },
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      message: "El archivo del frente no puede superar 10 MB.",
+    });
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentFrontImageStorageKey: null,
+      documentBackImageStorageKey: null,
+      documentType: null,
+      documentNumber: null,
+    });
+  });
+
   test("loads the four verification states and blocks academy edits after verification", async () => {
     const session = await createAcademySession({
       email: "bailarines.verification@example.com",
@@ -974,6 +1234,100 @@ describe.sequential("portal Bailarines route", () => {
     ).resolves.toMatchObject({
       documentFrontImageStorageKey: "dancers/vera-front.jpg",
       identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
+    });
+  });
+
+  test("loads signed document image URLs for existing Bailarín storage keys", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.signed-urls@example.com",
+      academyName: "Academia Signed URLs",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Lara",
+        lastName: "Imagenes",
+        birthDate: "2012-04-01",
+        documentType: "dni",
+        documentNumber: "12345678",
+        documentFrontImageStorageKey: "dancers/lara-front.jpg",
+        documentBackImageStorageKey: "dancers/lara-back.jpg",
+      })
+      .returning();
+
+    await expect(
+      bailarinesDetalleLoader({
+        request: new Request(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          {
+            headers: { cookie: session.cookie },
+          },
+        ),
+        params: { dancerId: dancer.id },
+      }),
+    ).resolves.toMatchObject({
+      documentImageUrls: {
+        front: "signed:dancers/lara-front.jpg",
+        back: "signed:dancers/lara-back.jpg",
+      },
+    });
+    expect(createDocumentImageSignedUrlMock).toHaveBeenCalledWith(
+      "dancers/lara-front.jpg",
+    );
+    expect(createDocumentImageSignedUrlMock).toHaveBeenCalledWith(
+      "dancers/lara-back.jpg",
+    );
+  });
+
+  test("keeps existing document images when clearing document type and number", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.clear-document@example.com",
+      academyName: "Academia Limpia Documento",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Mora",
+        lastName: "Documento",
+        birthDate: "2012-04-01",
+        documentType: "dni",
+        documentNumber: "12345678",
+        documentFrontImageStorageKey: "dancers/mora-front.jpg",
+        documentBackImageStorageKey: "dancers/mora-back.jpg",
+      })
+      .returning();
+
+    await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          dancerEditFormData({
+            firstName: "Mora",
+            lastName: "Documento",
+            birthDate: "2012-04-01",
+            documentType: "",
+            documentNumber: "",
+            documentFrontImageStorageKey: "dancers/mora-front.jpg",
+            documentBackImageStorageKey: "dancers/mora-back.jpg",
+          }),
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      302,
+    );
+
+    await expect(
+      db.query.dancers.findFirst({
+        where: eq(dancers.id, dancer.id),
+      }),
+    ).resolves.toMatchObject({
+      documentType: null,
+      documentNumber: null,
+      documentFrontImageStorageKey: "dancers/mora-front.jpg",
+      documentBackImageStorageKey: "dancers/mora-back.jpg",
     });
   });
 

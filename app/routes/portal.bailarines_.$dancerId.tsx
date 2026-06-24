@@ -2,11 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Archive,
   CircleAlert,
+  Info,
   Lock,
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import {
   Link,
@@ -20,6 +21,7 @@ import { z } from "zod";
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { FileUploadField } from "@/components/shared/file-upload-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
@@ -50,6 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getDancerVerificationStatus } from "@/lib/dancers/verification";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
@@ -63,10 +66,18 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 const dancerNotFoundMessage = "No encontramos ese Bailarín.";
+const dancerDocumentImageAccept = "image/jpeg,image/png,image/webp";
+const dancerDocumentImageAllowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+const dancerDocumentImageMaxFileSizeBytes = 10 * 1024 * 1024;
 const formId = "portal-bailarin-form";
 const noDocumentTypeSelectValue = "sin-documento";
 
@@ -187,9 +198,11 @@ export async function loader({
   const { academy } = await requireAcademyUser(request);
   const dancerId = readDancerId(params);
   const dancer = await requireDancer(academy.id, dancerId);
+  const documentImageUrls = await loadDancerDocumentImageUrls(dancer);
 
   return {
     dancer,
+    documentImageUrls,
   };
 }
 
@@ -224,7 +237,7 @@ export async function action({
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
-  const result = await updateDancerForAcademy(academy.id, dancerId, {
+  const submittedValues = {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
     birthDate: readFormString(formData, "birthDate"),
@@ -238,6 +251,38 @@ export async function action({
       formData,
       "documentBackImageStorageKey",
     ),
+  };
+  const clientImageValidationMessage =
+    getClientDocumentImageValidationMessage(formData);
+
+  if (clientImageValidationMessage) {
+    return {
+      status: "error" as const,
+      message: clientImageValidationMessage,
+      fieldErrors: {},
+      values: submittedValues,
+    };
+  }
+
+  const documentImageStorageKeys = await resolveDancerDocumentImageStorageKeys({
+    academyId: academy.id,
+    dancerId,
+    formData,
+  });
+
+  if (!documentImageStorageKeys.ok) {
+    return {
+      status: "error" as const,
+      message: documentImageStorageKeys.message,
+      fieldErrors: {},
+      values: submittedValues,
+    };
+  }
+
+  const result = await updateDancerForAcademy(academy.id, dancerId, {
+    ...submittedValues,
+    documentFrontImageStorageKey: documentImageStorageKeys.keys.front,
+    documentBackImageStorageKey: documentImageStorageKeys.keys.back,
   });
 
   if (!result.ok) {
@@ -282,11 +327,8 @@ export function PortalBailarinDetalleRouteView({
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<DancerStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getDancerStatusAction(loaderData.dancer.active);
-  const hasDocumentData = Boolean(
-    loaderData.dancer.documentType && loaderData.dancer.documentNumber,
-  );
-  const isIdentityVerified =
-    hasDocumentData && loaderData.dancer.identityVerifiedAt !== null;
+  const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
+  const isIdentityVerified = verificationStatus === "verified";
   const identityFieldValues = isIdentityVerified
     ? {
         birthDate: loaderData.dancer.birthDate,
@@ -294,12 +336,14 @@ export function PortalBailarinDetalleRouteView({
         documentNumber: loaderData.dancer.documentNumber ?? "",
       }
     : formValues;
-  const showsIdentificationAlert = !hasDocumentData;
-  const showsMissingImagesAlert = hasDocumentData && !isIdentityVerified;
+  const showsIdentificationAlert = verificationStatus === "incomplete";
+  const showsMissingImagesAlert = verificationStatus === "missingImages";
+  const showsPendingVerificationAlert = verificationStatus === "unverified";
   const showsStatusAlerts =
     !loaderData.dancer.active ||
     showsIdentificationAlert ||
-    showsMissingImagesAlert;
+    showsMissingImagesAlert ||
+    showsPendingVerificationAlert;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
@@ -374,7 +418,8 @@ export function PortalBailarinDetalleRouteView({
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
-                  Faltan datos de identificación para completar la verificación.
+                  Completá el tipo y número de documento para poder verificar la
+                  identidad del bailarín.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -382,7 +427,16 @@ export function PortalBailarinDetalleRouteView({
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
-                  Faltan imágenes del documento para completar la verificación.
+                  Subí las imágenes del documento para poder verificar la
+                  identidad del bailarín.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {showsPendingVerificationAlert ? (
+              <Alert variant="info">
+                <Info aria-hidden="true" />
+                <AlertDescription>
+                  La identidad del bailarín está pendiente de verificación.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -394,20 +448,11 @@ export function PortalBailarinDetalleRouteView({
             <form
               id={formId}
               method="post"
+              encType="multipart/form-data"
               noValidate
               onSubmit={form.handleSubmit}
             >
               <input type="hidden" name="intent" value="update-dancer" />
-              <input
-                type="hidden"
-                name="documentFrontImageStorageKey"
-                defaultValue={formValues.documentFrontImageStorageKey}
-              />
-              <input
-                type="hidden"
-                name="documentBackImageStorageKey"
-                defaultValue={formValues.documentBackImageStorageKey}
-              />
               <FieldGroup className="grid gap-5 md:grid-cols-2">
                 <DancerTextField
                   form={form.form}
@@ -464,6 +509,32 @@ export function PortalBailarinDetalleRouteView({
                     error={actionData?.fieldErrors.documentNumber}
                     label="Número de documento"
                     name="documentNumber"
+                  />
+                )}
+                {isIdentityVerified ? (
+                  <>
+                    <ReadonlyLockedFormField
+                      label="Frente del documento"
+                      name="documentFrontImageStorageKey"
+                      value={formValues.documentFrontImageStorageKey}
+                      displayValue={getDocumentImageStateLabel(
+                        formValues.documentFrontImageStorageKey,
+                      )}
+                    />
+                    <ReadonlyLockedFormField
+                      label="Dorso del documento"
+                      name="documentBackImageStorageKey"
+                      value={formValues.documentBackImageStorageKey}
+                      displayValue={getDocumentImageStateLabel(
+                        formValues.documentBackImageStorageKey,
+                      )}
+                    />
+                  </>
+                ) : (
+                  <DancerDocumentImageFields
+                    form={form.form}
+                    formValues={formValues}
+                    imageUrls={loaderData.documentImageUrls}
                   />
                 )}
               </FieldGroup>
@@ -538,6 +609,7 @@ function useDancerForm({
   return {
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
+      encType: "multipart/form-data",
       method: "post",
     }),
   };
@@ -707,6 +779,96 @@ function DancerDocumentTypeField({
   );
 }
 
+function DancerDocumentImageFields({
+  form,
+  formValues,
+  imageUrls,
+}: {
+  form: DancerFormReturn;
+  formValues: DancerFormValues;
+  imageUrls: LoaderData["documentImageUrls"];
+}) {
+  const frontImageId = useId();
+  const backImageId = useId();
+  const [frontImageHasError, setFrontImageHasError] = useState(false);
+  const [backImageHasError, setBackImageHasError] = useState(false);
+  const handleFrontImageValidationErrorChange = useCallback(
+    (hasError: boolean) => {
+      setFrontImageHasError(hasError);
+    },
+    [],
+  );
+  const handleBackImageValidationErrorChange = useCallback(
+    (hasError: boolean) => {
+      setBackImageHasError(hasError);
+    },
+    [],
+  );
+  const handleFrontImageStorageKeyChange = useCallback(
+    (storageKey: string) => {
+      form.setValue("documentFrontImageStorageKey", storageKey, {
+        shouldDirty: true,
+      });
+    },
+    [form],
+  );
+  const handleBackImageStorageKeyChange = useCallback(
+    (storageKey: string) => {
+      form.setValue("documentBackImageStorageKey", storageKey, {
+        shouldDirty: true,
+      });
+    },
+    [form],
+  );
+
+  return (
+    <>
+      <Field data-invalid={frontImageHasError ? true : undefined}>
+        <FieldLabel htmlFor={frontImageId}>Frente del documento</FieldLabel>
+        <FieldContent>
+          <FileUploadField
+            id={frontImageId}
+            name="documentFrontImage"
+            existingPreviewUrl={imageUrls.front}
+            storageKeyInputName="documentFrontImageStorageKey"
+            storageKeyValue={formValues.documentFrontImageStorageKey}
+            label="Arrastrá o hacé click"
+            helperText="JPG, PNG o WEBP - max 10 MB"
+            accept={dancerDocumentImageAccept}
+            allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
+            maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+            onStorageKeyChange={handleFrontImageStorageKeyChange}
+            onValidationErrorChange={handleFrontImageValidationErrorChange}
+          />
+        </FieldContent>
+      </Field>
+      <Field data-invalid={backImageHasError ? true : undefined}>
+        <FieldLabel htmlFor={backImageId}>Dorso del documento</FieldLabel>
+        <FieldContent>
+          <FileUploadField
+            id={backImageId}
+            name="documentBackImage"
+            existingPreviewUrl={imageUrls.back}
+            storageKeyInputName="documentBackImageStorageKey"
+            storageKeyValue={formValues.documentBackImageStorageKey}
+            label="Arrastrá o hacé click"
+            helperText="JPG, PNG o WEBP - max 10 MB"
+            accept={dancerDocumentImageAccept}
+            allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
+            maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+            onStorageKeyChange={handleBackImageStorageKeyChange}
+            onValidationErrorChange={handleBackImageValidationErrorChange}
+          />
+        </FieldContent>
+      </Field>
+    </>
+  );
+}
+
+function getDocumentImageStateLabel(storageKey: string) {
+  return storageKey ? "Imagen cargada" : "Sin imagen";
+}
+
 function formatDateOnlyLabel(value: string) {
   const [year, month, day] = value.split("-").map(Number);
 
@@ -856,6 +1018,24 @@ function readDancerId(params: { dancerId?: string }) {
   return params.dancerId;
 }
 
+function getClientDocumentImageValidationMessage(formData: FormData) {
+  const frontError = readFormString(
+    formData,
+    "documentFrontImageValidationError",
+  );
+
+  if (frontError) {
+    return frontError;
+  }
+
+  const backError = readFormString(
+    formData,
+    "documentBackImageValidationError",
+  );
+
+  return backError || null;
+}
+
 async function requireDancer(academyId: string, dancerId: string) {
   const dancer = await findDancerForAcademy(academyId, dancerId);
 
@@ -866,8 +1046,172 @@ async function requireDancer(academyId: string, dancerId: string) {
   return dancer;
 }
 
-function readFormString(formData: FormData, key: UpdateDancerField | "intent") {
+async function loadDancerDocumentImageUrls(
+  dancer: Awaited<ReturnType<typeof requireDancer>>,
+) {
+  if (
+    !dancer.documentFrontImageStorageKey &&
+    !dancer.documentBackImageStorageKey
+  ) {
+    return {
+      back: null,
+      front: null,
+    };
+  }
+
+  try {
+    const storage = createDefaultDancerDocumentStorage();
+
+    return {
+      back: await createOptionalDocumentImageSignedUrl(
+        storage,
+        dancer.documentBackImageStorageKey,
+      ),
+      front: await createOptionalDocumentImageSignedUrl(
+        storage,
+        dancer.documentFrontImageStorageKey,
+      ),
+    };
+  } catch {
+    return {
+      back: null,
+      front: null,
+    };
+  }
+}
+
+async function createOptionalDocumentImageSignedUrl(
+  storage: ReturnType<typeof createDefaultDancerDocumentStorage>,
+  storageKey: string | null,
+) {
+  if (!storageKey) {
+    return null;
+  }
+
+  try {
+    return await storage.createDocumentImageSignedUrl(storageKey);
+  } catch {
+    return null;
+  }
+}
+
+function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+async function resolveDancerDocumentImageStorageKeys(input: {
+  academyId: string;
+  dancerId: string;
+  formData: FormData;
+}): Promise<
+  | { ok: true; keys: { back: string; front: string } }
+  | { ok: false; message: string }
+> {
+  const storage = createDefaultDancerDocumentStorage();
+  const frontImage = readOptionalFormFile(input.formData, "documentFrontImage");
+  const backImage = readOptionalFormFile(input.formData, "documentBackImage");
+  const frontStorageKey = await uploadOptionalDancerDocumentImage({
+    academyId: input.academyId,
+    dancerId: input.dancerId,
+    fallbackStorageKey: readFormString(
+      input.formData,
+      "documentFrontImageStorageKey",
+    ),
+    file: frontImage,
+    side: "front",
+    storage,
+  });
+
+  if (!frontStorageKey.ok) {
+    return frontStorageKey;
+  }
+
+  const backStorageKey = await uploadOptionalDancerDocumentImage({
+    academyId: input.academyId,
+    dancerId: input.dancerId,
+    fallbackStorageKey: readFormString(
+      input.formData,
+      "documentBackImageStorageKey",
+    ),
+    file: backImage,
+    side: "back",
+    storage,
+  });
+
+  if (!backStorageKey.ok) {
+    return backStorageKey;
+  }
+
+  return {
+    ok: true,
+    keys: {
+      back: backStorageKey.storageKey,
+      front: frontStorageKey.storageKey,
+    },
+  };
+}
+
+async function uploadOptionalDancerDocumentImage(input: {
+  academyId: string;
+  dancerId: string;
+  fallbackStorageKey: string;
+  file: File | null;
+  side: "back" | "front";
+  storage: ReturnType<typeof createDefaultDancerDocumentStorage>;
+}): Promise<{ ok: true; storageKey: string } | { ok: false; message: string }> {
+  if (!input.file) {
+    return { ok: true, storageKey: input.fallbackStorageKey };
+  }
+
+  try {
+    return {
+      ok: true,
+      storageKey: await input.storage.uploadDocumentImage({
+        academyId: input.academyId,
+        dancerId: input.dancerId,
+        file: input.file,
+        side: input.side,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: getDocumentImageUploadErrorMessage(error, input.side),
+    };
+  }
+}
+
+function readOptionalFormFile(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function getDocumentImageUploadErrorMessage(
+  error: unknown,
+  side: "back" | "front",
+) {
+  const fieldLabel = side === "front" ? "frente" : "dorso";
+
+  if (
+    error instanceof Error &&
+    error.message === "Document image must be 10 MB or smaller."
+  ) {
+    return `El archivo del ${fieldLabel} no puede superar 10 MB.`;
+  }
+
+  if (
+    error instanceof Error &&
+    error.message === "Document image must be a JPEG, PNG, or WebP file."
+  ) {
+    return `El archivo del ${fieldLabel} debe ser JPG, PNG o WEBP.`;
+  }
+
+  return `No pudimos subir el archivo del ${fieldLabel}. Intentá nuevamente.`;
 }

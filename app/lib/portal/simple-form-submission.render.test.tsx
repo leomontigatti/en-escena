@@ -274,6 +274,10 @@ function buildDancerDetailLoaderData(): Parameters<
   typeof PortalBailarinDetalleRouteView
 >[0]["loaderData"] {
   return {
+    documentImageUrls: {
+      back: null,
+      front: null,
+    },
     dancer: {
       id: "dancer_1",
       academyId: "academy_1",

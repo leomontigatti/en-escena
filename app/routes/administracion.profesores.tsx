@@ -161,7 +161,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
-      searchPlaceholder="Buscar por nombre, documento o academia"
+      searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}

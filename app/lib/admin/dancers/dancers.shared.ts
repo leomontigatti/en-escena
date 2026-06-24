@@ -157,7 +157,7 @@ export function getAdminDancerIdentificationLabel(
     case "missing-images":
       return "Sin imágenes";
     case "pending-verification":
-      return "Para verificar";
+      return "Sin verificar";
     case "verified":
       return "Verificado";
     default:
@@ -197,7 +197,7 @@ export function getAdminDancerIdentificationBadgeVariant(
   }
 
   if (identificationStatus === "pending-verification") {
-    return "warning";
+    return "info";
   }
 
   return "warning";

@@ -119,6 +119,10 @@ function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loader
       participationStatus: "not-participating",
       updatedAt: new Date("2026-01-10T12:00:00.000Z"),
     },
+    documentImageUrls: {
+      back: null,
+      front: null,
+    },
     editHref: "/administracion/bailarines/dancer-1?modo=editar",
     isEditing: false,
     selectedEventId: null,

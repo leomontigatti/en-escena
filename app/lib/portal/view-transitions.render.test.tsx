@@ -160,6 +160,10 @@ async function renderRoute(path: string, element: React.ReactNode) {
 
 function buildDancerDetailLoaderData() {
   return {
+    documentImageUrls: {
+      back: null,
+      front: null,
+    },
     dancer: {
       id: "dancer_1",
       firstName: "Ana",

@@ -442,13 +442,6 @@ export async function updateAdministrativeDancer(input: {
     input.values.documentType,
     input.values.documentNumber,
   );
-  const normalizedDocumentFrontImageStorageKey = normalizeOptionalStorageKey(
-    input.values.documentFrontImageStorageKey,
-  );
-  const normalizedDocumentBackImageStorageKey = normalizeOptionalStorageKey(
-    input.values.documentBackImageStorageKey,
-  );
-
   if (!normalizedDocument.ok) {
     Object.assign(fieldErrors, normalizedDocument.fieldErrors);
   }
@@ -507,14 +500,8 @@ export async function updateAdministrativeDancer(input: {
       birthDate: normalizedValues.birthDate,
       documentType: normalizedDocument.documentType,
       documentNumber: normalizedDocument.documentNumber,
-      documentFrontImageStorageKey:
-        normalizedDocument.documentType === null
-          ? null
-          : normalizedDocumentFrontImageStorageKey,
-      documentBackImageStorageKey:
-        normalizedDocument.documentType === null
-          ? null
-          : normalizedDocumentBackImageStorageKey,
+      documentFrontImageStorageKey: existingDancer.documentFrontImageStorageKey,
+      documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
       identityVerifiedAt: existingDancer.identityVerifiedAt ? null : undefined,
       updatedAt: new Date(),
     })
@@ -906,10 +893,4 @@ function escapeForLike(value: string) {
     .replaceAll("\\", "\\\\")
     .replaceAll("%", "\\%")
     .replaceAll("_", "\\_");
-}
-
-function normalizeOptionalStorageKey(value: string) {
-  const normalized = value.trim().replace(/\s+/g, " ");
-
-  return normalized.length > 0 ? normalized : null;
 }

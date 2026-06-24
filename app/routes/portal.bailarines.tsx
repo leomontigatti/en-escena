@@ -506,10 +506,24 @@ function getDancerStateBadges(dancer: DancerRow) {
 
   badges.push({
     label: getDancerVerificationLabel(dancer.verificationStatus),
-    variant: dancer.verificationStatus === "verified" ? "success" : "warning",
+    variant: getDancerVerificationBadgeVariant(dancer.verificationStatus),
   });
 
   return badges;
+}
+
+function getDancerVerificationBadgeVariant(
+  status: DancerListItem["verificationStatus"],
+): DancerBadge["variant"] {
+  switch (status) {
+    case "verified":
+      return "success";
+    case "unverified":
+      return "info";
+    case "incomplete":
+    case "missingImages":
+      return "warning";
+  }
 }
 
 function getDancerParticipationLabel(

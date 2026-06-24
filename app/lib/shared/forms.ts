@@ -78,6 +78,7 @@ export function createValidatedNativeSubmitHandler<
 }
 
 type ReactRouterSubmitOptions = {
+  encType?: FormEncType;
   method?: "delete" | "get" | "patch" | "post" | "put";
 };
 

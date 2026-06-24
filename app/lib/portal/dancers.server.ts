@@ -332,13 +332,10 @@ async function validateUpdateDancerInput(
     birthDate: values.birthDate,
     documentType: document.documentType,
     documentNumber: document.documentNumber,
-    ...normalizeDancerDocumentImages(
-      {
-        documentFrontImageStorageKey: values.documentFrontImageStorageKey,
-        documentBackImageStorageKey: values.documentBackImageStorageKey,
-      },
-      document.documentType !== null && document.documentNumber !== null,
-    ),
+    ...normalizeDancerDocumentImages({
+      documentFrontImageStorageKey: values.documentFrontImageStorageKey,
+      documentBackImageStorageKey: values.documentBackImageStorageKey,
+    }),
   };
 
   if (
@@ -459,15 +456,7 @@ function normalizeDancerDocumentPair(input: {
 
 function normalizeDancerDocumentImages(
   input: Record<DancerImageField, string>,
-  hasDocumentPair: boolean,
 ) {
-  if (!hasDocumentPair) {
-    return {
-      documentFrontImageStorageKey: null,
-      documentBackImageStorageKey: null,
-    };
-  }
-
   return {
     documentFrontImageStorageKey: normalizeOptionalStorageKey(
       input.documentFrontImageStorageKey,

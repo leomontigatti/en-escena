@@ -139,7 +139,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar por nombre, documento o academia"
+          searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
           initialSearchValue="Ana"
           facetedFilters={[
             {
@@ -214,7 +214,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar en la tabla"
+          searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
           textFilterColumnId="name"
         />
       </MemoryRouter>,

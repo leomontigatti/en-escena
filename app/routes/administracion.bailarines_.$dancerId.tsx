@@ -1,5 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, CircleAlert, Lock, Pencil, TriangleAlert } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  ExternalLink,
+  Lock,
+  Pencil,
+  TriangleAlert,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import {
@@ -80,6 +87,7 @@ import {
   requiredFieldMessage,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 
@@ -224,12 +232,62 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     canEdit: user.role === "admin",
     selectedEventId: eventContext.selectedEventId,
     dancer,
+    documentImageUrls: await loadDancerDocumentImageUrls(dancer),
     backToList: buildBackToListHref(request.url),
     editHref: buildModeHref(url, dancerId, "editar"),
     cancelHref: buildModeHref(url, dancerId, null),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
   };
+}
+
+async function loadDancerDocumentImageUrls(
+  dancer: NonNullable<Awaited<ReturnType<typeof findAdministrativeDancer>>>,
+) {
+  if (
+    !dancer.documentFrontImageStorageKey &&
+    !dancer.documentBackImageStorageKey
+  ) {
+    return {
+      back: null,
+      front: null,
+    };
+  }
+
+  try {
+    const storage = createDefaultDancerDocumentStorage();
+
+    return {
+      back: await createOptionalDocumentImageSignedUrl(
+        storage,
+        dancer.documentBackImageStorageKey,
+      ),
+      front: await createOptionalDocumentImageSignedUrl(
+        storage,
+        dancer.documentFrontImageStorageKey,
+      ),
+    };
+  } catch {
+    return {
+      back: null,
+      front: null,
+    };
+  }
+}
+
+async function createOptionalDocumentImageSignedUrl(
+  storage: ReturnType<typeof createDefaultDancerDocumentStorage>,
+  storageKey: string | null,
+) {
+  if (!storageKey) {
+    return null;
+  }
+
+  try {
+    return await storage.createDocumentImageSignedUrl(storageKey);
+  } catch {
+    return null;
+  }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -306,7 +364,12 @@ export async function action({ request, params }: Route.ActionArgs) {
     );
   }
 
-  const values = readDancerUpdateValues(formData);
+  const submittedValues = readDancerUpdateValues(formData);
+  const values = {
+    ...submittedValues,
+    documentBackImageStorageKey: dancer.documentBackImageStorageKey ?? "",
+    documentFrontImageStorageKey: dancer.documentFrontImageStorageKey ?? "",
+  };
   const parsed = buildDancerUpdateSchema(
     dancer.correctionReasonRequired,
   ).safeParse(values);
@@ -357,7 +420,6 @@ export function AdministracionBailarinDetalleRouteView({
   });
 
   const dancer = loaderData.dancer;
-  const isIdentityVerified = dancer.identificationStatus === "verified";
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
   const submittedEditValues = isDancerUpdateValues(actionData?.values)
@@ -373,15 +435,11 @@ export function AdministracionBailarinDetalleRouteView({
   const editValues = {
     firstName: submittedEditValues?.firstName ?? dancer.firstName,
     lastName: submittedEditValues?.lastName ?? dancer.lastName,
-    birthDate: isIdentityVerified
-      ? dancer.birthDate
-      : (submittedEditValues?.birthDate ?? dancer.birthDate),
-    documentType: isIdentityVerified
-      ? (dancer.documentType ?? "")
-      : (submittedEditValues?.documentType ?? dancer.documentType ?? ""),
-    documentNumber: isIdentityVerified
-      ? (dancer.documentNumber ?? "")
-      : (submittedEditValues?.documentNumber ?? dancer.documentNumber ?? ""),
+    birthDate: submittedEditValues?.birthDate ?? dancer.birthDate,
+    documentType:
+      submittedEditValues?.documentType ?? dancer.documentType ?? "",
+    documentNumber:
+      submittedEditValues?.documentNumber ?? dancer.documentNumber ?? "",
     documentFrontImageStorageKey:
       submittedEditValues?.documentFrontImageStorageKey ??
       dancer.documentFrontImageStorageKey ??
@@ -538,60 +596,31 @@ export function AdministracionBailarinDetalleRouteView({
                   <FieldGroup className="grid gap-5 md:grid-cols-2">
                     {isEditing ? (
                       <>
-                        {isIdentityVerified ? (
-                          <>
-                            <ReadOnlyField
-                              className="md:col-span-2"
-                              label="Fecha de nacimiento"
-                              name="birthDate"
-                              value={formatDateOnlyLabel(dancer.birthDate)}
-                              hiddenValue={dancer.birthDate}
-                            />
-                            <ReadOnlyField
-                              label="Tipo de documento"
-                              name="documentType"
-                              value={formatDancerDocumentType(
-                                dancer.documentType,
-                              )}
-                              hiddenValue={dancer.documentType ?? ""}
-                            />
-                            <ReadOnlyField
-                              label="Número de documento"
-                              name="documentNumber"
-                              value={dancer.documentNumber ?? ""}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <DancerBirthDateField
-                              className="md:col-span-2"
-                              form={editForm.form}
-                            />
-                            <DancerDocumentTypeField form={editForm.form} />
-                            <DancerTextField
-                              form={editForm.form}
-                              label="Número de documento"
-                              name="documentNumber"
-                            />
-                          </>
-                        )}
-                        <DancerImageStorageField
+                        <DancerBirthDateField form={editForm.form} />
+                        <div aria-hidden="true" className="hidden md:block" />
+                        <DancerDocumentTypeField form={editForm.form} />
+                        <DancerTextField
                           form={editForm.form}
+                          label="Número de documento"
+                          name="documentNumber"
+                        />
+                        <ReadOnlyDocumentImageField
                           label="Imagen frente del documento"
                           name="documentFrontImageStorageKey"
+                          storageKey={dancer.documentFrontImageStorageKey}
+                          url={loaderData.documentImageUrls.front}
                         />
-                        <DancerImageStorageField
-                          form={editForm.form}
+                        <ReadOnlyDocumentImageField
                           label="Imagen dorso del documento"
                           name="documentBackImageStorageKey"
+                          storageKey={dancer.documentBackImageStorageKey}
+                          url={loaderData.documentImageUrls.back}
                         />
                       </>
                     ) : (
                       <>
-                        <ReadOnlyDateField
-                          className="md:col-span-2"
-                          value={dancer.birthDate}
-                        />
+                        <ReadOnlyDateField value={dancer.birthDate} />
+                        <div aria-hidden="true" className="hidden md:block" />
                         <ReadOnlyField
                           label="Tipo de documento"
                           value={formatDancerDocumentType(dancer.documentType)}
@@ -600,13 +629,15 @@ export function AdministracionBailarinDetalleRouteView({
                           label="Número de documento"
                           value={dancer.documentNumber ?? ""}
                         />
-                        <ReadOnlyField
+                        <ReadOnlyDocumentImageField
                           label="Imagen frente del documento"
-                          value={dancer.documentFrontImageStorageKey ?? ""}
+                          storageKey={dancer.documentFrontImageStorageKey}
+                          url={loaderData.documentImageUrls.front}
                         />
-                        <ReadOnlyField
+                        <ReadOnlyDocumentImageField
                           label="Imagen dorso del documento"
-                          value={dancer.documentBackImageStorageKey ?? ""}
+                          storageKey={dancer.documentBackImageStorageKey}
+                          url={loaderData.documentImageUrls.back}
                         />
                       </>
                     )}
@@ -849,6 +880,8 @@ function DancerStatusAlerts({
   onVerifyIdentity: () => void;
 }) {
   const identificationAlert = getIdentificationAlert(identificationStatus);
+  const identificationAlertVariant =
+    identificationStatus === "pending-verification" ? "info" : "warning";
 
   if (active && !identificationAlert) {
     return null;
@@ -863,6 +896,7 @@ function DancerStatusAlerts({
       ) : null}
       {identificationAlert ? (
         <DancerAlert
+          variant={identificationAlertVariant}
           action={
             canVerifyIdentity
               ? {
@@ -891,7 +925,7 @@ function DancerAlert({
   };
   children: ReactNode;
   icon?: typeof TriangleAlert;
-  variant?: "destructive" | "warning";
+  variant?: "destructive" | "info" | "warning";
 }) {
   return (
     <Alert variant={variant}>
@@ -922,7 +956,7 @@ function getIdentificationAlert(
     case "missing-images":
       return "Faltan imágenes del documento para completar la verificación.";
     case "pending-verification":
-      return "La documentación está lista para revisión administrativa.";
+      return "La documentación está lista para verificar la identidad del bailarín.";
     case "verified":
       return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
   }
@@ -1120,46 +1154,6 @@ function DancerDocumentTypeField({ form }: { form: DancerFormReturn }) {
               </SelectContent>
             </Select>
             <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
-  );
-}
-
-function DancerImageStorageField({
-  form,
-  label,
-  name,
-}: {
-  form: DancerFormReturn;
-  label: string;
-  name: "documentBackImageStorageKey" | "documentFrontImageStorageKey";
-}) {
-  const id = useId();
-
-  return (
-    <Controller
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <Field>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <input type="hidden" name={field.name} value={field.value} />
-            <div className="relative">
-              <Input
-                id={id}
-                value={field.value}
-                disabled
-                readOnly
-                className="pr-9"
-              />
-              <Lock
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
-              />
-            </div>
           </FieldContent>
         </Field>
       )}
@@ -1392,6 +1386,58 @@ function ReadOnlyField({
             readOnly
             className="pr-9"
           />
+          <Lock
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
+          />
+        </div>
+      </FieldContent>
+    </Field>
+  );
+}
+
+function ReadOnlyDocumentImageField({
+  label,
+  name,
+  storageKey,
+  url,
+}: {
+  label: string;
+  name?: "documentBackImageStorageKey" | "documentFrontImageStorageKey";
+  storageKey: string | null;
+  url: string | null;
+}) {
+  const id = useId();
+  const hasImage = Boolean(storageKey);
+
+  return (
+    <Field data-disabled>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        {name ? (
+          <input type="hidden" name={name} value={storageKey ?? ""} />
+        ) : null}
+        <div className="relative">
+          <div
+            id={id}
+            className="flex h-8 w-full min-w-0 items-center rounded-lg border border-input bg-input/50 px-2.5 py-1 pr-9 text-base md:text-sm opacity-50"
+          >
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-w-0 items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+              >
+                <ExternalLink aria-hidden="true" className="size-3.5" />
+                <span className="truncate">Abrir imagen</span>
+              </a>
+            ) : (
+              <span className="truncate">
+                {hasImage ? "Imagen no disponible" : "Sin imagen"}
+              </span>
+            )}
+          </div>
           <Lock
             aria-hidden="true"
             className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"

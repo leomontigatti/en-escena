@@ -167,7 +167,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
-      searchPlaceholder="Buscar por nombre, documento o academia"
+      searchPlaceholder="Buscar bailarín por nombre, número de documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
@@ -220,7 +220,7 @@ function getGroupedDancerIdentificationLabel(
 ) {
   switch (identificationStatus) {
     case "pending-verification":
-      return "Para verificar";
+      return "Sin verificar";
     case "verified":
       return "Verificado";
     default:

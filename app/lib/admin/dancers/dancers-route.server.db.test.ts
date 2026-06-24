@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -38,7 +38,22 @@ import {
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
+const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/storage/dancer-documents.server", () => ({
+  createDefaultDancerDocumentStorage: () => ({
+    createDocumentImageSignedUrl: createDocumentImageSignedUrlMock,
+  }),
+}));
+
 installDatabaseTestHooks();
+
+beforeEach(() => {
+  createDocumentImageSignedUrlMock.mockReset();
+  createDocumentImageSignedUrlMock.mockImplementation(
+    async (storageKey: string) => `signed:${storageKey}`,
+  );
+});
 
 describe.sequential("administracion/bailarines route", () => {
   test("allows admin access and renders an empty readonly Bailarines list", async () => {
@@ -147,6 +162,16 @@ describe.sequential("administracion/bailarines route", () => {
       documentBackImageStorageKey: "back-verified",
       identityVerifiedAt: new Date("2026-04-01T12:00:00Z"),
     });
+    const pendingVerificationDancer = await createDancer({
+      academyId: southAcademy.academy.id,
+      firstName: "Clara",
+      lastName: "Pendiente",
+      birthDate: "2011-03-21",
+      documentType: "dni",
+      documentNumber: "2004",
+      documentFrontImageStorageKey: "front-pending",
+      documentBackImageStorageKey: "back-pending",
+    });
     const archivedDancer = await createDancer({
       academyId: northAcademy.academy.id,
       firstName: "Carla",
@@ -189,13 +214,19 @@ describe.sequential("administracion/bailarines route", () => {
     expect(defaultData.filters.participation).toBe("all");
     expect(defaultData.filters.status).toBe("active");
     expect(defaultData.filters.identification).toBe("all");
-    expect(defaultData.totalCount).toBe(53);
+    expect(defaultData.totalCount).toBe(54);
     expect(defaultData.dancers.map((dancer) => dancer.id)).toContain(
       identifiedDancer.id,
+    );
+    expect(defaultData.dancers.map((dancer) => dancer.id)).toContain(
+      pendingVerificationDancer.id,
     );
     expect(defaultData.dancers.map((dancer) => dancer.id)).not.toContain(
       archivedDancer.id,
     );
+    const defaultMarkup = renderRoute(defaultData);
+    expect(defaultMarkup).toContain("Sin verificar");
+    expect(defaultMarkup).toContain('data-variant="info"');
 
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
@@ -261,10 +292,10 @@ describe.sequential("administracion/bailarines route", () => {
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
 
-    expect(pageTwoData.totalCount).toBe(52);
-    expect(pageTwoData.dancers).toHaveLength(2);
+    expect(pageTwoData.totalCount).toBe(53);
+    expect(pageTwoData.dancers).toHaveLength(3);
     expect(pageTwoData.filters.page).toBe(2);
-    expect(pageTwoMarkup).toContain("2 de 52 registros");
+    expect(pageTwoMarkup).toContain("3 de 53 registros");
     expect(pageTwoMarkup).toContain('aria-current="page"');
     expect(pageTwoMarkup).toContain(">Anterior<");
     expect(pageTwoMarkup).toContain(
@@ -339,7 +370,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).not.toContain("Participando");
     expect(markup).not.toContain("No participando");
     expect(markup).not.toContain("Participación");
-    expect(markup).toContain("Para verificar");
+    expect(markup).toContain("Sin verificar");
   });
 
   test("renders a readonly Bailarín ficha with alerts, base context, tabs, and active-event inscriptions", async () => {
@@ -357,6 +388,8 @@ describe.sequential("administracion/bailarines route", () => {
       birthDate: "2012-07-12",
       documentType: "passport",
       documentNumber: "AA123456",
+      documentFrontImageStorageKey: "dancers/julia-front.jpg",
+      documentBackImageStorageKey: "dancers/julia-back.jpg",
       createdAt: new Date("2026-01-10T12:00:00Z"),
       updatedAt: new Date("2026-06-05T15:30:00Z"),
     });
@@ -394,10 +427,17 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("Pasaporte");
     expect(markup).toContain("Número de documento");
     expect(markup).toContain("AA123456");
+    expect(markup).toContain("Imagen frente del documento");
+    expect(markup).toContain("Imagen dorso del documento");
+    expect(markup).toContain("Abrir imagen");
+    expect(markup).toContain("signed:dancers/julia-front.jpg");
+    expect(markup).toContain("signed:dancers/julia-back.jpg");
+    expect(markup).not.toContain('value="dancers/julia-front.jpg"');
     expect(countOccurrences(markup, "lucide-lock")).toBeGreaterThanOrEqual(8);
     expect(markup).toContain(
-      "La documentación está lista para revisión administrativa.",
+      "La documentación está lista para verificar la identidad del bailarín.",
     );
+    expect(markup).toContain("text-info");
     expect(markup).toContain("Identificación");
     expect(markup).toContain("Inscripciones");
     expect(markup).not.toContain(`evento=${event.id}`);
@@ -966,6 +1006,8 @@ describe.sequential("administracion/bailarines route", () => {
       birthDate: "2012-06-12",
       documentType: "dni",
       documentNumber: "12345678",
+      documentFrontImageStorageKey: "dancers/paula-front.jpg",
+      documentBackImageStorageKey: "dancers/paula-back.jpg",
     });
     const { request } = await createSignedInRequest({
       email: "admin.verificacion.bailarines@example.com",
@@ -978,7 +1020,7 @@ describe.sequential("administracion/bailarines route", () => {
       dancer.id,
     );
     expect(readOnlyMarkup).toContain(
-      "La documentación está lista para revisión administrativa.",
+      "La documentación está lista para verificar la identidad del bailarín.",
     );
     expect(readOnlyMarkup).not.toContain("Para verificar");
     expect(readOnlyMarkup).toContain("Verificar");
@@ -1022,9 +1064,15 @@ describe.sequential("administracion/bailarines route", () => {
     expect(verifiedMarkup).toContain('name="birthDate" value="2012-06-12"');
     expect(verifiedMarkup).toContain('name="documentType" value="dni"');
     expect(verifiedMarkup).toContain('name="documentNumber" value="12345678"');
-    expect(
-      countOccurrences(verifiedMarkup, "lucide-lock"),
-    ).toBeGreaterThanOrEqual(3);
+    expect(verifiedMarkup).toContain("signed:dancers/paula-front.jpg");
+    expect(verifiedMarkup).toContain("signed:dancers/paula-back.jpg");
+    expect(verifiedMarkup).toContain(
+      'name="documentFrontImageStorageKey" value="dancers/paula-front.jpg"',
+    );
+    expect(verifiedMarkup).toContain(
+      'name="documentBackImageStorageKey" value="dancers/paula-back.jpg"',
+    );
+    expect(verifiedMarkup).toContain("Abrir imagen");
 
     const missingReasonResult = await detailAction(
       detailActionArgs(
@@ -1039,7 +1087,7 @@ describe.sequential("administracion/bailarines route", () => {
             documentType: "dni",
             documentNumber: "12345678",
             documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
-            documentBackImageStorageKey: "dancers/paula-back.jpg",
+            documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
             correctionReason: "",
           },
         ),
@@ -1069,9 +1117,9 @@ describe.sequential("administracion/bailarines route", () => {
               documentType: "dni",
               documentNumber: "12345678",
               documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
-              documentBackImageStorageKey: "dancers/paula-back.jpg",
+              documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
               correctionReason:
-                "Reemplazo administrativo del frente del documento.",
+                "Corrección administrativa de datos del documento.",
             },
           ),
           dancer.id,
@@ -1088,7 +1136,8 @@ describe.sequential("administracion/bailarines route", () => {
         where: eq(dancers.id, dancer.id),
       }),
     ).resolves.toMatchObject({
-      documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
+      documentFrontImageStorageKey: "dancers/paula-front.jpg",
+      documentBackImageStorageKey: "dancers/paula-back.jpg",
       identityVerifiedAt: null,
     });
   });

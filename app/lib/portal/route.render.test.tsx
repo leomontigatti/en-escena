@@ -927,6 +927,15 @@ describe("portal route view", () => {
             lastName: "Cruz de la Torre",
             birthDate: "2015-04-03",
           }),
+          dancerListItem({
+            id: "dancer_luz",
+            firstName: "Luz",
+            lastName: "Pendiente",
+            birthDate: "2015-05-04",
+            documentType: "dni",
+            documentNumber: "87654321",
+            verificationStatus: "unverified",
+          }),
         ],
       }),
     });
@@ -938,6 +947,8 @@ describe("portal route view", () => {
     expect(markup).toContain("No participando");
     expect(markup).toContain("Faltan imágenes");
     expect(markup).toContain("Incompleto");
+    expect(markup).toContain("Sin verificar");
+    expect(markup).toContain('data-variant="info"');
     expect(markup).not.toContain("Fecha de nacimiento");
     expect(markup).not.toContain("01/02/2014");
     expect(markup).not.toContain("03/04/2015");
@@ -997,8 +1008,7 @@ describe("portal route view", () => {
 
   test("renders the redesigned bailarín editable ficha", () => {
     const markup = renderBailarinDetalle({
-      loaderData: {
-        ...academyLoaderData(),
+      loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
           id: "dancer_edit_1",
           firstName: "Ana",
@@ -1006,7 +1016,7 @@ describe("portal route view", () => {
           birthDate: "2014-02-01",
           active: false,
         }),
-      },
+      }),
     });
 
     expect(markup).toContain(">Ana Alvarez</h1>");
@@ -1020,13 +1030,18 @@ describe("portal route view", () => {
     expect(markup).toContain("Este bailarín está archivado");
     expect(markup).toContain("Reactivar");
     expect(markup).toContain(
-      "Faltan datos de identificación para completar la verificación.",
+      "Completá el tipo y número de documento para poder verificar la identidad del bailarín.",
     );
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Apellido");
     expect(markup).toContain("Fecha de nacimiento");
     expect(markup).toContain("Tipo de documento");
     expect(markup).toContain("Número de documento");
+    expect(markup).toContain("Frente del documento");
+    expect(markup).toContain("Dorso del documento");
+    expect(markup).toContain('name="documentFrontImage"');
+    expect(markup).toContain('name="documentBackImage"');
+    expect(markup).toContain("JPG, PNG o WEBP - max 10 MB");
     expect(markup).toContain('name="documentType" value=""');
     expect(markup).toContain("Volver");
     expect(markup).toContain("Guardar");
@@ -1036,27 +1051,53 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Activo");
   });
 
-  test("shows missing images alert when document data is complete", () => {
+  test("shows missing images alert when document data is complete but images are missing", () => {
     const markup = renderBailarinDetalle({
-      loaderData: {
-        ...academyLoaderData(),
+      loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
           documentType: "dni",
           documentNumber: "12345678",
         }),
-      },
+      }),
     });
 
-    expect(markup).toContain("Faltan imágenes");
-    expect(markup).not.toContain(
-      "Faltan datos de identificación para completar la verificación.",
+    expect(markup).toContain(
+      "Subí las imágenes del documento para poder verificar la identidad del bailarín.",
     );
+    expect(markup).not.toContain(
+      "Completá el tipo y número de documento para poder verificar la identidad del bailarín.",
+    );
+  });
+
+  test("shows pending verification alert when document data and images are complete", () => {
+    const markup = renderBailarinDetalle({
+      loaderData: bailarinDetalleLoaderData({
+        dancer: dancerDetailRow({
+          documentType: "dni",
+          documentNumber: "12345678",
+          documentFrontImageStorageKey: "dancers/front.jpg",
+          documentBackImageStorageKey: "dancers/back.jpg",
+        }),
+        documentImageUrls: {
+          front: "https://storage.example/front.jpg",
+          back: "https://storage.example/back.jpg",
+        },
+      }),
+    });
+
+    expect(markup).toContain(
+      "La identidad del bailarín está pendiente de verificación.",
+    );
+    expect(markup).toContain('data-slot="alert"');
+    expect(markup).toContain("https://storage.example/front.jpg");
+    expect(markup).toContain("https://storage.example/back.jpg");
+    expect(markup).not.toContain("Imagen cargada");
+    expect(markup).not.toContain("Subí las imágenes");
   });
 
   test("renders verified identification fields as locked readonly inputs", () => {
     const markup = renderBailarinDetalle({
-      loaderData: {
-        ...academyLoaderData(),
+      loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
           birthDate: "2014-02-01",
           documentType: "dni",
@@ -1065,7 +1106,7 @@ describe("portal route view", () => {
           documentBackImageStorageKey: "dancers/back.jpg",
           identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
         }),
-      },
+      }),
     });
 
     expect(markup).toContain("Fecha de nacimiento");
@@ -1077,8 +1118,11 @@ describe("portal route view", () => {
     expect(markup).toContain("Número de documento");
     expect(markup).toContain('name="documentNumber" value="12345678"');
     expect(markup).toContain('disabled="" readOnly="" value="12345678"');
-    expect(countOccurrences(markup, "lucide-lock")).toBe(3);
-    expect(markup).not.toContain("Faltan imágenes");
+    expect(markup).toContain("Frente del documento");
+    expect(markup).toContain("Dorso del documento");
+    expect(countOccurrences(markup, "Imagen cargada")).toBe(2);
+    expect(countOccurrences(markup, "lucide-lock")).toBe(5);
+    expect(markup).not.toContain("Subí las imágenes");
   });
 
   test("shows field errors and preserves submitted values", () => {
@@ -1110,12 +1154,11 @@ describe("portal route view", () => {
 
   test("shows the same reactivation confirmation from the alert shortcut and actions menu", () => {
     const markup = renderBailarinDetalle({
-      loaderData: {
-        ...academyLoaderData(),
+      loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
           active: false,
         }),
-      },
+      }),
       initialStatusDialogIntent: "reactivate-dancer",
     });
 
@@ -1759,10 +1802,17 @@ function coreografiaDetalleLoaderData(
   };
 }
 
-function bailarinDetalleLoaderData() {
+function bailarinDetalleLoaderData(
+  overrides: Partial<BailarinDetalleViewProps["loaderData"]> = {},
+) {
   return {
     ...academyLoaderData(),
     dancer: dancerDetailRow(),
+    documentImageUrls: {
+      back: null,
+      front: null,
+    },
+    ...overrides,
   };
 }
 
