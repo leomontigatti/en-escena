@@ -88,7 +88,7 @@ export const user = createTable("user", {
   })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-});
+}).enableRLS();
 
 export const accessSession = createTable(
   "access_session",
@@ -121,7 +121,7 @@ export const accessSession = createTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [index("access_session_user_id_idx").on(table.userId)],
-);
+).enableRLS();
 
 export const accessCredential = createTable(
   "access_credential",
@@ -148,7 +148,7 @@ export const accessCredential = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex("access_credential_user_id_unique").on(table.userId)],
-);
+).enableRLS();
 
 export const academies = createTable(
   "academy",
@@ -177,7 +177,7 @@ export const academies = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex("academy_user_id_unique").on(table.userId)],
-);
+).enableRLS();
 
 export const dancers = createTable(
   "dancer",
@@ -227,7 +227,7 @@ export const dancers = createTable(
         sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
       ),
   ],
-);
+).enableRLS();
 
 export const professors = createTable(
   "professor",
@@ -265,7 +265,7 @@ export const professors = createTable(
         sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
       ),
   ],
-);
+).enableRLS();
 
 export const internalUserInvitations = createTable(
   "internal_user_invitation",
@@ -298,7 +298,7 @@ export const internalUserInvitations = createTable(
     ),
     index("internal_user_invitation_email_idx").on(table.email),
   ],
-);
+).enableRLS();
 
 export const events = createTable(
   "event",
@@ -365,7 +365,7 @@ export const events = createTable(
       .on(table.active)
       .where(sql`${table.active} = true`),
   ],
-);
+).enableRLS();
 
 export const administrativeAuditEntries = createTable(
   "administrative_audit_entry",
@@ -411,7 +411,7 @@ export const administrativeAuditEntries = createTable(
     index("administrative_audit_entry_event_idx").on(table.eventId),
     index("administrative_audit_entry_admin_user_idx").on(table.adminUserId),
   ],
-);
+).enableRLS();
 
 export const modalities = createTable(
   "modality",
@@ -435,7 +435,7 @@ export const modalities = createTable(
     index("modality_event_id_idx").on(table.eventId),
     uniqueIndex("modality_event_name_unique").on(table.eventId, table.name),
   ],
-);
+).enableRLS();
 
 export const submodalities = createTable(
   "submodality",
@@ -466,7 +466,7 @@ export const submodalities = createTable(
       sql`lower(${table.name})`,
     ),
   ],
-);
+).enableRLS();
 
 export const experienceLevels = createTable(
   "experience_level",
@@ -493,7 +493,7 @@ export const experienceLevels = createTable(
       table.name,
     ),
   ],
-);
+).enableRLS();
 
 export const categories = createTable(
   "category",
@@ -526,7 +526,7 @@ export const categories = createTable(
       table.maxAge,
     ),
   ],
-);
+).enableRLS();
 
 export const categoryModalities = createTable(
   "category_modality",
@@ -551,7 +551,7 @@ export const categoryModalities = createTable(
     ),
     index("category_modality_modality_id_idx").on(table.modalityId),
   ],
-);
+).enableRLS();
 
 export const categoryExperienceLevels = createTable(
   "category_experience_level",
@@ -578,7 +578,7 @@ export const categoryExperienceLevels = createTable(
     ),
     index("category_experience_level_level_id_idx").on(table.experienceLevelId),
   ],
-);
+).enableRLS();
 
 export const schedules = createTable(
   "schedule",
@@ -605,7 +605,7 @@ export const schedules = createTable(
     index("schedule_event_id_idx").on(table.eventId),
     uniqueIndex("schedule_event_name_unique").on(table.eventId, table.name),
   ],
-);
+).enableRLS();
 
 export const scheduleModalities = createTable(
   "schedule_modality",
@@ -631,7 +631,7 @@ export const scheduleModalities = createTable(
       table.modalityId,
     ),
   ],
-);
+).enableRLS();
 
 export const prices = createTable(
   "price",
@@ -675,7 +675,7 @@ export const prices = createTable(
       )
       .where(sql`${table.scheduleId} is not null`),
   ],
-);
+).enableRLS();
 
 export const scheduleCapacities = createTable(
   "schedule_capacity",
@@ -706,7 +706,7 @@ export const scheduleCapacities = createTable(
       table.groupType,
     ),
   ],
-);
+).enableRLS();
 
 export const choreographies = createTable(
   "choreography",
@@ -788,7 +788,7 @@ export const choreographies = createTable(
     index("choreography_schedule_id_idx").on(table.scheduleId),
     index("choreography_schedule_capacity_id_idx").on(table.scheduleCapacityId),
   ],
-);
+).enableRLS();
 
 export const choreographyDancers = createTable(
   "choreography_dancer",
@@ -814,7 +814,7 @@ export const choreographyDancers = createTable(
     ),
     index("choreography_dancer_dancer_id_idx").on(table.dancerId),
   ],
-);
+).enableRLS();
 
 export const choreographyProfessors = createTable(
   "choreography_professor",
@@ -839,4 +839,4 @@ export const choreographyProfessors = createTable(
     ),
     index("choreography_professor_professor_id_idx").on(table.professorId),
   ],
-);
+).enableRLS();
