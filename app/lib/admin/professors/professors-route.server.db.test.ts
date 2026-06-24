@@ -531,6 +531,61 @@ describe("administracion/profesores route", () => {
     expect(markup).not.toContain('name="correctionReason"');
   });
 
+  test("keeps the detail route in edit mode with submitted values after a correction-reason error", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.dialogo.profesores.academia@example.com",
+      academyName: "Academia Dialogo",
+      contactName: "Dalia Dialogo",
+      phone: "5656-5656",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Mora",
+      lastName: "Dialogo",
+    });
+    await linkProfessorToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      professorId: professor.id,
+      choreographyName: "Memoria Viva",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.dialogo.profesores@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+    });
+    const loaderData = await detailLoader(
+      detailRouteArgs(request, professor.id),
+    );
+
+    const markup = renderDetailRouteWithActionData({
+      loaderData,
+      professorId: professor.id,
+      actionData: {
+        status: "error",
+        message: "Revisá los campos marcados.",
+        fieldErrors: {
+          correctionReason:
+            "Ingresá un motivo de corrección para guardar este cambio.",
+        },
+        values: {
+          firstName: "Mora",
+          lastName: "Dialogo",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "",
+        },
+      },
+    });
+
+    expect(markup).toContain("Guardar");
+    expect(markup).toContain("Cancelar");
+    expect(markup).toContain('name="firstName"');
+    expect(markup).toContain('value="Mora"');
+    expect(markup).toContain('value="Dialogo"');
+  });
+
   test("updates a Profesor in explicit edit mode and persists an administrative audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
@@ -934,6 +989,27 @@ function renderDetailRoute(
         initialEntries: [`/administracion/profesores/${professorId}`],
       },
       createElement(AdministracionProfesorDetalleRouteView, { loaderData }),
+    ),
+  );
+}
+
+function renderDetailRouteWithActionData({
+  actionData,
+  loaderData,
+  professorId,
+}: Parameters<typeof AdministracionProfesorDetalleRouteView>[0] & {
+  professorId: string;
+}) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      {
+        initialEntries: [`/administracion/profesores/${professorId}`],
+      },
+      createElement(AdministracionProfesorDetalleRouteView, {
+        actionData,
+        loaderData,
+      }),
     ),
   );
 }
