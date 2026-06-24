@@ -100,17 +100,12 @@ export function EmptyResourceState({ children }: { children: ReactNode }) {
 export function ResourceBadge({
   children,
   className,
-  tone = "primary",
 }: {
   children: ReactNode;
   className?: string;
-  tone?: "info" | "neutral" | "primary";
 }) {
   return (
-    <Badge
-      className={className}
-      variant={tone === "neutral" ? "outline" : "secondary"}
-    >
+    <Badge className={className} variant="secondary">
       {children}
     </Badge>
   );

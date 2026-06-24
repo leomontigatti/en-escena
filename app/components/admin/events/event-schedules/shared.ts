@@ -4,7 +4,6 @@ import { z } from "zod";
 import type {
   ActionData,
   ScheduleActionValues,
-  ScheduleCapacityActionValues,
 } from "@/lib/admin/events/bases-action.server";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
@@ -24,7 +23,7 @@ export const timePickerMinuteOptions = Array.from({ length: 60 }, (_, minute) =>
   String(minute).padStart(2, "0"),
 );
 
-export const scheduleCapacityFormSchema = z.object({
+const scheduleCapacityFormSchema = z.object({
   groupType: z.string().trim().min(1, requiredFieldMessage),
   capacity: z
     .string()
@@ -82,9 +81,6 @@ export const scheduleFormSchema = z
   });
 
 export type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
-export type ScheduleCapacityFormValues = z.infer<
-  typeof scheduleCapacityFormSchema
->;
 
 export const emptyScheduleFieldErrors: Record<string, string> = {};
 export const emptySelection: string[] = [];
@@ -199,12 +195,6 @@ function isScheduleFormField(
   ].includes(fieldName);
 }
 
-function isScheduleCapacityFormField(
-  fieldName: string,
-): fieldName is keyof ScheduleCapacityFormValues {
-  return ["groupType", "capacity"].includes(fieldName);
-}
-
 export function resolveScheduleFieldName(fieldName: string) {
   if (isScheduleFormField(fieldName)) {
     return fieldName;
@@ -215,10 +205,6 @@ export function resolveScheduleFieldName(fieldName: string) {
   }
 
   return null;
-}
-
-export function resolveScheduleCapacityFieldName(fieldName: string) {
-  return isScheduleCapacityFormField(fieldName) ? fieldName : null;
 }
 
 function matchesActionScope(
@@ -261,17 +247,6 @@ function isScheduleActionValues(
   );
 }
 
-function isScheduleCapacityActionValues(
-  values: ActionData["values"] | undefined,
-): values is ScheduleCapacityActionValues {
-  return (
-    values !== undefined &&
-    "groupType" in values &&
-    "capacity" in values &&
-    !("scheduleCapacities" in values)
-  );
-}
-
 export function getScheduleFieldErrors(
   actionData?: ActionData,
   scheduleId?: string,
@@ -300,22 +275,6 @@ export function getScheduleSubmittedValues(
   if (
     !matchesActionScope(actionData, { intent, recordId }) ||
     !isScheduleActionValues(actionData?.values)
-  ) {
-    return undefined;
-  }
-
-  return actionData.values;
-}
-
-export function getScheduleCapacitySubmittedValues(
-  actionData: ActionData | undefined,
-  intent: string,
-  recordId?: string,
-  parentRecordId?: string,
-) {
-  if (
-    !matchesActionScope(actionData, { intent, recordId, parentRecordId }) ||
-    !isScheduleCapacityActionValues(actionData?.values)
   ) {
     return undefined;
   }

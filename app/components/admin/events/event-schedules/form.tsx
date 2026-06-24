@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Clock, LoaderCircle, Plus, Trash } from "lucide-react";
+import { Clock, Plus, Trash } from "lucide-react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   Controller,
@@ -20,7 +20,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -60,7 +59,6 @@ import {
   useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { cn } from "@/lib/shared/utils";
 
 import {
   createEmptyScheduleCapacityFormValues,
@@ -74,7 +72,6 @@ import {
   timePickerHourOptions,
   timePickerMinuteOptions,
   toScheduleCapacityFormValues,
-  type ScheduleCapacityFormValues,
   type ScheduleFormValues,
 } from "./shared";
 
@@ -709,46 +706,5 @@ function ScheduleCapacitySelectFieldView({
       </Select>
       <FieldError id={errorId}>{error}</FieldError>
     </Field>
-  );
-}
-
-function MultipleComboboxFieldView({
-  className,
-  error,
-  name,
-  onBlur,
-  onChange,
-  options,
-  placeholder,
-  selectedValues,
-  title,
-}: {
-  className?: string;
-  error?: string;
-  name: string;
-  onBlur: () => void;
-  onChange: (value: string[]) => void;
-  options: Array<{ value: string; label: string }>;
-  placeholder: string;
-  selectedValues: string[];
-  title: string;
-}) {
-  return (
-    <FieldSet className={className} data-invalid={error ? true : undefined}>
-      <FieldLegend variant="label" className={cn(error && "text-destructive")}>
-        {title}
-      </FieldLegend>
-      <MultiCombobox
-        emptyMessage="Sin opciones disponibles"
-        error={error ? true : false}
-        name={name}
-        onBlur={onBlur}
-        onValueChange={onChange}
-        options={options}
-        placeholder={placeholder}
-        value={selectedValues}
-      />
-      <FieldError>{error}</FieldError>
-    </FieldSet>
   );
 }
