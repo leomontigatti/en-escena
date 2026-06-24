@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -28,13 +28,16 @@ import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionBailarinesRouteView,
+  handle as bailarinesHandle,
   loader,
 } from "@/routes/administracion.bailarines";
 import {
   AdministracionBailarinDetalleRouteView,
   action as detailAction,
+  handle as bailarinDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.bailarines_.$dancerId";
+import { AdministracionRouteView } from "@/routes/administracion";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -599,6 +602,70 @@ describe.sequential("administracion/bailarines route", () => {
     expect(auditorMarkup).not.toContain("Editar");
     expect(auditorMarkup).not.toContain("Guardar");
     expect(auditorMarkup).not.toContain("Acciones");
+  });
+
+  test("renders migrated Bailarines list and detail screens inside the shared administration shell", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "layout.bailarines.academia@example.com",
+      academyName: "Academia Layout",
+      contactName: "Laura Layout",
+      phone: "4545-2323",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Julia",
+      lastName: "Pérez",
+      birthDate: "2012-07-12",
+    });
+    const { request: listRequest } = await createSignedInRequest({
+      email: "admin.layout.bailarines.list@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+    });
+    const { request: detailRequest } = await createSignedInRequest({
+      email: "admin.layout.bailarines.detail@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+    });
+    const listLoaderData = await loader(routeArgs(listRequest));
+    const detailLoaderData = await detailLoader(
+      detailRouteArgs(detailRequest, dancer.id),
+    );
+    const listMarkup = renderRouteInAdminLayout({
+      childId: "bailarines",
+      childLoaderData: listLoaderData,
+      childPath: "bailarines",
+      childComponent: AdministracionBailarinesRouteView,
+      childHandle: bailarinesHandle,
+      initialEntry: "/administracion/bailarines",
+      parentLoaderData: {
+        email: "admin@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+    const detailMarkup = renderRouteInAdminLayout({
+      childId: "bailarin-detalle",
+      childLoaderData: detailLoaderData,
+      childPath: "bailarines/:dancerId",
+      childComponent: AdministracionBailarinDetalleRouteView,
+      childHandle: bailarinDetalleHandle,
+      initialEntry: `/administracion/bailarines/${dancer.id}`,
+      parentLoaderData: {
+        email: "admin@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+
+    expect(listMarkup).toContain("Saltar al contenido principal");
+    expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
+    expect(listMarkup).toContain("Bailarines");
+    expect(listMarkup).toContain("Evento activo");
+    expect(detailMarkup).toContain("Detalle bailarín");
+    expect(detailMarkup).toContain('href="/administracion/bailarines"');
+    expect(detailMarkup).toContain("Julia Pérez");
   });
 
   test("updates a Bailarín in explicit edit mode and persists an administrative audit entry", async () => {
@@ -1285,6 +1352,58 @@ function renderDetailRoute(
 
 function countOccurrences(value: string, search: string) {
   return value.split(search).length - 1;
+}
+
+function renderRouteInAdminLayout({
+  childComponent,
+  childHandle,
+  childId,
+  childLoaderData,
+  childPath,
+  initialEntry,
+  parentLoaderData,
+}: {
+  childComponent:
+    | typeof AdministracionBailarinesRouteView
+    | typeof AdministracionBailarinDetalleRouteView;
+  childHandle: unknown;
+  childId: string;
+  childLoaderData: unknown;
+  childPath: string;
+  initialEntry: string;
+  parentLoaderData: {
+    email: string;
+    events: Array<{ active: boolean; id: string; name: string }>;
+    selectedEventId: string | null;
+  };
+}) {
+  const RoutesStub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/administracion",
+      Component: AdministracionRouteView,
+      children: [
+        {
+          id: childId,
+          path: childPath,
+          Component: childComponent,
+          handle: childHandle,
+        },
+      ],
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: [initialEntry],
+      hydrationData: {
+        loaderData: {
+          admin: parentLoaderData,
+          [childId]: childLoaderData,
+        },
+      },
+    }),
+  );
 }
 
 function buildListInitialEntry(
