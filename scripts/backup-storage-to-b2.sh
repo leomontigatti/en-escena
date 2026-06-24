@@ -20,7 +20,6 @@ require_command() {
   fi
 }
 
-require_env B2_BUCKET
 require_env B2_S3_ENDPOINT
 require_env AWS_ACCESS_KEY_ID
 require_env AWS_SECRET_ACCESS_KEY
@@ -36,6 +35,7 @@ require_command rm
 require_command tr
 
 APP_NAME="${APP_NAME:-en-escena}"
+B2_FILESTORE_BUCKET="${B2_FILESTORE_BUCKET:-${B2_BUCKET:-}}"
 B2_FILESTORE_PREFIX="${B2_FILESTORE_PREFIX:-filestore}"
 BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-tmp/storage-backups}"
 STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-dancer-documents}"
@@ -44,6 +44,11 @@ TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 RUN_TMP_DIR="${BACKUP_TMP_DIR}/${APP_NAME}-${TIMESTAMP}"
 
 export AWS_DEFAULT_REGION
+
+if [ -z "$B2_FILESTORE_BUCKET" ]; then
+  echo "Missing required environment variable: B2_FILESTORE_BUCKET" >&2
+  exit 1
+fi
 
 mkdir -p "$RUN_TMP_DIR"
 
@@ -59,7 +64,7 @@ for bucket in $(printf "%s" "$STORAGE_BACKUP_BUCKETS" | tr "," " "); do
   fi
 
   LOCAL_BUCKET_DIR="${RUN_TMP_DIR}/${bucket}"
-  B2_URI="s3://${B2_BUCKET}/${B2_FILESTORE_PREFIX}/${bucket}"
+  B2_URI="s3://${B2_FILESTORE_BUCKET}/${B2_FILESTORE_PREFIX}/${bucket}"
 
   mkdir -p "$LOCAL_BUCKET_DIR"
 

@@ -21,7 +21,6 @@ require_command() {
 }
 
 require_env DATABASE_URL
-require_env B2_BUCKET
 require_env B2_S3_ENDPOINT
 require_env AWS_ACCESS_KEY_ID
 require_env AWS_SECRET_ACCESS_KEY
@@ -33,15 +32,21 @@ require_command pg_dump
 require_command rm
 
 APP_NAME="${APP_NAME:-en-escena}"
-B2_PREFIX="${B2_PREFIX:-database}"
+B2_DATABASE_BUCKET="${B2_DATABASE_BUCKET:-${B2_BUCKET:-}}"
+B2_DATABASE_PREFIX="${B2_DATABASE_PREFIX:-${B2_PREFIX:-database}}"
 BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-tmp/db-backups}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 BACKUP_BASENAME="${APP_NAME}-${TIMESTAMP}.dump"
 BACKUP_PATH="${BACKUP_TMP_DIR}/${BACKUP_BASENAME}"
-B2_URI="s3://${B2_BUCKET}/${B2_PREFIX}/${BACKUP_BASENAME}"
+B2_URI="s3://${B2_DATABASE_BUCKET}/${B2_DATABASE_PREFIX}/${BACKUP_BASENAME}"
 
 export AWS_DEFAULT_REGION
+
+if [ -z "$B2_DATABASE_BUCKET" ]; then
+  echo "Missing required environment variable: B2_DATABASE_BUCKET" >&2
+  exit 1
+fi
 
 mkdir -p "$BACKUP_TMP_DIR"
 

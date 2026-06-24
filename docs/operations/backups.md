@@ -25,15 +25,14 @@ deletes in Supabase do not immediately remove the backup copy.
 
 ## Backblaze B2 Setup
 
-Create a dedicated B2 bucket for backups. Enable lifecycle rules on the bucket
-or prefix so old objects are deleted automatically. A practical starting point
-for En Escena is:
+Create separate B2 buckets for database and filestore backups because they have
+different lifecycle policies. A practical starting point for En Escena is:
 
-- keep daily database backups for 7 days;
-- keep weekly or monthly copies with a separate lifecycle policy if longer
-  retention is needed;
-- restrict the application key to the backup bucket only;
-- use a key that can write and list the backup prefix.
+- database bucket: keep daily database backups for 30 days;
+- filestore bucket: keep copied objects for 90 or 180 days, depending on cost
+  and recovery needs;
+- restrict the application key to the two backup buckets only;
+- use a key that can write and list the backup prefixes.
 
 Use the S3 endpoint shown by Backblaze for the bucket region, for example:
 
@@ -48,15 +47,16 @@ secrets.
 
 ```sh
 DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres"
-B2_BUCKET="en-escena-backups"
-B2_PREFIX="database"
-B2_FILESTORE_PREFIX="filestore"
+B2_DATABASE_BUCKET="en-escena-db-backups"
+B2_DATABASE_PREFIX="database"
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
 AWS_ACCESS_KEY_ID="your-b2-application-key-id"
 AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_BACKUP_BUCKETS="dancer-documents"
+B2_FILESTORE_BUCKET="en-escena-filestore-backups"
+B2_FILESTORE_PREFIX="filestore"
 SUPABASE_STORAGE_S3_ENDPOINT="https://your-project-ref.storage.supabase.co/storage/v1/s3"
 SUPABASE_STORAGE_S3_REGION="your-supabase-project-region"
 SUPABASE_STORAGE_S3_ACCESS_KEY_ID="your-supabase-storage-s3-access-key-id"
@@ -65,6 +65,11 @@ SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY="your-supabase-storage-s3-secret-access-ke
 
 `DATABASE_URL` should use the Supabase direct connection or session pooler.
 Avoid the transaction pooler for dumps.
+
+`B2_DATABASE_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate. The
+database script still accepts the legacy `B2_BUCKET` and `B2_PREFIX` variables
+as fallbacks, but new production configuration should use the explicit bucket
+and prefix variables.
 
 Generate the Supabase Storage S3 credentials from the project's Storage S3
 settings. Supabase says S3 access keys are server-side credentials that provide
@@ -140,7 +145,7 @@ setup:
 
 ```sh
 aws s3 cp \
-  "s3://$B2_BUCKET/$B2_PREFIX/en-escena-YYYYMMDD-HHMMSS.dump" \
+  "s3://$B2_DATABASE_BUCKET/$B2_DATABASE_PREFIX/en-escena-YYYYMMDD-HHMMSS.dump" \
   "tmp/db-backups/restore-check.dump" \
   --endpoint-url "$B2_S3_ENDPOINT"
 
@@ -162,7 +167,7 @@ Run a restore test monthly. A backup that has not been restored is unproven.
 List the copied objects in B2:
 
 ```sh
-aws s3 ls "s3://$B2_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents/" \
+aws s3 ls "s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents/" \
   --recursive \
   --endpoint-url "$B2_S3_ENDPOINT"
 ```
@@ -172,7 +177,7 @@ directory and then sync it to the Supabase Storage bucket:
 
 ```sh
 aws s3 sync \
-  "s3://$B2_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents" \
+  "s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents" \
   "tmp/storage-restore/dancer-documents" \
   --endpoint-url "$B2_S3_ENDPOINT"
 
