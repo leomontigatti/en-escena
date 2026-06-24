@@ -18,8 +18,8 @@ TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena-test"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
 SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
-BETTER_AUTH_SECRET="<local-random-secret>"
-BETTER_AUTH_URL="http://localhost:5173"
+APP_URL="http://localhost:5173"
+SEND_EMAIL_HOOK_SECRET="v1,whsec_your-supabase-send-email-hook-secret"
 EMAIL_FROM="En Escena <acceso@example.com>"
 EMAIL_PROVIDER="brevo"
 BREVO_API_KEY=""
@@ -36,6 +36,10 @@ RESEND_API_KEY=""
 - `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
   create or delete access users and other server-side Supabase Auth operations.
   Keep it server-only.
+- `APP_URL` is the canonical app origin used by auth emails when Supabase does
+  not include an explicit redirect URL in the hook payload.
+- `SEND_EMAIL_HOOK_SECRET` verifies the Supabase Send Email Auth Hook request
+  signature.
 - `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
   required when `NODE_ENV=production`. Leave provider keys empty for local
   development.
@@ -189,28 +193,31 @@ EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 `EMAIL_FROM` must use an address on the verified Resend sending domain.
 Internal invitation emails use this sender.
 
-Supabase Auth recovery emails in production also require Custom SMTP to be
-enabled in the Supabase project. While Brevo is the temporary provider, configure
-Supabase Auth Custom SMTP with:
+Supabase Auth registration and recovery emails should use the app-owned Send
+Email Auth Hook instead of Supabase Custom SMTP. Configure Supabase Auth Hooks:
 
-- Host: `smtp-relay.brevo.com`
-- Port: `587`
-- User: the Brevo SMTP login
-- Password: the Brevo SMTP key, not the API key
-- Sender name: `En Escena`
-- From/admin email: the same verified sender configured in `EMAIL_FROM`
+- Hook: `Send Email`
+- Method: HTTPS
+- URL: `<deployed-app-origin>/auth/hooks/send-email`
+- Secret: copy the generated hook secret into `SEND_EMAIL_HOOK_SECRET`
+- Keep `EMAIL_PROVIDER`, `EMAIL_FROM`, and the selected provider API key
+  configured in the app environment.
 
-The default Supabase shared SMTP is not sufficient for the production access
-flows in this repo.
+The hook verifies the Standard Webhooks signature from Supabase and sends
+registration/recovery email through the app email boundary. It currently handles:
 
-Configure these Supabase Auth dashboard values for academy recovery:
+- `signup`: sends `/registro/confirmar?token_hash=...&type=signup`
+- `recovery`: sends `/cambiar-contrasena?token_hash=...&type=recovery`
+
+Configure these Supabase Auth dashboard values for academy registration and
+recovery:
 
 - Redirect URLs must include each deployed `/cambiar-contrasena` URL that can
   receive password recovery links, plus `http://localhost:5173/cambiar-contrasena`
   for local development.
-- Custom SMTP must use the same sender configured in `EMAIL_FROM` so Supabase
-  registration/recovery emails and app-owned invitation emails share the same
-  sender identity.
+- Redirect URLs must include each deployed `/registro/confirmar` URL that can
+  receive public academy signup confirmation links, plus
+  `http://localhost:5173/registro/confirmar` for local development.
 
 ## Access Auth Scope
 

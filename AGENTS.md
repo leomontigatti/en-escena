@@ -32,5 +32,5 @@ This repo uses a single-context domain documentation layout. See `docs/agents/do
 
 ### Local operation and auth
 
-Local database, Better Auth and email-log operation are documented in
+Local database, Supabase Auth and email-log operation are documented in
 `docs/local-auth.md`.

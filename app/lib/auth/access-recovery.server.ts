@@ -70,6 +70,27 @@ export async function exchangeAccessRecoveryCode(input: {
   }
 }
 
+export async function verifyAccessRecoveryTokenHash(input: {
+  request: Request;
+  redirectTo: string;
+  tokenHash: string;
+}) {
+  try {
+    const result = await accessAuthProvider.verifyPasswordRecoveryOtp(input);
+
+    return {
+      ok: true as const,
+      headers: result.headers,
+      redirectTo: result.redirectTo,
+    };
+  } catch {
+    return {
+      ok: false as const,
+      error: INVALID_RECOVERY_MESSAGE,
+    };
+  }
+}
+
 export async function updateAccessRecoveryPassword(input: {
   newPassword: string;
   request: Request;

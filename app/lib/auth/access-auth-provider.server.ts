@@ -36,6 +36,11 @@ type EmailOtpConfirmationInput = {
   tokenHash: string;
   type: "signup";
 };
+type PasswordRecoveryOtpInput = {
+  request: Request;
+  redirectTo: string;
+  tokenHash: string;
+};
 
 type AccessSession = {
   session: {
@@ -247,6 +252,29 @@ export const accessAuthProvider = {
     };
   },
 
+  async verifyPasswordRecoveryOtp(input: PasswordRecoveryOtpInput) {
+    if (isTestAccessAuthMode()) {
+      return await exchangeTestPasswordRecoveryTokenHash(input);
+    }
+
+    const { client, responseHeaders } = createSupabaseServerClientForRequest(
+      input.request,
+    );
+    const { error } = await client.auth.verifyOtp({
+      token_hash: input.tokenHash,
+      type: "recovery",
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      headers: responseHeaders,
+      redirectTo: input.redirectTo,
+    };
+  },
+
   async updatePasswordForRecovery(input: {
     newPassword: string;
     request: Request;
@@ -431,6 +459,16 @@ async function confirmTestEmailOtp(input: EmailOtpConfirmationInput) {
     headers: result.headers,
     userId: result.user.id,
   };
+}
+
+async function exchangeTestPasswordRecoveryTokenHash(
+  input: PasswordRecoveryOtpInput,
+) {
+  return await accessAuthProvider.exchangePasswordRecoveryCode({
+    code: input.tokenHash,
+    request: input.request,
+    redirectTo: input.redirectTo,
+  });
 }
 
 async function signUpSupabaseCredentialUser(
