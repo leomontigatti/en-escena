@@ -152,6 +152,11 @@ const invalidExperienceLevelMessage =
 const compatibleScheduleSelectionRequiredMessage =
   "Elegí un Cupo de cronograma compatible para guardar los bailarines.";
 
+type ResolvedChoreographyCategory = {
+  id: string | null;
+  name: string | null;
+};
+
 export async function listProfessorOptionsForChoreography(
   academyId: string,
   linkedProfessorIds: string[],
@@ -383,32 +388,28 @@ export async function updateChoreographyDancers(input: {
 
   try {
     await db.transaction(async (tx) => {
+      const selectedSchedule = resolvedScheduleCapacityId.value;
       const [lockedSchedule] = await tx
         .select({
           id: schedules.id,
           totalCapacity: schedules.totalCapacity,
         })
         .from(schedules)
-        .where(eq(schedules.id, resolvedScheduleCapacityId.value.scheduleId))
+        .where(eq(schedules.id, selectedSchedule.scheduleId))
         .for("update");
 
       if (!lockedSchedule) {
         throw new Error("Expected selected schedule to exist.");
       }
 
-      if (resolvedScheduleCapacityId.value.scheduleCapacityId) {
+      if (selectedSchedule.scheduleCapacityId) {
         const [lockedScheduleCapacity] = await tx
           .select({
             id: scheduleCapacities.id,
             capacity: scheduleCapacities.capacity,
           })
           .from(scheduleCapacities)
-          .where(
-            eq(
-              scheduleCapacities.id,
-              resolvedScheduleCapacityId.value.scheduleCapacityId,
-            ),
-          )
+          .where(eq(scheduleCapacities.id, selectedSchedule.scheduleCapacityId))
           .for("update");
 
         if (!lockedScheduleCapacity) {
@@ -479,16 +480,12 @@ export async function updateChoreographyDancers(input: {
         .update(choreographies)
         .set({
           groupType: resolution.groupType,
-          categoryId:
-            resolution.category.status === "resolved"
-              ? resolution.category.id
-              : null,
+          categoryId: getResolvedChoreographyCategory(resolution).id,
           categoryCalculationMode: resolution.categoryCalculationMode,
           categoryAgeBasis: resolution.categoryAgeBasis,
           experienceLevelId: resolvedExperienceLevelId.value,
           scheduleId: lockedSchedule.id,
-          scheduleCapacityId:
-            resolvedScheduleCapacityId.value.scheduleCapacityId,
+          scheduleCapacityId: selectedSchedule.scheduleCapacityId,
         })
         .where(eq(choreographies.id, input.choreographyId));
     });
@@ -611,19 +608,14 @@ export async function resolveChoreographyDancers(input: {
   }
 
   const { resolution, scheduleResolution } = resolvedUpdate;
+  const category = getResolvedChoreographyCategory(resolution);
 
   return {
     ok: true,
     resolution: {
       groupType: resolution.groupType,
-      categoryId:
-        resolution.category.status === "resolved"
-          ? resolution.category.id
-          : null,
-      categoryName:
-        resolution.category.status === "resolved"
-          ? resolution.category.name
-          : null,
+      categoryId: category.id,
+      categoryName: category.name,
       categoryCalculationMode: resolution.categoryCalculationMode,
       categoryAgeBasis: resolution.categoryAgeBasis,
       experienceLevel: resolution.experienceLevel,
@@ -689,10 +681,9 @@ function resolveSelectedExperienceLevelId(input: {
     return { ok: true, value: null };
   }
 
-  const resolvedCategoryId =
-    input.resolution.category.status === "resolved"
-      ? input.resolution.category.id
-      : null;
+  const resolvedCategoryId = getResolvedChoreographyCategory(
+    input.resolution,
+  ).id;
   const categoryChanged = input.currentCategoryId !== resolvedCategoryId;
 
   if (
@@ -764,14 +755,13 @@ function resolveDancerUpdateScheduleSelection(
   resolution: ChoreographyRegistrationOperationResolution,
 ): ChoreographyDancerScheduleResolution {
   if (isCompatibleScheduleCapacity(currentScheduleCapacityId, resolution)) {
-    const currentOption =
-      resolution.schedule.status === "auto"
-        ? (resolution.schedule.options.find(
-            (option) => option.id === currentScheduleCapacityId,
-          ) ?? resolution.schedule.options[0])
-        : resolution.schedule.options.find(
-            (option) => option.id === currentScheduleCapacityId,
-          );
+    let currentOption = resolution.schedule.options.find(
+      (option) => option.id === currentScheduleCapacityId,
+    );
+
+    if (!currentOption && resolution.schedule.status === "auto") {
+      [currentOption] = resolution.schedule.options;
+    }
 
     if (!currentOption) {
       return {
@@ -882,6 +872,22 @@ function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
       scheduleId: selectedOption.scheduleId,
       scheduleCapacityId: selectedOption.scheduleCapacityId,
     },
+  };
+}
+
+function getResolvedChoreographyCategory(
+  resolution: ChoreographyRegistrationOperationResolution,
+): ResolvedChoreographyCategory {
+  if (resolution.category.status !== "resolved") {
+    return {
+      id: null,
+      name: null,
+    };
+  }
+
+  return {
+    id: resolution.category.id,
+    name: resolution.category.name,
   };
 }
 
