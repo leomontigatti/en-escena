@@ -54,6 +54,12 @@ import type {
   ActionData,
   CategoryActionValues,
 } from "@/lib/admin/events/bases-action.server";
+import {
+  buildCategoryCreatePath,
+  buildCategoryDetailPath,
+  buildCategoriasListPath,
+} from "@/lib/admin/events/event-bases-navigation";
+import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {
@@ -67,7 +73,6 @@ import {
   useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 
 type ModalityRow = typeof modalities.$inferSelect;
 type ExperienceLevelRow = typeof experienceLevels.$inferSelect;
@@ -648,34 +653,6 @@ function EmptyResourceState({ children }: { children: ReactNode }) {
       </EmptyHeader>
     </Empty>
   );
-}
-
-export function buildCategoryCreatePath(selectedEventId: string | null) {
-  return appendSelectedEventId(
-    "/administracion/categorias/nueva",
-    selectedEventId,
-  );
-}
-
-export function buildCategoriasListPath(selectedEventId: string | null) {
-  return appendSelectedEventId("/administracion/categorias", selectedEventId);
-}
-
-export function buildCategoryDetailPath(
-  categoryId: string,
-  selectedEventId: string | null,
-) {
-  return appendSelectedEventId(
-    `/administracion/categorias/${categoryId}`,
-    selectedEventId,
-  );
-}
-
-function appendSelectedEventId(
-  pathname: string,
-  _selectedEventId: string | null,
-) {
-  return pathname;
 }
 
 function formatNamesAsArray(

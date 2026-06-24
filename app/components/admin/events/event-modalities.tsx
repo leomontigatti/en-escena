@@ -63,6 +63,11 @@ import type {
   ModalityActionValues,
   NameActionValues,
 } from "@/lib/admin/events/bases-action.server";
+import {
+  buildModalidadDetallePath,
+  buildModalidadesListPath,
+  buildNuevaModalidadPath,
+} from "@/lib/admin/events/event-bases-navigation";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
   createValidatedRouteSubmitHandler,
@@ -725,41 +730,4 @@ function resolveModalityFieldName(fieldName: string) {
   }
 
   return null;
-}
-
-const modalityRoutes = {
-  detail: "/administracion/modalidades",
-  list: "/administracion/modalidades",
-  new: "/administracion/modalidades/nueva",
-} as const;
-
-export function buildModalidadesListPath(selectedEventId: string | null) {
-  return appendSelectedEventId(modalityRoutes.list, selectedEventId);
-}
-
-export function buildNuevaModalidadPath(selectedEventId: string | null) {
-  return appendSelectedEventId(modalityRoutes.new, selectedEventId);
-}
-
-export function buildModalidadDetallePath(
-  modalityId: string,
-  selectedEventId: string | null,
-) {
-  return appendSelectedEventId(
-    `${modalityRoutes.detail}/${modalityId}`,
-    selectedEventId,
-  );
-}
-
-export function isModalityDetailPath(requestUrl: string) {
-  return new RegExp(`^${modalityRoutes.detail}/[^/]+$`).test(
-    new URL(requestUrl).pathname,
-  );
-}
-
-function appendSelectedEventId(
-  pathname: string,
-  _selectedEventId: string | null,
-) {
-  return pathname;
 }

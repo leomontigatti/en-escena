@@ -3,22 +3,17 @@ import { redirect } from "react-router";
 import {
   buildCategoriasListPath,
   buildCategoryDetailPath,
-} from "@/components/admin/events/event-categories";
-import {
   buildModalidadDetallePath,
   buildModalidadesListPath,
-  isModalityDetailPath,
-} from "@/components/admin/events/event-modalities";
-import {
   buildPriceDetailPath,
   buildPriceListPath,
-  isPriceDetailPath,
-} from "@/components/admin/events/event-prices";
-import {
   buildScheduleDetailPath,
   buildSchedulesPath,
+  isCategoryDetailPath,
+  isModalityDetailPath,
+  isPriceDetailPath,
   isScheduleDetailPath,
-} from "@/components/admin/events/event-schedules";
+} from "@/lib/admin/events/event-bases-navigation";
 import {
   createCategory,
   createExperienceLevel,
@@ -254,12 +249,6 @@ async function runEventBasesIntentWithReadinessInvalidation(
   }
 
   return result;
-}
-
-function isCategoryDetailPath(requestUrl: string) {
-  return new RegExp("^/administracion/categorias/[^/]+$").test(
-    new URL(requestUrl).pathname,
-  );
 }
 
 function requiresCategoryDeletionConfirmation(
