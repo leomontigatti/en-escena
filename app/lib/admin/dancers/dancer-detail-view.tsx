@@ -318,43 +318,18 @@ export function AdministracionBailarinDetalleRouteView({
             </form>
           </CardContent>
           <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            {isEditing ? (
-              <Button asChild variant="outline" size="lg">
-                <Link to={loaderData.cancelHref}>Cancelar</Link>
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="lg">
-                <Link to={loaderData.backToList}>Volver</Link>
-              </Button>
-            )}
-            {loaderData.canEdit ? (
-              isEditing ? (
-                shouldConfirmSave ? (
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={() => {
-                      setDialogIntent("save");
-                    }}
-                  >
-                    <Check aria-hidden="true" data-icon="inline-start" />
-                    Guardar
-                  </Button>
-                ) : (
-                  <Button type="submit" form={editFormId} size="lg">
-                    <Check aria-hidden="true" data-icon="inline-start" />
-                    Guardar
-                  </Button>
-                )
-              ) : (
-                <Button asChild size="lg">
-                  <Link to={loaderData.editHref}>
-                    <Pencil aria-hidden="true" data-icon="inline-start" />
-                    Editar
-                  </Link>
-                </Button>
-              )
-            ) : null}
+            <DancerDetailFooterActions
+              backToList={loaderData.backToList}
+              canEdit={loaderData.canEdit}
+              cancelHref={loaderData.cancelHref}
+              editFormId={editFormId}
+              editHref={loaderData.editHref}
+              isEditing={isEditing}
+              onConfirmSave={() => {
+                setDialogIntent("save");
+              }}
+              shouldConfirmSave={shouldConfirmSave}
+            />
           </CardFooter>
         </Card>
 
@@ -376,6 +351,91 @@ export function AdministracionBailarinDetalleRouteView({
         />
       </section>
     </AdminResourceLayout>
+  );
+}
+
+function DancerDetailFooterActions({
+  backToList,
+  canEdit,
+  cancelHref,
+  editFormId,
+  editHref,
+  isEditing,
+  onConfirmSave,
+  shouldConfirmSave,
+}: {
+  backToList: string;
+  canEdit: boolean;
+  cancelHref: string;
+  editFormId: string;
+  editHref: string;
+  isEditing: boolean;
+  onConfirmSave: () => void;
+  shouldConfirmSave: boolean;
+}) {
+  return (
+    <>
+      <Button asChild variant="outline" size="lg">
+        <Link to={isEditing ? cancelHref : backToList}>
+          {isEditing ? "Cancelar" : "Volver"}
+        </Link>
+      </Button>
+      <DancerPrimaryFooterAction
+        canEdit={canEdit}
+        editFormId={editFormId}
+        editHref={editHref}
+        isEditing={isEditing}
+        onConfirmSave={onConfirmSave}
+        shouldConfirmSave={shouldConfirmSave}
+      />
+    </>
+  );
+}
+
+function DancerPrimaryFooterAction({
+  canEdit,
+  editFormId,
+  editHref,
+  isEditing,
+  onConfirmSave,
+  shouldConfirmSave,
+}: {
+  canEdit: boolean;
+  editFormId: string;
+  editHref: string;
+  isEditing: boolean;
+  onConfirmSave: () => void;
+  shouldConfirmSave: boolean;
+}) {
+  if (!canEdit) {
+    return null;
+  }
+
+  if (!isEditing) {
+    return (
+      <Button asChild size="lg">
+        <Link to={editHref}>
+          <Pencil aria-hidden="true" data-icon="inline-start" />
+          Editar
+        </Link>
+      </Button>
+    );
+  }
+
+  if (shouldConfirmSave) {
+    return (
+      <Button type="button" size="lg" onClick={onConfirmSave}>
+        <Check aria-hidden="true" data-icon="inline-start" />
+        Guardar
+      </Button>
+    );
+  }
+
+  return (
+    <Button type="submit" form={editFormId} size="lg">
+      <Check aria-hidden="true" data-icon="inline-start" />
+      Guardar
+    </Button>
   );
 }
 

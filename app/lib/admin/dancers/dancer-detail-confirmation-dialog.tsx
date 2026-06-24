@@ -99,9 +99,7 @@ export function DancerConfirmationDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {statusAction.intent === "archive-dancer"
-                ? "¿Archivar bailarín?"
-                : "¿Reactivar bailarín?"}
+              {getStatusDialogTitle(statusAction.intent)}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {statusAction.description}
@@ -126,11 +124,7 @@ export function DancerConfirmationDialog({
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               asChild
-              variant={
-                statusAction.intent === "archive-dancer"
-                  ? "destructive"
-                  : "default"
-              }
+              variant={getStatusDialogVariant(statusAction.intent)}
             >
               <Button type="submit" form={statusFormId}>
                 {statusAction.label}
@@ -164,4 +158,22 @@ export function DancerConfirmationDialog({
       </AlertDialog>
     </>
   );
+}
+
+function getStatusDialogTitle(intent: DancerStatusAction["intent"]) {
+  switch (intent) {
+    case "archive-dancer":
+      return "¿Archivar bailarín?";
+    case "reactivate-dancer":
+      return "¿Reactivar bailarín?";
+  }
+}
+
+function getStatusDialogVariant(intent: DancerStatusAction["intent"]) {
+  switch (intent) {
+    case "archive-dancer":
+      return "destructive";
+    case "reactivate-dancer":
+      return "default";
+  }
 }
