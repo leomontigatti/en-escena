@@ -1,4 +1,11 @@
-import { Form, redirect, useActionData, useLoaderData } from "react-router";
+import { LoaderCircle } from "lucide-react";
+import {
+  Form,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
 import { z } from "zod";
 
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
@@ -239,6 +246,10 @@ function MandatoryPasswordChangeForm({
   const mandatoryActionData = isMandatoryActionData(actionData)
     ? actionData
     : null;
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toLowerCase() === "post";
   const form = useAccessForm({
     schema: changePasswordSchema,
     values: mandatoryActionData?.values ?? emptyMandatoryChangeValues,
@@ -276,9 +287,9 @@ function MandatoryPasswordChangeForm({
           <AccessTextField
             controller={form}
             autoComplete="new-password"
-            description="Usá al menos 8 caracteres."
             label="Nueva contraseña"
             name="newPassword"
+            placeholder="Usá al menos 8 caracteres."
             type="password"
           />
 
@@ -290,7 +301,14 @@ function MandatoryPasswordChangeForm({
             type="password"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
             Guardar contraseña
           </Button>
         </FieldGroup>
@@ -307,6 +325,10 @@ function RecoveryPasswordChangeForm({
   const recoveryActionData = isRecoveryActionData(actionData)
     ? actionData
     : null;
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toLowerCase() === "post";
   const form = useAccessForm({
     schema: passwordConfirmationSchema,
     values: recoveryActionData?.values ?? emptyRecoveryChangeValues,
@@ -336,9 +358,9 @@ function RecoveryPasswordChangeForm({
           <AccessTextField
             controller={form}
             autoComplete="new-password"
-            description="Usá al menos 8 caracteres."
             label="Nueva contraseña"
             name="newPassword"
+            placeholder="Usá al menos 8 caracteres."
             type="password"
           />
 
@@ -350,7 +372,14 @@ function RecoveryPasswordChangeForm({
             type="password"
           />
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
             Guardar contraseña
           </Button>
         </FieldGroup>
