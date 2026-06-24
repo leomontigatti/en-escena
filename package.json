@@ -23,6 +23,7 @@
     "prepare": "husky",
     "db:push": "node --env-file=.env node_modules/drizzle-kit/bin.cjs push",
     "backup:db:b2": "sh scripts/backup-database-to-b2.sh",
+    "backup:storage:b2": "sh scripts/backup-storage-to-b2.sh",
     "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
     "db:test:push": "node --import tsx tests/db/push-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",

@@ -1,19 +1,27 @@
 # Backups
 
-This runbook covers the first production backup path: daily logical PostgreSQL
-dumps uploaded to Backblaze B2. It does not cover Supabase Storage object
-backups; configure those separately.
+This runbook covers production backups to Backblaze B2:
+
+- daily logical PostgreSQL dumps;
+- daily Supabase Storage object backups.
 
 ## Scope
 
-- Source: the production `DATABASE_URL` for Supabase Postgres.
+- Database source: the production `DATABASE_URL` for Supabase Postgres.
+- Storage source: configured Supabase Storage buckets through the S3-compatible
+  API.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint.
-- Format: compressed custom-format `pg_dump` archive.
+- Database format: compressed custom-format `pg_dump` archive.
+- Storage format: copied objects under a B2 prefix.
 - Frequency: daily.
 - Retention: managed in B2 with lifecycle rules, not by the app script.
 
 The backup script creates a logical dump. It is not PITR and can only restore to
 the moment when the dump started.
+
+The storage backup copies current Supabase Storage objects into B2. It does not
+delete B2 objects that are no longer present in Supabase Storage, so accidental
+deletes in Supabase do not immediately remove the backup copy.
 
 ## Backblaze B2 Setup
 
@@ -42,14 +50,26 @@ secrets.
 DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres"
 B2_BUCKET="en-escena-backups"
 B2_PREFIX="database"
+B2_FILESTORE_PREFIX="filestore"
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
 AWS_ACCESS_KEY_ID="your-b2-application-key-id"
 AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
+
+STORAGE_BACKUP_BUCKETS="dancer-documents"
+SUPABASE_STORAGE_S3_ENDPOINT="https://your-project-ref.storage.supabase.co/storage/v1/s3"
+SUPABASE_STORAGE_S3_REGION="your-supabase-project-region"
+SUPABASE_STORAGE_S3_ACCESS_KEY_ID="your-supabase-storage-s3-access-key-id"
+SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY="your-supabase-storage-s3-secret-access-key"
 ```
 
 `DATABASE_URL` should use the Supabase direct connection or session pooler.
 Avoid the transaction pooler for dumps.
+
+Generate the Supabase Storage S3 credentials from the project's Storage S3
+settings. Supabase says S3 access keys are server-side credentials that provide
+full S3 access across buckets and bypass RLS, so keep them only in Coolify
+environment variables.
 
 ## Runtime Requirements
 
@@ -80,10 +100,13 @@ From the repo root:
 
 ```sh
 npm run backup:db:b2
+npm run backup:storage:b2
 ```
 
-The script writes a temporary file under `tmp/db-backups/`, uploads it to B2,
-and removes the local file on exit.
+The database script writes a temporary file under `tmp/db-backups/`, uploads it
+to B2, and removes the local file on exit. The storage script downloads each
+configured bucket under `tmp/storage-backups/`, uploads the objects to B2, and
+removes the local copy on exit.
 
 ## Daily Schedule
 
@@ -94,6 +117,12 @@ a scheduled task on the production application:
 - Schedule: `20 3 * * *`
 - Environment: use the production variables configured in Coolify.
 
+Add a second scheduled task for Storage:
+
+- Command: `npm run backup:storage:b2`
+- Schedule: `40 3 * * *`
+- Environment: use the production variables configured in Coolify.
+
 The scheduled task should inherit the app environment. If it does not, define
 the backup variables directly on the scheduled task.
 
@@ -101,6 +130,7 @@ For a host-level cron fallback, use:
 
 ```cron
 20 3 * * * cd /path/to/en-escena && npm run backup:db:b2 >> /var/log/en-escena-db-backup.log 2>&1
+40 3 * * * cd /path/to/en-escena && npm run backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
 ```
 
 ## Restore Check
@@ -126,3 +156,31 @@ pg_restore --no-owner --no-acl --dbname "$RESTORE_DATABASE_URL" \
 ```
 
 Run a restore test monthly. A backup that has not been restored is unproven.
+
+## Storage Restore Check
+
+List the copied objects in B2:
+
+```sh
+aws s3 ls "s3://$B2_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents/" \
+  --recursive \
+  --endpoint-url "$B2_S3_ENDPOINT"
+```
+
+To restore one bucket into Supabase Storage, copy from B2 into a temporary
+directory and then sync it to the Supabase Storage bucket:
+
+```sh
+aws s3 sync \
+  "s3://$B2_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents" \
+  "tmp/storage-restore/dancer-documents" \
+  --endpoint-url "$B2_S3_ENDPOINT"
+
+AWS_ACCESS_KEY_ID="$SUPABASE_STORAGE_S3_ACCESS_KEY_ID" \
+  AWS_SECRET_ACCESS_KEY="$SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY" \
+  AWS_DEFAULT_REGION="$SUPABASE_STORAGE_S3_REGION" \
+  aws s3 sync \
+    "tmp/storage-restore/dancer-documents" \
+    "s3://dancer-documents" \
+    --endpoint-url "$SUPABASE_STORAGE_S3_ENDPOINT"
+```
