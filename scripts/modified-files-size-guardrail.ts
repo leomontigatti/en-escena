@@ -4,9 +4,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const reviewThreshold = 5_500;
-const justificationThreshold = 7_000;
-const refactorThreshold = 10_000;
+const sizeTiers = [10_000, 7_000, 5_500] as const;
+
+type SizeTier = (typeof sizeTiers)[number];
 
 const sourceFilePattern = /\.(ts|tsx)$/;
 const testFilePattern = /\.test\.(ts|tsx)$/;
@@ -28,7 +28,7 @@ const excludedFileNames = new Set([
 export type ModifiedFileSizeViolation = {
   estimatedTokens: number;
   filePath: string;
-  tier: 5_500 | 7_000 | 10_000;
+  tier: SizeTier;
 };
 
 type CheckModifiedFileSizesOptions = {
@@ -163,20 +163,8 @@ function isGeneratedPath(filePath: string) {
   );
 }
 
-function getTier(estimatedTokens: number): 5_500 | 7_000 | 10_000 | null {
-  if (estimatedTokens >= refactorThreshold) {
-    return 10_000;
-  }
-
-  if (estimatedTokens >= justificationThreshold) {
-    return 7_000;
-  }
-
-  if (estimatedTokens >= reviewThreshold) {
-    return 5_500;
-  }
-
-  return null;
+function getTier(estimatedTokens: number): SizeTier | null {
+  return sizeTiers.find((tier) => estimatedTokens >= tier) ?? null;
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {

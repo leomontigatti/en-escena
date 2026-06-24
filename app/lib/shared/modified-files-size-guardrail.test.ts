@@ -36,6 +36,11 @@ describe("modified files size guardrail", () => {
         "app/components/overview.test.tsx",
         createFileContents(100),
       );
+      await writeGuardrailFile(
+        tempRoot,
+        "app/lib/server/__generated__/types.ts",
+        createFileContents(100),
+      );
 
       initGitRepository(tempRoot);
 
@@ -78,6 +83,11 @@ describe("modified files size guardrail", () => {
         tempRoot,
         "app/components/overview.test.tsx",
         createFileContents(9_500),
+      );
+      await writeGuardrailFile(
+        tempRoot,
+        "app/lib/server/__generated__/types.ts",
+        createFileContents(9_750),
       );
 
       const violations = await checkModifiedFileSizes({ cwd: tempRoot });
