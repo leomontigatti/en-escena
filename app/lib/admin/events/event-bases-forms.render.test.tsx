@@ -194,6 +194,51 @@ describe("Evento bases migrated forms", () => {
     );
   });
 
+  test("submits the cronograma detail form through React Router instead of form.submit()", async () => {
+    const nativeSubmitSpy = vi
+      .spyOn(HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => {});
+    const submitSpy = vi.fn();
+
+    reactRouterMocks.useFormAction.mockReturnValue(
+      "/administracion/cronogramas/schedule_1",
+    );
+    reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
+    reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
+
+    render(
+      <EventScheduleDetailRouteView
+        loaderData={buildLoaderData()}
+        scheduleId="schedule_1"
+      />,
+    );
+
+    const form = document.querySelector("form#update-schedule-form");
+    const submitButton = document.querySelector(
+      'button[form="update-schedule-form"]',
+    );
+
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(submitButton).toBeInstanceOf(HTMLButtonElement);
+
+    await act(async () => {
+      (form as HTMLFormElement).requestSubmit(
+        submitButton as HTMLButtonElement,
+      );
+      await Promise.resolve();
+    });
+
+    expect(nativeSubmitSpy).not.toHaveBeenCalled();
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    expect(submitSpy).toHaveBeenCalledWith(
+      submitButton,
+      expect.objectContaining({
+        action: "/administracion/cronogramas/schedule_1",
+        method: "post",
+      }),
+    );
+  });
+
   test("keeps client validation errors visible and blocks route submission", async () => {
     const nativeSubmitSpy = vi
       .spyOn(HTMLFormElement.prototype, "submit")
