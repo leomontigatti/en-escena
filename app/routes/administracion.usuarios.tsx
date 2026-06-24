@@ -10,6 +10,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,12 +133,12 @@ function UsersTable({
       className: "align-top whitespace-normal",
       cell: (savedUser) => (
         <div className="flex flex-col gap-1">
-          <Link
+          <DataTableLink
             to={buildUserDetailHref(filters, savedUser.id)}
-            className="w-fit font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-fit"
           >
             {savedUser.name}
-          </Link>
+          </DataTableLink>
         </div>
       ),
       filterValue: (savedUser) =>

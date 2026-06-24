@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, redirect, useFetcher, useSearchParams } from "react-router";
+import { redirect, useFetcher, useSearchParams } from "react-router";
 
 import { AccessNotice } from "@/components/auth/access-ui";
 import { CreateChoreographyDialog } from "@/components/portal/choreography-create-dialog";
@@ -13,6 +13,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
@@ -214,12 +215,9 @@ function ChoreographyTable({
       header: "Nombre",
       className: "font-medium",
       cell: (choreography) => (
-        <Link
-          to={`/portal/coreografias/${choreography.id}`}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
+        <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
           {choreography.name}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (choreography) =>
         [

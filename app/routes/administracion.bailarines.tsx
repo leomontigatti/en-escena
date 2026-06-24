@@ -1,4 +1,4 @@
-import { Link, redirect } from "react-router";
+import { redirect } from "react-router";
 
 import {
   AdminEmptyState,
@@ -9,6 +9,7 @@ import {
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   getAdminDancerIdentificationBadgeVariant,
@@ -120,12 +121,9 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
       cell: (dancer) => (
-        <Link
-          to={buildDancerDetailHref(loaderData, dancer.id)}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
+        <DataTableLink to={buildDancerDetailHref(loaderData, dancer.id)}>
           {dancer.firstName} {dancer.lastName}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,

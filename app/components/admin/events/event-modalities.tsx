@@ -24,6 +24,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -256,12 +257,11 @@ function ModalitiesTable({
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (modality) => (
-        <Link
+        <DataTableLink
           to={buildModalidadDetallePath(modality.id, selectedEventId)}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           {modality.name}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (modality) => modality.name,
       sortValue: (modality) => modality.name,

@@ -26,6 +26,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { MultiCombobox } from "@/components/shared/multi-combobox";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -1079,12 +1080,11 @@ function ScheduleList({
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (schedule) => (
-        <Link
+        <DataTableLink
           to={buildScheduleDetailPath(schedule.id, selectedEventId)}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           {schedule.name}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (schedule) => schedule.name,
     },

@@ -7,7 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
 
 export const accessTextLinkClassName =
-  "rounded-sm font-medium text-primary underline-offset-4 hover:text-primary/80 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "rounded-sm font-medium text-brand underline-offset-4 hover:text-brand/80 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 type AccessPageProps = {
   children: ReactNode;
@@ -43,34 +43,43 @@ export function AccessPage({ children, width = "md" }: AccessPageProps) {
 }
 
 type AccessHeaderProps = {
-  eyebrow: string;
+  className?: string;
+  eyebrow?: string;
+  media?: ReactNode;
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   tone?: "default" | "danger";
 };
 
 export function AccessHeader({
+  className,
   eyebrow,
+  media,
   title,
   description,
   tone = "default",
 }: AccessHeaderProps) {
   return (
-    <header>
-      <p
-        className={cn(
-          "text-sm font-medium",
-          tone === "danger" ? "text-destructive" : "text-primary",
-        )}
-      >
-        {eyebrow}
-      </p>
+    <header className={className}>
+      {media}
+      {eyebrow ? (
+        <p
+          className={cn(
+            "text-sm font-medium",
+            tone === "danger" ? "text-destructive" : "text-primary",
+          )}
+        >
+          {eyebrow}
+        </p>
+      ) : null}
       <h1 className="mt-3 text-3xl font-semibold text-pretty text-foreground">
         {title}
       </h1>
-      <p className="mt-4 text-sm leading-6 text-pretty text-muted-foreground">
-        {description}
-      </p>
+      {description ? (
+        <p className="mt-4 text-sm leading-6 text-pretty text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
     </header>
   );
 }

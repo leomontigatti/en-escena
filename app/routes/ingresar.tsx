@@ -187,9 +187,17 @@ export default function IngresarRoute() {
   return (
     <AccessPage>
       <AccessHeader
-        eyebrow="En Escena"
+        media={
+          <span className="mx-auto mb-6 flex size-48 items-center justify-center overflow-hidden rounded-full bg-foreground">
+            <img
+              src="/en-escena-certamen-de-danzas.png"
+              alt="En Escena"
+              className="h-full w-full object-cover"
+            />
+          </span>
+        }
+        className="text-center"
         title="Ingresar"
-        description="Accedé al portal de academias del certamen"
       />
 
       <Form

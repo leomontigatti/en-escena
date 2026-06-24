@@ -346,7 +346,7 @@ export function CreateChoreographyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+        <div className="-mx-1 flex min-h-0 flex-col gap-6 overflow-y-auto px-1">
           <Field>
             <div className="flex justify-end">
               <span className="text-sm text-muted-foreground">
@@ -447,12 +447,12 @@ export function CreateChoreographyDialog({
                   control={form.control}
                   fieldName="scheduleCapacityId"
                   id={scheduleCapacityFieldId}
-                  label="Cupo de cronograma"
+                  label="Cronograma"
                   options={
                     resolution.schedule.status === "multiple"
                       ? resolution.schedule.options.map((option) => ({
                           value: option.id,
-                          label: `${option.schedule.name} · ${formatGroupTypeLabel(option.groupType)} · Cupo ${option.capacity}`,
+                          label: formatScheduleDateTime(option.schedule),
                         }))
                       : []
                   }
@@ -881,19 +881,12 @@ function formatScheduleDateTime(input: {
   }
 
   const date = new Date(year, month - 1, day);
-  const weekday = new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
+  const monthName = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
   }).format(date);
-  const formattedDate = `${String(day).padStart(2, "0")}/${String(
-    month,
-  ).padStart(2, "0")}`;
   const formattedTime = input.startTime.slice(0, 5);
 
-  return `${capitalizeFirstLetter(weekday)} ${formattedDate} - ${formattedTime} hs.`;
-}
-
-function capitalizeFirstLetter(value: string) {
-  return value.charAt(0).toLocaleUpperCase("es-AR") + value.slice(1);
+  return `${day} de ${monthName} de ${year} - ${formattedTime} hs.`;
 }
 
 function formatPeopleSummary(

@@ -1,5 +1,4 @@
 import { desc } from "drizzle-orm";
-import { Link } from "react-router";
 
 import {
   AdminEmptyState,
@@ -10,6 +9,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
@@ -123,12 +123,9 @@ function EventTable({ events }: { events: EventListRow[] }) {
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (event) => (
-        <Link
-          to={`/administracion/eventos/${event.id}`}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
+        <DataTableLink to={`/administracion/eventos/${event.id}`}>
           {event.name}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (event) => event.name,
       sortValue: (event) => event.name,

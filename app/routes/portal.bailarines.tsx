@@ -16,6 +16,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -338,14 +339,9 @@ function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
   const viewTransitionStyle = usePortalRecordTitleLinkTransitionStyle(href);
 
   return (
-    <Link
-      to={href}
-      viewTransition
-      style={viewTransitionStyle}
-      className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-    >
+    <DataTableLink to={href} viewTransition style={viewTransitionStyle}>
       {dancer.firstName} {dancer.lastName}
-    </Link>
+    </DataTableLink>
   );
 }
 

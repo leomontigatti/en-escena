@@ -17,6 +17,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
@@ -265,12 +266,11 @@ function CategoriesTable({
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (category) => (
-        <Link
+        <DataTableLink
           to={buildCategoryDetailPath(category.id, selectedEventId)}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           {category.name}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (category) => category.name,
     },

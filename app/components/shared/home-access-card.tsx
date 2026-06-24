@@ -39,7 +39,7 @@ function HomeAccessCardSurface({ item }: { item: HomeAccessCardItem }) {
     <Card className="h-full w-full rounded-lg transition-colors hover:bg-accent group-hover:bg-accent">
       <CardHeader className="grid-cols-[auto_1fr] items-center gap-4">
         <Avatar size="lg" className="rounded-lg after:rounded-lg">
-          <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+          <AvatarFallback className="rounded-lg bg-brand text-white">
             <Icon aria-hidden="true" />
           </AvatarFallback>
         </Avatar>

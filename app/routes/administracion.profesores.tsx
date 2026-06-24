@@ -1,4 +1,4 @@
-import { Link, redirect } from "react-router";
+import { redirect } from "react-router";
 
 import {
   AdminEmptyState,
@@ -9,6 +9,7 @@ import {
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   getAdminProfessorParticipationLabel,
@@ -116,12 +117,9 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
       cell: (professor) => (
-        <Link
-          to={buildProfessorDetailHref(loaderData, professor.id)}
-          className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
+        <DataTableLink to={buildProfessorDetailHref(loaderData, professor.id)}>
           {professor.firstName} {professor.lastName}
-        </Link>
+        </DataTableLink>
       ),
       filterValue: (professor) =>
         `${professor.firstName} ${professor.lastName}`,

@@ -70,7 +70,7 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --brand: #2effd3;
+  --brand: #55c594;
   --brand-foreground: oklch(0.145 0 0);
   --success: oklch(0.45 0.14 151);
   --info: oklch(0.5 0.15 245);
@@ -110,7 +110,7 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --brand: #2effd3;
+  --brand: #55c594;
   --brand-foreground: oklch(0.145 0 0);
   --success: oklch(0.76 0.16 151);
   --info: oklch(0.74 0.14 245);

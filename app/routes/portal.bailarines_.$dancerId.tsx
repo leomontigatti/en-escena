@@ -296,6 +296,10 @@ export function PortalBailarinDetalleRouteView({
     : formValues;
   const showsIdentificationAlert = !hasDocumentData;
   const showsMissingImagesAlert = hasDocumentData && !isIdentityVerified;
+  const showsStatusAlerts =
+    !loaderData.dancer.active ||
+    showsIdentificationAlert ||
+    showsMissingImagesAlert;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
@@ -342,46 +346,48 @@ export function PortalBailarinDetalleRouteView({
           </ResourceActionsMenu>
         </div>
 
-        <div className="flex flex-col gap-3">
-          {!loaderData.dancer.active ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertDescription>
-                Este bailarín está archivado. Reactivalo para que vuelva a
-                aparecer en las listas activas y en próximas selecciones de
-                coreografías.
-              </AlertDescription>
-              <AlertAction className="top-1/2 -translate-y-1/2">
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  onClick={() => {
-                    setStatusDialogIntent("reactivate-dancer");
-                  }}
-                >
-                  Reactivar
-                </Button>
-              </AlertAction>
-            </Alert>
-          ) : null}
-          {showsIdentificationAlert ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                Faltan datos de identificación para completar la verificación.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {showsMissingImagesAlert ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                Faltan imágenes del documento para completar la verificación.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </div>
+        {showsStatusAlerts ? (
+          <div className="flex flex-col gap-3">
+            {!loaderData.dancer.active ? (
+              <Alert variant="destructive">
+                <CircleAlert aria-hidden="true" />
+                <AlertDescription>
+                  Este bailarín está archivado. Reactivalo para que vuelva a
+                  aparecer en las listas activas y en próximas selecciones de
+                  coreografías.
+                </AlertDescription>
+                <AlertAction className="top-1/2 -translate-y-1/2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      setStatusDialogIntent("reactivate-dancer");
+                    }}
+                  >
+                    Reactivar
+                  </Button>
+                </AlertAction>
+              </Alert>
+            ) : null}
+            {showsIdentificationAlert ? (
+              <Alert variant="warning">
+                <TriangleAlert aria-hidden="true" />
+                <AlertDescription>
+                  Faltan datos de identificación para completar la verificación.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {showsMissingImagesAlert ? (
+              <Alert variant="warning">
+                <TriangleAlert aria-hidden="true" />
+                <AlertDescription>
+                  Faltan imágenes del documento para completar la verificación.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+        ) : null}
 
         <Card>
           <CardContent>

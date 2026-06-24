@@ -15,6 +15,7 @@ import { Link, NavLink, useLocation, type UIMatch } from "react-router";
 
 import type { AdminEventOption } from "@/lib/admin/event-context.shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -426,11 +427,7 @@ function AdminActiveEventSummary({
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton size="lg">
-          <Avatar className="rounded-lg after:rounded-lg">
-            <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <CalendarDays aria-hidden="true" />
-            </AvatarFallback>
-          </Avatar>
+          <EnEscenaAvatar />
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{selectedEventName}</span>
             <span className="truncate text-xs">{selectedEventStatus}</span>
@@ -459,11 +456,7 @@ function AdminBrandLink() {
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" asChild>
           <Link to="/administracion">
-            <Avatar className="rounded-lg after:rounded-lg">
-              <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                EE
-              </AvatarFallback>
-            </Avatar>
+            <EnEscenaAvatar />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">En Escena</span>
               <span className="truncate text-xs">Panel de administración</span>
