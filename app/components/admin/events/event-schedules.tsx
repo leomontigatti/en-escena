@@ -31,6 +31,11 @@ import { DateOnlyField } from "@/components/shared/date-only-field";
 import { MultiCombobox } from "@/components/shared/multi-combobox";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
+  buildNewSchedulePath,
+  buildScheduleDetailPath,
+  buildSchedulesPath,
+} from "@/lib/admin/events/event-bases-navigation";
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -1687,40 +1692,6 @@ function EmptyResourceState({ children }: { children: ReactNode }) {
       </EmptyHeader>
     </Empty>
   );
-}
-
-export function buildSchedulesPath(selectedEventId: string | null) {
-  return appendSelectedEventId("/administracion/cronogramas", selectedEventId);
-}
-
-export function buildNewSchedulePath(selectedEventId: string | null) {
-  return appendSelectedEventId(
-    "/administracion/cronogramas/nuevo",
-    selectedEventId,
-  );
-}
-
-export function buildScheduleDetailPath(
-  scheduleId: string,
-  selectedEventId: string | null,
-) {
-  return appendSelectedEventId(
-    `/administracion/cronogramas/${scheduleId}`,
-    selectedEventId,
-  );
-}
-
-export function isScheduleDetailPath(requestUrl: string) {
-  return new RegExp("^/administracion/cronogramas/[^/]+$").test(
-    new URL(requestUrl).pathname,
-  );
-}
-
-function appendSelectedEventId(
-  pathname: string,
-  _selectedEventId: string | null,
-) {
-  return pathname;
 }
 
 function formatScheduleOccupancy(schedule: ScheduleListItem) {

@@ -72,6 +72,11 @@ import type {
   ActionData,
   PriceActionValues,
 } from "@/lib/admin/events/bases-action.server";
+import {
+  buildPriceCreatePath,
+  buildPriceDetailPath,
+  buildPriceListPath,
+} from "@/lib/admin/events/event-bases-navigation";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import {
@@ -256,33 +261,6 @@ export function EventPriceDetailRouteView({
         </EmptyResourceState>
       )}
     </AdminResourceLayout>
-  );
-}
-
-export function buildPriceListPath(selectedEventId: string | null) {
-  return appendSelectedEventId("/administracion/precios", selectedEventId);
-}
-
-export function buildPriceCreatePath(selectedEventId: string | null) {
-  return appendSelectedEventId(
-    "/administracion/precios/nuevo",
-    selectedEventId,
-  );
-}
-
-export function buildPriceDetailPath(
-  priceId: string,
-  selectedEventId: string | null,
-) {
-  return appendSelectedEventId(
-    `/administracion/precios/${priceId}`,
-    selectedEventId,
-  );
-}
-
-export function isPriceDetailPath(requestUrl: string) {
-  return new RegExp("^/administracion/precios/[^/]+$").test(
-    new URL(requestUrl).pathname,
   );
 }
 
@@ -859,11 +837,4 @@ function EmptyResourceState({ children }: { children: ReactNode }) {
       </EmptyHeader>
     </Empty>
   );
-}
-
-function appendSelectedEventId(
-  pathname: string,
-  _selectedEventId: string | null,
-) {
-  return pathname;
 }
