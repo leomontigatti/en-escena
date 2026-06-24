@@ -1,10 +1,22 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  type DancerDocumentStorageAdapter,
   createDancerDocumentStorage,
   createSupabaseDancerDocumentStorage,
   getRequiredSupabaseStorageEnv,
 } from "./dancer-documents.server";
+
+function createStorageAdapter(
+  overrides: Partial<DancerDocumentStorageAdapter>,
+): DancerDocumentStorageAdapter {
+  return {
+    list: async () => [],
+    remove: async () => {},
+    upload: async () => {},
+    ...overrides,
+  };
+}
 
 describe("dancer document storage", () => {
   test("uploads a dancer document image to the canonical academy-owned key", async () => {
@@ -15,11 +27,13 @@ describe("dancer document storage", () => {
       options: { contentType: string; upsert: boolean };
     }> = [];
 
-    const storage = createDancerDocumentStorage({
-      upload: async (input) => {
-        uploads.push(input);
-      },
-    });
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        upload: async (input) => {
+          uploads.push(input);
+        },
+      }),
+    );
 
     const file = new Blob(["front"], { type: "image/jpeg" });
 
@@ -54,11 +68,13 @@ describe("dancer document storage", () => {
       options: { contentType: string; upsert: boolean };
     }> = [];
 
-    const storage = createDancerDocumentStorage({
-      upload: async (input) => {
-        uploads.push(input);
-      },
-    });
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        upload: async (input) => {
+          uploads.push(input);
+        },
+      }),
+    );
 
     const file = new Blob(["back"], { type: "image/webp" });
 
@@ -87,11 +103,13 @@ describe("dancer document storage", () => {
 
   test("rejects unsupported document image types before uploading", async () => {
     const uploads: Array<unknown> = [];
-    const storage = createDancerDocumentStorage({
-      upload: async (input) => {
-        uploads.push(input);
-      },
-    });
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        upload: async (input) => {
+          uploads.push(input);
+        },
+      }),
+    );
 
     await expect(
       storage.uploadDocumentImage({
@@ -107,11 +125,13 @@ describe("dancer document storage", () => {
 
   test("rejects document image files larger than 10 MB before uploading", async () => {
     const uploads: Array<unknown> = [];
-    const storage = createDancerDocumentStorage({
-      upload: async (input) => {
-        uploads.push(input);
-      },
-    });
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        upload: async (input) => {
+          uploads.push(input);
+        },
+      }),
+    );
 
     await expect(
       storage.uploadDocumentImage({
@@ -127,20 +147,81 @@ describe("dancer document storage", () => {
     expect(uploads).toEqual([]);
   });
 
+  test("removes previous files for the same document side regardless of extension", async () => {
+    const calls: Array<unknown> = [];
+    const file = new Blob(["front"], { type: "image/png" });
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        list: async (input) => {
+          calls.push({ ...input, type: "list" });
+
+          return [
+            { name: "document-front.jpg" },
+            { name: "document-front.webp" },
+            { name: "document-back.jpg" },
+            { name: "notes.txt" },
+          ];
+        },
+        remove: async (input) => {
+          calls.push({ ...input, type: "remove" });
+        },
+        upload: async (input) => {
+          calls.push({ ...input, type: "upload" });
+        },
+      }),
+    );
+
+    await expect(
+      storage.uploadDocumentImage({
+        academyId: "academy-1",
+        dancerId: "dancer-1",
+        file,
+        side: "front",
+      }),
+    ).resolves.toBe("academies/academy-1/dancers/dancer-1/document-front.png");
+
+    expect(calls).toEqual([
+      {
+        bucket: "dancer-documents",
+        prefix: "academies/academy-1/dancers/dancer-1",
+        type: "list",
+      },
+      {
+        bucket: "dancer-documents",
+        file,
+        key: "academies/academy-1/dancers/dancer-1/document-front.png",
+        options: {
+          contentType: "image/png",
+          upsert: true,
+        },
+        type: "upload",
+      },
+      {
+        bucket: "dancer-documents",
+        keys: [
+          "academies/academy-1/dancers/dancer-1/document-front.jpg",
+          "academies/academy-1/dancers/dancer-1/document-front.webp",
+        ],
+        type: "remove",
+      },
+    ]);
+  });
+
   test("creates a signed URL for a stored dancer document image", async () => {
     const signedUrlRequests: Array<{
       bucket: string;
       expiresInSeconds: number;
       key: string;
     }> = [];
-    const storage = createDancerDocumentStorage({
-      createSignedUrl: async (input) => {
-        signedUrlRequests.push(input);
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        createSignedUrl: async (input) => {
+          signedUrlRequests.push(input);
 
-        return "https://example.supabase.co/signed/document-front";
-      },
-      upload: async () => {},
-    });
+          return "https://example.supabase.co/signed/document-front";
+        },
+      }),
+    );
 
     const signedUrl = await storage.createDocumentImageSignedUrl(
       "academies/academy-1/dancers/dancer-1/document-front.jpg",
@@ -180,6 +261,22 @@ describe("dancer document storage", () => {
 
             return { data: { path: key }, error: null };
           },
+          list: async (prefix: string, options: { limit: number }) => {
+            calls.push({ bucket, options, prefix, type: "list" });
+
+            return {
+              data: [
+                { name: "document-front.jpg" },
+                { name: "document-back.jpg" },
+              ],
+              error: null,
+            };
+          },
+          remove: async (keys: string[]) => {
+            calls.push({ bucket, keys, type: "remove" });
+
+            return { data: [], error: null };
+          },
         }),
       },
     });
@@ -201,6 +298,12 @@ describe("dancer document storage", () => {
     expect(calls).toEqual([
       {
         bucket: "dancer-documents",
+        options: { limit: 100 },
+        prefix: "academies/academy-1/dancers/dancer-1",
+        type: "list",
+      },
+      {
+        bucket: "dancer-documents",
         file: uploadedFile,
         key: "academies/academy-1/dancers/dancer-1/document-front.png",
         options: {
@@ -208,6 +311,11 @@ describe("dancer document storage", () => {
           upsert: true,
         },
         type: "upload",
+      },
+      {
+        bucket: "dancer-documents",
+        keys: ["academies/academy-1/dancers/dancer-1/document-front.jpg"],
+        type: "remove",
       },
       {
         bucket: "dancer-documents",

@@ -24,6 +24,11 @@ export type DancerDocumentStorageAdapter = {
     expiresInSeconds: number;
     key: string;
   }): Promise<string>;
+  list(input: {
+    bucket: string;
+    prefix: string;
+  }): Promise<Array<{ name: string }>>;
+  remove(input: { bucket: string; keys: string[] }): Promise<void>;
   upload(input: {
     bucket: string;
     file: Blob;
@@ -50,6 +55,16 @@ type SupabaseStorageClient = {
         file: Blob,
         options: { contentType: string; upsert: boolean },
       ): Promise<{
+        error: { message: string } | null;
+      }>;
+      list(
+        prefix: string,
+        options: { limit: number },
+      ): Promise<{
+        data: Array<{ name: string }> | null;
+        error: { message: string } | null;
+      }>;
+      remove(keys: string[]): Promise<{
         error: { message: string } | null;
       }>;
     };
@@ -90,6 +105,11 @@ export function createDancerDocumentStorage(
       validateDocumentImage(input.file);
 
       const storageKey = buildDocumentImageStorageKey(input);
+      const keysToRemove = await listExistingDocumentImageSideKeys({
+        adapter,
+        input,
+        storageKey,
+      });
 
       await adapter.upload({
         bucket: DANCER_DOCUMENTS_BUCKET,
@@ -100,6 +120,13 @@ export function createDancerDocumentStorage(
           upsert: true,
         },
       });
+
+      if (keysToRemove.length > 0) {
+        await adapter.remove({
+          bucket: DANCER_DOCUMENTS_BUCKET,
+          keys: keysToRemove,
+        });
+      }
 
       return storageKey;
     },
@@ -127,6 +154,26 @@ export function createSupabaseDancerDocumentStorage(
 
       return data.signedUrl;
     },
+    list: async (input) => {
+      const { data, error } = await supabase.storage
+        .from(input.bucket)
+        .list(input.prefix, { limit: 100 });
+
+      if (error) {
+        throw new Error(`Could not list document images: ${error.message}`);
+      }
+
+      return data ?? [];
+    },
+    remove: async (input) => {
+      const { error } = await supabase.storage
+        .from(input.bucket)
+        .remove(input.keys);
+
+      if (error) {
+        throw new Error(`Could not remove document images: ${error.message}`);
+      }
+    },
     upload: async (input) => {
       const { error } = await supabase.storage
         .from(input.bucket)
@@ -139,16 +186,45 @@ export function createSupabaseDancerDocumentStorage(
   });
 }
 
+async function listExistingDocumentImageSideKeys(input: {
+  adapter: DancerDocumentStorageAdapter;
+  input: UploadDocumentImageInput;
+  storageKey: string;
+}) {
+  const folder = buildDancerDocumentImagesFolder(input.input);
+  const sideSegment = getDocumentImageSideSegment(input.input.side);
+  const files = await input.adapter.list({
+    bucket: DANCER_DOCUMENTS_BUCKET,
+    prefix: folder,
+  });
+
+  return files
+    .filter((file) => file.name.startsWith(`${sideSegment}.`))
+    .map((file) => `${folder}/${file.name}`)
+    .filter((key) => key !== input.storageKey);
+}
+
 function buildDocumentImageStorageKey(input: UploadDocumentImageInput) {
+  const extension = getDocumentImageExtension(input.file);
+  const sideSegment = getDocumentImageSideSegment(input.side);
+
+  return `${buildDancerDocumentImagesFolder(input)}/${sideSegment}.${extension}`;
+}
+
+function buildDancerDocumentImagesFolder(input: {
+  academyId: string;
+  dancerId: string;
+}) {
+  return `academies/${input.academyId}/dancers/${input.dancerId}`;
+}
+
+function getDocumentImageSideSegment(side: DancerDocumentSide) {
   const sideSegmentBySide = {
     back: "document-back",
     front: "document-front",
   } as const;
 
-  const extension = getDocumentImageExtension(input.file);
-  const sideSegment = sideSegmentBySide[input.side];
-
-  return `academies/${input.academyId}/dancers/${input.dancerId}/${sideSegment}.${extension}`;
+  return sideSegmentBySide[side];
 }
 
 function validateDocumentImage(file: Blob) {
