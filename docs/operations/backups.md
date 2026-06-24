@@ -58,19 +58,21 @@ The scheduled environment needs:
 - `pg_dump`;
 - AWS CLI v2.
 
-The production Docker image installs these tools in the runtime stage so the
-Coolify scheduled task can run inside the application container.
+The production Docker image installs PostgreSQL client 17 in the runtime stage
+so the Coolify scheduled task can run inside the application container. The
+client version must be equal to or newer than the Supabase Postgres server
+version; otherwise `pg_dump` aborts with a server version mismatch.
 
 If running the backup directly on a Debian/Ubuntu VPS instead, install the
 system packages with:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y awscli postgresql-client
+sudo apt-get install -y awscli postgresql-client-17
 ```
 
-If the VPS package repository ships an older PostgreSQL client, install the
-PostgreSQL client version closest to the hosted Supabase Postgres version.
+If the VPS package repository does not provide `postgresql-client-17`, add the
+official PostgreSQL apt repository first.
 
 ## Manual Backup
 
