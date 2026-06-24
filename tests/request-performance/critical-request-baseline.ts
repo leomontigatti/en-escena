@@ -11,6 +11,7 @@ import * as eventsManagementModule from "@/lib/events/management.server";
 import * as eventBasesModule from "@/lib/events/bases.server";
 import * as eventReadinessModule from "@/lib/events/registration-readiness.server";
 import * as portalChoreographiesModule from "@/lib/portal/choreographies.server";
+import * as portalChoreographyPeopleModule from "@/lib/portal/choreography-people.server";
 import * as portalDancersModule from "@/lib/portal/dancers.server";
 import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
@@ -718,12 +719,12 @@ export async function measureCriticalRequestBaseline(): Promise<
           "mainQueryMs",
         ),
         trackAsync(
-          portalChoreographiesModule,
+          portalChoreographyPeopleModule,
           "listProfessorOptionsForChoreography",
           "mainQueryMs",
         ),
         trackAsync(
-          portalChoreographiesModule,
+          portalChoreographyPeopleModule,
           "listDancerOptionsForChoreography",
           "mainQueryMs",
         ),
@@ -749,7 +750,7 @@ export async function measureCriticalRequestBaseline(): Promise<
           "eventContextMs",
         ),
         trackAsync(
-          portalChoreographiesModule,
+          portalChoreographyPeopleModule,
           "updateChoreography",
           "actionMs",
         ),

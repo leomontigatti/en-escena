@@ -8,13 +8,13 @@ import {
   type CoreografiaPeopleEditorActionData,
 } from "@/lib/portal/coreografia-people-editor";
 import { deleteChoreographyIntent } from "@/lib/portal/coreografia-detail.shared";
+import { deleteChoreography } from "@/lib/portal/choreographies.server";
 import {
-  deleteChoreography,
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
   resolveChoreographyDancers,
   updateChoreography,
-} from "@/lib/portal/choreographies.server";
+} from "@/lib/portal/choreography-people.server";
 
 const choreographyDeletedSearchParam = "eliminada";
 const routeNotificationSearchParam = "notificacion";

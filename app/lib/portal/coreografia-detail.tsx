@@ -13,7 +13,7 @@ import {
   type CoreografiaPeopleEditorLoaderData,
 } from "@/lib/portal/coreografia-people-editor";
 import type { PortalEventContext } from "@/lib/portal/event-context";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreographies.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-people.server";
 
 type PortalCoreografiaDetalleLoaderData = CoreografiaPeopleEditorLoaderData & {
   choreography: CoreografiaPeopleEditorLoaderData["choreography"] &

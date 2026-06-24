@@ -10,7 +10,7 @@ import type {
   ChoreographyProfessorOption,
   DancerEditingEligibility,
   ResolveChoreographyDancersResult,
-} from "@/lib/portal/choreographies.server";
+} from "@/lib/portal/choreography-people.server";
 
 export const choreographyResolutionErrorToastId =
   "coreografia-resolution-error";

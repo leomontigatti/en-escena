@@ -4,6 +4,10 @@ const listDancerOptionsForChoreography = vi.fn();
 const listProfessorOptionsForChoreography = vi.fn();
 
 vi.mock("@/lib/portal/choreographies.server", () => ({
+  deleteChoreography: vi.fn(),
+}));
+
+vi.mock("@/lib/portal/choreography-people.server", () => ({
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
 }));
