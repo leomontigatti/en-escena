@@ -16,6 +16,7 @@
     "test:db:file": "vitest --config vitest.db.fast.config.ts --run",
     "test:db:file:final": "npm run test:db:file:postgres --",
     "test:db:file:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
+    "guardrail:modified-file-size": "node --import tsx scripts/modified-files-size-guardrail.ts",
     "guardrail:repo-style": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

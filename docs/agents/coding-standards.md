@@ -76,13 +76,20 @@ Guideline:
 - Keep a soft maintainability limit around 5500 tokens for routinely edited
   route, component, and module files. Use `bytes / 4` as the practical estimate
   when you need a quick check.
+- Use `npm run guardrail:modified-file-size` to review changed application
+  source files that cross the threshold. The guardrail reports tiers at `5500`,
+  `7000`, and `10000` estimated tokens.
+- Treat tier `7000` as a prompt for explicit review justification or a follow-up
+  issue when the file remains large.
+- Treat tier `10000` as a strong refactor candidate unless the file is clearly a
+  deep module with a small public interface.
 - Exclude docs, generated files, lockfiles, and public assets from this rule.
   Use normal review judgment there instead of forcing the same threshold.
 - Do not split a file just to hit the number. Split when there is a clear
   module boundary that reduces cognitive load for future work.
-- This repo currently documents the rule instead of enforcing a blocking size
-  check, so existing large files can be migrated when a real refactor boundary
-  appears.
+- Read the report as a maintainability signal, not a mechanical instruction to
+  split code. Existing large files can still be migrated gradually when a real
+  refactor boundary appears.
 
 Good boundaries include:
 

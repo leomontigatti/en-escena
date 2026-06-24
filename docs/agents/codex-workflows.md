@@ -23,10 +23,11 @@ Recommended validation order after code changes:
 1. `npm run format`
 2. `npm run format:check`
 3. `npm run guardrail:repo-style`
-4. `npm run typecheck`
-5. `npm run test`
-6. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-7. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
+4. `npm run guardrail:modified-file-size`
+5. `npm run typecheck`
+6. `npm run test`
+7. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+8. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 Do not start a later validation command while an earlier command is still failing
@@ -39,6 +40,11 @@ changed before running the broader final checks:
   This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`
   utilities in application source, while keeping explicit coded exceptions for
   intentional patterns such as the overlapping `AvatarGroup`.
+- Run `npm run guardrail:modified-file-size` when the change touches
+  application source files. It reports changed `app` modules above `5500`
+  estimated tokens (`bytes / 4`) and marks review tiers at `5500`, `7000`, and
+  `10000`. Treat the result as a maintainability signal, not as a mechanical
+  rule to split files without a clear module boundary.
 - Run the nearest relevant Vitest file or test name for small non-database
   changes, then run `npm run test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with
