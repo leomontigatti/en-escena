@@ -133,8 +133,7 @@ function getHookRedirectUrl(
   payload: SendEmailHookPayload,
   fallbackPath: string,
 ) {
-  const redirectTo =
-    payload.email_data.redirect_to || payload.email_data.site_url;
+  const redirectTo = payload.email_data.redirect_to;
 
   if (redirectTo) {
     return new URL(redirectTo);

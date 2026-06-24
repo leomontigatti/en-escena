@@ -77,6 +77,7 @@ describe("Supabase Send Email auth hook", () => {
       },
       email_data: {
         email_action_type: "recovery",
+        site_url: "https://sistema.enescena.com.ar",
         token_hash: "hash-recuperacion",
       },
     });
