@@ -22,7 +22,13 @@ import type {
   EmailOtpConfirmationInput,
   EmailSignUpInput,
   EmailSignUpResult,
+  HeadersResult,
+  PasswordRecoveryCodeInput,
+  PasswordRecoveryRedirectResult,
   PasswordRecoveryOtpInput,
+  PasswordRecoveryUpdateInput,
+  PasswordResetRequestInput,
+  PasswordResetRequestResult,
   VerifiedAccessIdentity,
 } from "@/lib/auth/access-auth-provider.shared.server";
 
@@ -70,7 +76,7 @@ export function createLocalTestAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async signOutCurrentSession(request: Request) {
+    async signOutCurrentSession(request: Request): Promise<HeadersResult> {
       const sessionToken = readTestSupabaseSessionToken(request);
 
       if (sessionToken) {
@@ -118,16 +124,14 @@ export function createLocalTestAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async deleteAccessUser(userId: string) {
+    async deleteAccessUser(userId: string): Promise<void> {
       await db.delete(accessSession).where(eq(accessSession.userId, userId));
       await db.delete(user).where(eq(user.id, userId));
     },
 
-    async requestPasswordReset(input: {
-      email: string;
-      redirectTo: string;
-      request: Request;
-    }) {
+    async requestPasswordReset(
+      input: PasswordResetRequestInput,
+    ): Promise<PasswordResetRequestResult> {
       const recoveryCode = crypto.randomUUID();
 
       testRecoveryCodes.set(recoveryCode, input.email);
@@ -138,49 +142,25 @@ export function createLocalTestAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async exchangePasswordRecoveryCode(input: {
-      code: string;
-      request: Request;
-      redirectTo: string;
-    }) {
-      const recoveryEmail = testRecoveryCodes.get(input.code);
-
-      if (!recoveryEmail) {
-        throw new Error("Invalid recovery code.");
-      }
-
-      const recoveryUser = await db.query.user.findFirst({
-        columns: {
-          email: true,
-          id: true,
-        },
-        where: eq(user.email, recoveryEmail),
-      });
-
-      if (!recoveryUser) {
-        throw new Error("Recovery user not found.");
-      }
-
-      testRecoveryCodes.delete(input.code);
-
-      return {
-        headers: buildTestRecoveryHeaders(recoveryUser.id),
-        redirectTo: input.redirectTo,
-      };
+    async exchangePasswordRecoveryCode(
+      input: PasswordRecoveryCodeInput,
+    ): Promise<PasswordRecoveryRedirectResult> {
+      return await exchangeTestPasswordRecoveryCode(input);
     },
 
-    async verifyPasswordRecoveryOtp(input: PasswordRecoveryOtpInput) {
-      return await this.exchangePasswordRecoveryCode({
+    async verifyPasswordRecoveryOtp(
+      input: PasswordRecoveryOtpInput,
+    ): Promise<PasswordRecoveryRedirectResult> {
+      return await exchangeTestPasswordRecoveryCode({
         code: input.tokenHash,
         request: input.request,
         redirectTo: input.redirectTo,
       });
     },
 
-    async updatePasswordForRecovery(input: {
-      newPassword: string;
-      request: Request;
-    }) {
+    async updatePasswordForRecovery(
+      input: PasswordRecoveryUpdateInput,
+    ): Promise<HeadersResult> {
       const recoveryUserId = readTestRecoveryUserId(input.request);
 
       if (!recoveryUserId) {
@@ -230,6 +210,35 @@ export function createLocalTestAccessAuthProvider(): AccessAuthProvider {
         userId: result.user.id,
       };
     },
+  };
+}
+
+async function exchangeTestPasswordRecoveryCode(
+  input: PasswordRecoveryCodeInput,
+): Promise<PasswordRecoveryRedirectResult> {
+  const recoveryEmail = testRecoveryCodes.get(input.code);
+
+  if (!recoveryEmail) {
+    throw new Error("Invalid recovery code.");
+  }
+
+  const recoveryUser = await db.query.user.findFirst({
+    columns: {
+      email: true,
+      id: true,
+    },
+    where: eq(user.email, recoveryEmail),
+  });
+
+  if (!recoveryUser) {
+    throw new Error("Recovery user not found.");
+  }
+
+  testRecoveryCodes.delete(input.code);
+
+  return {
+    headers: buildTestRecoveryHeaders(recoveryUser.id),
+    redirectTo: input.redirectTo,
   };
 }
 

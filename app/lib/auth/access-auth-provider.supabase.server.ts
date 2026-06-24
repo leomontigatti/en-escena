@@ -16,6 +16,13 @@ import type {
   EmailOtpConfirmationInput,
   EmailSignUpInput,
   EmailSignUpResult,
+  HeadersResult,
+  PasswordRecoveryCodeInput,
+  PasswordRecoveryRedirectResult,
+  PasswordRecoveryOtpInput,
+  PasswordRecoveryUpdateInput,
+  PasswordResetRequestInput,
+  PasswordResetRequestResult,
   VerifiedAccessIdentity,
 } from "@/lib/auth/access-auth-provider.shared.server";
 
@@ -70,7 +77,7 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async signOutCurrentSession(request: Request) {
+    async signOutCurrentSession(request: Request): Promise<HeadersResult> {
       const { client, responseHeaders } =
         createSupabaseServerClientForRequest(request);
       const { error } = await client.auth.signOut();
@@ -136,7 +143,7 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async deleteAccessUser(userId: string) {
+    async deleteAccessUser(userId: string): Promise<void> {
       const { error } =
         await createSupabaseAdminClient().auth.admin.deleteUser(userId);
 
@@ -145,11 +152,9 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       }
     },
 
-    async requestPasswordReset(input: {
-      email: string;
-      redirectTo: string;
-      request: Request;
-    }) {
+    async requestPasswordReset(
+      input: PasswordResetRequestInput,
+    ): Promise<PasswordResetRequestResult> {
       const { client, responseHeaders } = createSupabaseServerClientForRequest(
         input.request,
       );
@@ -166,11 +171,9 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async exchangePasswordRecoveryCode(input: {
-      code: string;
-      request: Request;
-      redirectTo: string;
-    }) {
+    async exchangePasswordRecoveryCode(
+      input: PasswordRecoveryCodeInput,
+    ): Promise<PasswordRecoveryRedirectResult> {
       const { client, responseHeaders } = createSupabaseServerClientForRequest(
         input.request,
       );
@@ -186,7 +189,9 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async verifyPasswordRecoveryOtp(input) {
+    async verifyPasswordRecoveryOtp(
+      input: PasswordRecoveryOtpInput,
+    ): Promise<PasswordRecoveryRedirectResult> {
       const { client, responseHeaders } = createSupabaseServerClientForRequest(
         input.request,
       );
@@ -205,10 +210,9 @@ export function createSupabaseAccessAuthProvider(): AccessAuthProvider {
       };
     },
 
-    async updatePasswordForRecovery(input: {
-      newPassword: string;
-      request: Request;
-    }) {
+    async updatePasswordForRecovery(
+      input: PasswordRecoveryUpdateInput,
+    ): Promise<HeadersResult> {
       const { client, responseHeaders } = createSupabaseServerClientForRequest(
         input.request,
       );

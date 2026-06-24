@@ -25,6 +25,35 @@ export type PasswordRecoveryOtpInput = {
   tokenHash: string;
 };
 
+export type PasswordResetRequestInput = {
+  email: string;
+  redirectTo: string;
+  request: Request;
+};
+
+export type PasswordRecoveryCodeInput = {
+  code: string;
+  request: Request;
+  redirectTo: string;
+};
+
+export type PasswordRecoveryUpdateInput = {
+  newPassword: string;
+  request: Request;
+};
+
+export type HeadersResult = {
+  headers: Headers;
+};
+
+export type PasswordResetRequestResult = HeadersResult & {
+  debugRecoveryCode?: string;
+};
+
+export type PasswordRecoveryRedirectResult = HeadersResult & {
+  redirectTo: string;
+};
+
 export type AccessSession = {
   session: {
     id: string | null;
@@ -59,23 +88,18 @@ export type AccessAuthProvider = {
   ): Promise<AccessCredentialUser>;
   startEmailSignUp(input: EmailSignUpInput): Promise<EmailSignUpResult>;
   deleteAccessUser(userId: string): Promise<void>;
-  requestPasswordReset(input: {
-    email: string;
-    redirectTo: string;
-    request: Request;
-  }): Promise<{ headers: Headers; debugRecoveryCode?: string }>;
-  exchangePasswordRecoveryCode(input: {
-    code: string;
-    request: Request;
-    redirectTo: string;
-  }): Promise<{ headers: Headers; redirectTo: string }>;
+  requestPasswordReset(
+    input: PasswordResetRequestInput,
+  ): Promise<PasswordResetRequestResult>;
+  exchangePasswordRecoveryCode(
+    input: PasswordRecoveryCodeInput,
+  ): Promise<PasswordRecoveryRedirectResult>;
   verifyPasswordRecoveryOtp(
     input: PasswordRecoveryOtpInput,
-  ): Promise<{ headers: Headers; redirectTo: string }>;
-  updatePasswordForRecovery(input: {
-    newPassword: string;
-    request: Request;
-  }): Promise<{ headers: Headers }>;
+  ): Promise<PasswordRecoveryRedirectResult>;
+  updatePasswordForRecovery(
+    input: PasswordRecoveryUpdateInput,
+  ): Promise<HeadersResult>;
   confirmEmailOtp(input: EmailOtpConfirmationInput): Promise<{
     headers: Headers;
     userId: string;
