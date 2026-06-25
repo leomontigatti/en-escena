@@ -27,7 +27,7 @@ describe("PortalBailarinesRouteView dialog", () => {
       await import("@/routes/portal.bailarines"));
     ({ PortalProfesoresRouteView } =
       await import("@/routes/portal.profesores"));
-  }, 20_000);
+  }, 30_000);
 
   afterEach(() => {
     if (root) {

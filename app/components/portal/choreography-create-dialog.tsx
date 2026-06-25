@@ -1,12 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import { toast } from "sonner";
 
 import { AccessNotice } from "@/components/auth/access-ui";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import {
+  CreateChoreographyDancersField,
+  CreateChoreographyProfessorsField,
+  CreateChoreographySelectField,
+  CreateChoreographyTextField,
+} from "@/components/portal/choreography-create-dialog/fields";
+import { formatScheduleDateTime } from "@/components/portal/choreography-create-dialog/formatters";
+import { ChoreographyCreationSummary } from "@/components/portal/choreography-create-dialog/summary";
+import type {
+  ActiveDancer,
+  ActiveProfessor,
+} from "@/components/portal/choreography-create-dialog/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,21 +27,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import {
   buildCreateChoreographyFormData,
@@ -38,7 +36,6 @@ import {
   CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID,
   createChoreographySchema,
   emptyCreateChoreographyValues,
-  formatGroupTypeLabel,
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
   getSubmissionError,
@@ -50,18 +47,6 @@ import type {
   CreateActionData,
   CreateChoreographyFormValues,
 } from "@/lib/portal/choreography-create-flow";
-
-type ActiveDancer = {
-  id: string;
-  firstName: string;
-  lastName: string;
-};
-
-type ActiveProfessor = {
-  id: string;
-  firstName: string;
-  lastName: string;
-};
 
 export function CreateChoreographyDialog({
   baseOptions,
@@ -363,7 +348,7 @@ export function CreateChoreographyDialog({
           <div className="flex flex-col gap-6">
             {currentStep === "name" ? (
               <section className="flex flex-col gap-4">
-                <ChoreographyTextField
+                <CreateChoreographyTextField
                   control={form.control}
                   fieldName="name"
                   id={nameFieldId}
@@ -375,7 +360,7 @@ export function CreateChoreographyDialog({
 
             {currentStep === "modality" ? (
               <section className="flex flex-col gap-4">
-                <ChoreographySelectField
+                <CreateChoreographySelectField
                   control={form.control}
                   fieldName="modalityId"
                   id={modalityFieldId}
@@ -394,7 +379,7 @@ export function CreateChoreographyDialog({
 
             {currentStep === "submodality" ? (
               <section className="flex flex-col gap-4">
-                <ChoreographySelectField
+                <CreateChoreographySelectField
                   control={form.control}
                   fieldName="submodalityId"
                   id={submodalityFieldId}
@@ -410,25 +395,17 @@ export function CreateChoreographyDialog({
 
             {currentStep === "dancers" ? (
               <section className="flex flex-col gap-6">
-                <MultiComboboxField
+                <CreateChoreographyDancersField
                   control={form.control}
-                  name="dancerIds"
-                  label="Bailarines"
-                  options={dancers.map((dancer) => ({
-                    value: dancer.id,
-                    label: `${dancer.firstName} ${dancer.lastName}`,
-                  }))}
-                  placeholder="Seleccionar bailarines"
-                  emptyMessage="Sin bailarines disponibles"
+                  dancers={dancers}
                   onValueChange={resetResolutionState}
-                  searchable={true}
                 />
               </section>
             ) : null}
 
             {currentStep === "experienceLevel" && resolution ? (
               <section className="flex flex-col gap-5">
-                <ChoreographySelectField
+                <CreateChoreographySelectField
                   control={form.control}
                   fieldName="experienceLevelId"
                   id={experienceLevelFieldId}
@@ -443,7 +420,7 @@ export function CreateChoreographyDialog({
 
             {currentStep === "schedule" && resolution ? (
               <section className="flex flex-col gap-5">
-                <ChoreographySelectField
+                <CreateChoreographySelectField
                   control={form.control}
                   fieldName="scheduleCapacityId"
                   id={scheduleCapacityFieldId}
@@ -462,17 +439,9 @@ export function CreateChoreographyDialog({
 
             {currentStep === "professors" ? (
               <section className="flex flex-col gap-6">
-                <MultiComboboxField
+                <CreateChoreographyProfessorsField
                   control={form.control}
-                  name="professorIds"
-                  label="Profesores"
-                  options={professors.map((professor) => ({
-                    value: professor.id,
-                    label: `${professor.firstName} ${professor.lastName}`,
-                  }))}
-                  placeholder="Seleccionar profesores"
-                  emptyMessage="Sin profesores disponibles"
-                  searchable={true}
+                  professors={professors}
                 />
               </section>
             ) : null}
@@ -618,294 +587,4 @@ export function CreateChoreographyDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function ChoreographyCreationSummary({
-  baseOptions,
-  name,
-  resolution,
-  selectedExperienceLevelId,
-  selectedModalityId,
-  selectedProfessors,
-  selectedScheduleCapacityId,
-  selectedSubmodalityId,
-}: {
-  baseOptions: ChoreographyRegistrationBaseOptions;
-  name: string;
-  resolution: RegistrationResolution;
-  selectedExperienceLevelId: string;
-  selectedModalityId: string;
-  selectedProfessors: ActiveProfessor[];
-  selectedScheduleCapacityId: string;
-  selectedSubmodalityId: string;
-}) {
-  const summaryItems = [
-    {
-      label: "Nombre",
-      value: name.trim() || "Sin nombre",
-    },
-    {
-      label: "Modalidad",
-      value: formatModalitySummary(
-        baseOptions,
-        selectedModalityId,
-        selectedSubmodalityId,
-      ),
-    },
-    {
-      label: "Categoría",
-      value: formatCategoryAndGroupTypeSummary(resolution),
-    },
-  ];
-
-  if (resolution.experienceLevel.required) {
-    summaryItems.push({
-      label: "Nivel de experiencia",
-      value: formatExperienceLevelSummary(
-        resolution,
-        selectedExperienceLevelId,
-      ),
-    });
-  }
-
-  summaryItems.push(
-    {
-      label: "Cronograma",
-      value: formatScheduleSummary(resolution, selectedScheduleCapacityId),
-    },
-    {
-      label: "Bailarines",
-      value: formatPeopleSummary(
-        resolution.dancers.map((dancer) => ({
-          firstName: dancer.firstName,
-          lastName: dancer.lastName,
-        })),
-        "bailarines",
-      ),
-    },
-    {
-      label: "Profesores",
-      value: formatPeopleSummary(selectedProfessors, "profesores"),
-    },
-  );
-
-  return (
-    <section aria-label="Resumen de coreografía">
-      <FieldLabel>Resumen</FieldLabel>
-      <dl className="mt-3 flex flex-col gap-3">
-        {summaryItems.map((item) => (
-          <div key={item.label} className="flex items-baseline gap-3">
-            <dt className="min-w-40 text-xs font-semibold uppercase text-muted-foreground">
-              {item.label}
-            </dt>
-            <dd className="text-sm">{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function ChoreographyTextField({
-  control,
-  fieldName,
-  id,
-  label,
-  placeholder,
-}: {
-  control: Control<CreateChoreographyFormValues>;
-  fieldName: "name";
-  id: string;
-  label: string;
-  placeholder?: string;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const isInvalid = Boolean(fieldState.error?.message);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Input
-                {...field}
-                id={id}
-                placeholder={placeholder}
-                aria-invalid={isInvalid ? true : undefined}
-              />
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
-    />
-  );
-}
-
-function ChoreographySelectField({
-  control,
-  fieldName,
-  id,
-  label,
-  onValueChange,
-  options,
-}: {
-  control: Control<CreateChoreographyFormValues>;
-  fieldName:
-    | "modalityId"
-    | "submodalityId"
-    | "experienceLevelId"
-    | "scheduleCapacityId";
-  id: string;
-  label: string;
-  onValueChange?: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const isInvalid = Boolean(fieldState.error?.message);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Select
-                name={field.name}
-                value={field.value ?? ""}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  onValueChange?.(value);
-                }}
-              >
-                <SelectTrigger
-                  id={id}
-                  aria-invalid={isInvalid ? true : undefined}
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Seleccionar" />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={false}
-                >
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
-    />
-  );
-}
-
-function formatModalitySummary(
-  baseOptions: ChoreographyRegistrationBaseOptions,
-  modalityId: string,
-  submodalityId: string,
-) {
-  const modalityName =
-    baseOptions.modalities.find((modality) => modality.id === modalityId)
-      ?.name ?? "Pendiente";
-  const submodalityName = submodalityId
-    ? (baseOptions.submodalities.find(
-        (submodality) => submodality.id === submodalityId,
-      )?.name ?? null)
-    : null;
-
-  return submodalityName
-    ? `${modalityName} - ${submodalityName}`
-    : modalityName;
-}
-
-function formatCategoryAndGroupTypeSummary(resolution: RegistrationResolution) {
-  const categoryName =
-    resolution.category.status === "resolved"
-      ? resolution.category.name
-      : "Sin confirmar";
-
-  return `${categoryName} - ${formatGroupTypeLabel(resolution.groupType)}`;
-}
-
-function formatExperienceLevelSummary(
-  resolution: RegistrationResolution,
-  selectedExperienceLevelId: string,
-) {
-  return (
-    resolution.experienceLevel.options.find(
-      (option) => option.id === selectedExperienceLevelId,
-    )?.name ?? "Pendiente"
-  );
-}
-
-function formatScheduleSummary(
-  resolution: RegistrationResolution,
-  scheduleCapacityId: string,
-) {
-  const selectedOption =
-    resolution.schedule.status === "auto"
-      ? resolution.schedule.options[0]
-      : resolution.schedule.options.find(
-          (option) => option.id === scheduleCapacityId,
-        );
-
-  if (!selectedOption) {
-    return "Pendiente";
-  }
-
-  return formatScheduleDateTime(selectedOption.schedule);
-}
-
-function formatScheduleDateTime(input: {
-  name: string;
-  scheduledDate: string;
-  startTime: string;
-}) {
-  const [year, month, day] = input.scheduledDate.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return input.name;
-  }
-
-  const date = new Date(year, month - 1, day);
-  const monthName = new Intl.DateTimeFormat("es-AR", {
-    month: "long",
-  }).format(date);
-  const formattedTime = input.startTime.slice(0, 5);
-
-  return `${day} de ${monthName} de ${year} - ${formattedTime} hs.`;
-}
-
-function formatPeopleSummary(
-  people: Array<{ firstName: string; lastName: string }>,
-  noun: "bailarines" | "profesores",
-) {
-  if (people.length === 0) {
-    if (noun === "profesores") {
-      return "Sin profesores seleccionados";
-    }
-
-    return "Sin bailarines seleccionados";
-  }
-
-  if (people.length > 3) {
-    return `${people.length} ${noun} seleccionados`;
-  }
-
-  return people
-    .map((person) => `${person.firstName} ${person.lastName}`)
-    .join(" - ");
 }
