@@ -1,4 +1,4 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
@@ -6,6 +6,13 @@ import {
   getDancerVerificationStatus,
   type DancerVerificationStatus,
 } from "@/lib/dancers/verification";
+import {
+  findDuplicateDancerDocument,
+  normalizeDancerDocumentPair,
+  normalizeDancerValues,
+  type DancerDocumentType,
+  type DancerNameInput,
+} from "@/lib/dancers/dancer-records.server";
 import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export type DancerListItem = {
@@ -26,8 +33,6 @@ export type CreateDancerInput = {
   birthDate: string;
 };
 
-export type DancerDocumentType = "dni" | "passport" | "other";
-
 export type UpdateDancerInput = CreateDancerInput & {
   documentType: string;
   documentNumber: string;
@@ -35,24 +40,7 @@ export type UpdateDancerInput = CreateDancerInput & {
   documentBackImageStorageKey: string;
 };
 
-type DancerNameAndBirthDateValues = {
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-};
-
-type NormalizedDancerDocument =
-  | {
-      ok: true;
-      documentType: DancerDocumentType | null;
-      documentNumber: string | null;
-    }
-  | {
-      ok: false;
-      fieldErrors: Partial<Record<"documentNumber" | "documentType", string>>;
-    };
-
-type NormalizedUpdateDancerInput = DancerNameAndBirthDateValues & {
+type NormalizedUpdateDancerInput = DancerNameInput & {
   documentType: DancerDocumentType | null;
   documentNumber: string | null;
   documentFrontImageStorageKey: string | null;
@@ -87,8 +75,6 @@ export type UpdateDancerResult =
       fieldErrors: Partial<Record<UpdateDancerField, string>>;
       values: UpdateDancerInput;
     };
-
-const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
 export async function listDancersForAcademy(
   academyId: string,
@@ -258,14 +244,18 @@ function validateCreateDancerInput(
 ):
   | { ok: true; input: CreateDancerInput }
   | Extract<CreateDancerResult, { ok: false }> {
-  const values = normalizeDancerNameAndBirthDateValues(input);
-  const fieldErrors = validateDancerNameAndBirthDateValues(values);
+  const normalizedValues = normalizePortalDancerValues(input);
+  const values = {
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+  };
 
-  if (hasFieldErrors(fieldErrors)) {
+  if (hasFieldErrors(normalizedValues.fieldErrors)) {
     return {
       ok: false,
       error: "Revisá los datos del Bailarín.",
-      fieldErrors,
+      fieldErrors: normalizedValues.fieldErrors,
       values,
     };
   }
@@ -273,9 +263,9 @@ function validateCreateDancerInput(
   return {
     ok: true,
     input: {
-      firstName: toSpanishTitleCase(values.firstName),
-      lastName: toSpanishTitleCase(values.lastName),
-      birthDate: values.birthDate,
+      firstName: normalizedValues.firstName,
+      lastName: normalizedValues.lastName,
+      birthDate: normalizedValues.birthDate,
     },
   };
 }
@@ -291,14 +281,18 @@ async function validateUpdateDancerInput(
   | Extract<UpdateDancerResult, { ok: false }>
 > {
   const values = {
-    ...normalizeDancerNameAndBirthDateValues(input),
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
     documentType: input.documentType.trim(),
     documentNumber: input.documentNumber,
     documentFrontImageStorageKey: input.documentFrontImageStorageKey.trim(),
     documentBackImageStorageKey: input.documentBackImageStorageKey.trim(),
   } satisfies UpdateDancerInput;
-  const fieldErrors: Partial<Record<UpdateDancerField, string>> =
-    validateDancerNameAndBirthDateValues(values);
+  const normalizedValues = normalizePortalDancerValues(values);
+  const fieldErrors: Partial<Record<UpdateDancerField, string>> = {
+    ...normalizedValues.fieldErrors,
+  };
 
   if (getDancerVerificationStatus(dancer) === "verified") {
     return {
@@ -310,10 +304,10 @@ async function validateUpdateDancerInput(
     };
   }
 
-  const document = normalizeDancerDocumentPair({
-    documentType: values.documentType,
-    documentNumber: values.documentNumber,
-  });
+  const document = normalizeDancerDocumentPair(
+    values.documentType,
+    values.documentNumber,
+  );
 
   if (!document.ok) {
     Object.assign(fieldErrors, document.fieldErrors);
@@ -327,9 +321,9 @@ async function validateUpdateDancerInput(
   }
 
   const normalizedDocument: NormalizedUpdateDancerInput = {
-    firstName: toSpanishTitleCase(values.firstName),
-    lastName: toSpanishTitleCase(values.lastName),
-    birthDate: values.birthDate,
+    firstName: normalizedValues.firstName,
+    lastName: normalizedValues.lastName,
+    birthDate: normalizedValues.birthDate,
     documentType: document.documentType,
     documentNumber: document.documentNumber,
     ...normalizeDancerDocumentImages({
@@ -341,7 +335,7 @@ async function validateUpdateDancerInput(
   if (
     normalizedDocument.documentType !== null &&
     normalizedDocument.documentNumber !== null &&
-    (await hasDuplicateDancerDocument({
+    (await findDuplicateDancerDocument({
       academyId: dancer.academyId,
       dancerId: dancer.id,
       documentType: normalizedDocument.documentType,
@@ -367,93 +361,6 @@ async function validateUpdateDancerInput(
   };
 }
 
-export function toSpanishTitleCase(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .map((word, index) => {
-      const lower = word.toLocaleLowerCase("es-AR");
-
-      if (index > 0 && spanishParticles.has(lower)) {
-        return lower;
-      }
-
-      return lower.charAt(0).toLocaleUpperCase("es-AR") + lower.slice(1);
-    })
-    .join(" ");
-}
-
-function normalizeDancerDocumentPair(input: {
-  documentType: string;
-  documentNumber: string;
-}): NormalizedDancerDocument {
-  const documentType = input.documentType.trim();
-  const rawDocumentNumber = input.documentNumber;
-  const hasDocumentType = documentType.length > 0;
-  const hasDocumentNumber = rawDocumentNumber.trim().length > 0;
-
-  if (!hasDocumentType && !hasDocumentNumber) {
-    return {
-      ok: true,
-      documentType: null,
-      documentNumber: null,
-    };
-  }
-
-  if (hasDocumentType && !hasDocumentNumber) {
-    return {
-      ok: false,
-      fieldErrors: {
-        documentNumber: "Ingresá el número de documento.",
-      },
-    };
-  }
-
-  if (!hasDocumentType && hasDocumentNumber) {
-    return {
-      ok: false,
-      fieldErrors: {
-        documentType: "Seleccioná el tipo de documento.",
-      },
-    };
-  }
-
-  if (!isDancerDocumentType(documentType)) {
-    return {
-      ok: false,
-      fieldErrors: {
-        documentType: "Seleccioná un tipo de documento válido.",
-      },
-    };
-  }
-
-  if (documentType === "dni") {
-    const normalizedDni = rawDocumentNumber.replace(/[.\s-]+/g, "");
-
-    if (!/^\d+$/.test(normalizedDni)) {
-      return {
-        ok: false,
-        fieldErrors: {
-          documentNumber: "Ingresá un DNI válido usando solo números.",
-        },
-      };
-    }
-
-    return {
-      ok: true,
-      documentType,
-      documentNumber: normalizedDni,
-    };
-  }
-
-  return {
-    ok: true,
-    documentType,
-    documentNumber: rawDocumentNumber.trim().replace(/\s+/g, " "),
-  };
-}
-
 function normalizeDancerDocumentImages(
   input: Record<DancerImageField, string>,
 ) {
@@ -471,27 +378,6 @@ function normalizeOptionalStorageKey(value: string) {
   const normalized = value.trim().replace(/\s+/g, " ");
 
   return normalized.length > 0 ? normalized : null;
-}
-
-async function hasDuplicateDancerDocument(input: {
-  academyId: string;
-  dancerId: string;
-  documentType: DancerDocumentType;
-  documentNumber: string;
-}) {
-  const duplicate = await db.query.dancers.findFirst({
-    where: and(
-      eq(dancers.academyId, input.academyId),
-      ne(dancers.id, input.dancerId),
-      eq(dancers.documentType, input.documentType),
-      eq(dancers.documentNumber, input.documentNumber),
-    ),
-    columns: {
-      id: true,
-    },
-  });
-
-  return duplicate !== undefined;
 }
 
 async function setDancerActiveState(
@@ -517,60 +403,16 @@ async function setDancerActiveState(
   return updatedDancer;
 }
 
-function isDancerDocumentType(value: string): value is DancerDocumentType {
-  return value === "dni" || value === "passport" || value === "other";
-}
-
-function normalizeDancerNameAndBirthDateValues(
-  input: CreateDancerInput,
-): DancerNameAndBirthDateValues {
-  return {
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    birthDate: input.birthDate.trim(),
-  };
-}
-
-function validateDancerNameAndBirthDateValues(
-  values: DancerNameAndBirthDateValues,
-) {
-  const fieldErrors: Partial<Record<keyof CreateDancerInput, string>> = {};
-
-  if (!values.firstName) {
-    fieldErrors.firstName = "Ingresá el nombre.";
-  }
-
-  if (!values.lastName) {
-    fieldErrors.lastName = "Ingresá el apellido.";
-  }
-
-  if (!values.birthDate) {
-    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
-  } else if (!isDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "Usá una fecha válida.";
-  } else if (isFutureDateOnly(values.birthDate)) {
-    fieldErrors.birthDate = "La fecha de nacimiento no puede ser futura.";
-  }
-
-  return fieldErrors;
+function normalizePortalDancerValues(input: DancerNameInput) {
+  return normalizeDancerValues(input, {
+    fieldErrors: {
+      firstName: "Ingresá el nombre.",
+      lastName: "Ingresá el apellido.",
+    },
+    lowercaseLeadingLastNameParticle: false,
+  });
 }
 
 function hasFieldErrors(fieldErrors: Record<string, string | undefined>) {
   return Object.keys(fieldErrors).length > 0;
-}
-
-function isDateOnly(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  return parsed.toISOString().slice(0, 10) === value;
-}
-
-function isFutureDateOnly(value: string) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  return value > today;
 }

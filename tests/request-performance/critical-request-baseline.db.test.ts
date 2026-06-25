@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import {
   measureCriticalRequestBaseline,
@@ -9,22 +9,6 @@ import { installDatabaseTestHooks } from "../db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("critical request performance baseline", () => {
-  const originalSupabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const originalSupabaseUrl = process.env.SUPABASE_URL;
-
-  beforeAll(() => {
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
-    process.env.SUPABASE_URL ??= "https://supabase.example.test";
-  });
-
-  afterAll(() => {
-    restoreEnvValue(
-      "SUPABASE_SERVICE_ROLE_KEY",
-      originalSupabaseServiceRoleKey,
-    );
-    restoreEnvValue("SUPABASE_URL", originalSupabaseUrl);
-  });
-
   test("measures the critical admin and portal loaders/actions by phase", async () => {
     const results = await measureCriticalRequestBaseline();
 
@@ -72,15 +56,6 @@ describe.sequential("critical request performance baseline", () => {
     }
   });
 });
-
-function restoreEnvValue(name: string, value: string | undefined) {
-  if (value === undefined) {
-    delete process.env[name];
-    return;
-  }
-
-  process.env[name] = value;
-}
 
 function expectValidPhaseTimings(phases: PhaseTiming) {
   expect(phases.authSessionMs).toBeGreaterThanOrEqual(0);

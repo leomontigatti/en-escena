@@ -30,7 +30,7 @@ import {
   type DancerEditableSnapshot,
   normalizeDancerDocumentPair,
   normalizeDancerValues,
-} from "@/lib/portal/dancer-records.server";
+} from "@/lib/dancers/dancer-records.server";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,

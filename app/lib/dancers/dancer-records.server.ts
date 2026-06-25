@@ -18,6 +18,10 @@ export type DancerDocumentInput = {
   documentBackImageStorageKey: string;
 };
 
+export type DancerDocumentType = NonNullable<
+  (typeof dancers.$inferSelect)["documentType"]
+>;
+
 export type DancerEditableSnapshot = {
   firstName: string;
   lastName: string;
@@ -30,24 +34,33 @@ export type DancerEditableSnapshot = {
   active: boolean;
 };
 
-export function normalizeDancerValues(input: DancerNameInput) {
+export function normalizeDancerValues(
+  input: DancerNameInput,
+  options: {
+    fieldErrors?: Partial<Record<keyof DancerNameInput, string>>;
+    lowercaseLeadingLastNameParticle?: boolean;
+  } = {},
+) {
   const firstName = normalizeSpanishTitleCase(input.firstName);
   const lastName = normalizeSpanishTitleCase(input.lastName, {
-    lowercaseLeadingParticle: true,
+    lowercaseLeadingParticle: options.lowercaseLeadingLastNameParticle ?? true,
   });
   const birthDate = input.birthDate.trim();
   const fieldErrors: Partial<Record<keyof DancerNameInput, string>> = {};
 
   if (!firstName) {
-    fieldErrors.firstName = "Ingresá el nombre del Bailarín.";
+    fieldErrors.firstName =
+      options.fieldErrors?.firstName ?? "Ingresá el nombre del Bailarín.";
   }
 
   if (!lastName) {
-    fieldErrors.lastName = "Ingresá el apellido del Bailarín.";
+    fieldErrors.lastName =
+      options.fieldErrors?.lastName ?? "Ingresá el apellido del Bailarín.";
   }
 
   if (!birthDate) {
-    fieldErrors.birthDate = "Ingresá la fecha de nacimiento.";
+    fieldErrors.birthDate =
+      options.fieldErrors?.birthDate ?? "Ingresá la fecha de nacimiento.";
   } else if (!isDateOnly(birthDate)) {
     fieldErrors.birthDate = "Usá una fecha válida.";
   } else if (isFutureDateOnly(birthDate)) {
@@ -63,7 +76,7 @@ export function normalizeDancerDocumentPair(
 ):
   | {
       ok: true;
-      documentType: (typeof dancers.$inferSelect)["documentType"];
+      documentType: DancerDocumentType | null;
       documentNumber: string | null;
     }
   | {
@@ -132,7 +145,7 @@ export function normalizeDancerDocumentPair(
 export async function findDuplicateDancerDocument(input: {
   academyId: string;
   dancerId: string;
-  documentType: NonNullable<(typeof dancers.$inferSelect)["documentType"]>;
+  documentType: DancerDocumentType;
   documentNumber: string;
 }) {
   return await db.query.dancers.findFirst({
@@ -188,9 +201,7 @@ function capitalizeFirstCharacter(value: string) {
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
 }
 
-function isDocumentType(
-  value: string,
-): value is NonNullable<(typeof dancers.$inferSelect)["documentType"]> {
+function isDocumentType(value: string): value is DancerDocumentType {
   return value === "dni" || value === "passport" || value === "other";
 }
 

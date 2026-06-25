@@ -70,9 +70,9 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
   | { ok: true; keys: { back: string; front: string } }
   | { ok: false; message: string }
 > {
-  const storageClient = storage ?? createDefaultDancerDocumentStorage();
   const frontImage = readOptionalFormFile(input.formData, "documentFrontImage");
   const backImage = readOptionalFormFile(input.formData, "documentBackImage");
+  const getStorageClient = createPortalDancerDocumentStorageResolver(storage);
   const frontStorageKey = await uploadOptionalDancerDocumentImage({
     academyId: input.academyId,
     dancerId: input.dancerId,
@@ -82,7 +82,7 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
     ),
     file: frontImage,
     side: "front",
-    storage: storageClient,
+    getStorage: getStorageClient,
   });
 
   if (!frontStorageKey.ok) {
@@ -98,7 +98,7 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
     ),
     file: backImage,
     side: "back",
-    storage: storageClient,
+    getStorage: getStorageClient,
   });
 
   if (!backStorageKey.ok) {
@@ -134,8 +134,8 @@ async function uploadOptionalDancerDocumentImage(input: {
   dancerId: string;
   fallbackStorageKey: string;
   file: File | null;
+  getStorage: () => PortalDancerDocumentStorage;
   side: "back" | "front";
-  storage: PortalDancerDocumentStorage;
 }): Promise<{ ok: true; storageKey: string } | { ok: false; message: string }> {
   if (!input.file) {
     return { ok: true, storageKey: input.fallbackStorageKey };
@@ -144,7 +144,7 @@ async function uploadOptionalDancerDocumentImage(input: {
   try {
     return {
       ok: true,
-      storageKey: await input.storage.uploadDocumentImage({
+      storageKey: await input.getStorage().uploadDocumentImage({
         academyId: input.academyId,
         dancerId: input.dancerId,
         file: input.file,
@@ -157,6 +157,17 @@ async function uploadOptionalDancerDocumentImage(input: {
       message: getDocumentImageUploadErrorMessage(error, input.side),
     };
   }
+}
+
+function createPortalDancerDocumentStorageResolver(
+  storage: PortalDancerDocumentStorage | undefined,
+) {
+  let resolvedStorage = storage;
+
+  return () => {
+    resolvedStorage ??= createDefaultDancerDocumentStorage();
+    return resolvedStorage;
+  };
 }
 
 function readOptionalFormFile(formData: FormData, key: string) {

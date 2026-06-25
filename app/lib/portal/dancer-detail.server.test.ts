@@ -1,11 +1,42 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import {
   loadPortalDancerDocumentImageUrls,
   resolvePortalDancerDocumentImageStorageKeys,
 } from "./dancer-detail.server";
 
+const originalSupabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const originalSupabaseUrl = process.env.SUPABASE_URL;
+
+afterEach(() => {
+  restoreEnvValue("SUPABASE_SERVICE_ROLE_KEY", originalSupabaseServiceRoleKey);
+  restoreEnvValue("SUPABASE_URL", originalSupabaseUrl);
+});
+
 describe("portal dancer detail server", () => {
+  test("keeps submitted document keys without requiring Supabase storage when no files are uploaded", async () => {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_URL;
+
+    const formData = new FormData();
+    formData.set("documentFrontImageStorageKey", "dancers/front-existing.jpg");
+    formData.set("documentBackImageStorageKey", "dancers/back-existing.jpg");
+
+    await expect(
+      resolvePortalDancerDocumentImageStorageKeys({
+        academyId: "academy_1",
+        dancerId: "dancer_1",
+        formData,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      keys: {
+        back: "dancers/back-existing.jpg",
+        front: "dancers/front-existing.jpg",
+      },
+    });
+  });
+
   test("uploads new document images, keeps existing keys, and translates upload failures", async () => {
     const uploads: Array<{
       academyId: string;
@@ -99,3 +130,12 @@ describe("portal dancer detail server", () => {
     });
   });
 });
+
+function restoreEnvValue(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}

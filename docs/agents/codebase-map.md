@@ -50,7 +50,7 @@ image storage.
 - Domain: `docs/domain/coreografias.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0008-use-supabase-storage-for-uploaded-assets.md`
 - Routes: `app/routes/portal.profesores.tsx`, `app/routes/portal.profesores_.$professorId.tsx`, `app/routes/portal.bailarines.tsx`, `app/routes/portal.bailarines_.$dancerId.tsx`
-- Server modules: `app/lib/portal/professors.server.ts`, `app/lib/portal/professor-records.server.ts`, `app/lib/portal/dancers.server.ts`, `app/lib/portal/dancer-records.server.ts`, `app/lib/dancers/verification.ts`, `app/lib/storage/dancer-documents.server.ts`
+- Server modules: `app/lib/portal/professors.server.ts`, `app/lib/portal/professor-records.server.ts`, `app/lib/portal/dancers.server.ts`, `app/lib/dancers/dancer-records.server.ts`, `app/lib/dancers/verification.ts`, `app/lib/storage/dancer-documents.server.ts`
 - Tests: `app/lib/portal/route.server.db.test.ts`, `app/lib/portal/route.render.test.tsx`, `app/lib/portal/bailarines-dialog.test.tsx`, `app/lib/storage/dancer-documents.server.test.ts`
 
 ## Portal Coreografias
