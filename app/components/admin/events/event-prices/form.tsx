@@ -33,6 +33,7 @@ import type { PriceActionValues } from "@/lib/admin/events/bases-action.server";
 import { buildPriceListPath } from "@/lib/admin/events/event-bases-navigation";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
+import { cn } from "@/lib/shared/utils";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
@@ -53,6 +54,59 @@ import {
 type PriceTextFieldName = "amount";
 type PriceSelectFieldName = "groupType" | "scheduleId";
 type PriceFormController = UseFormReturn<PriceFormValues>;
+type PriceFormProps = {
+  amount?: number;
+  fieldErrors?: Record<string, string>;
+  formId?: string;
+  groupType?: string;
+  id?: string;
+  intent: string;
+  name?: string | null;
+  paymentDeadline?: string;
+  scheduleId?: string | null;
+  schedules: ScheduleListItem[];
+  submittedValues?: PriceActionValues;
+};
+type PriceFormDefaultValueProps = Pick<
+  PriceFormProps,
+  | "amount"
+  | "groupType"
+  | "name"
+  | "paymentDeadline"
+  | "scheduleId"
+  | "submittedValues"
+>;
+
+function getPriceFormDefaultValues({
+  amount,
+  groupType,
+  name,
+  paymentDeadline,
+  scheduleId,
+  submittedValues,
+}: PriceFormDefaultValueProps): PriceFormValues {
+  if (submittedValues) {
+    return {
+      name: submittedValues.name,
+      isSpecialPrice:
+        submittedValues.isSpecialPrice === "true" ||
+        submittedValues.scheduleId.length > 0,
+      groupType: submittedValues.groupType,
+      amount: submittedValues.amount,
+      paymentDeadline: submittedValues.paymentDeadline,
+      scheduleId: submittedValues.scheduleId || EMPTY_SCHEDULE_VALUE,
+    };
+  }
+
+  return {
+    name: name ?? "",
+    isSpecialPrice: Boolean(scheduleId),
+    groupType: groupType ?? "",
+    amount: amount ? String(amount) : "",
+    paymentDeadline: paymentDeadline ?? "",
+    scheduleId: scheduleId ?? EMPTY_SCHEDULE_VALUE,
+  };
+}
 
 export function PriceForm({
   amount,
@@ -66,40 +120,17 @@ export function PriceForm({
   scheduleId,
   schedules,
   submittedValues,
-}: {
-  amount?: number;
-  fieldErrors?: Record<string, string>;
-  formId?: string;
-  groupType?: string;
-  id?: string;
-  intent: string;
-  name?: string | null;
-  paymentDeadline?: string;
-  scheduleId?: string | null;
-  schedules: ScheduleListItem[];
-  submittedValues?: PriceActionValues;
-}) {
+}: PriceFormProps) {
   const defaultValues = useMemo(
     () =>
-      submittedValues
-        ? {
-            name: submittedValues.name,
-            isSpecialPrice:
-              submittedValues.isSpecialPrice === "true" ||
-              submittedValues.scheduleId.length > 0,
-            groupType: submittedValues.groupType,
-            amount: submittedValues.amount,
-            paymentDeadline: submittedValues.paymentDeadline,
-            scheduleId: submittedValues.scheduleId || EMPTY_SCHEDULE_VALUE,
-          }
-        : {
-            name: name ?? "",
-            isSpecialPrice: Boolean(scheduleId),
-            groupType: groupType ?? "",
-            amount: amount ? String(amount) : "",
-            paymentDeadline: paymentDeadline ?? "",
-            scheduleId: scheduleId ?? EMPTY_SCHEDULE_VALUE,
-          },
+      getPriceFormDefaultValues({
+        amount,
+        groupType,
+        name,
+        paymentDeadline,
+        scheduleId,
+        submittedValues,
+      }),
     [amount, groupType, name, paymentDeadline, scheduleId, submittedValues],
   );
   const form = useForm<PriceFormValues>({
@@ -299,9 +330,10 @@ function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
                 <Switch
                   id={id}
                   aria-label="Precio especial"
-                  className={`border-border shadow-xs ${
-                    field.value ? "!bg-primary" : "!bg-muted"
-                  }`}
+                  className={cn(
+                    "border-border shadow-xs",
+                    field.value ? "!bg-primary" : "!bg-muted",
+                  )}
                   checked={field.value}
                   onBlur={field.onBlur}
                   onCheckedChange={(checked) => {
@@ -332,7 +364,6 @@ function SelectField({
   name,
   options,
   placeholder,
-  submitValue = (value) => value,
 }: {
   className?: string;
   form: PriceFormController;
@@ -340,7 +371,6 @@ function SelectField({
   name: PriceSelectFieldName;
   options: Array<{ label: string; value: string }>;
   placeholder: string;
-  submitValue?: (value: string) => string;
 }) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -354,11 +384,7 @@ function SelectField({
         name={name}
         render={({ field }) => (
           <>
-            <input
-              type="hidden"
-              name={field.name}
-              value={submitValue(field.value)}
-            />
+            <input type="hidden" name={field.name} value={field.value} />
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger
                 id={id}
