@@ -254,10 +254,7 @@ async function resolveRegistrationBases(
     );
   }
 
-  const eventLocalStartDate = getLocalDateParts(
-    input.event.startsAt,
-    EVENT_TIME_ZONE,
-  );
+  const eventLocalStartDate = getEventLocalDateParts(input.event.startsAt);
   const resolvedDancers = await resolveDancers({
     academyId: input.academyId,
     dancerIds: uniqueDancerIds,
@@ -637,6 +634,10 @@ function isRegistrationWindowOpen(
   return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
 }
 
+export function getEventLocalDateParts(date: Date) {
+  return getLocalDateParts(date, EVENT_TIME_ZONE);
+}
+
 function getLocalDateParts(date: Date, timeZone: string) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -654,7 +655,7 @@ function getLocalDateParts(date: Date, timeZone: string) {
   } satisfies LocalDateParts;
 }
 
-function getAgeAtDate(birthDate: string, date: LocalDateParts) {
+export function getAgeAtDate(birthDate: string, date: LocalDateParts) {
   const [birthYear, birthMonth, birthDay] = birthDate
     .split("-")
     .map((value) => Number(value));

@@ -102,12 +102,13 @@ export async function updateAdministrativeDancer(input: {
   }
 
   const beforeValues = toDancerSnapshot(existingDancer);
-  const eventBasesByEventId =
-    existingDancer.birthDate !== normalizedValues.birthDate
-      ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
-          dancerId: existingDancer.id,
-        })
-      : undefined;
+  const birthDateChanged =
+    existingDancer.birthDate !== normalizedValues.birthDate;
+  const linkedChoreographyEventBases = birthDateChanged
+    ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+        dancerId: existingDancer.id,
+      })
+    : undefined;
   const updatedDancer = await db.transaction(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
@@ -128,11 +129,11 @@ export async function updateAdministrativeDancer(input: {
       .where(eq(dancers.id, existingDancer.id))
       .returning();
 
-    if (existingDancer.birthDate !== normalizedValues.birthDate) {
+    if (birthDateChanged) {
       await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
         dancerId: existingDancer.id,
         executor: tx,
-        eventBasesByEventId,
+        eventBasesByEventId: linkedChoreographyEventBases,
       });
     }
 
