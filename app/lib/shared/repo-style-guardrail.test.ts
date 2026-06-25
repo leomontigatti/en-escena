@@ -58,10 +58,11 @@ describe("repo style check", () => {
     expect(violations).toEqual([]);
   });
 
-  test("ships a dedicated command and workflow documentation for the guardrail", async () => {
-    const [packageJson, workflowDoc] = await Promise.all([
+  test("ships the repo-style command contract in package scripts and agent docs", async () => {
+    const [packageJson, workflowDoc, codebaseMap] = await Promise.all([
       readFile("package.json", "utf8"),
       readFile("docs/agents/codex-workflows.md", "utf8"),
+      readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
 
     expect(packageJson).toContain(
@@ -69,6 +70,7 @@ describe("repo style check", () => {
     );
     expect(workflowDoc).toContain("`npm run check:repo-styles`");
     expect(workflowDoc).toContain("repo-style");
+    expect(codebaseMap).toContain("`npm run check:repo-styles`");
     await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });
 });

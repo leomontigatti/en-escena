@@ -38,14 +38,14 @@ export async function checkFileTokens(
 ): Promise<FileTokenViolation[]> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const files = options.files ?? getStagedFiles(cwd);
+  const useStagedContents = options.files === undefined;
 
   return files
     .map((filePath) => path.normalize(filePath))
     .filter(isApplicationSourceFile)
     .map((filePath) => {
-      const absolutePath = path.resolve(cwd, filePath);
       const estimatedTokens = Math.ceil(
-        readFileSync(absolutePath).byteLength / 4,
+        readFileByteLength(cwd, filePath, useStagedContents) / 4,
       );
 
       if (estimatedTokens <= maxEstimatedTokens) {
@@ -54,7 +54,7 @@ export async function checkFileTokens(
 
       return {
         estimatedTokens,
-        filePath: path.relative(cwd, absolutePath),
+        filePath,
       };
     })
     .filter((violation): violation is FileTokenViolation => violation !== null)
@@ -109,6 +109,18 @@ function readNullSeparatedGitOutput(cwd: string, ...args: string[]) {
   return output.split("\0").filter(Boolean);
 }
 
+function readFileByteLength(
+  cwd: string,
+  filePath: string,
+  useStagedContents: boolean,
+) {
+  if (useStagedContents) {
+    return readGitBlob(cwd, `:${filePath}`).byteLength;
+  }
+
+  return readFileSync(path.resolve(cwd, filePath)).byteLength;
+}
+
 function isApplicationSourceFile(filePath: string) {
   const normalizedPath = filePath.split(path.sep).join("/");
   const baseName = path.posix.basename(normalizedPath);
@@ -143,6 +155,14 @@ function isGeneratedPath(filePath: string) {
     filePath.endsWith(".gen.ts") ||
     filePath.endsWith(".gen.tsx")
   );
+}
+
+function readGitBlob(cwd: string, objectName: string) {
+  return execFileSync("git", ["show", objectName], {
+    cwd,
+    encoding: "buffer",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {

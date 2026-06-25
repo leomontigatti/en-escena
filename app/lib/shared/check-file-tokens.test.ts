@@ -11,6 +11,43 @@ import {
 } from "../../../scripts/check-file-tokens";
 
 describe("file-token check", () => {
+  test("measures the staged blob instead of unstaged working-tree edits", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "check-file-tokens-"));
+
+    try {
+      await writeGuardrailFile(
+        tempRoot,
+        "app/routes/review.tsx",
+        createFileContents(100),
+      );
+      initGitRepository(tempRoot);
+
+      await writeGuardrailFile(
+        tempRoot,
+        "app/routes/review.tsx",
+        createFileContents(5_600),
+      );
+      stageAllFiles(tempRoot);
+
+      await writeGuardrailFile(
+        tempRoot,
+        "app/routes/review.tsx",
+        createFileContents(100),
+      );
+
+      const violations = await checkFileTokens({ cwd: tempRoot });
+
+      expect(violations).toEqual([
+        {
+          estimatedTokens: 5_600,
+          filePath: "app/routes/review.tsx",
+        },
+      ]);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   test("reports staged application files above the token limit while excluding non-application files", async () => {
     const tempRoot = await mkdtemp(path.join(tmpdir(), "check-file-tokens-"));
 
@@ -110,19 +147,32 @@ describe("file-token check", () => {
     }
   });
 
-  test("ships a dedicated command and documentation for the strict file-token check", async () => {
-    const [packageJson, workflowDoc, codingStandards] = await Promise.all([
+  test("ships the strict command contract in package scripts, hook wiring, and agent docs", async () => {
+    const [
+      packageJson,
+      preCommitHook,
+      workflowDoc,
+      codingStandards,
+      codebaseMap,
+    ] = await Promise.all([
       readFile("package.json", "utf8"),
+      readFile(".husky/pre-commit", "utf8"),
       readFile("docs/agents/codex-workflows.md", "utf8"),
       readFile("docs/agents/coding-standards.md", "utf8"),
+      readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
 
     expect(packageJson).toContain(
       '"check:file-tokens": "node --import tsx scripts/check-file-tokens.ts"',
     );
+    expect(preCommitHook).toContain("npx lint-staged");
+    expect(preCommitHook).toContain("npm run typecheck");
+    expect(preCommitHook).toContain("npm run check:file-tokens");
     expect(workflowDoc).toContain("`npm run check:file-tokens`");
     expect(workflowDoc).toContain("strict file-token check");
     expect(codingStandards).toContain("5500");
+    expect(codingStandards).toContain("clear module boundary");
+    expect(codebaseMap).toContain("`npm run check:file-tokens`");
 
     await expect(
       runFileTokenCheck({ cwd: process.cwd(), files: [] }),
