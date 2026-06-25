@@ -70,12 +70,9 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
   | { ok: true; keys: { back: string; front: string } }
   | { ok: false; message: string }
 > {
+  const storageClient = storage ?? createDefaultDancerDocumentStorage();
   const frontImage = readOptionalFormFile(input.formData, "documentFrontImage");
   const backImage = readOptionalFormFile(input.formData, "documentBackImage");
-  const storageClient =
-    frontImage || backImage
-      ? (storage ?? createDefaultDancerDocumentStorage())
-      : null;
   const frontStorageKey = await uploadOptionalDancerDocumentImage({
     academyId: input.academyId,
     dancerId: input.dancerId,
@@ -138,17 +135,13 @@ async function uploadOptionalDancerDocumentImage(input: {
   fallbackStorageKey: string;
   file: File | null;
   side: "back" | "front";
-  storage: PortalDancerDocumentStorage | null;
+  storage: PortalDancerDocumentStorage;
 }): Promise<{ ok: true; storageKey: string } | { ok: false; message: string }> {
   if (!input.file) {
     return { ok: true, storageKey: input.fallbackStorageKey };
   }
 
   try {
-    if (!input.storage) {
-      throw new Error("Document storage is required to upload images.");
-    }
-
     return {
       ok: true,
       storageKey: await input.storage.uploadDocumentImage({
