@@ -14,8 +14,8 @@ import {
   type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 import type { ChoreographyBirthDateCorrectionAuditSnapshot } from "@/lib/choreographies/choreography-audit.server";
+import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryExecutor = typeof db | DatabaseExecutor;
@@ -38,6 +38,14 @@ type LinkedDancerRow = {
   firstName: string;
   lastName: string;
   birthDate: string;
+};
+
+type ChoreographyCompetitivePlacement = {
+  categoryId: string | null;
+  categoryAgeBasis: number | null;
+  categoryCalculationMode: EligibleChoreographyRow["categoryCalculationMode"];
+  experienceLevelId: string | null;
+  dancerCompetitiveAge: number;
 };
 
 export type LinkedChoreographyBirthDateCorrectionChange = {
@@ -79,8 +87,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 
   const linkedDancersByChoreographyId =
     groupLinkedDancersByChoreographyId(linkedDancers);
-  const changedChoreographies: LinkedChoreographyBirthDateCorrectionChange[] =
-    [];
+  const auditableChanges: LinkedChoreographyBirthDateCorrectionChange[] = [];
 
   for (const choreography of eligibleChoreographies) {
     const choreographyLinkedDancers =
@@ -108,22 +115,15 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       continue;
     }
 
-    const nextCategoryId = getResolvedCategoryId(resolution);
-    const nextCategoryCalculationMode = resolution.categoryCalculationMode;
-    const nextCategoryAgeBasis = resolution.categoryAgeBasis;
-    const nextExperienceLevelId = resolveRetainedExperienceLevelId({
-      currentExperienceLevelId: choreography.experienceLevelId,
+    const beforePlacement =
+      toCompetitivePlacementFromChoreography(choreography);
+    const afterPlacement = toCompetitivePlacementFromResolution({
+      correctedDancer: correctedResolvedDancer,
+      currentExperienceLevelId: beforePlacement.experienceLevelId,
       resolution,
     });
-    const nextCompetitiveAge = correctedResolvedDancer.ageAtEventStart;
-    const changed =
-      choreography.categoryId !== nextCategoryId ||
-      choreography.categoryCalculationMode !== nextCategoryCalculationMode ||
-      choreography.categoryAgeBasis !== nextCategoryAgeBasis ||
-      choreography.experienceLevelId !== nextExperienceLevelId ||
-      choreography.correctedDancerCompetitiveAge !== nextCompetitiveAge;
 
-    if (!changed) {
+    if (!hasCompetitivePlacementChanged(beforePlacement, afterPlacement)) {
       continue;
     }
 
@@ -135,38 +135,38 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     await executor
       .update(choreographies)
       .set({
-        categoryId: nextCategoryId,
-        categoryCalculationMode: nextCategoryCalculationMode,
-        categoryAgeBasis: nextCategoryAgeBasis,
-        experienceLevelId: nextExperienceLevelId,
+        categoryId: afterPlacement.categoryId,
+        categoryCalculationMode: afterPlacement.categoryCalculationMode,
+        categoryAgeBasis: afterPlacement.categoryAgeBasis,
+        experienceLevelId: afterPlacement.experienceLevelId,
       })
       .where(eq(choreographies.id, choreography.choreographyId));
 
-    changedChoreographies.push({
+    auditableChanges.push({
       choreographyId: choreography.choreographyId,
       eventId: choreography.eventId,
       beforeValues: buildAuditSnapshot({
-        categoryAgeBasis: choreography.categoryAgeBasis,
-        categoryCalculationMode: choreography.categoryCalculationMode,
-        categoryId: choreography.categoryId,
-        competitiveAge: choreography.correctedDancerCompetitiveAge,
+        categoryAgeBasis: beforePlacement.categoryAgeBasis,
+        categoryCalculationMode: beforePlacement.categoryCalculationMode,
+        categoryId: beforePlacement.categoryId,
+        competitiveAge: beforePlacement.dancerCompetitiveAge,
         eventBases,
-        experienceLevelId: choreography.experienceLevelId,
+        experienceLevelId: beforePlacement.experienceLevelId,
         sourceDancer: correctedDancer,
       }),
       afterValues: buildAuditSnapshot({
-        categoryAgeBasis: nextCategoryAgeBasis,
-        categoryCalculationMode: nextCategoryCalculationMode,
-        categoryId: nextCategoryId,
-        competitiveAge: nextCompetitiveAge,
+        categoryAgeBasis: afterPlacement.categoryAgeBasis,
+        categoryCalculationMode: afterPlacement.categoryCalculationMode,
+        categoryId: afterPlacement.categoryId,
+        competitiveAge: afterPlacement.dancerCompetitiveAge,
         eventBases,
-        experienceLevelId: nextExperienceLevelId,
+        experienceLevelId: afterPlacement.experienceLevelId,
         sourceDancer: correctedDancer,
       }),
     });
   }
 
-  return changedChoreographies;
+  return auditableChanges;
 }
 
 export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrection(input: {
@@ -242,6 +242,54 @@ function buildAuditSnapshot(input: {
     ),
     dancerCompetitiveAge: input.competitiveAge,
   };
+}
+
+function toCompetitivePlacementFromChoreography(
+  choreography: EligibleChoreographyRow,
+): ChoreographyCompetitivePlacement {
+  return {
+    categoryId: choreography.categoryId,
+    categoryAgeBasis: choreography.categoryAgeBasis,
+    categoryCalculationMode: choreography.categoryCalculationMode,
+    experienceLevelId: choreography.experienceLevelId,
+    dancerCompetitiveAge: choreography.correctedDancerCompetitiveAge,
+  };
+}
+
+function toCompetitivePlacementFromResolution(input: {
+  correctedDancer: ResolvedRegistrationDancer;
+  currentExperienceLevelId: string | null;
+  resolution: Pick<
+    ChoreographyRegistrationOperationResolution,
+    | "category"
+    | "categoryAgeBasis"
+    | "categoryCalculationMode"
+    | "experienceLevel"
+  >;
+}): ChoreographyCompetitivePlacement {
+  return {
+    categoryId: getResolvedCategoryId(input.resolution),
+    categoryAgeBasis: input.resolution.categoryAgeBasis,
+    categoryCalculationMode: input.resolution.categoryCalculationMode,
+    experienceLevelId: resolveRetainedExperienceLevelId({
+      currentExperienceLevelId: input.currentExperienceLevelId,
+      resolution: input.resolution,
+    }),
+    dancerCompetitiveAge: input.correctedDancer.ageAtEventStart,
+  };
+}
+
+function hasCompetitivePlacementChanged(
+  before: ChoreographyCompetitivePlacement,
+  after: ChoreographyCompetitivePlacement,
+) {
+  return (
+    before.categoryId !== after.categoryId ||
+    before.categoryCalculationMode !== after.categoryCalculationMode ||
+    before.categoryAgeBasis !== after.categoryAgeBasis ||
+    before.experienceLevelId !== after.experienceLevelId ||
+    before.dancerCompetitiveAge !== after.dancerCompetitiveAge
+  );
 }
 
 function findNamedRecord(
