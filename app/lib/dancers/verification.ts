@@ -8,16 +8,12 @@ type DancerVerificationInput = {
   identityVerifiedAt: Date | null;
 };
 
-export type DancerVerificationStatus =
-  | "incomplete"
-  | "missingImages"
-  | "unverified"
-  | "verified";
+export type DancerVerificationStatus = "incomplete" | "unverified" | "verified";
 
 export function getDancerVerificationStatus(
   input: DancerVerificationInput,
 ): DancerVerificationStatus {
-  if (!hasDocumentPair(input)) {
+  if (!hasCompleteIdentification(input)) {
     return "incomplete";
   }
 
@@ -25,11 +21,11 @@ export function getDancerVerificationStatus(
     return "verified";
   }
 
-  if (!hasDocumentImages(input)) {
-    return "missingImages";
-  }
-
   return "unverified";
+}
+
+export function hasCompleteIdentification(input: DancerVerificationInput) {
+  return hasDocumentPair(input) && hasDocumentImages(input);
 }
 
 export function hasDocumentPair(input: DancerVerificationInput) {

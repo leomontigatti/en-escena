@@ -1058,7 +1058,7 @@ describe.sequential("administracion/bailarines route", () => {
     ]);
   });
 
-  test("verifies a pending Bailarín and returns it to pending verification after an administrative edit", async () => {
+  test("verifies an unverified Bailarín and returns it to unverified after an administrative edit", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.verificacion.bailarines.academia@example.com",

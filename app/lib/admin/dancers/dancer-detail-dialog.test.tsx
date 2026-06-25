@@ -111,7 +111,7 @@ function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loader
       documentType: "dni",
       firstName: "Julia",
       id: "dancer-1",
-      identificationStatus: "pending-verification",
+      identificationStatus: "unverified",
       identityVerifiedAt: null,
       inscriptions: [],
       lastName: "Detalle",

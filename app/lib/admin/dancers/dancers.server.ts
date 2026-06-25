@@ -541,10 +541,7 @@ export async function verifyAdministrativeDancerIdentity(input: {
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
   }
 
-  if (
-    existingDancer.identificationStatus !== "pending-verification" &&
-    existingDancer.identificationStatus !== "missing-images"
-  ) {
+  if (existingDancer.identificationStatus !== "unverified") {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
@@ -673,7 +670,7 @@ function buildAdministrativeDancerWhere(input: {
         or ${dancers.documentBackImageStorageKey} is null
       )
     `);
-  } else if (input.filters.identification === "pending-verification") {
+  } else if (input.filters.identification === "unverified") {
     conditions.push(sql`
       ${dancers.documentType} is not null
       and ${dancers.documentNumber} is not null
@@ -869,10 +866,8 @@ function toIdentificationStatus(input: {
   const verificationStatus = getDancerVerificationStatus(input);
 
   switch (verificationStatus) {
-    case "missingImages":
-      return "pending-verification";
     case "unverified":
-      return "pending-verification";
+      return "unverified";
     default:
       return verificationStatus;
   }

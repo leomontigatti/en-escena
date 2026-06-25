@@ -337,12 +337,10 @@ export function PortalBailarinDetalleRouteView({
       }
     : formValues;
   const showsIdentificationAlert = verificationStatus === "incomplete";
-  const showsMissingImagesAlert = verificationStatus === "missingImages";
   const showsPendingVerificationAlert = verificationStatus === "unverified";
   const showsStatusAlerts =
     !loaderData.dancer.active ||
     showsIdentificationAlert ||
-    showsMissingImagesAlert ||
     showsPendingVerificationAlert;
   const isSubmitting =
     navigation.state !== "idle" &&
@@ -418,17 +416,8 @@ export function PortalBailarinDetalleRouteView({
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
-                  Completá el tipo y número de documento para poder verificar la
-                  identidad del bailarín.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            {showsMissingImagesAlert ? (
-              <Alert variant="warning">
-                <TriangleAlert aria-hidden="true" />
-                <AlertDescription>
-                  Subí las imágenes del documento para poder verificar la
-                  identidad del bailarín.
+                  Completá los datos e imágenes del documento para poder
+                  verificar la identidad del bailarín.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -436,7 +425,7 @@ export function PortalBailarinDetalleRouteView({
               <Alert variant="info">
                 <Info aria-hidden="true" />
                 <AlertDescription>
-                  La identidad del bailarín está pendiente de verificación.
+                  La identidad del bailarín está sin verificar.
                 </AlertDescription>
               </Alert>
             ) : null}

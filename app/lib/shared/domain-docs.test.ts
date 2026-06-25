@@ -22,7 +22,7 @@ const domainRuleRequirements = [
   "ambos pueden quedar vacíos",
   "Si uno está completo y el otro vacío, la ficha es inválida y no se guarda",
   "Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia",
-  "Si el par de documento está vacío, el estado de verificación de bailarín es incompleto",
+  "Si falta algún dato o imagen del documento, el estado de verificación de bailarín es incompleto",
   "Un par de documento parcial no es un estado guardado",
   "es un error de validación del formulario",
 ];

@@ -880,7 +880,7 @@ describe("portal route view", () => {
             birthDate: "2014-02-01",
             documentType: "dni",
             documentNumber: "12345678",
-            verificationStatus: "missingImages",
+            verificationStatus: "incomplete",
           }),
           dancerListItem({
             id: "dancer_archived",
@@ -902,7 +902,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain('aria-label="Filtros:');
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain("DNI 12345678");
-    expect(markup).toContain("Faltan imágenes");
+    expect(markup).toContain("Incompleto");
     expect(markup).toContain('href="/portal/bailarines/dancer_complete"');
     expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
     expect(markup).not.toContain("Cargar Bailarín");
@@ -919,7 +919,7 @@ describe("portal route view", () => {
             birthDate: "2014-02-01",
             documentType: "dni",
             documentNumber: "12345678",
-            verificationStatus: "missingImages",
+            verificationStatus: "incomplete",
           }),
           dancerListItem({
             id: "dancer_juan",
@@ -945,7 +945,6 @@ describe("portal route view", () => {
     expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Sin documento");
     expect(markup).toContain("No participando");
-    expect(markup).toContain("Faltan imágenes");
     expect(markup).toContain("Incompleto");
     expect(markup).toContain("Sin verificar");
     expect(markup).toContain('data-variant="info"');
@@ -1030,7 +1029,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Este bailarín está archivado");
     expect(markup).toContain("Reactivar");
     expect(markup).toContain(
-      "Completá el tipo y número de documento para poder verificar la identidad del bailarín.",
+      "Completá los datos e imágenes del documento para poder verificar la identidad del bailarín.",
     );
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Apellido");
@@ -1051,7 +1050,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("Activo");
   });
 
-  test("shows missing images alert when document data is complete but images are missing", () => {
+  test("shows incomplete alert when document images are missing", () => {
     const markup = renderBailarinDetalle({
       loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
@@ -1062,14 +1061,11 @@ describe("portal route view", () => {
     });
 
     expect(markup).toContain(
-      "Subí las imágenes del documento para poder verificar la identidad del bailarín.",
-    );
-    expect(markup).not.toContain(
-      "Completá el tipo y número de documento para poder verificar la identidad del bailarín.",
+      "Completá los datos e imágenes del documento para poder verificar la identidad del bailarín.",
     );
   });
 
-  test("shows pending verification alert when document data and images are complete", () => {
+  test("shows unverified alert when document data and images are complete", () => {
     const markup = renderBailarinDetalle({
       loaderData: bailarinDetalleLoaderData({
         dancer: dancerDetailRow({
@@ -1085,14 +1081,12 @@ describe("portal route view", () => {
       }),
     });
 
-    expect(markup).toContain(
-      "La identidad del bailarín está pendiente de verificación.",
-    );
+    expect(markup).toContain("La identidad del bailarín está sin verificar.");
     expect(markup).toContain('data-slot="alert"');
     expect(markup).toContain("https://storage.example/front.jpg");
     expect(markup).toContain("https://storage.example/back.jpg");
     expect(markup).not.toContain("Imagen cargada");
-    expect(markup).not.toContain("Subí las imágenes");
+    expect(markup).not.toContain("Completá los datos e imágenes");
   });
 
   test("renders verified identification fields as locked readonly inputs", () => {
@@ -1122,7 +1116,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Dorso del documento");
     expect(countOccurrences(markup, "Imagen cargada")).toBe(2);
     expect(countOccurrences(markup, "lucide-lock")).toBe(5);
-    expect(markup).not.toContain("Subí las imágenes");
+    expect(markup).not.toContain("Completá los datos e imágenes");
   });
 
   test("shows field errors and preserves submitted values", () => {

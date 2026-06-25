@@ -452,7 +452,7 @@ function DancerStatusAlerts({
 }) {
   const identificationAlert = getIdentificationAlert(identificationStatus);
   const identificationAlertVariant =
-    identificationStatus === "pending-verification" ? "info" : "warning";
+    identificationStatus === "unverified" ? "info" : "warning";
 
   if (active && !identificationAlert) {
     return null;

@@ -16,8 +16,8 @@ Rules for people, choreography registration, locks and Bases del evento.
 - Si uno está completo y el otro vacío, la ficha es inválida y no se guarda.
 - Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia.
 - A dancer participating with another academy is a different domain entity.
-- Dancer verification states are: incompleto, faltan imágenes, no verificado, verificado.
-- Si el par de documento está vacío, el estado de verificación de bailarín es incompleto.
+- Dancer verification states are: incompleto, no verificado, verificado.
+- Si falta algún dato o imagen del documento, el estado de verificación de bailarín es incompleto.
 - Un par de documento parcial no es un estado guardado: es un error de validación del formulario.
 - Dancer verification does not block participation and does not affect choreography operational state.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.

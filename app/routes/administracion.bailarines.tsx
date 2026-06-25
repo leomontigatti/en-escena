@@ -219,7 +219,7 @@ function getGroupedDancerIdentificationLabel(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
   switch (identificationStatus) {
-    case "pending-verification":
+    case "unverified":
       return "Sin verificar";
     case "verified":
       return "Verificado";
@@ -250,7 +250,7 @@ function buildDancerFacetedFilters(
       label: "Verificación",
       options: [
         { label: "Incompleto", value: "incompleta" },
-        { label: "Sin verificar", value: "para-verificar" },
+        { label: "Sin verificar", value: "sin-verificar" },
         { label: "Verificado", value: "verificados" },
       ],
     },

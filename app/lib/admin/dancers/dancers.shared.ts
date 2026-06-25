@@ -11,7 +11,7 @@ export type AdminDancerStatusFilter = "active" | "archived" | "all";
 export type AdminDancerNameOrder = "asc" | "desc";
 export type AdminDancerIdentificationFilter =
   | "incomplete"
-  | "pending-verification"
+  | "unverified"
   | "verified"
   | "all";
 export type AdminDancerParticipationStatus =
@@ -20,8 +20,7 @@ export type AdminDancerParticipationStatus =
   | "no-event";
 export type AdminDancerIdentificationStatus =
   | "incomplete"
-  | "missing-images"
-  | "pending-verification"
+  | "unverified"
   | "verified";
 export type AdministrativeDancerAuditAction =
   | "update"
@@ -72,10 +71,9 @@ export function readAdminDancerIdentificationFilter(
 ): AdminDancerIdentificationFilter {
   switch (value) {
     case "incompleta":
-    case "sin-imagenes":
       return "incomplete";
-    case "para-verificar":
-      return "pending-verification";
+    case "sin-verificar":
+      return "unverified";
     case "verificados":
       return "verified";
     case "todos":
@@ -113,8 +111,8 @@ export function toAdminDancerIdentificationSearchValue(
   value: AdminDancerIdentificationFilter,
 ) {
   switch (value) {
-    case "pending-verification":
-      return "para-verificar";
+    case "unverified":
+      return "sin-verificar";
     case "verified":
       return "verificados";
     case "all":
@@ -154,9 +152,7 @@ export function getAdminDancerIdentificationLabel(
   identificationStatus: AdminDancerIdentificationStatus,
 ) {
   switch (identificationStatus) {
-    case "missing-images":
-      return "Sin imágenes";
-    case "pending-verification":
+    case "unverified":
       return "Sin verificar";
     case "verified":
       return "Verificado";
@@ -196,7 +192,7 @@ export function getAdminDancerIdentificationBadgeVariant(
     return "success";
   }
 
-  if (identificationStatus === "pending-verification") {
+  if (identificationStatus === "unverified") {
     return "info";
   }
 

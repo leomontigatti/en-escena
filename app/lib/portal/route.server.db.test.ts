@@ -1127,14 +1127,14 @@ describe.sequential("portal Bailarines route", () => {
     });
   });
 
-  test("loads the four verification states and blocks academy edits after verification", async () => {
+  test("loads the verification states and blocks academy edits after verification", async () => {
     const session = await createAcademySession({
       email: "bailarines.verification@example.com",
       academyName: "Academia Verificacion",
     });
     const [
       incompleteDancer,
-      missingImagesDancer,
+      incompleteWithDocumentDancer,
       unverifiedDancer,
       verifiedDancer,
     ] = await db
@@ -1191,8 +1191,8 @@ describe.sequential("portal Bailarines route", () => {
           verificationStatus: "incomplete",
         }),
         expect.objectContaining({
-          id: missingImagesDancer.id,
-          verificationStatus: "missingImages",
+          id: incompleteWithDocumentDancer.id,
+          verificationStatus: "incomplete",
         }),
         expect.objectContaining({
           id: unverifiedDancer.id,

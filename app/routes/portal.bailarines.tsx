@@ -314,7 +314,6 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
               label: "Verificación",
               options: [
                 { label: "Incompleto", value: "incomplete" },
-                { label: "Faltan imágenes", value: "missingImages" },
                 { label: "Sin verificar", value: "unverified" },
                 { label: "Verificado", value: "verified" },
               ],
@@ -521,7 +520,6 @@ function getDancerVerificationBadgeVariant(
     case "unverified":
       return "info";
     case "incomplete":
-    case "missingImages":
       return "warning";
   }
 }
@@ -544,8 +542,6 @@ function getDancerVerificationLabel(
       return "Verificado";
     case "unverified":
       return "Sin verificar";
-    case "missingImages":
-      return "Faltan imágenes";
     case "incomplete":
       return "Incompleto";
   }

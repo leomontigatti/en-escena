@@ -378,7 +378,11 @@ export function hasDancerVerificationMinimumData(
   dancer: DancerDetailLoaderData["dancer"],
 ) {
   return Boolean(
-    dancer.birthDate && dancer.documentType && dancer.documentNumber,
+    dancer.birthDate &&
+    dancer.documentType &&
+    dancer.documentNumber &&
+    dancer.documentFrontImageStorageKey &&
+    dancer.documentBackImageStorageKey,
   );
 }
 
@@ -387,10 +391,8 @@ export function getIdentificationAlert(
 ) {
   switch (identificationStatus) {
     case "incomplete":
-      return "Faltan datos de identificación para completar la verificación.";
-    case "missing-images":
-      return "Faltan imágenes del documento para completar la verificación.";
-    case "pending-verification":
+      return "Faltan datos o imágenes del documento para completar la verificación.";
+    case "unverified":
       return "La documentación está lista para verificar la identidad del bailarín.";
     case "verified":
       return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
