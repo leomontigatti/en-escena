@@ -73,7 +73,7 @@ describe("coreografía detail readonly form", () => {
     expect(text).not.toContain("Guardar Profesores");
   });
 
-  test("shows academy-actionable operational pending items above the card", async () => {
+  test("shows operational pending items above the card", async () => {
     await renderRoute(
       buildLoaderData({
         choreography: {

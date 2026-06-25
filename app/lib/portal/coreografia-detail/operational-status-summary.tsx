@@ -11,7 +11,9 @@ export function OperationalStatusSummary({
 }: {
   operationalStatus: ChoreographyOperationalStatus;
 }) {
-  if (operationalStatus.pendingItems.length === 0) {
+  const { pendingItems } = operationalStatus;
+
+  if (pendingItems.length === 0) {
     return null;
   }
 
@@ -19,14 +21,14 @@ export function OperationalStatusSummary({
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
       <AlertDescription>
-        {operationalStatus.pendingItems.length === 1 ? "Falta" : "Faltan"}{" "}
-        cargar {formatAcademyPendingItems(operationalStatus.pendingItems)}.
+        {pendingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}
+        {formatPendingItems(pendingItems)}.
       </AlertDescription>
     </Alert>
   );
 }
 
-function formatAcademyPendingItems(
+function formatPendingItems(
   pendingItems: ChoreographyOperationalStatus["pendingItems"],
 ) {
   return formatList(
