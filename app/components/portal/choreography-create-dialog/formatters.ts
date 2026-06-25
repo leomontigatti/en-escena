@@ -4,9 +4,10 @@ import {
   type RegistrationResolution,
 } from "@/lib/portal/choreography-create-flow";
 
-import type { ActiveProfessor } from "@/components/portal/choreography-create-dialog/shared";
-
-type SummaryPerson = Pick<ActiveProfessor, "firstName" | "lastName">;
+type SummaryPerson = {
+  firstName: string;
+  lastName: string;
+};
 
 export function formatModalitySummary(
   baseOptions: ChoreographyRegistrationBaseOptions,
@@ -16,15 +17,20 @@ export function formatModalitySummary(
   const modalityName =
     baseOptions.modalities.find((modality) => modality.id === modalityId)
       ?.name ?? "Pendiente";
-  const submodalityName = submodalityId
-    ? (baseOptions.submodalities.find(
-        (submodality) => submodality.id === submodalityId,
-      )?.name ?? null)
-    : null;
 
-  return submodalityName
-    ? `${modalityName} - ${submodalityName}`
-    : modalityName;
+  if (!submodalityId) {
+    return modalityName;
+  }
+
+  const submodalityName = baseOptions.submodalities.find(
+    (submodality) => submodality.id === submodalityId,
+  )?.name;
+
+  if (!submodalityName) {
+    return modalityName;
+  }
+
+  return `${modalityName} - ${submodalityName}`;
 }
 
 export function formatCategoryAndGroupTypeSummary(

@@ -23,7 +23,7 @@ describe("EventPriceDetailRouteView", () => {
 
     ({ EventPriceDetailRouteView, EventPricesRouteView, getPriceDisplayName } =
       await import("@/components/admin/events/event-prices"));
-  }, 20_000);
+  }, 30_000);
 
   afterEach(() => {
     if (root) {

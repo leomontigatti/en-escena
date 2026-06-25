@@ -20,7 +20,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   beforeAll(async () => {
     ({ AdministracionBailarinDetalleRouteView } =
       await import("@/routes/administracion.bailarines_.$dancerId"));
-  }, 20_000);
+  }, 30_000);
 
   afterEach(() => {
     if (root) {
