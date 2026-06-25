@@ -649,6 +649,37 @@ describe("administracion/usuarios/:userId route", () => {
     expect(internalDetailData).not.toHaveProperty("eventOptions");
     expect(internalDetailData).not.toHaveProperty("selectedEventId");
   });
+
+  test("preserves back-to-list and mode hrefs while removing detail-only search params", async () => {
+    const targetUser = await createSignedInRequest({
+      email: "usuario.ruta.detalle@example.com",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl:
+        "http://localhost/administracion/usuarios/placeholder?query=ada&estado=active",
+      userName: "Julia Ruta",
+      internalUsername: "julia.ruta",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.ruta.detalle@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&notificacion=usuario-interno-actualizado&guardado=si&tipoGuardado=manual`,
+      userName: "Ada Ruta",
+      internalUsername: "ada.ruta",
+    });
+
+    await expect(
+      detailLoader(detailRouteArgs(adminRequest, targetUser.userId)),
+    ).resolves.toMatchObject({
+      backToList: "/administracion/usuarios?query=ada&estado=active",
+      cancelHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active`,
+      editHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=editar`,
+      resetPasswordHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena`,
+      isEditing: false,
+      isResettingPassword: true,
+    });
+  });
 });
 
 function renderListRoute(

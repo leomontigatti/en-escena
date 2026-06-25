@@ -1,0 +1,370 @@
+import { z } from "zod";
+
+import { requiredFieldMessage } from "@/lib/shared/forms";
+import {
+  getEmptyFieldErrors,
+  getFieldErrors,
+} from "@/lib/shared/form-validation";
+import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+
+const routeNotificationSearchParam = "notificacion";
+const internalCredentialEmailDomain = "usuarios-internos.enescena.local";
+const temporaryPasswordMinLength = 8;
+
+export const updateInternalUserFieldNames = ["name", "email", "role"] as const;
+export const resetPasswordFieldNames = ["temporaryPassword"] as const;
+
+export type UpdateInternalUserField =
+  (typeof updateInternalUserFieldNames)[number];
+export type ResetPasswordField = (typeof resetPasswordFieldNames)[number];
+export type UpdateInternalUserFieldErrors = Partial<
+  Record<UpdateInternalUserField, string>
+>;
+export type ResetPasswordFieldErrors = Partial<
+  Record<ResetPasswordField, string>
+>;
+
+export type UpdateInternalUserFormValues = {
+  name: string;
+  email: string;
+  role: string;
+};
+
+export type ResetPasswordFormValues = {
+  temporaryPassword: string;
+};
+
+export type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
+export type DetailUserState =
+  | "active"
+  | "mandatory-password-change"
+  | "suspended";
+export type DetailUserType = "academy" | "internal";
+
+export type DetailUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: DetailUserRole;
+  internalUsername: string | null;
+  requiresPasswordChange: boolean;
+  suspended: boolean;
+  academyId: string | null;
+  academyName: string | null;
+  academyContactName: string | null;
+};
+
+export type DetailUser = {
+  academyId: string | null;
+  academyName: string | null;
+  email: string | null;
+  identifier: string;
+  id: string;
+  mainRole: DetailUserRole;
+  name: string;
+  state: DetailUserState;
+  userType: DetailUserType;
+};
+
+export type UserDetailLoaderData = {
+  backToList: string;
+  canManage: boolean;
+  cancelHref: string;
+  editHref: string;
+  isEditing: boolean;
+  isResettingPassword: boolean;
+  resetPasswordHref: string;
+  user: DetailUser;
+};
+
+export type DetailActionData = {
+  form: "edit" | "reset-password" | "status";
+  status: "error";
+  message: string;
+  fieldErrors: UpdateInternalUserFieldErrors;
+  resetPasswordFieldErrors: ResetPasswordFieldErrors;
+  editValues: UpdateInternalUserFormValues;
+  resetPasswordValues: ResetPasswordFormValues;
+};
+
+export const emptyEditValues: UpdateInternalUserFormValues = {
+  name: "",
+  email: "",
+  role: "judge",
+};
+
+export const emptyResetPasswordValues: ResetPasswordFormValues = {
+  temporaryPassword: "",
+};
+
+export const emptyUpdateInternalUserFieldErrors =
+  getEmptyFieldErrors<UpdateInternalUserField>();
+export const emptyResetPasswordFieldErrors =
+  getEmptyFieldErrors<ResetPasswordField>();
+
+const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
+
+const optionalEmailField = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === "" || z.email().safeParse(value).success,
+    "Ingresá un correo válido o dejalo vacío.",
+  );
+
+export function isInternalUserRole(
+  value: string,
+): value is Extract<DetailUserRole, "admin" | "auditor" | "judge"> {
+  return value === "admin" || value === "auditor" || value === "judge";
+}
+
+const roleField = z
+  .string()
+  .trim()
+  .min(1, requiredFieldMessage)
+  .refine(isInternalUserRole, "Elegí un permiso principal válido.");
+
+export const updateInternalUserSchema = z.object({
+  name: requiredTextField(),
+  email: optionalEmailField,
+  role: roleField,
+});
+
+export const userStatusIntentSchema = z.enum([
+  "suspend-user",
+  "reactivate-user",
+]);
+export const resetPasswordIntent = "reset-password";
+export const resetPasswordSchema = z.object({
+  temporaryPassword: requiredTextField().refine(
+    (value) => value.length >= temporaryPasswordMinLength,
+    `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
+  ),
+});
+
+export type UserRouteNotification = Extract<
+  RouteNotificationKey,
+  | "usuario-interno-actualizado"
+  | "usuario-interno-reactivado"
+  | "usuario-interno-restablecido"
+  | "usuario-interno-suspendido"
+>;
+
+export function buildDetailUser(row: DetailUserRow): DetailUser {
+  const isAcademyUser = row.role === "academy";
+
+  return {
+    academyId: isAcademyUser ? row.academyId : null,
+    academyName: isAcademyUser ? row.academyName : null,
+    email: getDetailEmail(row, isAcademyUser),
+    identifier: row.internalUsername ?? row.email,
+    id: row.id,
+    mainRole: row.role,
+    name: getDetailName(row, isAcademyUser),
+    state: getDetailState(row, isAcademyUser),
+    userType: isAcademyUser ? "academy" : "internal",
+  };
+}
+
+export function buildBackToListHref(requestUrl: string) {
+  const url = new URL(requestUrl);
+  return buildPathWithSearch(
+    "/administracion/usuarios",
+    sanitizeUserDetailSearchParams(url.searchParams),
+  );
+}
+
+export function buildModeHref(
+  url: URL,
+  userId: string,
+  mode: "editar" | "restablecer-contrasena" | null,
+) {
+  const nextSearchParams = sanitizeUserDetailSearchParams(url.searchParams);
+
+  if (mode) {
+    nextSearchParams.set("modo", mode);
+  } else {
+    nextSearchParams.delete("modo");
+  }
+
+  return buildUserDetailPath(userId, nextSearchParams);
+}
+
+export function buildNotificationDetailHref(
+  requestUrl: string,
+  userId: string,
+  notification: UserRouteNotification,
+) {
+  const url = new URL(requestUrl);
+  const searchParams = sanitizeUserDetailSearchParams(url.searchParams);
+
+  searchParams.set(routeNotificationSearchParam, notification);
+
+  return buildUserDetailPath(userId, searchParams);
+}
+
+export function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
+  const nextSearchParams = new URLSearchParams(searchParams);
+
+  nextSearchParams.delete("modo");
+  nextSearchParams.delete(routeNotificationSearchParam);
+  nextSearchParams.delete("guardado");
+  nextSearchParams.delete("tipoGuardado");
+
+  return nextSearchParams;
+}
+
+export function getDetailDescription(
+  userType: DetailUserType,
+  canManage: boolean,
+) {
+  if (userType === "academy") {
+    return "Consultá la identidad de acceso de la Academia en modo solo lectura.";
+  }
+
+  if (canManage) {
+    return "Actualizá los datos del usuario interno y sus permisos.";
+  }
+
+  return "Consultá la identidad interna en modo solo lectura.";
+}
+
+export function readUpdateInternalUserFormValues(
+  formData: FormData,
+): UpdateInternalUserFormValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    role: String(formData.get("role") ?? ""),
+  };
+}
+
+export function readResetPasswordFormValues(
+  formData: FormData,
+): ResetPasswordFormValues {
+  return {
+    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+  };
+}
+
+export function buildUpdateInternalUserFormValues(
+  user: DetailUser,
+): UpdateInternalUserFormValues {
+  return {
+    name: user.name,
+    email: user.email ?? "",
+    role: user.mainRole === "academy" ? "judge" : user.mainRole,
+  };
+}
+
+export function buildDetailActionError({
+  editValues = emptyEditValues,
+  fieldErrors = emptyUpdateInternalUserFieldErrors,
+  form,
+  message,
+  resetPasswordFieldErrors = emptyResetPasswordFieldErrors,
+  resetPasswordValues = emptyResetPasswordValues,
+}: {
+  editValues?: UpdateInternalUserFormValues;
+  fieldErrors?: UpdateInternalUserFieldErrors;
+  form: DetailActionData["form"];
+  message: string;
+  resetPasswordFieldErrors?: ResetPasswordFieldErrors;
+  resetPasswordValues?: ResetPasswordFormValues;
+}): DetailActionData {
+  return {
+    form,
+    status: "error",
+    message,
+    fieldErrors,
+    resetPasswordFieldErrors,
+    editValues,
+    resetPasswordValues,
+  };
+}
+
+export function getUpdateInternalUserServerFieldErrors(error: string) {
+  if (error === "Ese correo ya tiene un usuario en En Escena.") {
+    return { email: error };
+  }
+
+  return getEmptyFieldErrors<UpdateInternalUserField>();
+}
+
+export function getRoleLabel(role: DetailUser["mainRole"]) {
+  switch (role) {
+    case "admin":
+      return "Administrador";
+    case "auditor":
+      return "Auditor";
+    case "judge":
+      return "Juez";
+    case "academy":
+      return "Academia";
+  }
+}
+
+export function getStateLabel(state: DetailUser["state"]) {
+  switch (state) {
+    case "active":
+      return "Activo";
+    case "mandatory-password-change":
+      return "Cambio obligatorio";
+    case "suspended":
+      return "Suspendido";
+  }
+}
+
+export function getUpdateInternalUserFieldErrors(error: z.ZodError) {
+  return getFieldErrors(error, updateInternalUserFieldNames);
+}
+
+export function getResetPasswordFieldErrors(error: z.ZodError) {
+  return getFieldErrors(error, resetPasswordFieldNames);
+}
+
+function getDetailEmail(row: DetailUserRow, isAcademyUser: boolean) {
+  if (isAcademyUser) {
+    return row.email;
+  }
+
+  return row.email.endsWith(`@${internalCredentialEmailDomain}`)
+    ? null
+    : row.email;
+}
+
+function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {
+  if (isAcademyUser) {
+    return row.academyContactName ?? row.name;
+  }
+
+  return row.name;
+}
+
+function getDetailState(
+  row: DetailUserRow,
+  isAcademyUser: boolean,
+): DetailUserState {
+  if (!isAcademyUser && row.suspended) {
+    return "suspended";
+  }
+
+  if (!isAcademyUser && row.requiresPasswordChange) {
+    return "mandatory-password-change";
+  }
+
+  return "active";
+}
+
+function buildUserDetailPath(userId: string, searchParams: URLSearchParams) {
+  return buildPathWithSearch(
+    `/administracion/usuarios/${userId}`,
+    searchParams,
+  );
+}
+
+function buildPathWithSearch(pathname: string, searchParams: URLSearchParams) {
+  const search = searchParams.toString();
+
+  return search ? `${pathname}?${search}` : pathname;
+}
