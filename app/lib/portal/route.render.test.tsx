@@ -369,7 +369,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toContain("Sin asignar");
-    expect(markup).toContain("Falta cargar profesores.");
+    expect(markup).toContain("Faltan cargar categoría y profesores.");
     expect(markup).toContain("Ana Paz");
     expect(markup).not.toContain("Volver a Coreografías");
     expect(markup).not.toContain("Eliminar Coreografía");

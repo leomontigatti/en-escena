@@ -89,12 +89,13 @@ describe("coreografía detail readonly form", () => {
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("Faltan cargar archivo de música y profesores.");
-    expect(text).not.toContain("Faltan cargar categoría");
+    expect(text).toContain(
+      "Faltan cargar archivo de música, categoría y profesores.",
+    );
     expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
   });
 
-  test("does not show an operational alert when only category is pending", async () => {
+  test("shows an operational alert when only category is pending", async () => {
     await renderRoute(
       buildLoaderData({
         choreography: {
@@ -108,7 +109,7 @@ describe("coreografía detail readonly form", () => {
       }),
     );
 
-    expect(document.body.textContent).not.toContain("Falta cargar");
+    expect(document.body.textContent).toContain("Falta cargar categoría.");
     expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
   });
 
