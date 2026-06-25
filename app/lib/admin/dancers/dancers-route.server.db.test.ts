@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, MemoryRouter } from "react-router";
@@ -8,9 +8,13 @@ import { db } from "@/db";
 import {
   academies,
   administrativeAuditEntries,
+  categories,
+  categoryExperienceLevels,
+  categoryModalities,
   choreographyDancers,
   choreographies,
   dancers,
+  experienceLevels,
   user,
 } from "@/db/schema";
 import {
@@ -984,7 +988,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("updates birth date without recalculating linked coreografias and persists the audit reason", async () => {
+  test("recalculates eligible linked coreografias after a birth date correction and persists the audit reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.fecha.bailarines.academia@example.com",
@@ -996,20 +1000,26 @@ describe.sequential("administracion/bailarines route", () => {
       academyId: academy.academy.id,
       firstName: "Nina",
       lastName: "Fecha",
-      birthDate: "2013-05-01",
+      birthDate: "2014-05-01",
     });
-    await linkDancerToEventChoreography({
+    const catalog = await createAdministrativeCorrectionCatalog(event.id, {
+      olderCategoryKeepsLevel: false,
+    });
+    const choreography = await createAdministrativeLinkedChoreography({
       eventId: event.id,
       academyId: academy.academy.id,
-      dancerId: dancer.id,
+      categoryId: catalog.youngerCategory.id,
       choreographyName: "Umbral",
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      modalityId: catalog.modality.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
     });
-    const [{ ageAtEventStart: beforeAgeAtEventStart }] = await db
-      .select({
-        ageAtEventStart: choreographyDancers.ageAtEventStart,
-      })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.dancerId, dancer.id));
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
     const { request } = await createSignedInRequest({
       email: "admin.fecha.bailarines@example.com",
       role: "admin",
@@ -1023,7 +1033,7 @@ describe.sequential("administracion/bailarines route", () => {
             intent: "update-dancer",
             firstName: "Nina",
             lastName: "Fecha",
-            birthDate: "2012-05-01",
+            birthDate: "2011-05-01",
             documentType: "",
             documentNumber: "",
             correctionReason: "Corrección manual para alinear el legajo.",
@@ -1034,14 +1044,41 @@ describe.sequential("administracion/bailarines route", () => {
       302,
     );
 
-    const [{ ageAtEventStart: afterAgeAtEventStart }] = await db
-      .select({
-        ageAtEventStart: choreographyDancers.ageAtEventStart,
-      })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.dancerId, dancer.id));
-
-    expect(afterAgeAtEventStart).toBe(beforeAgeAtEventStart);
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        columns: {
+          ageAtEventStart: true,
+        },
+        where: and(
+          eq(choreographyDancers.choreographyId, choreography.id),
+          eq(choreographyDancers.dancerId, dancer.id),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      ageAtEventStart: 15,
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: {
+          categoryId: true,
+          categoryCalculationMode: true,
+          categoryAgeBasis: true,
+          experienceLevelId: true,
+          groupType: true,
+          scheduleCapacityId: true,
+          hasActiveFinancialLink: true,
+        },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      categoryId: catalog.olderCategory.id,
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: 15,
+      experienceLevelId: null,
+      groupType: "solo",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      hasActiveFinancialLink: true,
+    });
     await expect(
       db
         .select()
@@ -1052,8 +1089,8 @@ describe.sequential("administracion/bailarines route", () => {
         action: "update",
         entityId: dancer.id,
         reason: "Corrección manual para alinear el legajo.",
-        beforeValues: expect.objectContaining({ birthDate: "2013-05-01" }),
-        afterValues: expect.objectContaining({ birthDate: "2012-05-01" }),
+        beforeValues: expect.objectContaining({ birthDate: "2014-05-01" }),
+        afterValues: expect.objectContaining({ birthDate: "2011-05-01" }),
       }),
     ]);
   });
@@ -1705,6 +1742,130 @@ async function linkDancerToEventChoreography(input: {
     dancerId: input.dancerId,
     ageAtEventStart: 14,
   });
+
+  return choreography;
+}
+
+async function createAdministrativeCorrectionCatalog(
+  eventId: string,
+  input: { olderCategoryKeepsLevel: boolean },
+) {
+  const modality = await expectCreated(
+    createModality(eventId, {
+      name: `Cat Mod ${eventId}`,
+    }),
+  );
+  const level = await createAdministrativeExperienceLevel(eventId);
+  const [youngerCategory] = await db
+    .insert(categories)
+    .values({
+      eventId,
+      name: `Infantil ${eventId}`,
+      minAge: 8,
+      maxAge: 12,
+      groupTypes: ["solo"],
+      groupTypeKey: "solo",
+      experienceLevelKey: level.id,
+    })
+    .returning();
+  const [olderCategory] = await db
+    .insert(categories)
+    .values({
+      eventId,
+      name: `Juvenil ${eventId}`,
+      minAge: 13,
+      maxAge: 17,
+      groupTypes: ["solo"],
+      groupTypeKey: "solo",
+      experienceLevelKey: input.olderCategoryKeepsLevel ? level.id : "",
+    })
+    .returning();
+
+  await db.insert(categoryModalities).values([
+    {
+      categoryId: youngerCategory.id,
+      modalityId: modality.id,
+    },
+    {
+      categoryId: olderCategory.id,
+      modalityId: modality.id,
+    },
+  ]);
+  await db.insert(categoryExperienceLevels).values({
+    categoryId: youngerCategory.id,
+    experienceLevelId: level.id,
+  });
+
+  if (input.olderCategoryKeepsLevel) {
+    await db.insert(categoryExperienceLevels).values({
+      categoryId: olderCategory.id,
+      experienceLevelId: level.id,
+    });
+  }
+
+  const block = await expectCreated(
+    createSchedule(eventId, {
+      name: `Cat Bloque ${eventId}`,
+      scheduledDate: "2026-05-01",
+      startTime: "10:00",
+      totalCapacity: 10,
+      modalityIds: [modality.id],
+    }),
+  );
+  const scheduleCapacity = await expectCreated(
+    createScheduleCapacity(block.id, {
+      groupType: "solo",
+      capacity: 10,
+    }),
+  );
+
+  return {
+    modality,
+    level,
+    youngerCategory,
+    olderCategory,
+    scheduleCapacity,
+  };
+}
+
+async function createAdministrativeExperienceLevel(eventId: string) {
+  const [level] = await db
+    .insert(experienceLevels)
+    .values({
+      eventId,
+      name: `Nivel ${eventId}`,
+    })
+    .returning();
+
+  return level;
+}
+
+async function createAdministrativeLinkedChoreography(input: {
+  eventId: string;
+  academyId: string;
+  choreographyName: string;
+  modalityId: string;
+  categoryId: string | null;
+  experienceLevelId: string | null;
+  scheduleCapacityId: string;
+  hasActiveFinancialLink: boolean;
+}) {
+  const [choreography] = await db
+    .insert(choreographies)
+    .values({
+      eventId: input.eventId,
+      academyId: input.academyId,
+      name: input.choreographyName,
+      modalityId: input.modalityId,
+      groupType: "solo",
+      categoryId: input.categoryId,
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: 12,
+      experienceLevelId: input.experienceLevelId,
+      scheduleCapacityId: input.scheduleCapacityId,
+      hasActiveFinancialLink: input.hasActiveFinancialLink,
+    })
+    .returning();
 
   return choreography;
 }

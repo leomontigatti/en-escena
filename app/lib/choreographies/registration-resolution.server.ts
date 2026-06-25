@@ -206,6 +206,39 @@ export async function resolveChoreographyRegistrationOperationForResolvedDancers
   });
 }
 
+export function resolveChoreographyClassificationForResolvedDancers(input: {
+  eventBases: Pick<EventBases, "categories" | "experienceLevels">;
+  modalityId: string;
+  dancers: ResolvedRegistrationDancer[];
+}) {
+  const groupType = deriveGroupType(input.dancers.length);
+  const categoryCandidates = input.eventBases.categories
+    .filter(
+      (category) =>
+        category.modalityIds.includes(input.modalityId) &&
+        category.groupTypes.includes(groupType),
+    )
+    .map(toCategoryCandidate);
+  const categoryResolution = resolveCategory({
+    dancers: input.dancers,
+    categories: categoryCandidates,
+  });
+  const experienceLevel = resolveExperienceLevel({
+    availableLevels: input.eventBases.experienceLevels,
+    requiredLevelIds: categoryResolution.resolvedCategoryExperienceLevelIds,
+    category: categoryResolution.category,
+  });
+
+  return {
+    groupType,
+    category: categoryResolution.category,
+    categoryCalculationMode: categoryResolution.categoryCalculationMode,
+    categoryAgeBasis: categoryResolution.categoryAgeBasis,
+    experienceLevel,
+    dancers: input.dancers,
+  } satisfies Omit<ChoreographyRegistrationOperationResolution, "schedule">;
+}
+
 async function resolveRegistrationBases(
   input: RegistrationBaseResolutionInput,
 ): Promise<ChoreographyRegistrationOperationResult> {
@@ -305,43 +338,29 @@ async function resolveRegistrationFromResolvedDancers(input: {
     );
   }
 
-  const groupType = deriveGroupType(input.dancers.length);
-  const categoryCandidates = input.eventBases.categories
-    .filter(
-      (category) =>
-        category.modalityIds.includes(modality.id) &&
-        category.groupTypes.includes(groupType),
-    )
-    .map(toCategoryCandidate);
-
-  const categoryResolution = resolveCategory({
+  const classification = resolveChoreographyClassificationForResolvedDancers({
+    eventBases: input.eventBases,
+    modalityId: modality.id,
     dancers: input.dancers,
-    categories: categoryCandidates,
-  });
-
-  const experienceLevel = resolveExperienceLevel({
-    availableLevels: input.eventBases.experienceLevels,
-    requiredLevelIds: categoryResolution.resolvedCategoryExperienceLevelIds,
-    category: categoryResolution.category,
   });
 
   const compatibleScheduleCapacities = await resolveEventBasesScheduleOptions({
     eventId: input.eventId,
     modalityId: modality.id,
-    groupType,
+    groupType: classification.groupType,
   });
   const schedule = mapScheduleResolution(compatibleScheduleCapacities);
 
   return {
     ok: true,
     resolution: {
-      groupType,
-      category: categoryResolution.category,
-      categoryCalculationMode: categoryResolution.categoryCalculationMode,
-      categoryAgeBasis: categoryResolution.categoryAgeBasis,
-      experienceLevel,
+      groupType: classification.groupType,
+      category: classification.category,
+      categoryCalculationMode: classification.categoryCalculationMode,
+      categoryAgeBasis: classification.categoryAgeBasis,
+      experienceLevel: classification.experienceLevel,
       schedule,
-      dancers: input.dancers,
+      dancers: classification.dancers,
     },
   };
 }
