@@ -28,8 +28,11 @@ For each issue whose branch was merged:
    demonstrate that it is complete.
 4. Preserve all other issue body content.
 5. Update the issue body with `gh issue edit <ID> --body-file <file>`.
-6. Close the issue with a comment in this exact format, listing only validation
-   commands that were actually run and passed:
+6. Close the issue with `gh issue close <ID> --comment "<comment>"`, listing
+   only validation commands that were actually run and passed. Do not use
+   `gh issue close --comment-file`; `gh issue close` does not support that flag.
+   For a multi-line close comment, pass the comment text through `--comment`
+   using shell quoting or command substitution.
 
 ```text
 Completed by Sandcastle.
