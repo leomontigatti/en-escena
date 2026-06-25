@@ -143,6 +143,63 @@ describe("EventPriceDetailRouteView", () => {
 
     expect(priceNames).toEqual(["Precio Mayo", "Precio Junio"]);
   });
+
+  test("uses derived labels as link names for unnamed prices in the list", async () => {
+    const unnamedBasePrice = createPrice({
+      amount: 12000,
+      groupType: "solo",
+      id: "price_base",
+      name: "",
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+      scheduleName: null,
+    });
+    const unnamedSchedulePrice = createPrice({
+      amount: 18000,
+      groupType: "duo",
+      id: "price_schedule",
+      name: "",
+      paymentDeadline: "2026-06-30",
+      scheduleId: "block_2",
+      scheduleName: "Noche",
+    });
+    const loaderData = createLoaderData({
+      prices: [unnamedSchedulePrice, unnamedBasePrice],
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPricesRoute({
+      EventPricesRouteView,
+      loaderData,
+      root,
+    });
+
+    expect(container.textContent).toContain("31 de mayo de 2026");
+    expect(container.textContent).toContain("30 de junio de 2026");
+    expect(container.textContent).toContain("$12000");
+    expect(container.textContent).toContain("$18000");
+
+    const priceLinks = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("tbody a"),
+    ).map((link) => ({
+      label: link.getAttribute("aria-label"),
+      text: link.textContent,
+    }));
+
+    expect(priceLinks).toEqual([
+      {
+        label: "Solo - Precio base - hasta 31/5/26",
+        text: "",
+      },
+      {
+        label: "Dúo - Noche - hasta 30/6/26",
+        text: "",
+      },
+    ]);
+  });
 });
 
 function installReactTestEnvironment() {
