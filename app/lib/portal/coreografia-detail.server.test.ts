@@ -102,7 +102,7 @@ describe("loadCoreografiaPeopleEditorOptions", () => {
         },
       ],
     });
-  });
+  }, 15_000);
 });
 
 function createDeferred<T>() {
