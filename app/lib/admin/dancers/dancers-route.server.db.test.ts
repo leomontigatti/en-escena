@@ -1209,6 +1209,44 @@ describe.sequential("administracion/bailarines route", () => {
     });
   });
 
+  test("rejects verifying a Bailarín whose identity is already verified", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.verificacion.repetida.bailarines.academia@example.com",
+      academyName: "Academia Verificada",
+      contactName: "Vera Verificada",
+      phone: "1515-1515",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Sonia",
+      lastName: "Verificada",
+      birthDate: "2012-01-02",
+      documentType: "dni",
+      documentNumber: "87654321",
+      documentFrontImageStorageKey: "dancers/sonia-front.jpg",
+      documentBackImageStorageKey: "dancers/sonia-back.jpg",
+      identityVerifiedAt: new Date("2026-04-10T10:00:00Z"),
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.verificacion.repetida.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
+    });
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "verify-dancer-identity",
+          }),
+          dancer.id,
+        ),
+      ),
+      400,
+    );
+  });
+
   test("archives and reactivates a participating Bailarín without unlinking coreografias and persists audit entries", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
