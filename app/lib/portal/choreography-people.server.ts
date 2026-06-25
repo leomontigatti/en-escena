@@ -14,6 +14,7 @@ import {
   updateChoreographyProfessors,
   validateChoreographyProfessorSelection,
 } from "@/lib/portal/choreography-people-professor-update.server";
+import type { UpdateChoreographyResult } from "@/lib/portal/choreography-people.shared";
 
 export {
   getDancerEditingEligibility,
@@ -48,7 +49,7 @@ export async function updateChoreography(input: {
   experienceLevelId: string | null;
   scheduleCapacityId?: string | null;
   isRegistrationOpen: boolean;
-}) {
+}): Promise<UpdateChoreographyResult> {
   const [currentDancerLinks, currentProfessorLinks] = await Promise.all([
     db
       .select({ dancerId: choreographyDancers.dancerId })
@@ -69,7 +70,7 @@ export async function updateChoreography(input: {
   );
 
   if (!dancerIdsChanged && !professorIdsChanged) {
-    return { ok: true } as const;
+    return { ok: true };
   }
 
   if (professorIdsChanged) {
@@ -82,7 +83,7 @@ export async function updateChoreography(input: {
     if (!professorValidation.ok) {
       return {
         ok: false,
-        section: "professors" as const,
+        section: "professors",
         message: professorValidation.message,
       };
     }
@@ -102,7 +103,7 @@ export async function updateChoreography(input: {
     if (!dancerResult.ok) {
       return {
         ok: false,
-        section: "dancers" as const,
+        section: "dancers",
         message: dancerResult.message,
         fieldErrors: dancerResult.fieldErrors,
       };
@@ -120,13 +121,13 @@ export async function updateChoreography(input: {
     if (!professorResult.ok) {
       return {
         ok: false,
-        section: "professors" as const,
+        section: "professors",
         message: professorResult.message,
       };
     }
   }
 
-  return { ok: true } as const;
+  return { ok: true };
 }
 
 function haveSameIds(left: string[], right: string[]) {
