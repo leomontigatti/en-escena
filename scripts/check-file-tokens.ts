@@ -33,19 +33,22 @@ type CheckFileTokensOptions = {
   files?: string[];
 };
 
+type FileContentSource = "staged" | "working-tree";
+
 export async function checkFileTokens(
   options: CheckFileTokensOptions = {},
 ): Promise<FileTokenViolation[]> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const files = options.files ?? getStagedFiles(cwd);
-  const useStagedContents = options.files === undefined;
+  const fileContentSource: FileContentSource =
+    options.files === undefined ? "staged" : "working-tree";
 
   return files
     .map((filePath) => path.normalize(filePath))
     .filter(isApplicationSourceFile)
     .map((filePath) => {
       const estimatedTokens = Math.ceil(
-        readFileByteLength(cwd, filePath, useStagedContents) / 4,
+        readFileByteLength(cwd, filePath, fileContentSource) / 4,
       );
 
       if (estimatedTokens <= maxEstimatedTokens) {
@@ -112,13 +115,14 @@ function readNullSeparatedGitOutput(cwd: string, ...args: string[]) {
 function readFileByteLength(
   cwd: string,
   filePath: string,
-  useStagedContents: boolean,
+  fileContentSource: FileContentSource,
 ) {
-  if (useStagedContents) {
-    return readGitBlob(cwd, `:${filePath}`).byteLength;
+  switch (fileContentSource) {
+    case "staged":
+      return readGitBlob(cwd, `:${filePath}`).byteLength;
+    case "working-tree":
+      return readFileSync(path.resolve(cwd, filePath)).byteLength;
   }
-
-  return readFileSync(path.resolve(cwd, filePath)).byteLength;
 }
 
 function isApplicationSourceFile(filePath: string) {
