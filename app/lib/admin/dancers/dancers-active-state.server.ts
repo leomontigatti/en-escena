@@ -12,7 +12,6 @@ import {
   validateAdministrativeDancerCorrectionReason,
 } from "@/lib/admin/dancers/dancers-mutation-helpers.server";
 import type { AdministrativeDancerStatusMutationResult } from "@/lib/admin/dancers/dancers.server.types";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export async function setAdministrativeDancerActiveState(input: {
   action: "archive" | "reactivate";
@@ -23,7 +22,6 @@ export async function setAdministrativeDancerActiveState(input: {
 }): Promise<AdministrativeDancerStatusMutationResult> {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
-    participationSql: buildDancerEventParticipationSql(input.selectedEventId),
     selectedEventId: input.selectedEventId,
   });
 

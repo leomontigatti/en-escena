@@ -8,7 +8,10 @@ import type {
   AdminDancerNameOrder,
   AdminDancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
-import { buildDancerAnyEventParticipationSql } from "@/lib/people/participation.server";
+import {
+  buildDancerAnyEventParticipationSql,
+  buildDancerEventParticipationSql,
+} from "@/lib/people/participation.server";
 import type { DancerEditableSnapshot } from "@/lib/portal/dancer-records.server";
 
 export type AdministrativeDancerMutationRecord = {
@@ -126,9 +129,11 @@ export function toDancerSnapshot(
 
 export async function findAdministrativeDancerForMutation(input: {
   dancerId: string;
-  participationSql: ReturnType<typeof buildDancerAnyEventParticipationSql>;
   selectedEventId: string | null;
 }): Promise<AdministrativeDancerMutationRecord | null> {
+  const participationSql = buildDancerEventParticipationSql(
+    input.selectedEventId,
+  );
   const anyEventParticipationSql = buildDancerAnyEventParticipationSql();
 
   return db
@@ -144,7 +149,7 @@ export async function findAdministrativeDancerForMutation(input: {
       documentFrontImageStorageKey: dancers.documentFrontImageStorageKey,
       documentBackImageStorageKey: dancers.documentBackImageStorageKey,
       identityVerifiedAt: dancers.identityVerifiedAt,
-      isParticipating: input.participationSql,
+      isParticipating: participationSql,
       hasParticipatedInAnyEvent: anyEventParticipationSql,
     })
     .from(dancers)

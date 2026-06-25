@@ -21,7 +21,6 @@ import {
   normalizeDancerDocumentPair,
   normalizeDancerValues,
 } from "@/lib/portal/dancer-records.server";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export async function updateAdministrativeDancer(input: {
   adminUserId: string;
@@ -31,7 +30,6 @@ export async function updateAdministrativeDancer(input: {
 }): Promise<AdministrativeDancerMutationResult> {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
-    participationSql: buildDancerEventParticipationSql(input.selectedEventId),
     selectedEventId: input.selectedEventId,
   });
 
@@ -62,7 +60,11 @@ export async function updateAdministrativeDancer(input: {
     fieldErrors.correctionReason = normalizedReason.fieldError;
   }
 
-  if (!normalizedDocument.ok || Object.keys(fieldErrors).length > 0) {
+  if (
+    !normalizedDocument.ok ||
+    !normalizedReason.ok ||
+    Object.keys(fieldErrors).length > 0
+  ) {
     return {
       ok: false,
       message: "Revisá los campos marcados.",
@@ -120,9 +122,7 @@ export async function updateAdministrativeDancer(input: {
     beforeValues,
     dancerId: existingDancer.id,
     eventId: input.selectedEventId,
-    reason: toOptionalCorrectionReason(
-      normalizedReason.ok ? normalizedReason.correctionReason : null,
-    ),
+    reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
   });
 
   return {

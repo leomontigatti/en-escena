@@ -49,11 +49,11 @@ export function buildAdministrativeDancerWhere(input: {
   }
 
   if (input.selectedEventId !== null && input.filters.participation !== "all") {
-    conditions.push(
-      input.filters.participation === "yes"
-        ? sql`${participationSql}`
-        : sql`not ${participationSql}`,
-    );
+    if (input.filters.participation === "yes") {
+      conditions.push(sql`${participationSql}`);
+    } else {
+      conditions.push(sql`not ${participationSql}`);
+    }
   }
 
   if (input.filters.identification === "incomplete") {

@@ -23,7 +23,11 @@ export function validateAdministrativeDancerCorrectionReason(input: {
 }
 
 export function toOptionalCorrectionReason(value: string | null) {
-  return value && value.length > 0 ? value : null;
+  if (value === null || value.length === 0) {
+    return null;
+  }
+
+  return value;
 }
 
 function isCorrectionReasonLengthValid(reason: string) {

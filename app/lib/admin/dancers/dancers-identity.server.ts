@@ -7,7 +7,6 @@ import {
   findAdministrativeDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export async function verifyAdministrativeDancerIdentity(input: {
   adminUserId: string;
@@ -16,7 +15,6 @@ export async function verifyAdministrativeDancerIdentity(input: {
 }) {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
-    participationSql: buildDancerEventParticipationSql(input.selectedEventId),
     selectedEventId: input.selectedEventId,
   });
 
