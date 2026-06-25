@@ -7,6 +7,10 @@ import {
   findAdministrativeDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
+import {
+  loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
+  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+} from "@/lib/choreographies/dancer-birthdate-correction.server";
 import type {
   AdministrativeDancerFieldErrors,
   AdministrativeDancerMutationResult,
@@ -98,32 +102,55 @@ export async function updateAdministrativeDancer(input: {
   }
 
   const beforeValues = toDancerSnapshot(existingDancer);
-  const [updatedDancer] = await db
-    .update(dancers)
-    .set({
-      firstName: normalizedValues.firstName,
-      lastName: normalizedValues.lastName,
-      birthDate: normalizedValues.birthDate,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-      documentFrontImageStorageKey: existingDancer.documentFrontImageStorageKey,
-      documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
-      identityVerifiedAt: existingDancer.identityVerifiedAt ? null : undefined,
-      updatedAt: new Date(),
-    })
-    .where(eq(dancers.id, existingDancer.id))
-    .returning();
-  const afterValues = toDancerSnapshot(updatedDancer);
+  const birthDateChanged =
+    existingDancer.birthDate !== normalizedValues.birthDate;
+  const linkedChoreographyEventBases = birthDateChanged
+    ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+        dancerId: existingDancer.id,
+      })
+    : undefined;
+  const updatedDancer = await db.transaction(async (tx) => {
+    const [savedDancer] = await tx
+      .update(dancers)
+      .set({
+        firstName: normalizedValues.firstName,
+        lastName: normalizedValues.lastName,
+        birthDate: normalizedValues.birthDate,
+        documentType: normalizedDocument.documentType,
+        documentNumber: normalizedDocument.documentNumber,
+        documentFrontImageStorageKey:
+          existingDancer.documentFrontImageStorageKey,
+        documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
+        identityVerifiedAt: existingDancer.identityVerifiedAt
+          ? null
+          : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(dancers.id, existingDancer.id))
+      .returning();
 
-  await createAdministrativeDancerAuditEntry({
-    action: "update",
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    dancerId: existingDancer.id,
-    eventId: input.selectedEventId,
-    reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+    if (birthDateChanged) {
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: existingDancer.id,
+        executor: tx,
+        eventBasesByEventId: linkedChoreographyEventBases,
+      });
+    }
+
+    await createAdministrativeDancerAuditEntry({
+      action: "update",
+      adminUserId: input.adminUserId,
+      afterValues: toDancerSnapshot(savedDancer),
+      beforeValues,
+      dancerId: existingDancer.id,
+      eventId: input.selectedEventId,
+      executor: tx,
+      reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+    });
+
+    return savedDancer;
   });
+  const afterValues = toDancerSnapshot(updatedDancer);
 
   return {
     ok: true,
