@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -8,7 +9,6 @@ import {
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 
 const routeNotificationSearchParam = "notificacion";
-const internalCredentialEmailDomain = "usuarios-internos.enescena.local";
 const temporaryPasswordMinLength = 8;
 
 export const updateInternalUserFieldNames = ["name", "email", "role"] as const;
@@ -328,9 +328,7 @@ function getDetailEmail(row: DetailUserRow, isAcademyUser: boolean) {
     return row.email;
   }
 
-  return row.email.endsWith(`@${internalCredentialEmailDomain}`)
-    ? null
-    : row.email;
+  return isInternalCredentialEmail(row.email) ? null : row.email;
 }
 
 function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {

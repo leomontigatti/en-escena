@@ -57,27 +57,57 @@ export function AdministracionUsuarioDetalleRouteView({
         ) : null}
       </header>
 
-      {savedUser.userType === "academy" ? (
-        <AcademyUserFormCard
-          backToList={loaderData.backToList}
-          user={savedUser}
-        />
-      ) : isResettingPassword ? (
-        <InternalUserResetPasswordCard
-          actionData={actionData}
-          cancelHref={loaderData.cancelHref}
-        />
-      ) : canManageInternalUser ? (
-        <InternalUserEditCard
-          actionData={actionData}
-          cancelHref={loaderData.backToList}
-          user={savedUser}
-        />
-      ) : (
-        <InternalUserDetailCard user={savedUser} />
-      )}
+      <UserDetailBody
+        actionData={actionData}
+        backToList={loaderData.backToList}
+        canManageInternalUser={canManageInternalUser}
+        cancelHref={loaderData.cancelHref}
+        isResettingPassword={isResettingPassword}
+        user={savedUser}
+      />
     </section>
   );
+}
+
+function UserDetailBody({
+  actionData,
+  backToList,
+  canManageInternalUser,
+  cancelHref,
+  isResettingPassword,
+  user,
+}: {
+  actionData?: DetailActionData;
+  backToList: string;
+  canManageInternalUser: boolean;
+  cancelHref: string;
+  isResettingPassword: boolean;
+  user: DetailUser;
+}) {
+  if (user.userType === "academy") {
+    return <AcademyUserFormCard backToList={backToList} user={user} />;
+  }
+
+  if (isResettingPassword) {
+    return (
+      <InternalUserResetPasswordCard
+        actionData={actionData}
+        cancelHref={cancelHref}
+      />
+    );
+  }
+
+  if (canManageInternalUser) {
+    return (
+      <InternalUserEditCard
+        actionData={actionData}
+        cancelHref={backToList}
+        user={user}
+      />
+    );
+  }
+
+  return <InternalUserDetailCard user={user} />;
 }
 
 function UserActionsMenu({
