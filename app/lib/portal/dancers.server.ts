@@ -13,6 +13,10 @@ import {
   type DancerDocumentType,
   type DancerNameInput,
 } from "@/lib/dancers/dancer-records.server";
+import {
+  loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
+  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+} from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
 
 export type DancerListItem = {
@@ -205,22 +209,41 @@ export async function updateDancerForAcademy(
     return validation;
   }
 
-  const [updatedDancer] = await db
-    .update(dancers)
-    .set({
-      firstName: validation.input.firstName,
-      lastName: validation.input.lastName,
-      birthDate: validation.input.birthDate,
-      documentType: validation.input.documentType,
-      documentNumber: validation.input.documentNumber,
-      documentFrontImageStorageKey:
-        validation.input.documentFrontImageStorageKey,
-      documentBackImageStorageKey: validation.input.documentBackImageStorageKey,
-      identityVerifiedAt: null,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
-    .returning();
+  const birthDateChanged = dancer.birthDate !== validation.input.birthDate;
+  const linkedChoreographyEventBases = birthDateChanged
+    ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+        dancerId: dancer.id,
+      })
+    : undefined;
+  const updatedDancer = await db.transaction(async (tx) => {
+    const [savedDancer] = await tx
+      .update(dancers)
+      .set({
+        firstName: validation.input.firstName,
+        lastName: validation.input.lastName,
+        birthDate: validation.input.birthDate,
+        documentType: validation.input.documentType,
+        documentNumber: validation.input.documentNumber,
+        documentFrontImageStorageKey:
+          validation.input.documentFrontImageStorageKey,
+        documentBackImageStorageKey:
+          validation.input.documentBackImageStorageKey,
+        identityVerifiedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
+      .returning();
+
+    if (birthDateChanged) {
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: dancer.id,
+        executor: tx,
+        eventBasesByEventId: linkedChoreographyEventBases,
+      });
+    }
+
+    return savedDancer;
+  });
 
   return { ok: true, dancer: updatedDancer };
 }

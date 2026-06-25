@@ -910,6 +910,111 @@ describe.sequential("portal Bailarines route", () => {
     });
   });
 
+  test("recalculates linked Coreografías when a Bailarín birth date changes", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.birthdate.recalculation@example.com",
+      academyName: "Academia Recálculo",
+    });
+    const event = await createSavedEvent({
+      name: "Regional Recálculo",
+      startsAt: date("2026-05-01T12:00:00Z"),
+      endsAt: date("2026-05-03T12:00:00Z"),
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(event.id, { name: "Inicial" }),
+    );
+    const youngerCategory = await expectCreated(
+      createCategory(event.id, {
+        name: "Menor",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
+    const olderCategory = await expectCreated(
+      createCategory(event.id, {
+        name: "Mayor",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [],
+      }),
+    );
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Recálculo",
+        birthDate: "2014-05-01",
+      })
+      .returning();
+    const [choreography] = await db
+      .insert(choreographies)
+      .values({
+        academyId: session.academyId,
+        eventId: event.id,
+        name: "Solo con recálculo",
+        groupType: "solo",
+        modalityId: modality.id,
+        categoryId: youngerCategory.id,
+        categoryCalculationMode: "oldest",
+        categoryAgeBasis: 12,
+        experienceLevelId: level.id,
+      })
+      .returning();
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+
+    await expectThrownResponse(
+      bailarinesDetalleAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          session.cookie,
+          dancerEditFormData({
+            firstName: "Ana",
+            lastName: "Recálculo",
+            birthDate: "2011-05-01",
+            documentType: "",
+            documentNumber: "",
+          }),
+        ),
+        params: { dancerId: dancer.id },
+      }),
+      302,
+    );
+
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      categoryId: olderCategory.id,
+      categoryAgeBasis: 15,
+      categoryCalculationMode: "oldest",
+      experienceLevelId: null,
+    });
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        where: and(
+          eq(choreographyDancers.choreographyId, choreography.id),
+          eq(choreographyDancers.dancerId, dancer.id),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      ageAtEventStart: 15,
+    });
+  });
+
   test("uploads Bailarín document images and stores their canonical keys", async () => {
     const session = await createAcademySession({
       email: "bailarines.imagenes@example.com",
