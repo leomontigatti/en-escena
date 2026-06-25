@@ -69,27 +69,23 @@ or the name captures meaningful domain intent.
 
 ## File Size And Boundaries
 
-Use file size as a maintainability signal, not as a lint rule to game.
+Use file size as a maintainability rule that protects module boundaries. The
+number is not the design goal; it is the commit gate that forces the design
+conversation before a large file lands.
 
 Guideline:
 
-- Keep a soft maintainability limit around 5500 tokens for routinely edited
-  route, component, and module files. Use `bytes / 4` as the practical estimate
-  when you need a quick check.
-- Use `npm run guardrail:modified-file-size` to review changed application
-  source files that cross the threshold. The guardrail reports tiers at `5500`,
-  `7000`, and `10000` estimated tokens.
-- Treat tier `7000` as a prompt for explicit review justification or a follow-up
-  issue when the file remains large.
-- Treat tier `10000` as a strong refactor candidate unless the file is clearly a
-  deep module with a small public interface.
+- Keep route, component, and module files under 5500 estimated tokens. Use
+  `bytes / 4` as the practical estimate.
+- `npm run check:file-tokens` checks staged application source files and fails
+  when a staged `app` module crosses the 5500-token threshold.
 - Exclude docs, generated files, lockfiles, and public assets from this rule.
   Use normal review judgment there instead of forcing the same threshold.
-- Do not split a file just to hit the number. Split when there is a clear
+- Do not game the number with shallow wrappers. Split when there is a clear
   module boundary that reduces cognitive load for future work.
-- Read the report as a maintainability signal, not a mechanical instruction to
-  split code. Existing large files can still be migrated gradually when a real
-  refactor boundary appears.
+- Existing large files should be migrated before they are next materially edited.
+  If a small emergency fix must touch one, keep the fix narrow and follow with a
+  dedicated boundary refactor before continuing feature work in that file.
 
 Good boundaries include:
 
@@ -113,5 +109,5 @@ prefer tightening naming, removing dead branches, and clarifying sections before
 creating a forced abstraction.
 
 When validating work around a file-size refactor, use the current repo commands
-and order from `docs/agents/codex-workflows.md`, including `npm run typecheck`
-and `npm run test`.
+and order from `docs/agents/codex-workflows.md`, including
+`npm run check:file-tokens`, `npm run typecheck`, and `npm run test`.

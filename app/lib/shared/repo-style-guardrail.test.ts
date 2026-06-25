@@ -9,7 +9,7 @@ import {
   runRepoStyleGuardrail,
 } from "../../../scripts/repo-style-guardrail";
 
-describe("repo style guardrail", () => {
+describe("repo style check", () => {
   test("flags hardcoded Tailwind colors and space utilities while allowing explicit exceptions", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-"),
@@ -65,9 +65,9 @@ describe("repo style guardrail", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"guardrail:repo-style": "node --import tsx scripts/repo-style-guardrail.ts"',
+      '"check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts"',
     );
-    expect(workflowDoc).toContain("`npm run guardrail:repo-style`");
+    expect(workflowDoc).toContain("`npm run check:repo-styles`");
     expect(workflowDoc).toContain("repo-style");
     await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });

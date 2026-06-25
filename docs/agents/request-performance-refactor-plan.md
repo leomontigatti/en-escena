@@ -15,19 +15,22 @@ Confirmed against `docs/agents/codex-workflows.md`, `package.json`, and
 
 Final validation order for this refactor:
 
-1. `npm run format`
-2. `npm run format:check`
-3. `npm run typecheck`
-4. `npm run test`
-5. `npm run test:db` for database-backed route, loader, action, repository, or
+1. `npm run format` when formatting needs to be applied, otherwise
+   `npm run format:check` for final formatting verification
+2. `npm run check:repo-styles` when the change adds or edits app UI code
+3. `npm run check:file-tokens`
+4. `npm run typecheck`
+5. `npm run test`
+6. `npm run test:db` for database-backed route, loader, action, repository, or
    business-rule changes
-6. `npm run build` for routing, server-rendering, bundling, CSS, or deployment
+7. `npm run build` for routing, server-rendering, bundling, CSS, or deployment
    changes
 
 Implementation guardrails that still matter for this PRD:
 
 - `npm run typecheck` remains the required TypeScript entrypoint because it runs
   React Router type generation before `tsc`.
+- `npm run check:file-tokens` is the strict staged-file module-boundary check.
 - `npm run test:db:file -- <path-to-db-test>` is the fast focused DB loop.
 - `npm run test:db` is the final reliable database-backed validation path.
 - `npm run test:db:fast:full` remains experimental and is not the final signoff

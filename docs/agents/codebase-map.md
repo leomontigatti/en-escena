@@ -91,6 +91,6 @@ program and results visibility.
 
 - Run route/type validation with `npm run typecheck`, never `npx tsc`.
 - Use `npm run test:db:file -- <path>` for focused persistence work and `npm run test:db` for final DB confidence.
-- Use `npm run guardrail:repo-style` after UI changes.
-- Use `npm run guardrail:modified-file-size` after touching application source.
+- Use `npm run check:repo-styles` after UI changes.
+- Use `npm run check:file-tokens` before committing staged application source.
 - Performance notes live in `docs/agents/request-performance-baseline.md` and `docs/agents/request-performance-refactor-plan.md`.

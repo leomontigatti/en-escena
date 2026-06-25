@@ -18,33 +18,58 @@ When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
 `sed -n '1,220p' 'app/routes/administracion.eventos_.$eventId.tsx'`.
 
-Recommended validation order after code changes:
+Formatting commands:
 
-1. `npm run format`
-2. `npm run format:check`
-3. `npm run guardrail:repo-style`
-4. `npm run guardrail:modified-file-size`
-5. `npm run typecheck`
-6. `npm run test`
-7. `npm run test:db` when the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-8. `npm run build` when the change touches routing, server rendering, bundling, CSS, or deployment behavior
+- `npm run format` runs `prettier --write .` and changes files in place.
+- `npm run format:check` runs `prettier --check .` and only verifies that the
+  repo is already formatted.
 
-If a command fails, fix that failure and rerun the same command before moving to the next one.
-Do not start a later validation command while an earlier command is still failing
-or while formatting changes are unverified.
+Do not run both as a required pair during normal development. Run
+`npm run format` when you want the repo formatted, then continue with the next
+validation command. Use `npm run format:check` for final verification, CI-style
+checks, or when formatting is already handled by a pre-commit hook such as
+`lint-staged`.
+
+Recommended final validation after code changes:
+
+1. `npm run format:check` when formatting was not just applied with
+   `npm run format`
+2. `npm run check:repo-styles` when the change adds or edits app UI code
+3. `npm run typecheck`
+4. `npm run test` when the change affects runtime behavior, shared modules,
+   route behavior, or UI behavior with meaningful regression risk
+5. `npm run test:db` when the change touches database schema, repositories,
+   loaders/actions that persist data, or persistence-backed business rules
+6. `npm run build` when the change touches routing, server rendering, bundling,
+   CSS, or deployment behavior
+
+If a command fails, fix that failure and rerun the same command before moving to
+the next one. Do not start a later validation command while an earlier command is
+still failing or while formatting changes are unverified.
+
+Hook guidance:
+
+- Keep pre-commit hooks fast and deterministic. Formatting staged files through
+  `lint-staged` is appropriate.
+- The pre-commit hook runs `lint-staged`, `npm run typecheck`, and
+  `npm run check:file-tokens`. Treat that as the minimum commit gate, not as the
+  only validation path for agent work. Hooks can be skipped and may not run in
+  every environment.
+- Prefer running `npm run typecheck` explicitly before finishing. This command
+  must stay as `npm run typecheck`, not `npx tsc`, because it generates React
+  Router route types before TypeScript runs.
 
 During the development loop, prefer focused validation for the area being
 changed before running the broader final checks:
 
-- Run `npm run guardrail:repo-style` when the change adds or edits app UI code.
+- Run `npm run check:repo-styles` when the change adds or edits app UI code.
   This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`
   utilities in application source, while keeping explicit coded exceptions for
   intentional patterns such as the overlapping `AvatarGroup`.
-- Run `npm run guardrail:modified-file-size` when the change touches
-  application source files. It reports changed `app` modules above `5500`
-  estimated tokens (`bytes / 4`) and marks review tiers at `5500`, `7000`, and
-  `10000`. Treat the result as a maintainability signal, not as a mechanical
-  rule to split files without a clear module boundary.
+- `npm run check:file-tokens` is a strict file-token check for staged
+  application source files. It fails when a staged `app` module is above `5500`
+  estimated tokens (`bytes / 4`). Refactor at a clear module boundary before
+  committing instead of adding a large staged file.
 - Run the nearest relevant Vitest file or test name for small non-database
   changes, then run `npm run test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with

@@ -4,9 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const sizeTiers = [10_000, 7_000, 5_500] as const;
-
-type SizeTier = (typeof sizeTiers)[number];
+const maxEstimatedTokens = 5_500;
 
 const sourceFilePattern = /\.(ts|tsx)$/;
 const testFilePattern = /\.test\.(ts|tsx)$/;
@@ -25,22 +23,21 @@ const excludedFileNames = new Set([
   "yarn.lock",
 ]);
 
-export type ModifiedFileSizeViolation = {
+export type FileTokenViolation = {
   estimatedTokens: number;
   filePath: string;
-  tier: SizeTier;
 };
 
-type CheckModifiedFileSizesOptions = {
+type CheckFileTokensOptions = {
   cwd?: string;
   files?: string[];
 };
 
-export async function checkModifiedFileSizes(
-  options: CheckModifiedFileSizesOptions = {},
-): Promise<ModifiedFileSizeViolation[]> {
+export async function checkFileTokens(
+  options: CheckFileTokensOptions = {},
+): Promise<FileTokenViolation[]> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
-  const files = options.files ?? getModifiedFiles(cwd);
+  const files = options.files ?? getStagedFiles(cwd);
 
   return files
     .map((filePath) => path.normalize(filePath))
@@ -50,21 +47,17 @@ export async function checkModifiedFileSizes(
       const estimatedTokens = Math.ceil(
         readFileSync(absolutePath).byteLength / 4,
       );
-      const tier = getTier(estimatedTokens);
 
-      if (tier === null) {
+      if (estimatedTokens <= maxEstimatedTokens) {
         return null;
       }
 
       return {
         estimatedTokens,
         filePath: path.relative(cwd, absolutePath),
-        tier,
       };
     })
-    .filter(
-      (violation): violation is ModifiedFileSizeViolation => violation !== null,
-    )
+    .filter((violation): violation is FileTokenViolation => violation !== null)
     .sort(
       (left, right) =>
         right.estimatedTokens - left.estimatedTokens ||
@@ -72,49 +65,38 @@ export async function checkModifiedFileSizes(
     );
 }
 
-export async function runModifiedFileSizeGuardrail(
-  options: CheckModifiedFileSizesOptions = {},
+export async function runFileTokenCheck(
+  options: CheckFileTokensOptions = {},
 ): Promise<void> {
-  const violations = await checkModifiedFileSizes(options);
+  const violations = await checkFileTokens(options);
 
   if (violations.length === 0) {
     return;
   }
 
   const lines = [
-    "Modified file size guardrail found maintainability review candidates:",
+    `File-token check found staged files above ${maxEstimatedTokens} estimated tokens:`,
     ...violations.map(
       (violation) =>
-        `- ${violation.filePath}: ${violation.estimatedTokens} estimated tokens (tier ${violation.tier})`,
+        `- ${violation.filePath}: ${violation.estimatedTokens} estimated tokens`,
     ),
     "",
-    "Interpret this as a maintainability signal, not a mechanical split rule.",
-    "Tier 7000 should carry explicit review justification or a follow-up issue.",
-    "Tier 10000 should be treated as a strong refactor candidate.",
+    "Split these files at a clear module boundary before committing.",
   ];
 
   throw new Error(lines.join("\n"));
 }
 
-function getModifiedFiles(cwd: string) {
-  const trackedChanges = readNullSeparatedGitOutput(
+function getStagedFiles(cwd: string) {
+  return readNullSeparatedGitOutput(
     cwd,
     "diff",
+    "--cached",
     "--name-only",
     "-z",
     "--diff-filter=ACMR",
-    "HEAD",
     "--",
   );
-  const untrackedChanges = readNullSeparatedGitOutput(
-    cwd,
-    "ls-files",
-    "--others",
-    "--exclude-standard",
-    "-z",
-  );
-
-  return [...new Set([...trackedChanges, ...untrackedChanges])];
 }
 
 function readNullSeparatedGitOutput(cwd: string, ...args: string[]) {
@@ -163,12 +145,8 @@ function isGeneratedPath(filePath: string) {
   );
 }
 
-function getTier(estimatedTokens: number): SizeTier | null {
-  return sizeTiers.find((tier) => estimatedTokens >= tier) ?? null;
-}
-
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
-  runModifiedFileSizeGuardrail().catch((error: unknown) => {
+  runFileTokenCheck().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
     process.exitCode = 1;

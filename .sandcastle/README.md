@@ -80,18 +80,25 @@ Single-issue mode skips the planner, verifies that the issue is open and labeled
 
 Sandcastle prompts must preserve this repo's validation order:
 
-1. `npm run format`
-2. `npm run format:check`
-3. `npm run typecheck`
-4. `npm test`
-5. `npm run test:db` when the change touches database schema, repositories,
+1. `npm run format` when formatting needs to be applied, otherwise
+   `npm run format:check` for final formatting verification
+2. `npm run check:repo-styles` when the change adds or edits app UI code
+3. `npm run check:file-tokens`
+4. `npm run typecheck`
+5. `npm run test`
+6. `npm run test:db` when the change touches database schema, repositories,
    loaders/actions that persist data, or persistence-backed business rules
-6. `npm run build` when the change touches routing, server rendering, bundling,
+7. `npm run build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix it and rerun that same command before starting the next
 validation command. Do not run `typecheck`, tests, DB tests, or build while
-formatting or `format:check` is still broken.
+formatting, `format:check`, repo-style checks, or file-token checks are still
+broken.
+
+`npm run check:file-tokens` is strict for staged application source files.
+Sandcastle agents should split files at real module boundaries before committing
+instead of adding shallow pass-through wrappers to satisfy the token limit.
 
 During development, focused DB tests can target one file:
 

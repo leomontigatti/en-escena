@@ -8,7 +8,7 @@ For each branch:
 
 1. Run `git merge <branch> --no-edit`
 2. If there are merge conflicts, resolve them intelligently by reading both sides and choosing the correct resolution
-3. After resolving conflicts, run validation in this exact order: `npm run format`, `npm run format:check`, `npm run typecheck`, `npm run test`, `npm run test:db` if the merged branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules, and `npm run build` if the merged branch touches routing, server rendering, bundling, CSS, or deployment behavior. `npm run test:db` is the reliable Postgres path through `TEST_DATABASE_URL`; do not use the experimental full PGlite suite (`npm run test:db:fast:full`) as the final confidence check
+3. After resolving conflicts, run validation in this exact order: `npm run format` when formatting needs to be applied, otherwise `npm run format:check` for final formatting verification; `npm run check:repo-styles` when the merged branch adds or edits app UI code; `npm run check:file-tokens`; `npm run typecheck`; `npm run test`; `npm run test:db` if the merged branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules; and `npm run build` if the merged branch touches routing, server rendering, bundling, CSS, or deployment behavior. `npm run test:db` is the reliable Postgres path through `TEST_DATABASE_URL`; do not use the experimental full PGlite suite (`npm run test:db:fast:full`) as the final confidence check
 4. If validation fails, fix the issue and rerun the same command before proceeding to the next command or branch. Do not run validation commands in parallel when later commands depend on earlier code state.
 
 Keep merge fixes minimal. Do not perform a coding-standards or maintainability
@@ -37,8 +37,10 @@ Completed by Sandcastle.
 Verified:
 - npm run format
 - npm run format:check
+- npm run check:repo-styles
+- npm run check:file-tokens
 - npm run typecheck
-- npm test
+- npm run test
 - npm run test:db
 - npm run build
 ```

@@ -6,15 +6,13 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import {
-  checkModifiedFileSizes,
-  runModifiedFileSizeGuardrail,
-} from "../../../scripts/modified-files-size-guardrail";
+  checkFileTokens,
+  runFileTokenCheck,
+} from "../../../scripts/check-file-tokens";
 
-describe("modified files size guardrail", () => {
-  test("reports changed application files above maintainability tiers while excluding non-application files", async () => {
-    const tempRoot = await mkdtemp(
-      path.join(tmpdir(), "modified-files-size-guardrail-"),
-    );
+describe("file-token check", () => {
+  test("reports staged application files above the token limit while excluding non-application files", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "check-file-tokens-"));
 
     try {
       await writeGuardrailFile(
@@ -89,24 +87,22 @@ describe("modified files size guardrail", () => {
         "app/lib/server/__generated__/types.ts",
         createFileContents(9_750),
       );
+      stageAllFiles(tempRoot);
 
-      const violations = await checkModifiedFileSizes({ cwd: tempRoot });
+      const violations = await checkFileTokens({ cwd: tempRoot });
 
       expect(violations).toEqual([
         {
           estimatedTokens: 10_250,
           filePath: "app/lib/server/detail.ts",
-          tier: 10_000,
         },
         {
           estimatedTokens: 7_250,
           filePath: "app/components/overview.tsx",
-          tier: 7_000,
         },
         {
           estimatedTokens: 5_600,
           filePath: "app/routes/review.tsx",
-          tier: 5_500,
         },
       ]);
     } finally {
@@ -114,7 +110,7 @@ describe("modified files size guardrail", () => {
     }
   });
 
-  test("ships a dedicated command and documentation for the maintainability signal", async () => {
+  test("ships a dedicated command and documentation for the strict file-token check", async () => {
     const [packageJson, workflowDoc, codingStandards] = await Promise.all([
       readFile("package.json", "utf8"),
       readFile("docs/agents/codex-workflows.md", "utf8"),
@@ -122,15 +118,14 @@ describe("modified files size guardrail", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"guardrail:modified-file-size": "node --import tsx scripts/modified-files-size-guardrail.ts"',
+      '"check:file-tokens": "node --import tsx scripts/check-file-tokens.ts"',
     );
-    expect(workflowDoc).toContain("`npm run guardrail:modified-file-size`");
-    expect(workflowDoc).toContain("maintainability signal");
-    expect(codingStandards).toContain("7000");
-    expect(codingStandards).toContain("10000");
+    expect(workflowDoc).toContain("`npm run check:file-tokens`");
+    expect(workflowDoc).toContain("strict file-token check");
+    expect(codingStandards).toContain("5500");
 
     await expect(
-      runModifiedFileSizeGuardrail({ cwd: process.cwd(), files: [] }),
+      runFileTokenCheck({ cwd: process.cwd(), files: [] }),
     ).resolves.toBeUndefined();
   });
 });
@@ -168,4 +163,8 @@ function initGitRepository(rootDirectory: string) {
       stdio: "pipe",
     },
   );
+}
+
+function stageAllFiles(rootDirectory: string) {
+  execFileSync("git", ["add", "."], { cwd: rootDirectory, stdio: "pipe" });
 }

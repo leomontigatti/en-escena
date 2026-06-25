@@ -75,7 +75,9 @@ const permanentRuleDocuments = [
     path: "docs/agents/coding-standards.md",
     requiredText: [
       "## File Size And Boundaries",
-      "soft maintainability limit around 5500 tokens",
+      "maintainability rule that protects module boundaries",
+      "5500 estimated tokens",
+      "`npm run check:file-tokens`",
       "`bytes / 4`",
       "Exclude docs, generated files, lockfiles, and public assets",
       "clear module boundary",

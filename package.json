@@ -16,8 +16,8 @@
     "test:db:file": "vitest --config vitest.db.fast.config.ts --run",
     "test:db:file:final": "npm run test:db:file:postgres --",
     "test:db:file:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
-    "guardrail:modified-file-size": "node --import tsx scripts/modified-files-size-guardrail.ts",
-    "guardrail:repo-style": "node --import tsx scripts/repo-style-guardrail.ts",
+    "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
+    "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
@@ -81,6 +81,6 @@
     "vitest": "^3.2.4"
   },
   "lint-staged": {
-    "*": "prettier --write"
+    "*.{css,html,json,md,mdx,mjs,cjs,js,jsx,ts,tsx,yml,yaml}": "prettier --write"
   }
 }
