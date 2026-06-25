@@ -5,8 +5,11 @@ import { describe, expect, test, vi } from "vitest";
 vi.mock("@/lib/admin/dancers/dancers.server", () => ({
   findAdministrativeDancer: vi.fn(),
   setAdministrativeDancerActiveState: vi.fn(),
-  updateAdministrativeDancer: vi.fn(),
   verifyAdministrativeDancerIdentity: vi.fn(),
+}));
+
+vi.mock("@/lib/admin/dancers/dancers-update.server", () => ({
+  updateAdministrativeDancer: vi.fn(),
 }));
 
 vi.mock("@/lib/admin/event-context.server", () => ({

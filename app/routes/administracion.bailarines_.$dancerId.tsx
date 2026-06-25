@@ -27,9 +27,9 @@ import {
 import {
   findAdministrativeDancer,
   setAdministrativeDancerActiveState,
-  updateAdministrativeDancer,
   verifyAdministrativeDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
+import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import {
   requireAdminUser,
   requireInternalUser,

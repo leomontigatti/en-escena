@@ -73,7 +73,7 @@ filters, archive/reactivate flows and admin corrections.
 - Domain: `docs/domain/coreografias.md`, `docs/domain/eventos.md`, `docs/domain/acceso.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`, `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
-- Server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`, `app/lib/people/participation.server.ts`
+- Server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`, `app/lib/people/participation.server.ts`
 - Tests: `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
 
 ## Judging And Results
