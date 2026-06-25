@@ -21,6 +21,13 @@ const snapshotCacheDirectory = path.join(
 );
 const snapshotInputs = [
   new URL("../../app/db/schema.ts", import.meta.url),
+  new URL("../../app/db/schema/access.ts", import.meta.url),
+  new URL("../../app/db/schema/academies.ts", import.meta.url),
+  new URL("../../app/db/schema/audit.ts", import.meta.url),
+  new URL("../../app/db/schema/choreographies.ts", import.meta.url),
+  new URL("../../app/db/schema/core.ts", import.meta.url),
+  new URL("../../app/db/schema/events.ts", import.meta.url),
+  new URL("../../app/db/schema/people.ts", import.meta.url),
   new URL("./pglite-schema.ts", import.meta.url),
   new URL("./pglite-schema-runner.ts", import.meta.url),
   new URL("./push-pglite-schema.ts", import.meta.url),

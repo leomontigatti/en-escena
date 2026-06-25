@@ -29,7 +29,7 @@ export const choreographyCategoryCalculationMode = pgEnum(
 
 export const administrativeAuditEntityType = pgEnum(
   "en_escena_administrative_audit_entity_type",
-  ["professor", "dancer", "user"],
+  ["professor", "dancer", "choreography", "user"],
 );
 
 export const administrativeAuditAction = pgEnum(

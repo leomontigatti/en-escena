@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
+import { createAdministrativeChoreographyAuditEntry } from "@/lib/choreographies/choreography-audit.server";
 import {
   findAdministrativeDancerForMutation,
   toDancerSnapshot,
@@ -130,11 +131,24 @@ export async function updateAdministrativeDancer(input: {
       .returning();
 
     if (birthDateChanged) {
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: existingDancer.id,
-        executor: tx,
-        eventBasesByEventId: linkedChoreographyEventBases,
-      });
+      const choreographyChanges =
+        await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+          dancerId: existingDancer.id,
+          executor: tx,
+          eventBasesByEventId: linkedChoreographyEventBases,
+        });
+
+      for (const choreographyChange of choreographyChanges) {
+        await createAdministrativeChoreographyAuditEntry({
+          choreographyId: choreographyChange.choreographyId,
+          eventId: choreographyChange.eventId,
+          adminUserId: input.adminUserId,
+          reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+          beforeValues: choreographyChange.beforeValues,
+          afterValues: choreographyChange.afterValues,
+          executor: tx,
+        });
+      }
     }
 
     await createAdministrativeDancerAuditEntry({

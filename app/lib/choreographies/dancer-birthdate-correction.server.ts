@@ -15,6 +15,7 @@ import {
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
+import type { ChoreographyBirthDateCorrectionAuditSnapshot } from "@/lib/choreographies/choreography-audit.server";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryExecutor = typeof db | DatabaseExecutor;
@@ -24,7 +25,11 @@ type EligibleChoreographyRow = {
   eventId: string;
   startsAt: Date;
   modalityId: string;
+  categoryId: string | null;
+  categoryAgeBasis: number | null;
+  categoryCalculationMode: "oldest" | "group_tolerance" | "group_average";
   experienceLevelId: string | null;
+  correctedDancerCompetitiveAge: number;
 };
 
 type LinkedDancerRow = {
@@ -35,11 +40,18 @@ type LinkedDancerRow = {
   birthDate: string;
 };
 
+export type LinkedChoreographyBirthDateCorrectionChange = {
+  choreographyId: string;
+  eventId: string;
+  beforeValues: ChoreographyBirthDateCorrectionAuditSnapshot;
+  afterValues: ChoreographyBirthDateCorrectionAuditSnapshot;
+};
+
 export async function recalculateLinkedChoreographiesForDancerBirthDateCorrection(input: {
   dancerId: string;
   executor?: QueryExecutor;
   eventBasesByEventId?: Map<string, EventBases>;
-}) {
+}): Promise<LinkedChoreographyBirthDateCorrectionChange[]> {
   const executor = input.executor ?? db;
   const eligibleChoreographies = await listEligibleChoreographies(
     executor,
@@ -47,7 +59,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   );
 
   if (eligibleChoreographies.length === 0) {
-    return;
+    return [];
   }
 
   const choreographyIds = eligibleChoreographies.map(
@@ -67,10 +79,14 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 
   const linkedDancersByChoreographyId =
     groupLinkedDancersByChoreographyId(linkedDancers);
+  const changedChoreographies: LinkedChoreographyBirthDateCorrectionChange[] =
+    [];
 
   for (const choreography of eligibleChoreographies) {
+    const choreographyLinkedDancers =
+      linkedDancersByChoreographyId.get(choreography.choreographyId) ?? [];
     const resolvedDancers = toResolvedDancers(
-      linkedDancersByChoreographyId.get(choreography.choreographyId) ?? [],
+      choreographyLinkedDancers,
       getEventLocalDateParts(choreography.startsAt),
     );
     const eventBases =
@@ -81,6 +97,35 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       modalityId: choreography.modalityId,
       dancers: resolvedDancers,
     });
+    const correctedDancer = choreographyLinkedDancers.find(
+      (dancer) => dancer.dancerId === input.dancerId,
+    );
+    const correctedResolvedDancer = resolvedDancers.find(
+      (dancer) => dancer.id === input.dancerId,
+    );
+
+    if (!correctedDancer || !correctedResolvedDancer) {
+      continue;
+    }
+
+    const nextCategoryId = getResolvedCategoryId(resolution);
+    const nextCategoryCalculationMode = resolution.categoryCalculationMode;
+    const nextCategoryAgeBasis = resolution.categoryAgeBasis;
+    const nextExperienceLevelId = resolveRetainedExperienceLevelId({
+      currentExperienceLevelId: choreography.experienceLevelId,
+      resolution,
+    });
+    const nextCompetitiveAge = correctedResolvedDancer.ageAtEventStart;
+    const changed =
+      choreography.categoryId !== nextCategoryId ||
+      choreography.categoryCalculationMode !== nextCategoryCalculationMode ||
+      choreography.categoryAgeBasis !== nextCategoryAgeBasis ||
+      choreography.experienceLevelId !== nextExperienceLevelId ||
+      choreography.correctedDancerCompetitiveAge !== nextCompetitiveAge;
+
+    if (!changed) {
+      continue;
+    }
 
     await persistResolvedDancers({
       choreographyId: choreography.choreographyId,
@@ -90,16 +135,38 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     await executor
       .update(choreographies)
       .set({
-        categoryId: getResolvedCategoryId(resolution),
-        categoryCalculationMode: resolution.categoryCalculationMode,
-        categoryAgeBasis: resolution.categoryAgeBasis,
-        experienceLevelId: resolveRetainedExperienceLevelId({
-          currentExperienceLevelId: choreography.experienceLevelId,
-          resolution,
-        }),
+        categoryId: nextCategoryId,
+        categoryCalculationMode: nextCategoryCalculationMode,
+        categoryAgeBasis: nextCategoryAgeBasis,
+        experienceLevelId: nextExperienceLevelId,
       })
       .where(eq(choreographies.id, choreography.choreographyId));
+
+    changedChoreographies.push({
+      choreographyId: choreography.choreographyId,
+      eventId: choreography.eventId,
+      beforeValues: buildAuditSnapshot({
+        categoryAgeBasis: choreography.categoryAgeBasis,
+        categoryCalculationMode: choreography.categoryCalculationMode,
+        categoryId: choreography.categoryId,
+        competitiveAge: choreography.correctedDancerCompetitiveAge,
+        eventBases,
+        experienceLevelId: choreography.experienceLevelId,
+        sourceDancer: correctedDancer,
+      }),
+      afterValues: buildAuditSnapshot({
+        categoryAgeBasis: nextCategoryAgeBasis,
+        categoryCalculationMode: nextCategoryCalculationMode,
+        categoryId: nextCategoryId,
+        competitiveAge: nextCompetitiveAge,
+        eventBases,
+        experienceLevelId: nextExperienceLevelId,
+        sourceDancer: correctedDancer,
+      }),
+    });
   }
+
+  return changedChoreographies;
 }
 
 export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrection(input: {
@@ -131,7 +198,11 @@ async function listEligibleChoreographies(
       eventId: choreographies.eventId,
       startsAt: events.startsAt,
       modalityId: choreographies.modalityId,
+      categoryId: choreographies.categoryId,
+      categoryAgeBasis: choreographies.categoryAgeBasis,
+      categoryCalculationMode: choreographies.categoryCalculationMode,
       experienceLevelId: choreographies.experienceLevelId,
+      correctedDancerCompetitiveAge: choreographyDancers.ageAtEventStart,
     })
     .from(choreographyDancers)
     .innerJoin(
@@ -145,6 +216,45 @@ async function listEligibleChoreographies(
         eq(choreographies.hasPresentation, false),
       ),
     );
+}
+
+function buildAuditSnapshot(input: {
+  categoryId: string | null;
+  categoryCalculationMode: EligibleChoreographyRow["categoryCalculationMode"];
+  categoryAgeBasis: number | null;
+  experienceLevelId: string | null;
+  competitiveAge: number;
+  sourceDancer: Pick<LinkedDancerRow, "dancerId" | "firstName" | "lastName">;
+  eventBases: EventBases;
+}): ChoreographyBirthDateCorrectionAuditSnapshot {
+  return {
+    sourceDancer: {
+      id: input.sourceDancer.dancerId,
+      firstName: input.sourceDancer.firstName,
+      lastName: input.sourceDancer.lastName,
+    },
+    category: findNamedRecord(input.eventBases.categories, input.categoryId),
+    categoryCalculationMode: input.categoryCalculationMode,
+    categoryAgeBasis: input.categoryAgeBasis,
+    experienceLevel: findNamedRecord(
+      input.eventBases.experienceLevels,
+      input.experienceLevelId,
+    ),
+    dancerCompetitiveAge: input.competitiveAge,
+  };
+}
+
+function findNamedRecord(
+  records: Array<{ id: string; name: string }>,
+  id: string | null,
+) {
+  if (id === null) {
+    return null;
+  }
+
+  const record = records.find((item) => item.id === id);
+
+  return record ? { id: record.id, name: record.name } : null;
 }
 
 function groupLinkedDancersByChoreographyId(linkedDancers: LinkedDancerRow[]) {

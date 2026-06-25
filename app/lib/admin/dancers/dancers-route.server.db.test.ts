@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, MemoryRouter } from "react-router";
@@ -1083,14 +1083,158 @@ describe.sequential("administracion/bailarines route", () => {
       db
         .select()
         .from(administrativeAuditEntries)
-        .orderBy(administrativeAuditEntries.createdAt),
+        .orderBy(
+          asc(administrativeAuditEntries.createdAt),
+          asc(administrativeAuditEntries.entityType),
+        ),
     ).resolves.toEqual([
       expect.objectContaining({
         action: "update",
+        entityType: "dancer",
         entityId: dancer.id,
+        eventId: event.id,
         reason: "Corrección manual para alinear el legajo.",
         beforeValues: expect.objectContaining({ birthDate: "2014-05-01" }),
         afterValues: expect.objectContaining({ birthDate: "2011-05-01" }),
+      }),
+      expect.objectContaining({
+        action: "update",
+        entityType: "choreography",
+        entityId: choreography.id,
+        eventId: event.id,
+        reason: "Corrección manual para alinear el legajo.",
+        beforeValues: expect.objectContaining({
+          sourceDancer: expect.objectContaining({
+            id: dancer.id,
+          }),
+          category: expect.objectContaining({
+            id: catalog.youngerCategory.id,
+          }),
+          categoryCalculationMode: "oldest",
+          categoryAgeBasis: 12,
+          experienceLevel: expect.objectContaining({
+            id: catalog.level.id,
+          }),
+          dancerCompetitiveAge: 12,
+        }),
+        afterValues: expect.objectContaining({
+          sourceDancer: expect.objectContaining({
+            id: dancer.id,
+          }),
+          category: expect.objectContaining({
+            id: catalog.olderCategory.id,
+          }),
+          categoryCalculationMode: "oldest",
+          categoryAgeBasis: 15,
+          experienceLevel: null,
+          dancerCompetitiveAge: 15,
+        }),
+      }),
+    ]);
+  });
+
+  test("does not create a choreography audit when a birth date correction leaves persisted choreography data unchanged", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.fecha.sin-cambios.academia@example.com",
+      academyName: "Academia Fecha Sin Cambios",
+      contactName: "Nora Sin Cambios",
+      phone: "1515-1515",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lila",
+      lastName: "Umbral",
+      birthDate: "2014-01-10",
+    });
+    const catalog = await createAdministrativeCorrectionCatalog(event.id, {
+      olderCategoryKeepsLevel: true,
+    });
+    const choreography = await createAdministrativeLinkedChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      categoryId: catalog.youngerCategory.id,
+      choreographyName: "Sin cambio competitivo",
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      modalityId: catalog.modality.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.fecha.sin-cambios@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            intent: "update-dancer",
+            firstName: "Lila",
+            lastName: "Umbral",
+            birthDate: "2014-02-20",
+            documentType: "",
+            documentNumber: "",
+            correctionReason:
+              "Corrección administrativa sin impacto competitivo.",
+          }),
+          dancer.id,
+        ),
+      ),
+      302,
+    );
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: {
+          categoryId: true,
+          categoryCalculationMode: true,
+          categoryAgeBasis: true,
+          experienceLevelId: true,
+        },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      categoryId: catalog.youngerCategory.id,
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: 12,
+      experienceLevelId: catalog.level.id,
+    });
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        columns: {
+          ageAtEventStart: true,
+        },
+        where: and(
+          eq(choreographyDancers.choreographyId, choreography.id),
+          eq(choreographyDancers.dancerId, dancer.id),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      ageAtEventStart: 12,
+    });
+    await expect(
+      db
+        .select()
+        .from(administrativeAuditEntries)
+        .orderBy(
+          asc(administrativeAuditEntries.createdAt),
+          asc(administrativeAuditEntries.entityType),
+        ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        action: "update",
+        entityType: "dancer",
+        entityId: dancer.id,
+        reason: "Corrección administrativa sin impacto competitivo.",
+        beforeValues: expect.objectContaining({ birthDate: "2014-01-10" }),
+        afterValues: expect.objectContaining({ birthDate: "2014-02-20" }),
       }),
     ]);
   });
