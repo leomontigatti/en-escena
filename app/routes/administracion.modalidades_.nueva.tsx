@@ -1,12 +1,17 @@
 import { useActionData } from "react-router";
 
-import { action, loader } from "@/lib/admin/events/bases-route.server";
-import { NewEventModalityRouteView } from "@/components/admin/events/event-modalities";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createAdministrativeEventModality } from "@/features/admin/event-modalities/create/server";
+import type { AdministrativeEventModalityActionData } from "@/features/admin/event-modalities/shared";
+import { loadAdministrativeEventModalitiesList } from "@/features/admin/event-modalities/list/server";
+import { AdministrativeEventModalityCreateView } from "@/features/admin/event-modalities/create/view";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
-export { action, loader };
+type AdministracionModalidadNuevaRouteProps = {
+  loaderData: Awaited<ReturnType<typeof loader>>;
+  actionData?: AdministrativeEventModalityActionData;
+};
 
 export const handle = {
   adminBreadcrumbs: [
@@ -15,13 +20,33 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export default function AdminNewModalityRoute({
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventModalitiesList(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return createAdministrativeEventModality(request);
+}
+
+export function AdministracionModalidadNuevaRouteView({
   loaderData,
-}: Route.ComponentProps) {
+  actionData,
+}: AdministracionModalidadNuevaRouteProps) {
+  return (
+    <AdministrativeEventModalityCreateView
+      loaderData={loaderData}
+      actionData={actionData}
+    />
+  );
+}
+
+export default function AdministracionModalidadNuevaRoute({
+  loaderData,
+}: AdministracionModalidadNuevaRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <NewEventModalityRouteView
+    <AdministracionModalidadNuevaRouteView
       loaderData={loaderData}
       actionData={actionData}
     />
