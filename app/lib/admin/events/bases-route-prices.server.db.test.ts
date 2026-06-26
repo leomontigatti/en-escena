@@ -3,10 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { modalities, prices, schedules } from "@/db/schema";
-import {
-  createModality,
-  createSchedule,
-} from "@/lib/events/bases-repository.server";
+import { createModality } from "@/lib/events/bases-repository.server";
 import { loader } from "@/lib/admin/events/bases-route.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
