@@ -89,7 +89,7 @@ filters, archive/reactivate flows and admin corrections.
 - Domain: `docs/domain/coreografias.md`, `docs/domain/eventos.md`, `docs/domain/acceso.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`, `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
-- Server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`, `app/lib/participation/participation.server.ts`
+- Server modules: `app/features/admin/professors/list/server.ts`, `app/features/admin/professors/detail/server.ts`, `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`, `app/lib/participation/participation.server.ts`
 - Tests: `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
 
 ## Admin Migration To app/features/admin
@@ -107,9 +107,9 @@ adapters plus feature-owned flows in the admin feature tree.
 ### Professors
 
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`
-- Current server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`
-- Current UI modules: `app/lib/admin/professors/professor-detail-view.tsx`, `app/lib/admin/professors/professor-detail-form.tsx`, `app/lib/admin/professors/professor-detail-confirmation-dialog.tsx`
-- Current tests: `app/lib/admin/professors/professors-route.server.db.test.ts`
+- Current feature modules: `app/features/admin/professors/list/server.ts`, `app/features/admin/professors/list/view.tsx`, `app/features/admin/professors/detail/server.ts`, `app/features/admin/professors/detail/shared.ts`, `app/features/admin/professors/detail/view.tsx`, `app/features/admin/professors/detail/form.tsx`, `app/features/admin/professors/detail/confirmation-dialog.tsx`
+- Current domain modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`
+- Current tests: `app/features/admin/professors/list/view.test.tsx`, `app/features/admin/professors/detail/view.test.tsx`, `app/lib/admin/professors/professors-route.server.db.test.ts`
 - Migration target: start with app/features/admin/professors/list/ and app/features/admin/professors/detail/, keeping repository and domain behavior in `app/lib` only when it is neutral beyond the admin surface.
 
 ### Dancers

@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { ProfessorConfirmationDialog } from "./professor-detail-confirmation-dialog";
+import { ProfessorConfirmationDialog } from "./confirmation-dialog";
 import {
   ProfessorActionsMenu,
   ProfessorDocumentTypeField,
@@ -17,7 +17,7 @@ import {
   ReadOnlyField,
   useProfessorEditForm,
   useProfessorReasonForm,
-} from "./professor-detail-form";
+} from "./form";
 import {
   formatProfessorDocumentType,
   getInitialDialogIntent,
@@ -32,9 +32,9 @@ import {
   type ProfessorDialogIntent,
   type ProfessorEditFormValues,
   toProfessorEditValues,
-} from "./professor-detail.shared";
+} from "./shared";
 
-type AdministracionProfesorDetalleRouteViewProps = {
+export type AdministracionProfesorDetalleRouteViewProps = {
   actionData?: ProfessorActionError;
   loaderData: ProfessorDetailLoaderData;
 };

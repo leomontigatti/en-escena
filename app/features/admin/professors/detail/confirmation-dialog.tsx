@@ -15,11 +15,11 @@ import {
   type ProfessorConfirmationAction,
   type ProfessorDialogIntent,
   type ProfessorEditFormValues,
-} from "./professor-detail.shared";
+} from "./shared";
 import {
   ProfessorCorrectionReasonField,
   type useProfessorReasonForm,
-} from "./professor-detail-form";
+} from "./form";
 
 type ProfessorReasonFormController = ReturnType<typeof useProfessorReasonForm>;
 

@@ -260,78 +260,6 @@ export function getSubmittedProfessorUpdateValues(
   return isProfessorUpdateValues(actionData?.values) ? actionData.values : null;
 }
 
-export function getProfessorEditValues({
-  actionData,
-  professor,
-}: {
-  actionData: ProfessorActionError | undefined;
-  professor: ProfessorDetailLoaderData["professor"];
-}): ProfessorEditFormValues {
-  const submittedValues = getSubmittedProfessorUpdateValues(actionData);
-
-  return {
-    firstName: submittedValues?.firstName ?? professor.firstName,
-    lastName: submittedValues?.lastName ?? professor.lastName,
-    documentType: submittedValues?.documentType ?? professor.documentType ?? "",
-    documentNumber:
-      submittedValues?.documentNumber ?? professor.documentNumber ?? "",
-  };
-}
-
-export function getProfessorReasonValues(
-  actionData: ProfessorActionError | undefined,
-): ProfessorReasonFormValues {
-  return {
-    correctionReason: actionData?.values.correctionReason ?? "",
-    statusIntent: isProfessorStatusValues(actionData?.values)
-      ? actionData.values.statusIntent
-      : "",
-  };
-}
-
-export function getProfessorEditFieldErrors(
-  fieldErrors: AdministrativeProfessorFieldErrors | undefined,
-): AdministrativeProfessorFieldErrors {
-  if (!fieldErrors) {
-    return emptyProfessorFieldErrors;
-  }
-
-  const { correctionReason: _correctionReason, ...editFieldErrors } =
-    fieldErrors;
-  return editFieldErrors;
-}
-
-export function getProfessorReasonFieldErrors(
-  fieldErrors: AdministrativeProfessorFieldErrors | undefined,
-): AdministrativeProfessorFieldErrors {
-  if (!fieldErrors?.correctionReason) {
-    return emptyProfessorFieldErrors;
-  }
-
-  return {
-    correctionReason: fieldErrors.correctionReason,
-  };
-}
-
-export function getInitialDialogIntent(
-  actionData: ProfessorActionError | undefined,
-  correctionReasonRequired: boolean,
-): ProfessorDialogIntent | null {
-  if (!actionData || !actionData.fieldErrors.correctionReason) {
-    return null;
-  }
-
-  if (isProfessorUpdateValues(actionData.values) && correctionReasonRequired) {
-    return "update-professor";
-  }
-
-  if (isProfessorStatusValues(actionData.values)) {
-    return actionData.values.statusIntent || "archive-professor";
-  }
-
-  return null;
-}
-
 export function toProfessorEditValues(
   values: AdministrativeProfessorUpdateInput,
 ): ProfessorEditFormValues {
@@ -343,6 +271,90 @@ export function toProfessorEditValues(
   };
 }
 
+export function getProfessorEditValues(input: {
+  actionData?: ProfessorActionError;
+  professor: ProfessorDetailLoaderData["professor"];
+}): ProfessorEditFormValues {
+  const submittedValues = getSubmittedProfessorUpdateValues(input.actionData);
+
+  if (submittedValues) {
+    return toProfessorEditValues(submittedValues);
+  }
+
+  return {
+    firstName: input.professor.firstName,
+    lastName: input.professor.lastName,
+    documentType: input.professor.documentType ?? "",
+    documentNumber: input.professor.documentNumber ?? "",
+  };
+}
+
+export function getProfessorReasonValues(
+  actionData?: ProfessorActionError,
+): ProfessorReasonFormValues {
+  if (isProfessorStatusValues(actionData?.values)) {
+    return actionData.values;
+  }
+
+  return {
+    correctionReason: "",
+    statusIntent: "",
+  };
+}
+
+export function getProfessorEditFieldErrors(
+  fieldErrors?: AdministrativeProfessorFieldErrors,
+) {
+  if (!fieldErrors) {
+    return emptyProfessorFieldErrors;
+  }
+
+  return {
+    firstName: fieldErrors.firstName,
+    lastName: fieldErrors.lastName,
+    documentType: fieldErrors.documentType,
+    documentNumber: fieldErrors.documentNumber,
+  } satisfies AdministrativeProfessorFieldErrors;
+}
+
+export function getProfessorReasonFieldErrors(
+  fieldErrors?: AdministrativeProfessorFieldErrors,
+) {
+  if (!fieldErrors) {
+    return emptyProfessorFieldErrors;
+  }
+
+  return {
+    correctionReason: fieldErrors.correctionReason,
+  } satisfies AdministrativeProfessorFieldErrors;
+}
+
+export function getInitialDialogIntent(
+  actionData: ProfessorActionError | undefined,
+  correctionReasonRequired: boolean,
+): ProfessorDialogIntent | null {
+  if (!actionData) {
+    return null;
+  }
+
+  if (
+    isProfessorStatusValues(actionData.values) &&
+    actionData.values.statusIntent !== ""
+  ) {
+    return actionData.values.statusIntent;
+  }
+
+  if (
+    correctionReasonRequired &&
+    isProfessorUpdateValues(actionData.values) &&
+    actionData.fieldErrors.correctionReason
+  ) {
+    return "update-professor";
+  }
+
+  return null;
+}
+
 export function getProfessorDialogFormId(intent: ProfessorDialogIntent | null) {
   switch (intent) {
     case "archive-professor":
@@ -350,7 +362,7 @@ export function getProfessorDialogFormId(intent: ProfessorDialogIntent | null) {
     case "reactivate-professor":
       return "administracion-profesor-reactivate-form";
     case "update-professor":
-      return "administracion-profesor-save-form";
+      return "administracion-profesor-update-form";
     case null:
       return "administracion-profesor-dialog-form";
   }
@@ -372,13 +384,17 @@ function buildCorrectionReasonSchema(required: boolean) {
         return;
       }
 
-      if (
-        value.length < correctionReasonMinLength ||
-        value.length > correctionReasonMaxLength
-      ) {
+      if (value.length < correctionReasonMinLength) {
         context.addIssue({
           code: "custom",
-          message: adminProfessorCorrectionReasonMessage,
+          message: `Ingresá al menos ${correctionReasonMinLength} caracteres.`,
+        });
+      }
+
+      if (value.length > correctionReasonMaxLength) {
+        context.addIssue({
+          code: "custom",
+          message: `Usá hasta ${correctionReasonMaxLength} caracteres.`,
         });
       }
     });
@@ -389,75 +405,52 @@ function validateDocumentPair(
   documentNumber: string,
   context: z.RefinementCtx,
 ) {
-  if (!documentType && !documentNumber) {
+  const hasDocumentType = documentType.length > 0;
+  const hasDocumentNumber = documentNumber.length > 0;
+
+  if (!hasDocumentType && !hasDocumentNumber) {
     return;
   }
 
-  if (!documentType) {
+  if (!hasDocumentType) {
     context.addIssue({
       code: "custom",
+      path: ["documentType"],
       message: "Seleccioná el tipo de documento.",
-      path: ["documentType"],
     });
   }
 
-  if (!documentNumber) {
+  if (!hasDocumentNumber) {
     context.addIssue({
       code: "custom",
+      path: ["documentNumber"],
       message: "Ingresá el número de documento.",
-      path: ["documentNumber"],
     });
   }
-
-  if (!documentType || !documentNumber) {
-    return;
-  }
-
-  if (!isDocumentType(documentType)) {
-    context.addIssue({
-      code: "custom",
-      message: "Seleccioná un tipo de documento válido.",
-      path: ["documentType"],
-    });
-
-    return;
-  }
-
-  if (documentType !== "dni") {
-    return;
-  }
-
-  const normalizedDni = documentNumber.replace(/[.\s-]+/g, "");
-
-  if (!/^\d+$/.test(normalizedDni)) {
-    context.addIssue({
-      code: "custom",
-      message: "Ingresá un DNI válido.",
-      path: ["documentNumber"],
-    });
-  }
-}
-
-function isDocumentType(value: string): value is "dni" | "other" | "passport" {
-  return value === "dni" || value === "passport" || value === "other";
 }
 
 function readProfessorIdFromPath(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
+
   return segments.at(-1) ?? "";
 }
 
 function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
+
   return typeof value === "string" ? value : "";
 }
 
 function readProfessorStatusIntent(
   formData: FormData,
 ): ProfessorReasonFormValues["statusIntent"] {
-  const value = readFormString(formData, "statusIntent");
+  const value = formData.get("statusIntent");
 
-  if (value === "archive-professor" || value === "reactivate-professor") {
+  if (
+    value === "archive-professor" ||
+    value === "reactivate-professor" ||
+    value === ""
+  ) {
     return value;
   }
 

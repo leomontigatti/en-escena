@@ -25,6 +25,7 @@ import {
   createValidatedNativeSubmitHandler,
   useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
+import type { AdministrativeProfessorFieldErrors } from "@/lib/admin/professors/professors.server";
 
 import {
   buildProfessorEditSchema,
@@ -33,8 +34,7 @@ import {
   noDocumentTypeSelectValue,
   type ProfessorEditFormValues,
   type ProfessorReasonFormValues,
-} from "./professor-detail.shared";
-import type { AdministrativeProfessorFieldErrors } from "@/lib/admin/professors/professors.server";
+} from "./shared";
 
 type ProfessorEditFormReturn = UseFormReturn<
   ProfessorEditFormValues,
