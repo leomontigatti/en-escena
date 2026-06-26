@@ -74,6 +74,10 @@ const codebaseMapRequirements = [
   "`app/lib/admin/users/users-route.server.db.test.ts`",
   "`app/lib/storage/dancer-documents.server.ts`",
   "`app/lib/storage/dancer-documents.server.test.ts`",
+];
+
+const adminMigrationMapRequirements = [
+  "## Admin Migration To app/features/admin",
   "`app/routes/administracion.profesores_.$professorId.tsx`",
   "`app/routes/administracion.bailarines_.$dancerId.tsx`",
   "`app/routes/administracion.coreografias.tsx`",
@@ -85,6 +89,8 @@ const codebaseMapRequirements = [
   "`app/routes/administracion.precios_.$priceId.tsx`",
   "`app/features/admin/choreographies/list/server.ts`",
   "`app/lib/admin/events/bases-route.test-helpers.tsx`",
+  "`app/lib/admin/users/internal-user-credentials.server.ts`",
+  "`app/lib/admin/users/internal-user-credentials.shared.ts`",
   "`app/components/admin/events/event-schedules/route-views.tsx`",
   "`app/components/admin/events/event-prices/route-views.tsx`",
   "Keep `app/components/admin` in place for this migration.",
@@ -173,7 +179,10 @@ describe("domain documentation", () => {
   test("keeps a compact implementation map for agent navigation", async () => {
     const map = await readFile("docs/agents/codebase-map.md", "utf8");
 
-    for (const requirement of codebaseMapRequirements) {
+    for (const requirement of [
+      ...codebaseMapRequirements,
+      ...adminMigrationMapRequirements,
+    ]) {
       expect(map).toContain(requirement);
     }
   });

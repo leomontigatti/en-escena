@@ -95,7 +95,7 @@ filters, archive/reactivate flows and admin corrections.
 ## Admin Migration To app/features/admin
 
 Use for the structural migration of the Panel de administración into thin route
-adapters plus feature-owned flows under app/features/admin/....
+adapters plus feature-owned flows in the admin feature tree.
 
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0002-selectable-event-contexts.md`
 - Keep route files in `app/routes` as thin adapters for `loader`, `action`, `meta`, `handle` and minimal route/view wiring.
@@ -110,7 +110,7 @@ adapters plus feature-owned flows under app/features/admin/....
 - Current server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`
 - Current UI modules: `app/lib/admin/professors/professor-detail-view.tsx`, `app/lib/admin/professors/professor-detail-form.tsx`, `app/lib/admin/professors/professor-detail-confirmation-dialog.tsx`
 - Current tests: `app/lib/admin/professors/professors-route.server.db.test.ts`
-- Migration target: start with app/features/admin/professors/list/ and app/features/admin/professors/detail/, keeping repository/domain behavior in `app/lib` only when it is neutral beyond the admin surface.
+- Migration target: start with app/features/admin/professors/list/ and app/features/admin/professors/detail/, keeping repository and domain behavior in `app/lib` only when it is neutral beyond the admin surface.
 
 ### Dancers
 
@@ -118,7 +118,7 @@ adapters plus feature-owned flows under app/features/admin/....
 - Current server modules: `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/admin/dancers/dancers-mutation-helpers.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`
 - Current UI modules: `app/lib/admin/dancers/dancer-detail-view.tsx`, `app/lib/admin/dancers/dancer-detail-form.tsx`, `app/lib/admin/dancers/dancer-detail-confirmation-dialog.tsx`
 - Current tests: `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
-- Migration target: split by `list/` and `detail/` first; keep audit and mutation helpers shared only if both flows still use the same neutral seam after extraction.
+- Migration target: split by `list/` and `detail/` first; keep audit and mutation helpers shared only if both flows still use the same neutral boundary after extraction.
 
 ### Choreographies
 
@@ -131,7 +131,7 @@ adapters plus feature-owned flows under app/features/admin/....
 ### Users
 
 - Routes: `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
-- Current server modules: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/user-invitation.server.ts`, `app/lib/admin/users/user-detail-route.server.ts`
+- Current server modules: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/internal-user-credentials.server.ts`, `app/lib/admin/users/internal-user-credentials.shared.ts`, `app/lib/admin/users/user-invitation.server.ts`, `app/lib/admin/users/user-detail-route.server.ts`
 - Current UI modules: `app/lib/admin/users/user-detail-view.tsx`, `app/lib/admin/users/user-detail-edit-form.tsx`, `app/lib/admin/users/user-detail-password-reset-form.tsx`, `app/lib/admin/users/user-detail-cards.tsx`, `app/lib/admin/users/user-detail-role-field.tsx`
 - Current tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/lib/admin/users/internal-invitation-route.server.db.test.ts`, `app/lib/admin/users/user-invitation.server.db.test.ts`
 - Fixtures: no dedicated admin users fixture helper yet; route and server DB tests are still the discovery seam.
