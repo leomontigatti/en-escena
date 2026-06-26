@@ -12,7 +12,7 @@ Read order for domain work:
 
 - [eventos.md](./eventos.md) - event context, settings, administration and portal shell rules.
 - [acceso.md](./acceso.md) - registration, users, sessions and invitations.
-- [coreografias.md](./coreografias.md) - people, choreography registration, locks and Bases del evento.
+- [coreografias.md](./coreografias.md) - roster links, choreography registration, locks and Bases del evento.
 - [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
 - [finanzas.md](./finanzas.md) - financial states, invoices, payments, account balance and pricing.
 - [rules.md](./rules.md) - index for compatibility.

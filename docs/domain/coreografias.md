@@ -1,8 +1,8 @@
 # Coreografias
 
-Rules for people, choreography registration, locks and Bases del evento.
+Rules for roster links, choreography registration, locks and Bases del evento.
 
-## People
+## Roster
 
 - `Profesor` belongs to an academy, not to a user account.
 - Tipo de documento y número de documento de `Profesor` se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse.
@@ -36,6 +36,30 @@ Rules for people, choreography registration, locks and Bases del evento.
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
 - Academy choreography modification is submitted as one save operation; if a dancer change cannot be confirmed, professor changes in the same submission are not saved.
+
+## Administrative Choreography Lists
+
+- La lista operativa de coreografías del Panel de administración revisa
+  completitud y consistencia de datos para el evento activo.
+- La primera versión de la lista operativa es de solo lectura para usuarios
+  `admin` y `auditor`.
+- La lista operativa muestra únicamente coreografías del evento activo y no
+  actúa como archivo histórico de otros eventos.
+- Si no hay evento activo, la pantalla debe mostrar un estado vacío específico
+  para elegir o activar un evento antes de revisar coreografías.
+- Una coreografía del evento activo se muestra aunque su academia esté archivada
+  o inactiva; la vista administrativa no debe ocultar registros operativos por
+  estado de academia.
+- La lista operativa usa el mismo estado visible que el Portal de academias:
+  `Completa` o `Incompleta`.
+- La primera versión no desglosa los datos operativos pendientes con badges
+  adicionales. Ese detalle puede agregarse después sin cambiar la semántica del
+  estado operativo.
+- La verificación documental de bailarines no afecta el estado operativo de una
+  coreografía.
+- La lista financiera de coreografías y la lista de participación de
+  coreografías son vistas administrativas separadas, no variantes implícitas de
+  la lista operativa.
 
 ## Choreography Registration
 

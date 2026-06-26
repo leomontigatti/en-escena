@@ -28,7 +28,7 @@ import {
 import {
   buildProfessorAnyEventParticipationSql,
   buildProfessorEventParticipationSql,
-} from "@/lib/people/participation.server";
+} from "@/lib/participation/participation.server";
 
 export type AdministrativeProfessorListItem = {
   id: string;

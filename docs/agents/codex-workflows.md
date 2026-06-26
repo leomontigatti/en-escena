@@ -131,6 +131,72 @@ After adding or renaming route files, run `npm run typecheck` and inspect
 form/detail route should not list the list route as its parent unless nesting is
 intentional.
 
+## App Code Placement
+
+Keep React Router files in `app/routes` as thin route entrypoints. A route file
+should own route metadata and adaptation only:
+
+- `meta`
+- `handle`
+- `loader` and `action` functions that delegate to feature/server modules
+- the default route component that wires route data/search params to a feature
+  view
+- route-only re-exports used by existing tests
+
+Do not use route files as the long-term home for table definitions, modal flows,
+form controllers, loader/action business logic, or route-local helper clusters.
+When a route grows past simple adaptation, move the implementation behind a
+feature module.
+
+Use `app/features/<surface>/<feature>/<flow>/` for product-surface workflows
+that belong to one area of the app. The first established pattern is:
+
+```text
+app/features/portal/choreographies/
+|-- list/
+|   |-- server.ts
+|   `-- view.tsx
+|-- create/
+|   |-- server.ts
+|   |-- flow.ts
+|   |-- dialog.tsx
+|   `-- ...
+`-- detail/
+    |-- server.ts
+    |-- view.tsx
+    |-- roster-editor.tsx
+    `-- ...
+```
+
+Inside a feature flow:
+
+- Use `server.ts` for route loader/action implementation, route-specific
+  orchestration, and request/form parsing.
+- Use `view.tsx` for the route-level screen view when the folder name already
+  supplies the context (`list/view.tsx`, `detail/view.tsx`).
+- Use specific filenames for substantial submodules, such as
+  `roster-editor.tsx`, `delete-dialog.tsx`, `flow.ts`, `fields.tsx`, or
+  `formatters.ts`.
+- Co-locate focused tests with the module they exercise when the behavior is
+  feature-specific.
+
+Use `app/lib/<domain>` for domain-neutral modules whose interface is useful
+across product surfaces. Do not move a module from `app/lib` into a feature
+only because one route imports it today. Keep modules such as choreography
+registration resolution, event bases, auth/session policy, and storage adapters
+in `app/lib` when their behavior is not owned by one product surface.
+
+Use `app/components/ui` for shadcn/ui primitives and `app/components/shared`
+for reusable cross-surface UI primitives. Avoid placing feature-specific screens,
+dialogs, tables, or form flows in `app/components/shared`; keep those inside the
+feature folder until at least two product surfaces need the same module through
+a small stable interface.
+
+Use English for code filenames, folder names, symbols, and technical module
+names. Keep Spanish for user-facing UI copy, route path segments that are part
+of the product URL contract, and canonical domain vocabulary documented in
+`CONTEXT.md`.
+
 ## Portal Layout Routes
 
 The academy portal intentionally uses a React Router layout route:

@@ -93,10 +93,10 @@ the repeated schema push and does not require local Postgres.
 - `Academia`: registration and academy-owned data flows depend on user/session
   creation and uniqueness behavior covered by
   `app/lib/academies/registration.server.db.test.ts` and
-  `app/lib/portal/route.server.db.test.ts`.
+  `app/features/portal/shell/server.db.test.ts`.
 - `Coreografia`: choreography registration, ownership, and active-event scoping
   use dense event-scoped joins and transactional writes covered by
-  `app/lib/portal/choreographies.server.db.test.ts`,
+  `app/features/portal/choreographies/detail/server.db.test.ts`,
   `app/lib/choreographies/registration-confirmation.server.db.test.ts`, and
   `app/lib/choreographies/registration-resolution.server.db.test.ts`.
 - `Usuario`: internal user lifecycle, invitation, audit, and suspension flows

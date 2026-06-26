@@ -12,7 +12,7 @@ import {
   readDancerNameOrder,
   readPage,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
+import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
 export function readAdministrativeDancerFilters(
   searchParams: URLSearchParams,

@@ -23,7 +23,7 @@ import type {
 import {
   getDancerEditingEligibility,
   type DancerEditingEligibility,
-} from "@/lib/portal/choreography-people.server";
+} from "@/lib/portal/choreography-roster.server";
 
 export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
@@ -262,7 +262,7 @@ export {
   updateChoreography,
   updateChoreographyDancers,
   updateChoreographyProfessors,
-} from "@/lib/portal/choreography-people.server";
+} from "@/lib/portal/choreography-roster.server";
 export type {
   ChoreographyCategoryCalculationMode,
   ChoreographyDancerOption,
@@ -274,7 +274,7 @@ export type {
   UpdateChoreographyDancersResult,
   UpdateChoreographyProfessorsResult,
   UpdateChoreographyResult,
-} from "@/lib/portal/choreography-people.server";
+} from "@/lib/portal/choreography-roster.server";
 
 export async function deleteChoreography(input: {
   academyId: string;

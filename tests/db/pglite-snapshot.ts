@@ -27,7 +27,7 @@ const snapshotInputs = [
   new URL("../../app/db/schema/choreographies.ts", import.meta.url),
   new URL("../../app/db/schema/core.ts", import.meta.url),
   new URL("../../app/db/schema/events.ts", import.meta.url),
-  new URL("../../app/db/schema/people.ts", import.meta.url),
+  new URL("../../app/db/schema/roster.ts", import.meta.url),
   new URL("./pglite-schema.ts", import.meta.url),
   new URL("./pglite-schema-runner.ts", import.meta.url),
   new URL("./push-pglite-schema.ts", import.meta.url),

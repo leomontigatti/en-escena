@@ -241,7 +241,11 @@ Suite regular con mocks, stubs, reseteo de modulos o mutacion de entorno:
 - `app/lib/auth/access-ui.validation.test.ts`
 - `app/lib/auth/access-recovery.server.test.ts`
 - `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
-- `app/lib/portal/route.render.test.tsx`
+- `app/features/portal/shell/view.test.tsx`
+- `app/features/portal/roster/view-transitions.render.test.tsx`
+- `app/features/portal/profile/action.test.ts`
+- `app/features/portal/profile/view.test.tsx`
+- `app/features/portal/choreographies/request-flow.render.test.tsx`
 - `app/lib/admin/events/events-route.render.test.tsx`
 - `app/lib/admin/route.render.test.tsx`
 
@@ -249,10 +253,13 @@ Suite regular con mutaciones globales de `window`, `document` o runtime DOM:
 
 - `app/components/admin/events/event-prices.test.tsx`
 - `app/components/shared/data-table.test.tsx`
-- `app/lib/portal/coreografia-dancer-editor.test.tsx`
+- `app/features/portal/choreographies/detail/roster-editor.test.tsx`
 - `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`
-- `app/lib/portal/bailarines-dialog.test.tsx`
-- `app/lib/portal/coreografias-create-dialog.render.test.tsx`
+- `app/features/portal/professors/create/submission.test.tsx`
+- `app/features/portal/dancers/create/submission.test.tsx`
+- `app/features/portal/dancers/detail/submission.test.tsx`
+- `app/features/portal/dancers/create/dialog.test.tsx`
+- `app/features/portal/choreographies/create/dialog.render.test.tsx`
 - `app/components/auth/access-ui.test.tsx`
 
 ### Decision
@@ -292,7 +299,7 @@ Crear una linea base repetible:
    - uno chico;
    - uno mediano;
    - uno grande, por ejemplo `app/lib/admin/events/bases-route.server.db.test.ts`
-     o `app/lib/portal/choreographies.server.db.test.ts`.
+     o `app/features/portal/choreographies/detail/server.db.test.ts`.
 4. Medir `npm run test:db` cuando la suite este verde.
 5. Separar tiempos de:
    - `db:test:push`;

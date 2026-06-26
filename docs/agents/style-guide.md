@@ -109,18 +109,20 @@ Reglas:
 
 ## Estados y badges
 
-Usar `Badge` con variantes shadcn existentes. No crear variantes propias para
-`success`, `warning`, `info` u otros estados por ahora.
+Usar `Badge` con las variantes definidas en `app/components/ui/badge.tsx`.
+Las variantes semánticas `success`, `warning` e `info` son parte del sistema
+actual y pueden usarse cuando expresan un estado de producto claro.
 
 Reglas:
 
 - Usar `Badge` en vez de spans custom para estados.
 - Usar `variant="destructive"` para estados negativos cuando corresponda.
-- Para estados no negativos, usar variantes existentes como `default`,
-  `secondary` u `outline`.
-- Si más adelante un estado necesita color semántico propio por legibilidad
-  operativa, definirlo como decisión explícita antes de agregar tokens o
-  variantes.
+- Para estados positivos, informativos o de advertencia, usar `success`,
+  `info` o `warning` cuando esa semántica sea estable y esté documentada por el
+  flujo.
+- Para estados neutros, usar variantes como `default`, `secondary` u `outline`.
+- No agregar variantes nuevas de `Badge` sin decisión explícita de producto y
+  diseño.
 
 ## Botones
 

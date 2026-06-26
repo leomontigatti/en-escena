@@ -1,38 +1,29 @@
 import { useActionData } from "react-router";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   resolveChoreographyDancersIntent,
-  type CoreografiaPeopleEditorActionData,
-} from "@/lib/portal/coreografia-people-editor";
-import { PortalCoreografiaDetalleRouteView } from "@/lib/portal/coreografia-detail";
+  type ChoreographyRosterEditorActionData,
+} from "@/features/portal/choreographies/detail/roster-editor";
+import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import {
-  handlePortalCoreografiaDetalleAction,
-  loadCoreografiaPeopleEditorOptions,
-} from "@/lib/portal/coreografia-detail.server";
-import {
-  findChoreographyForAcademyEvent,
-  getChoreographyDeletionAvailability,
-} from "@/lib/portal/choreographies.server";
-import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
-
-const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
-const readOnlyEventMessage = "Este Evento es de solo lectura.";
+  handlePortalChoreographyDetailRouteAction,
+  loadPortalChoreographyDetail,
+} from "@/features/portal/choreographies/detail/server";
 
 type DancerResolutionActionData = {
   intent: typeof resolveChoreographyDancersIntent;
 };
 
-type ActionData = CoreografiaPeopleEditorActionData;
+type ActionData = ChoreographyRosterEditorActionData;
 
-type PortalCoreografiaDetalleRouteProps = {
+type PortalChoreographyDetailRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: ActionData;
   initialDeleteDialogOpen?: boolean;
 };
 
-type LoaderData = PortalCoreografiaDetalleRouteProps["loaderData"];
+type LoaderData = PortalChoreographyDetailRouteProps["loaderData"];
 
 export const meta = () => [
   { title: "Detalle de Coreografía | Portal de academias | En Escena" },
@@ -49,7 +40,7 @@ export const handle = {
   ],
 } satisfies PortalRouteHandle;
 
-export { PortalCoreografiaDetalleRouteView };
+export { PortalChoreographyDetailRouteView };
 
 export function shouldRevalidate({
   defaultShouldRevalidate,
@@ -72,51 +63,7 @@ export async function loader({
   request: Request;
   params: { choreographyId?: string };
 }) {
-  const { academy } = await requireAcademyUser(request);
-  const choreographyId = params.choreographyId;
-
-  if (!choreographyId) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  const eventContext = await getPortalActiveEventReadinessContext(request);
-  const selectedEventId = eventContext.selectedEvent?.id;
-
-  if (!selectedEventId) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  const choreography = await findChoreographyForAcademyEvent(
-    academy.id,
-    selectedEventId,
-    choreographyId,
-    {
-      isRegistrationOpen: eventContext.isRegistrationOpen,
-    },
-  );
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  const { availableDancers, availableProfessors } =
-    await loadCoreografiaPeopleEditorOptions({
-      academyId: academy.id,
-      choreography,
-    });
-
-  return {
-    choreography,
-    dancerEditingEligibility: choreography.dancerEditingEligibility,
-    availableDancers,
-    availableProfessors,
-    deletionAvailability: getChoreographyDeletionAvailability({
-      isReadOnly: eventContext.isReadOnly,
-      isRegistrationOpen: eventContext.isRegistrationOpen,
-    }),
-    eventContext,
-    successMessage: null,
-  };
+  return await loadPortalChoreographyDetail({ request, params });
 }
 
 export async function action({
@@ -126,35 +73,16 @@ export async function action({
   request: Request;
   params: { choreographyId?: string };
 }) {
-  const { academy } = await requireAcademyUser(request);
-  const choreographyId = readChoreographyId(params);
-  const eventContext = await getPortalActiveEventReadinessContext(request);
-  const selectedEventId = eventContext.selectedEvent?.id;
-
-  if (!selectedEventId) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (eventContext.isReadOnly) {
-    throw new Response(readOnlyEventMessage, { status: 403 });
-  }
-
-  return await handlePortalCoreografiaDetalleAction({
-    academyId: academy.id,
-    choreographyId,
-    eventId: selectedEventId,
-    formData: await request.formData(),
-    isRegistrationOpen: eventContext.isRegistrationOpen,
-  });
+  return await handlePortalChoreographyDetailRouteAction({ request, params });
 }
 
-export default function PortalCoreografiaDetalleRoute({
+export default function PortalChoreographyDetailRoute({
   loaderData,
-}: PortalCoreografiaDetalleRouteProps) {
+}: PortalChoreographyDetailRouteProps) {
   const actionData = getUpdateActionData(useActionData<typeof action>());
 
   return (
-    <PortalCoreografiaDetalleRouteView
+    <PortalChoreographyDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
     />
@@ -169,12 +97,4 @@ function getUpdateActionData(
   }
 
   return actionData.status === "update-error" ? actionData : undefined;
-}
-
-function readChoreographyId(params: { choreographyId?: string }) {
-  if (!params.choreographyId) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  return params.choreographyId;
 }

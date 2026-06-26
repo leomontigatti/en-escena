@@ -25,7 +25,7 @@ import {
   schedules,
   submodalities,
 } from "./events";
-import { dancers, professors } from "./people";
+import { dancers, professors } from "./roster";
 
 export const choreographies = createTable(
   "choreography",

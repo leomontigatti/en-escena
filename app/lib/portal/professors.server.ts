@@ -7,7 +7,7 @@ import {
   normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
 } from "@/lib/portal/professor-records.server";
-import { buildProfessorEventParticipationSql } from "@/lib/people/participation.server";
+import { buildProfessorEventParticipationSql } from "@/lib/participation/participation.server";
 
 export type ProfessorFormField = "firstName" | "lastName";
 

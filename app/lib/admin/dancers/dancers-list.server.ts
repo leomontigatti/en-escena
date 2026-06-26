@@ -15,7 +15,7 @@ import {
   readAdministrativeDancerFilters,
 } from "@/lib/admin/dancers/dancers-list-filters.server";
 import type { AdministrativeDancerListResult } from "@/lib/admin/dancers/dancers.server.types";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
+import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
 export async function listAdministrativeDancers(input: {
   selectedEventId: string | null;

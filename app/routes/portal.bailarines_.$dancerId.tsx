@@ -1,35 +1,22 @@
-import { redirect, useActionData } from "react-router";
+import { useActionData } from "react-router";
 
+import {
+  handlePortalDancerDetailAction,
+  loadPortalDancerDetail,
+} from "@/features/portal/dancers/detail/server";
+import {
+  PortalDancerDetailRouteView,
+  type PortalDancerDetailRouteViewProps,
+} from "@/features/portal/dancers/detail/view";
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import {
-  loadPortalDancerDocumentImageUrls,
-  requirePortalDancer,
-  resolvePortalDancerDocumentImageStorageKeys,
-} from "@/lib/portal/dancer-detail.server";
-import {
-  getClientDocumentImageValidationMessage,
-  readPortalDancerFormValues,
-  readPortalDancerId,
-  readFormString,
-  type PortalDancerDetailActionData,
-  type PortalDancerDetailLoaderData,
-  type PortalDancerStatusIntent,
-} from "@/lib/portal/dancer-detail.shared";
-import { PortalBailarinDetalleRouteView as BailarinDetalleView } from "@/lib/portal/dancer-detail-view";
-import {
-  archiveDancerForAcademy,
-  reactivateDancerForAcademy,
-  updateDancerForAcademy,
-} from "@/lib/portal/dancers.server";
 
-type LoaderData = PortalDancerDetailLoaderData;
-type ActionData = PortalDancerDetailActionData;
+type LoaderData = PortalDancerDetailRouteViewProps["loaderData"];
+type ActionData = Awaited<ReturnType<typeof action>>;
 
-type PortalBailarinDetalleRouteProps = {
+type PortalDancerDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
-  initialStatusDialogIntent?: PortalDancerStatusIntent | null;
+  initialStatusDialogIntent?: PortalDancerDetailRouteViewProps["initialStatusDialogIntent"];
 };
 
 export const meta = () => [
@@ -57,14 +44,7 @@ export async function loader({
   request: Request;
   params: { dancerId?: string };
 }) {
-  const { academy } = await requireAcademyUser(request);
-  const dancerId = readPortalDancerId(params);
-  const dancer = await requirePortalDancer(academy.id, dancerId);
-
-  return {
-    dancer,
-    documentImageUrls: await loadPortalDancerDocumentImageUrls(dancer),
-  };
+  return await loadPortalDancerDetail({ request, params });
 }
 
 export async function action({
@@ -74,102 +54,19 @@ export async function action({
   request: Request;
   params: { dancerId?: string };
 }) {
-  const { academy } = await requireAcademyUser(request);
-  const dancerId = readPortalDancerId(params);
-  const formData = await request.formData();
-  const intent = readFormString(formData, "intent");
-
-  if (intent === "archive-dancer") {
-    await archiveDancerForAcademy(academy.id, dancerId);
-    throw redirect(
-      `/portal/bailarines/${dancerId}?notificacion=bailarin-archivado`,
-    );
-  }
-
-  if (intent === "reactivate-dancer") {
-    await reactivateDancerForAcademy(academy.id, dancerId);
-    throw redirect(
-      `/portal/bailarines/${dancerId}?notificacion=bailarin-reactivado`,
-    );
-  }
-
-  if (intent !== "" && intent !== "update-dancer") {
-    throw new Response("Acción no soportada.", { status: 400 });
-  }
-
-  const submittedValues = readPortalDancerFormValues(formData);
-  const clientImageValidationMessage =
-    getClientDocumentImageValidationMessage(formData);
-
-  if (clientImageValidationMessage) {
-    return {
-      status: "error" as const,
-      message: clientImageValidationMessage,
-      fieldErrors: {},
-      values: submittedValues,
-    };
-  }
-
-  const documentImageStorageKeys =
-    await resolvePortalDancerDocumentImageStorageKeys({
-      academyId: academy.id,
-      dancerId,
-      formData,
-    });
-
-  if (!documentImageStorageKeys.ok) {
-    return {
-      status: "error" as const,
-      message: documentImageStorageKeys.message,
-      fieldErrors: {},
-      values: submittedValues,
-    };
-  }
-
-  const result = await updateDancerForAcademy(academy.id, dancerId, {
-    ...submittedValues,
-    documentFrontImageStorageKey: documentImageStorageKeys.keys.front,
-    documentBackImageStorageKey: documentImageStorageKeys.keys.back,
-  });
-
-  if (!result.ok) {
-    return {
-      status: "error" as const,
-      message: result.error,
-      fieldErrors: result.fieldErrors,
-      values: result.values,
-    };
-  }
-
-  throw redirect(
-    `/portal/bailarines/${dancerId}?notificacion=bailarin-guardado`,
-  );
+  return await handlePortalDancerDetailAction({ request, params });
 }
 
-export function PortalBailarinDetalleRouteView({
-  loaderData,
-  actionData: actionDataOverride,
-  initialStatusDialogIntent = null,
-}: PortalBailarinDetalleRouteProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-
-  return (
-    <BailarinDetalleView
-      loaderData={loaderData}
-      actionData={actionData}
-      initialStatusDialogIntent={initialStatusDialogIntent}
-    />
-  );
-}
+export { PortalDancerDetailRouteView };
+export { PortalDancerDetailRouteView as PortalBailarinDetalleRouteView };
 
 export default function PortalBailarinDetalleRoute({
   loaderData,
-}: PortalBailarinDetalleRouteProps) {
+}: PortalDancerDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <PortalBailarinDetalleRouteView
+    <PortalDancerDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

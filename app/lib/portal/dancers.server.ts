@@ -17,7 +17,7 @@ import {
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
-import { buildDancerEventParticipationSql } from "@/lib/people/participation.server";
+import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
 export type DancerListItem = {
   id: string;

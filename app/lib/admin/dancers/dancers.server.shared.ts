@@ -11,7 +11,7 @@ import type {
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
-} from "@/lib/people/participation.server";
+} from "@/lib/participation/participation.server";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 
 export type AdministrativeDancerMutationRecord = {

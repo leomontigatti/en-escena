@@ -1,0 +1,376 @@
+import { and, eq } from "drizzle-orm";
+import { describe, expect, test } from "vitest";
+
+import { db } from "@/db";
+import {
+  academies,
+  choreographies,
+  choreographyDancers,
+  dancers,
+  user,
+} from "@/db/schema";
+import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createModality } from "@/lib/events/bases-repository.server";
+import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  handlePortalDancersListAction,
+  loadPortalDancersList,
+} from "@/features/portal/dancers/list/server";
+
+import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+
+installDatabaseTestHooks();
+
+describe.sequential("loadPortalDancersList", () => {
+  test("creates normalized dancers and loads active plus archived rows for client filtering", async () => {
+    const ownerSession = await createAcademySession({
+      email: "bailarines.owner@example.com",
+      academyName: "Academia Dueña",
+    });
+    const otherAcademy = await createAcademyRecord({
+      email: "bailarines.other@example.com",
+      academyName: "Academia Ajena",
+    });
+    await db.insert(dancers).values({
+      academyId: ownerSession.academyId,
+      firstName: "Beto",
+      lastName: "Archivado",
+      birthDate: "2013-02-02",
+      active: false,
+    });
+
+    const createResponse = await expectThrownResponse(
+      handlePortalDancersListAction(
+        createPortalPostRequest(
+          "http://localhost/portal/bailarines",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "  juan manuel ",
+            lastName: " cruz de la torre ",
+            birthDate: "2015-04-03",
+          }),
+        ),
+      ),
+      302,
+    );
+    expect(createResponse.headers.get("location")).toBe(
+      "/portal/bailarines?notificacion=bailarin-creado",
+    );
+    await expectThrownResponse(
+      handlePortalDancersListAction(
+        createPortalPostRequest(
+          "http://localhost/portal/bailarines",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "ana",
+            lastName: "ALVAREZ",
+            birthDate: "2014-02-01",
+          }),
+        ),
+      ),
+    );
+    await db.insert(dancers).values({
+      academyId: otherAcademy.id,
+      firstName: "Otra",
+      lastName: "Academia",
+      birthDate: "2013-01-01",
+    });
+
+    const ownerLoaderData = await loadPortalDancersList(
+      new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: ownerSession.cookie },
+      }),
+    );
+
+    expect(ownerLoaderData.dancers).toMatchObject([
+      {
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+        active: true,
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+      {
+        firstName: "Beto",
+        lastName: "Archivado",
+        birthDate: "2013-02-02",
+        active: false,
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+      {
+        firstName: "Juan Manuel",
+        lastName: "Cruz de la Torre",
+        birthDate: "2015-04-03",
+        active: true,
+        documentNumber: null,
+        verificationStatus: "incomplete",
+      },
+    ]);
+    expect(ownerLoaderData.dancers).toHaveLength(3);
+
+    await expect(
+      db.query.dancers.findFirst({
+        where: and(
+          eq(dancers.academyId, ownerSession.academyId),
+          eq(dancers.firstName, "Juan Manuel"),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      firstName: "Juan Manuel",
+      lastName: "Cruz de la Torre",
+      birthDate: "2015-04-03",
+    });
+  });
+
+  test("rejects future dancer birth dates without creating a record", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.future@example.com",
+      academyName: "Academia Futuro",
+    });
+
+    const result = await handlePortalDancersListAction(
+      createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        session.cookie,
+        dancerFormData({
+          firstName: "Martina",
+          lastName: "López",
+          birthDate: "2999-01-01",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        birthDate: "La fecha de nacimiento no puede ser futura.",
+      },
+      values: {
+        firstName: "Martina",
+        lastName: "López",
+        birthDate: "2999-01-01",
+      },
+    });
+    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
+  });
+
+  test("marks dancers linked to active event choreographies as participating", async () => {
+    const event = await createSavedEvent({ name: "En Escena 2026" });
+    await activateEvent(event.id);
+    const session = await createAcademySession({
+      email: "bailarines.participacion@example.com",
+      academyName: "Academia Participacion",
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Participa",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    const [choreography] = await db
+      .insert(choreographies)
+      .values({
+        academyId: session.academyId,
+        eventId: event.id,
+        name: "Solo activo",
+        groupType: "solo",
+        modalityId: modality.id,
+        categoryCalculationMode: "oldest",
+      })
+      .returning();
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+
+    const loaderData = await loadPortalDancersList(
+      new Request("http://localhost/portal/bailarines", {
+        headers: { cookie: session.cookie },
+      }),
+    );
+
+    expect(loaderData.dancers).toMatchObject([
+      {
+        firstName: "Ana",
+        lastName: "Participa",
+        participationStatus: "participating",
+      },
+    ]);
+  });
+});
+
+async function createAcademySession({
+  academyName,
+  email,
+}: {
+  academyName: string;
+  email: string;
+}) {
+  const signUpResult = await createLocalAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
+  });
+
+  await db
+    .update(user)
+    .set({
+      emailVerified: true,
+      role: "academy",
+    })
+    .where(eq(user.id, signUpResult.response.user.id));
+
+  const [academy] = await db
+    .insert(academies)
+    .values({
+      userId: signUpResult.response.user.id,
+      name: academyName,
+      contactName: "Contacto",
+      phone: "1112345678",
+    })
+    .returning();
+
+  return {
+    academyId: academy.id,
+    cookie: createRequestCookie(signUpResult.headers),
+  };
+}
+
+async function createSavedEvent(
+  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
+) {
+  const result = await createEvent({
+    name: "Evento",
+    registrationStartsAt: date("2026-03-01T12:00:00Z"),
+    registrationEndsAt: date("2026-04-30T12:00:00Z"),
+    startsAt: date("2026-05-01T12:00:00Z"),
+    endsAt: date("2026-05-03T12:00:00Z"),
+    ...overrides,
+  });
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  return result.event;
+}
+
+function createPortalPostRequest(
+  requestUrl: string,
+  cookie: string,
+  body: FormData,
+) {
+  return new Request(requestUrl, {
+    method: "POST",
+    headers: { cookie },
+    body,
+  });
+}
+
+function dancerFormData(input: {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+}) {
+  const formData = new FormData();
+  formData.set("intent", "create-dancer");
+  formData.set("firstName", input.firstName);
+  formData.set("lastName", input.lastName);
+  formData.set("birthDate", input.birthDate);
+
+  return formData;
+}
+
+async function createAcademyRecord({
+  academyName,
+  email,
+}: {
+  academyName: string;
+  email: string;
+}) {
+  const [record] = await db
+    .insert(user)
+    .values({
+      email,
+      name: email,
+      emailVerified: true,
+      role: "academy",
+    })
+    .returning();
+  const [academy] = await db
+    .insert(academies)
+    .values({
+      userId: record.id,
+      name: academyName,
+      contactName: "Contacto",
+      phone: "1112345678",
+    })
+    .returning();
+
+  return academy;
+}
+
+function createRequestCookie(headers: Headers) {
+  const setCookie = headers.get("set-cookie");
+
+  if (!setCookie) {
+    throw new Error("Expected access auth to return a session cookie.");
+  }
+
+  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+
+  if (!sessionCookie?.[1]) {
+    throw new Error("Expected access auth to return a session cookie.");
+  }
+
+  return `sb-access-token=${sessionCookie[1]}`;
+}
+
+function date(value: string) {
+  return new Date(value);
+}
+
+async function expectCreated(
+  resultPromise: Promise<{
+    ok: boolean;
+    record?: { id: string };
+  }>,
+) {
+  const result = await resultPromise;
+
+  if (!result.ok || !result.record) {
+    throw new Error("Expected Bases del evento creation to succeed.");
+  }
+
+  return result.record;
+}
+
+async function expectThrownResponse(
+  promise: Promise<unknown>,
+  expectedStatus?: number,
+) {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof Response) {
+      if (expectedStatus !== undefined) {
+        expect(error.status).toBe(expectedStatus);
+      }
+
+      return error;
+    }
+
+    throw error;
+  }
+
+  throw new Error("Expected a Response to be thrown.");
+}

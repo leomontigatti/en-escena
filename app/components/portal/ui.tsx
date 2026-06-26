@@ -67,7 +67,6 @@ import type {
   PortalEventContext,
   PortalShellEventContext,
 } from "@/lib/portal/event-context";
-import { getPortalEventStatusLabel } from "@/lib/portal/route-state";
 
 type PortalShellProps = {
   userEmail: string;
@@ -606,13 +605,13 @@ function isNavigationItemActive(pathname: string, to: string) {
 function getPortalEventStatus(isReadOnly: boolean): EventStatusPresentation {
   if (isReadOnly) {
     return {
-      label: getPortalEventStatusLabel(true),
+      label: "Sin Evento activo",
       variant: "secondary",
     };
   }
 
   return {
-    label: getPortalEventStatusLabel(false),
+    label: "Evento activo",
     variant: "default",
   };
 }

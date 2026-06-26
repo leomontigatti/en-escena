@@ -12,7 +12,7 @@ import { findAdministrativeDancerInscriptions } from "@/lib/admin/dancers/dancer
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
-} from "@/lib/people/participation.server";
+} from "@/lib/participation/participation.server";
 
 export async function findAdministrativeDancer(input: {
   dancerId: string;

@@ -11,11 +11,11 @@ import * as eventsManagementModule from "@/lib/events/management.server";
 import * as eventBasesModule from "@/lib/events/bases.server";
 import * as eventReadinessModule from "@/lib/events/registration-readiness.server";
 import * as portalChoreographiesModule from "@/lib/portal/choreographies.server";
-import * as portalChoreographyPeopleModule from "@/lib/portal/choreography-people.server";
+import * as portalChoreographyRosterModule from "@/lib/portal/choreography-roster.server";
 import * as portalDancersModule from "@/lib/portal/dancers.server";
 import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
-import * as portalProfileModule from "@/lib/portal/academy-profile.server";
+import * as portalProfileModule from "@/features/portal/profile/academy-profile.server";
 import * as choreographyRegistrationModule from "@/lib/choreographies/registration-confirmation.server";
 import { loader as adminLayoutLoader } from "@/routes/administracion";
 import { loader as adminDancersLoader } from "@/routes/administracion.bailarines";
@@ -719,12 +719,12 @@ export async function measureCriticalRequestBaseline(): Promise<
           "mainQueryMs",
         ),
         trackAsync(
-          portalChoreographyPeopleModule,
+          portalChoreographyRosterModule,
           "listProfessorOptionsForChoreography",
           "mainQueryMs",
         ),
         trackAsync(
-          portalChoreographyPeopleModule,
+          portalChoreographyRosterModule,
           "listDancerOptionsForChoreography",
           "mainQueryMs",
         ),
@@ -750,7 +750,7 @@ export async function measureCriticalRequestBaseline(): Promise<
           "eventContextMs",
         ),
         trackAsync(
-          portalChoreographyPeopleModule,
+          portalChoreographyRosterModule,
           "updateChoreography",
           "actionMs",
         ),
