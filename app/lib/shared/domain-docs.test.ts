@@ -61,11 +61,13 @@ const codebaseMapRequirements = [
   "# Codebase Map",
   "## Public Academy Registration",
   "## Access And Internal Users",
-  "## Event Context And Bases Del Evento",
   "## Portal Roster",
   "## Portal Coreografias",
+  "## Admin Shell And Dashboard",
+  "## Admin Users",
+  "## Admin Choreographies",
   "## Admin Roster",
-  "## Admin Migration To app/features/admin",
+  "## Admin Events And Bases Del Evento",
   "## Judging And Results",
   "`app/routes/portal.coreografias.tsx`",
   "`app/lib/portal/choreographies.server.ts`",
@@ -77,7 +79,7 @@ const codebaseMapRequirements = [
 ];
 
 const adminMigrationMapRequirements = [
-  "## Admin Migration To app/features/admin",
+  "## Admin Events And Bases Del Evento",
   "`app/routes/administracion.profesores_.$professorId.tsx`",
   "`app/routes/administracion.bailarines_.$dancerId.tsx`",
   "`app/routes/administracion.coreografias.tsx`",
@@ -87,15 +89,19 @@ const adminMigrationMapRequirements = [
   "`app/routes/administracion.categorias_.$categoryId.tsx`",
   "`app/routes/administracion.cronogramas_.$scheduleId.tsx`",
   "`app/routes/administracion.precios_.$priceId.tsx`",
-  "`app/features/admin/choreographies/list/server.ts`",
+  "`app/features/admin/choreographies/list/`",
   "`app/lib/admin/events/bases-route.test-helpers.tsx`",
   "`app/lib/admin/users/internal-user-credentials.server.ts`",
   "`app/lib/admin/users/internal-user-credentials.shared.ts`",
   "`app/components/admin/events/event-schedules/route-views.tsx`",
   "`app/components/admin/events/event-prices/route-views.tsx`",
-  "Keep `app/components/admin` in place for this migration.",
-  "Put admin-owned workflow code under app/features/admin/<resource>/<flow>/",
-  "Use `app/lib` only for domain-neutral or genuinely cross-surface behavior.",
+  "`app/features/admin/event-modalities/`",
+  "`app/features/admin/event-categories/`",
+  "`app/features/admin/event-schedules/`",
+  "`app/features/admin/event-prices/`",
+  "app/components/admin` remains the stable home for shell/layout primitives",
+  "Shared modules kept in `app/lib` because they stay neutral",
+  "Shared domain modules that remain cross-surface",
 ];
 
 const adrIndexRequirements = [
