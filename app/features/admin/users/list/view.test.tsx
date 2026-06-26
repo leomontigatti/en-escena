@@ -25,6 +25,33 @@ describe("AdministracionUsuariosRouteView", () => {
     );
     expect(markup).not.toContain("No hay Usuarios para mostrar.");
   });
+
+  test("keeps active list filters when linking to a Usuario detail", () => {
+    const markup = renderRoute({
+      filters: {
+        archived: true,
+        query: "Ana Admin",
+        role: "admin",
+        state: "suspended",
+        type: "internal",
+      },
+      users: [
+        {
+          academyName: null,
+          id: "user-1",
+          identifier: "ana.admin",
+          mainRole: "admin",
+          name: "Ana Admin",
+          state: "suspended",
+          userType: "internal",
+        },
+      ],
+    });
+
+    expect(markup).toContain(
+      'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin&amp;tipo=internal&amp;archivado=si"',
+    );
+  });
 });
 
 function renderRoute(

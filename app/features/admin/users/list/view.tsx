@@ -188,47 +188,67 @@ function UsersTable({
   );
 }
 
-function buildInitialUserFilterValues(filters: AdministrativeUserListFilters) {
-  return {
-    status: {
-      ...(filters.archived ? { archivado: "si" } : null),
-      ...(filters.role !== "all" ? { rol: filters.role } : null),
-      ...(filters.state !== "all" ? { estado: filters.state } : null),
-    },
-  };
+function buildInitialUserFilterValues(
+  filters: AdministrativeUserListFilters,
+): Record<string, Record<string, string>> {
+  const values: Record<string, string> = {};
+
+  if (filters.role !== "all") {
+    values.rol = filters.role;
+  }
+
+  if (filters.state !== "all") {
+    values.estado = filters.state;
+  }
+
+  if (filters.type !== "all") {
+    values.tipo = filters.type;
+  }
+
+  if (filters.archived) {
+    values.archivado = "si";
+  }
+
+  if (Object.keys(values).length === 0) {
+    return {};
+  }
+
+  return { status: values };
 }
 
 function buildUserDetailHref(
   filters: AdministrativeUserListFilters,
   userId: string,
 ) {
+  return `/administracion/usuarios/${userId}${buildDetailSearch(filters)}`;
+}
+
+function buildDetailSearch(filters: AdministrativeUserListFilters) {
   const searchParams = new URLSearchParams();
 
   if (filters.query.length > 0) {
     searchParams.set("busqueda", filters.query);
   }
 
-  if (filters.archived) {
-    searchParams.set("archivado", "si");
+  if (filters.state !== "all") {
+    searchParams.set("estado", filters.state);
   }
 
   if (filters.role !== "all") {
     searchParams.set("rol", filters.role);
   }
 
-  if (filters.state !== "all") {
-    searchParams.set("estado", filters.state);
-  }
-
   if (filters.type !== "all") {
     searchParams.set("tipo", filters.type);
   }
 
+  if (filters.archived) {
+    searchParams.set("archivado", "si");
+  }
+
   const search = searchParams.toString();
 
-  return search.length > 0
-    ? `/administracion/usuarios/${userId}?${search}`
-    : `/administracion/usuarios/${userId}`;
+  return search.length > 0 ? `?${search}` : "";
 }
 
 function getRoleLabel(role: AdministrativeUserListRole) {
@@ -239,33 +259,38 @@ function getRoleLabel(role: AdministrativeUserListRole) {
       return "Auditor";
     case "judge":
       return "Juez";
-    default:
+    case "academy":
       return "Academia";
   }
 }
 
 function getTypeLabel(type: AdministrativeUserListType) {
-  return type === "internal" ? "Interno" : "Academia";
+  switch (type) {
+    case "internal":
+      return "Interno";
+    case "academy":
+      return "Usuario de academia";
+  }
 }
 
 function getStateLabel(state: AdministrativeUserListState) {
   switch (state) {
+    case "active":
+      return "Activo";
     case "mandatory-password-change":
       return "Cambio obligatorio";
     case "suspended":
       return "Suspendido";
-    default:
-      return "Activo";
   }
 }
 
 function getStateBadgeVariant(state: AdministrativeUserListState) {
   switch (state) {
+    case "active":
+      return "success";
     case "mandatory-password-change":
       return "warning";
     case "suspended":
       return "destructive";
-    default:
-      return "success";
   }
 }
