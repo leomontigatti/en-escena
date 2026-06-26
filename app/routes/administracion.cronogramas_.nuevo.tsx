@@ -1,12 +1,15 @@
 import { useActionData } from "react-router";
 
-import { NewEventScheduleRouteView } from "@/components/admin/events/event-schedules";
-import { action, loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createAdministrativeEventSchedule } from "@/features/admin/event-schedules/create/server";
+import {
+  AdministrativeEventScheduleCreateView,
+  type AdministrativeEventScheduleCreateViewProps,
+} from "@/features/admin/event-schedules/create/view";
+import type { AdministrativeEventScheduleActionData } from "@/features/admin/event-schedules/shared";
+import { loadAdministrativeEventSchedulesList } from "@/features/admin/event-schedules/list/server";
 
 import type { Route } from "./+types/administracion.cronogramas_.nuevo";
-
-export { action, loader };
 
 export const handle = {
   adminBreadcrumbs: [
@@ -15,13 +18,38 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export default function AdminNewScheduleRoute({
+type AdministracionCronogramaNuevoRouteProps = {
+  actionData?: AdministrativeEventScheduleActionData;
+  loaderData: Awaited<ReturnType<typeof loader>>;
+};
+
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventSchedulesList(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return createAdministrativeEventSchedule(request);
+}
+
+export function AdministracionCronogramaNuevoRouteView({
   loaderData,
-}: Route.ComponentProps) {
+  actionData,
+}: AdministrativeEventScheduleCreateViewProps) {
+  return (
+    <AdministrativeEventScheduleCreateView
+      loaderData={loaderData}
+      actionData={actionData}
+    />
+  );
+}
+
+export default function AdministracionCronogramaNuevoRoute({
+  loaderData,
+}: AdministracionCronogramaNuevoRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <NewEventScheduleRouteView
+    <AdministracionCronogramaNuevoRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

@@ -1,17 +1,28 @@
-import { EventSchedulesRouteView } from "@/components/admin/events/event-schedules";
-import { loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { loadAdministrativeEventSchedulesList } from "@/features/admin/event-schedules/list/server";
+import {
+  AdministrativeEventSchedulesListView,
+  type AdministrativeEventSchedulesListViewProps,
+} from "@/features/admin/event-schedules/list/view";
 
 import type { Route } from "./+types/administracion.cronogramas";
-
-export { loader };
 
 export const handle = {
   adminBreadcrumbs: [{ label: "Cronogramas" }],
 } satisfies AdminRouteHandle;
 
-export default function AdminSchedulesIndexRoute({
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventSchedulesList(request);
+}
+
+export function AdministracionCronogramasRouteView({
   loaderData,
-}: Route.ComponentProps) {
-  return <EventSchedulesRouteView loaderData={loaderData} />;
+}: AdministrativeEventSchedulesListViewProps) {
+  return <AdministrativeEventSchedulesListView loaderData={loaderData} />;
+}
+
+export default function AdministracionCronogramasRoute({
+  loaderData,
+}: AdministrativeEventSchedulesListViewProps) {
+  return <AdministracionCronogramasRouteView loaderData={loaderData} />;
 }
