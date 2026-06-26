@@ -1,12 +1,12 @@
 import { redirect } from "react-router";
 
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
-  defaultEventFormValues,
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createEvent } from "@/lib/events/management.server";
+
 import type { AdministrativeEventCreateActionData } from "./shared";
 
 export async function createAdministrativeEvent(request: Request) {
@@ -40,5 +40,3 @@ export async function createAdministrativeEvent(request: Request) {
     `/administracion/eventos/${result.event.id}?notificacion=evento-guardado`,
   );
 }
-
-export { defaultEventFormValues };

@@ -1,4 +1,4 @@
-import { events as eventsTable } from "@/db/schema";
+import type { events as eventsTable } from "@/db/schema";
 
 type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState =
