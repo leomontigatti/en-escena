@@ -32,7 +32,10 @@ import {
   type ActionData,
   type EventBasesLoaderData,
 } from "@/lib/admin/events/bases-route.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  createSavedEvent as createEventFixture,
+  expectCreated,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import { AdministracionRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
@@ -47,48 +50,13 @@ import { handle as preciosHandle } from "@/routes/administracion.precios";
 import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
 import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
 
-let createdEventOffset = 0;
-
-export async function createSavedEvent(name: string) {
-  const eventOffset = createdEventOffset++;
-  const registrationStartsAt = new Date(
-    Date.UTC(2030 + eventOffset, 2, 1, 12, 0, 0),
-  );
-  const registrationEndsAt = new Date(
-    Date.UTC(2030 + eventOffset, 3, 30, 12, 0, 0),
-  );
-  const startsAt = new Date(Date.UTC(2030 + eventOffset, 4, 1, 12, 0, 0));
-  const endsAt = new Date(Date.UTC(2030 + eventOffset, 4, 3, 12, 0, 0));
-  const result = await createEvent({
-    name,
-    registrationStartsAt,
-    registrationEndsAt,
-    startsAt,
-    endsAt,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
-}
-
-export async function expectCreated(
-  resultPromise: Promise<{
-    ok: boolean;
-    record?: { id: string };
-  }>,
+export async function createSavedEvent(
+  name: string,
+  options: { activate?: boolean } = {},
 ) {
-  const result = await resultPromise;
-
-  if (!result.ok || !result.record) {
-    throw new Error("Expected Bases del evento creation to succeed.");
-  }
-
-  return result.record;
+  return createEventFixture(name, {
+    activate: options.activate ?? true,
+  });
 }
 
 export function renderRoute(
@@ -426,3 +394,4 @@ export function renderScheduleDetailErrorRoute(
 }
 
 export { action };
+export { expectCreated };

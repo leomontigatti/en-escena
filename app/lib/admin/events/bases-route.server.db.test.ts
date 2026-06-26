@@ -19,7 +19,6 @@ import {
   createSchedule,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
-import { activateEvent } from "@/lib/events/management.server";
 import { loader } from "@/lib/admin/events/bases-route.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -48,7 +47,6 @@ installDatabaseTestHooks();
 describe.sequential("administracion Bases del evento routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
     const event = await createSavedEvent("Regional 2026");
-    await activateEvent(event.id);
 
     await expectThrownResponse(
       loader(routeArgs(new Request("http://localhost/administracion/eventos"))),
@@ -141,8 +139,9 @@ describe.sequential("administracion Bases del evento routes", () => {
 
   test("ignores non-active event query and keeps Bases del evento on the Evento activo", async () => {
     const activeEvent = await createSavedEvent("Regional 2026");
-    const inactiveEvent = await createSavedEvent("Nacional 2026");
-    await activateEvent(activeEvent.id);
+    const inactiveEvent = await createSavedEvent("Nacional 2026", {
+      activate: false,
+    });
 
     const request = await createSignedInRequest({
       email: "admin.no.activo@example.com",
@@ -422,7 +421,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 
-  test("creates, edits and deletes Bases del evento through the administration action", async () => {
+  test("creates modalidades, submodalidades, niveles y categorías from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
@@ -505,6 +504,26 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(categoriasMarkup).toContain("Solo");
     expect(categoriasMarkup).toContain("Dúo");
     expect(categoriasMarkup).toContain("Inicial");
+  });
+
+  test("updates niveles y categorías from list actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const level = await expectCreated(
+      createExperienceLevel(event.id, { name: "Inicial" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
+      }),
+    );
 
     const editLevelRequest = await createSignedInRequest({
       email: "admin.edita.nivel@example.com",
@@ -512,7 +531,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
       body: formData({
         intent: "update-experience-level",
-        id: level?.id ?? "",
+        id: level.id,
         name: "Principiante",
       }),
     });
@@ -523,26 +542,23 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     await expect(
       db.query.experienceLevels.findFirst({
-        where: eq(experienceLevels.id, level?.id ?? ""),
+        where: eq(experienceLevels.id, level.id),
       }),
     ).resolves.toMatchObject({ name: "Principiante" });
 
-    const category = await db.query.categories.findFirst({
-      where: eq(categories.name, "Infantil"),
-    });
     const editCategoryRequest = await createSignedInRequest({
       email: "admin.edita.categoria@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/categorias?evento=${event.id}`,
       body: formData({
         intent: "update-category",
-        id: category?.id ?? "",
+        id: category.id,
         name: "Infantil A",
         minAge: "8",
         maxAge: "12",
         groupTypes: ["solo", "duo"],
-        modalityIds: [modality?.id ?? ""],
-        experienceLevelIds: [level?.id ?? ""],
+        modalityIds: [modality.id],
+        experienceLevelIds: [level.id],
       }),
     });
 
@@ -552,20 +568,29 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     await expect(
       db.query.categories.findFirst({
-        where: eq(categories.id, category?.id ?? ""),
+        where: eq(categories.id, category.id),
       }),
     ).resolves.toMatchObject({ name: "Infantil A" });
+  });
 
-    const submodality = await db.query.submodalities.findFirst({
-      where: eq(submodalities.name, "Jazz Funk"),
-    });
+  test("deletes submodalidades from list actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const submodality = await expectCreated(
+      createSubmodality(event.id, {
+        modalityId: modality.id,
+        name: "Jazz funk",
+      }),
+    );
     const deleteSubmodalityRequest = await createSignedInRequest({
       email: "admin.borra.submodalidad@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
       body: formData({
         intent: "delete-submodality",
-        id: submodality?.id ?? "",
+        id: submodality.id,
       }),
     });
 
@@ -575,7 +600,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     await expect(
       db.query.submodalities.findFirst({
-        where: eq(submodalities.id, submodality?.id ?? ""),
+        where: eq(submodalities.id, submodality.id),
       }),
     ).resolves.toBeUndefined();
   });
@@ -1242,10 +1267,9 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("returns Spanish validation errors from Bases del evento actions", async () => {
+  test("returns duplicate modalidad errors from Bases del evento actions", async () => {
     const event = await createSavedEvent("Regional 2026");
-    const modality = await createModality(event.id, { name: "Jazz" });
-    await createExperienceLevel(event.id, { name: "Inicial" });
+    await createModality(event.id, { name: "Jazz" });
     const duplicateRequest = await createSignedInRequest({
       email: "admin.duplicado@example.com",
       role: "admin",
@@ -1264,6 +1288,13 @@ describe.sequential("administracion Bases del evento routes", () => {
         name: " jazz ",
       },
     });
+  });
+
+  test("returns category validation errors from Bases del evento actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
 
     const invalidCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.invalida@example.com",
@@ -1275,8 +1306,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         minAge: "12",
         maxAge: "8",
         groupTypes: ["solo"],
-        modalityIds:
-          modality.ok && modality.record ? [modality.record.id] : [""],
+        modalityIds: [modality.id],
       }),
     });
 
@@ -1296,15 +1326,10 @@ describe.sequential("administracion Bases del evento routes", () => {
         minAge: "12",
         maxAge: "8",
         groupTypes: ["solo"],
-        modalityIds:
-          modality.ok && modality.record ? [modality.record.id] : [""],
+        modalityIds: [modality.id],
         experienceLevelIds: [],
       },
     });
-
-    if (!modality.ok) {
-      throw new Error("Expected modality creation to succeed.");
-    }
 
     await expectCreated(
       createCategory(event.id, {
@@ -1312,7 +1337,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         minAge: 8,
         maxAge: 12,
         groupTypes: ["solo"],
-        modalityIds: [modality.record.id],
+        modalityIds: [modality.id],
         experienceLevelIds: [],
       }),
     );
@@ -1322,7 +1347,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       minAge: "8",
       maxAge: "12",
       groupTypes: ["solo"],
-      modalityIds: [modality.record.id],
+      modalityIds: [modality.id],
       experienceLevelIds: ["Elite"],
     };
     const duplicateCategoryRequest = await createSignedInRequest({
@@ -1347,7 +1372,10 @@ describe.sequential("administracion Bases del evento routes", () => {
       },
       values: duplicateCategoryValues,
     });
+  });
 
+  test("returns precio validation errors from Bases del evento actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
     const createPriceRequest = await createSignedInRequest({
       email: "admin.precio.base@example.com",
       role: "admin",
@@ -1439,7 +1467,13 @@ describe.sequential("administracion Bases del evento routes", () => {
         scheduleId: "",
       },
     });
+  });
 
+  test("returns cronograma and cupo de cronograma required errors from Bases del evento actions", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
     const requiredScheduleRequest = await createSignedInRequest({
       email: "admin.bloque.requerido@example.com",
       role: "admin",
@@ -1485,7 +1519,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         scheduledDate: "2026-05-03",
         startTime: "15:00",
         totalCapacity: 10,
-        modalityIds: modality.ok && modality.record ? [modality.record.id] : [],
+        modalityIds: [modality.id],
       }),
     );
 
