@@ -42,7 +42,7 @@ import {
   noDocumentTypeSelectValue,
   type DancerDetailLoaderData,
   type DancerEditFormValues,
-} from "./dancer-detail.shared";
+} from "./shared";
 
 type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues,

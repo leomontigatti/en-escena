@@ -17,12 +17,12 @@ import {
   DancerCorrectionReasonField,
   type DancerEditFormController,
   type DancerStatusFormController,
-} from "./dancer-detail-form";
+} from "./form";
 import type {
   DancerDialogIntent,
   DancerEditFormValues,
   DancerStatusAction,
-} from "./dancer-detail.shared";
+} from "./shared";
 
 export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation,

@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { DancerConfirmationDialog } from "./dancer-detail-confirmation-dialog";
+import { DancerConfirmationDialog } from "./confirmation-dialog";
 import {
   DancerBirthDateField,
   DancerDocumentTypeField,
@@ -31,7 +31,7 @@ import {
   ReadOnlyField,
   useDancerEditForm,
   useDancerStatusForm,
-} from "./dancer-detail-form";
+} from "./form";
 import {
   formatDancerDocumentType,
   getDancerEditFieldErrors,
@@ -46,7 +46,7 @@ import {
   type DancerActionError,
   type DancerDetailLoaderData,
   type DancerDialogIntent,
-} from "./dancer-detail.shared";
+} from "./shared";
 
 type AdministracionBailarinDetalleRouteViewProps = {
   actionData?: DancerActionError;
