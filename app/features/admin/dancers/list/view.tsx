@@ -153,16 +153,12 @@ function IdentificationBadge({
   identificationStatus: AdminDancerIdentificationStatus;
 }) {
   return (
-    <Badge variant={getIdentificationBadgeVariant(identificationStatus)}>
+    <Badge
+      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
+    >
       {getGroupedDancerIdentificationLabel(identificationStatus)}
     </Badge>
   );
-}
-
-function getIdentificationBadgeVariant(
-  identificationStatus: AdminDancerIdentificationStatus,
-) {
-  return getAdminDancerIdentificationBadgeVariant(identificationStatus);
 }
 
 function getGroupedDancerIdentificationLabel(
@@ -244,13 +240,13 @@ function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
 }
 
 function buildDetailSearch(loaderData: LoaderData) {
-  const searchParams = buildSearchParams(loaderData, loaderData.filters.page);
+  const searchParams = buildSearchParams(loaderData);
   const search = searchParams.toString();
 
   return search.length > 0 ? `?${search}` : "";
 }
 
-function buildSearchParams(loaderData: LoaderData, page: number) {
+function buildSearchParams(loaderData: LoaderData) {
   const searchParams = new URLSearchParams();
 
   if (loaderData.filters.query.length > 0) {
@@ -275,8 +271,8 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
     searchParams.set("identificacion", values.identificacion);
   }
 
-  if (page > 1) {
-    searchParams.set("pagina", String(page));
+  if (loaderData.filters.page > 1) {
+    searchParams.set("pagina", String(loaderData.filters.page));
   }
 
   return searchParams;

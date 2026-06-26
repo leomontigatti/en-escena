@@ -18,11 +18,7 @@ import {
   type DancerEditFormController,
   type DancerStatusFormController,
 } from "./form";
-import type {
-  DancerDialogIntent,
-  DancerEditFormValues,
-  DancerStatusAction,
-} from "./shared";
+import type { DancerDialogIntent, DancerStatusAction } from "./shared";
 
 export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation,

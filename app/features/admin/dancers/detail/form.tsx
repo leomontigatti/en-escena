@@ -40,7 +40,6 @@ import {
   emptyDancerFieldErrors,
   formatDateOnlyLabel,
   noDocumentTypeSelectValue,
-  type DancerDetailLoaderData,
   type DancerEditFormValues,
 } from "./shared";
 
@@ -48,12 +47,6 @@ type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues,
   unknown,
   DancerEditFormValues
->;
-
-type DancerStatusFormReturn = UseFormReturn<
-  AdministrativeDancerStatusInput,
-  unknown,
-  AdministrativeDancerStatusInput
 >;
 
 export function useDancerEditForm({
@@ -396,5 +389,3 @@ export function ReadOnlyDocumentImageField({
 
 export type DancerEditFormController = ReturnType<typeof useDancerEditForm>;
 export type DancerStatusFormController = ReturnType<typeof useDancerStatusForm>;
-export type DancerDetailDocumentUrls =
-  DancerDetailLoaderData["documentImageUrls"];
