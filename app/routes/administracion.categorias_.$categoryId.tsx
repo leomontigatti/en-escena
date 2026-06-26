@@ -1,15 +1,19 @@
 import { useActionData } from "react-router";
 
-import { EventCategoryDetailRouteView } from "@/components/admin/events/event-categories";
-
-import { action, loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import {
+  loadAdministrativeEventCategoryDetail,
+  updateAdministrativeEventCategory,
+} from "@/features/admin/event-categories/detail/server";
+import {
+  AdministrativeEventCategoryDetailView,
+  type AdministrativeEventCategoryDetailViewProps,
+} from "@/features/admin/event-categories/detail/view";
+import type { AdministrativeEventCategoriesLoaderData } from "@/features/admin/event-categories/shared";
 
 import type { Route } from "./+types/administracion.categorias_.$categoryId";
 
-export { action, loader };
-
-type LoaderData = Route.ComponentProps["loaderData"];
+type LoaderData = AdministrativeEventCategoriesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -24,6 +28,28 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventCategoryDetail(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return updateAdministrativeEventCategory(request);
+}
+
+export function AdministracionCategoriaDetalleRouteView({
+  loaderData,
+  actionData,
+  categoryId,
+}: AdministrativeEventCategoryDetailViewProps) {
+  return (
+    <AdministrativeEventCategoryDetailView
+      loaderData={loaderData}
+      actionData={actionData}
+      categoryId={categoryId}
+    />
+  );
+}
+
 export default function AdminCategoryDetailRoute({
   loaderData,
   params,
@@ -31,7 +57,7 @@ export default function AdminCategoryDetailRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <EventCategoryDetailRouteView
+    <AdministracionCategoriaDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
       categoryId={params.categoryId ?? ""}
