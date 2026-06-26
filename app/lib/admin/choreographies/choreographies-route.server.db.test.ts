@@ -172,6 +172,107 @@ describe("administracion/coreografias route", () => {
     expect(markup).not.toContain("/administracion/coreografias/");
     expect(markup).not.toContain("Zeta Histórica");
   });
+
+  test("uses server-side search by choreography and academy name and keeps filtered empties inside the table", async () => {
+    const event = await createSavedEvent();
+    const academyNorth = await createAcademyUser({
+      email: "academia.norte.busqueda@example.com",
+      academyName: "Academia Norte",
+    });
+    const academySouth = await createAcademyUser({
+      email: "academia.sur.busqueda@example.com",
+      academyName: "Academia Sur",
+    });
+    const jazzCatalog = await createEventCatalog(event.id, "Jazz");
+    const contemporaryCatalog = await createEventCatalog(
+      event.id,
+      "Contemporáneo",
+    );
+
+    await createChoreographyRecord({
+      academyId: academyNorth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      musicStorageKey: "music/luna.mp3",
+      name: "Luna Roja",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+
+    await createChoreographyRecord({
+      academyId: academySouth.academy.id,
+      categoryId: contemporaryCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: contemporaryCatalog.level.id,
+      modalityId: contemporaryCatalog.modality.id,
+      musicStorageKey: "music/bosque.mp3",
+      name: "Bosque Azul",
+      scheduleCapacityId: contemporaryCatalog.scheduleCapacity.id,
+      submodalityId: contemporaryCatalog.submodality.id,
+    });
+
+    const { request: nameRequest } = await createSignedInRequest({
+      email: "admin.coreografias.nombre@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Luna`,
+    });
+    const nameData = await loader(routeArgs(nameRequest));
+    const nameMarkup = renderRoute({
+      childLoaderData: nameData,
+      initialEntry: `/administracion/coreografias?busqueda=Luna`,
+      parentLoaderData: {
+        email: "admin.coreografias.nombre@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+
+    expect(nameData.filters.query).toBe("Luna");
+    expect(nameData.choreographies.map((row) => row.name)).toEqual([
+      "Luna Roja",
+    ]);
+    expect(nameMarkup).toContain('value="Luna"');
+    expect(nameMarkup).toContain("busqueda=Luna");
+
+    const { request: academyRequest } = await createSignedInRequest({
+      email: "admin.coreografias.academia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Academia+Sur`,
+    });
+    const academyData = await loader(routeArgs(academyRequest));
+
+    expect(academyData.choreographies.map((row) => row.name)).toEqual([
+      "Bosque Azul",
+    ]);
+
+    const { request: emptyRequest } = await createSignedInRequest({
+      email: "admin.coreografias.vacia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Tap`,
+    });
+    const emptyData = await loader(routeArgs(emptyRequest));
+    const emptyMarkup = renderRoute({
+      childLoaderData: emptyData,
+      initialEntry: `/administracion/coreografias?busqueda=Tap`,
+      parentLoaderData: {
+        email: "admin.coreografias.vacia@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+
+    expect(emptyData.hasAnyChoreography).toBe(true);
+    expect(emptyData.choreographies).toHaveLength(0);
+    expect(emptyMarkup).toContain('value="Tap"');
+    expect(emptyMarkup).toContain(
+      "No hay coreografías que coincidan con la búsqueda o los filtros.",
+    );
+    expect(emptyMarkup).not.toContain(
+      "Todavía no hay coreografías para mostrar.",
+    );
+  });
 });
 
 async function createSignedInRequest(input: {

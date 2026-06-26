@@ -2,15 +2,11 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { Badge } from "@/components/ui/badge";
 import {
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
@@ -29,6 +25,11 @@ type AdministracionCoreografiasRouteViewProps = {
 export function AdministracionCoreografiasRouteView({
   loaderData,
 }: AdministracionCoreografiasRouteViewProps) {
+  const shouldShowTable =
+    loaderData.choreographies.length > 0 ||
+    loaderData.hasAnyChoreography ||
+    loaderData.filters.query.length > 0;
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -40,8 +41,8 @@ export function AdministracionCoreografiasRouteView({
           "Activá un evento para consultar las coreografías registradas por las academias.",
       }}
     >
-      {loaderData.choreographies.length > 0 ? (
-        <ChoreographyTable choreographies={loaderData.choreographies} />
+      {shouldShowTable ? (
+        <ChoreographyTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
           title="Todavía no hay coreografías para mostrar."
@@ -52,56 +53,80 @@ export function AdministracionCoreografiasRouteView({
   );
 }
 
-function ChoreographyTable({
-  choreographies,
-}: {
-  choreographies: ChoreographyRow[];
-}) {
+function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
+  const columns: DataTableColumn<ChoreographyRow>[] = [
+    {
+      id: "nombre",
+      header: "Nombre",
+      className: "w-[22%] font-medium",
+      headerClassName: "w-[22%]",
+      cell: (choreography) => choreography.name,
+      filterValue: (choreography) => choreography.name,
+    },
+    {
+      id: "academia",
+      header: "Academia",
+      className: "w-[22%] text-muted-foreground",
+      headerClassName: "w-[22%]",
+      cell: (choreography) => choreography.academyName,
+      filterValue: (choreography) => choreography.academyName,
+    },
+    {
+      id: "modalidadSubmodalidad",
+      header: "Modalidad / Submodalidad",
+      className: "w-[22%] text-muted-foreground",
+      headerClassName: "w-[22%]",
+      cell: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.modalityName,
+          choreography.submodalityName,
+        ),
+    },
+    {
+      id: "categoriaTipoGrupo",
+      header: "Categoría / Tipo de grupo",
+      className: "w-[22%] text-muted-foreground",
+      headerClassName: "w-[22%]",
+      cell: (choreography) =>
+        formatPrimaryAndSecondaryValue(
+          choreography.categoryName ?? "Sin asignar",
+          formatGroupTypeLabel(choreography.groupType),
+        ),
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      className: "w-[12%]",
+      headerClassName: "w-[12%]",
+      cell: (choreography) => (
+        <Badge
+          variant={getChoreographyOperationalStatusBadgeVariant(
+            choreography.operationalStatus,
+          )}
+        >
+          {formatChoreographyOperationalStatusLabel(
+            choreography.operationalStatus,
+          )}
+        </Badge>
+      ),
+    },
+  ];
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[22%]">Nombre</TableHead>
-          <TableHead className="w-[22%]">Academia</TableHead>
-          <TableHead className="w-[22%]">Modalidad / Submodalidad</TableHead>
-          <TableHead className="w-[22%]">Categoría / Tipo de grupo</TableHead>
-          <TableHead className="w-[12%]">Estado</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {choreographies.map((choreography) => (
-          <TableRow key={choreography.id}>
-            <TableCell className="font-medium">{choreography.name}</TableCell>
-            <TableCell className="text-muted-foreground">
-              {choreography.academyName}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatPrimaryAndSecondaryValue(
-                choreography.modalityName,
-                choreography.submodalityName,
-              )}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatPrimaryAndSecondaryValue(
-                choreography.categoryName ?? "Sin asignar",
-                formatGroupTypeLabel(choreography.groupType),
-              )}
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant={getChoreographyOperationalStatusBadgeVariant(
-                  choreography.operationalStatus,
-                )}
-              >
-                {formatChoreographyOperationalStatusLabel(
-                  choreography.operationalStatus,
-                )}
-              </Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      mode="server"
+      rows={loaderData.choreographies}
+      columns={columns}
+      getRowKey={(choreography) => choreography.id}
+      searchPlaceholder="Buscar coreografía por nombre o academia"
+      initialSearchValue={loaderData.filters.query}
+      emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
+      currentPage={loaderData.filters.page}
+      pageParamName="pagina"
+      searchParamName="busqueda"
+      totalPages={loaderData.totalPages}
+      totalRows={loaderData.totalCount}
+    />
   );
 }
 

@@ -83,6 +83,23 @@ describe("AdministracionCoreografiasRouteView", () => {
     expect(markup).toContain('data-variant="success"');
     expect(markup).toContain('data-variant="warning"');
   });
+
+  test("keeps filtered empty results inside the table when the active event has coreographies", () => {
+    const markup = renderRoute({
+      filters: {
+        page: 1,
+        query: "Sin resultados",
+      },
+      hasAnyChoreography: true,
+    });
+
+    expect(markup).toContain("Buscar coreografía por nombre o academia");
+    expect(markup).toContain('value="Sin resultados"');
+    expect(markup).toContain(
+      "No hay coreografías que coincidan con la búsqueda o los filtros.",
+    );
+    expect(markup).not.toContain("Todavía no hay coreografías para mostrar.");
+  });
 });
 
 function renderRoute(
@@ -97,7 +114,14 @@ function renderRoute(
       createElement(AdministracionCoreografiasRouteView, {
         loaderData: {
           choreographies: [],
+          filters: {
+            page: 1,
+            query: "",
+          },
+          hasAnyChoreography: false,
           selectedEventId: "event_1",
+          totalCount: 0,
+          totalPages: 1,
           ...loaderData,
         },
       }),
