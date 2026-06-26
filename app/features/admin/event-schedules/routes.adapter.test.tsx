@@ -16,6 +16,24 @@ const AdministrativeEventScheduleDetailView = vi.fn(() =>
   createElement("div", null, "Detalle cronograma view"),
 );
 
+const loaderResult = {
+  categories: [],
+  experienceLevels: [],
+  modalities: [],
+  prices: [],
+  schedules: [],
+  selectedEventId: "evento_1",
+  submodalities: [],
+};
+
+function routeArgs(request: Request, params: Record<string, string> = {}) {
+  return {
+    context: {},
+    params,
+    request,
+  } as never;
+}
+
 vi.mock("@/features/admin/event-schedules/list/server", () => ({
   loadAdministrativeEventSchedulesList,
 }));
@@ -45,25 +63,12 @@ describe("administracion.cronogramas route adapters", () => {
   test("delegates loader and render to the admin event schedules list feature module", async () => {
     const routeModule = await import("@/routes/administracion.cronogramas");
     const request = new Request("http://localhost/administracion/cronogramas");
-    const loaderResult = {
-      categories: [],
-      experienceLevels: [],
-      modalities: [],
-      prices: [],
-      schedules: [],
-      selectedEventId: "evento_1",
-      submodalities: [],
-    };
 
     loadAdministrativeEventSchedulesList.mockResolvedValue(loaderResult);
 
-    await expect(
-      routeModule.loader({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
+    await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
+      loaderResult,
+    );
 
     const markup = renderToStaticMarkup(
       routeModule.AdministracionCronogramasRouteView({
@@ -88,15 +93,6 @@ describe("administracion.cronogramas route adapters", () => {
         method: "POST",
       },
     );
-    const loaderResult = {
-      categories: [],
-      experienceLevels: [],
-      modalities: [],
-      prices: [],
-      schedules: [],
-      selectedEventId: "evento_1",
-      submodalities: [],
-    };
     const actionResult = {
       fieldErrors: {},
       message: "Revisá los datos del cronograma.",
@@ -107,20 +103,12 @@ describe("administracion.cronogramas route adapters", () => {
     loadAdministrativeEventSchedulesList.mockResolvedValue(loaderResult);
     createAdministrativeEventSchedule.mockResolvedValue(actionResult);
 
-    await expect(
-      routeModule.loader({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
-    await expect(
-      routeModule.action({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(actionResult);
+    await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
+      loaderResult,
+    );
+    await expect(routeModule.action(routeArgs(request))).resolves.toBe(
+      actionResult,
+    );
 
     const markup = renderToStaticMarkup(
       routeModule.AdministracionCronogramaNuevoRouteView({
@@ -147,15 +135,7 @@ describe("administracion.cronogramas route adapters", () => {
         method: "POST",
       },
     );
-    const loaderResult = {
-      categories: [],
-      experienceLevels: [],
-      modalities: [],
-      prices: [],
-      schedules: [],
-      selectedEventId: "evento_1",
-      submodalities: [],
-    };
+    const params = { scheduleId: "schedule_1" };
     const actionResult = {
       fieldErrors: {},
       message: "No pudimos guardar.",
@@ -166,20 +146,12 @@ describe("administracion.cronogramas route adapters", () => {
     loadAdministrativeEventScheduleDetail.mockResolvedValue(loaderResult);
     updateAdministrativeEventSchedule.mockResolvedValue(actionResult);
 
-    await expect(
-      routeModule.loader({
-        request,
-        params: { scheduleId: "schedule_1" },
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
-    await expect(
-      routeModule.action({
-        request,
-        params: { scheduleId: "schedule_1" },
-        context: {},
-      } as never),
-    ).resolves.toBe(actionResult);
+    await expect(routeModule.loader(routeArgs(request, params))).resolves.toBe(
+      loaderResult,
+    );
+    await expect(routeModule.action(routeArgs(request, params))).resolves.toBe(
+      actionResult,
+    );
 
     const markup = renderToStaticMarkup(
       routeModule.AdministracionCronogramaDetalleRouteView({
