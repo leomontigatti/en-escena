@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
 import { AccessNotice } from "@/components/auth/access-ui";
-import { CreateChoreographyDialog } from "@/features/portal/choreographies/create/dialog";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   DataTable,
@@ -11,17 +10,21 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { getChoreographyOperationalStatusBadgeVariant } from "@/lib/choreographies/operational-status";
 import { Button } from "@/components/ui/button";
+import { CreateChoreographyDialog } from "@/features/portal/choreographies/create/dialog";
+import type { CreateChoreographyDialogLoaderData } from "@/features/portal/choreographies/create/server";
+import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
+import {
+  getChoreographyOperationalStatusBadgeVariant,
+  type ChoreographyOperationalStatus,
+} from "@/lib/choreographies/operational-status";
+import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
   formatOperationalStatusLabel,
   type ChoreographyListItem,
 } from "@/lib/portal/choreographies";
-import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
-import type { CreateChoreographyDialogLoaderData } from "@/features/portal/choreographies/create/server";
 import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
-import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
@@ -165,7 +168,9 @@ function ChoreographyTable({
       id: "status",
       header: "Estado",
       cell: (choreography) => (
-        <OperationalStatusBadge choreography={choreography} />
+        <OperationalStatusBadge
+          operationalStatus={choreography.operationalStatus}
+        />
       ),
       filterValues: (choreography) => [
         choreography.operationalStatus.code,
@@ -249,17 +254,15 @@ function getUniqueSortedOptions(
 }
 
 function OperationalStatusBadge({
-  choreography,
+  operationalStatus,
 }: {
-  choreography: ChoreographyListItem;
+  operationalStatus: ChoreographyOperationalStatus;
 }) {
   return (
     <Badge
-      variant={getChoreographyOperationalStatusBadgeVariant(
-        choreography.operationalStatus,
-      )}
+      variant={getChoreographyOperationalStatusBadgeVariant(operationalStatus)}
     >
-      {formatOperationalStatusLabel(choreography.operationalStatus)}
+      {formatOperationalStatusLabel(operationalStatus)}
     </Badge>
   );
 }

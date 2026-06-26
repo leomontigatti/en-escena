@@ -39,6 +39,7 @@ describe("choreography operational status", () => {
       code: "incomplete",
       pendingItems: ["music", "category", "professors"],
     });
+    expect(incompleteStatus.pendingItems).not.toContain("experienceLevel");
     expect(formatChoreographyOperationalStatusLabel(incompleteStatus)).toBe(
       "Incompleta",
     );
