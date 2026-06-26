@@ -6,13 +6,9 @@ These workflows adapt useful ideas from `mattpocock/course-video-manager` to thi
 
 ## Command Guardrail
 
-Use `npm run typecheck` for type validation.
+Use `pnpm typecheck` for type validation.
 
-Do not run `npx tsc` directly. `npm run typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app.
-
-Out of scope: do not rename these commands for the pnpm migration. This repo's
-DB validation workflow stays on the `npm run ...` scripts documented here until
-the separate pnpm migration work lands.
+Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app.
 
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
@@ -20,69 +16,75 @@ contain `$` segments so the shell does not expand route params. For example, use
 
 Formatting commands:
 
-- `npm run format` runs `prettier --write .` and changes files in place.
-- `npm run format:check` runs `prettier --check .` and only verifies that the
+- `pnpm format` runs `prettier --write .` and changes files in place.
+- `pnpm format:check` runs `prettier --check .` and only verifies that the
   repo is already formatted.
 
 Do not run both as a required pair during normal development. Run
-`npm run format` when you want the repo formatted, then continue with the next
-validation command. Use `npm run format:check` for final verification, CI-style
+`pnpm format` when you want the repo formatted, then continue with the next
+validation command. Use `pnpm format:check` for final verification, CI-style
 checks, or when formatting is already handled by a pre-commit hook such as
 `lint-staged`.
 
 Recommended final validation after code changes:
 
-1. `npm run format:check` when formatting was not just applied with
-   `npm run format`
-2. `npm run check:repo-styles` when the change adds or edits app UI code
-3. `npm run typecheck`
-4. `npm run test` when the change affects runtime behavior, shared modules,
+1. `pnpm format:check` when formatting was not just applied with
+   `pnpm format`
+2. `pnpm check:repo-styles` when the change adds or edits app UI code
+3. `pnpm typecheck`
+4. `pnpm test` when the change affects runtime behavior, shared modules,
    route behavior, or UI behavior with meaningful regression risk
-5. `npm run test:db` when the change touches database schema, repositories,
+5. `pnpm test:db` when the change touches database schema, repositories,
    loaders/actions that persist data, or persistence-backed business rules
-6. `npm run build` when the change touches routing, server rendering, bundling,
+6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to
 the next one. Do not start a later validation command while an earlier command is
 still failing or while formatting changes are unverified.
 
+Run `pnpm typecheck` and `pnpm build` sequentially, never in parallel.
+`pnpm build` cleans and regenerates `build/`, while TypeScript can include
+generated files from that directory during `pnpm typecheck`; running both at the
+same time can produce transient TS6053 missing-file errors that do not represent
+application failures.
+
 Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `npm run typecheck`, and
-  `npm run check:file-tokens`. Treat that as the minimum commit gate, not as the
+- The pre-commit hook runs `lint-staged`, `pnpm typecheck`, and
+  `pnpm check:file-tokens`. Treat that as the minimum commit gate, not as the
   only validation path for agent work. Hooks can be skipped and may not run in
   every environment.
-- Prefer running `npm run typecheck` explicitly before finishing. This command
-  must stay as `npm run typecheck`, not `npx tsc`, because it generates React
+- Prefer running `pnpm typecheck` explicitly before finishing. This command
+  must stay as `pnpm typecheck`, not `pnpm exec tsc`, because it generates React
   Router route types before TypeScript runs.
 
 During the development loop, prefer focused validation for the area being
 changed before running the broader final checks:
 
-- Run `npm run check:repo-styles` when the change adds or edits app UI code.
+- Run `pnpm check:repo-styles` when the change adds or edits app UI code.
   This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`
   utilities in application source, while keeping explicit coded exceptions for
   intentional patterns such as the overlapping `AvatarGroup`.
-- `npm run check:file-tokens` is a strict file-token check for staged
+- `pnpm check:file-tokens` is a strict file-token check for staged
   application source files. It fails when a staged `app` module is above `5500`
   estimated tokens (`bytes / 4`). Refactor at a clear module boundary before
   committing instead of adding a large staged file.
 - Run the nearest relevant Vitest file or test name for small non-database
-  changes, then run `npm run test` before finishing when the change affects
+  changes, then run `pnpm test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with
   meaningful regression risk.
-- Run `npm run test:db:file -- <path-to-db-test>` while iterating on database
+- Run `pnpm test:db:file <path-to-db-test>` while iterating on database
   schema, repositories, loaders/actions that persist data, or
   persistence-backed business rules. This focused path uses the fast PGlite
   harness.
-- For database-backed work, finish with `npm run test:db`. This default DB
+- For database-backed work, finish with `pnpm test:db`. This default DB
   suite is the reliable Postgres path through `TEST_DATABASE_URL`.
-- Run the full applicable command before finishing the work: `npm run test` for
-  the regular suite, `npm run test:db` for database-backed work, and
-  `npm run build` for routing, server rendering, bundling, CSS, or deployment
+- Run the full applicable command before finishing the work: `pnpm test` for
+  the regular suite, `pnpm test:db` for database-backed work, and
+  `pnpm build` for routing, server rendering, bundling, CSS, or deployment
   behavior.
 - Do not use focused runs as the only final validation when the change touches
   a shared interface, cross-surface behavior, schema, or persistence-backed
@@ -94,16 +96,16 @@ validation path still needs elevated local permission because
 PGlite paths do not need that TCP access. When requesting persistent approval,
 use these scoped prefixes:
 
-- `npm run test:db`
-- `npm run test:db:final`
-- `npm run test:db:postgres`
-- `npm run test:db:file:final`
-- `npm run test:db:file:postgres`
+- `pnpm test:db`
+- `pnpm test:db:final`
+- `pnpm test:db:postgres`
+- `pnpm test:db:file:final`
+- `pnpm test:db:file:postgres`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
 This approval is operational only; it does not change the reliable validation
-target. `npm run test:db:postgres` must continue to use `TEST_DATABASE_URL`,
+target. `pnpm test:db:postgres` must continue to use `TEST_DATABASE_URL`,
 not production or preview data.
 
 ## React Router Flat Routes
@@ -126,7 +128,7 @@ Do not use `administracion.eventos.$eventId.tsx` or
 the child route matches but the user keeps seeing the parent list instead of the
 detail or form screen.
 
-After adding or renaming route files, run `npm run typecheck` and inspect
+After adding or renaming route files, run `pnpm typecheck` and inspect
 `.react-router/types/+routes.ts` when route parentage matters. The target
 form/detail route should not list the list route as its parent unless nesting is
 intentional.
@@ -257,7 +259,7 @@ The Panel de administración also uses a React Router layout route:
   `administracion.usuarios_.$userId.tsx`, and
   `administracion.usuarios_.nuevo.tsx`.
 
-After adding or renaming administration route files, run `npm run typecheck`
+After adding or renaming administration route files, run `pnpm typecheck`
 and inspect `.react-router/types/+routes.ts` when parentage matters. Child
 administration routes should list `administracion` as their layout parent, and
 list/detail/form routes should stay siblings of the list route unless the list
@@ -300,27 +302,27 @@ Principles:
 
 The repo has two DB validation paths:
 
-- `npm run test:db:file -- <path>` uses the fast PGlite harness with a cached
+- `pnpm test:db:file <path>` uses the fast PGlite harness with a cached
   schema snapshot for focused iteration.
-- `npm run test:db` is the default reliable suite. It delegates through
-  `npm run test:db:final` to the PostgreSQL validation path. The script creates
+- `pnpm test:db` is the default reliable suite. It delegates through
+  `pnpm test:db:final` to the PostgreSQL validation path. The script creates
   the configured test database when needed, pushes the Drizzle schema, and runs
   `*.db.test.ts` with serial file execution.
-- `npm run test:db:fast:full` keeps the full PGlite suite available for
+- `pnpm test:db:fast:full` keeps the full PGlite suite available for
   harness debugging. It is experimental because the parallel full-suite PGlite
   path has shown worker-initialization instability.
 
 For a focused DB test file during development, use:
 
 ```bash
-npm run test:db:file -- app/lib/example.db.test.ts
+pnpm test:db:file app/lib/example.db.test.ts
 ```
 
-Use `npm run test:db:file -- <path-to-db-test>` while iterating.
-Run the full `npm run test:db` command before finishing work that must prove
+Use `pnpm test:db:file <path-to-db-test>` while iterating.
+Run the full `pnpm test:db` command before finishing work that must prove
 the final reliable DB path.
 When you need the focused PostgreSQL path for comparison or harness debugging,
-run `npm run test:db:file:final -- <path-to-db-test>`.
+run `pnpm test:db:file:final <path-to-db-test>`.
 
 ## Frontend State TDD
 

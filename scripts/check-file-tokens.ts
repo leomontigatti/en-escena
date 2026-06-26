@@ -17,11 +17,7 @@ const excludedPathSegments = [
   "coverage/",
 ];
 
-const excludedFileNames = new Set([
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-]);
+const excludedFileNames = new Set(["pnpm-lock.yaml", "yarn.lock"]);
 
 export type FileTokenViolation = {
   estimatedTokens: number;

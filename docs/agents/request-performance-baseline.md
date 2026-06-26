@@ -4,7 +4,7 @@ Baseline captured on 2026-06-22 for issue #133 using the local Postgres-backed
 DB path:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 The rerunnable harness lives in
@@ -65,7 +65,7 @@ forms, `portal.perfil`, and `administracion.usuarios_.nuevo` away from native
 Command:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 Notes:
@@ -141,7 +141,7 @@ entries.
 Command:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 Target comparison against the RHF Submit Standard follow-up:
@@ -173,7 +173,7 @@ loading into:
 Command:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 Target comparison against the RHF Submit Standard follow-up:
@@ -202,7 +202,7 @@ returns only modalities and submodalities for the first create-flow steps.
 Command:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 Target comparison against the create-options deferral follow-up:
@@ -229,7 +229,7 @@ options in parallel inside the `portal.coreografias_.$choreographyId` loader.
 Command:
 
 ```bash
-REQUEST_PERFORMANCE_BASELINE_LOG=1 npm run test:db:file:final -- tests/request-performance/critical-request-baseline.db.test.ts
+REQUEST_PERFORMANCE_BASELINE_LOG=1 pnpm test:db:file:final tests/request-performance/critical-request-baseline.db.test.ts
 ```
 
 Target comparison against the slim create-options follow-up:

@@ -8,8 +8,8 @@ mismo source de schema que hoy usan los tests DB (`app/db/schema.ts`).
 - Archivo piloto: `tests/db/pglite.db.test.ts`
 - Helper in-process: `tests/db/pglite.ts`
 - Bootstrap del schema: `tests/db/push-pglite-schema.ts`
-- Workflow Postgres preservado: `npm run test:db` y
-  `npm run test:db:file:postgres -- <archivo>`
+- Workflow Postgres preservado: `pnpm test:db` y
+  `pnpm test:db:file:postgres <archivo>`
 
 El piloto valida estas capacidades contra una base in-process y aislada en un
 directorio temporal:
@@ -49,8 +49,8 @@ comportan como espera la app.
 - Como POC, PGlite es suficientemente fiel para seguir evaluando un harness mas
   rapido con schema in-process.
 - En el workflow actual, PGlite se usa para corridas enfocadas con
-  `npm run test:db:file -- <archivo>`. La suite completa confiable usa
-  Postgres real con `npm run test:db`.
+  `pnpm test:db:file <archivo>`. La suite completa confiable usa
+  Postgres real con `pnpm test:db`.
 - Todavia no es un reemplazo transparente del stack actual porque faltaria
   resolver el bootstrap del schema, la compatibilidad de shape de errores y la
   estabilidad de inicializacion en modo paralelo.

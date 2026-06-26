@@ -5,17 +5,17 @@
 En Escena needs a faster DB feedback loop without losing confidence on rules
 persisted in Postgres. The measured baseline from 2026-06-20 was:
 
-- `npm run db:test:push`: 2.31s fixed cost before every DB run.
-- `npm run test:db:file -- tests/db/harness.db.test.ts`: 4.90s wall clock.
-- `npm run test:db`: 80.32s wall clock for 27 files and 238 passing tests.
+- `pnpm db:test:push`: 2.31s fixed cost before every DB run.
+- `pnpm test:db:file tests/db/harness.db.test.ts`: 4.90s wall clock.
+- `pnpm test:db`: 80.32s wall clock for 27 files and 238 passing tests.
 - Existing DB failures at decision time: none. Issue `#123` revalidated the
   baseline and confirmed there were no preexisting DB failures to discount.
 
 Issue `#127` then scaled the chosen model to the full DB suite with these
 results on 2026-06-20:
 
-- `npm run test:db`: 45.23s wall clock for 28 files and 241 passing tests.
-- `npm run test:db:postgres`: 79.05s wall clock for the same 28 files and 241
+- `pnpm test:db`: 45.23s wall clock for 28 files and 241 passing tests.
+- `pnpm test:db:postgres`: 79.05s wall clock for the same 28 files and 241
   passing tests, including the schema push through `TEST_DATABASE_URL`.
 
 Issue `#124` also completed a PGlite POC against the current schema. The pilot
@@ -65,10 +65,10 @@ Why this option won now:
   before it removes any measured cost in this repo.
 
 This decision does not delete the real Postgres harness. The focused
-`npm run test:db:file -- <path>` path uses the PGlite snapshot harness for fast
-feedback, while `npm run test:db` and `npm run test:db:postgres` preserve the
+`pnpm test:db:file <path>` path uses the PGlite snapshot harness for fast
+feedback, while `pnpm test:db` and `pnpm test:db:postgres` preserve the
 high-fidelity validation path through `TEST_DATABASE_URL`. The full PGlite
-suite remains available as `npm run test:db:fast:full` for harness debugging,
+suite remains available as `pnpm test:db:fast:full` for harness debugging,
 but it is not the default confidence command.
 
 **Amendment on 2026-06-21**
@@ -80,8 +80,8 @@ failed with `PGlite failed to initialize properly` in worker-initialization
 paths. The reliable Postgres suite passed 28 files and 241 tests in about 80s.
 
 Because the parallel PGlite full suite is not currently reliable,
-`npm run test:db` now delegates to the final Postgres path. PGlite remains
-useful for focused TDD via `npm run test:db:file -- <path>`, where it avoids
+`pnpm test:db` now delegates to the final Postgres path. PGlite remains
+useful for focused TDD via `pnpm test:db:file <path>`, where it avoids
 the repeated schema push and does not require local Postgres.
 
 **Fidelity Risks**
@@ -108,7 +108,7 @@ the repeated schema push and does not require local Postgres.
   here because auth flows may surface DB failures differently.
 - `Bases del evento`: event-scoped uniqueness, labels, and readiness inputs are
   covered by the `app/lib/events/bases-repository-*.server.db.test.ts` and
-  `app/lib/admin/events/bases-route-*.server.db.test.ts` files, plus
+  `app/lib/admin/events/event-bases-*.server.db.test.ts` files, plus
   `app/lib/events/registration-readiness.server.db.test.ts`.
 
 **Fallback path**
@@ -118,7 +118,7 @@ unacceptable error-shape adapter burden, unstable schema bootstrap, or a
 surface-specific regression in Evento, Academia, Coreografia, Usuario, Sesion
 de acceso, or Bases del evento, the fallback is real Postgres per worker:
 
-1. Keep `npm run test:db:postgres` on real Postgres as the final confidence
+1. Keep `pnpm test:db:postgres` on real Postgres as the final confidence
    path.
 2. Build a template DB or schema once per run with the current Drizzle schema.
 3. Provision one isolated DB or schema per Vitest worker using

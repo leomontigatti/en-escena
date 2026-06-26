@@ -28,17 +28,16 @@ const deferredProjectSplitDocumentation = [
 ];
 
 const dbWorkflowScopeGuardrails = [
-  "Out of scope: do not rename these commands for the pnpm migration",
-  "Use `npm run test:db:file -- <path-to-db-test>` while iterating",
-  "Run the full `npm run test:db` command before finishing",
-  "Do not run `npx tsc` directly",
+  "Use `pnpm test:db:file <path-to-db-test>` while iterating",
+  "Run the full `pnpm test:db` command before finishing",
+  "Do not run `pnpm exec tsc` directly",
 ];
 
 const localAuthDatabaseModes = [
-  "Fast focused DB validation (`npm run test:db:file -- <archivo>`)",
+  "Fast focused DB validation (`pnpm test:db:file <archivo>`)",
   "does not",
   "require local Postgres once the repo dependencies are installed.",
-  "Final DB validation (`npm run test:db`, `npm run test:db:final` or",
+  "Final DB validation (`pnpm test:db`, `pnpm test:db:final` or",
   "requires local Postgres through",
   "`TEST_DATABASE_URL`.",
 ];
@@ -60,11 +59,11 @@ describe("DB test workflow", () => {
     const focusedFinalDatabaseSuite = scripts["test:db:file:final"];
     const focusedPostgresDatabaseSuite = scripts["test:db:file:postgres"];
 
-    expect(defaultDatabaseSuite).toBe("npm run test:db:final");
+    expect(defaultDatabaseSuite).toBe("pnpm test:db:final");
     expect(focusedDatabaseSuite).toContain("vitest.db.fast.config.ts");
     expect(focusedDatabaseSuite).toContain("--run");
-    expect(finalDatabaseSuite).toBe("npm run test:db:postgres");
-    expect(focusedFinalDatabaseSuite).toBe("npm run test:db:file:postgres --");
+    expect(finalDatabaseSuite).toBe("pnpm test:db:postgres");
+    expect(focusedFinalDatabaseSuite).toBe("pnpm test:db:file:postgres");
     expect(postgresDatabaseSuite).toContain("vitest.db.config.ts");
     expect(postgresDatabaseSuite).toContain("--run");
     expect(focusedPostgresDatabaseSuite).toContain("vitest.db.config.ts");
@@ -100,7 +99,7 @@ describe("DB test workflow", () => {
     }
   });
 
-  test("documents the fast-vs-final DB validation workflow without mixing in the pnpm migration", async () => {
+  test("documents the fast-vs-final DB validation workflow", async () => {
     const workflowDoc = await readFile(
       "docs/agents/codex-workflows.md",
       "utf8",

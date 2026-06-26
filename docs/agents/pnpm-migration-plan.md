@@ -5,6 +5,10 @@ como gestor de paquetes. No es prerequisito para acelerar la suite DB, pero
 puede mejorar tiempos de instalacion, uso de disco y consistencia con
 `mattpocock/course-video-manager`.
 
+Estado actual: la migracion operativa usa `pnpm`. Mantener este documento como
+registro de decisiones y checklist para revisar cambios futuros relacionados con
+instalacion, lockfiles o automatizacion.
+
 ## Objetivo
 
 Adoptar `pnpm` sin cambiar comportamiento de la app, tests ni scripts de
@@ -13,7 +17,7 @@ validacion.
 La migracion debe preservar estas reglas del repo:
 
 - Para TypeScript, seguir usando el script del proyecto: `pnpm run typecheck`.
-  No usar `npx tsc` ni `pnpm exec tsc` como validacion directa.
+  No usar `pnpm exec tsc` como validacion directa.
 - Los tests DB deben seguir apuntando a `TEST_DATABASE_URL`, nunca a datos de
   produccion o preview.
 - No mezclar esta migracion con refactors de codigo o cambios de dependencias no
@@ -34,7 +38,8 @@ La migracion debe preservar estas reglas del repo:
 - La resolucion estricta puede romper imports que hoy funcionan por hoisting
   accidental.
 - Algunas herramientas pueden asumir layout tipo `npm` en `node_modules`.
-- CI, deploy o agentes pueden seguir ejecutando comandos `npm`.
+- CI, deploy o agentes pueden quedar desactualizados si vuelven a documentar o
+  ejecutar comandos del gestor anterior.
 - La migracion puede generar ruido grande en lockfile si se mezcla con cambios
   de dependencias.
 
@@ -42,18 +47,19 @@ La migracion debe preservar estas reglas del repo:
 
 1. Confirmar version de Node usada por el proyecto.
 2. Confirmar si `corepack` esta disponible en los entornos de desarrollo y CI.
-3. Revisar archivos que mencionan comandos `npm`:
+3. Revisar archivos que mencionan comandos del gestor anterior:
    - `AGENTS.md`
    - `docs/agents/codex-workflows.md`
    - `docs/local-auth.md`
    - `package.json`
    - cualquier workflow de CI/deploy si se agrega en el futuro.
-4. Identificar si existen scripts o herramientas que llaman `npm` internamente.
-5. Correr la validacion base actual con npm antes de migrar:
-   - `npm run format:check`
-   - `npm run typecheck`
-   - `npm test`
-   - `npm run test:db` cuando la suite DB este verde en la rama base.
+4. Identificar si existen scripts o herramientas que llaman al gestor anterior
+   internamente.
+5. Correr la validacion base actual antes de migrar:
+   - `pnpm format:check`
+   - `pnpm typecheck`
+   - `pnpm test`
+   - `pnpm test:db` cuando la suite DB este verde en la rama base.
 
 Resultado esperado: una linea base verde o una lista explicita de fallas
 preexistentes.
@@ -88,13 +94,13 @@ preexistentes.
 
 Actualizar comandos documentados:
 
-- `npm install` -> `pnpm install`
-- `npm run dev` -> `pnpm dev` o `pnpm run dev`
-- `npm run typecheck` -> `pnpm typecheck`
-- `npm test` -> `pnpm test`
-- `npm run test:db:file -- <archivo>` -> `pnpm test:db:file -- <archivo>`
-- `npm run test:db` -> `pnpm test:db`
-- `npm run build` -> `pnpm build`
+- instalacion: `pnpm install`
+- desarrollo: `pnpm dev`
+- TypeScript: `pnpm typecheck`
+- tests unitarios: `pnpm test`
+- DB enfocada: `pnpm test:db:file <archivo>`
+- DB final: `pnpm test:db`
+- build: `pnpm build`
 
 Mantener la advertencia de TypeScript:
 
@@ -123,7 +129,7 @@ pnpm build
 Para DB, cuando el estado de la rama lo permita:
 
 ```bash
-pnpm test:db:file -- tests/db/harness.db.test.ts
+pnpm test:db:file tests/db/harness.db.test.ts
 pnpm test:db
 ```
 
@@ -149,8 +155,7 @@ Cuando exista CI/deploy configurado, actualizarlo para:
 
 4. Ejecutar los scripts equivalentes con `pnpm`.
 
-Para agentes Codex, actualizar aprobaciones persistentes documentadas si el repo
-deja de usar `npm`:
+Para agentes Codex, mantener aprobaciones persistentes documentadas para:
 
 - `pnpm test:db:file`
 - `pnpm test:db`
@@ -162,7 +167,7 @@ deja de usar `npm`:
 - `package.json` declara `packageManager`.
 - La instalacion desde cero funciona con `pnpm install --frozen-lockfile`.
 - `pnpm format:check`, `pnpm typecheck`, `pnpm test` y `pnpm build` pasan.
-- `pnpm test:db:file -- tests/db/harness.db.test.ts` pasa con Postgres local.
+- `pnpm test:db:file tests/db/harness.db.test.ts` pasa con Postgres local.
 - `pnpm test:db` pasa o conserva solamente fallas preexistentes documentadas.
 - Las docs operativas ya no instruyen usar `npm` para comandos activos del repo.
 

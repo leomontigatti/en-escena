@@ -23,8 +23,8 @@ const requiredRouteReferences = [
 const requiredAssumptions = [
   "The local plan file referenced by PRD #130 did not exist",
   "`createValidatedNativeSubmitHandler` still ends in `formElement.submit()`",
-  "`npm run typecheck` remains the required TypeScript entrypoint",
-  "`npm run test:db` is the final reliable database-backed validation path",
+  "`pnpm typecheck` remains the required TypeScript entrypoint",
+  "`pnpm test:db` is the final reliable database-backed validation path",
 ];
 
 const requiredViewTransitionDecisions = [
@@ -53,7 +53,7 @@ const permanentRuleDocuments = [
       "Use `useSubmit`",
       "Use `useFetcher.submit`",
       "Shared RHF + React Router submit helpers should pass `FormData`",
-      "`npm run test`",
+      "`pnpm test`",
     ],
   },
   {
@@ -77,7 +77,7 @@ const permanentRuleDocuments = [
       "## File Size And Boundaries",
       "maintainability rule that protects module boundaries",
       "5500 estimated tokens",
-      "`npm run check:file-tokens`",
+      "`pnpm check:file-tokens`",
       "`bytes / 4`",
       "Exclude docs, generated files, lockfiles, and public assets",
       "clear module boundary",
@@ -87,8 +87,8 @@ const permanentRuleDocuments = [
       "table column definitions",
       "test fixtures or factory data",
       "`docs/agents/codex-workflows.md`",
-      "`npm run typecheck`",
-      "`npm run test`",
+      "`pnpm typecheck`",
+      "`pnpm test`",
     ],
   },
 ];

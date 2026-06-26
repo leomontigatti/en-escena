@@ -29,7 +29,7 @@ Phase 1 uses Supabase only as a hosted Postgres provider:
   production, preview, or any environment that should use hosted data.
 - `TEST_DATABASE_URL` remains a separate local Postgres database for
   database-backed tests.
-- `npm run test:db:postgres` must continue to target `TEST_DATABASE_URL`; it
+- `pnpm test:db:postgres` must continue to target `TEST_DATABASE_URL`; it
   must not use the production Supabase database.
 - Drizzle remains the app's server-side data access layer for domain tables.
 - Better Auth remains the access provider until a dedicated Supabase Auth

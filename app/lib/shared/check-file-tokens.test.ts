@@ -65,7 +65,7 @@ describe("file-token check", () => {
       await writeGuardrailFile(tempRoot, "docs/notes.md", "seed");
       await writeGuardrailFile(tempRoot, "public/banner.svg", "seed");
       await writeGuardrailFile(tempRoot, "build/server/index.js", "seed");
-      await writeGuardrailFile(tempRoot, "package-lock.json", "{}");
+      await writeGuardrailFile(tempRoot, "pnpm-lock.yaml", "{}");
       await writeGuardrailFile(
         tempRoot,
         "app/components/overview.test.tsx",
@@ -111,7 +111,7 @@ describe("file-token check", () => {
       );
       await writeGuardrailFile(
         tempRoot,
-        "package-lock.json",
+        "pnpm-lock.yaml",
         createFileContents(8_000),
       );
       await writeGuardrailFile(
@@ -165,14 +165,14 @@ describe("file-token check", () => {
     expect(packageJson).toContain(
       '"check:file-tokens": "node --import tsx scripts/check-file-tokens.ts"',
     );
-    expect(preCommitHook).toContain("npx lint-staged");
-    expect(preCommitHook).toContain("npm run typecheck");
-    expect(preCommitHook).toContain("npm run check:file-tokens");
-    expect(workflowDoc).toContain("`npm run check:file-tokens`");
+    expect(preCommitHook).toContain("pnpm exec lint-staged");
+    expect(preCommitHook).toContain("pnpm typecheck");
+    expect(preCommitHook).toContain("pnpm check:file-tokens");
+    expect(workflowDoc).toContain("`pnpm check:file-tokens`");
     expect(workflowDoc).toContain("strict file-token check");
     expect(codingStandards).toContain("5500");
     expect(codingStandards).toContain("clear module boundary");
-    expect(codebaseMap).toContain("`npm run check:file-tokens`");
+    expect(codebaseMap).toContain("`pnpm check:file-tokens`");
 
     await expect(
       runFileTokenCheck({ cwd: process.cwd(), files: [] }),

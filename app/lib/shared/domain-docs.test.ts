@@ -40,7 +40,7 @@ const fastDbIsolationAdrRequirements = [
   "Usuario",
   "Sesion de acceso",
   "Bases del evento",
-  "npm run test:db:postgres",
+  "pnpm test:db:postgres",
 ];
 
 const accessDomainRequirements = [
@@ -90,7 +90,7 @@ const adminMigrationMapRequirements = [
   "`app/routes/administracion.cronogramas_.$scheduleId.tsx`",
   "`app/routes/administracion.precios_.$priceId.tsx`",
   "`app/features/admin/choreographies/list/`",
-  "`app/lib/admin/events/bases-route.test-helpers.tsx`",
+  "`app/lib/admin/events/event-bases.test-helpers.tsx`",
   "`app/lib/admin/users/internal-user-credentials.server.ts`",
   "`app/lib/admin/users/internal-user-credentials.shared.ts`",
   "`app/components/admin/events/event-schedules/route-views.tsx`",

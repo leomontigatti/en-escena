@@ -68,9 +68,9 @@ describe("repo style check", () => {
     expect(packageJson).toContain(
       '"check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts"',
     );
-    expect(workflowDoc).toContain("`npm run check:repo-styles`");
+    expect(workflowDoc).toContain("`pnpm check:repo-styles`");
     expect(workflowDoc).toContain("repo-style");
-    expect(codebaseMap).toContain("`npm run check:repo-styles`");
+    expect(codebaseMap).toContain("`pnpm check:repo-styles`");
     await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });
 });

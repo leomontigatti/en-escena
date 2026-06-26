@@ -6,11 +6,11 @@ application data from Supabase Postgres.
 For the normal workflow, run:
 
 ```sh
-npm run db:refresh:prod
+pnpm db:refresh:prod
 ```
 
 The script prompts for the production Postgres URL, creates a temporary dump,
-replaces the local `en-escena` database, runs `npm run db:push`, verifies basic
+replaces the local `en-escena` database, runs `pnpm db:push`, verifies basic
 row counts, and removes the temporary dump. Pass `-- --keep-dump` when you need
 to inspect the dump after the restore.
 
@@ -86,7 +86,7 @@ docker exec en-escena-postgres rm -f /tmp/en-escena-prod.dump
 After restoring, align the restored schema with the current Drizzle schema:
 
 ```sh
-npm run db:push
+pnpm db:push
 ```
 
 ## Verify

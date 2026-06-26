@@ -9,19 +9,19 @@ workflows.
 
 En Escena separa tests regulares y tests DB con dos rutas:
 
-- `npm test`: corre Vitest excluyendo `*.db.test.ts`.
-- `npm run test:db:file -- <archivo>`: usa el harness rapido con `PGlite` y un
+- `pnpm test`: corre Vitest excluyendo `*.db.test.ts`.
+- `pnpm test:db:file <archivo>`: usa el harness rapido con `PGlite` y un
   snapshot cacheado del schema para un archivo DB enfocado.
-- `npm run test:db`: corre la suite DB completa sobre la ruta final confiable
+- `pnpm test:db`: corre la suite DB completa sobre la ruta final confiable
   con Postgres real.
-- `npm run test:db:final`: alias explicito de la misma corrida final confiable
+- `pnpm test:db:final`: alias explicito de la misma corrida final confiable
   sobre Postgres real.
-- `npm run test:db:fast:full`: conserva la suite DB completa sobre el harness
+- `pnpm test:db:fast:full`: conserva la suite DB completa sobre el harness
   rapido con `PGlite`, pero queda como ruta experimental para depurar el
   harness. No es el comando default de confianza.
-- `npm run test:db:file:final -- <archivo>`: alias explicito de la corrida
+- `pnpm test:db:file:final <archivo>`: alias explicito de la corrida
   final enfocada sobre Postgres real.
-- `npm run test:db:file:postgres -- <archivo>`: conserva la ruta enfocada sobre
+- `pnpm test:db:file:postgres <archivo>`: conserva la ruta enfocada sobre
   Postgres real para comparar o depurar el harness rapido.
 
 La corrida final confiable usa un Postgres local en `localhost:5433`,
@@ -30,11 +30,11 @@ administrado, ese acceso TCP local requiere aprobacion elevada aunque no salga
 de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
 persistentes:
 
-- `npm run test:db:final`
-- `npm run test:db`
-- `npm run test:db:postgres`
-- `npm run test:db:file:final`
-- `npm run test:db:file:postgres`
+- `pnpm test:db:final`
+- `pnpm test:db`
+- `pnpm test:db:postgres`
+- `pnpm test:db:file:final`
+- `pnpm test:db:file:postgres`
 - `docker compose up -d postgres`
 
 ## Implementacion issue #126
@@ -42,17 +42,17 @@ persistentes:
 Medicion tomada el 2026-06-20 en `sandcastle/issue-126` sobre el harness DB
 enfocado:
 
-| Ruta                | Comando                                                        | Tiempo de pared | Desglose relevante                     |
-| ------------------- | -------------------------------------------------------------- | --------------: | -------------------------------------- |
-| Postgres preservado | `npm run test:db:file:postgres -- tests/db/harness.db.test.ts` |           3.95s | Vitest `Duration` 1.03s; `tests` 130ms |
-| Fast path PGlite    | `npm run test:db:file -- tests/db/harness.db.test.ts`          |           3.18s | Vitest `Duration` 2.13s; `tests` 705ms |
+| Ruta                | Comando                                                  | Tiempo de pared | Desglose relevante                     |
+| ------------------- | -------------------------------------------------------- | --------------: | -------------------------------------- |
+| Postgres preservado | `pnpm test:db:file:postgres tests/db/harness.db.test.ts` |           3.95s | Vitest `Duration` 1.03s; `tests` 130ms |
+| Fast path PGlite    | `pnpm test:db:file tests/db/harness.db.test.ts`          |           3.18s | Vitest `Duration` 2.13s; `tests` 705ms |
 
 Lectura operativa:
 
 - La mejora medida del comando enfocado es `770ms` menos de pared para el test
   de harness en esta rama.
-- `npm run test:db:file` queda como ruta enfocada rapida y
-  `npm run test:db` queda como ruta final confiable.
+- `pnpm test:db:file` queda como ruta enfocada rapida y
+  `pnpm test:db` queda como ruta final confiable.
 - El snapshot del schema queda cacheado por hash de schema para repetir
   corridas enfocadas sin tocar `TEST_DATABASE_URL`.
 
@@ -61,12 +61,12 @@ Lectura operativa:
 Despues de cerrar los issues de implementacion, se revalido el estado de las
 suites:
 
-- `npm test`: verde, 27 archivos y 127 tests, ~24s.
-- `npm run test:db:final`: verde contra Postgres real, 28 archivos y 241
+- `pnpm test`: verde, 27 archivos y 127 tests, ~24s.
+- `pnpm test:db:final`: verde contra Postgres real, 28 archivos y 241
   tests, ~80s.
-- `npm run test:db:file -- <archivo>`: verde para los archivos enfocados
+- `pnpm test:db:file <archivo>`: verde para los archivos enfocados
   probados con `PGlite`.
-- `npm run test:db:fast:full`: falla en modo paralelo default con el error
+- `pnpm test:db:fast:full`: falla en modo paralelo default con el error
   `PGlite failed to initialize properly`; la misma suite pasa serializada con
   `--maxWorkers=1 --no-file-parallelism`, pero tarda ~99s.
 
@@ -85,34 +85,34 @@ Metodologia:
   `collect` y `tests` son tiempos agregados de Vitest y pueden superar el
   tiempo de pared cuando hay trabajo en paralelo.
 - Para los comandos `test:db:file` y `test:db`, el tiempo de pared incluye
-  `npm run db:test:push`.
+  `pnpm db:test:push`.
 
 ### Medidas
 
-| Superficie              | Comando                                                                                   | Tiempo de pared | Desglose relevante                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------ |
-| Suite regular           | `npm test`                                                                                |          20.86s | 25 archivos / 120 tests verdes; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
-| Push de schema DB       | `npm run db:test:push`                                                                    |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
-| Harness DB enfocado     | `npm run test:db:file -- tests/db/harness.db.test.ts`                                     |           4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                           |
-| DB chico                | `npm run test:db:file -- app/lib/admin/users/internal-invitation-route.server.db.test.ts` |           5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                            |
-| DB mediano              | `npm run test:db:file -- app/lib/events/management.server.db.test.ts`                     |           5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                          |
-| DB grande / alto riesgo | `npm run test:db:file -- app/lib/admin/events/bases-route.server.db.test.ts`              |          19.39s | 22 tests; Vitest `Duration` 15.74s; `collect` 8.77s; `tests` 6.45s                         |
-| Suite DB completa       | `npm run test:db`                                                                         |          80.32s | 27 archivos / 238 tests verdes; Vitest `Duration` 77.40s; `collect` 28.10s; `tests` 42.99s |
+| Superficie              | Comando                                                                             | Tiempo de pared | Desglose relevante                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------ |
+| Suite regular           | `pnpm test`                                                                         |          20.86s | 25 archivos / 120 tests verdes; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
+| Push de schema DB       | `pnpm db:test:push`                                                                 |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
+| Harness DB enfocado     | `pnpm test:db:file tests/db/harness.db.test.ts`                                     |           4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                           |
+| DB chico                | `pnpm test:db:file app/lib/admin/users/internal-invitation-route.server.db.test.ts` |           5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                            |
+| DB mediano              | `pnpm test:db:file app/lib/events/management.server.db.test.ts`                     |           5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                          |
+| DB grande / alto riesgo | `pnpm test:db:file app/lib/admin/events/event-bases-validation.server.db.test.ts`   |          19.39s | 22 tests; Vitest `Duration` 15.74s; `collect` 8.77s; `tests` 6.45s                         |
+| Suite DB completa       | `pnpm test:db`                                                                      |          80.32s | 27 archivos / 238 tests verdes; Vitest `Duration` 77.40s; `collect` 28.10s; `tests` 42.99s |
 
 ### Fallas preexistentes al momento de medir
 
 No hubo fallas preexistentes en esta corrida base:
 
-- `npm test`: 25 archivos verdes, 120 tests verdes.
-- `npm run test:db`: 27 archivos verdes, 238 tests verdes.
+- `pnpm test`: 25 archivos verdes, 120 tests verdes.
+- `pnpm test:db`: 27 archivos verdes, 238 tests verdes.
 
 Resultado de issue `#123`: se revalido la linea base DB el 2026-06-20 sobre
 `sandcastle/issue-123`, despues de integrar `#122`, para identificar fallas
 preexistentes antes de optimizar el harness:
 
-- `npm run test:db:file -- tests/db/harness.db.test.ts`: 1 archivo verde, 2
+- `pnpm test:db:file tests/db/harness.db.test.ts`: 1 archivo verde, 2
   tests verdes.
-- `npm run test:db`: 27 archivos verdes, 238 tests verdes.
+- `pnpm test:db`: 27 archivos verdes, 238 tests verdes.
 - Archivos DB con falla preexistente: ninguno.
 - Modos de falla DB a aislar de cambios de harness: ninguno.
 
@@ -128,7 +128,7 @@ del harness.
   ejecucion real de tests.
 - En la suite DB completa, el tiempo dominante ya es la ejecucion de tests
   (`42.99s`), pero `collect` sigue siendo un costo material (`28.10s`).
-- `app/lib/admin/events/bases-route.server.db.test.ts` queda confirmado como
+- `app/lib/admin/events/event-bases-validation.server.db.test.ts` queda confirmado como
   superficie grande y de alto riesgo para comparar mejoras futuras.
 
 ## Referencia externa
@@ -190,7 +190,7 @@ Issue `#125` cerro la decision pendiente del plan:
     una mejora medida en este repo que justifique tomarlo primero.
 - Decision: implementar primero un fast path con `PGlite` y snapshots de
   schema, manteniendo una corrida final confiable sobre Postgres real, ahora
-  expuesta como `npm run test:db:final`, hasta probar la nueva ruta.
+  expuesta como `pnpm test:db:final`, hasta probar la nueva ruta.
 - ADR: ver `docs/adr/0007-db-test-isolation-model.md`.
 
 ## Actualizacion issue #128
@@ -293,14 +293,14 @@ decision documentada de no adoptar el cambio.
 
 Crear una linea base repetible:
 
-1. Medir `npm test`.
-2. Medir `npm run test:db:file -- tests/db/harness.db.test.ts`.
+1. Medir `pnpm test`.
+2. Medir `pnpm test:db:file tests/db/harness.db.test.ts`.
 3. Medir 3 archivos DB representativos:
    - uno chico;
    - uno mediano;
-   - uno grande, por ejemplo `app/lib/admin/events/bases-route.server.db.test.ts`
+   - uno grande, por ejemplo `app/lib/admin/events/event-bases-validation.server.db.test.ts`
      o `app/features/portal/choreographies/detail/server.db.test.ts`.
-4. Medir `npm run test:db` cuando la suite este verde.
+4. Medir `pnpm test:db` cuando la suite este verde.
 5. Separar tiempos de:
    - `db:test:push`;
    - collect/import de Vitest;

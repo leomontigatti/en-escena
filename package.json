@@ -2,6 +2,7 @@
   "name": "en-escena",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.5.0",
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
@@ -9,13 +10,13 @@
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:db": "npm run test:db:final",
+    "test:db": "pnpm test:db:final",
     "test:db:fast:full": "vitest --config vitest.db.fast.config.ts --run",
-    "test:db:final": "npm run test:db:postgres",
-    "test:db:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
+    "test:db:final": "pnpm test:db:postgres",
+    "test:db:postgres": "pnpm db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
     "test:db:file": "vitest --config vitest.db.fast.config.ts --run",
-    "test:db:file:final": "npm run test:db:file:postgres --",
-    "test:db:file:postgres": "npm run db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
+    "test:db:file:final": "pnpm test:db:file:postgres",
+    "test:db:file:postgres": "pnpm db:test:push && vitest --config vitest.db.config.ts --no-file-parallelism --maxWorkers=1 --run",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
@@ -27,7 +28,7 @@
     "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
     "db:test:push": "node --import tsx tests/db/push-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
-    "sandcastle": "npx tsx .sandcastle/main.mts"
+    "sandcastle": "pnpm exec tsx .sandcastle/main.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

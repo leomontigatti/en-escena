@@ -145,7 +145,7 @@ async function main() {
       ]);
     }
 
-    await run("npm", ["run", "db:push"]);
+    await run("pnpm", ["db:push"]);
 
     await run("docker", [
       "exec",

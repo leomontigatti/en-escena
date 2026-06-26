@@ -320,10 +320,10 @@ async function importPlaywright() {
 
     return localPlaywright.chromium ? localPlaywright : localPlaywright.default;
   } catch {
-    const npmRoot = execFileSync("npm", ["root", "-g"], {
+    const pnpmRoot = execFileSync("pnpm", ["root", "-g"], {
       encoding: "utf8",
     }).trim();
-    const globalPlaywrightPath = `${npmRoot}/@playwright/cli/node_modules/playwright/index.js`;
+    const globalPlaywrightPath = `${pnpmRoot}/playwright/index.js`;
 
     const globalPlaywright = await import(
       pathToFileURL(globalPlaywrightPath).href

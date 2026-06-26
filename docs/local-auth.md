@@ -66,18 +66,18 @@ After changing schema or starting from an empty database, push the Drizzle schem
 to `DATABASE_URL`:
 
 ```sh
-npm run db:push
+pnpm db:push
 ```
 
-Confirm `.env` points at the local container before running `npm run db:push`.
+Confirm `.env` points at the local container before running `pnpm db:push`.
 
 ### Supabase Postgres
 
 For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
 connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
-at local Postgres so the default DB suite and `npm run test:db:postgres` stay
+at local Postgres so the default DB suite and `pnpm test:db:postgres` stay
 isolated from hosted data. The focused command
-`npm run test:db:file -- <archivo>` uses an in-process PGlite harness with a
+`pnpm test:db:file <archivo>` uses an in-process PGlite harness with a
 cached schema snapshot instead of connecting to `TEST_DATABASE_URL`.
 
 Choose the connection mode for the runtime:
@@ -89,30 +89,30 @@ If you use a transaction pooler, validate the app before rollout because
 transaction pooling can affect prepared statements and session-level database
 behavior.
 
-For schema changes against Supabase, run `npm run db:push` only after verifying
+For schema changes against Supabase, run `pnpm db:push` only after verifying
 that `DATABASE_URL` points at the intended hosted database. Database-backed tests
 keep two paths:
 
-- `npm run test:db:file -- <archivo>`: fast focused `PGlite` path backed by the
+- `pnpm test:db:file <archivo>`: fast focused `PGlite` path backed by the
   cached schema snapshot.
-- `npm run test:db` and `npm run test:db:final` (alias of
-  `npm run test:db:postgres`): final reliable path that resets and pushes
+- `pnpm test:db` and `pnpm test:db:final` (alias of
+  `pnpm test:db:postgres`): final reliable path that resets and pushes
   schema through `TEST_DATABASE_URL`.
-- `npm run test:db:file:final -- <archivo>` (alias of
-  `npm run test:db:file:postgres -- <archivo>`): focused final reliable path
+- `pnpm test:db:file:final <archivo>` (alias of
+  `pnpm test:db:file:postgres <archivo>`): focused final reliable path
   for one DB test file through `TEST_DATABASE_URL`.
-- `npm run test:db:fast:full`: experimental full-suite PGlite path for harness
+- `pnpm test:db:fast:full`: experimental full-suite PGlite path for harness
   debugging.
 
 Validation mode requirements:
 
-- Fast focused DB validation (`npm run test:db:file -- <archivo>`) does not
+- Fast focused DB validation (`pnpm test:db:file <archivo>`) does not
   require local Postgres once the repo dependencies are installed.
-- Final DB validation (`npm run test:db`, `npm run test:db:final` or
-  `npm run test:db:postgres`) requires local Postgres through
+- Final DB validation (`pnpm test:db`, `pnpm test:db:final` or
+  `pnpm test:db:postgres`) requires local Postgres through
   `TEST_DATABASE_URL`.
-- Focused final DB validation (`npm run test:db:file:final -- <archivo>` or
-  `npm run test:db:file:postgres -- <archivo>`) also requires local Postgres
+- Focused final DB validation (`pnpm test:db:file:final <archivo>` or
+  `pnpm test:db:file:postgres <archivo>`) also requires local Postgres
   through `TEST_DATABASE_URL`.
 
 When local development needs production-like data, create and restore a fresh
@@ -124,10 +124,10 @@ From a fresh checkout, install dependencies, start Postgres, push the schema and
 start the app:
 
 ```sh
-npm install
+pnpm install
 docker compose up -d postgres
-npm run db:push
-npm run dev
+pnpm db:push
+pnpm dev
 ```
 
 The main local auth routes are:
@@ -155,7 +155,7 @@ local verification of those flows depends on the target Supabase project and
 its configured redirect URLs. With the default dev server, test registration
 locally with this flow:
 
-1. Run `npm run dev`.
+1. Run `pnpm dev`.
 2. Open `http://localhost:5173/registro`.
 3. Submit an email address plus password.
 4. Open the Supabase confirmation email for that project.
@@ -259,8 +259,8 @@ reference order:
 Use this repo's validation scripts. For TypeScript validation, run:
 
 ```sh
-npm run typecheck
+pnpm typecheck
 ```
 
-Do not run `npx tsc` directly. `npm run typecheck` runs React Router type
+Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs React Router type
 generation before TypeScript checks the app.

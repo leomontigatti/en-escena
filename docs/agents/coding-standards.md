@@ -77,7 +77,7 @@ Guideline:
 
 - Keep route, component, and module files under 5500 estimated tokens. Use
   `bytes / 4` as the practical estimate.
-- `npm run check:file-tokens` checks staged application source files and fails
+- `pnpm check:file-tokens` checks staged application source files and fails
   when a staged `app` module crosses the 5500-token threshold.
 - Exclude docs, generated files, lockfiles, and public assets from this rule.
   Use normal review judgment there instead of forcing the same threshold.
@@ -110,4 +110,4 @@ creating a forced abstraction.
 
 When validating work around a file-size refactor, use the current repo commands
 and order from `docs/agents/codex-workflows.md`, including
-`npm run check:file-tokens`, `npm run typecheck`, and `npm run test`.
+`pnpm check:file-tokens`, `pnpm typecheck`, and `pnpm test`.

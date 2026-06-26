@@ -15,25 +15,25 @@ Confirmed against `docs/agents/codex-workflows.md`, `package.json`, and
 
 Final validation order for this refactor:
 
-1. `npm run format` when formatting needs to be applied, otherwise
-   `npm run format:check` for final formatting verification
-2. `npm run check:repo-styles` when the change adds or edits app UI code
-3. `npm run check:file-tokens`
-4. `npm run typecheck`
-5. `npm run test`
-6. `npm run test:db` for database-backed route, loader, action, repository, or
+1. `pnpm format` when formatting needs to be applied, otherwise
+   `pnpm format:check` for final formatting verification
+2. `pnpm check:repo-styles` when the change adds or edits app UI code
+3. `pnpm check:file-tokens`
+4. `pnpm typecheck`
+5. `pnpm test`
+6. `pnpm test:db` for database-backed route, loader, action, repository, or
    business-rule changes
-7. `npm run build` for routing, server-rendering, bundling, CSS, or deployment
+7. `pnpm build` for routing, server-rendering, bundling, CSS, or deployment
    changes
 
 Implementation guardrails that still matter for this PRD:
 
-- `npm run typecheck` remains the required TypeScript entrypoint because it runs
+- `pnpm typecheck` remains the required TypeScript entrypoint because it runs
   React Router type generation before `tsc`.
-- `npm run check:file-tokens` is the strict staged-file module-boundary check.
-- `npm run test:db:file -- <path-to-db-test>` is the fast focused DB loop.
-- `npm run test:db` is the final reliable database-backed validation path.
-- `npm run test:db:fast:full` remains experimental and is not the final signoff
+- `pnpm check:file-tokens` is the strict staged-file module-boundary check.
+- `pnpm test:db:file <path-to-db-test>` is the fast focused DB loop.
+- `pnpm test:db` is the final reliable database-backed validation path.
+- `pnpm test:db:fast:full` remains experimental and is not the final signoff
   command.
 
 ## Critical Administración Routes
@@ -51,7 +51,7 @@ Current high-value request paths for this refactor:
   Event edit action path and readiness loader.
 - `app/routes/administracion.eventos_.nuevo.tsx`
   Event creation form/action path.
-- `app/lib/admin/events/bases-route.server.ts`
+- `app/lib/admin/events/event-bases.server.ts`
   Shared loader/action seam behind event configuration screens.
 - `app/routes/administracion.modalidades.tsx`
 - `app/routes/administracion.modalidades_.$modalityId.tsx`
@@ -226,11 +226,11 @@ Changed or stale versus PRD #130:
 - The PRD points to a generic local plan reference, but the repo now needs this
   explicit route and submit inventory before issues #132 onward start.
 - The repo has a stronger DB validation split than the PRD text implied:
-  focused iteration uses `npm run test:db:file -- <path-to-db-test>`, while
-  final database-backed validation uses `npm run test:db`.
+  focused iteration uses `pnpm test:db:file <path-to-db-test>`, while
+  final database-backed validation uses `pnpm test:db`.
 - `docs/agents/codex-workflows.md` now standardizes the regular test command as
-  `npm run test` for consistency with the repo task contract and the rest of
-  the documented `npm run ...` workflow.
+  `pnpm test` for consistency with the repo task contract and the rest of
+  the documented `pnpm ...` workflow.
 
 Decisions for child issues:
 

@@ -104,8 +104,8 @@ official PostgreSQL apt repository first.
 From the repo root:
 
 ```sh
-npm run backup:db:b2
-npm run backup:storage:b2
+pnpm backup:db:b2
+pnpm backup:storage:b2
 ```
 
 The database script writes a temporary file under `tmp/db-backups/`, uploads it
@@ -118,13 +118,13 @@ removes the local copy on exit.
 Use a daily schedule outside the request-serving runtime. In Coolify, configure
 a scheduled task on the production application:
 
-- Command: `npm run backup:db:b2`
+- Command: `pnpm backup:db:b2`
 - Schedule: `20 3 * * *`
 - Environment: use the production variables configured in Coolify.
 
 Add a second scheduled task for Storage:
 
-- Command: `npm run backup:storage:b2`
+- Command: `pnpm backup:storage:b2`
 - Schedule: `40 3 * * *`
 - Environment: use the production variables configured in Coolify.
 
@@ -134,8 +134,8 @@ the backup variables directly on the scheduled task.
 For a host-level cron fallback, use:
 
 ```cron
-20 3 * * * cd /path/to/en-escena && npm run backup:db:b2 >> /var/log/en-escena-db-backup.log 2>&1
-40 3 * * * cd /path/to/en-escena && npm run backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
+20 3 * * * cd /path/to/en-escena && pnpm backup:db:b2 >> /var/log/en-escena-db-backup.log 2>&1
+40 3 * * * cd /path/to/en-escena && pnpm backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
 ```
 
 ## Restore Check
