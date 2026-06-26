@@ -124,7 +124,7 @@ adapters plus feature-owned flows in the admin feature tree.
 
 - Routes: `app/routes/administracion.coreografias.tsx`
 - Current feature modules: `app/features/admin/choreographies/list/server.ts`, `app/features/admin/choreographies/list/view.tsx`
-- Current tests: `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
+- Current tests: `app/features/admin/choreographies/list/view.test.tsx`, `app/features/admin/choreographies/list/server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
 - Fixtures: no dedicated admin choreography fixture helper yet; scenarios live inline in the route DB tests.
 - Migration target: keep using app/features/admin/choreographies/... as the reference shape for later admin slices instead of pushing list/view logic back into route files.
 
