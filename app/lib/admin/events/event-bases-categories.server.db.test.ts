@@ -14,7 +14,7 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/bases-route.server";
+import { loader } from "@/lib/admin/events/event-bases.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -29,7 +29,7 @@ import {
   renderCategoriaNuevaRoute,
   renderModalidadesRoute,
   routeArgs,
-} from "./bases-route.test-helpers";
+} from "./event-bases.test-helpers";
 
 installDatabaseTestHooks();
 

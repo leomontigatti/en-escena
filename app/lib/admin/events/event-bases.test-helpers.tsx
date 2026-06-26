@@ -31,7 +31,7 @@ import {
   action,
   type ActionData,
   type EventBasesLoaderData,
-} from "@/lib/admin/events/bases-route.server";
+} from "@/lib/admin/events/event-bases.server";
 import {
   createSavedEvent as createEventFixture,
   expectCreated,

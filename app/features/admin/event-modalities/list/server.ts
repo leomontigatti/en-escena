@@ -1,5 +1,5 @@
-import { loadEventBasesRouteData } from "@/lib/admin/events/bases-route.server";
+import { loadAdministrativeEventBases } from "@/lib/admin/events/event-bases.server";
 
 export async function loadAdministrativeEventModalitiesList(request: Request) {
-  return loadEventBasesRouteData(request);
+  return loadAdministrativeEventBases(request);
 }

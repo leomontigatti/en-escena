@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import type { EventPriceDetailRouteView as EventPriceDetailRouteViewType } from "@/components/admin/events/event-prices";
 import type { EventPricesRouteView as EventPricesRouteViewType } from "@/components/admin/events/event-prices";
 import type { getPriceDisplayName as GetPriceDisplayName } from "@/components/admin/events/event-prices";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 describe("EventPriceDetailRouteView", () => {

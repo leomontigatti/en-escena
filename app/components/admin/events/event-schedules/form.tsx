@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { ScheduleActionValues } from "@/lib/admin/events/bases-action.server";
 import { buildSchedulesPath } from "@/lib/admin/events/event-bases-navigation";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import {

@@ -8,7 +8,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/bases-route.server";
+import { loader } from "@/lib/admin/events/event-bases.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -24,7 +24,7 @@ import {
   renderPriceNewErrorRoute,
   renderScheduleDetailErrorRoute,
   routeArgs,
-} from "./bases-route.test-helpers";
+} from "./event-bases.test-helpers";
 
 installDatabaseTestHooks();
 

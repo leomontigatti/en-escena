@@ -67,7 +67,7 @@ import {
   buildModalidadesListPath,
   buildNuevaModalidadPath,
 } from "@/lib/admin/events/event-bases-navigation";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,

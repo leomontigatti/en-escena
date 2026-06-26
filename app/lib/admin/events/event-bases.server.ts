@@ -38,7 +38,7 @@ export type EventBasesLoaderData = {
   prices: PriceListItem[];
 };
 
-export async function loadEventBasesRouteData(request: Request) {
+export async function loadAdministrativeEventBases(request: Request) {
   await requireAdminPanelUser(request);
   const eventContext = await loadAdminEventContext(request);
 
@@ -65,10 +65,10 @@ export async function loadEventBasesRouteData(request: Request) {
 }
 
 export async function loader({ request }: { request: Request }) {
-  return loadEventBasesRouteData(request);
+  return loadAdministrativeEventBases(request);
 }
 
-export async function runEventBasesRouteAction(request: Request) {
+export async function handleAdministrativeEventBasesAction(request: Request) {
   await requireAdminPanelUser(request);
 
   const eventContext = await loadAdminEventContext(request);
@@ -87,5 +87,5 @@ export async function runEventBasesRouteAction(request: Request) {
 }
 
 export async function action({ request }: { request: Request }) {
-  return runEventBasesRouteAction(request);
+  return handleAdministrativeEventBasesAction(request);
 }

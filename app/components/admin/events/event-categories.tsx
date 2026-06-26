@@ -59,7 +59,7 @@ import {
   buildCategoryDetailPath,
   buildCategoriasListPath,
 } from "@/lib/admin/events/event-bases-navigation";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {

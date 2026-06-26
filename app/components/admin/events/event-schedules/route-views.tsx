@@ -4,7 +4,7 @@ import {
 } from "@/components/admin/resource-layout";
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
 import { buildNewSchedulePath } from "@/lib/admin/events/event-bases-navigation";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { EmptyResourceState, ScheduleActions } from "./dialogs";

@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { modalities, prices, schedules } from "@/db/schema";
 import { createModality } from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/bases-route.server";
+import { loader } from "@/lib/admin/events/event-bases.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -18,7 +18,7 @@ import {
   renderPrecioNuevoRoute,
   renderPreciosRoute,
   routeArgs,
-} from "./bases-route.test-helpers";
+} from "./event-bases.test-helpers";
 
 installDatabaseTestHooks();
 

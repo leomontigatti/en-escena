@@ -1,12 +1,12 @@
 import {
-  loadEventBasesRouteData,
-  runEventBasesRouteAction,
-} from "@/lib/admin/events/bases-route.server";
+  loadAdministrativeEventBases,
+  handleAdministrativeEventBasesAction,
+} from "@/lib/admin/events/event-bases.server";
 
 export async function loadAdministrativeEventPriceDetail(request: Request) {
-  return loadEventBasesRouteData(request);
+  return loadAdministrativeEventBases(request);
 }
 
 export async function updateAdministrativeEventPrice(request: Request) {
-  return runEventBasesRouteAction(request);
+  return handleAdministrativeEventBasesAction(request);
 }

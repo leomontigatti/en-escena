@@ -45,7 +45,7 @@ import {
 import { EventPriceDetailRouteView } from "@/components/admin/events/event-prices";
 import { EventScheduleDetailRouteView } from "@/components/admin/events/event-schedules";
 import type { ActionData } from "@/lib/admin/events/bases-action.server";
-import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;

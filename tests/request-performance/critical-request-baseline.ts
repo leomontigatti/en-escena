@@ -22,7 +22,7 @@ import { loader as adminDancersLoader } from "@/routes/administracion.bailarines
 import {
   action as adminBasesAction,
   loader as adminBasesLoader,
-} from "@/lib/admin/events/bases-route.server";
+} from "@/lib/admin/events/event-bases.server";
 import { loader as adminEventosLoader } from "@/routes/administracion.eventos";
 import {
   action as adminEventoDetailAction,
