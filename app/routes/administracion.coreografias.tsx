@@ -42,9 +42,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const canonicalSearch = buildCanonicalAdministrativeChoreographiesSearch({
     currentSearch: url.search,
-    order: listResult.filters.order,
-    page: listResult.filters.page,
-    query: listResult.filters.query,
+    filters: listResult.filters,
   });
   const currentSearch = new URLSearchParams(url.search).toString();
 
@@ -69,29 +67,27 @@ export default function AdministracionCoreografiasRoute({
 
 function buildCanonicalAdministrativeChoreographiesSearch(input: {
   currentSearch: string;
-  order: LoaderData["filters"]["order"];
-  page: number;
-  query: string;
+  filters: LoaderData["filters"];
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
 
-  if (input.query.length > 0) {
-    searchParams.set("busqueda", input.query);
+  if (input.filters.query.length > 0) {
+    searchParams.set("busqueda", input.filters.query);
   } else {
     searchParams.delete("busqueda");
   }
 
-  if (!isDefaultAdministrativeChoreographyOrder(input.order)) {
+  if (!isDefaultAdministrativeChoreographyOrder(input.filters.order)) {
     searchParams.set(
       "orden",
-      `${input.order.columnId}:${input.order.direction}`,
+      `${input.filters.order.columnId}:${input.filters.order.direction}`,
     );
   } else {
     searchParams.delete("orden");
   }
 
-  if (input.page > 1) {
-    searchParams.set("pagina", String(input.page));
+  if (input.filters.page > 1) {
+    searchParams.set("pagina", String(input.filters.page));
   } else {
     searchParams.delete("pagina");
   }

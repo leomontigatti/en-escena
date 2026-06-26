@@ -135,9 +135,14 @@ function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
     loaderData.hasAnyChoreography ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    loaderData.filters.order.direction === "desc" ||
-    loaderData.filters.order.columnId !== "academia"
+    hasNonDefaultAdministrativeChoreographyOrder(loaderData.filters.order)
   );
+}
+
+function hasNonDefaultAdministrativeChoreographyOrder(
+  order: LoaderData["filters"]["order"],
+) {
+  return order.direction === "desc" || order.columnId !== "academia";
 }
 
 function formatPrimaryAndSecondaryValue(

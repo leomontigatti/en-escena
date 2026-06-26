@@ -342,30 +342,24 @@ describe("administracion/coreografias route", () => {
       columnId: "academia",
       direction: "asc",
     });
-    expect(
-      defaultData.choreographies.map((row) => `${row.academyName}:${row.name}`),
-    ).toEqual([
+    expect(getChoreographyOrderLabels(defaultData)).toEqual([
       "Academia Norte:Gamma",
       "Academia Sur:Alfa",
       "Academia Sur:Beta",
     ]);
 
-    expect(
-      academyDescData.choreographies.map(
-        (row) => `${row.academyName}:${row.name}`,
-      ),
-    ).toEqual([
+    expect(getChoreographyOrderLabels(academyDescData)).toEqual([
       "Academia Sur:Alfa",
       "Academia Sur:Beta",
       "Academia Norte:Gamma",
     ]);
 
-    expect(nameAscData.choreographies.map((row) => row.name)).toEqual([
+    expect(getChoreographyNames(nameAscData)).toEqual([
       "Alfa",
       "Beta",
       "Gamma",
     ]);
-    expect(nameDescData.choreographies.map((row) => row.name)).toEqual([
+    expect(getChoreographyNames(nameDescData)).toEqual([
       "Gamma",
       "Beta",
       "Alfa",
@@ -380,18 +374,11 @@ describe("administracion/coreografias route", () => {
     });
     const catalog = await createEventCatalog(event.id, "Jazz");
 
-    for (let index = 0; index < 51; index += 1) {
-      await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.category.id,
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: `Pieza ${String(index + 1).padStart(2, "0")}`,
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-    }
+    await createChoreographyPageRecords({
+      academyId: academy.academy.id,
+      catalog,
+      eventId: event.id,
+    });
 
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.canonica@example.com",
@@ -439,18 +426,11 @@ describe("administracion/coreografias route", () => {
     });
     const catalog = await createEventCatalog(event.id, "Jazz");
 
-    for (let index = 0; index < 51; index += 1) {
-      await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.category.id,
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: `Pieza ${String(index + 1).padStart(2, "0")}`,
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-    }
+    await createChoreographyPageRecords({
+      academyId: academy.academy.id,
+      catalog,
+      eventId: event.id,
+    });
 
     const loaderData = await loadRouteData({
       email: "admin.coreografias.urls@example.com",
@@ -523,6 +503,33 @@ async function loadRouteData(input: { email: string; requestUrl: string }) {
   });
 
   return await loader(routeArgs(request));
+}
+
+function getChoreographyNames(data: Awaited<ReturnType<typeof loader>>) {
+  return data.choreographies.map((row) => row.name);
+}
+
+function getChoreographyOrderLabels(data: Awaited<ReturnType<typeof loader>>) {
+  return data.choreographies.map((row) => `${row.academyName}:${row.name}`);
+}
+
+async function createChoreographyPageRecords(input: {
+  academyId: string;
+  catalog: Awaited<ReturnType<typeof createEventCatalog>>;
+  eventId: string;
+}) {
+  for (let index = 0; index < 51; index += 1) {
+    await createChoreographyRecord({
+      academyId: input.academyId,
+      categoryId: input.catalog.category.id,
+      eventId: input.eventId,
+      experienceLevelId: input.catalog.level.id,
+      modalityId: input.catalog.modality.id,
+      name: `Pieza ${String(index + 1).padStart(2, "0")}`,
+      scheduleCapacityId: input.catalog.scheduleCapacity.id,
+      submodalityId: input.catalog.submodality.id,
+    });
+  }
 }
 
 function createRequestCookie(headers: Headers) {
