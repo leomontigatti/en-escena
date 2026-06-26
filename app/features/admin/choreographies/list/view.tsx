@@ -30,6 +30,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     headerClassName: "w-[22%]",
     cell: (choreography) => choreography.name,
     filterValue: (choreography) => choreography.name,
+    sortValue: (choreography) => choreography.name,
   },
   {
     id: "academia",
@@ -38,6 +39,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     headerClassName: "w-[22%]",
     cell: (choreography) => choreography.academyName,
     filterValue: (choreography) => choreography.academyName,
+    sortValue: (choreography) => choreography.academyName,
   },
   {
     id: "modalidadSubmodalidad",
@@ -115,10 +117,12 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       getRowKey={(choreography) => choreography.id}
       searchPlaceholder="Buscar coreografía por nombre o academia"
       initialSearchValue={loaderData.filters.query}
+      initialSort={loaderData.filters.order}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
       pageParamName="pagina"
       searchParamName="busqueda"
+      sortParamName="orden"
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
@@ -129,7 +133,10 @@ function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
   return (
     loaderData.choreographies.length > 0 ||
     loaderData.hasAnyChoreography ||
-    loaderData.filters.query.length > 0
+    loaderData.filters.query.length > 0 ||
+    loaderData.filters.page > 1 ||
+    loaderData.filters.order.direction === "desc" ||
+    loaderData.filters.order.columnId !== "academia"
   );
 }
 

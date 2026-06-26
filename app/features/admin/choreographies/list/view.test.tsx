@@ -87,6 +87,10 @@ describe("AdministracionCoreografiasRouteView", () => {
   test("keeps filtered empty results inside the table when the active event has coreographies", () => {
     const markup = renderRoute({
       filters: {
+        order: {
+          columnId: "academia",
+          direction: "asc",
+        },
         page: 1,
         query: "Sin resultados",
       },
@@ -115,6 +119,10 @@ function renderRoute(
         loaderData: {
           choreographies: [],
           filters: {
+            order: {
+              columnId: "academia",
+              direction: "asc",
+            },
             page: 1,
             query: "",
           },

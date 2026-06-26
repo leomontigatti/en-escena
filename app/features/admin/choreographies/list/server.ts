@@ -1,4 +1,14 @@
-import { and, asc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -30,8 +40,16 @@ type AdministrativeChoreographyRow = {
 };
 
 type AdministrativeChoreographyListFilters = {
+  order: AdministrativeChoreographyOrder;
   page: number;
   query: string;
+};
+
+export type AdministrativeChoreographySortColumn = "academia" | "nombre";
+
+export type AdministrativeChoreographyOrder = {
+  columnId: AdministrativeChoreographySortColumn;
+  direction: "asc" | "desc";
 };
 
 export type AdministrativeChoreographyListItem = {
@@ -55,11 +73,17 @@ export type AdministrativeChoreographyListResult = {
 };
 
 const administrativeChoreographyPageSize = 50;
+const defaultAdministrativeChoreographyOrder: AdministrativeChoreographyOrder =
+  {
+    columnId: "academia",
+    direction: "asc",
+  };
 
 export function readAdministrativeChoreographyFilters(
   searchParams: URLSearchParams,
 ): AdministrativeChoreographyListFilters {
   return {
+    order: readAdministrativeChoreographyOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
   };
@@ -125,7 +149,7 @@ export async function loadAdministrativeChoreographies(input: {
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
     .where(where)
-    .orderBy(asc(academies.name), asc(choreographies.name))
+    .orderBy(...buildAdministrativeChoreographyOrderBy(input.filters.order))
     .limit(administrativeChoreographyPageSize)
     .offset((page - 1) * administrativeChoreographyPageSize);
 
@@ -169,6 +193,59 @@ function readPage(searchParams: URLSearchParams) {
   const value = Number(searchParams.get("pagina"));
 
   return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
+export function isDefaultAdministrativeChoreographyOrder(
+  order: AdministrativeChoreographyOrder,
+) {
+  return (
+    order.columnId === defaultAdministrativeChoreographyOrder.columnId &&
+    order.direction === defaultAdministrativeChoreographyOrder.direction
+  );
+}
+
+function readAdministrativeChoreographyOrder(
+  value: string | null,
+): AdministrativeChoreographyOrder {
+  switch (value) {
+    case "academia:asc":
+      return { columnId: "academia", direction: "asc" };
+    case "academia:desc":
+      return { columnId: "academia", direction: "desc" };
+    case "nombre:asc":
+      return { columnId: "nombre", direction: "asc" };
+    case "nombre:desc":
+      return { columnId: "nombre", direction: "desc" };
+    default:
+      return defaultAdministrativeChoreographyOrder;
+  }
+}
+
+function buildAdministrativeChoreographyOrderBy(
+  order: AdministrativeChoreographyOrder,
+) {
+  const academyOrder =
+    order.columnId === "academia" && order.direction === "desc"
+      ? desc(sql`lower(${academies.name})`)
+      : asc(sql`lower(${academies.name})`);
+  const choreographyOrder =
+    order.columnId === "nombre" && order.direction === "desc"
+      ? desc(sql`lower(${choreographies.name})`)
+      : asc(sql`lower(${choreographies.name})`);
+
+  if (order.columnId === "nombre") {
+    return [
+      choreographyOrder,
+      asc(sql`lower(${academies.name})`),
+      asc(choreographies.id),
+    ] as const;
+  }
+
+  return [
+    academyOrder,
+    asc(sql`lower(${choreographies.name})`),
+    asc(choreographies.id),
+  ] as const;
 }
 
 async function hydrateAdministrativeChoreographies(

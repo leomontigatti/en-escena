@@ -273,6 +273,218 @@ describe("administracion/coreografias route", () => {
       "Todavía no hay coreografías para mostrar.",
     );
   });
+
+  test("supports sorting by academia and nombre", async () => {
+    const event = await createSavedEvent();
+    const academyNorth = await createAcademyUser({
+      email: "academia.norte.orden@example.com",
+      academyName: "Academia Norte",
+    });
+    const academySouth = await createAcademyUser({
+      email: "academia.sur.orden@example.com",
+      academyName: "Academia Sur",
+    });
+    const jazzCatalog = await createEventCatalog(event.id, "Jazz");
+
+    await createChoreographyRecord({
+      academyId: academySouth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Beta",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId: academyNorth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Gamma",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId: academySouth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Alfa",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+
+    const baseUrl = `http://localhost/administracion/coreografias?evento=${event.id}`;
+    const [defaultData, academyDescData, nameAscData, nameDescData] =
+      await Promise.all([
+        loadRouteData({
+          email: "admin.coreografias.orden.default@example.com",
+          requestUrl: baseUrl,
+        }),
+        loadRouteData({
+          email: "admin.coreografias.orden.academia-desc@example.com",
+          requestUrl: `${baseUrl}&orden=academia:desc`,
+        }),
+        loadRouteData({
+          email: "admin.coreografias.orden.nombre-asc@example.com",
+          requestUrl: `${baseUrl}&orden=nombre:asc`,
+        }),
+        loadRouteData({
+          email: "admin.coreografias.orden.nombre-desc@example.com",
+          requestUrl: `${baseUrl}&orden=nombre:desc`,
+        }),
+      ]);
+
+    expect(defaultData.filters.order).toEqual({
+      columnId: "academia",
+      direction: "asc",
+    });
+    expect(
+      defaultData.choreographies.map((row) => `${row.academyName}:${row.name}`),
+    ).toEqual([
+      "Academia Norte:Gamma",
+      "Academia Sur:Alfa",
+      "Academia Sur:Beta",
+    ]);
+
+    expect(
+      academyDescData.choreographies.map(
+        (row) => `${row.academyName}:${row.name}`,
+      ),
+    ).toEqual([
+      "Academia Sur:Alfa",
+      "Academia Sur:Beta",
+      "Academia Norte:Gamma",
+    ]);
+
+    expect(nameAscData.choreographies.map((row) => row.name)).toEqual([
+      "Alfa",
+      "Beta",
+      "Gamma",
+    ]);
+    expect(nameDescData.choreographies.map((row) => row.name)).toEqual([
+      "Gamma",
+      "Beta",
+      "Alfa",
+    ]);
+  });
+
+  test("redirects invalid sort and out-of-range pagination to the canonical URL", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "academia.canonica@example.com",
+      academyName: "Academia Canonica",
+    });
+    const catalog = await createEventCatalog(event.id, "Jazz");
+
+    for (let index = 0; index < 51; index += 1) {
+      await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.category.id,
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name: `Pieza ${String(index + 1).padStart(2, "0")}`,
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+    }
+
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.canonica@example.com",
+      role: "admin",
+      requestUrl:
+        `http://localhost/administracion/coreografias?evento=${event.id}` +
+        "&busqueda=Pieza&orden=invalido&pagina=9",
+    });
+
+    const response = await expectThrownResponse(
+      loader(routeArgs(request)),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      `/administracion/coreografias?evento=${event.id}&busqueda=Pieza&pagina=2`,
+    );
+  });
+
+  test("removes invalid pagina values and omits pagina for the first page", async () => {
+    const event = await createSavedEvent();
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.pagina-invalida@example.com",
+      role: "admin",
+      requestUrl:
+        `http://localhost/administracion/coreografias?evento=${event.id}` +
+        "&busqueda=Bosque&pagina=0",
+    });
+
+    const response = await expectThrownResponse(
+      loader(routeArgs(request)),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      `/administracion/coreografias?evento=${event.id}&busqueda=Bosque`,
+    );
+  });
+
+  test("preserves busqueda when changing page or sort and resets pagina on sort links", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "academia.urls@example.com",
+      academyName: "Academia URL",
+    });
+    const catalog = await createEventCatalog(event.id, "Jazz");
+
+    for (let index = 0; index < 51; index += 1) {
+      await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.category.id,
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name: `Pieza ${String(index + 1).padStart(2, "0")}`,
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+    }
+
+    const loaderData = await loadRouteData({
+      email: "admin.coreografias.urls@example.com",
+      requestUrl:
+        `http://localhost/administracion/coreografias?evento=${event.id}` +
+        "&busqueda=Pieza&orden=nombre:asc&pagina=2",
+    });
+    const markup = renderRoute({
+      childLoaderData: loaderData,
+      initialEntry: `/administracion/coreografias?busqueda=Pieza&orden=nombre:asc&pagina=2`,
+      parentLoaderData: {
+        email: "admin.coreografias.urls@example.com",
+        events: [{ id: event.id, name: event.name, active: true }],
+        selectedEventId: event.id,
+      },
+    });
+
+    expect(markup).toContain("busqueda=Pieza&amp;orden=nombre%3Aasc");
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc&amp;pagina=2"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=academia%3Aasc"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Adesc"',
+    );
+  });
 });
 
 async function createSignedInRequest(input: {
@@ -301,6 +513,16 @@ async function createSignedInRequest(input: {
       },
     }),
   };
+}
+
+async function loadRouteData(input: { email: string; requestUrl: string }) {
+  const { request } = await createSignedInRequest({
+    email: input.email,
+    role: "admin",
+    requestUrl: input.requestUrl,
+  });
+
+  return await loader(routeArgs(request));
 }
 
 function createRequestCookie(headers: Headers) {
