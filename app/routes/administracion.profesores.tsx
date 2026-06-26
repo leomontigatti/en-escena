@@ -171,6 +171,8 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       }}
       emptyMessage="No hay Profesores que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
+      pageParamName="pagina"
+      searchParamName="busqueda"
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
@@ -257,7 +259,7 @@ function buildSearchParams(loaderData: LoaderData) {
   const searchParams = new URLSearchParams();
 
   if (loaderData.filters.query.length > 0) {
-    searchParams.set("q", loaderData.filters.query);
+    searchParams.set("busqueda", loaderData.filters.query);
   }
 
   if (loaderData.filters.nameOrder === "desc") {
@@ -275,7 +277,7 @@ function buildSearchParams(loaderData: LoaderData) {
   }
 
   if (loaderData.filters.page > 1) {
-    searchParams.set("page", String(loaderData.filters.page));
+    searchParams.set("pagina", String(loaderData.filters.page));
   }
 
   return searchParams;

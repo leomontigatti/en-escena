@@ -46,7 +46,7 @@ export function readAdministrativeUserFilters(
 
   return {
     archived: readArchivedFilter(searchParams.get("archivado")),
-    query: searchParams.get("q")?.trim() ?? "",
+    query: searchParams.get("busqueda")?.trim() ?? "",
     role: readRoleFilter(searchParams.get("rol")),
     state: readStateFilter(stateValue),
     type: readTypeFilter(searchParams.get("tipo")),

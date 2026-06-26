@@ -238,7 +238,7 @@ describe.sequential("administracion/bailarines route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&estado=todos&identificacion=incompleta&q=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&estado=todos&identificacion=incompleta&busqueda=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -251,18 +251,28 @@ describe.sequential("administracion/bailarines route", () => {
     expect(searchMarkup).toContain("Incompleto");
     expect(searchMarkup).not.toContain("Acciones");
     expect(searchMarkup).toContain(
-      `/administracion/bailarines/${identifiedDancer.id}?q=Academia+Sur`,
+      `/administracion/bailarines/${identifiedDancer.id}?busqueda=Academia+Sur`,
     );
     expect(searchMarkup).toContain("participando=no");
     expect(searchMarkup).toContain("estado=todos");
     expect(searchMarkup).not.toContain("identificacion=todos");
-    expect(searchMarkup).toContain("q=Academia+Sur");
+    expect(searchMarkup).toContain("busqueda=Academia+Sur");
     expect(searchMarkup).not.toContain(">Todos<");
+
+    const { request: legacySearchRequest } = await createSignedInRequest({
+      email: "admin.search.legacy.dancers@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&q=Academia+Sur&page=2`,
+    });
+    const legacySearchData = await loader(routeArgs(legacySearchRequest));
+
+    expect(legacySearchData.filters.query).toBe("");
+    expect(legacySearchData.filters.page).toBe(1);
 
     const { request: emptySearchRequest } = await createSignedInRequest({
       email: "admin.empty.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&q=No+existe`,
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&busqueda=No+existe`,
     });
     const emptySearchData = await loader(routeArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
@@ -294,7 +304,7 @@ describe.sequential("administracion/bailarines route", () => {
     const { request: pageTwoRequest } = await createSignedInRequest({
       email: "admin.pagination.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&page=2`,
+      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&pagina=2`,
     });
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
@@ -309,7 +319,7 @@ describe.sequential("administracion/bailarines route", () => {
       'href="/administracion/bailarines?participando=no"',
     );
     expect(pageTwoMarkup).toContain(
-      'href="/administracion/bailarines?participando=no&amp;page=2"',
+      'href="/administracion/bailarines?participando=no&amp;pagina=2"',
     );
   });
 
@@ -411,7 +421,7 @@ describe.sequential("administracion/bailarines route", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.detail.dancers@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&estado=todos&participando=todos&identificacion=todos&page=2&q=Julia`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&estado=todos&participando=todos&identificacion=todos&pagina=2&busqueda=Julia`,
     });
 
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
@@ -451,8 +461,8 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("estado=todos");
     expect(markup).toContain("participando=todos");
     expect(markup).toContain("identificacion=todos");
-    expect(markup).toContain("page=2");
-    expect(markup).toContain("q=Julia");
+    expect(markup).toContain("pagina=2");
+    expect(markup).toContain("busqueda=Julia");
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Acciones");
   });
@@ -1633,7 +1643,7 @@ function buildListInitialEntry(
   const searchParams = new URLSearchParams();
 
   if (loaderData.filters.query.length > 0) {
-    searchParams.set("q", loaderData.filters.query);
+    searchParams.set("busqueda", loaderData.filters.query);
   }
 
   if (loaderData.filters.nameOrder === "desc") {
@@ -1665,7 +1675,7 @@ function buildListInitialEntry(
   }
 
   if (loaderData.filters.page > 1) {
-    searchParams.set("page", String(loaderData.filters.page));
+    searchParams.set("pagina", String(loaderData.filters.page));
   }
 
   const search = searchParams.toString();

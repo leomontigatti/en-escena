@@ -24,7 +24,7 @@ export function readAdministrativeDancerFilters(
       value: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
-    query: searchParams.get("q")?.trim() ?? "",
+    query: searchParams.get("busqueda")?.trim() ?? "",
     status: readAdminDancerStatusFilter(searchParams.get("estado")),
     identification: readAdminDancerIdentificationFilter(
       searchParams.get("identificacion"),

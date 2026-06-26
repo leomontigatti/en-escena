@@ -39,7 +39,7 @@ export function readDancerNameOrder(
 }
 
 export function readPage(searchParams: URLSearchParams) {
-  const page = Number(searchParams.get("page"));
+  const page = Number(searchParams.get("pagina"));
 
   if (!Number.isInteger(page) || page < 1) {
     return 1;

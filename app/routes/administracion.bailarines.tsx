@@ -177,6 +177,8 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       }}
       emptyMessage="No hay Bailarines que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
+      pageParamName="pagina"
+      searchParamName="busqueda"
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
@@ -304,7 +306,7 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
   const searchParams = new URLSearchParams();
 
   if (loaderData.filters.query.length > 0) {
-    searchParams.set("q", loaderData.filters.query);
+    searchParams.set("busqueda", loaderData.filters.query);
   }
 
   if (loaderData.filters.nameOrder === "desc") {
@@ -326,7 +328,7 @@ function buildSearchParams(loaderData: LoaderData, page: number) {
   }
 
   if (page > 1) {
-    searchParams.set("page", String(page));
+    searchParams.set("pagina", String(page));
   }
 
   return searchParams;

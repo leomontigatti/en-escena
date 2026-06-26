@@ -113,7 +113,7 @@ describe("administracion/usuarios route", () => {
       email: "admin.busqueda.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: "http://localhost/administracion/usuarios?q=ada.admin",
+      requestUrl: "http://localhost/administracion/usuarios?busqueda=ada.admin",
       userName: "Admin Búsqueda",
       internalUsername: "admin.busqueda",
     });
@@ -125,11 +125,24 @@ describe("administracion/usuarios route", () => {
       byIdentifierData.users.map((savedUser) => savedUser.identifier),
     ).toEqual(["ada.admin"]);
 
+    const legacyQueryRequest = await createSignedInRequest({
+      email: "admin.legacy-query.usuarios@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios?q=ada.admin",
+      userName: "Admin Legacy",
+      internalUsername: "admin.legacy",
+    });
+    const legacyQueryData = await loader(routeArgs(legacyQueryRequest.request));
+
+    expect(legacyQueryData.filters.query).toBe("");
+
     const byNameRequest = await createSignedInRequest({
       email: "admin.nombre.usuarios@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: "http://localhost/administracion/usuarios?q=Nora+Norte",
+      requestUrl:
+        "http://localhost/administracion/usuarios?busqueda=Nora+Norte",
       userName: "Admin Nombre",
       internalUsername: "admin.nombre",
     });

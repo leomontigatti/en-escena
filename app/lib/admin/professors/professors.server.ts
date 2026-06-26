@@ -126,7 +126,7 @@ export function readAdministrativeProfessorFilters(
       participationValue: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
-    query: searchParams.get("q")?.trim() ?? "",
+    query: searchParams.get("busqueda")?.trim() ?? "",
     status: readProfessorStatusFilter(stateValue),
     page: readPage(searchParams),
   };
@@ -698,7 +698,7 @@ async function insertAdministrativeProfessorAuditEntry(input: {
 }
 
 function readPage(searchParams: URLSearchParams) {
-  const page = Number(searchParams.get("page"));
+  const page = Number(searchParams.get("pagina"));
 
   if (!Number.isInteger(page) || page < 1) {
     return 1;

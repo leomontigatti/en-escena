@@ -214,6 +214,8 @@ function UsersTable({
       initialFacetedFilterValues={buildInitialUserFilterValues(filters)}
       emptyMessage="No hay Usuarios que coincidan con la búsqueda o los filtros."
       currentPage={1}
+      pageParamName="pagina"
+      searchParamName="busqueda"
       totalPages={1}
       totalRows={users.length}
     />
@@ -259,7 +261,7 @@ function buildDetailSearch(filters: AdministrativeUserListFilters) {
   const searchParams = new URLSearchParams();
 
   if (filters.query.length > 0) {
-    searchParams.set("q", filters.query);
+    searchParams.set("busqueda", filters.query);
   }
 
   if (filters.state !== "all") {

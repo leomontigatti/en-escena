@@ -161,7 +161,7 @@ describe("administracion/profesores route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.busqueda@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&q=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&busqueda=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -174,16 +174,26 @@ describe("administracion/profesores route", () => {
     expect(searchMarkup).not.toContain("Identificación completa");
     expect(searchMarkup).not.toContain("Acciones");
     expect(searchMarkup).toContain(
-      `/administracion/profesores/${nonParticipatingProfessor.id}?q=Academia+Sur`,
+      `/administracion/profesores/${nonParticipatingProfessor.id}?busqueda=Academia+Sur`,
     );
     expect(searchMarkup).toContain("participando=no");
-    expect(searchMarkup).toContain("q=Academia+Sur");
+    expect(searchMarkup).toContain("busqueda=Academia+Sur");
     expect(searchMarkup).not.toContain(">Todos<");
+
+    const { request: legacySearchRequest } = await createSignedInRequest({
+      email: "admin.busqueda.legacy@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&q=Academia+Sur&page=2`,
+    });
+    const legacySearchData = await loader(routeArgs(legacySearchRequest));
+
+    expect(legacySearchData.filters.query).toBe("");
+    expect(legacySearchData.filters.page).toBe(1);
 
     const { request: emptySearchRequest } = await createSignedInRequest({
       email: "admin.busqueda.vacia@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&q=No+existe`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&busqueda=No+existe`,
     });
     const emptySearchData = await loader(routeArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
@@ -214,7 +224,7 @@ describe("administracion/profesores route", () => {
     const { request: pageTwoRequest } = await createSignedInRequest({
       email: "admin.paginacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&page=2`,
+      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&pagina=2`,
     });
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
@@ -229,7 +239,7 @@ describe("administracion/profesores route", () => {
       'href="/administracion/profesores?participando=no"',
     );
     expect(pageTwoMarkup).toContain(
-      'href="/administracion/profesores?participando=no&amp;page=2"',
+      'href="/administracion/profesores?participando=no&amp;pagina=2"',
     );
   });
 
@@ -321,7 +331,7 @@ describe("administracion/profesores route", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.ficha@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&page=2&q=Julia`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&pagina=2&busqueda=Julia`,
     });
 
     const loaderData = await detailLoader(
@@ -344,8 +354,8 @@ describe("administracion/profesores route", () => {
     expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).not.toContain("estado=todos");
     expect(markup).not.toContain("participando=todos");
-    expect(markup).toContain("page=2");
-    expect(markup).toContain("q=Julia");
+    expect(markup).toContain("pagina=2");
+    expect(markup).toContain("busqueda=Julia");
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Acciones");
     expect(markup).not.toContain("Elena Ficha");
@@ -1078,7 +1088,7 @@ function buildListInitialEntry(
   const searchParams = new URLSearchParams();
 
   if (loaderData.filters.query.length > 0) {
-    searchParams.set("q", loaderData.filters.query);
+    searchParams.set("busqueda", loaderData.filters.query);
   }
 
   if (loaderData.filters.nameOrder === "desc") {
@@ -1096,7 +1106,7 @@ function buildListInitialEntry(
   }
 
   if (loaderData.filters.page > 1) {
-    searchParams.set("page", String(loaderData.filters.page));
+    searchParams.set("pagina", String(loaderData.filters.page));
   }
 
   const search = searchParams.toString();
