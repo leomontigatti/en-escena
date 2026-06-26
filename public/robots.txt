@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /administracion
+Disallow: /auditoria
+Disallow: /cambiar-contrasena
+Disallow: /ingresar
+Disallow: /juzgamiento
+Disallow: /portal
+Disallow: /recuperar-acceso
+Disallow: /registro
+Disallow: /salir
