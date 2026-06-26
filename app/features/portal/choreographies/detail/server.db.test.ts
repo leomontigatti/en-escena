@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  academies,
   categories,
   categoryExperienceLevels,
   categoryModalities,
@@ -20,17 +19,16 @@ import {
   schedules,
   scheduleCapacities,
   submodalities,
-  user,
 } from "@/db/schema";
 import {
   handlePortalChoreographyDetailRouteAction as choreographyDetailAction,
   loadPortalChoreographyDetail as choreographyDetailLoader,
 } from "@/features/portal/choreographies/detail/server";
 import {
+  createAcademyRecord as createPortalAcademyRecord,
+  createAcademySession as createPortalAcademySession,
   createPortalPostRequest,
-  createRequestCookie,
 } from "@/features/portal/test-support/db";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -1664,34 +1662,11 @@ async function createAcademySession({
   academyName: string;
   email: string;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  return await createPortalAcademySession({
+    academyName,
     email,
-    name: email,
-    password: "password-segura",
+    phone: "11 1234-5678",
   });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-    })
-    .returning();
-
-  return {
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
-  };
 }
 
 async function createAcademyRecord({
@@ -1701,27 +1676,11 @@ async function createAcademyRecord({
   academyName: string;
   email: string;
 }) {
-  const [record] = await db
-    .insert(user)
-    .values({
-      email,
-      name: email,
-      emailVerified: true,
-      role: "academy",
-    })
-    .returning();
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: record.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-    })
-    .returning();
-
-  return academy;
+  return await createPortalAcademyRecord({
+    academyName,
+    email,
+    phone: "11 1234-5678",
+  });
 }
 
 async function createEventRecord(

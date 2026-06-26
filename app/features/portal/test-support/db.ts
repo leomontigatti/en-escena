@@ -8,9 +8,11 @@ import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 export async function createAcademySession({
   academyName,
   email,
+  phone = "1112345678",
 }: {
   academyName: string;
   email: string;
+  phone?: string;
 }) {
   const signUpResult = await createLocalAccessUser({
     email,
@@ -32,7 +34,7 @@ export async function createAcademySession({
       userId: signUpResult.response.user.id,
       name: academyName,
       contactName: "Contacto",
-      phone: "1112345678",
+      phone,
     })
     .returning();
 
@@ -45,9 +47,11 @@ export async function createAcademySession({
 export async function createAcademyRecord({
   academyName,
   email,
+  phone = "1112345678",
 }: {
   academyName: string;
   email: string;
+  phone?: string;
 }) {
   const [record] = await db
     .insert(user)
@@ -64,7 +68,7 @@ export async function createAcademyRecord({
       userId: record.id,
       name: academyName,
       contactName: "Contacto",
-      phone: "1112345678",
+      phone,
     })
     .returning();
 
