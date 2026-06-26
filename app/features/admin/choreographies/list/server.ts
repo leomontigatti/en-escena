@@ -43,6 +43,11 @@ type AdministrativeChoreographyListFilters = {
 
 type AdministrativeChoreographyStatusFilter = "completa" | "incompleta" | null;
 type AdministrativeChoreographyCategoryFilter = string | "sin-asignar" | null;
+type HydratedAdministrativeChoreographyRow =
+  AdministrativeChoreographyListItem & {
+    categoryId: string | null;
+    modalityId: string;
+  };
 
 export type AdministrativeChoreographySortColumn = "academia" | "nombre";
 
@@ -67,12 +72,14 @@ export type AdministrativeChoreographyFilterOption = {
   value: string;
 };
 
+type AdministrativeChoreographyFacets = {
+  categories: AdministrativeChoreographyFilterOption[];
+  modalities: AdministrativeChoreographyFilterOption[];
+};
+
 export type AdministrativeChoreographyListResult = {
   choreographies: AdministrativeChoreographyListItem[];
-  facets: {
-    categories: AdministrativeChoreographyFilterOption[];
-    modalities: AdministrativeChoreographyFilterOption[];
-  };
+  facets: AdministrativeChoreographyFacets;
   filters: AdministrativeChoreographyListFilters;
   hasAnyChoreography: boolean;
   selectedEventId: string | null;
@@ -220,14 +227,7 @@ function readAdministrativeChoreographyOrder(
 
 async function hydrateAdministrativeChoreographies(
   rows: AdministrativeChoreographyRow[],
-): Promise<
-  Array<
-    AdministrativeChoreographyListItem & {
-      categoryId: string | null;
-      modalityId: string;
-    }
-  >
-> {
+): Promise<HydratedAdministrativeChoreographyRow[]> {
   if (rows.length === 0) {
     return [];
   }
@@ -346,33 +346,17 @@ function buildAdministrativeChoreographyFacets(
 
 function normalizeAdministrativeChoreographyFilters(
   filters: AdministrativeChoreographyListFilters,
-  facets: AdministrativeChoreographyListResult["facets"],
+  facets: AdministrativeChoreographyFacets,
 ): AdministrativeChoreographyListFilters {
-  const modalityValues = new Set(
-    facets.modalities.map((option) => option.value),
-  );
-  const categoryValues = new Set(
-    facets.categories.map((option) => option.value),
-  );
-
   return {
     ...filters,
-    category:
-      filters.category !== null && categoryValues.has(filters.category)
-        ? filters.category
-        : null,
-    modalityId:
-      filters.modalityId !== null && modalityValues.has(filters.modalityId)
-        ? filters.modalityId
-        : null,
+    category: keepKnownFacetValue(filters.category, facets.categories),
+    modalityId: keepKnownFacetValue(filters.modalityId, facets.modalities),
   };
 }
 
 function matchesAdministrativeChoreographyFilters(
-  row: AdministrativeChoreographyListItem & {
-    categoryId: string | null;
-    modalityId: string;
-  },
+  row: HydratedAdministrativeChoreographyRow,
   filters: AdministrativeChoreographyListFilters,
 ) {
   if (
@@ -393,14 +377,8 @@ function matchesAdministrativeChoreographyFilters(
     return false;
   }
 
-  if (filters.category === "sin-asignar" && row.categoryId !== null) {
-    return false;
-  }
-
   if (
-    filters.category !== null &&
-    filters.category !== "sin-asignar" &&
-    row.categoryId !== filters.category
+    !matchesAdministrativeChoreographyCategory(row.categoryId, filters.category)
   ) {
     return false;
   }
@@ -430,7 +408,7 @@ function compareAdministrativeChoreographies(
     const comparison = compareAdministrativeText(firstRow.name, secondRow.name);
 
     if (comparison !== 0) {
-      return order.direction === "desc" ? comparison * -1 : comparison;
+      return applySortDirection(comparison, order.direction);
     }
 
     const academyComparison = compareAdministrativeText(
@@ -451,9 +429,7 @@ function compareAdministrativeChoreographies(
   );
 
   if (academyComparison !== 0) {
-    return order.direction === "desc"
-      ? academyComparison * -1
-      : academyComparison;
+    return applySortDirection(academyComparison, order.direction);
   }
 
   const nameComparison = compareAdministrativeText(
@@ -473,6 +449,36 @@ function compareAdministrativeText(firstValue: string, secondValue: string) {
     sensitivity: "base",
     numeric: true,
   });
+}
+
+function applySortDirection(comparison: number, direction: "asc" | "desc") {
+  return direction === "desc" ? comparison * -1 : comparison;
+}
+
+function keepKnownFacetValue(
+  value: string | null,
+  options: AdministrativeChoreographyFilterOption[],
+) {
+  if (value === null) {
+    return null;
+  }
+
+  return options.some((option) => option.value === value) ? value : null;
+}
+
+function matchesAdministrativeChoreographyCategory(
+  categoryId: string | null,
+  categoryFilter: AdministrativeChoreographyCategoryFilter,
+) {
+  if (categoryFilter === null) {
+    return true;
+  }
+
+  if (categoryFilter === "sin-asignar") {
+    return categoryId === null;
+  }
+
+  return categoryId === categoryFilter;
 }
 
 function getUniqueSortedFilterOptions(

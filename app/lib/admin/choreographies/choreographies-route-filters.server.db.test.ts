@@ -151,6 +151,31 @@ describe("administracion/coreografias route filters", () => {
       `href="/administracion/coreografias?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=${contemporaryCatalog.category.id}&amp;tipo-grupo=duo"`,
     );
 
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.filtro-estado@example.com",
+      eventId: event.id,
+      expectedNames: ["Completa Jazz"],
+      search: "&estado=completa",
+    });
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.filtro-modalidad@example.com",
+      eventId: event.id,
+      expectedNames: ["Sin Categoría Trio"],
+      search: `&modalidad=${urbanCatalog.modality.id}`,
+    });
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.filtro-categoria@example.com",
+      eventId: event.id,
+      expectedNames: ["Completa Jazz"],
+      search: `&categoria=${jazzCatalog.category.id}`,
+    });
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.filtro-tipo-grupo@example.com",
+      eventId: event.id,
+      expectedNames: ["Sin Categoría Trio"],
+      search: "&tipo-grupo=trio",
+    });
+
     const missingCategoryData = await loadRouteData({
       email: "admin.coreografias.sin-categoria@example.com",
       requestUrl:
@@ -463,6 +488,24 @@ async function expectCreated<T extends { id: string }>(
   }
 
   return result.record;
+}
+
+async function expectChoreographyNamesForSearch(input: {
+  email: string;
+  eventId: string;
+  expectedNames: string[];
+  search: string;
+}) {
+  const data = await loadRouteData({
+    email: input.email,
+    requestUrl:
+      `http://localhost/administracion/coreografias?evento=${input.eventId}` +
+      input.search,
+  });
+
+  expect(data.choreographies.map((row) => row.name)).toEqual(
+    input.expectedNames,
+  );
 }
 
 async function expectThrownResponse(

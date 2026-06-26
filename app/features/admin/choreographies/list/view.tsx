@@ -23,6 +23,18 @@ type AdministracionCoreografiasRouteViewProps = {
   loaderData: LoaderData;
 };
 
+const administrativeChoreographyStatusFilterOptions = [
+  { label: "Completa", value: "completa" },
+  { label: "Incompleta", value: "incompleta" },
+];
+
+const administrativeChoreographyGroupTypeFilterOptions = [
+  { label: "Solo", value: "solo" },
+  { label: "Dúo", value: "duo" },
+  { label: "Trío", value: "trio" },
+  { label: "Grupal", value: "grupal" },
+];
+
 const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "nombre",
@@ -172,10 +184,7 @@ function buildAdministrativeChoreographyFacetedFilters(
         {
           id: "estado",
           label: "Estado",
-          options: [
-            { label: "Completa", value: "completa" },
-            { label: "Incompleta", value: "incompleta" },
-          ],
+          options: administrativeChoreographyStatusFilterOptions,
         },
         {
           id: "modalidad",
@@ -190,12 +199,7 @@ function buildAdministrativeChoreographyFacetedFilters(
         {
           id: "tipo-grupo",
           label: "Tipo de grupo",
-          options: [
-            { label: "Solo", value: "solo" },
-            { label: "Dúo", value: "duo" },
-            { label: "Trío", value: "trio" },
-            { label: "Grupal", value: "grupal" },
-          ],
+          options: administrativeChoreographyGroupTypeFilterOptions,
         },
       ],
     },
@@ -203,20 +207,25 @@ function buildAdministrativeChoreographyFacetedFilters(
 }
 
 function buildAdministrativeChoreographyInitialFilters(loaderData: LoaderData) {
+  const filters: Record<string, string> = {};
+
+  if (loaderData.filters.status) {
+    filters.estado = loaderData.filters.status;
+  }
+
+  if (loaderData.filters.modalityId) {
+    filters.modalidad = loaderData.filters.modalityId;
+  }
+
+  if (loaderData.filters.category) {
+    filters.categoria = loaderData.filters.category;
+  }
+
+  if (loaderData.filters.groupType) {
+    filters["tipo-grupo"] = loaderData.filters.groupType;
+  }
+
   return {
-    filters: {
-      ...(loaderData.filters.status
-        ? { estado: loaderData.filters.status }
-        : {}),
-      ...(loaderData.filters.modalityId
-        ? { modalidad: loaderData.filters.modalityId }
-        : {}),
-      ...(loaderData.filters.category
-        ? { categoria: loaderData.filters.category }
-        : {}),
-      ...(loaderData.filters.groupType
-        ? { "tipo-grupo": loaderData.filters.groupType }
-        : {}),
-    },
+    filters,
   };
 }
