@@ -5,6 +5,7 @@ import {
 import {
   DataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -117,6 +118,10 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       getRowKey={(choreography) => choreography.id}
       searchPlaceholder="Buscar coreografía por nombre o academia"
       initialSearchValue={loaderData.filters.query}
+      facetedFilters={buildAdministrativeChoreographyFacetedFilters(loaderData)}
+      initialFacetedFilterValues={buildAdministrativeChoreographyInitialFilters(
+        loaderData,
+      )}
       initialSort={loaderData.filters.order}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
@@ -135,6 +140,10 @@ function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
     loaderData.hasAnyChoreography ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
+    loaderData.filters.status !== null ||
+    loaderData.filters.modalityId !== null ||
+    loaderData.filters.category !== null ||
+    loaderData.filters.groupType !== null ||
     hasNonDefaultAdministrativeChoreographyOrder(loaderData.filters.order)
   );
 }
@@ -150,4 +159,64 @@ function formatPrimaryAndSecondaryValue(
   secondaryValue: string | null,
 ) {
   return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
+}
+
+function buildAdministrativeChoreographyFacetedFilters(
+  loaderData: LoaderData,
+): DataTableFacetedFilter[] {
+  return [
+    {
+      columnId: "filters",
+      label: "Filtros",
+      groups: [
+        {
+          id: "estado",
+          label: "Estado",
+          options: [
+            { label: "Completa", value: "completa" },
+            { label: "Incompleta", value: "incompleta" },
+          ],
+        },
+        {
+          id: "modalidad",
+          label: "Modalidad",
+          options: loaderData.facets.modalities,
+        },
+        {
+          id: "categoria",
+          label: "Categoría",
+          options: loaderData.facets.categories,
+        },
+        {
+          id: "tipo-grupo",
+          label: "Tipo de grupo",
+          options: [
+            { label: "Solo", value: "solo" },
+            { label: "Dúo", value: "duo" },
+            { label: "Trío", value: "trio" },
+            { label: "Grupal", value: "grupal" },
+          ],
+        },
+      ],
+    },
+  ];
+}
+
+function buildAdministrativeChoreographyInitialFilters(loaderData: LoaderData) {
+  return {
+    filters: {
+      ...(loaderData.filters.status
+        ? { estado: loaderData.filters.status }
+        : {}),
+      ...(loaderData.filters.modalityId
+        ? { modalidad: loaderData.filters.modalityId }
+        : {}),
+      ...(loaderData.filters.category
+        ? { categoria: loaderData.filters.category }
+        : {}),
+      ...(loaderData.filters.groupType
+        ? { "tipo-grupo": loaderData.filters.groupType }
+        : {}),
+    },
+  };
 }

@@ -77,6 +77,30 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
     searchParams.delete("busqueda");
   }
 
+  if (input.filters.status) {
+    searchParams.set("estado", input.filters.status);
+  } else {
+    searchParams.delete("estado");
+  }
+
+  if (input.filters.modalityId) {
+    searchParams.set("modalidad", input.filters.modalityId);
+  } else {
+    searchParams.delete("modalidad");
+  }
+
+  if (input.filters.category) {
+    searchParams.set("categoria", input.filters.category);
+  } else {
+    searchParams.delete("categoria");
+  }
+
+  if (input.filters.groupType) {
+    searchParams.set("tipo-grupo", input.filters.groupType);
+  } else {
+    searchParams.delete("tipo-grupo");
+  }
+
   if (!isDefaultAdministrativeChoreographyOrder(input.filters.order)) {
     searchParams.set(
       "orden",

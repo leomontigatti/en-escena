@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { buildDataTableFilterHref } from "@/components/shared/data-table";
 import { AdministracionCoreografiasRouteView } from "@/features/admin/choreographies/list/view";
 
 describe("AdministracionCoreografiasRouteView", () => {
@@ -87,12 +88,16 @@ describe("AdministracionCoreografiasRouteView", () => {
   test("keeps filtered empty results inside the table when the active event has coreographies", () => {
     const markup = renderRoute({
       filters: {
+        category: null,
+        groupType: null,
+        modalityId: null,
         order: {
           columnId: "academia",
           direction: "asc",
         },
         page: 1,
         query: "Sin resultados",
+        status: null,
       },
       hasAnyChoreography: true,
     });
@@ -104,27 +109,92 @@ describe("AdministracionCoreografiasRouteView", () => {
     );
     expect(markup).not.toContain("Todavía no hay coreografías para mostrar.");
   });
+
+  test("renders operational faceted filters with the approved URL values", () => {
+    const markup = renderRoute({
+      facets: {
+        categories: [
+          { label: "Adulto", value: "categoria_1" },
+          { label: "Sin asignar", value: "sin-asignar" },
+        ],
+        modalities: [{ label: "Contemporáneo", value: "modalidad_1" }],
+      },
+      filters: {
+        category: "categoria_1",
+        groupType: "duo",
+        modalityId: "modalidad_1",
+        order: {
+          columnId: "academia",
+          direction: "asc",
+        },
+        page: 1,
+        query: "",
+        status: "incompleta",
+      },
+      hasAnyChoreography: true,
+    });
+
+    expect(markup).toContain(
+      'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo"',
+    );
+  });
+
+  test("preserves busqueda and orden while resetting pagina on filter links", () => {
+    const href = buildDataTableFilterHref({
+      basePath: "/administracion/coreografias",
+      currentSearch: "?busqueda=Luna&orden=nombre:desc&pagina=2",
+      filter: {
+        columnId: "filters",
+        label: "Filtros",
+        groups: [
+          {
+            id: "estado",
+            label: "Estado",
+            options: [
+              { label: "Completa", value: "completa" },
+              { label: "Incompleta", value: "incompleta" },
+            ],
+          },
+        ],
+      },
+      pageParamName: "pagina",
+      values: { estado: "completa" },
+    });
+
+    expect(href).toBe(
+      "/administracion/coreografias?busqueda=Luna&orden=nombre%3Adesc&estado=completa",
+    );
+  });
 });
 
 function renderRoute(
   loaderData: Partial<
     Parameters<typeof AdministracionCoreografiasRouteView>[0]["loaderData"]
   > = {},
+  initialEntry = "/administracion/coreografias",
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
-      { initialEntries: ["/administracion/coreografias"] },
+      { initialEntries: [initialEntry] },
       createElement(AdministracionCoreografiasRouteView, {
         loaderData: {
           choreographies: [],
+          facets: {
+            categories: [],
+            modalities: [],
+          },
           filters: {
+            category: null,
+            groupType: null,
+            modalityId: null,
             order: {
               columnId: "academia",
               direction: "asc",
             },
             page: 1,
             query: "",
+            status: null,
           },
           hasAnyChoreography: false,
           selectedEventId: "event_1",
