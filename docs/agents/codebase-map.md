@@ -92,6 +92,60 @@ filters, archive/reactivate flows and admin corrections.
 - Server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`, `app/lib/participation/participation.server.ts`
 - Tests: `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
 
+## Admin Migration To app/features/admin
+
+Use for the structural migration of the Panel de administración into thin route
+adapters plus feature-owned flows under app/features/admin/....
+
+- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0002-selectable-event-contexts.md`
+- Keep route files in `app/routes` as thin adapters for `loader`, `action`, `meta`, `handle` and minimal route/view wiring.
+- Put admin-owned workflow code under app/features/admin/<resource>/<flow>/, usually `list/`, `detail/`, `create/` or resource-specific action folders.
+- Keep `app/components/admin` in place for this migration. Reuse it for shell/layout/shared widgets and only touch it for narrow wiring needed by one slice.
+- Use `app/lib` only for domain-neutral or genuinely cross-surface behavior. Admin-only screens, tables, dialogs and route orchestration should move behind admin feature modules instead of adding shallow wrappers in `app/lib`.
+- For Bases del evento, keep direct resource names such as `event-modalities`, `event-categories`, `event-schedules` and `event-prices`; reserve broader `event-bases` names for aggregators that coordinate several resources.
+
+### Professors
+
+- Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`
+- Current server modules: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professor-detail.shared.ts`
+- Current UI modules: `app/lib/admin/professors/professor-detail-view.tsx`, `app/lib/admin/professors/professor-detail-form.tsx`, `app/lib/admin/professors/professor-detail-confirmation-dialog.tsx`
+- Current tests: `app/lib/admin/professors/professors-route.server.db.test.ts`
+- Migration target: start with app/features/admin/professors/list/ and app/features/admin/professors/detail/, keeping repository/domain behavior in `app/lib` only when it is neutral beyond the admin surface.
+
+### Dancers
+
+- Routes: `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
+- Current server modules: `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/admin/dancers/dancers-mutation-helpers.server.ts`, `app/lib/admin/dancers/dancer-detail.shared.ts`
+- Current UI modules: `app/lib/admin/dancers/dancer-detail-view.tsx`, `app/lib/admin/dancers/dancer-detail-form.tsx`, `app/lib/admin/dancers/dancer-detail-confirmation-dialog.tsx`
+- Current tests: `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
+- Migration target: split by `list/` and `detail/` first; keep audit and mutation helpers shared only if both flows still use the same neutral seam after extraction.
+
+### Choreographies
+
+- Routes: `app/routes/administracion.coreografias.tsx`
+- Current feature modules: `app/features/admin/choreographies/list/server.ts`, `app/features/admin/choreographies/list/view.tsx`
+- Current tests: `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
+- Fixtures: no dedicated admin choreography fixture helper yet; scenarios live inline in the route DB tests.
+- Migration target: keep using app/features/admin/choreographies/... as the reference shape for later admin slices instead of pushing list/view logic back into route files.
+
+### Users
+
+- Routes: `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
+- Current server modules: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/user-invitation.server.ts`, `app/lib/admin/users/user-detail-route.server.ts`
+- Current UI modules: `app/lib/admin/users/user-detail-view.tsx`, `app/lib/admin/users/user-detail-edit-form.tsx`, `app/lib/admin/users/user-detail-password-reset-form.tsx`, `app/lib/admin/users/user-detail-cards.tsx`, `app/lib/admin/users/user-detail-role-field.tsx`
+- Current tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/lib/admin/users/internal-invitation-route.server.db.test.ts`, `app/lib/admin/users/user-invitation.server.db.test.ts`
+- Fixtures: no dedicated admin users fixture helper yet; route and server DB tests are still the discovery seam.
+- Migration target: carve out `list/`, `create/`, `detail/` and `invitations/` flows under app/features/admin/users/ while leaving auth/session policy in `app/lib/auth` and shared credential logic in `app/lib/admin/users` only if it remains neutral.
+
+### Events And Bases Del Evento
+
+- Routes: `app/routes/administracion.eventos.tsx`, `app/routes/administracion.eventos_.nuevo.tsx`, `app/routes/administracion.eventos_.$eventId.tsx`, `app/routes/administracion.modalidades.tsx`, `app/routes/administracion.modalidades_.nueva.tsx`, `app/routes/administracion.modalidades_.$modalityId.tsx`, `app/routes/administracion.categorias.tsx`, `app/routes/administracion.categorias_.nueva.tsx`, `app/routes/administracion.categorias_.$categoryId.tsx`, `app/routes/administracion.cronogramas.tsx`, `app/routes/administracion.cronogramas_.nuevo.tsx`, `app/routes/administracion.cronogramas_.$scheduleId.tsx`, `app/routes/administracion.precios.tsx`, `app/routes/administracion.precios_.nuevo.tsx`, `app/routes/administracion.precios_.$priceId.tsx`
+- Current server modules: `app/lib/admin/event-context.server.ts`, `app/lib/admin/events/bases-route.server.ts`, `app/lib/admin/events/bases-action.server.ts`, `app/lib/admin/events/bases-action/modalities.server.ts`, `app/lib/admin/events/bases-action/categories.server.ts`, `app/lib/admin/events/bases-action/schedules.server.ts`, `app/lib/admin/events/bases-action/prices.server.ts`, `app/lib/admin/events/bases-action/shared.server.ts`, `app/lib/admin/events/bases-action/input.server.ts`, `app/lib/admin/events/event-bases-navigation.ts`
+- Current UI modules: `app/components/admin/events/form.tsx`, `app/components/admin/events/event-modalities.tsx`, `app/components/admin/events/event-categories.tsx`, `app/components/admin/events/event-schedules.tsx`, `app/components/admin/events/event-schedules/route-views.tsx`, `app/components/admin/events/event-schedules/form.tsx`, `app/components/admin/events/event-schedules/list-table.tsx`, `app/components/admin/events/event-schedules/dialogs.tsx`, `app/components/admin/events/event-prices.tsx`, `app/components/admin/events/event-prices/route-views.tsx`, `app/components/admin/events/event-prices/form.tsx`, `app/components/admin/events/event-prices/list-table.tsx`
+- Current tests: `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/bases-route.server.db.test.ts`, `app/lib/admin/events/bases-route-cronogramas.server.db.test.ts`, `app/lib/admin/events/events-route.render.test.tsx`, `app/lib/admin/events/event-form-submission.render.test.tsx`, `app/lib/admin/events/event-bases-forms.render.test.tsx`, `app/lib/admin/events/event-bases-navigation.test.ts`, `app/components/admin/events/event-prices.test.tsx`
+- Large fixtures/helpers: `app/lib/admin/events/bases-route.test-helpers.tsx`
+- Migration target: break this area by resource or behavior, not as one move. A practical sequence is `events/list`, `events/detail`, then separate `event-modalities`, `event-categories`, `event-schedules` and `event-prices` feature folders, keeping app/lib/events as the shared domain/persistence layer.
+
 ## Judging And Results
 
 Use for judge panel access, presentations, scores, disqualifications, ranking,
