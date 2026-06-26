@@ -1,22 +1,15 @@
 import { z } from "zod";
 
+import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 
-const internalUserRoles = ["admin", "auditor", "judge"] as const;
+const temporaryPasswordMinLength = 8;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
-
-function isInternalUserRole(
-  value: string,
-): value is (typeof internalUserRoles)[number] {
-  return internalUserRoles.includes(
-    value as (typeof internalUserRoles)[number],
-  );
-}
 
 const optionalEmailField = z
   .string()
@@ -39,8 +32,8 @@ export const createInternalUserSchema = z.object({
   internalUsername: requiredTextField(),
   role: roleField,
   temporaryPassword: requiredTextField().refine(
-    (value) => value.length >= 8,
-    "La contraseña temporal debe tener al menos 8 caracteres.",
+    (value) => value.length >= temporaryPasswordMinLength,
+    `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
   ),
   email: optionalEmailField,
 });
@@ -100,7 +93,7 @@ export function readCreateInternalUserFormValues(
 
 export function getCreateInternalUserValidationFieldErrors(
   error: z.ZodError<CreateInternalUserFormValues>,
-) {
+): CreateInternalUserFieldErrors {
   return getFieldErrors(error, createInternalUserFieldNames);
 }
 
