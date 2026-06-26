@@ -146,17 +146,23 @@ function buildAdministrativeChoreographyWhere(input: {
   filters: AdministrativeChoreographyListFilters;
   selectedEventId: string;
 }): SQL {
-  const clauses: SQL[] = [eq(choreographies.eventId, input.selectedEventId)];
+  const eventCondition = eq(choreographies.eventId, input.selectedEventId);
 
-  if (input.filters.query.length > 0) {
-    const search = `%${input.filters.query}%`;
-
-    clauses.push(
-      or(ilike(choreographies.name, search), ilike(academies.name, search))!,
-    );
+  if (input.filters.query.length === 0) {
+    return eventCondition;
   }
 
-  return clauses.length === 1 ? clauses[0]! : and(...clauses)!;
+  const search = `%${input.filters.query}%`;
+  const searchCondition = or(
+    ilike(choreographies.name, search),
+    ilike(academies.name, search),
+  );
+
+  if (!searchCondition) {
+    return eventCondition;
+  }
+
+  return and(eventCondition, searchCondition) ?? eventCondition;
 }
 
 function readPage(searchParams: URLSearchParams) {

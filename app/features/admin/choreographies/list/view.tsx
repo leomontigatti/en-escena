@@ -22,14 +22,67 @@ type AdministracionCoreografiasRouteViewProps = {
   loaderData: LoaderData;
 };
 
+const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
+  {
+    id: "nombre",
+    header: "Nombre",
+    className: "w-[22%] font-medium",
+    headerClassName: "w-[22%]",
+    cell: (choreography) => choreography.name,
+    filterValue: (choreography) => choreography.name,
+  },
+  {
+    id: "academia",
+    header: "Academia",
+    className: "w-[22%] text-muted-foreground",
+    headerClassName: "w-[22%]",
+    cell: (choreography) => choreography.academyName,
+    filterValue: (choreography) => choreography.academyName,
+  },
+  {
+    id: "modalidadSubmodalidad",
+    header: "Modalidad / Submodalidad",
+    className: "w-[22%] text-muted-foreground",
+    headerClassName: "w-[22%]",
+    cell: (choreography) =>
+      formatPrimaryAndSecondaryValue(
+        choreography.modalityName,
+        choreography.submodalityName,
+      ),
+  },
+  {
+    id: "categoriaTipoGrupo",
+    header: "Categoría / Tipo de grupo",
+    className: "w-[22%] text-muted-foreground",
+    headerClassName: "w-[22%]",
+    cell: (choreography) =>
+      formatPrimaryAndSecondaryValue(
+        choreography.categoryName ?? "Sin asignar",
+        formatGroupTypeLabel(choreography.groupType),
+      ),
+  },
+  {
+    id: "estado",
+    header: "Estado",
+    className: "w-[12%]",
+    headerClassName: "w-[12%]",
+    cell: (choreography) => (
+      <Badge
+        variant={getChoreographyOperationalStatusBadgeVariant(
+          choreography.operationalStatus,
+        )}
+      >
+        {formatChoreographyOperationalStatusLabel(
+          choreography.operationalStatus,
+        )}
+      </Badge>
+    ),
+  },
+];
+
 export function AdministracionCoreografiasRouteView({
   loaderData,
 }: AdministracionCoreografiasRouteViewProps) {
-  const shouldShowTable =
-    loaderData.choreographies.length > 0 ||
-    loaderData.hasAnyChoreography ||
-    loaderData.filters.query.length > 0;
-
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -41,7 +94,7 @@ export function AdministracionCoreografiasRouteView({
           "Activá un evento para consultar las coreografías registradas por las academias.",
       }}
     >
-      {shouldShowTable ? (
+      {hasAdministrativeChoreographyTableContent(loaderData) ? (
         <ChoreographyTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
@@ -54,69 +107,11 @@ export function AdministracionCoreografiasRouteView({
 }
 
 function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
-  const columns: DataTableColumn<ChoreographyRow>[] = [
-    {
-      id: "nombre",
-      header: "Nombre",
-      className: "w-[22%] font-medium",
-      headerClassName: "w-[22%]",
-      cell: (choreography) => choreography.name,
-      filterValue: (choreography) => choreography.name,
-    },
-    {
-      id: "academia",
-      header: "Academia",
-      className: "w-[22%] text-muted-foreground",
-      headerClassName: "w-[22%]",
-      cell: (choreography) => choreography.academyName,
-      filterValue: (choreography) => choreography.academyName,
-    },
-    {
-      id: "modalidadSubmodalidad",
-      header: "Modalidad / Submodalidad",
-      className: "w-[22%] text-muted-foreground",
-      headerClassName: "w-[22%]",
-      cell: (choreography) =>
-        formatPrimaryAndSecondaryValue(
-          choreography.modalityName,
-          choreography.submodalityName,
-        ),
-    },
-    {
-      id: "categoriaTipoGrupo",
-      header: "Categoría / Tipo de grupo",
-      className: "w-[22%] text-muted-foreground",
-      headerClassName: "w-[22%]",
-      cell: (choreography) =>
-        formatPrimaryAndSecondaryValue(
-          choreography.categoryName ?? "Sin asignar",
-          formatGroupTypeLabel(choreography.groupType),
-        ),
-    },
-    {
-      id: "estado",
-      header: "Estado",
-      className: "w-[12%]",
-      headerClassName: "w-[12%]",
-      cell: (choreography) => (
-        <Badge
-          variant={getChoreographyOperationalStatusBadgeVariant(
-            choreography.operationalStatus,
-          )}
-        >
-          {formatChoreographyOperationalStatusLabel(
-            choreography.operationalStatus,
-          )}
-        </Badge>
-      ),
-    },
-  ];
-
   return (
     <DataTable
       mode="server"
       rows={loaderData.choreographies}
-      columns={columns}
+      columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
       searchPlaceholder="Buscar coreografía por nombre o academia"
       initialSearchValue={loaderData.filters.query}
@@ -127,6 +122,14 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
+  );
+}
+
+function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
+  return (
+    loaderData.choreographies.length > 0 ||
+    loaderData.hasAnyChoreography ||
+    loaderData.filters.query.length > 0
   );
 }
 
