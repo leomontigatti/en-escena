@@ -2,8 +2,13 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import { loadPortalShell } from "@/features/portal/shell/server";
+import {
+  createAcademySession,
+  createRequestCookie,
+  expectThrownResponse,
+} from "@/features/portal/test-support/db";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
@@ -174,43 +179,6 @@ async function createAcademyRequest(requestUrl: string) {
   });
 }
 
-async function createAcademySession({
-  academyName,
-  email,
-}: {
-  academyName: string;
-  email: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email,
-    name: email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "1112345678",
-    })
-    .returning();
-
-  return {
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
-  };
-}
-
 async function createInternalRequest(requestUrl: string) {
   const signUpResult = await createLocalAccessUser({
     email: "admin@example.com",
@@ -233,27 +201,6 @@ async function createInternalRequest(requestUrl: string) {
   });
 }
 
-async function expectThrownResponse(
-  promise: Promise<unknown>,
-  expectedStatus?: number,
-) {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof Response) {
-      if (expectedStatus !== undefined) {
-        expect(error.status).toBe(expectedStatus);
-      }
-
-      return error;
-    }
-
-    throw error;
-  }
-
-  throw new Error("Expected a Response to be thrown.");
-}
-
 async function createSavedEvent(
   overrides: Partial<Parameters<typeof createEvent>[0]> = {},
 ) {
@@ -271,22 +218,6 @@ async function createSavedEvent(
   }
 
   return result.event;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `sb-access-token=${sessionCookie[1]}`;
 }
 
 function date(value: string) {

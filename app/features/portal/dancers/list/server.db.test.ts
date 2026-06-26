@@ -2,20 +2,19 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  academies,
-  choreographies,
-  choreographyDancers,
-  dancers,
-  user,
-} from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createModality } from "@/lib/events/bases-repository.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   handlePortalDancersListAction,
   loadPortalDancersList,
 } from "@/features/portal/dancers/list/server";
+import {
+  createAcademyRecord,
+  createAcademySession,
+  createPortalPostRequest,
+  expectThrownResponse,
+} from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -208,43 +207,6 @@ describe.sequential("loadPortalDancersList", () => {
   });
 });
 
-async function createAcademySession({
-  academyName,
-  email,
-}: {
-  academyName: string;
-  email: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email,
-    name: email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "1112345678",
-    })
-    .returning();
-
-  return {
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
-  };
-}
-
 async function createSavedEvent(
   overrides: Partial<Parameters<typeof createEvent>[0]> = {},
 ) {
@@ -264,18 +226,6 @@ async function createSavedEvent(
   return result.event;
 }
 
-function createPortalPostRequest(
-  requestUrl: string,
-  cookie: string,
-  body: FormData,
-) {
-  return new Request(requestUrl, {
-    method: "POST",
-    headers: { cookie },
-    body,
-  });
-}
-
 function dancerFormData(input: {
   firstName: string;
   lastName: string;
@@ -288,51 +238,6 @@ function dancerFormData(input: {
   formData.set("birthDate", input.birthDate);
 
   return formData;
-}
-
-async function createAcademyRecord({
-  academyName,
-  email,
-}: {
-  academyName: string;
-  email: string;
-}) {
-  const [record] = await db
-    .insert(user)
-    .values({
-      email,
-      name: email,
-      emailVerified: true,
-      role: "academy",
-    })
-    .returning();
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: record.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "1112345678",
-    })
-    .returning();
-
-  return academy;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `sb-access-token=${sessionCookie[1]}`;
 }
 
 function date(value: string) {
@@ -352,25 +257,4 @@ async function expectCreated(
   }
 
   return result.record;
-}
-
-async function expectThrownResponse(
-  promise: Promise<unknown>,
-  expectedStatus?: number,
-) {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof Response) {
-      if (expectedStatus !== undefined) {
-        expect(error.status).toBe(expectedStatus);
-      }
-
-      return error;
-    }
-
-    throw error;
-  }
-
-  throw new Error("Expected a Response to be thrown.");
 }

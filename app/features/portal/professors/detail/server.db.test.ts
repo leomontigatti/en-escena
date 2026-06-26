@@ -2,13 +2,17 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, dancers, professors, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { dancers, professors } from "@/db/schema";
 import {
   handlePortalProfessorDetailAction,
   loadPortalProfessorDetail,
 } from "@/features/portal/professors/detail/server";
 import { loadPortalProfessorsList } from "@/features/portal/professors/list/server";
+import {
+  createAcademySession,
+  createPortalPostRequest,
+  expectThrownResponse,
+} from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -407,55 +411,6 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
   });
 });
 
-async function createAcademySession({
-  academyName,
-  email,
-}: {
-  academyName: string;
-  email: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email,
-    name: email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "1112345678",
-    })
-    .returning();
-
-  return {
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
-  };
-}
-
-function createPortalPostRequest(
-  requestUrl: string,
-  cookie: string,
-  body: FormData,
-) {
-  return new Request(requestUrl, {
-    method: "POST",
-    headers: { cookie },
-    body,
-  });
-}
-
 function formData(values: Record<string, string>) {
   const data = new FormData();
 
@@ -464,41 +419,4 @@ function formData(values: Record<string, string>) {
   }
 
   return data;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `sb-access-token=${sessionCookie[1]}`;
-}
-
-async function expectThrownResponse(
-  promise: Promise<unknown>,
-  expectedStatus?: number,
-) {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof Response) {
-      if (expectedStatus !== undefined) {
-        expect(error.status).toBe(expectedStatus);
-      }
-
-      return error;
-    }
-
-    throw error;
-  }
-
-  throw new Error("Expected a Response to be thrown.");
 }
