@@ -107,8 +107,8 @@ the repeated schema push and does not require local Postgres.
   `app/lib/auth/*.db.test.ts`. Error-shape differences are especially relevant
   here because auth flows may surface DB failures differently.
 - `Bases del evento`: event-scoped uniqueness, labels, and readiness inputs are
-  covered by `app/lib/events/bases-repository.server.db.test.ts`,
-  `app/lib/admin/events/bases-route.server.db.test.ts`, and
+  covered by the `app/lib/events/bases-repository-*.server.db.test.ts` and
+  `app/lib/admin/events/bases-route-*.server.db.test.ts` files, plus
   `app/lib/events/registration-readiness.server.db.test.ts`.
 
 **Fallback path**

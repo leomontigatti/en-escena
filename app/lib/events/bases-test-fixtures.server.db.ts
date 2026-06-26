@@ -1,10 +1,14 @@
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 
+type SavedEventFixtureOptions = {
+  activate?: boolean;
+};
+
 let createdEventOffset = 0;
 
 export async function createSavedEvent(
   name: string,
-  options: { activate?: boolean } = {},
+  { activate = false }: SavedEventFixtureOptions = {},
 ) {
   const eventOffset = createdEventOffset++;
   const registrationStartsAt = new Date(
@@ -27,7 +31,7 @@ export async function createSavedEvent(
     throw new Error(result.error);
   }
 
-  if (options.activate) {
+  if (activate) {
     const activationResult = await activateEvent(result.event.id);
 
     if (!activationResult.ok) {

@@ -54,9 +54,9 @@ export async function createSavedEvent(
   name: string,
   options: { activate?: boolean } = {},
 ) {
-  return createEventFixture(name, {
-    activate: options.activate ?? true,
-  });
+  const { activate = true } = options;
+
+  return createEventFixture(name, { activate });
 }
 
 export function renderRoute(
