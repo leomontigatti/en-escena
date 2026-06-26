@@ -1,4 +1,4 @@
-import { useActionData, useParams } from "react-router";
+import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
@@ -53,9 +53,9 @@ export function AdministracionPrecioDetalleRouteView({
 
 export default function AdminPriceDetailRoute({
   loaderData,
+  params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
-  const params = useParams();
 
   return (
     <AdministracionPrecioDetalleRouteView

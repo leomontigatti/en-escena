@@ -1,200 +1,174 @@
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test, vi } from "vitest";
+import { createRoutesStub } from "react-router";
+import { describe, expect, test } from "vitest";
 
-const loadAdministrativeEventPricesList = vi.fn();
-const createAdministrativeEventPrice = vi.fn();
-const loadAdministrativeEventPriceDetail = vi.fn();
-const updateAdministrativeEventPrice = vi.fn();
-const AdministrativeEventPricesListView = vi.fn(() =>
-  createElement("div", null, "Precios view"),
-);
-const AdministrativeEventPriceCreateView = vi.fn(() =>
-  createElement("div", null, "Nuevo precio view"),
-);
-const AdministrativeEventPriceDetailView = vi.fn(() =>
-  createElement("div", null, "Detalle precio view"),
-);
-const getAdministrativeEventPriceDisplayName = vi.fn(() => "Precio visible");
-
-const loaderResult = {
-  categories: [],
-  experienceLevels: [],
-  modalities: [],
-  prices: [],
-  schedules: [],
-  selectedEventId: "evento_1",
-  submodalities: [],
-};
-
-function routeArgs(request: Request, params: Record<string, string> = {}) {
-  return {
-    context: {},
-    params,
-    request,
-  } as never;
-}
-
-vi.mock("@/features/admin/event-prices/list/server", () => ({
-  loadAdministrativeEventPricesList,
-}));
-
-vi.mock("@/features/admin/event-prices/create/server", () => ({
-  createAdministrativeEventPrice,
-}));
-
-vi.mock("@/features/admin/event-prices/detail/server", () => ({
-  loadAdministrativeEventPriceDetail,
-  updateAdministrativeEventPrice,
-}));
-
-vi.mock("@/features/admin/event-prices/list/view", () => ({
-  AdministrativeEventPricesListView,
-}));
-
-vi.mock("@/features/admin/event-prices/create/view", () => ({
-  AdministrativeEventPriceCreateView,
-}));
-
-vi.mock("@/features/admin/event-prices/detail/view", () => ({
-  AdministrativeEventPriceDetailView,
-  getAdministrativeEventPriceDisplayName,
-}));
+import type {
+  AdministrativeEventPriceActionData,
+  AdministrativeEventPricesLoaderData,
+} from "@/features/admin/event-prices/shared";
+import {
+  AdministracionPrecioDetalleRouteView,
+  handle as detailRouteHandle,
+} from "@/routes/administracion.precios_.$priceId";
+import { AdministracionPrecioNuevoRouteView } from "@/routes/administracion.precios_.nuevo";
+import { AdministracionPreciosRouteView } from "@/routes/administracion.precios";
+import type { AdministrativeEventPriceDetailViewProps } from "./detail/view";
 
 describe("administracion.precios route adapters", () => {
-  test("delegates loader and render to the admin event prices list feature module", async () => {
-    const routeModule = await import("@/routes/administracion.precios");
-    const request = new Request("http://localhost/administracion/precios");
-
-    loadAdministrativeEventPricesList.mockResolvedValue(loaderResult);
-
-    await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
-      loaderResult,
-    );
-
-    const markup = renderToStaticMarkup(
-      routeModule.AdministracionPreciosRouteView({
-        loaderData: loaderResult,
+  test("renders the list feature view from the list route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionPreciosRouteView, {
+        loaderData: loaderData({
+          prices: [price("precio_1", "Precio Solo")],
+        }),
       }),
+      "/administracion/precios",
     );
 
-    expect(loadAdministrativeEventPricesList).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventPricesListView).toHaveBeenCalledWith(
-      { loaderData: loaderResult },
-      undefined,
-    );
-    expect(markup).toContain("Precios view");
+    expect(markup).toContain("Precios");
+    expect(markup).toContain("Nuevo precio");
+    expect(markup).toContain("Precio Solo");
+    expect(markup).toContain("Solo");
+    expect(markup).toContain("$12000");
   });
 
-  test("delegates loader, action and render to the admin event prices create feature module", async () => {
-    const routeModule = await import("@/routes/administracion.precios_.nuevo");
-    const request = new Request(
-      "http://localhost/administracion/precios/nuevo",
-      {
-        method: "POST",
-      },
-    );
-    const actionResult = {
-      fieldErrors: {},
-      message: "Revisá los datos del precio.",
-      scope: null,
-      status: "error" as const,
-    };
-
-    loadAdministrativeEventPricesList.mockResolvedValue(loaderResult);
-    createAdministrativeEventPrice.mockResolvedValue(actionResult);
-
-    await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
-      loaderResult,
-    );
-    await expect(routeModule.action(routeArgs(request))).resolves.toBe(
-      actionResult,
-    );
-
-    const markup = renderToStaticMarkup(
-      routeModule.AdministracionPrecioNuevoRouteView({
-        loaderData: loaderResult,
-        actionData: actionResult,
+  test("renders the create feature view from the create route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionPrecioNuevoRouteView, {
+        loaderData: loaderData(),
+        actionData: actionData("Revisá los datos del precio."),
       }),
+      "/administracion/precios/nuevo",
     );
 
-    expect(loadAdministrativeEventPricesList).toHaveBeenCalledWith(request);
-    expect(createAdministrativeEventPrice).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventPriceCreateView).toHaveBeenCalledWith(
-      { loaderData: loaderResult, actionData: actionResult },
-      undefined,
-    );
-    expect(markup).toContain("Nuevo precio view");
+    expect(markup).toContain("Nuevo precio");
+    expect(markup).toContain("Configurá tipo de grupo");
+    expect(markup).toContain("Volver");
+    expect(markup).toContain("Guardar");
   });
 
-  test("delegates loader, action and render to the admin event prices detail feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.precios_.$priceId");
-    const request = new Request(
-      "http://localhost/administracion/precios/price_1",
-      {
-        method: "POST",
-      },
-    );
-    const params = { priceId: "price_1" };
-    const actionResult = {
-      fieldErrors: {},
-      message: "No pudimos guardar.",
-      scope: null,
-      status: "error" as const,
-    };
-
-    loadAdministrativeEventPriceDetail.mockResolvedValue(loaderResult);
-    updateAdministrativeEventPrice.mockResolvedValue(actionResult);
-
-    await expect(routeModule.loader(routeArgs(request, params))).resolves.toBe(
-      loaderResult,
-    );
-    await expect(routeModule.action(routeArgs(request, params))).resolves.toBe(
-      actionResult,
-    );
-
-    const markup = renderToStaticMarkup(
-      routeModule.AdministracionPrecioDetalleRouteView({
-        loaderData: loaderResult,
-        actionData: actionResult,
-        priceId: "price_1",
+  test("renders the detail feature view from the detail route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionPrecioDetalleRouteView, {
+        loaderData: loaderData({
+          prices: [price("precio_1", "Precio Solo")],
+        }),
+        actionData: actionData("No pudimos guardar."),
+        priceId: "precio_1",
       }),
+      "/administracion/precios/precio_1",
     );
 
-    expect(loadAdministrativeEventPriceDetail).toHaveBeenCalledWith(request);
-    expect(updateAdministrativeEventPrice).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventPriceDetailView).toHaveBeenCalledWith(
-      {
-        loaderData: loaderResult,
-        actionData: actionResult,
-        priceId: "price_1",
-      },
-      undefined,
-    );
-    expect(markup).toContain("Detalle precio view");
+    expect(markup).toContain("Editar precio");
+    expect(markup).toContain("Precio Solo");
+    expect(markup).toContain("Tipo de grupo");
+    expect(markup).toContain("Acciones");
+    expect(markup).toContain("Guardar");
   });
 
-  test("reads detail breadcrumb labels from the admin event prices detail feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.precios_.$priceId");
-    const breadcrumbResolver = routeModule.handle.adminBreadcrumbs[1];
+  test("renders the not-found detail state from the detail route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionPrecioDetalleRouteView, {
+        loaderData: loaderData(),
+        priceId: "precio_inexistente",
+      }),
+      "/administracion/precios/precio_inexistente",
+    );
 
-    expect(typeof breadcrumbResolver).toBe("function");
+    expect(markup).toContain("Precio no encontrado");
+    expect(markup).toContain("No encontramos ese precio.");
+  });
 
-    const breadcrumb = (
-      breadcrumbResolver as (match: {
-        data: typeof loaderResult;
-        params: { priceId: string };
-      }) => { label: string }
-    )({
-      data: loaderResult,
-      params: { priceId: "price_1" },
+  test("reads detail breadcrumb labels from the price display name helper", () => {
+    const breadcrumb = resolveDetailBreadcrumb({
+      loaderData: loaderData({
+        prices: [price("precio_1", "Precio Solo")],
+      }),
+      priceId: "precio_1",
     });
 
-    expect(getAdministrativeEventPriceDisplayName).toHaveBeenCalledWith(
-      undefined,
-    );
-    expect(breadcrumb).toEqual({ label: "Precio visible" });
+    expect(breadcrumb).toEqual({ label: "Precio Solo" });
+  });
+
+  test("uses a fallback detail breadcrumb when the price is missing", () => {
+    const breadcrumb = resolveDetailBreadcrumb({
+      loaderData: loaderData(),
+      priceId: "precio_inexistente",
+    });
+
+    expect(breadcrumb).toEqual({ label: "Precio" });
   });
 });
+
+function renderRouteView(element: ReactElement, url: string) {
+  const RoutesStub = createRoutesStub([
+    {
+      path: "*",
+      Component: () => element,
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: [url],
+    }),
+  );
+}
+
+function resolveDetailBreadcrumb({
+  loaderData,
+  priceId,
+}: {
+  loaderData: AdministrativeEventPriceDetailViewProps["loaderData"];
+  priceId: string;
+}) {
+  const breadcrumbResolver = detailRouteHandle.adminBreadcrumbs[1];
+
+  if (typeof breadcrumbResolver !== "function") {
+    throw new Error("Expected the detail breadcrumb to be resolved from data.");
+  }
+
+  return breadcrumbResolver({
+    data: loaderData,
+    params: { priceId },
+  });
+}
+
+function price(id: string, name: string) {
+  return {
+    amount: 12000,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    eventId: "evento_1",
+    groupType: "solo" as const,
+    id,
+    name,
+    paymentDeadline: "2026-05-31",
+    schedule: null,
+    scheduleId: null,
+  };
+}
+
+function loaderData(
+  overrides: Partial<AdministrativeEventPricesLoaderData> = {},
+): AdministrativeEventPricesLoaderData {
+  return {
+    categories: [],
+    experienceLevels: [],
+    modalities: [],
+    prices: [],
+    schedules: [],
+    selectedEventId: "evento_1",
+    submodalities: [],
+    ...overrides,
+  };
+}
+
+function actionData(message: string): AdministrativeEventPriceActionData {
+  return {
+    fieldErrors: {},
+    message,
+    scope: null,
+    status: "error",
+  };
+}
