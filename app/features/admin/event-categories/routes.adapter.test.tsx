@@ -1,178 +1,81 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
-const loadAdministrativeEventCategoriesList = vi.fn();
-const createAdministrativeEventCategory = vi.fn();
-const loadAdministrativeEventCategoryDetail = vi.fn();
-const updateAdministrativeEventCategory = vi.fn();
-const AdministrativeEventCategoriesListView = vi.fn(() =>
-  createElement("div", null, "Categorias list view"),
-);
-const AdministrativeEventCategoryCreateView = vi.fn(() =>
-  createElement("div", null, "Categorias create view"),
-);
-const AdministrativeEventCategoryDetailView = vi.fn(() =>
-  createElement("div", null, "Categorias detail view"),
-);
-
-vi.mock("@/features/admin/event-categories/list/server", () => ({
-  loadAdministrativeEventCategoriesList,
-}));
-
-vi.mock("@/features/admin/event-categories/list/view", () => ({
-  AdministrativeEventCategoriesListView,
-}));
-
-vi.mock("@/features/admin/event-categories/create/server", () => ({
-  createAdministrativeEventCategory,
-}));
-
-vi.mock("@/features/admin/event-categories/create/view", () => ({
-  AdministrativeEventCategoryCreateView,
-}));
-
-vi.mock("@/features/admin/event-categories/detail/server", () => ({
-  loadAdministrativeEventCategoryDetail,
-  updateAdministrativeEventCategory,
-}));
-
-vi.mock("@/features/admin/event-categories/detail/view", () => ({
-  AdministrativeEventCategoryDetailView,
-}));
+import type {
+  AdministrativeEventCategoriesLoaderData,
+  AdministrativeEventCategoryActionData,
+} from "@/features/admin/event-categories/shared";
+import { AdministracionCategoriaDetalleRouteView } from "@/routes/administracion.categorias_.$categoryId";
+import { AdministracionCategoriaNuevaRouteView } from "@/routes/administracion.categorias_.nueva";
+import { AdministracionCategoriasRouteView } from "@/routes/administracion.categorias";
 
 describe("administracion.categorias route adapters", () => {
-  test("delegates loader and render to the admin categorías list feature module", async () => {
-    const routeModule = await import("@/routes/administracion.categorias");
-    const request = new Request("http://localhost/administracion/categorias");
-    const loaderResult = loaderData();
-
-    loadAdministrativeEventCategoriesList.mockResolvedValue(loaderResult);
-
-    await expect(
-      routeModule.loader({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
-
-    const markup = renderToStaticMarkup(
-      routeModule.AdministracionCategoriasRouteView({
-        loaderData: loaderResult,
+  test("renders the list feature view from the list route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionCategoriasRouteView, {
+        loaderData: loaderData({
+          categories: [category("categoria_1", "Juvenil")],
+          experienceLevels: [experienceLevel("nivel_1", "Inicial")],
+        }),
       }),
+      "/administracion/categorias",
     );
 
-    expect(loadAdministrativeEventCategoriesList).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventCategoriesListView).toHaveBeenCalledWith(
-      { loaderData: loaderResult },
-      undefined,
-    );
-    expect(markup).toContain("Categorias list view");
+    expect(markup).toContain("Categorías");
+    expect(markup).toContain("Nueva categoría");
+    expect(markup).toContain("Juvenil");
+    expect(markup).toContain("Inicial");
   });
 
-  test("delegates loader, action, and render to the admin categorías create feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.categorias_.nueva");
-    const request = new Request(
-      "http://localhost/administracion/categorias/nueva",
-      { method: "POST" },
-    );
-    const loaderResult = loaderData();
-    const actionResult = actionData("Revisá los campos.");
-
-    loadAdministrativeEventCategoriesList.mockResolvedValue(loaderResult);
-    createAdministrativeEventCategory.mockResolvedValue(actionResult);
-
-    await expect(
-      routeModule.loader({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
-
-    await expect(
-      routeModule.action({
-        request,
-        params: {},
-        context: {},
-      } as never),
-    ).resolves.toBe(actionResult);
-
+  test("renders the create feature view from the create route adapter", () => {
     const markup = renderRouteView(
-      createElement(routeModule.AdministracionCategoriaNuevaRouteView, {
-        loaderData: loaderResult,
-        actionData: actionResult,
+      createElement(AdministracionCategoriaNuevaRouteView, {
+        loaderData: loaderData(),
+        actionData: actionData("Revisá los campos."),
       }),
       "/administracion/categorias/nueva",
     );
 
-    expect(loadAdministrativeEventCategoriesList).toHaveBeenCalledWith(request);
-    expect(createAdministrativeEventCategory).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventCategoryCreateView).toHaveBeenCalledWith(
-      {
-        loaderData: loaderResult,
-        actionData: actionResult,
-      },
-      undefined,
-    );
-    expect(markup).toContain("Categorias create view");
+    expect(markup).toContain("Nueva categoría");
+    expect(markup).toContain("Definí rango de edad");
+    expect(markup).toContain("Volver");
+    expect(markup).toContain("Guardar");
   });
 
-  test("delegates loader, action, and render to the admin categorías detail feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.categorias_.$categoryId");
-    const request = new Request(
-      "http://localhost/administracion/categorias/categoria_1",
-      { method: "POST" },
-    );
-    const params = { categoryId: "categoria_1" };
-    const loaderResult = loaderData({
-      categories: [category("categoria_1", "Juvenil")],
-    });
-    const actionResult = actionData("No pudimos guardar.");
-
-    loadAdministrativeEventCategoryDetail.mockResolvedValue(loaderResult);
-    updateAdministrativeEventCategory.mockResolvedValue(actionResult);
-
-    await expect(
-      routeModule.loader({
-        request,
-        params,
-        context: {},
-      } as never),
-    ).resolves.toBe(loaderResult);
-
-    await expect(
-      routeModule.action({
-        request,
-        params,
-        context: {},
-      } as never),
-    ).resolves.toBe(actionResult);
-
+  test("renders the detail feature view from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(routeModule.AdministracionCategoriaDetalleRouteView, {
-        loaderData: loaderResult,
-        actionData: actionResult,
+      createElement(AdministracionCategoriaDetalleRouteView, {
+        loaderData: loaderData({
+          categories: [category("categoria_1", "Juvenil")],
+          experienceLevels: [experienceLevel("nivel_1", "Inicial")],
+          modalities: [modality("modalidad_1", "Jazz")],
+        }),
+        actionData: actionData("No pudimos guardar."),
         categoryId: "categoria_1",
       }),
       "/administracion/categorias/categoria_1",
     );
 
-    expect(loadAdministrativeEventCategoryDetail).toHaveBeenCalledWith(request);
-    expect(updateAdministrativeEventCategory).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventCategoryDetailView).toHaveBeenCalledWith(
-      {
-        loaderData: loaderResult,
-        actionData: actionResult,
-        categoryId: "categoria_1",
-      },
-      undefined,
+    expect(markup).toContain("Editar categoría");
+    expect(markup).toContain("Juvenil");
+    expect(markup).toContain("Jazz");
+    expect(markup).toContain("Inicial");
+    expect(markup).toContain("Guardar");
+  });
+
+  test("renders the not-found detail state from the detail route adapter", () => {
+    const markup = renderRouteView(
+      createElement(AdministracionCategoriaDetalleRouteView, {
+        loaderData: loaderData(),
+        categoryId: "categoria_inexistente",
+      }),
+      "/administracion/categorias/categoria_inexistente",
     );
-    expect(markup).toContain("Categorias detail view");
+
+    expect(markup).toContain("Categoría no encontrada");
+    expect(markup).toContain("No encontramos esa categoría.");
   });
 });
 
@@ -191,7 +94,43 @@ function renderRouteView(element: ReactElement, url: string) {
   );
 }
 
-function loaderData(overrides: Record<string, unknown> = {}) {
+function category(id: string, name: string) {
+  return {
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    eventId: "evento_1",
+    experienceLevelIds: ["nivel_1"],
+    experienceLevelKey: "nivel_1",
+    groupTypeKey: "solo",
+    groupTypes: ["solo" as const],
+    id,
+    maxAge: 17,
+    minAge: 13,
+    modalityIds: ["modalidad_1"],
+    name,
+  };
+}
+
+function experienceLevel(id: string, name: string) {
+  return {
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    eventId: "evento_1",
+    id,
+    name,
+  };
+}
+
+function modality(id: string, name: string) {
+  return {
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    eventId: "evento_1",
+    id,
+    name,
+  };
+}
+
+function loaderData(
+  overrides: Partial<AdministrativeEventCategoriesLoaderData> = {},
+): AdministrativeEventCategoriesLoaderData {
   return {
     categories: [],
     experienceLevels: [],
@@ -204,25 +143,11 @@ function loaderData(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function category(id: string, name: string) {
-  return {
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    eventId: "evento_1",
-    experienceLevelIds: [],
-    groupTypes: ["solo"],
-    id,
-    maxAge: 17,
-    minAge: 13,
-    modalityIds: [],
-    name,
-  };
-}
-
-function actionData(message: string) {
+function actionData(message: string): AdministrativeEventCategoryActionData {
   return {
     fieldErrors: {},
     message,
     scope: null,
-    status: "error" as const,
+    status: "error",
   };
 }

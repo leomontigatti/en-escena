@@ -1,8 +1,9 @@
 import { NewEventCategoryRouteView } from "@/components/admin/events/event-categories";
+
 import type {
   AdministrativeEventCategoriesLoaderData,
   AdministrativeEventCategoryActionData,
-} from "@/features/admin/event-categories/shared";
+} from "../shared";
 
 export type AdministrativeEventCategoryCreateViewProps = {
   loaderData: AdministrativeEventCategoriesLoaderData;
