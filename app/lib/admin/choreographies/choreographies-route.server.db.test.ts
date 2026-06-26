@@ -196,10 +196,20 @@ async function createSignedInRequest(input: {
   return {
     request: new Request(input.requestUrl, {
       headers: {
-        cookie: signUpResult.headers.get("set-cookie") ?? "",
+        cookie: createRequestCookie(signUpResult.headers),
       },
     }),
   };
+}
+
+function createRequestCookie(headers: Headers) {
+  const setCookie = headers.get("set-cookie");
+
+  if (!setCookie) {
+    throw new Error("Expected access auth to return a session cookie.");
+  }
+
+  return setCookie.split(";")[0] ?? "";
 }
 
 function routeArgs(request: Request) {

@@ -20,6 +20,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import type { loadAdministrativeChoreographies } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdministrativeChoreographies>>;
+type ChoreographyRow = LoaderData["choreographies"][number];
 
 type AdministracionCoreografiasRouteViewProps = {
   loaderData: LoaderData;
@@ -40,7 +41,7 @@ export function AdministracionCoreografiasRouteView({
       }}
     >
       {loaderData.choreographies.length > 0 ? (
-        <ChoreographyTable loaderData={loaderData} />
+        <ChoreographyTable choreographies={loaderData.choreographies} />
       ) : (
         <AdminEmptyState
           title="Todavía no hay coreografías para mostrar."
@@ -51,7 +52,11 @@ export function AdministracionCoreografiasRouteView({
   );
 }
 
-function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
+function ChoreographyTable({
+  choreographies,
+}: {
+  choreographies: ChoreographyRow[];
+}) {
   return (
     <Table>
       <TableHeader>
@@ -64,7 +69,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {loaderData.choreographies.map((choreography) => (
+        {choreographies.map((choreography) => (
           <TableRow key={choreography.id}>
             <TableCell className="font-medium">{choreography.name}</TableCell>
             <TableCell className="text-muted-foreground">
