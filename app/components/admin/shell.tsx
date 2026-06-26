@@ -10,6 +10,7 @@ import {
   AudioLines,
   Clock,
   DollarSign,
+  Music2,
 } from "lucide-react";
 import { Link, NavLink, useLocation, type UIMatch } from "react-router";
 
@@ -116,6 +117,11 @@ const primaryNavigationItems = [
     label: "Eventos",
     to: "/administracion/eventos",
     icon: CalendarDays,
+  },
+  {
+    label: "Coreografías",
+    to: "/administracion/coreografias",
+    icon: Music2,
   },
   {
     label: "Profesores",

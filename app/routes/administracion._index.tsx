@@ -140,9 +140,9 @@ const adminHomeCards = [
   },
   {
     title: "Coreografías",
-    description: "Placeholder para revisión operativa de Coreografías.",
+    description: "Revisá las coreografías registradas para el evento activo.",
     icon: Music2,
-    to: null,
+    to: "/administracion/coreografias",
   },
   {
     title: "Usuarios",

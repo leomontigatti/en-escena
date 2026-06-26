@@ -28,6 +28,11 @@ describe("AdminShell", () => {
     expect(markup).toContain("text-brand");
     expect(markup).toContain("Bases del evento");
     expect(markup).toContain('href="/administracion/eventos"');
+    expect(markup).toContain("Coreografías");
+    expect(markup).toContain("/administracion/coreografias");
+    expect(markup.indexOf("Coreografías")).toBeLessThan(
+      markup.indexOf("Bailarines"),
+    );
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
