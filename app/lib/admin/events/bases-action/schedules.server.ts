@@ -14,7 +14,6 @@ import type {
   EventBasesActionValues,
   RequiredFieldErrorResult,
   ScheduleActionValues,
-  ScheduleCapacityActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   buildDefaultActionErrorScope,

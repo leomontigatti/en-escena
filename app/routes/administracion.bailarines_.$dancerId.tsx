@@ -1,10 +1,7 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import {
-  type DancerActionError,
-  type DancerDetailLoaderData,
-} from "@/features/admin/dancers/detail/shared";
+import { type DancerDetailLoaderData } from "@/features/admin/dancers/detail/shared";
 import {
   handleAdministrativeDancerDetailAction,
   loadAdministrativeDancerDetail,

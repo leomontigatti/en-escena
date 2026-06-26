@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import { useCreateChoreographyDialog } from "@/features/portal/choreographies/create/use-create-choreography-dialog";
@@ -52,7 +52,6 @@ export function CreateChoreographyDialog({
     canAdvanceFromName,
     canAdvanceFromSchedule,
     canAdvanceFromSubmodality,
-    canChooseSubmodality,
     canResolve,
     currentStep,
     currentStepIndex,

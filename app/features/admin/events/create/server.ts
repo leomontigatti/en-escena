@@ -7,8 +7,6 @@ import {
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createEvent } from "@/lib/events/management.server";
 
-import type { AdministrativeEventCreateActionData } from "./shared";
-
 export async function createAdministrativeEvent(request: Request) {
   await requireAdminPanelUser(request);
 

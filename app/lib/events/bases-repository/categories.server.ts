@@ -21,7 +21,6 @@ import type {
   EventBaseFailure,
   EventBasesDeleteResult,
   EventBasesMutationResult,
-  GroupType,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
 

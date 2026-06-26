@@ -1,6 +1,5 @@
 import { Plus, Trash } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type * as React from "react";
 import { Link } from "react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {

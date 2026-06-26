@@ -24,8 +24,6 @@ import {
   type AdministrativeEventDetailLoaderData,
 } from "./shared";
 
-type EventRow = typeof eventsTable.$inferSelect;
-
 type EventRouteNotification = Extract<
   RouteNotificationKey,
   | "evento-activado"

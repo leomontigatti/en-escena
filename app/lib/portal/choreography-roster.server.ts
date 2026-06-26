@@ -2,14 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyDancers, choreographyProfessors } from "@/db/schema";
-import {
-  resolveChoreographyDancers,
-  updateChoreographyDancers,
-} from "@/lib/portal/choreography-roster-dancer-update.server";
-import {
-  listDancerOptionsForChoreography,
-  listProfessorOptionsForChoreography,
-} from "@/lib/portal/choreography-roster-options.server";
+import { updateChoreographyDancers } from "@/lib/portal/choreography-roster-dancer-update.server";
 import {
   updateChoreographyProfessors,
   validateChoreographyProfessorSelection,

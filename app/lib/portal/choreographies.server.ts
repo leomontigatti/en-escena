@@ -15,10 +15,7 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
-import {
-  deriveChoreographyOperationalStatus,
-  type ChoreographyOperationalStatus,
-} from "@/lib/choreographies/operational-status";
+import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
   getDancerEditingEligibility,

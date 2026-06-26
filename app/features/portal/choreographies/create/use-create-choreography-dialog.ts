@@ -22,10 +22,7 @@ import type {
   CreateActionData,
   CreateChoreographyFormValues,
 } from "@/features/portal/choreographies/create/flow";
-import type {
-  ActiveDancer,
-  ActiveProfessor,
-} from "@/features/portal/choreographies/create/shared";
+import type { ActiveProfessor } from "@/features/portal/choreographies/create/shared";
 
 export function useCreateChoreographyDialog({
   baseOptions,

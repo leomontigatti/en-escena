@@ -11,11 +11,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import {
-  choreographyCategoryCalculationMode,
-  createTable,
-  groupType,
-} from "./core";
+import { createTable, groupType } from "./core";
 
 export const events = createTable(
   "event",

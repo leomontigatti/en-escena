@@ -37,7 +37,7 @@ export async function loadAdminShellEventContext(): Promise<AdminShellEventConte
 }
 
 export async function loadAdminEventContext(
-  request: Request,
+  _request: Request,
 ): Promise<AdminEventContext> {
   const events = await db.query.events.findMany({
     columns: {

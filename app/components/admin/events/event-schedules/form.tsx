@@ -42,10 +42,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type {
-  ActionData,
-  ScheduleActionValues,
-} from "@/lib/admin/events/bases-action.server";
+import type { ScheduleActionValues } from "@/lib/admin/events/bases-action.server";
 import { buildSchedulesPath } from "@/lib/admin/events/event-bases-navigation";
 import type { EventBasesLoaderData } from "@/lib/admin/events/bases-route.server";
 import { groupTypeOptions } from "@/lib/events/group-types";

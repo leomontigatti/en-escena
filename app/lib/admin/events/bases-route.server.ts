@@ -10,10 +10,7 @@ import {
   runEventBasesAction,
   type ActionData,
 } from "@/lib/admin/events/bases-action.server";
-import {
-  loadAdminEventContext,
-  type AdminEventContext,
-} from "@/lib/admin/event-context.server";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   getEventBases,
   type PriceListItem,
