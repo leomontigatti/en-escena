@@ -1,4 +1,3 @@
-import { useServerActionToast } from "@/lib/shared/toasts";
 import { Form, Link } from "react-router";
 
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -19,6 +18,7 @@ import {
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 type AdministracionUsuarioDetalleRouteViewProps = {
   actionData?: DetailActionData;

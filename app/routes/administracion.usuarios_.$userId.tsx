@@ -1,8 +1,8 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { action, loader } from "@/lib/admin/users/user-detail-route.server";
-import { AdministracionUsuarioDetalleRouteView as UsuarioDetalleView } from "@/lib/admin/users/user-detail-view";
+import { action, loader } from "@/features/admin/users/detail/server";
+import { AdministracionUsuarioDetalleRouteView } from "@/features/admin/users/detail/view";
 import type {
   DetailActionData,
   UserDetailLoaderData,
@@ -33,24 +33,16 @@ export const handle = {
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
 
-export { action, loader };
-
-export function AdministracionUsuarioDetalleRouteView({
-  actionData: actionDataOverride,
-  loaderData,
-}: AdministracionUsuarioDetalleRouteProps) {
-  const actionData =
-    actionDataOverride?.status === "error"
-      ? (actionDataOverride as DetailActionData)
-      : undefined;
-
-  return <UsuarioDetalleView actionData={actionData} loaderData={loaderData} />;
-}
+export { action, loader, AdministracionUsuarioDetalleRouteView };
 
 export default function AdministracionUsuarioDetalleRoute({
   loaderData,
 }: AdministracionUsuarioDetalleRouteProps) {
-  const actionData = useActionData<typeof action>();
+  const routeActionData = useActionData<typeof action>();
+  const actionData =
+    routeActionData?.status === "error"
+      ? (routeActionData as DetailActionData)
+      : undefined;
 
   return (
     <AdministracionUsuarioDetalleRouteView
