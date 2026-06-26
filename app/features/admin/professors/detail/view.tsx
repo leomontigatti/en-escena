@@ -113,6 +113,16 @@ export function AdministracionProfesorDetalleRouteView({
     void editForm.form.handleSubmit(openDialog)(event);
   }
 
+  function openStatusDialog(
+    intent: "archive-professor" | "reactivate-professor",
+  ) {
+    reasonForm.form.reset({
+      correctionReason: actionData?.values.correctionReason ?? "",
+      statusIntent: intent,
+    });
+    setDialogIntent(intent);
+  }
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -123,13 +133,7 @@ export function AdministracionProfesorDetalleRouteView({
         loaderData.canEdit ? (
           <ProfessorActionsMenu
             active={professor.active}
-            onSelect={(intent) => {
-              reasonForm.form.reset({
-                correctionReason: actionData?.values.correctionReason ?? "",
-              });
-              setDialogIntent(intent);
-              reasonForm.form.setValue("statusIntent", intent);
-            }}
+            onSelect={openStatusDialog}
           />
         ) : null
       }
@@ -151,12 +155,7 @@ export function AdministracionProfesorDetalleRouteView({
                     variant="link"
                     size="sm"
                     onClick={() => {
-                      reasonForm.form.reset({
-                        correctionReason:
-                          actionData?.values.correctionReason ?? "",
-                        statusIntent: "reactivate-professor",
-                      });
-                      setDialogIntent("reactivate-professor");
+                      openStatusDialog("reactivate-professor");
                     }}
                   >
                     Reactivar

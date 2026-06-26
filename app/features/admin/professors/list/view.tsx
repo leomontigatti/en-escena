@@ -207,20 +207,14 @@ function buildDetailSearch(loaderData: LoaderData) {
     searchParams.set("orden", "nombre:desc");
   }
 
-  const participationValue = toAdminProfessorParticipationSearchValue(
-    loaderData.filters.participation,
-  );
+  const selectedFilters = getSelectedFilterValues(loaderData);
 
-  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
-    searchParams.set("participando", participationValue);
+  if (selectedFilters.participando) {
+    searchParams.set("participando", selectedFilters.participando);
   }
 
-  const statusValue = toAdminProfessorStatusSearchValue(
-    loaderData.filters.status,
-  );
-
-  if (statusValue === "archivados") {
-    searchParams.set("estado", statusValue);
+  if (selectedFilters.estado) {
+    searchParams.set("estado", selectedFilters.estado);
   }
 
   if (loaderData.filters.page > 1) {
@@ -233,13 +227,19 @@ function buildDetailSearch(loaderData: LoaderData) {
 }
 
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
-  const filters: Record<string, string> = {};
+  const filters = getSelectedFilterValues(loaderData);
+
+  return Object.keys(filters).length > 0 ? { filters } : undefined;
+}
+
+function getSelectedFilterValues(loaderData: LoaderData) {
+  const values: Record<string, string> = {};
   const statusValue = toAdminProfessorStatusSearchValue(
     loaderData.filters.status,
   );
 
   if (statusValue === "archivados") {
-    filters.estado = statusValue;
+    values.estado = statusValue;
   }
 
   const participationValue = toAdminProfessorParticipationSearchValue(
@@ -247,24 +247,18 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
   );
 
   if (loaderData.selectedEventId !== null && participationValue !== "todos") {
-    filters.participando = participationValue;
+    values.participando = participationValue;
   }
 
-  return Object.keys(filters).length > 0 ? { filters } : undefined;
+  return values;
 }
 
 function hasActiveListFilters(loaderData: LoaderData) {
-  const participationValue = toAdminProfessorParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-  const statusValue = toAdminProfessorStatusSearchValue(
-    loaderData.filters.status,
-  );
+  const selectedFilters = getSelectedFilterValues(loaderData);
 
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    (loaderData.selectedEventId !== null && participationValue !== "todos") ||
-    statusValue === "archivados"
+    Object.keys(selectedFilters).length > 0
   );
 }
