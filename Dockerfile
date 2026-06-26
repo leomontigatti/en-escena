@@ -3,15 +3,19 @@ FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+
+RUN corepack enable
 
 FROM base AS build
 
 ENV NODE_ENV=development
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
-RUN npm prune --omit=dev
+RUN pnpm build
+RUN pnpm prune --prod --ignore-scripts
 
 FROM base AS runtime
 
