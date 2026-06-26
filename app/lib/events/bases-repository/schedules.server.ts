@@ -16,7 +16,6 @@ import {
   sortedIds,
   toTitleCase,
   uniqueValues,
-  validateEventBaseName,
 } from "@/lib/events/bases-repository/shared.server";
 import type {
   EventBaseFailure,
@@ -199,9 +198,7 @@ export async function updateSchedule(
     return eventBaseEntityNotFound("schedule");
   }
 
-  const validation = await validateScheduleInput(existing.eventId, input, {
-    exceptId: scheduleId,
-  });
+  const validation = await validateScheduleInput(existing.eventId, input);
 
   if (!validation.ok) {
     return validation;
@@ -260,9 +257,7 @@ export async function updateScheduleWithEntries(
     return eventBaseEntityNotFound("schedule");
   }
 
-  const validation = await validateScheduleInput(existing.eventId, input, {
-    exceptId: scheduleId,
-  });
+  const validation = await validateScheduleInput(existing.eventId, input);
 
   if (!validation.ok) {
     return validation;
@@ -418,7 +413,6 @@ export async function scheduleHasOperationalDependencies(scheduleId: string) {
 async function validateScheduleInput(
   eventId: string,
   input: ScheduleInput,
-  options: { exceptId?: string } = {},
 ): Promise<
   { ok: true; input: ScheduleInput & { name: string } } | EventBaseFailure
 > {
@@ -472,17 +466,6 @@ async function validateScheduleInput(
       error: "Revisá los datos del cronograma.",
       fieldErrors,
     };
-  }
-
-  const duplicate = await validateEventBaseName({
-    eventId,
-    name,
-    kind: "schedule",
-    exceptId: options.exceptId,
-  });
-
-  if (!duplicate.ok) {
-    return duplicate;
   }
 
   return { ok: true, input: { ...input, name } };

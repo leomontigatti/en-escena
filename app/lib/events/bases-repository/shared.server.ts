@@ -32,11 +32,11 @@ export {
   toTitleCase,
 };
 
-export type EventBaseEntityKind =
+export type EventBaseEntityKind = EventBaseUniqueEntityKind | "schedule";
+export type EventBaseUniqueEntityKind =
   | "modality"
   | "submodality"
-  | "experience-level"
-  | "schedule";
+  | "experience-level";
 export type GroupType = "solo" | "duo" | "trio" | "grupal";
 
 export const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
@@ -275,8 +275,6 @@ export const eventBaseCopy = {
     label: "cronograma",
     invalidError: "Revisá los datos del cronograma.",
     requiredNameError: "Ingresá el nombre del cronograma.",
-    duplicateError: "Ya existe un cronograma con ese nombre en este evento.",
-    duplicateFieldError: "Usá un nombre distinto para el cronograma.",
   },
 } satisfies Record<
   EventBaseEntityKind,
@@ -284,15 +282,20 @@ export const eventBaseCopy = {
     label: string;
     invalidError: string;
     requiredNameError: string;
-    duplicateError: string;
-    duplicateFieldError: string;
   }
->;
+> &
+  Record<
+    EventBaseUniqueEntityKind,
+    {
+      duplicateError: string;
+      duplicateFieldError: string;
+    }
+  >;
 
 export async function validateEventBaseName(input: {
   eventId: string;
   name: string;
-  kind: EventBaseEntityKind;
+  kind: EventBaseUniqueEntityKind;
   exceptId?: string;
 }): Promise<{ ok: true } | EventBaseFailure> {
   if (input.name.trim().length === 0) {
@@ -321,11 +324,11 @@ export async function validateEventBaseName(input: {
 export async function findDuplicateName(input: {
   eventId: string;
   name: string;
-  kind: EventBaseEntityKind;
+  kind: EventBaseUniqueEntityKind;
   exceptId?: string;
 }) {
   const normalizedName = normalizeEventBaseName(input.name);
-  const table = getTable(input.kind);
+  const table = getUniqueNameTable(input.kind);
   const idFilter = input.exceptId ? ne(table.id, input.exceptId) : undefined;
   const filters = [eq(table.eventId, input.eventId), idFilter].filter(Boolean);
 
@@ -376,6 +379,17 @@ export function eventBaseEntityNotFound(
     code: "event-bases-not-found",
     error: `No encontramos esa ${eventBaseCopy[kind].label}.`,
   };
+}
+
+function getUniqueNameTable(kind: EventBaseUniqueEntityKind) {
+  switch (kind) {
+    case "modality":
+      return modalities;
+    case "submodality":
+      return submodalities;
+    case "experience-level":
+      return experienceLevels;
+  }
 }
 
 export function categoryNotFound(): EventBaseFailure {
@@ -478,19 +492,6 @@ export function isValidTime(value: string) {
 
 export function normalizeTime(value: string) {
   return value.slice(0, 5);
-}
-
-function getTable(kind: EventBaseEntityKind) {
-  switch (kind) {
-    case "modality":
-      return modalities;
-    case "submodality":
-      return submodalities;
-    case "experience-level":
-      return experienceLevels;
-    case "schedule":
-      return schedules;
-  }
 }
 
 export async function replaceCategoryRelations(

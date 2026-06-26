@@ -451,6 +451,42 @@ describe("Bases del evento repository", () => {
     });
   });
 
+  test("allows duplicate cronograma names inside the same evento", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expectCreated(
+      createSchedule(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expect(
+      createSchedule(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "11:00",
+        totalCapacity: 15,
+        modalityIds: [jazz.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { name: "Sábado Mañana" },
+    });
+
+    await expect(listEventBasesData(event.id)).resolves.toMatchObject({
+      schedules: [
+        expect.objectContaining({ name: "Sábado Mañana", startTime: "09:00" }),
+        expect.objectContaining({ name: "Sábado Mañana", startTime: "11:00" }),
+      ],
+    });
+  });
+
   test("manages cronogramas together with cupos inline through the shared Bases del evento listing", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(

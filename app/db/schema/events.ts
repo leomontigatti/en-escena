@@ -272,10 +272,7 @@ export const schedules = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [
-    index("schedule_event_id_idx").on(table.eventId),
-    uniqueIndex("schedule_event_name_unique").on(table.eventId, table.name),
-  ],
+  (table) => [index("schedule_event_id_idx").on(table.eventId)],
 ).enableRLS();
 
 export const scheduleModalities = createTable(
