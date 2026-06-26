@@ -52,9 +52,9 @@ type HydratedAdministrativeChoreographyRow =
     modalityId: string;
   };
 
-export type AdministrativeChoreographySortColumn = "academia" | "nombre";
+type AdministrativeChoreographySortColumn = "academia" | "nombre";
 
-export type AdministrativeChoreographyOrder = {
+type AdministrativeChoreographyOrder = {
   columnId: AdministrativeChoreographySortColumn;
   direction: "asc" | "desc";
 };
@@ -70,7 +70,7 @@ export type AdministrativeChoreographyListItem = {
   submodalityName: string | null;
 };
 
-export type AdministrativeChoreographyFilterOption = {
+type AdministrativeChoreographyFilterOption = {
   label: string;
   value: string;
 };
@@ -97,7 +97,7 @@ const defaultAdministrativeChoreographyOrder: AdministrativeChoreographyOrder =
     direction: "asc",
   };
 
-export function readAdministrativeChoreographyFilters(
+function readAdministrativeChoreographyFilters(
   searchParams: URLSearchParams,
 ): AdministrativeChoreographyListFilters {
   return {
@@ -235,7 +235,7 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-export function isDefaultAdministrativeChoreographyOrder(
+function isDefaultAdministrativeChoreographyOrder(
   order: AdministrativeChoreographyOrder,
 ) {
   return (

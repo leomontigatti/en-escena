@@ -1,6 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": ["src/index.{ts,tsx,js,jsx}", "src/main.{ts,tsx,js,jsx}"],
+  "ignorePatterns": ["tests/db/setup-fast.ts", "tests/db/setup.ts"],
+  "ignoreDependencies": ["isbot"],
+  "ignoreExports": [
+    {
+      "file": "tests/db/fast-db.ts",
+      "exports": ["closeTestDatabase"]
+    }
+  ],
   "duplicates": {
     // Hide pair-only clones; focus on widespread copy-paste
     // worth refactoring. Lower to 2 to report every duplicate pair.

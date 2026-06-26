@@ -11,17 +11,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 
-export type EventBaseAreaKey =
-  | "categorias"
-  | "modalidades"
-  | "cronogramas"
-  | "precios";
-
 type AdminResourceLayoutSelectedEvent = {
   selectedEventId: string | null;
-};
-type AdminResourceLayoutViewProps = {
-  children: ReactNode;
 };
 
 type AdminEventRequiredEmptyStateCopy = {
@@ -49,34 +40,6 @@ type AdminEmptyStateProps = {
   icon?: LucideIcon;
   title: string;
 };
-
-export const eventBaseAreas: Array<{
-  key: EventBaseAreaKey;
-  label: string;
-}> = [
-  {
-    key: "modalidades",
-    label: "Modalidades",
-  },
-  {
-    key: "categorias",
-    label: "Categorías",
-  },
-  {
-    key: "cronogramas",
-    label: "Cronogramas",
-  },
-  {
-    key: "precios",
-    label: "Precios",
-  },
-];
-
-export function EventBasesLayoutView({
-  children,
-}: AdminResourceLayoutViewProps) {
-  return <>{children}</>;
-}
 
 export function AdminResourceLayout({
   action,
@@ -113,7 +76,7 @@ const defaultAdminEventRequiredEmptyStateCopy = {
     "Activá un evento para editar modalidades, categorías, cronogramas y precios.",
 } satisfies AdminEventRequiredEmptyStateCopy;
 
-export function AdminEventRequiredEmptyState({
+function AdminEventRequiredEmptyState({
   copy = defaultAdminEventRequiredEmptyStateCopy,
 }: {
   copy?: AdminEventRequiredEmptyStateCopy;
@@ -146,16 +109,6 @@ export function AdminEmptyState({
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
     </Empty>
-  );
-}
-
-export function buildEventBasePath(
-  area: EventBaseAreaKey | null,
-  selectedEventId: string | null,
-) {
-  return appendSelectedEventId(
-    area ? `/administracion/${area}` : "/administracion/eventos",
-    selectedEventId,
   );
 }
 
@@ -192,11 +145,4 @@ function AdminResourceHeader({
         ) : null)}
     </header>
   );
-}
-
-function appendSelectedEventId(
-  pathname: string,
-  _selectedEventId: string | null,
-) {
-  return pathname;
 }

@@ -8,9 +8,10 @@ import { loadPgliteSchemaSnapshot } from "./pglite-snapshot";
 const snapshot = await loadPgliteSchemaSnapshot();
 const rawClient = new PGlite({ loadDataDir: snapshot });
 
+// fallow-ignore-next-line unused-export
 export const client = wrapPgliteClient(rawClient);
+// fallow-ignore-next-line unused-export
 export const db = drizzle(client, { schema: pgliteSchema });
-export const databaseTestBackend = "pglite" as const;
 
 type PgliteMethod = (...args: unknown[]) => Promise<unknown>;
 

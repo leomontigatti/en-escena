@@ -24,15 +24,15 @@ export function getDancerVerificationStatus(
   return "unverified";
 }
 
-export function hasCompleteIdentification(input: DancerVerificationInput) {
+function hasCompleteIdentification(input: DancerVerificationInput) {
   return hasDocumentPair(input) && hasDocumentImages(input);
 }
 
-export function hasDocumentPair(input: DancerVerificationInput) {
+function hasDocumentPair(input: DancerVerificationInput) {
   return Boolean(input.documentType && input.documentNumber);
 }
 
-export function hasDocumentImages(input: DancerVerificationInput) {
+function hasDocumentImages(input: DancerVerificationInput) {
   return Boolean(
     input.documentFrontImageStorageKey && input.documentBackImageStorageKey,
   );

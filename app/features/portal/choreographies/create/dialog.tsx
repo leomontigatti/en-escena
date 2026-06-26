@@ -27,6 +27,10 @@ import { Progress } from "@/components/ui/progress";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import { useCreateChoreographyDialog } from "@/features/portal/choreographies/create/use-create-choreography-dialog";
 
+type CreateChoreographyDialogState = ReturnType<
+  typeof useCreateChoreographyDialog
+>;
+
 export function CreateChoreographyDialog({
   baseOptions,
   dancers,
@@ -47,45 +51,12 @@ export function CreateChoreographyDialog({
     onClose,
   });
   const {
-    canAdvanceFromExperienceLevel,
-    canAdvanceFromModality,
-    canAdvanceFromName,
-    canAdvanceFromSchedule,
-    canAdvanceFromSubmodality,
-    canResolve,
-    currentStep,
     currentStepIndex,
-    fieldIds,
-    form,
-    handleAdvanceFromExperienceLevel,
-    handleAdvanceFromModality,
-    handleAdvanceFromName,
-    handleAdvanceFromProfessors,
-    handleAdvanceFromSchedule,
-    handleAdvanceFromSubmodality,
-    handleConfirm,
     handlePrevious,
-    handleResolveStep,
-    isResolving,
-    isSubmitting,
     progressValue,
     registrationSteps,
-    resetResolutionState,
-    resolution,
-    selectedExperienceLevelId,
-    selectedModalityId,
-    selectedProfessors,
-    selectedScheduleCapacityId,
-    selectedSubmodalities,
-    selectedSubmodalityId,
     submissionError,
-    watchedValues,
   } = dialog;
-  const experienceLevelFieldId = fieldIds.experienceLevel;
-  const modalityFieldId = fieldIds.modality;
-  const nameFieldId = fieldIds.name;
-  const scheduleCapacityFieldId = fieldIds.scheduleCapacity;
-  const submodalityFieldId = fieldIds.submodality;
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
@@ -115,118 +86,12 @@ export function CreateChoreographyDialog({
           ) : null}
 
           <div className="flex flex-col gap-6">
-            {currentStep === "name" ? (
-              <section className="flex flex-col gap-4">
-                <CreateChoreographyTextField
-                  control={form.control}
-                  fieldName="name"
-                  id={nameFieldId}
-                  label="Nombre"
-                  placeholder="Ej.: Danza de la luna"
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "modality" ? (
-              <section className="flex flex-col gap-4">
-                <CreateChoreographySelectField
-                  control={form.control}
-                  fieldName="modalityId"
-                  id={modalityFieldId}
-                  label="Modalidad"
-                  onValueChange={() => {
-                    form.setValue("submodalityId", "", { shouldDirty: true });
-                    resetResolutionState();
-                  }}
-                  options={baseOptions.modalities.map((modality) => ({
-                    value: modality.id,
-                    label: modality.name,
-                  }))}
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "submodality" ? (
-              <section className="flex flex-col gap-4">
-                <CreateChoreographySelectField
-                  control={form.control}
-                  fieldName="submodalityId"
-                  id={submodalityFieldId}
-                  label="Submodalidad"
-                  onValueChange={resetResolutionState}
-                  options={selectedSubmodalities.map((submodality) => ({
-                    value: submodality.id,
-                    label: submodality.name,
-                  }))}
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "dancers" ? (
-              <section className="flex flex-col gap-6">
-                <CreateChoreographyDancersField
-                  control={form.control}
-                  dancers={dancers}
-                  onValueChange={resetResolutionState}
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "experienceLevel" && resolution ? (
-              <section className="flex flex-col gap-5">
-                <CreateChoreographySelectField
-                  control={form.control}
-                  fieldName="experienceLevelId"
-                  id={experienceLevelFieldId}
-                  label="Nivel de experiencia"
-                  options={resolution.experienceLevel.options.map((option) => ({
-                    value: option.id,
-                    label: option.name,
-                  }))}
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "schedule" && resolution ? (
-              <section className="flex flex-col gap-5">
-                <CreateChoreographySelectField
-                  control={form.control}
-                  fieldName="scheduleCapacityId"
-                  id={scheduleCapacityFieldId}
-                  label="Cronograma"
-                  options={
-                    resolution.schedule.status === "multiple"
-                      ? resolution.schedule.options.map((option) => ({
-                          value: option.id,
-                          label: formatScheduleDateTime(option.schedule),
-                        }))
-                      : []
-                  }
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "professors" ? (
-              <section className="flex flex-col gap-6">
-                <CreateChoreographyProfessorsField
-                  control={form.control}
-                  professors={professors}
-                />
-              </section>
-            ) : null}
-
-            {currentStep === "summary" && resolution ? (
-              <ChoreographyCreationSummary
-                baseOptions={baseOptions}
-                name={watchedValues.name}
-                resolution={resolution}
-                selectedExperienceLevelId={selectedExperienceLevelId}
-                selectedModalityId={selectedModalityId}
-                selectedProfessors={selectedProfessors}
-                selectedScheduleCapacityId={selectedScheduleCapacityId}
-                selectedSubmodalityId={selectedSubmodalityId}
-              />
-            ) : null}
+            <CreateChoreographyStepContent
+              baseOptions={baseOptions}
+              dancers={dancers}
+              dialog={dialog}
+              professors={professors}
+            />
           </div>
         </div>
 
@@ -239,108 +104,258 @@ export function CreateChoreographyDialog({
           </Button>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            {currentStep === "name" ? (
-              <Button
-                type="button"
-                disabled={!canAdvanceFromName}
-                onClick={() => void handleAdvanceFromName()}
-              >
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "modality" ? (
-              <Button
-                type="button"
-                disabled={!canAdvanceFromModality}
-                onClick={() => void handleAdvanceFromModality()}
-              >
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "submodality" ? (
-              <Button
-                type="button"
-                disabled={!canAdvanceFromSubmodality}
-                onClick={handleAdvanceFromSubmodality}
-              >
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "dancers" ? (
-              <Button
-                type="button"
-                disabled={!canResolve || isResolving}
-                onClick={handleResolveStep}
-              >
-                Siguiente
-                {isResolving ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="animate-spin"
-                    data-icon
-                  />
-                ) : (
-                  <ChevronRight aria-hidden="true" data-icon />
-                )}
-              </Button>
-            ) : null}
-
-            {currentStep === "experienceLevel" ? (
-              <Button
-                type="button"
-                disabled={!canAdvanceFromExperienceLevel}
-                onClick={handleAdvanceFromExperienceLevel}
-              >
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "schedule" ? (
-              <Button
-                type="button"
-                disabled={!canAdvanceFromSchedule}
-                onClick={handleAdvanceFromSchedule}
-              >
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "professors" ? (
-              <Button type="button" onClick={handleAdvanceFromProfessors}>
-                Siguiente
-                <ChevronRight aria-hidden="true" data-icon />
-              </Button>
-            ) : null}
-
-            {currentStep === "summary" ? (
-              <Button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleConfirm}
-              >
-                {isSubmitting ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="animate-spin"
-                    data-icon
-                  />
-                ) : (
-                  <Check aria-hidden="true" data-icon />
-                )}
-                Guardar
-              </Button>
-            ) : null}
+            <CreateChoreographyFooterAction dialog={dialog} />
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+function CreateChoreographyStepContent({
+  baseOptions,
+  dancers,
+  dialog,
+  professors,
+}: {
+  baseOptions: ChoreographyRegistrationBaseOptions;
+  dancers: ActiveDancer[];
+  dialog: CreateChoreographyDialogState;
+  professors: ActiveProfessor[];
+}) {
+  const {
+    currentStep,
+    fieldIds,
+    form,
+    resetResolutionState,
+    resolution,
+    selectedExperienceLevelId,
+    selectedModalityId,
+    selectedProfessors,
+    selectedScheduleCapacityId,
+    selectedSubmodalities,
+    selectedSubmodalityId,
+    watchedValues,
+  } = dialog;
+
+  const stepContent = {
+    name: (
+      <section className="flex flex-col gap-4">
+        <CreateChoreographyTextField
+          control={form.control}
+          fieldName="name"
+          id={fieldIds.name}
+          label="Nombre"
+          placeholder="Ej.: Danza de la luna"
+        />
+      </section>
+    ),
+    modality: (
+      <section className="flex flex-col gap-4">
+        <CreateChoreographySelectField
+          control={form.control}
+          fieldName="modalityId"
+          id={fieldIds.modality}
+          label="Modalidad"
+          onValueChange={() => {
+            form.setValue("submodalityId", "", { shouldDirty: true });
+            resetResolutionState();
+          }}
+          options={baseOptions.modalities.map((modality) => ({
+            value: modality.id,
+            label: modality.name,
+          }))}
+        />
+      </section>
+    ),
+    submodality: (
+      <section className="flex flex-col gap-4">
+        <CreateChoreographySelectField
+          control={form.control}
+          fieldName="submodalityId"
+          id={fieldIds.submodality}
+          label="Submodalidad"
+          onValueChange={resetResolutionState}
+          options={selectedSubmodalities.map((submodality) => ({
+            value: submodality.id,
+            label: submodality.name,
+          }))}
+        />
+      </section>
+    ),
+    dancers: (
+      <section className="flex flex-col gap-6">
+        <CreateChoreographyDancersField
+          control={form.control}
+          dancers={dancers}
+          onValueChange={resetResolutionState}
+        />
+      </section>
+    ),
+    experienceLevel: resolution ? (
+      <section className="flex flex-col gap-5">
+        <CreateChoreographySelectField
+          control={form.control}
+          fieldName="experienceLevelId"
+          id={fieldIds.experienceLevel}
+          label="Nivel de experiencia"
+          options={resolution.experienceLevel.options.map((option) => ({
+            value: option.id,
+            label: option.name,
+          }))}
+        />
+      </section>
+    ) : null,
+    schedule: resolution ? (
+      <section className="flex flex-col gap-5">
+        <CreateChoreographySelectField
+          control={form.control}
+          fieldName="scheduleCapacityId"
+          id={fieldIds.scheduleCapacity}
+          label="Cronograma"
+          options={
+            resolution.schedule.status === "multiple"
+              ? resolution.schedule.options.map((option) => ({
+                  value: option.id,
+                  label: formatScheduleDateTime(option.schedule),
+                }))
+              : []
+          }
+        />
+      </section>
+    ) : null,
+    professors: (
+      <section className="flex flex-col gap-6">
+        <CreateChoreographyProfessorsField
+          control={form.control}
+          professors={professors}
+        />
+      </section>
+    ),
+    summary: resolution ? (
+      <ChoreographyCreationSummary
+        baseOptions={baseOptions}
+        name={watchedValues.name}
+        resolution={resolution}
+        selectedExperienceLevelId={selectedExperienceLevelId}
+        selectedModalityId={selectedModalityId}
+        selectedProfessors={selectedProfessors}
+        selectedScheduleCapacityId={selectedScheduleCapacityId}
+        selectedSubmodalityId={selectedSubmodalityId}
+      />
+    ) : null,
+  };
+
+  return stepContent[currentStep];
+}
+
+function CreateChoreographyFooterAction({
+  dialog,
+}: {
+  dialog: CreateChoreographyDialogState;
+}) {
+  const {
+    canAdvanceFromExperienceLevel,
+    canAdvanceFromModality,
+    canAdvanceFromName,
+    canAdvanceFromSchedule,
+    canAdvanceFromSubmodality,
+    canResolve,
+    currentStep,
+    handleAdvanceFromExperienceLevel,
+    handleAdvanceFromModality,
+    handleAdvanceFromName,
+    handleAdvanceFromProfessors,
+    handleAdvanceFromSchedule,
+    handleAdvanceFromSubmodality,
+    handleConfirm,
+    handleResolveStep,
+    isResolving,
+    isSubmitting,
+  } = dialog;
+
+  const footerActions = {
+    name: (
+      <Button
+        type="button"
+        disabled={!canAdvanceFromName}
+        onClick={() => void handleAdvanceFromName()}
+      >
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    modality: (
+      <Button
+        type="button"
+        disabled={!canAdvanceFromModality}
+        onClick={() => void handleAdvanceFromModality()}
+      >
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    submodality: (
+      <Button
+        type="button"
+        disabled={!canAdvanceFromSubmodality}
+        onClick={handleAdvanceFromSubmodality}
+      >
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    dancers: (
+      <Button
+        type="button"
+        disabled={!canResolve || isResolving}
+        onClick={handleResolveStep}
+      >
+        Siguiente
+        {isResolving ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <ChevronRight aria-hidden="true" data-icon />
+        )}
+      </Button>
+    ),
+    experienceLevel: (
+      <Button
+        type="button"
+        disabled={!canAdvanceFromExperienceLevel}
+        onClick={handleAdvanceFromExperienceLevel}
+      >
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    schedule: (
+      <Button
+        type="button"
+        disabled={!canAdvanceFromSchedule}
+        onClick={handleAdvanceFromSchedule}
+      >
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    professors: (
+      <Button type="button" onClick={handleAdvanceFromProfessors}>
+        Siguiente
+        <ChevronRight aria-hidden="true" data-icon />
+      </Button>
+    ),
+    summary: (
+      <Button type="button" disabled={isSubmitting} onClick={handleConfirm}>
+        {isSubmitting ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        ) : (
+          <Check aria-hidden="true" data-icon />
+        )}
+        Guardar
+      </Button>
+    ),
+  };
+
+  return footerActions[currentStep];
 }

@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
 import { useViewTransitionState } from "react-router";
 
-export const portalRecordTitleViewTransitionName = "portal-record-title";
+const portalRecordTitleViewTransitionName = "portal-record-title";
 
-export function getPortalRecordTitleViewTransitionStyle(
+function getPortalRecordTitleViewTransitionStyle(
   isTransitioning: boolean,
 ): CSSProperties {
   return {

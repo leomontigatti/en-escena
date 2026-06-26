@@ -9,7 +9,7 @@ function quoteIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-export async function resetTestDatabase() {
+async function resetTestDatabase() {
   await db.transaction(async (tx) => {
     if (getDatabaseTestBackend() === "postgres") {
       await tx.execute(
@@ -50,7 +50,7 @@ export function installDatabaseTestHooks() {
   });
 }
 
-export function getDatabaseTestBackend() {
+function getDatabaseTestBackend() {
   return process.env.DB_TEST_BACKEND === "pglite" ? "pglite" : "postgres";
 }
 
