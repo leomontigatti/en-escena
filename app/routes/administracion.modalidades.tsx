@@ -1,17 +1,28 @@
-import { action, loader } from "@/lib/admin/events/bases-route.server";
-import { EventModalitiesRouteView } from "@/components/admin/events/event-modalities";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { loadAdministrativeEventModalitiesList } from "@/features/admin/event-modalities/list/server";
+import {
+  AdministrativeEventModalitiesListView,
+  type AdministrativeEventModalitiesListViewProps,
+} from "@/features/admin/event-modalities/list/view";
 
 import type { Route } from "./+types/administracion.modalidades";
-
-export { action, loader };
 
 export const handle = {
   adminBreadcrumbs: [{ label: "Modalidades" }],
 } satisfies AdminRouteHandle;
 
-export default function AdminModalitiesRoute({
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventModalitiesList(request);
+}
+
+export function AdministracionModalidadesRouteView({
   loaderData,
-}: Route.ComponentProps) {
-  return <EventModalitiesRouteView loaderData={loaderData} />;
+}: AdministrativeEventModalitiesListViewProps) {
+  return <AdministrativeEventModalitiesListView loaderData={loaderData} />;
+}
+
+export default function AdministracionModalidadesRoute({
+  loaderData,
+}: AdministrativeEventModalitiesListViewProps) {
+  return <AdministracionModalidadesRouteView loaderData={loaderData} />;
 }

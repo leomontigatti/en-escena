@@ -1,14 +1,18 @@
 import { useActionData } from "react-router";
 
-import { action, loader } from "@/lib/admin/events/bases-route.server";
-import { EventModalityDetailRouteView } from "@/components/admin/events/event-modalities";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import {
+  loadAdministrativeEventModalityDetail,
+  updateAdministrativeEventModality,
+} from "@/features/admin/event-modalities/detail/server";
+import {
+  AdministrativeEventModalityDetailView,
+  type AdministrativeEventModalityDetailViewProps,
+} from "@/features/admin/event-modalities/detail/view";
+import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/event-modalities/shared";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
-
-export { action, loader };
-
-type LoaderData = Route.ComponentProps["loaderData"];
+type LoaderData = AdministrativeEventModalitiesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -23,14 +27,36 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export default function AdminModalityDetailRoute({
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventModalityDetail(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return updateAdministrativeEventModality(request);
+}
+
+export function AdministracionModalidadDetalleRouteView({
+  loaderData,
+  actionData,
+  modalityId,
+}: AdministrativeEventModalityDetailViewProps) {
+  return (
+    <AdministrativeEventModalityDetailView
+      loaderData={loaderData}
+      actionData={actionData}
+      modalityId={modalityId}
+    />
+  );
+}
+
+export default function AdministracionModalidadDetalleRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <EventModalityDetailRouteView
+    <AdministracionModalidadDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
       modalityId={params.modalityId ?? ""}
