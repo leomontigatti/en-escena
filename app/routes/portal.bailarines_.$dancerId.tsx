@@ -11,12 +11,9 @@ import {
 import type { PortalRouteHandle } from "@/components/portal/ui";
 
 type LoaderData = PortalDancerDetailRouteViewProps["loaderData"];
-type ActionData = Awaited<ReturnType<typeof action>>;
 
 type PortalDancerDetailRouteProps = {
   loaderData: LoaderData;
-  actionData?: ActionData;
-  initialStatusDialogIntent?: PortalDancerDetailRouteViewProps["initialStatusDialogIntent"];
 };
 
 export const meta = () => [

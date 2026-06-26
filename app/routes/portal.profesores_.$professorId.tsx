@@ -12,12 +12,9 @@ import {
 import { type PortalProfessorDetailLoaderData } from "@/features/portal/professors/detail/shared";
 
 type LoaderData = PortalProfessorDetailRouteViewProps["loaderData"];
-type ActionData = Awaited<ReturnType<typeof action>>;
 
 type PortalProfessorDetailRouteProps = {
   loaderData: LoaderData;
-  actionData?: ActionData;
-  initialStatusDialogIntent?: PortalProfessorDetailRouteViewProps["initialStatusDialogIntent"];
 };
 
 export const meta = () => [

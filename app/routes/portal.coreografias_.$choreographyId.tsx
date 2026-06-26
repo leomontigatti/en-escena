@@ -19,8 +19,6 @@ type ActionData = ChoreographyRosterEditorActionData;
 
 type PortalChoreographyDetailRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
-  actionData?: ActionData;
-  initialDeleteDialogOpen?: boolean;
 };
 
 type LoaderData = PortalChoreographyDetailRouteProps["loaderData"];
