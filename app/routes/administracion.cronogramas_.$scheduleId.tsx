@@ -1,14 +1,19 @@
-import { useActionData, useParams } from "react-router";
+import { useActionData } from "react-router";
 
-import { EventScheduleDetailRouteView } from "@/components/admin/events/event-schedules";
-import { action, loader } from "@/lib/admin/events/bases-route.server";
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import {
+  loadAdministrativeEventScheduleDetail,
+  updateAdministrativeEventSchedule,
+} from "@/features/admin/event-schedules/detail/server";
+import {
+  AdministrativeEventScheduleDetailView,
+  type AdministrativeEventScheduleDetailViewProps,
+} from "@/features/admin/event-schedules/detail/view";
+import type { AdministrativeEventSchedulesLoaderData } from "@/features/admin/event-schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.$scheduleId";
 
-export { action, loader };
-
-type LoaderData = Route.ComponentProps["loaderData"];
+type LoaderData = AdministrativeEventSchedulesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -23,14 +28,36 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export default function AdminScheduleDetailRoute({
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventScheduleDetail(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return updateAdministrativeEventSchedule(request);
+}
+
+export function AdministracionCronogramaDetalleRouteView({
   loaderData,
+  actionData,
+  scheduleId,
+}: AdministrativeEventScheduleDetailViewProps) {
+  return (
+    <AdministrativeEventScheduleDetailView
+      loaderData={loaderData}
+      actionData={actionData}
+      scheduleId={scheduleId}
+    />
+  );
+}
+
+export default function AdministracionCronogramaDetalleRoute({
+  loaderData,
+  params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
-  const params = useParams();
 
   return (
-    <EventScheduleDetailRouteView
+    <AdministracionCronogramaDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
       scheduleId={params.scheduleId ?? ""}
