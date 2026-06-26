@@ -1,10 +1,10 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import type { Route } from "./+types/administracion.coreografias";
 import { loadAdministrativeChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
 import { AdministracionCoreografiasRouteView } from "@/features/admin/choreographies/list/view";
-type LoaderData = Awaited<
-  ReturnType<typeof loadAdministrativeChoreographyListRouteData>
->;
+
+import type { Route } from "./+types/administracion.coreografias";
+
+type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type AdministracionCoreografiasRouteProps = {
   loaderData: LoaderData;

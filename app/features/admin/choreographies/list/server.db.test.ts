@@ -12,7 +12,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("loadAdministrativeChoreographyListRouteData", () => {
-  test("keeps admin route orchestration inside the feature module", async () => {
+  test("redirects invalid filters to the canonical list URL", async () => {
     const event = await createSavedEvent();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.feature@example.com",
