@@ -106,7 +106,7 @@ Use for the operational admin list of coreografías for the active event.
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.coreografias.tsx`
 - Feature modules: `app/features/admin/choreographies/list/`
-- Shared modules: `app/lib/admin/choreographies/` stays as the persistence and filter seam because it is still useful beyond the route adapter.
+- Shared modules: `app/lib/admin/choreographies/` stays as the persistence and filter boundary because it is still useful beyond the route adapter.
 - Tests: `app/features/admin/choreographies/list/server.db.test.ts`, `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
 
 ## Admin Roster

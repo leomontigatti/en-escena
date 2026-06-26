@@ -28,19 +28,8 @@ describe("admin migration audit", () => {
   });
 
   test("keeps migrated admin route adapters owned by admin feature modules", () => {
-    for (const route of migratedAdminRoutes) {
-      const source = readFileSync(route.filePath, "utf8");
-      const runtimeSource = stripTypeOnlyImports(source);
-
-      expect(
-        runtimeSource,
-        `${route.routeFile} should import runtime collaborators from ${route.featureImportPrefix}`,
-      ).toContain(route.featureImportPrefix);
-
-      expect(
-        runtimeSource,
-        `${route.routeFile} should not own admin runtime logic in app/lib/admin`,
-      ).not.toContain("@/lib/admin/");
+    for (const route of migratedAdminRouteAudits) {
+      expectRouteAdapterDelegatesToFeature(route);
     }
   });
 
@@ -51,76 +40,100 @@ describe("admin migration audit", () => {
   });
 });
 
-const migratedAdminRoutes = [
-  routeAudit("administracion.bailarines.tsx", "@/features/admin/dancers/"),
-  routeAudit(
+type MigratedAdminRouteAudit = {
+  featureImportPrefix: string;
+  filePath: string;
+  routeFile: string;
+};
+
+const migratedAdminRouteAudits = [
+  migratedAdminRoute(
+    "administracion.bailarines.tsx",
+    "@/features/admin/dancers/",
+  ),
+  migratedAdminRoute(
     "administracion.bailarines_.$dancerId.tsx",
     "@/features/admin/dancers/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.categorias.tsx",
     "@/features/admin/event-categories/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.categorias_.nueva.tsx",
     "@/features/admin/event-categories/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.categorias_.$categoryId.tsx",
     "@/features/admin/event-categories/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.coreografias.tsx",
     "@/features/admin/choreographies/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.cronogramas.tsx",
     "@/features/admin/event-schedules/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.cronogramas_.nuevo.tsx",
     "@/features/admin/event-schedules/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.cronogramas_.$scheduleId.tsx",
     "@/features/admin/event-schedules/",
   ),
-  routeAudit("administracion.eventos.tsx", "@/features/admin/events/"),
-  routeAudit("administracion.eventos_.nuevo.tsx", "@/features/admin/events/"),
-  routeAudit(
+  migratedAdminRoute("administracion.eventos.tsx", "@/features/admin/events/"),
+  migratedAdminRoute(
+    "administracion.eventos_.nuevo.tsx",
+    "@/features/admin/events/",
+  ),
+  migratedAdminRoute(
     "administracion.eventos_.$eventId.tsx",
     "@/features/admin/events/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.modalidades.tsx",
     "@/features/admin/event-modalities/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.modalidades_.nueva.tsx",
     "@/features/admin/event-modalities/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.modalidades_.$modalityId.tsx",
     "@/features/admin/event-modalities/",
   ),
-  routeAudit("administracion.precios.tsx", "@/features/admin/event-prices/"),
-  routeAudit(
+  migratedAdminRoute(
+    "administracion.precios.tsx",
+    "@/features/admin/event-prices/",
+  ),
+  migratedAdminRoute(
     "administracion.precios_.nuevo.tsx",
     "@/features/admin/event-prices/",
   ),
-  routeAudit(
+  migratedAdminRoute(
     "administracion.precios_.$priceId.tsx",
     "@/features/admin/event-prices/",
   ),
-  routeAudit("administracion.profesores.tsx", "@/features/admin/professors/"),
-  routeAudit(
+  migratedAdminRoute(
+    "administracion.profesores.tsx",
+    "@/features/admin/professors/",
+  ),
+  migratedAdminRoute(
     "administracion.profesores_.$professorId.tsx",
     "@/features/admin/professors/",
   ),
-  routeAudit("administracion.usuarios.tsx", "@/features/admin/users/"),
-  routeAudit("administracion.usuarios_.nuevo.tsx", "@/features/admin/users/"),
-  routeAudit("administracion.usuarios_.$userId.tsx", "@/features/admin/users/"),
-  routeAudit(
+  migratedAdminRoute("administracion.usuarios.tsx", "@/features/admin/users/"),
+  migratedAdminRoute(
+    "administracion.usuarios_.nuevo.tsx",
+    "@/features/admin/users/",
+  ),
+  migratedAdminRoute(
+    "administracion.usuarios_.$userId.tsx",
+    "@/features/admin/users/",
+  ),
+  migratedAdminRoute(
     "administracion.usuarios_.invitaciones.tsx",
     "@/features/admin/users/",
   ),
@@ -150,7 +163,10 @@ const expectedAdminComponentFiles = [
   "shell.tsx",
 ];
 
-function routeAudit(routeFile: string, featureImportPrefix: string) {
+function migratedAdminRoute(
+  routeFile: string,
+  featureImportPrefix: string,
+): MigratedAdminRouteAudit {
   return {
     featureImportPrefix,
     filePath: path.resolve("app/routes", routeFile),
@@ -158,8 +174,24 @@ function routeAudit(routeFile: string, featureImportPrefix: string) {
   };
 }
 
+function expectRouteAdapterDelegatesToFeature(route: MigratedAdminRouteAudit) {
+  const runtimeSource = stripTypeOnlyImports(
+    readFileSync(route.filePath, "utf8"),
+  );
+
+  expect(
+    runtimeSource,
+    `${route.routeFile} should import runtime collaborators from ${route.featureImportPrefix}`,
+  ).toContain(route.featureImportPrefix);
+
+  expect(
+    runtimeSource,
+    `${route.routeFile} should not own admin runtime logic in app/lib/admin`,
+  ).not.toContain("@/lib/admin/");
+}
+
 function stripTypeOnlyImports(source: string) {
-  return source.replace(/import type[\s\S]*?;\n/g, "");
+  return source.replace(/^import type[\s\S]*?;\n/gm, "");
 }
 
 function listFiles(directoryPath: string, relativePrefix = ""): string[] {
