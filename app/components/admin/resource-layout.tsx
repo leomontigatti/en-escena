@@ -24,6 +24,11 @@ type AdminResourceLayoutViewProps = {
   children: ReactNode;
 };
 
+type AdminEventRequiredEmptyStateCopy = {
+  description: string;
+  title: string;
+};
+
 type AdminResourceLayoutProps = {
   action?: {
     label: string;
@@ -31,6 +36,7 @@ type AdminResourceLayoutProps = {
   };
   children: ReactNode;
   description: string;
+  eventRequiredEmptyState?: AdminEventRequiredEmptyStateCopy;
   headerAction?: ReactNode;
   loaderData?: AdminResourceLayoutSelectedEvent;
   requireSelectedEvent?: boolean;
@@ -81,12 +87,13 @@ export function AdminResourceLayout({
   title,
   description,
   children,
+  eventRequiredEmptyState,
 }: AdminResourceLayoutProps) {
   const resolvedSelectedEventId =
     selectedEventId ?? loaderData?.selectedEventId ?? null;
 
   return requireSelectedEvent && !resolvedSelectedEventId ? (
-    <AdminEventRequiredEmptyState />
+    <AdminEventRequiredEmptyState copy={eventRequiredEmptyState} />
   ) : (
     <div className="flex flex-col gap-6">
       <AdminResourceHeader
@@ -100,18 +107,25 @@ export function AdminResourceLayout({
   );
 }
 
-export function AdminEventRequiredEmptyState() {
+const defaultAdminEventRequiredEmptyStateCopy = {
+  title: "Elegí un evento activo para editar sus bases",
+  description:
+    "Activá un evento para editar modalidades, categorías, cronogramas y precios.",
+} satisfies AdminEventRequiredEmptyStateCopy;
+
+export function AdminEventRequiredEmptyState({
+  copy = defaultAdminEventRequiredEmptyStateCopy,
+}: {
+  copy?: AdminEventRequiredEmptyStateCopy;
+}) {
   return (
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Settings aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle>Elegí un evento activo para editar sus bases</EmptyTitle>
-        <EmptyDescription>
-          Activá un evento para editar modalidades, categorías, cronogramas y
-          precios.
-        </EmptyDescription>
+        <EmptyTitle>{copy.title}</EmptyTitle>
+        <EmptyDescription>{copy.description}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   );

@@ -2,9 +2,9 @@ import { TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  formatOperationalPendingItemLabel,
   type ChoreographyOperationalStatus,
-} from "@/lib/portal/choreographies";
+  formatChoreographyOperationalPendingItemLabel,
+} from "@/lib/choreographies/operational-status";
 
 export function OperationalStatusSummary({
   operationalStatus,
@@ -37,7 +37,9 @@ function formatPendingItems(
         return "archivo de música";
       }
 
-      return formatOperationalPendingItemLabel(pendingItem).toLowerCase();
+      return formatChoreographyOperationalPendingItemLabel(
+        pendingItem,
+      ).toLowerCase();
     }),
   );
 }

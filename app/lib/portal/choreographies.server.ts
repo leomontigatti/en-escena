@@ -15,11 +15,11 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
-import type {
-  ChoreographyListItem,
-  ChoreographyOperationalPendingItem,
-  ChoreographyOperationalStatus,
-} from "@/lib/portal/choreographies";
+import {
+  deriveChoreographyOperationalStatus,
+  type ChoreographyOperationalStatus,
+} from "@/lib/choreographies/operational-status";
+import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
   getDancerEditingEligibility,
   type DancerEditingEligibility,
@@ -372,7 +372,7 @@ async function hydrateChoreographyRows(
     groupType: row.groupType,
     categoryName: row.categoryName,
     experienceLevelName: row.experienceLevelName,
-    operationalStatus: deriveOperationalStatus({
+    operationalStatus: deriveChoreographyOperationalStatus({
       categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
@@ -381,39 +381,4 @@ async function hydrateChoreographyRows(
         row.categoryId !== null && categoryIdsWithLevels.has(row.categoryId),
     }),
   }));
-}
-
-function deriveOperationalStatus(input: {
-  categoryId: string | null;
-  experienceLevelId: string | null;
-  hasMusic: boolean;
-  hasProfessors: boolean;
-  requiresExperienceLevel: boolean;
-}): ChoreographyOperationalStatus {
-  const pendingItems: ChoreographyOperationalPendingItem[] = [];
-
-  if (!input.hasMusic) {
-    pendingItems.push("music");
-  }
-
-  if (input.categoryId === null) {
-    pendingItems.push("category");
-  }
-
-  if (
-    input.categoryId !== null &&
-    input.requiresExperienceLevel &&
-    input.experienceLevelId === null
-  ) {
-    pendingItems.push("experienceLevel");
-  }
-
-  if (!input.hasProfessors) {
-    pendingItems.push("professors");
-  }
-
-  return {
-    code: pendingItems.length === 0 ? "complete" : "incomplete",
-    pendingItems,
-  };
 }

@@ -73,6 +73,8 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).toContain("Juvenil · Grupal");
     expect(markup).toContain("Adultos · Dúo");
     expect(markup).toContain("Incompleta");
+    expect(markup).toContain('data-variant="warning"');
+    expect(markup).toContain('data-variant="success"');
     expect(markup).toContain("Nueva coreografía");
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('href="/portal/coreografias/choreo_1"');

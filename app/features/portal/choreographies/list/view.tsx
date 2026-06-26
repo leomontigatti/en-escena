@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
+import { getChoreographyOperationalStatusBadgeVariant } from "@/lib/choreographies/operational-status";
 import { Button } from "@/components/ui/button";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
@@ -252,12 +253,12 @@ function OperationalStatusBadge({
 }: {
   choreography: ChoreographyListItem;
 }) {
-  if (choreography.operationalStatus.code === "complete") {
-    return <Badge variant="success">Completa</Badge>;
-  }
-
   return (
-    <Badge variant="warning">
+    <Badge
+      variant={getChoreographyOperationalStatusBadgeVariant(
+        choreography.operationalStatus,
+      )}
+    >
       {formatOperationalStatusLabel(choreography.operationalStatus)}
     </Badge>
   );

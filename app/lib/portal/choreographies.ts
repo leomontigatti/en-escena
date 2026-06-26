@@ -1,13 +1,13 @@
-export type ChoreographyOperationalPendingItem =
-  | "music"
-  | "category"
-  | "experienceLevel"
-  | "professors";
+import type { ChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 
-export type ChoreographyOperationalStatus = {
-  code: "complete" | "incomplete";
-  pendingItems: ChoreographyOperationalPendingItem[];
-};
+export type {
+  ChoreographyOperationalPendingItem,
+  ChoreographyOperationalStatus,
+} from "@/lib/choreographies/operational-status";
+export {
+  formatChoreographyOperationalPendingItemLabel as formatOperationalPendingItemLabel,
+  formatChoreographyOperationalStatusLabel as formatOperationalStatusLabel,
+} from "@/lib/choreographies/operational-status";
 
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
@@ -33,29 +33,4 @@ export function formatGroupTypeLabel(groupType: ChoreographyGroupType) {
     case "grupal":
       return "Grupal";
   }
-}
-
-export function formatOperationalPendingItemLabel(
-  pendingItem: ChoreographyOperationalPendingItem,
-) {
-  switch (pendingItem) {
-    case "music":
-      return "Música";
-    case "category":
-      return "Categoría";
-    case "experienceLevel":
-      return "Nivel de experiencia";
-    case "professors":
-      return "Profesores";
-  }
-}
-
-export function formatOperationalStatusLabel(
-  operationalStatus: ChoreographyOperationalStatus,
-) {
-  if (operationalStatus.code === "complete") {
-    return "Completa";
-  }
-
-  return "Incompleta";
 }
