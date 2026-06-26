@@ -27,12 +27,12 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export async function loader({ request, params }: Route.LoaderArgs) {
-  return loadAdministrativeEventModalityDetail(request, params.modalityId);
+export async function loader({ request }: Route.LoaderArgs) {
+  return loadAdministrativeEventModalityDetail(request);
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
-  return updateAdministrativeEventModality(request, params.modalityId);
+export async function action({ request }: Route.ActionArgs) {
+  return updateAdministrativeEventModality(request);
 }
 
 export function AdministracionModalidadDetalleRouteView({
