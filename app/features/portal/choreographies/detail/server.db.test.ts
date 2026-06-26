@@ -26,6 +26,10 @@ import {
   handlePortalChoreographyDetailRouteAction as choreographyDetailAction,
   loadPortalChoreographyDetail as choreographyDetailLoader,
 } from "@/features/portal/choreographies/detail/server";
+import {
+  createPortalPostRequest,
+  createRequestCookie,
+} from "@/features/portal/test-support/db";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -1914,34 +1918,6 @@ async function createChoreographyRecord(
     .returning();
 
   return choreography;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `sb-access-token=${sessionCookie[1]}`;
-}
-
-function createPortalPostRequest(
-  requestUrl: string,
-  cookie: string,
-  body: FormData,
-) {
-  return new Request(requestUrl, {
-    method: "POST",
-    headers: { cookie },
-    body,
-  });
 }
 
 function choreographyUpdateFormData(input: {
