@@ -75,6 +75,10 @@ describe("InscriptionsSection", () => {
     expect(markup).toContain("Dúo");
     expect(markup).toContain("35.000");
     expect(markup).not.toContain("350");
+    expect(markup).not.toContain("Buscar coreografía");
+    expect(markup).not.toContain("Anterior");
+    expect(markup).not.toContain("Siguiente");
+    expect(markup).not.toContain("registros");
     expect(markup).not.toContain(
       "Los importes son estimados y no reemplazan comprobantes financieros.",
     );

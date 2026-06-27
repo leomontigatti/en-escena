@@ -24,6 +24,12 @@ const priceTableDateFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: "UTC",
 });
 
+const priceAmountFormatter = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
+});
+
 export const priceFormSchema = z
   .object({
     name: z.string().trim().min(1, requiredFieldMessage),
@@ -88,7 +94,7 @@ export function formatPaymentDeadlineForTable(paymentDeadline: string | null) {
 }
 
 export function formatAmount(amount: number) {
-  return `$${amount}`;
+  return priceAmountFormatter.format(amount).replace(/\u00a0/g, " ");
 }
 
 export const emptyPriceFieldErrors: Record<string, string> = {};

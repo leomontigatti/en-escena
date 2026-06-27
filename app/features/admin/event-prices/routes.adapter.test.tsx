@@ -30,7 +30,7 @@ describe("administracion.precios route adapters", () => {
     expect(markup).toContain("Nuevo precio");
     expect(markup).toContain("Precio Solo");
     expect(markup).toContain("Solo");
-    expect(markup).toContain("$12000");
+    expect(markup).toContain("$ 12.000");
   });
 
   test("renders the create feature view from the create route adapter", () => {

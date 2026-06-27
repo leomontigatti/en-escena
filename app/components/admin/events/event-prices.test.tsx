@@ -179,8 +179,8 @@ describe("EventPriceDetailRouteView", () => {
 
     expect(container.textContent).toContain("31 de mayo de 2026");
     expect(container.textContent).toContain("30 de junio de 2026");
-    expect(container.textContent).toContain("$12000");
-    expect(container.textContent).toContain("$18000");
+    expect(container.textContent).toContain("$ 12.000");
+    expect(container.textContent).toContain("$ 18.000");
 
     const priceLinks = Array.from(
       container.querySelectorAll<HTMLAnchorElement>("tbody a"),

@@ -7,16 +7,20 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/components/shared/data-table";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -58,44 +62,11 @@ export type InscriptionsSectionProps = {
   selectedEventId: string | null;
 };
 
-type DancerInscription =
-  DancerDetailLoaderData["dancer"]["inscriptions"][number];
-
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
   maximumFractionDigits: 0,
 });
-
-const inscriptionColumns: DataTableColumn<DancerInscription>[] = [
-  {
-    id: "choreography",
-    header: "Nombre coreografía",
-    cell: (inscription) => inscription.choreographyName,
-    filterValue: (inscription) => inscription.choreographyName,
-  },
-  {
-    id: "groupType",
-    header: "Tipo de grupo",
-    cell: (inscription) => formatGroupTypeLabel(inscription.groupType),
-    filterValue: (inscription) => formatGroupTypeLabel(inscription.groupType),
-  },
-  {
-    id: "basePrice",
-    header: "Precio base",
-    cell: (inscription) => formatMoney(inscription.basePriceAmount),
-  },
-  {
-    id: "discount",
-    header: "Descuento",
-    cell: (inscription) => formatMoney(inscription.discountAmount),
-  },
-  {
-    id: "estimatedSubtotal",
-    header: "Subtotal estimado",
-    cell: (inscription) => formatMoney(inscription.estimatedSubtotalAmount),
-  },
-];
 
 export function AdministracionBailarinDetalleRouteView({
   actionData,
@@ -541,14 +512,40 @@ export function InscriptionsSection({
   }
 
   return (
-    <DataTable
-      mode="client"
-      rows={inscriptions}
-      columns={inscriptionColumns}
-      getRowKey={(inscription) => inscription.id}
-      searchPlaceholder="Buscar coreografía"
-      textFilterColumnId="choreography"
-    />
+    <div className="rounded-lg border bg-background">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="px-3">Nombre coreografía</TableHead>
+            <TableHead className="px-3">Tipo de grupo</TableHead>
+            <TableHead className="px-3">Precio base</TableHead>
+            <TableHead className="px-3">Descuento</TableHead>
+            <TableHead className="px-3">Subtotal estimado</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {inscriptions.map((inscription) => (
+            <TableRow key={inscription.id}>
+              <TableCell className="px-3">
+                {inscription.choreographyName}
+              </TableCell>
+              <TableCell className="px-3 text-muted-foreground">
+                {formatGroupTypeLabel(inscription.groupType)}
+              </TableCell>
+              <TableCell className="px-3">
+                {formatMoney(inscription.basePriceAmount)}
+              </TableCell>
+              <TableCell className="px-3">
+                {formatMoney(inscription.discountAmount)}
+              </TableCell>
+              <TableCell className="px-3">
+                {formatMoney(inscription.estimatedSubtotalAmount)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
