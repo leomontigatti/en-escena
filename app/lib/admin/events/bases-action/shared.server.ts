@@ -167,7 +167,7 @@ export function buildDefaultActionErrorScope(
   return buildRecordActionScope(input.intent, input.id);
 }
 
-export function emptyStringToUndefined(value: string) {
+function emptyStringToUndefined(value: string) {
   return value || undefined;
 }
 

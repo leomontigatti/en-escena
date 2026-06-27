@@ -15,7 +15,6 @@ export type {
   CompatibleScheduleCapacityResolution,
   EventBasesDeleteResult,
   EventBasesMutationResult,
-  ModalityWithSubmodalitiesInput,
   PriceInput,
   PriceListItem,
   PriceResolutionResult,
@@ -46,8 +45,6 @@ export {
 export {
   createPrice,
   deletePrice,
-  listPrices,
-  priceHasOperationalDependencies,
   resolveApplicablePrice,
   updatePrice,
 } from "@/lib/events/bases-repository/prices.server";
@@ -55,15 +52,12 @@ export {
   createScheduleCapacity,
   deleteScheduleCapacity,
   resolveCompatibleScheduleCapacities,
-  scheduleCapacityHasOperationalDependencies,
   updateScheduleCapacity,
 } from "@/lib/events/bases-repository/schedule-capacities.server";
 export {
   createSchedule,
   createScheduleWithEntries,
   deleteSchedule,
-  listSchedules,
-  scheduleHasOperationalDependencies,
   updateSchedule,
   updateScheduleWithEntries,
 } from "@/lib/events/bases-repository/schedules.server";

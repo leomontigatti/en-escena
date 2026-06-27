@@ -17,7 +17,7 @@ export type FieldErrors = NonNullable<
   Extract<EventMutationResult, { ok: false }>["fieldErrors"]
 >;
 
-export const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = "30";
+const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = "30";
 export const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
 export const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
 

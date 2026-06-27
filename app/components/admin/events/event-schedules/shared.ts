@@ -9,7 +9,7 @@ import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
-export const scheduleDateFormatter = new Intl.DateTimeFormat("es-AR", {
+const scheduleDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "long",
   year: "numeric",
@@ -32,10 +32,9 @@ const scheduleCapacityFormSchema = z.object({
     .refine(isPositiveIntegerString, "Ingresá un cupo mayor a cero."),
 });
 
-export const inlineScheduleCapacityFormSchema =
-  scheduleCapacityFormSchema.extend({
-    id: z.string().optional(),
-  });
+const inlineScheduleCapacityFormSchema = scheduleCapacityFormSchema.extend({
+  id: z.string().optional(),
+});
 
 export const scheduleFormSchema = z
   .object({
@@ -112,7 +111,7 @@ export function buildScheduleFacetedFilters(schedules: ScheduleListItem[]) {
   ];
 }
 
-export function getScheduleModalityOptions(schedules: ScheduleListItem[]) {
+function getScheduleModalityOptions(schedules: ScheduleListItem[]) {
   const modalities = schedules.flatMap((schedule) => schedule.modalities);
 
   return Array.from(
@@ -177,7 +176,7 @@ export function formatDate(value: string) {
   return scheduleDateFormatter.format(new Date(`${value}T00:00:00Z`));
 }
 
-export function isPositiveIntegerString(value: string) {
+function isPositiveIntegerString(value: string) {
   const parsedValue = Number(value);
 
   return Number.isInteger(parsedValue) && parsedValue > 0;

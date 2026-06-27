@@ -24,7 +24,7 @@ export type ProfessorEditableSnapshot = {
   active: boolean;
 };
 
-export function normalizeSpanishTitleCase(
+function normalizeSpanishTitleCase(
   value: string,
   options: { lowercaseLeadingParticle?: boolean } = {},
 ) {

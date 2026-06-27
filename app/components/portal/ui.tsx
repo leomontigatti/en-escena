@@ -447,7 +447,7 @@ type PortalEmptyListProps = {
   description: string;
 };
 
-export function PortalEmptyList({ title, description }: PortalEmptyListProps) {
+function PortalEmptyList({ title, description }: PortalEmptyListProps) {
   return (
     <Card className="mt-6">
       <CardHeader>

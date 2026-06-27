@@ -313,10 +313,7 @@ export function buildDataTableSortHref({
   return buildTableHref(basePath, searchParams);
 }
 
-export function buildTableHref(
-  basePath: string,
-  searchParams?: URLSearchParams,
-) {
+function buildTableHref(basePath: string, searchParams?: URLSearchParams) {
   const search = searchParams?.toString() ?? "";
 
   return search.length > 0 ? `${basePath}?${search}` : basePath;

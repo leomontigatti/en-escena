@@ -12,7 +12,7 @@ import {
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
 
-export const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
+const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
 
 type ResetInternalUserPasswordInput = {
   temporaryPassword: string;

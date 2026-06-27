@@ -219,7 +219,7 @@ export async function verifyLocalAccessPassword(input: {
   });
 }
 
-export async function createLocalAccessSession(input: { userId: string }) {
+async function createLocalAccessSession(input: { userId: string }) {
   const savedSession = await db
     .insert(accessSession)
     .values({
@@ -263,9 +263,7 @@ export function buildLocalAccessSessionHeaders(sessionToken: string | null) {
   return headers;
 }
 
-export function extractLocalAccessSessionTokenFromResponseHeaders(
-  headers: Headers,
-) {
+function extractLocalAccessSessionTokenFromResponseHeaders(headers: Headers) {
   const setCookie = headers.get("set-cookie");
   const sessionCookie = setCookie?.match(/sb-access-token=([^;]+)/);
 

@@ -4,7 +4,7 @@ export function normalizeInternalUsername(value: string) {
   return value.trim().toLowerCase();
 }
 
-export function isValidInternalUsername(value: string) {
+function isValidInternalUsername(value: string) {
   const normalized = normalizeInternalUsername(value);
 
   return (

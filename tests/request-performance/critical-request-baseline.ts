@@ -826,7 +826,7 @@ export async function measureCriticalRequestBaseline(): Promise<
   return results;
 }
 
-export function formatCriticalRequestBaseline(
+function formatCriticalRequestBaseline(
   results: CriticalRequestBaselineResult[],
 ) {
   const lines = [

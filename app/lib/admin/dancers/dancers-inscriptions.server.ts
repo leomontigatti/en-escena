@@ -60,15 +60,15 @@ export async function findAdministrativeDancerInscriptions(input: {
         groupType: choreography.groupType,
         scheduleId: choreography.scheduleId,
       });
-      const priceInCents = priceResult.ok ? priceResult.price.amount : null;
+      const priceAmount = priceResult.ok ? priceResult.price.amount : null;
 
       return {
         id: choreography.id,
         choreographyName: choreography.name,
         groupType: choreography.groupType,
-        basePriceInCents: priceInCents,
-        discountInCents: 0,
-        estimatedSubtotalInCents: priceInCents,
+        basePriceAmount: priceAmount,
+        discountAmount: 0,
+        estimatedSubtotalAmount: priceAmount,
       } satisfies AdministrativeDancerInscription;
     }),
   );

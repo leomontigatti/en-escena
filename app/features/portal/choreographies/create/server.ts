@@ -21,7 +21,7 @@ export async function loadCreateChoreographyRouteData(request: Request) {
   });
 }
 
-export async function loadCreateChoreographyDialogData(input: {
+async function loadCreateChoreographyDialogData(input: {
   academyId: string;
   eventId: string;
 }) {

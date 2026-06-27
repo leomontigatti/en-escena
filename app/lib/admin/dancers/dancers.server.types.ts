@@ -57,9 +57,9 @@ export type AdministrativeDancerInscription = {
   id: string;
   choreographyName: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
-  basePriceInCents: number | null;
-  discountInCents: number;
-  estimatedSubtotalInCents: number | null;
+  basePriceAmount: number | null;
+  discountAmount: number;
+  estimatedSubtotalAmount: number | null;
 };
 
 export type AdministrativeDancerUpdateInput = {

@@ -11,9 +11,3 @@ export const groupTypeOptions = Object.entries(groupTypeLabels).map(
     label,
   }),
 );
-
-export function formatGroupTypes(groupTypes: string[]) {
-  return groupTypes
-    .map((groupType) => groupTypeLabels[groupType] ?? groupType)
-    .join(", ");
-}

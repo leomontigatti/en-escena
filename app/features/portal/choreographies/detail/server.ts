@@ -143,7 +143,7 @@ export async function loadChoreographyRosterEditorOptions(input: {
   };
 }
 
-export async function handlePortalChoreographyDetailAction(input: {
+async function handlePortalChoreographyDetailAction(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;

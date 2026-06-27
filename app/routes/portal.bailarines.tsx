@@ -25,9 +25,6 @@ export async function action({ request }: { request: Request }) {
   return await handlePortalDancersListAction(request);
 }
 
-export { PortalDancersListRouteView };
-export { PortalDancersListRouteView as PortalBailarinesRouteView };
-
 export default function PortalBailarinesRoute({
   loaderData,
 }: PortalDancersListRouteProps) {

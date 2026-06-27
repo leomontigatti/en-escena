@@ -206,7 +206,7 @@ export async function resolveApplicablePrice(input: {
   };
 }
 
-export async function priceHasOperationalDependencies(_priceId: string) {
+async function priceHasOperationalDependencies(_priceId: string) {
   return false;
 }
 

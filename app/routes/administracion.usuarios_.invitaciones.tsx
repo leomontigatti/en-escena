@@ -21,9 +21,4 @@ export default function AdministracionUsuariosInvitacionesRoute() {
   return <AdministracionUsuariosInvitacionesRouteView />;
 }
 
-export {
-  action,
-  loader,
-  internalInvitationRedirectPath,
-  AdministracionUsuariosInvitacionesRouteView,
-};
+export { action, loader, internalInvitationRedirectPath };

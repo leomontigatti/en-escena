@@ -124,17 +124,9 @@ export type ScheduleInput = EventBaseNameInput & {
   modalityIds: string[];
 };
 
-export type ValidScheduleInput = ScheduleInput & {
-  name: string;
-};
-
 export type ScheduleCapacityInput = {
   groupType: string;
   capacity: number;
-};
-
-export type InlineScheduleCapacityInput = ScheduleCapacityInput & {
-  id?: string;
 };
 
 export type ValidInlineScheduleCapacityInput = {
@@ -321,7 +313,7 @@ export async function validateEventBaseName(input: {
   return { ok: true };
 }
 
-export async function findDuplicateName(input: {
+async function findDuplicateName(input: {
   eventId: string;
   name: string;
   kind: EventBaseUniqueEntityKind;
@@ -468,10 +460,6 @@ export function toDateOnly(value: Date | string) {
   }
 
   return value.slice(0, 10);
-}
-
-export function isDateOnly(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 export function isValidDate(value: string) {

@@ -11,8 +11,8 @@ import type { RouteNotificationKey } from "@/lib/shared/route-notification-toast
 const routeNotificationSearchParam = "notificacion";
 const temporaryPasswordMinLength = 8;
 
-export const updateInternalUserFieldNames = ["name", "email", "role"] as const;
-export const resetPasswordFieldNames = ["temporaryPassword"] as const;
+const updateInternalUserFieldNames = ["name", "email", "role"] as const;
+const resetPasswordFieldNames = ["temporaryPassword"] as const;
 
 export type UpdateInternalUserField =
   (typeof updateInternalUserFieldNames)[number];
@@ -87,7 +87,7 @@ export type DetailActionData = {
   resetPasswordValues: ResetPasswordFormValues;
 };
 
-export const emptyEditValues: UpdateInternalUserFormValues = {
+const emptyEditValues: UpdateInternalUserFormValues = {
   name: "",
   email: "",
   role: "judge",
@@ -112,7 +112,7 @@ const optionalEmailField = z
     "Ingresá un correo válido o dejalo vacío.",
   );
 
-export function isInternalUserRole(
+function isInternalUserRole(
   value: string,
 ): value is Extract<DetailUserRole, "admin" | "auditor" | "judge"> {
   return value === "admin" || value === "auditor" || value === "judge";
@@ -203,7 +203,7 @@ export function buildNotificationDetailHref(
   return buildUserDetailPath(userId, searchParams);
 }
 
-export function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
+function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
   const nextSearchParams = new URLSearchParams(searchParams);
 
   nextSearchParams.delete("modo");

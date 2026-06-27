@@ -1,8 +1,5 @@
 export const adminProfessorPageSize = 50;
 export const adminProfessorNotFoundMessage = "No encontramos ese Profesor.";
-export const adminProfessorSavedSearchParam = "guardado";
-export const adminProfessorSavedSuccessMessage =
-  "Profesor actualizado correctamente.";
 export const adminProfessorCorrectionReasonMessage =
   "Ingresá un motivo de corrección para guardar este cambio.";
 
@@ -99,37 +96,4 @@ export function getAdminProfessorParticipationLabel(
   }
 
   return "Sin evento";
-}
-
-export function getAdminProfessorParticipationSummary(
-  participationStatus: AdminProfessorParticipationStatus,
-) {
-  if (participationStatus === "participating") {
-    return "Participando en el Evento activo.";
-  }
-
-  if (participationStatus === "not-participating") {
-    return "No participa en el Evento activo.";
-  }
-
-  return "Sin Evento activo seleccionado.";
-}
-
-export function formatAdminProfessorDocument(input: {
-  documentType: "dni" | "passport" | "other" | null;
-  documentNumber: string | null;
-}) {
-  if (!input.documentType || !input.documentNumber) {
-    return "Sin documento cargado";
-  }
-
-  if (input.documentType === "dni") {
-    return `DNI ${input.documentNumber}`;
-  }
-
-  if (input.documentType === "passport") {
-    return `Pasaporte ${input.documentNumber}`;
-  }
-
-  return `Otro ${input.documentNumber}`;
 }

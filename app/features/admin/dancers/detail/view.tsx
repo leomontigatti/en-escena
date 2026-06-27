@@ -83,17 +83,17 @@ const inscriptionColumns: DataTableColumn<DancerInscription>[] = [
   {
     id: "basePrice",
     header: "Precio base",
-    cell: (inscription) => formatMoney(inscription.basePriceInCents),
+    cell: (inscription) => formatMoney(inscription.basePriceAmount),
   },
   {
     id: "discount",
     header: "Descuento",
-    cell: (inscription) => formatMoney(inscription.discountInCents),
+    cell: (inscription) => formatMoney(inscription.discountAmount),
   },
   {
     id: "estimatedSubtotal",
     header: "Subtotal estimado",
-    cell: (inscription) => formatMoney(inscription.estimatedSubtotalInCents),
+    cell: (inscription) => formatMoney(inscription.estimatedSubtotalAmount),
   },
 ];
 
@@ -552,10 +552,10 @@ export function InscriptionsSection({
   );
 }
 
-function formatMoney(valueInCents: number | null) {
-  if (valueInCents === null) {
+function formatMoney(amount: number | null) {
+  if (amount === null) {
     return "Sin precio";
   }
 
-  return moneyFormatter.format(valueInCents / 100);
+  return moneyFormatter.format(amount);
 }

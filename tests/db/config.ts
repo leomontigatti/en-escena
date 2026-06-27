@@ -1,4 +1,4 @@
-export const DEFAULT_TEST_DATABASE_URL =
+const DEFAULT_TEST_DATABASE_URL =
   "postgres://postgres:postgres@localhost:5433/en-escena-test";
 
 export function getTestDatabaseUrl() {

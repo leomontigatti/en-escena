@@ -112,7 +112,7 @@ export async function handlePortalDancerDetailAction(input: {
   );
 }
 
-export async function requirePortalDancer(academyId: string, dancerId: string) {
+async function requirePortalDancer(academyId: string, dancerId: string) {
   const dancer = await findDancerForAcademy(academyId, dancerId);
 
   if (!dancer) {

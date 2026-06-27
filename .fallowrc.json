@@ -7,6 +7,74 @@
     {
       "file": "tests/db/fast-db.ts",
       "exports": ["closeTestDatabase"]
+    },
+    {
+      "file": "app/lib/portal/dancers.server.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/lib/portal/professors.server.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/features/portal/choreographies/test-support/db.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/features/portal/test-support/db.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/alert-dialog.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/avatar.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/breadcrumb.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/card.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/combobox.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/dialog.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/dropdown-menu.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/empty.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/field.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/input-group.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/select.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/sheet.tsx",
+      "exports": ["*"]
+    },
+    {
+      "file": "app/components/ui/table.tsx",
+      "exports": ["*"]
     }
   ],
   "duplicates": {

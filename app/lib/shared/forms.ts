@@ -21,7 +21,7 @@ type ServerFieldNameResolver<TFieldValues extends FieldValues> = (
   fieldName: string,
 ) => FieldPath<TFieldValues> | null;
 
-export function applyServerFieldErrors<TFieldValues extends FieldValues>(
+function applyServerFieldErrors<TFieldValues extends FieldValues>(
   form: Pick<UseFormReturn<TFieldValues>, "setError">,
   fieldErrors: ServerFieldErrors,
   resolveFieldName?: ServerFieldNameResolver<TFieldValues>,

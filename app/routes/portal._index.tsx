@@ -22,7 +22,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return null;
 }
 
-export function PortalIndexRouteView() {
+function PortalIndexRouteView() {
   return (
     <>
       <section className="flex flex-col gap-2">

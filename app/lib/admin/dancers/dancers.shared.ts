@@ -1,8 +1,5 @@
 export const adminDancerPageSize = 50;
 export const adminDancerNotFoundMessage = "No encontramos ese Bailarín.";
-export const adminDancerSavedSearchParam = "guardado";
-export const adminDancerSavedSuccessMessage =
-  "Bailarín actualizado correctamente.";
 export const adminDancerCorrectionReasonMessage =
   "Ingresá un motivo de corrección para guardar este cambio.";
 
@@ -135,50 +132,6 @@ export function getAdminDancerParticipationLabel(
   }
 }
 
-export function getAdminDancerParticipationSummary(
-  participationStatus: AdminDancerParticipationStatus,
-) {
-  switch (participationStatus) {
-    case "participating":
-      return "Participando en el Evento activo.";
-    case "not-participating":
-      return "No participa en el Evento activo.";
-    default:
-      return "Sin Evento activo seleccionado.";
-  }
-}
-
-export function getAdminDancerIdentificationLabel(
-  identificationStatus: AdminDancerIdentificationStatus,
-) {
-  switch (identificationStatus) {
-    case "unverified":
-      return "Sin verificar";
-    case "verified":
-      return "Verificado";
-    default:
-      return "Incompleta";
-  }
-}
-
-export function formatAdminDancerDocument(input: {
-  documentType: "dni" | "passport" | "other" | null;
-  documentNumber: string | null;
-}) {
-  if (!input.documentType || !input.documentNumber) {
-    return "Sin documento cargado";
-  }
-
-  switch (input.documentType) {
-    case "dni":
-      return `DNI ${input.documentNumber}`;
-    case "passport":
-      return `Pasaporte ${input.documentNumber}`;
-    default:
-      return `Otro ${input.documentNumber}`;
-  }
-}
-
 export function getAdminDancerParticipationBadgeVariant(
   participationStatus: AdminDancerParticipationStatus,
 ) {
@@ -197,10 +150,4 @@ export function getAdminDancerIdentificationBadgeVariant(
   }
 
   return "warning";
-}
-
-export function formatAdminDancerBirthDate(value: string) {
-  const [year, month, day] = value.split("-");
-
-  return `${day}/${month}/${year}`;
 }

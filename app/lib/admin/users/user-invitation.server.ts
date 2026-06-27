@@ -23,8 +23,6 @@ const INVALID_INVITATION_ERROR = "El enlace no es válido o expiró.";
 const ACADEMY_USER_INVITATION_ERROR =
   "Esta invitación no puede activar un usuario de academia.";
 
-export type InternalInvitationTokenStatus = "valid" | "invalid";
-
 type RequestInternalUserInvitationInput = {
   email: string;
   role: InternalUserRole;

@@ -211,7 +211,7 @@ export function buildDancerActionError(
   };
 }
 
-export function isDancerUpdateValues(
+function isDancerUpdateValues(
   values: DancerActionError["values"] | undefined,
 ): values is AdministrativeDancerUpdateInput {
   return (

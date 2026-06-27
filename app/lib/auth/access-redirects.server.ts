@@ -24,7 +24,7 @@ export function getSafeRedirectTo(request: Request) {
   return isSafeInternalRedirect(redirectTo) ? redirectTo : null;
 }
 
-export function isSafeInternalRedirect(value: string | null) {
+function isSafeInternalRedirect(value: string | null) {
   if (!value?.startsWith("/") || value.startsWith("//")) {
     return false;
   }

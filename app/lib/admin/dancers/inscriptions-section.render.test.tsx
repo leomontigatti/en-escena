@@ -59,9 +59,9 @@ describe("InscriptionsSection", () => {
           id: "choreo-1",
           choreographyName: "Finale",
           groupType: "duo",
-          basePriceInCents: 1250000,
-          discountInCents: 0,
-          estimatedSubtotalInCents: 1250000,
+          basePriceAmount: 35000,
+          discountAmount: 0,
+          estimatedSubtotalAmount: 35000,
         },
       ],
     });
@@ -73,7 +73,8 @@ describe("InscriptionsSection", () => {
     expect(markup).toContain("Subtotal estimado");
     expect(markup).toContain("Finale");
     expect(markup).toContain("Dúo");
-    expect(markup).toContain("12.500");
+    expect(markup).toContain("35.000");
+    expect(markup).not.toContain("350");
     expect(markup).not.toContain(
       "Los importes son estimados y no reemplazan comprobantes financieros.",
     );

@@ -11,7 +11,7 @@ const DOCUMENT_IMAGE_EXTENSION_BY_CONTENT_TYPE = {
 
 type DancerDocumentSide = "front" | "back";
 
-export type UploadDocumentImageInput = {
+type UploadDocumentImageInput = {
   academyId: string;
   dancerId: string;
   file: Blob;

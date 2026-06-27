@@ -1,11 +1,11 @@
-export class WebhookVerificationError extends Error {
+class WebhookVerificationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "WebhookVerificationError";
   }
 }
 
-export class Webhook {
+class Webhook {
   static prefix = "whsec_";
 
   constructor(

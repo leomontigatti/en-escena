@@ -401,7 +401,7 @@ export async function deleteSchedule(
   return { ok: true };
 }
 
-export async function scheduleHasOperationalDependencies(scheduleId: string) {
+async function scheduleHasOperationalDependencies(scheduleId: string) {
   const price = await db.query.prices.findFirst({
     columns: { id: true },
     where: eq(prices.scheduleId, scheduleId),

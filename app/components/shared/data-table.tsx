@@ -60,11 +60,6 @@ import { cn } from "@/lib/shared/utils";
 export type {
   DataTableColumn,
   DataTableFacetedFilter,
-  DataTableFacetedFilterGroup,
-  DataTableFacetedFilterOption,
-  DataTableFacetedFilterValue,
-  DataTableSortDirection,
-  DataTableSortValue,
 } from "@/components/shared/data-table.shared";
 
 declare module "@tanstack/react-table" {

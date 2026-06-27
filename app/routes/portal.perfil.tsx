@@ -27,9 +27,6 @@ export async function action({ request }: { request: Request }) {
   return await handlePortalProfileAction(request);
 }
 
-export { PortalProfileRouteView };
-export { PortalProfileRouteView as PortalPerfilRouteView };
-
 export default function PortalPerfilRoute({
   loaderData,
 }: PortalProfileRouteProps) {

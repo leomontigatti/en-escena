@@ -222,7 +222,7 @@ export async function resolveChoreographyDancers(input: {
   };
 }
 
-export async function resolveChoreographyDancerUpdateContext(input: {
+async function resolveChoreographyDancerUpdateContext(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;

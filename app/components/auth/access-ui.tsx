@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
 
-export const accessTextLinkClassName =
+const accessTextLinkClassName =
   "rounded-sm font-medium text-brand underline-offset-4 hover:text-brand/80 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 type AccessPageProps = {

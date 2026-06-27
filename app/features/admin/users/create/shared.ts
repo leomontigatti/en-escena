@@ -38,7 +38,7 @@ export const createInternalUserSchema = z.object({
   email: optionalEmailField,
 });
 
-export const createInternalUserFieldNames = [
+const createInternalUserFieldNames = [
   "name",
   "internalUsername",
   "role",

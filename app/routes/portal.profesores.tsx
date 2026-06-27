@@ -25,8 +25,6 @@ export async function action({ request }: { request: Request }) {
   return await handlePortalProfessorsListAction(request);
 }
 
-export const PortalProfesoresRouteView = PortalProfessorsListRouteView;
-
 export default function PortalProfesoresRoute({
   loaderData,
 }: PortalProfessorsListRouteProps) {

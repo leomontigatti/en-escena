@@ -130,7 +130,7 @@ export async function deleteScheduleCapacity(
   return { ok: true };
 }
 
-export async function scheduleCapacityHasOperationalDependencies(
+async function scheduleCapacityHasOperationalDependencies(
   _scheduleCapacityId: string,
 ) {
   return false;

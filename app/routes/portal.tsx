@@ -11,6 +11,4 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadPortalShell(request);
 }
 
-export { PortalShellRouteView as PortalRouteView };
-
 export default PortalShellRouteView;

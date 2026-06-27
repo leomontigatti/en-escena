@@ -236,7 +236,7 @@ export function buildProfessorActionError(
   };
 }
 
-export function isProfessorUpdateValues(
+function isProfessorUpdateValues(
   values: ProfessorActionError["values"] | undefined,
 ): values is AdministrativeProfessorUpdateInput {
   return (
@@ -248,7 +248,7 @@ export function isProfessorUpdateValues(
   );
 }
 
-export function isProfessorStatusValues(
+function isProfessorStatusValues(
   values: ProfessorActionError["values"] | undefined,
 ): values is ProfessorReasonFormValues {
   return values !== undefined && "statusIntent" in values;

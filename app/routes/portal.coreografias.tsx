@@ -27,8 +27,6 @@ export async function action({ request }: { request: Request }) {
   return await handlePortalChoreographiesListAction(request);
 }
 
-export { PortalChoreographiesListRouteView };
-
 export default function PortalCoreografiasRoute({
   loaderData,
 }: PortalChoreographiesListRouteProps) {

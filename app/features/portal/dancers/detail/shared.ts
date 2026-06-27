@@ -67,7 +67,7 @@ export type PortalDancerDocumentImageUrls = {
   front: string | null;
 };
 export type PortalDancerStatusIntent = "archive-dancer" | "reactivate-dancer";
-export type PortalDancerStatusAction = {
+type PortalDancerStatusAction = {
   intent: PortalDancerStatusIntent;
   label: string;
   confirmTitle: string;
@@ -184,7 +184,7 @@ export function getGeneralActionError(
   };
 }
 
-export function hasPortalDancerFieldErrors(
+function hasPortalDancerFieldErrors(
   fieldErrors: PortalDancerDetailActionData["fieldErrors"],
 ) {
   return Object.values(fieldErrors).some(Boolean);

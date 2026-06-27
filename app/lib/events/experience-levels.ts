@@ -1,4 +1,4 @@
-export enum ExperienceLevel {
+enum ExperienceLevel {
   Amateur = "Amateur",
   Profesional = "Profesional",
   Elite = "Elite",

@@ -38,8 +38,6 @@ export const handle = {
   ],
 } satisfies PortalRouteHandle;
 
-export { PortalChoreographyDetailRouteView };
-
 export function shouldRevalidate({
   defaultShouldRevalidate,
   formData,

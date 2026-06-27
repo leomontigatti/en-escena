@@ -525,9 +525,9 @@ describe.sequential("administracion/bailarines route", () => {
         id: activeEventChoreography.id,
         choreographyName: "Finale",
         groupType: "duo",
-        basePriceInCents: 1250000,
-        discountInCents: 0,
-        estimatedSubtotalInCents: 1250000,
+        basePriceAmount: 1250000,
+        discountAmount: 0,
+        estimatedSubtotalAmount: 1250000,
       }),
     ]);
     expect(loaderData.dancer.inscriptions).not.toEqual(
