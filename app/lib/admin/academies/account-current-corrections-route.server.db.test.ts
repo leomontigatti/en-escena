@@ -175,7 +175,7 @@ describe.sequential(
         },
       });
 
-      const { request: annulImputationRequest } =
+      const { request: annulImputationRequest, userId: annullingUserId } =
         await buildAnnulImputationRequest({
           imputationId: imputation.id,
           reason: "Carga duplicada en conciliación.",
@@ -196,6 +196,8 @@ describe.sequential(
           where: eq(academyEventInvoiceImputations.id, imputation.id),
         }),
       ).resolves.toMatchObject({
+        annulledAt: expect.any(Date),
+        annulledByUserId: annullingUserId,
         annulledReason: "Carga duplicada en conciliación.",
       });
 
@@ -233,14 +235,13 @@ describe.sequential(
         },
       ]);
 
-      const { request: cancelInvoiceRequest } = await buildCancelInvoiceRequest(
-        {
+      const { request: cancelInvoiceRequest, userId: cancellingUserId } =
+        await buildCancelInvoiceRequest({
           invoiceId: invoice.id,
           reason: "Factura emitida sobre una coreografía equivocada.",
           requestUrl: accountCurrentUrl(academy.academy.id, event.id),
           role: "admin",
-        },
-      );
+        });
 
       await expect(
         accountCurrentAction(
@@ -250,12 +251,13 @@ describe.sequential(
         status: 302,
       });
 
-      const { request: annulPaymentRequest } = await buildAnnulPaymentRequest({
-        paymentId: payment.id,
-        reason: "Pago cargado en la academia equivocada.",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
-      });
+      const { request: annulPaymentRequest, userId: annullingPaymentUserId } =
+        await buildAnnulPaymentRequest({
+          paymentId: payment.id,
+          reason: "Pago cargado en la academia equivocada.",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
 
       await expect(
         accountCurrentAction(
@@ -279,12 +281,18 @@ describe.sequential(
         ]);
 
       expect(annulledImputation).toMatchObject({
+        annulledAt: expect.any(Date),
+        annulledByUserId: annullingUserId,
         annulledReason: "Carga duplicada en conciliación.",
       });
       expect(cancelledInvoice).toMatchObject({
+        cancelledAt: expect.any(Date),
+        cancelledByUserId: cancellingUserId,
         cancelledReason: "Factura emitida sobre una coreografía equivocada.",
       });
       expect(annulledPayment).toMatchObject({
+        annulledAt: expect.any(Date),
+        annulledByUserId: annullingPaymentUserId,
         annulledReason: "Pago cargado en la academia equivocada.",
       });
 
@@ -330,6 +338,22 @@ describe.sequential(
       expect(finalMarkup).not.toContain("Anular imputación");
       expect(finalMarkup).not.toContain("Cancelar factura");
       expect(finalMarkup).not.toContain("Anular pago");
+
+      const { request: auditorCorrectionRequest } =
+        await buildAnnulPaymentRequest({
+          paymentId: payment.id,
+          reason: "Un auditor no debería poder ejecutar esta acción.",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "auditor",
+        });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(auditorCorrectionRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 403,
+      });
     });
   },
 );

@@ -229,6 +229,7 @@ export async function buildAnnulImputationRequest(input: {
   formData.set("reason", input.reason);
 
   return {
+    userId: signedIn.userId,
     request: new Request(input.requestUrl, {
       method: "POST",
       body: formData,
@@ -256,6 +257,7 @@ export async function buildCancelInvoiceRequest(input: {
   formData.set("reason", input.reason);
 
   return {
+    userId: signedIn.userId,
     request: new Request(input.requestUrl, {
       method: "POST",
       body: formData,
@@ -283,6 +285,7 @@ export async function buildAnnulPaymentRequest(input: {
   formData.set("reason", input.reason);
 
   return {
+    userId: signedIn.userId,
     request: new Request(input.requestUrl, {
       method: "POST",
       body: formData,
