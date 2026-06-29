@@ -39,13 +39,20 @@ Local database, Supabase Auth and email-log operation are documented in
 
 <!-- fallow:setup-hooks:start -->
 
-## Fallow local gate
+## Fallow audit tools
 
-Before any `git commit` or `git push`, run `pnpm exec fallow audit --format json --quiet --explain --gate-marker agent`. If the verdict is `fail`, fix the reported findings before retrying. Treat JSON runtime errors like `{ "error": true, ... }` as non-blocking.
+Use Fallow as an audit and investigation tool, not as a required local commit
+or push gate. Run `pnpm exec fallow audit --format json --quiet --explain
+--gate-marker agent` when explicitly auditing a changeset, preparing a PR
+handoff, or investigating maintainability findings.
 
-Audit defaults to `gate=new-only`: only findings introduced by the current changeset affect the verdict. Inherited findings on touched files are reported under `attribution` and annotated with `introduced: false`, but do not block the commit. Set `[audit] gate = "all"` in `fallow.toml` to gate every finding in changed files.
+Audit defaults to `gate=new-only`: only findings introduced by the current
+changeset affect the verdict. Inherited findings on touched files are reported
+under `attribution` and annotated with `introduced: false`. Treat JSON runtime
+errors like `{ "error": true, ... }` as non-blocking.
 
-For non-skill agents, treat the task map below as the local onboarding source: run the listed fallow command before destructive edits, before commits, and before pull request handoff.
+For non-skill agents, treat the task map below as the local onboarding source
+for optional audits and targeted investigations.
 
 ## Fallow task map
 
@@ -53,7 +60,7 @@ For non-skill agents, treat the task map below as the local onboarding source: r
 | --------------------------------- | ------------------------------------------------------------------------------------ |
 | delete an "unused" export or file | `pnpm exec fallow dead-code --trace <file>:<export>`                                 |
 | delete an "unused" dependency     | `pnpm exec fallow dead-code --trace-dependency <name>`                               |
-| commit or open a PR               | `pnpm exec fallow audit --base <ref>`                                                |
+| audit a changeset or PR handoff   | `pnpm exec fallow audit --base <ref>`                                                |
 | prioritize refactoring            | `pnpm exec fallow health --hotspots --targets`                                       |
 | ask who owns code                 | `pnpm exec fallow health --ownership`                                                |
 | check untested-but-reachable code | `pnpm exec fallow health --coverage-gaps`                                            |
