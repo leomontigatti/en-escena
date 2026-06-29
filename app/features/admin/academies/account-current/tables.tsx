@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
 import { Landmark } from "lucide-react";
 
 import {
@@ -16,7 +17,6 @@ import {
   formatDate,
   formatInvoiceState,
 } from "./formatters";
-import { formatPaymentMethodLabel } from "./shared";
 import type { AccountCurrentLoaderData } from "./types";
 
 export function ActiveDepositInvoicesTable({

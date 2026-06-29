@@ -3,6 +3,7 @@ import {
   AudioLines,
   ChevronsUpDown,
   CircleCheck,
+  CircleDollarSign,
   GraduationCap,
   Home,
   Inbox,
@@ -174,6 +175,7 @@ type EventStatusPresentation = {
 
 const portalNavigationItems = [
   { to: "/portal", label: "Inicio", icon: Home },
+  { to: "/portal/finanzas", label: "Finanzas", icon: CircleDollarSign },
   { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
   { to: "/portal/bailarines", label: "Bailarines", icon: Users },
   { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },

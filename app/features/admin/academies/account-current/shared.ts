@@ -5,25 +5,9 @@ import {
   isFutureDateOnly,
   todayDateOnly,
 } from "@/lib/shared/date-only";
+import { paymentMethodValues } from "@/lib/finances/payment-methods";
 
-const paymentMethodValues = [
-  "transferencia",
-  "efectivo",
-  "mercado_pago",
-  "otro",
-] as const;
-
-type PaymentMethod = (typeof paymentMethodValues)[number];
-
-export const paymentMethodOptions = [
-  { label: "Transferencia", value: "transferencia" },
-  { label: "Efectivo", value: "efectivo" },
-  { label: "Mercado Pago", value: "mercado_pago" },
-  { label: "Otro", value: "otro" },
-] as const satisfies ReadonlyArray<{
-  label: string;
-  value: PaymentMethod;
-}>;
+export { paymentMethodOptions } from "@/lib/finances/payment-methods";
 
 export const paymentFieldNames = [
   "paymentDate",
@@ -453,11 +437,4 @@ export function readAccountCurrentCorrectionValues(
     paymentId: String(formData.get("paymentId") ?? "").trim(),
     reason: String(formData.get("reason") ?? "").trim(),
   };
-}
-
-export function formatPaymentMethodLabel(value: PaymentMethod) {
-  return (
-    paymentMethodOptions.find((option) => option.value === value)?.label ??
-    value
-  );
 }

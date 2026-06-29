@@ -14,6 +14,7 @@ import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
 import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
+import { loader as finanzasLoader } from "@/routes/portal.finanzas";
 import { loader as perfilLoader } from "@/routes/portal.perfil";
 import { loader as profesoresLoader } from "@/routes/portal.profesores";
 
@@ -121,6 +122,7 @@ describe.sequential("portal loader Evento activo", () => {
 describe.sequential("portal roster list loaders", () => {
   test.each([
     ["Perfil", perfilLoader, "http://localhost/portal/perfil"],
+    ["Finanzas", finanzasLoader, "http://localhost/portal/finanzas"],
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
     [
       "Coreografías",
@@ -141,6 +143,7 @@ describe.sequential("portal roster list loaders", () => {
 
   test.each([
     ["Perfil", perfilLoader, "http://localhost/portal/perfil"],
+    ["Finanzas", finanzasLoader, "http://localhost/portal/finanzas"],
     ["Bailarines", bailarinesLoader, "http://localhost/portal/bailarines"],
     [
       "Coreografías",
