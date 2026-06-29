@@ -121,9 +121,10 @@ export default function AdministracionIndexRoute({
 const adminHomeCards = [
   {
     title: "Academias",
-    description: "Placeholder para consulta y seguimiento de academias.",
+    description:
+      "Abrí la cuenta corriente de cada academia y registrá pagos del evento activo.",
     icon: Building2,
-    to: null,
+    to: "/administracion/academias",
   },
   {
     title: "Profesores",

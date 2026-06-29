@@ -22,6 +22,13 @@ export const documentType = pgEnum("en_escena_document_type", [
   "other",
 ]);
 
+export const financePaymentMethod = pgEnum("en_escena_finance_payment_method", [
+  "transferencia",
+  "efectivo",
+  "mercado_pago",
+  "otro",
+]);
+
 export const choreographyCategoryCalculationMode = pgEnum(
   "en_escena_choreography_category_calculation_mode",
   ["oldest", "group_tolerance", "group_average"],

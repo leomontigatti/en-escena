@@ -5,3 +5,4 @@ export * from "./schema/roster";
 export * from "./schema/events";
 export * from "./schema/choreographies";
 export * from "./schema/audit";
+export * from "./schema/finances";

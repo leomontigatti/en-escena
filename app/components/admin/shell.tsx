@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   CalendarDays,
   ChevronsUpDown,
+  Building2,
   GraduationCap,
   Home,
   LogOut,
@@ -116,6 +117,11 @@ const primaryNavigationItems = [
     label: "Eventos",
     to: "/administracion/eventos",
     icon: CalendarDays,
+  },
+  {
+    label: "Academias",
+    to: "/administracion/academias",
+    icon: Building2,
   },
   {
     label: "Coreografías",
