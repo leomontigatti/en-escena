@@ -26,6 +26,7 @@ import {
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
 import {
+  defaultAccountCurrentActionValues,
   defaultIssueDepositInvoicesValues,
   defaultRegisterPaymentValues,
   invoiceFieldNames,
@@ -113,7 +114,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       status: "error",
       message: "Activá un evento para operar la cuenta corriente.",
       fieldErrors: {},
-      values: defaultActionValues(),
+      values: defaultAccountCurrentActionValues(),
     };
   }
 
@@ -193,7 +194,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     status: "error",
     message: "No pudimos procesar esa acción.",
     fieldErrors: {},
-    values: defaultActionValues(),
+    values: defaultAccountCurrentActionValues(),
   };
 }
 
@@ -285,10 +286,6 @@ async function readDepositInvoiceCandidates(input: {
 
       return {
         createdOn: row.createdAt.toISOString().slice(0, 10),
-        estimatedDepositAmount:
-          priceResult.ok === true
-            ? Math.round((priceResult.price.amount * 100) / 100)
-            : null,
         estimatedBasePriceAmount: priceResult.ok
           ? priceResult.price.amount
           : null,
@@ -302,13 +299,6 @@ async function readDepositInvoiceCandidates(input: {
       };
     }),
   );
-}
-
-function defaultActionValues() {
-  return {
-    invoice: defaultIssueDepositInvoicesValues(),
-    payment: defaultRegisterPaymentValues(),
-  };
 }
 
 async function readAcademy(academyId: string) {

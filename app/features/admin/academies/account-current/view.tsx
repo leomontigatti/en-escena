@@ -9,6 +9,7 @@ import { DateOnlyField } from "@/components/shared/date-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
@@ -36,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { loadAdministrativeAcademyAccountCurrent } from "./server";
 import {
+  defaultAccountCurrentActionValues,
   defaultIssueDepositInvoicesValues,
   defaultRegisterPaymentValues,
   formatPaymentMethodLabel,
@@ -56,10 +58,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   actionData,
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
-  const values = actionData?.values ?? {
-    invoice: defaultIssueDepositInvoicesValues(),
-    payment: defaultRegisterPaymentValues(),
-  };
+  const values = actionData?.values ?? defaultAccountCurrentActionValues();
 
   return (
     <AdminResourceLayout
@@ -382,10 +381,10 @@ function DepositInvoiceForm({
                         return (
                           <TableRow key={candidate.id}>
                             <TableCell>
-                              <input
+                              <Checkbox
+                                aria-label={`Seleccionar ${candidate.name}`}
                                 defaultChecked={checked}
                                 name="choreographyIds"
-                                type="checkbox"
                                 value={candidate.id}
                               />
                             </TableCell>

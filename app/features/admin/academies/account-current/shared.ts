@@ -156,6 +156,13 @@ export function defaultIssueDepositInvoicesValues(): IssueDepositInvoicesFormVal
   };
 }
 
+export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
+  return {
+    invoice: defaultIssueDepositInvoicesValues(),
+    payment: defaultRegisterPaymentValues(),
+  };
+}
+
 export function readRegisterPaymentValues(
   formData: FormData,
 ): RegisterPaymentFormValues {
