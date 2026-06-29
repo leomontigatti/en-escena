@@ -19,6 +19,7 @@ import {
   annulPayment,
   annulPaymentImputation,
   cancelDepositInvoice,
+  type CorrectionResult,
 } from "@/lib/finances/account-current-corrections.server";
 import {
   issueDepositInvoices,
@@ -67,8 +68,6 @@ type CorrectionSchema =
   | typeof annulImputationSchema
   | typeof annulPaymentSchema
   | typeof cancelInvoiceSchema;
-
-type CorrectionResult = Awaited<ReturnType<typeof annulPaymentImputation>>;
 
 export async function loadAdministrativeAcademyAccountCurrent(input: {
   params: { academyId?: string };

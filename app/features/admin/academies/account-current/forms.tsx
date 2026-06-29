@@ -454,18 +454,23 @@ function CorrectionForm({
 }) {
   const selectId = useId();
   const reasonId = useId();
+  const selectError = fieldErrors[selectName];
+  const reasonError = fieldErrors.reason;
 
   return (
     <form method="post" className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="intent" value={intent} />
       <Field
-        data-invalid={fieldErrors[selectName] ? true : undefined}
+        data-invalid={selectError ? true : undefined}
         orientation="vertical"
       >
         <FieldLabel htmlFor={selectId}>{optionLabel}</FieldLabel>
         <FieldContent>
           <Select name={selectName} defaultValue={selectedValue}>
-            <SelectTrigger id={selectId}>
+            <SelectTrigger
+              id={selectId}
+              aria-invalid={selectError ? true : undefined}
+            >
               <SelectValue
                 placeholder={`Seleccioná ${optionLabel.toLowerCase()}`}
               />
@@ -478,18 +483,23 @@ function CorrectionForm({
               ))}
             </SelectContent>
           </Select>
-          <FieldError>{fieldErrors[selectName]}</FieldError>
+          <FieldError>{selectError}</FieldError>
         </FieldContent>
       </Field>
 
       <Field
-        data-invalid={fieldErrors.reason ? true : undefined}
+        data-invalid={reasonError ? true : undefined}
         orientation="vertical"
       >
         <FieldLabel htmlFor={reasonId}>Motivo</FieldLabel>
         <FieldContent>
-          <Textarea id={reasonId} name="reason" defaultValue={reasonValue} />
-          <FieldError>{fieldErrors.reason}</FieldError>
+          <Textarea
+            id={reasonId}
+            name="reason"
+            defaultValue={reasonValue}
+            aria-invalid={reasonError ? true : undefined}
+          />
+          <FieldError>{reasonError}</FieldError>
         </FieldContent>
       </Field>
 
