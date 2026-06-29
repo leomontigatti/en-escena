@@ -85,6 +85,75 @@ export function ActiveDepositInvoicesTable({
   );
 }
 
+export function ActiveBalanceInvoicesTable({
+  invoices,
+}: {
+  invoices: AccountCurrentLoaderData["activeBalanceInvoices"];
+}) {
+  if (invoices.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Facturas de saldo activas</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Factura</TableHead>
+              <TableHead>Coreografía</TableHead>
+              <TableHead>Estado financiero</TableHead>
+              <TableHead>Estado factura</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Detalle</TableHead>
+              <TableHead className="text-right">Descuento</TableHead>
+              <TableHead className="text-right">Total final</TableHead>
+              <TableHead className="text-right">Pendiente</TableHead>
+              <TableHead className="text-right">Importe</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invoices.map((invoice) => (
+              <TableRow key={invoice.id}>
+                <TableCell className="font-medium">
+                  {`N° ${invoice.invoiceNumber}`}
+                </TableCell>
+                <TableCell>{invoice.choreographyName}</TableCell>
+                <TableCell>
+                  {formatChoreographyFinancialState(
+                    invoice.choreographyFinancialState,
+                  )}
+                </TableCell>
+                <TableCell>{formatInvoiceState(invoice.status)}</TableCell>
+                <TableCell>{formatDate(invoice.issueDate)}</TableCell>
+                <TableCell>
+                  {invoice.administrativeDiscountPublicLabel ??
+                    "Descuento administrativo"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatAmount(invoice.totalDiscountAmount ?? 0)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatAmount(invoice.finalTotalAmount ?? 0)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatAmount(invoice.pendingAmount)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatAmount(invoice.amount)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ActivePaymentsTable({
   payments,
 }: {

@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
+  academyEventInvoiceImputations,
   academyEventPayments,
 } from "@/db/schema";
 import {
@@ -19,6 +20,8 @@ import {
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   accountCurrentUrl,
+  buildBalanceInvoiceIssueRequest,
+  buildBalanceInvoicePreviewRequest,
   buildDepositInvoiceRequest,
   buildPaymentRequest,
   createAcademyUser,
@@ -26,6 +29,8 @@ import {
   createSignedInRequest,
   detailActionArgs,
   detailRouteArgs,
+  issueDepositInvoiceForTest,
+  registerPaymentForTest,
   renderAccountCurrentRoute,
 } from "./account-current-route.test-support";
 
@@ -267,6 +272,362 @@ describe.sequential(
       expect(markup).toContain("Unica");
       expect(markup).not.toContain("Emitir factura de seña");
       expect(loaderData.canRegisterPayments).toBe(false);
+    });
+
+    test("previews and issues balance invoices with fixed snapshots", async () => {
+      const event = await createSavedEvent({
+        requiredDepositPercentage: 30,
+      });
+      const academy = await createAcademyUser({
+        email: "academia.facturas.saldo@example.com",
+        academyName: "Academia Facturas Saldo",
+      });
+      const catalog = await createEventCatalog(event.id);
+      const choreography = await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.categoryWithLevel.id,
+        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name: "Saldo final",
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+
+      await registerPaymentForTest({
+        academyId: academy.academy.id,
+        amount: "10000",
+        eventId: event.id,
+        paymentDate: "2026-03-15",
+      });
+      await issueDepositInvoiceForTest({
+        academyId: academy.academy.id,
+        choreographyIds: [choreography.id],
+        eventId: event.id,
+        issueDate: "2026-03-20",
+      });
+
+      const depositInvoice =
+        await db.query.academyEventChoreographyInvoices.findFirst({
+          where: eq(
+            academyEventChoreographyInvoices.choreographyId,
+            choreography.id,
+          ),
+        });
+      const payment = await db.query.academyEventPayments.findFirst({
+        where: eq(academyEventPayments.academyId, academy.academy.id),
+      });
+
+      if (!depositInvoice || !payment) {
+        throw new Error("Expected deposit fixtures to exist.");
+      }
+
+      await db.insert(academyEventInvoiceImputations).values({
+        academyId: academy.academy.id,
+        amount: depositInvoice.depositAmount,
+        createdByUserId: academy.user.id,
+        eventId: event.id,
+        imputationDate: "2026-03-21",
+        invoiceId: depositInvoice.id,
+        paymentId: payment.id,
+      });
+      await db
+        .update(academyEventChoreographyInvoices)
+        .set({
+          depositCompletedOn: "2026-03-21",
+        })
+        .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+      const { request: previewRequest } =
+        await buildBalanceInvoicePreviewRequest({
+          administrativeDiscountAmount: "1200",
+          administrativeDiscountInternalReason: "Excepción cierre académico",
+          administrativeDiscountPublicLabel: "Beca academia",
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const previewResult = await accountCurrentAction(
+        detailActionArgs(previewRequest, academy.academy.id),
+      );
+
+      expect(previewResult).toMatchObject({
+        status: "preview",
+        preview: {
+          choreographyId: choreography.id,
+          choreographyName: "Saldo final",
+          issueDate: "2026-03-25",
+          basePriceAmount: 10000,
+          appliedDepositAmount: 3000,
+          dancerDiscountAmount: 0,
+          administrativeDiscountAmount: 1200,
+          totalDiscountAmount: 1200,
+          finalTotalAmount: 8800,
+          balanceAmount: 5800,
+          depositCompletedOn: "2026-03-21",
+        },
+      });
+
+      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+        administrativeDiscountAmount: "1200",
+        administrativeDiscountInternalReason: "Excepción cierre académico",
+        administrativeDiscountPublicLabel: "Beca academia",
+        choreographyId: choreography.id,
+        issueDate: "2026-03-25",
+        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+        role: "admin",
+      });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(issueRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 302,
+      });
+
+      const invoices = await db.query.academyEventChoreographyInvoices.findMany(
+        {
+          where: eq(
+            academyEventChoreographyInvoices.choreographyId,
+            choreography.id,
+          ),
+          orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
+        },
+      );
+
+      expect(invoices).toMatchObject([
+        {
+          invoiceNumber: 1,
+          invoiceType: "sena",
+          depositAmount: 3000,
+        },
+        {
+          invoiceNumber: 2,
+          invoiceType: "saldo",
+          issueDate: "2026-03-25",
+          basePriceAmount: 10000,
+          depositAmount: 5800,
+          depositCompletedOn: "2026-03-21",
+          appliedDepositAmount: 3000,
+          dancerDiscountAmount: 0,
+          administrativeDiscountAmount: 1200,
+          administrativeDiscountInternalReason: "Excepción cierre académico",
+          administrativeDiscountPublicLabel: "Beca academia",
+          totalDiscountAmount: 1200,
+          finalTotalAmount: 8800,
+        },
+      ]);
+
+      const loaderData = await accountCurrentLoader(
+        detailRouteArgs(
+          new Request(accountCurrentUrl(academy.academy.id, event.id), {
+            headers: {
+              cookie:
+                issueRequest.headers.get("cookie") ??
+                previewRequest.headers.get("cookie") ??
+                "",
+            },
+          }),
+          academy.academy.id,
+        ),
+      );
+      const markup = renderAccountCurrentRoute({ loaderData });
+
+      expect(loaderData.summary).toEqual({
+        availableBalanceAmount: 7000,
+        owedAmount: 5800,
+        totalPaidAmount: 10000,
+      });
+      expect(markup).toContain("Facturas de saldo activas");
+      expect(markup).toContain("Beca academia");
+      expect(markup).toContain("$ 5.800");
+      expect(markup).toContain("$ 1.200");
+    });
+
+    test("blocks invalid balance issuance and keeps auditors read-only", async () => {
+      const event = await createSavedEvent({
+        requiredDepositPercentage: 30,
+      });
+      const academy = await createAcademyUser({
+        email: "academia.facturas.saldo.validacion@example.com",
+        academyName: "Academia Facturas Saldo Validacion",
+      });
+      const catalog = await createEventCatalog(event.id);
+      const choreography = await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.categoryWithLevel.id,
+        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name: "Saldo bloqueado",
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+
+      const { request: noDepositPreviewRequest } =
+        await buildBalanceInvoicePreviewRequest({
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const noDepositResult = await accountCurrentAction(
+        detailActionArgs(noDepositPreviewRequest, academy.academy.id),
+      );
+
+      expect(noDepositResult).toMatchObject({
+        status: "error",
+        message: "Revisá los datos de la factura.",
+        fieldErrors: {
+          choreographyId:
+            "La factura de saldo solo puede emitirse cuando la seña activa está totalmente pagada.",
+        },
+      });
+
+      await registerPaymentForTest({
+        academyId: academy.academy.id,
+        amount: "3000",
+        eventId: event.id,
+        paymentDate: "2026-03-15",
+      });
+      await issueDepositInvoiceForTest({
+        academyId: academy.academy.id,
+        choreographyIds: [choreography.id],
+        eventId: event.id,
+        issueDate: "2026-03-20",
+      });
+
+      const depositInvoice =
+        await db.query.academyEventChoreographyInvoices.findFirst({
+          where: eq(
+            academyEventChoreographyInvoices.choreographyId,
+            choreography.id,
+          ),
+        });
+      const payment = await db.query.academyEventPayments.findFirst({
+        where: eq(academyEventPayments.academyId, academy.academy.id),
+      });
+
+      if (!depositInvoice || !payment) {
+        throw new Error("Expected deposit fixtures to exist.");
+      }
+
+      const { request: missingReasonPreviewRequest } =
+        await buildBalanceInvoicePreviewRequest({
+          administrativeDiscountAmount: "500",
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const missingReasonResult = await accountCurrentAction(
+        detailActionArgs(missingReasonPreviewRequest, academy.academy.id),
+      );
+
+      expect(missingReasonResult).toMatchObject({
+        status: "error",
+        fieldErrors: {
+          administrativeDiscountInternalReason:
+            "Ingresá el motivo interno del descuento administrativo.",
+        },
+      });
+
+      await db.insert(academyEventInvoiceImputations).values({
+        academyId: academy.academy.id,
+        amount: depositInvoice.depositAmount,
+        createdByUserId: academy.user.id,
+        eventId: event.id,
+        imputationDate: "2026-03-21",
+        invoiceId: depositInvoice.id,
+        paymentId: payment.id,
+      });
+      await db
+        .update(academyEventChoreographyInvoices)
+        .set({
+          depositCompletedOn: "2026-03-21",
+        })
+        .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+      const { request: negativeBalancePreviewRequest } =
+        await buildBalanceInvoicePreviewRequest({
+          administrativeDiscountAmount: "9000",
+          administrativeDiscountInternalReason: "No válido",
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const negativeBalanceResult = await accountCurrentAction(
+        detailActionArgs(negativeBalancePreviewRequest, academy.academy.id),
+      );
+
+      expect(negativeBalanceResult).toMatchObject({
+        status: "error",
+        fieldErrors: {
+          administrativeDiscountAmount:
+            "El descuento administrativo no puede dejar negativo el importe de saldo.",
+        },
+      });
+
+      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+        administrativeDiscountAmount: "500",
+        administrativeDiscountInternalReason: "Excepción",
+        choreographyId: choreography.id,
+        issueDate: "2026-03-25",
+        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+        role: "admin",
+      });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(issueRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 302,
+      });
+
+      const { request: duplicateIssueRequest } =
+        await buildBalanceInvoiceIssueRequest({
+          administrativeDiscountAmount: "500",
+          administrativeDiscountInternalReason: "Excepción",
+          choreographyId: choreography.id,
+          issueDate: "2026-03-26",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const duplicateResult = await accountCurrentAction(
+        detailActionArgs(duplicateIssueRequest, academy.academy.id),
+      );
+
+      expect(duplicateResult).toMatchObject({
+        status: "error",
+        fieldErrors: {
+          choreographyId:
+            "Ya existe una factura de saldo activa para esta Coreografía.",
+        },
+      });
+
+      const { request: auditorRequest } = await createSignedInRequest({
+        email: "auditor.facturas.saldo@example.com",
+        role: "auditor",
+        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      });
+      const loaderData = await accountCurrentLoader(
+        detailRouteArgs(auditorRequest, academy.academy.id),
+      );
+      const markup = renderAccountCurrentRoute({ loaderData });
+
+      expect(markup).toContain("Facturas de saldo activas");
+      expect(markup).not.toContain("Emitir factura de saldo");
     });
 
     test("rejects invalid calendar payment dates", async () => {

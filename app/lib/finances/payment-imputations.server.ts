@@ -31,8 +31,9 @@ type ValidatedPaymentImputationInput = {
   ok: true;
   invoice: {
     choreographyId: string;
-    depositAmount: number;
     id: string;
+    invoiceAmount: number;
+    invoiceType: "saldo" | "sena";
   };
   invoiceImputedAmount: number;
   payment: {
@@ -72,7 +73,7 @@ export async function createPaymentImputation(input: {
     });
 
     const nextInvoiceState = getInvoiceState({
-      amount: validated.invoice.depositAmount,
+      amount: validated.invoice.invoiceAmount,
       imputedAmount: validated.invoiceImputedAmount + input.amount,
     });
 
@@ -80,7 +81,11 @@ export async function createPaymentImputation(input: {
       .update(academyEventChoreographyInvoices)
       .set({
         depositCompletedOn:
-          nextInvoiceState === "pagada" ? input.imputationDate : null,
+          validated.invoice.invoiceType === "sena"
+            ? nextInvoiceState === "pagada"
+              ? input.imputationDate
+              : null
+            : undefined,
         updatedAt: new Date(),
       })
       .where(eq(academyEventChoreographyInvoices.id, validated.invoice.id));
@@ -320,6 +325,7 @@ async function validatePaymentImputationInput(input: {
         depositAmount: academyEventChoreographyInvoices.depositAmount,
         eventId: academyEventChoreographyInvoices.eventId,
         id: academyEventChoreographyInvoices.id,
+        invoiceType: academyEventChoreographyInvoices.invoiceType,
         issueDate: academyEventChoreographyInvoices.issueDate,
       })
       .from(academyEventChoreographyInvoices)
@@ -440,7 +446,11 @@ async function validatePaymentImputationInput(input: {
     };
   }
 
-  if (choreography && invoiceTotals + input.amount >= invoice.depositAmount) {
+  if (
+    invoice.invoiceType === "sena" &&
+    choreography &&
+    invoiceTotals + input.amount >= invoice.depositAmount
+  ) {
     const applicablePrice = await resolveApplicablePrice({
       eventId: input.eventId,
       groupType: choreography.groupType,
@@ -467,8 +477,9 @@ async function validatePaymentImputationInput(input: {
     ok: true,
     invoice: {
       choreographyId: invoice.choreographyId,
-      depositAmount: invoice.depositAmount,
       id: invoice.id,
+      invoiceAmount: invoice.depositAmount,
+      invoiceType: invoice.invoiceType,
     },
     invoiceImputedAmount: invoiceTotals,
     payment: {

@@ -181,6 +181,90 @@ export async function buildDepositInvoiceRequest(input: {
   };
 }
 
+export async function buildBalanceInvoicePreviewRequest(input: {
+  administrativeDiscountAmount?: string;
+  administrativeDiscountInternalReason?: string;
+  administrativeDiscountPublicLabel?: string;
+  choreographyId: string;
+  issueDate: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "preview-balance-invoice");
+  formData.set("choreographyId", input.choreographyId);
+  formData.set("issueDate", input.issueDate);
+  formData.set(
+    "administrativeDiscountAmount",
+    input.administrativeDiscountAmount ?? "0",
+  );
+  formData.set(
+    "administrativeDiscountInternalReason",
+    input.administrativeDiscountInternalReason ?? "",
+  );
+  formData.set(
+    "administrativeDiscountPublicLabel",
+    input.administrativeDiscountPublicLabel ?? "",
+  );
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
+export async function buildBalanceInvoiceIssueRequest(input: {
+  administrativeDiscountAmount?: string;
+  administrativeDiscountInternalReason?: string;
+  administrativeDiscountPublicLabel?: string;
+  choreographyId: string;
+  issueDate: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "issue-balance-invoice");
+  formData.set("choreographyId", input.choreographyId);
+  formData.set("issueDate", input.issueDate);
+  formData.set(
+    "administrativeDiscountAmount",
+    input.administrativeDiscountAmount ?? "0",
+  );
+  formData.set(
+    "administrativeDiscountInternalReason",
+    input.administrativeDiscountInternalReason ?? "",
+  );
+  formData.set(
+    "administrativeDiscountPublicLabel",
+    input.administrativeDiscountPublicLabel ?? "",
+  );
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
 export async function buildPaymentImputationRequest(input: {
   amount: string;
   imputationDate: string;

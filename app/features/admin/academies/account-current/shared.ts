@@ -33,6 +33,13 @@ export const paymentFieldNames = [
   "internalNote",
 ] as const;
 export const invoiceFieldNames = ["issueDate", "choreographyIds"] as const;
+export const balanceInvoiceFieldNames = [
+  "choreographyId",
+  "issueDate",
+  "administrativeDiscountAmount",
+  "administrativeDiscountInternalReason",
+  "administrativeDiscountPublicLabel",
+] as const;
 export const imputationFieldNames = [
   "paymentId",
   "invoiceId",
@@ -42,6 +49,7 @@ export const imputationFieldNames = [
 
 export type PaymentFieldName = (typeof paymentFieldNames)[number];
 export type InvoiceFieldName = (typeof invoiceFieldNames)[number];
+export type BalanceInvoiceFieldName = (typeof balanceInvoiceFieldNames)[number];
 export type ImputationFieldName = (typeof imputationFieldNames)[number];
 
 export type RegisterPaymentFormValues = {
@@ -62,6 +70,14 @@ export type PaymentImputationFormValues = {
   imputationDate: string;
   invoiceId: string;
   paymentId: string;
+};
+
+export type BalanceInvoiceFormValues = {
+  administrativeDiscountAmount: string;
+  administrativeDiscountInternalReason: string;
+  administrativeDiscountPublicLabel: string;
+  choreographyId: string;
+  issueDate: string;
 };
 
 export const registerPaymentSchema = z.object({
@@ -188,18 +204,92 @@ export const paymentImputationSchema = z.object({
     }),
 });
 
-export type AdministrativeAcademyAccountCurrentActionData = {
-  fieldErrors: Partial<
-    Record<PaymentFieldName | InvoiceFieldName | ImputationFieldName, string>
-  >;
-  message: string;
-  status: "error";
-  values: {
-    imputation: PaymentImputationFormValues;
-    invoice: IssueDepositInvoicesFormValues;
-    payment: RegisterPaymentFormValues;
-  };
+export const balanceInvoiceSchema = z.object({
+  choreographyId: z.string().trim().min(1, {
+    message: "Seleccioná una Coreografía.",
+  }),
+  issueDate: z
+    .string()
+    .trim()
+    .superRefine((value, context) => {
+      if (!value) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá la fecha de emisión.",
+        });
+        return;
+      }
+
+      if (!isDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá una fecha válida.",
+        });
+        return;
+      }
+
+      if (isFutureDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "La fecha de emisión no puede ser futura.",
+        });
+      }
+    }),
+  administrativeDiscountAmount: z
+    .string()
+    .trim()
+    .refine((value) => /^\d+$/.test(value), {
+      message:
+        "Ingresá un descuento administrativo entero en pesos, sin centavos.",
+    }),
+  administrativeDiscountInternalReason: z.string().trim(),
+  administrativeDiscountPublicLabel: z.string().trim(),
+});
+
+export type BalanceInvoicePreviewData = {
+  administrativeDiscountAmount: number;
+  appliedDepositAmount: number;
+  balanceAmount: number;
+  basePriceAmount: number;
+  choreographyId: string;
+  choreographyName: string;
+  dancerDiscountAmount: number;
+  depositCompletedOn: string;
+  finalTotalAmount: number;
+  issueDate: string;
+  totalDiscountAmount: number;
 };
+
+export type AdministrativeAcademyAccountCurrentActionData =
+  | {
+      fieldErrors: Partial<
+        Record<
+          | PaymentFieldName
+          | InvoiceFieldName
+          | BalanceInvoiceFieldName
+          | ImputationFieldName,
+          string
+        >
+      >;
+      message: string;
+      status: "error";
+      values: {
+        balanceInvoice: BalanceInvoiceFormValues;
+        imputation: PaymentImputationFormValues;
+        invoice: IssueDepositInvoicesFormValues;
+        payment: RegisterPaymentFormValues;
+      };
+    }
+  | {
+      preview: BalanceInvoicePreviewData;
+      status: "preview";
+      values: {
+        balanceInvoice: BalanceInvoiceFormValues;
+        imputation: PaymentImputationFormValues;
+        invoice: IssueDepositInvoicesFormValues;
+        payment: RegisterPaymentFormValues;
+      };
+    };
 
 export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
   return {
@@ -227,8 +317,19 @@ export function defaultPaymentImputationValues(): PaymentImputationFormValues {
   };
 }
 
+export function defaultBalanceInvoiceValues(): BalanceInvoiceFormValues {
+  return {
+    administrativeDiscountAmount: "0",
+    administrativeDiscountInternalReason: "",
+    administrativeDiscountPublicLabel: "",
+    choreographyId: "",
+    issueDate: todayDateOnly(),
+  };
+}
+
 export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
   return {
+    balanceInvoice: defaultBalanceInvoiceValues(),
     imputation: defaultPaymentImputationValues(),
     invoice: defaultIssueDepositInvoicesValues(),
     payment: defaultRegisterPaymentValues(),
@@ -270,6 +371,24 @@ export function readPaymentImputationValues(
     imputationDate: String(formData.get("imputationDate") ?? "").trim(),
     invoiceId: String(formData.get("invoiceId") ?? "").trim(),
     paymentId: String(formData.get("paymentId") ?? "").trim(),
+  };
+}
+
+export function readBalanceInvoiceValues(
+  formData: FormData,
+): BalanceInvoiceFormValues {
+  return {
+    administrativeDiscountAmount: String(
+      formData.get("administrativeDiscountAmount") ?? "",
+    ).trim(),
+    administrativeDiscountInternalReason: String(
+      formData.get("administrativeDiscountInternalReason") ?? "",
+    ).trim(),
+    administrativeDiscountPublicLabel: String(
+      formData.get("administrativeDiscountPublicLabel") ?? "",
+    ).trim(),
+    choreographyId: String(formData.get("choreographyId") ?? "").trim(),
+    issueDate: String(formData.get("issueDate") ?? "").trim(),
   };
 }
 

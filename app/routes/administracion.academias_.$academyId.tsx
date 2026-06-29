@@ -46,11 +46,11 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   actionData: actionDataOverride,
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-
   return (
-    <CuentaCorrienteView actionData={actionData} loaderData={loaderData} />
+    <CuentaCorrienteView
+      actionData={actionDataOverride}
+      loaderData={loaderData}
+    />
   );
 }
 

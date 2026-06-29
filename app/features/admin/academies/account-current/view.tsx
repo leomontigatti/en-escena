@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { formatAmount } from "./formatters";
 import {
+  BalanceInvoiceForm,
   DepositInvoiceForm,
   PaymentForm,
   PaymentImputationForm,
@@ -15,6 +16,7 @@ import {
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
 import {
+  ActiveBalanceInvoicesTable,
   ActiveDepositInvoicesTable,
   ActiveImputationsTable,
   ActivePaymentsTable,
@@ -31,6 +33,14 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
   const values = actionData?.values ?? defaultAccountCurrentActionValues();
+  const preview =
+    actionData?.status === "preview" ? actionData.preview : undefined;
+  const fieldErrors =
+    actionData?.status === "error" ? actionData.fieldErrors : {};
+  const pendingInvoices = [
+    ...loaderData.activeDepositInvoices,
+    ...loaderData.activeBalanceInvoices,
+  ].filter((invoice) => invoice.pendingAmount > 0);
 
   return (
     <AdminResourceLayout
@@ -62,7 +72,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           />
         </section>
 
-        {actionData ? (
+        {actionData?.status === "error" ? (
           <Alert variant="destructive">
             <AlertDescription>{actionData.message}</AlertDescription>
           </Alert>
@@ -71,25 +81,33 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
         {loaderData.canIssueInvoices ? (
           <DepositInvoiceForm
             candidates={loaderData.depositInvoiceCandidates}
-            fieldErrors={actionData?.fieldErrors ?? {}}
+            fieldErrors={fieldErrors}
             values={values.invoice}
+          />
+        ) : null}
+
+        {loaderData.canIssueInvoices ? (
+          <BalanceInvoiceForm
+            candidates={loaderData.balanceInvoiceCandidates}
+            fieldErrors={fieldErrors}
+            preview={preview}
+            values={values.balanceInvoice}
           />
         ) : null}
 
         <ActiveDepositInvoicesTable
           invoices={loaderData.activeDepositInvoices}
         />
+        <ActiveBalanceInvoicesTable
+          invoices={loaderData.activeBalanceInvoices}
+        />
 
         {loaderData.canImputePayments &&
         loaderData.payments.some((payment) => payment.availableAmount > 0) &&
-        loaderData.activeDepositInvoices.some(
-          (invoice) => invoice.pendingAmount > 0,
-        ) ? (
+        pendingInvoices.length > 0 ? (
           <PaymentImputationForm
-            fieldErrors={actionData?.fieldErrors ?? {}}
-            invoices={loaderData.activeDepositInvoices.filter(
-              (invoice) => invoice.pendingAmount > 0,
-            )}
+            fieldErrors={fieldErrors}
+            invoices={pendingInvoices}
             payments={loaderData.payments.filter(
               (payment) => payment.availableAmount > 0,
             )}
@@ -98,10 +116,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
         ) : null}
 
         {loaderData.canRegisterPayments ? (
-          <PaymentForm
-            fieldErrors={actionData?.fieldErrors ?? {}}
-            values={values.payment}
-          />
+          <PaymentForm fieldErrors={fieldErrors} values={values.payment} />
         ) : null}
 
         <ActivePaymentsTable payments={loaderData.payments} />

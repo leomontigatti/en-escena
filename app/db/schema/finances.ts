@@ -127,6 +127,17 @@ export const academyEventChoreographyInvoices = createTable(
     ).notNull(),
     depositAmount: integer("deposit_amount").notNull(),
     depositCompletedOn: text("deposit_completed_on"),
+    appliedDepositAmount: integer("applied_deposit_amount"),
+    dancerDiscountAmount: integer("dancer_discount_amount"),
+    administrativeDiscountAmount: integer("administrative_discount_amount"),
+    administrativeDiscountInternalReason: text(
+      "administrative_discount_internal_reason",
+    ),
+    administrativeDiscountPublicLabel: text(
+      "administrative_discount_public_label",
+    ),
+    totalDiscountAmount: integer("total_discount_amount"),
+    finalTotalAmount: integer("final_total_amount"),
     cancelledAt: timestamp("cancelled_at", {
       mode: "date",
       withTimezone: true,

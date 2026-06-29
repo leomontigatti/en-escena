@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -21,6 +21,7 @@ import {
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   accountCurrentUrl,
+  buildBalanceInvoiceIssueRequest,
   buildDepositInvoiceRequest,
   buildPaymentImputationRequest,
   buildPaymentRequest,
@@ -527,6 +528,151 @@ describe.sequential(
         }),
       ).resolves.toMatchObject({
         depositCompletedOn: null,
+      });
+    });
+
+    test("marks a Coreografía pagada after fully imputing the active balance invoice", async () => {
+      const event = await createSavedEvent({
+        requiredDepositPercentage: 30,
+      });
+      const academy = await createAcademyUser({
+        email: "academia.imputaciones.saldo@example.com",
+        academyName: "Academia Imputaciones Saldo",
+      });
+      const catalog = await createEventCatalog(event.id);
+      const choreography = await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.categoryWithLevel.id,
+        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name: "Pagada completa",
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+
+      await registerPaymentForTest({
+        academyId: academy.academy.id,
+        amount: "10000",
+        eventId: event.id,
+        paymentDate: "2026-03-15",
+      });
+      await issueDepositInvoiceForTest({
+        academyId: academy.academy.id,
+        choreographyIds: [choreography.id],
+        eventId: event.id,
+        issueDate: "2026-03-20",
+      });
+
+      const payment = await db.query.academyEventPayments.findFirst({
+        where: eq(academyEventPayments.academyId, academy.academy.id),
+      });
+      const depositInvoice =
+        await db.query.academyEventChoreographyInvoices.findFirst({
+          where: eq(
+            academyEventChoreographyInvoices.choreographyId,
+            choreography.id,
+          ),
+        });
+
+      if (!payment || !depositInvoice) {
+        throw new Error("Expected deposit fixtures to exist.");
+      }
+
+      const { request: depositImputationRequest } =
+        await buildPaymentImputationRequest({
+          amount: String(depositInvoice.depositAmount),
+          imputationDate: "2026-03-21",
+          invoiceId: depositInvoice.id,
+          paymentId: payment.id,
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(depositImputationRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 302,
+      });
+
+      const { request: issueBalanceRequest } =
+        await buildBalanceInvoiceIssueRequest({
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(issueBalanceRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 302,
+      });
+
+      const balanceInvoice =
+        await db.query.academyEventChoreographyInvoices.findFirst({
+          where: and(
+            eq(
+              academyEventChoreographyInvoices.choreographyId,
+              choreography.id,
+            ),
+            eq(academyEventChoreographyInvoices.invoiceType, "saldo"),
+          ),
+        });
+
+      if (!balanceInvoice) {
+        throw new Error("Expected balance invoice to exist.");
+      }
+
+      const { request: balanceImputationRequest } =
+        await buildPaymentImputationRequest({
+          amount: String(balanceInvoice.depositAmount),
+          imputationDate: "2026-03-26",
+          invoiceId: balanceInvoice.id,
+          paymentId: payment.id,
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      await expect(
+        accountCurrentAction(
+          detailActionArgs(balanceImputationRequest, academy.academy.id),
+        ),
+      ).rejects.toMatchObject({
+        status: 302,
+      });
+
+      const loaderData = await accountCurrentLoader(
+        detailRouteArgs(
+          new Request(accountCurrentUrl(academy.academy.id, event.id), {
+            headers: {
+              cookie:
+                balanceImputationRequest.headers.get("cookie") ??
+                issueBalanceRequest.headers.get("cookie") ??
+                "",
+            },
+          }),
+          academy.academy.id,
+        ),
+      );
+
+      expect(loaderData.activeBalanceInvoices).toMatchObject([
+        {
+          id: balanceInvoice.id,
+          pendingAmount: 0,
+          status: "pagada",
+          choreographyFinancialState: "pagada",
+        },
+      ]);
+      expect(loaderData.summary).toEqual({
+        availableBalanceAmount: 0,
+        owedAmount: 0,
+        totalPaidAmount: 10000,
       });
     });
   },
