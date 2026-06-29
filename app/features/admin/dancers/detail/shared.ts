@@ -7,6 +7,7 @@ import type {
   AdministrativeDancerUpdateInput,
   findAdministrativeDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 
@@ -483,22 +484,6 @@ function validateDocumentPair(
 
 function isDocumentType(value: string): value is "dni" | "other" | "passport" {
   return value === "dni" || value === "passport" || value === "other";
-}
-
-function isDateOnly(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  return parsed.toISOString().slice(0, 10) === value;
-}
-
-function isFutureDateOnly(value: string) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  return value > today;
 }
 
 function readFormString(formData: FormData, key: string) {

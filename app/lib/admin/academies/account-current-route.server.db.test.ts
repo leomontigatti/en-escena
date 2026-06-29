@@ -245,6 +245,38 @@ describe.sequential("administracion academias cuenta corriente", () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  test("rejects invalid calendar payment dates", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "academia.fecha-invalida.finanzas@example.com",
+      academyName: "Academia Fecha Invalida",
+    });
+    const { request } = await buildPaymentRequest({
+      amount: "25000",
+      paymentDate: "2026-02-31",
+      paymentMethod: "transferencia",
+      requestUrl: `http://localhost/administracion/academias/${academy.academy.id}?evento=${event.id}`,
+      role: "admin",
+    });
+
+    const actionData = await accountCurrentAction(
+      detailActionArgs(request, academy.academy.id),
+    );
+
+    expect(actionData).toMatchObject({
+      status: "error",
+      message: "Revisá los datos del pago.",
+      fieldErrors: {
+        paymentDate: "Ingresá una fecha válida.",
+      },
+    });
+    await expect(
+      db.query.academyEventPayments.findFirst({
+        where: eq(academyEventPayments.academyId, academy.academy.id),
+      }),
+    ).resolves.toBeUndefined();
+  });
 });
 
 async function createSavedEvent(

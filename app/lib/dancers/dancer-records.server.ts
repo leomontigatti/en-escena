@@ -2,6 +2,7 @@ import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
+import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -203,20 +204,4 @@ function capitalizeFirstCharacter(value: string) {
 
 function isDocumentType(value: string): value is DancerDocumentType {
   return value === "dni" || value === "passport" || value === "other";
-}
-
-function isDateOnly(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  return parsed.toISOString().slice(0, 10) === value;
-}
-
-function isFutureDateOnly(value: string) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  return value > today;
 }

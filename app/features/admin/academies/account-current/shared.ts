@@ -1,11 +1,29 @@
 import { z } from "zod";
 
+import {
+  isDateOnly,
+  isFutureDateOnly,
+  todayDateOnly,
+} from "@/lib/shared/date-only";
+
+const paymentMethodValues = [
+  "transferencia",
+  "efectivo",
+  "mercado_pago",
+  "otro",
+] as const;
+
+type PaymentMethod = (typeof paymentMethodValues)[number];
+
 export const paymentMethodOptions = [
   { label: "Transferencia", value: "transferencia" },
   { label: "Efectivo", value: "efectivo" },
   { label: "Mercado Pago", value: "mercado_pago" },
   { label: "Otro", value: "otro" },
-] as const;
+] as const satisfies ReadonlyArray<{
+  label: string;
+  value: PaymentMethod;
+}>;
 
 export const paymentFieldNames = [
   "paymentDate",
@@ -29,10 +47,29 @@ export const registerPaymentSchema = z.object({
   paymentDate: z
     .string()
     .trim()
-    .min(1, "Ingresá la fecha de pago.")
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Ingresá una fecha válida.")
-    .refine((value) => value <= todayDateOnly(), {
-      message: "La fecha de pago no puede ser futura.",
+    .superRefine((value, context) => {
+      if (!value) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá la fecha de pago.",
+        });
+        return;
+      }
+
+      if (!isDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá una fecha válida.",
+        });
+        return;
+      }
+
+      if (isFutureDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "La fecha de pago no puede ser futura.",
+        });
+      }
     }),
   amount: z
     .string()
@@ -43,12 +80,9 @@ export const registerPaymentSchema = z.object({
     .refine((value) => Number(value) > 0, {
       message: "Ingresá un monto mayor a cero.",
     }),
-  paymentMethod: z
-    .string()
-    .refine(
-      (value) => paymentMethodOptions.some((option) => option.value === value),
-      "Seleccioná un medio de pago.",
-    ),
+  paymentMethod: z.enum(paymentMethodValues, {
+    message: "Seleccioná un medio de pago.",
+  }),
   reference: z.string().trim(),
   internalNote: z.string().trim(),
 });
@@ -82,15 +116,9 @@ export function readRegisterPaymentValues(
   };
 }
 
-export function formatPaymentMethodLabel(
-  value: (typeof paymentMethodOptions)[number]["value"],
-) {
+export function formatPaymentMethodLabel(value: PaymentMethod) {
   return (
     paymentMethodOptions.find((option) => option.value === value)?.label ??
     value
   );
-}
-
-function todayDateOnly() {
-  return new Date().toISOString().slice(0, 10);
 }

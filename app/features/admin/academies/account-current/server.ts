@@ -120,8 +120,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     eventId: eventContext.selectedEventId,
     internalNote: parsed.data.internalNote || null,
     paymentDate: parsed.data.paymentDate,
-    paymentMethod: parsed.data
-      .paymentMethod as (typeof academyEventPayments.$inferInsert)["paymentMethod"],
+    paymentMethod: parsed.data.paymentMethod,
     reference: parsed.data.reference || null,
   });
 
