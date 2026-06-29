@@ -139,7 +139,6 @@ export type ResolvedChoreographyDancerUpdateContext =
         experienceLevelId: string | null;
         scheduleId: string | null;
         scheduleCapacityId: string | null;
-        hasActiveFinancialLink: boolean;
         hasPresentation: boolean;
       };
       resolvedDancers: ResolvedRegistrationDancer[];

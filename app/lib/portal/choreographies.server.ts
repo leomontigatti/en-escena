@@ -16,6 +16,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
+import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
   getDancerEditingEligibility,
@@ -67,7 +68,6 @@ type ChoreographyRow = {
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
-  hasActiveFinancialLink: boolean;
   hasPresentation: boolean;
   scheduleId: string;
   scheduleName: string;
@@ -127,7 +127,6 @@ export async function findChoreographyForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
-      hasActiveFinancialLink: choreographies.hasActiveFinancialLink,
       hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
@@ -172,6 +171,9 @@ export async function findChoreographyForAcademyEvent(
     return null;
   }
 
+  const hasActiveInvoice =
+    await hasActiveInvoiceForChoreography(choreographyId);
+
   const [base] = await hydrateChoreographyRows([row]);
   const [dancerRows, professorRows] = await Promise.all([
     db
@@ -206,7 +208,7 @@ export async function findChoreographyForAcademyEvent(
     ...base,
     categoryId: row.categoryId,
     dancerEditingEligibility: getDancerEditingEligibility({
-      hasActiveFinancialLink: row.hasActiveFinancialLink,
+      hasActiveFinancialLink: hasActiveInvoice,
       hasPresentation: row.hasPresentation,
       isRegistrationOpen: options.isRegistrationOpen,
     }),
@@ -298,6 +300,13 @@ export async function deleteChoreography(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
+  if (await hasActiveInvoiceForChoreography(input.choreographyId)) {
+    throw new Response(
+      "No podés eliminar esta Coreografía porque tiene una factura activa.",
+      { status: 409 },
+    );
+  }
+
   await db
     .delete(choreographies)
     .where(eq(choreographies.id, input.choreographyId));
@@ -353,7 +362,6 @@ async function hydrateChoreographyRows(
           .where(inArray(categoryExperienceLevels.categoryId, categoryIds))
       : Promise.resolve([]),
   ]);
-
   const choreographyIdsWithProfessors = new Set(
     choreographiesWithProfessors.map((row) => row.choreographyId),
   );

@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import {
+  academyEventChoreographyInvoices,
   categories,
   categoryExperienceLevels,
   categoryModalities,
@@ -248,6 +249,39 @@ export async function createChoreographyRecord(
     .returning();
 
   return choreography;
+}
+
+export async function createDepositInvoiceRecord(input: {
+  academyId: string;
+  choreographyId: string;
+  createdByUserId: string;
+  eventId: string;
+  issueDate?: string;
+  invoiceNumber?: number;
+  basePriceAmount?: number;
+  depositAmount?: number;
+  requiredDepositPercentageSnapshot?: number;
+  selectedPaymentDeadline?: string | null;
+}) {
+  const [invoice] = await db
+    .insert(academyEventChoreographyInvoices)
+    .values({
+      academyId: input.academyId,
+      basePriceAmount: input.basePriceAmount ?? 10000,
+      choreographyId: input.choreographyId,
+      createdByUserId: input.createdByUserId,
+      depositAmount: input.depositAmount ?? 3000,
+      eventId: input.eventId,
+      invoiceNumber: input.invoiceNumber ?? 1,
+      invoiceType: "sena",
+      issueDate: input.issueDate ?? "2026-03-20",
+      requiredDepositPercentageSnapshot:
+        input.requiredDepositPercentageSnapshot ?? 30,
+      selectedPaymentDeadline: input.selectedPaymentDeadline ?? "2026-05-31",
+    })
+    .returning();
+
+  return invoice;
 }
 
 export function date(value: string) {

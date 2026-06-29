@@ -41,6 +41,7 @@ export async function createAcademySession({
   return {
     academyId: academy.id,
     cookie: createRequestCookie(signUpResult.headers),
+    userId: signUpResult.response.user.id,
   };
 }
 

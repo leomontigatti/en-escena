@@ -29,6 +29,11 @@ export const financePaymentMethod = pgEnum("en_escena_finance_payment_method", [
   "otro",
 ]);
 
+export const choreographyInvoiceType = pgEnum(
+  "en_escena_choreography_invoice_type",
+  ["sena", "saldo"],
+);
+
 export const choreographyCategoryCalculationMode = pgEnum(
   "en_escena_choreography_category_calculation_mode",
   ["oldest", "group_tolerance", "group_average"],

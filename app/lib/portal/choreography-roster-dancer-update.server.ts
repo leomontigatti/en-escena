@@ -14,6 +14,7 @@ import {
   type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
+import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import {
   choreographyNotFoundMessage,
   compatibleScheduleSelectionRequiredMessage,
@@ -238,7 +239,6 @@ async function resolveChoreographyDancerUpdateContext(input: {
       experienceLevelId: true,
       scheduleId: true,
       scheduleCapacityId: true,
-      hasActiveFinancialLink: true,
       hasPresentation: true,
     },
     where: and(
@@ -253,7 +253,9 @@ async function resolveChoreographyDancerUpdateContext(input: {
   }
 
   const eligibility = getDancerEditingEligibility({
-    hasActiveFinancialLink: choreography.hasActiveFinancialLink,
+    hasActiveFinancialLink: await hasActiveInvoiceForChoreography(
+      input.choreographyId,
+    ),
     hasPresentation: choreography.hasPresentation,
     isRegistrationOpen: input.isRegistrationOpen,
   });

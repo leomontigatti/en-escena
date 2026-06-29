@@ -19,6 +19,7 @@ import { createPortalPostRequest } from "@/features/portal/test-support/db";
 import {
   createAcademySession,
   createChoreographyRecord,
+  createDepositInvoiceRecord,
   createDancer,
   createEventCatalog,
   createEventRecord,
@@ -127,7 +128,7 @@ describe.sequential("portal choreographies reads", () => {
     });
   });
 
-  test("derives dancer editing eligibility for detail with priority: presentación, vínculo financiero activo, inscripción cerrada", async () => {
+  test("derives dancer editing eligibility from active invoices, not from the legacy flag, with priority: presentación, vínculo financiero activo, inscripción cerrada", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "coreografias.detail.dancer-eligibility@example.com",
@@ -160,7 +161,6 @@ describe.sequential("portal choreographies reads", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasActiveFinancialLink: true,
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-financial.mp3",
       name: "Financiera",
@@ -172,7 +172,6 @@ describe.sequential("portal choreographies reads", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasActiveFinancialLink: true,
       hasPresentation: true,
       modalityId: catalog.modality.id,
       musicStorageKey: "music/detail-presentation.mp3",
@@ -198,6 +197,20 @@ describe.sequential("portal choreographies reads", () => {
         ageAtEventStart: 15,
       },
     ]);
+    await createDepositInvoiceRecord({
+      academyId: owner.academyId,
+      choreographyId: financialBlockedChoreography.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+      invoiceNumber: 1,
+    });
+    await createDepositInvoiceRecord({
+      academyId: owner.academyId,
+      choreographyId: presentationBlockedChoreography.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+      invoiceNumber: 2,
+    });
 
     const registrationClosedDetail = await choreographyDetailLoader({
       params: { choreographyId: registrationClosedChoreography.id },
@@ -244,6 +257,41 @@ describe.sequential("portal choreographies reads", () => {
       reasonCode: "presentation",
       reasonText:
         "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    });
+
+    const legacyFlagOnlyChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-legacy-flag.mp3",
+      name: "Legacy",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: legacyFlagOnlyChoreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 15,
+    });
+
+    const legacyFlagOnlyDetail = await choreographyDetailLoader({
+      params: { choreographyId: legacyFlagOnlyChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${legacyFlagOnlyChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    expect(legacyFlagOnlyDetail.dancerEditingEligibility).toEqual({
+      canEdit: false,
+      reasonCode: "registration-closed",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
     });
   });
 

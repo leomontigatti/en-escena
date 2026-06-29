@@ -32,8 +32,10 @@ export const paymentFieldNames = [
   "reference",
   "internalNote",
 ] as const;
+export const invoiceFieldNames = ["issueDate", "choreographyIds"] as const;
 
 export type PaymentFieldName = (typeof paymentFieldNames)[number];
+export type InvoiceFieldName = (typeof invoiceFieldNames)[number];
 
 export type RegisterPaymentFormValues = {
   amount: string;
@@ -41,6 +43,11 @@ export type RegisterPaymentFormValues = {
   paymentDate: string;
   paymentMethod: string;
   reference: string;
+};
+
+export type IssueDepositInvoicesFormValues = {
+  choreographyIds: string[];
+  issueDate: string;
 };
 
 export const registerPaymentSchema = z.object({
@@ -87,11 +94,49 @@ export const registerPaymentSchema = z.object({
   internalNote: z.string().trim(),
 });
 
+export const issueDepositInvoicesSchema = z.object({
+  issueDate: z
+    .string()
+    .trim()
+    .superRefine((value, context) => {
+      if (!value) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá la fecha de emisión.",
+        });
+        return;
+      }
+
+      if (!isDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá una fecha válida.",
+        });
+        return;
+      }
+
+      if (isFutureDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "La fecha de emisión no puede ser futura.",
+        });
+      }
+    }),
+  choreographyIds: z
+    .array(z.string().trim().min(1))
+    .refine((value) => value.length > 0, {
+      message: "Seleccioná al menos una Coreografía.",
+    }),
+});
+
 export type AdministrativeAcademyAccountCurrentActionData = {
-  fieldErrors: Partial<Record<PaymentFieldName, string>>;
+  fieldErrors: Partial<Record<PaymentFieldName | InvoiceFieldName, string>>;
   message: string;
   status: "error";
-  values: RegisterPaymentFormValues;
+  values: {
+    invoice: IssueDepositInvoicesFormValues;
+    payment: RegisterPaymentFormValues;
+  };
 };
 
 export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
@@ -104,6 +149,13 @@ export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
   };
 }
 
+export function defaultIssueDepositInvoicesValues(): IssueDepositInvoicesFormValues {
+  return {
+    choreographyIds: [],
+    issueDate: todayDateOnly(),
+  };
+}
+
 export function readRegisterPaymentValues(
   formData: FormData,
 ): RegisterPaymentFormValues {
@@ -113,6 +165,21 @@ export function readRegisterPaymentValues(
     paymentMethod: String(formData.get("paymentMethod") ?? "").trim(),
     reference: String(formData.get("reference") ?? "").trim(),
     internalNote: String(formData.get("internalNote") ?? "").trim(),
+  };
+}
+
+export function readIssueDepositInvoicesValues(
+  formData: FormData,
+): IssueDepositInvoicesFormValues {
+  return {
+    choreographyIds: formData
+      .getAll("choreographyIds")
+      .flatMap((value) =>
+        typeof value === "string" && value.trim().length > 0
+          ? [value.trim()]
+          : [],
+      ),
+    issueDate: String(formData.get("issueDate") ?? "").trim(),
   };
 }
 

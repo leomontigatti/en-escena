@@ -17,6 +17,7 @@ import {
   createAcademyRecord,
   createAcademySession,
   createChoreographyRecord,
+  createDepositInvoiceRecord,
   createDancer,
   createEventCatalog,
   createEventRecord,
@@ -150,6 +151,85 @@ describe.sequential("portal choreography deletion", () => {
         where: eq(choreographies.id, choreography.id),
       }),
     ).resolves.toBeDefined();
+  });
+
+  test("blocks deleting a Coreografía with an active invoice and ignores the legacy flag without invoices", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Facturada",
+      email: "coreografias.detail.delete.invoice@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const invoiceBlocked = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Con factura",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const legacyFlagOnly = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasActiveFinancialLink: true,
+      modalityId: catalog.modality.id,
+      name: "Solo flag",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await createDepositInvoiceRecord({
+      academyId: owner.academyId,
+      choreographyId: invoiceBlocked.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+    });
+
+    await expect(
+      choreographyDetailAction({
+        params: { choreographyId: invoiceBlocked.id },
+        request: createPortalPostRequest(
+          `http://localhost/portal/coreografias/${invoiceBlocked.id}?evento=${event.id}`,
+          owner.cookie,
+          deleteChoreographyFormData(invoiceBlocked.id),
+        ),
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+    });
+
+    const legacyDeleteResponse = await choreographyDetailAction({
+      params: { choreographyId: legacyFlagOnly.id },
+      request: createPortalPostRequest(
+        `http://localhost/portal/coreografias/${legacyFlagOnly.id}?evento=${event.id}`,
+        owner.cookie,
+        deleteChoreographyFormData(legacyFlagOnly.id),
+      ),
+    });
+
+    expect(legacyDeleteResponse).toBeInstanceOf(Response);
+    if (!(legacyDeleteResponse instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(legacyDeleteResponse.status).toBe(302);
+
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, invoiceBlocked.id),
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, legacyFlagOnly.id),
+      }),
+    ).resolves.toBeUndefined();
   });
 
   test("keeps history-protecting foreign keys restrictive and cascades bridge rows only when the choreography is deleted", async () => {

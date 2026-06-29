@@ -1,13 +1,24 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
 import {
   academies,
+  academyEventChoreographyInvoices,
   academyEventPayments,
+  choreographies,
   eventFinancialSequences,
+  modalities,
+  scheduleCapacities,
+  schedules,
+  submodalities,
 } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import {
+  issueDepositInvoices,
+  listActiveInvoiceChoreographyIds,
+} from "@/lib/finances/choreography-invoices.server";
+import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -15,9 +26,13 @@ import {
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
 import {
+  defaultIssueDepositInvoicesValues,
   defaultRegisterPaymentValues,
+  invoiceFieldNames,
   paymentFieldNames,
+  readIssueDepositInvoicesValues,
   readRegisterPaymentValues,
+  issueDepositInvoicesSchema,
   registerPaymentSchema,
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
@@ -30,30 +45,6 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
   const eventContext = await loadAdminEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
-  const payments =
-    eventContext.selectedEventId === null
-      ? []
-      : await db.query.academyEventPayments.findMany({
-          columns: {
-            id: true,
-            paymentNumber: true,
-            paymentDate: true,
-            amount: true,
-            paymentMethod: true,
-            reference: true,
-            internalNote: true,
-          },
-          where: and(
-            eq(academyEventPayments.academyId, academy.id),
-            eq(academyEventPayments.eventId, eventContext.selectedEventId),
-            isNull(academyEventPayments.annulledAt),
-          ),
-          orderBy: [
-            desc(academyEventPayments.paymentDate),
-            desc(academyEventPayments.paymentNumber),
-            desc(academyEventPayments.createdAt),
-          ],
-        });
   const summary =
     eventContext.selectedEventId === null
       ? { totalPaidAmount: 0, availableBalanceAmount: 0 }
@@ -61,10 +52,47 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
           academyId: academy.id,
           eventId: eventContext.selectedEventId,
         });
+  const [payments, activeDepositInvoices, depositInvoiceCandidates] =
+    eventContext.selectedEventId === null
+      ? [[], [], []]
+      : await Promise.all([
+          db.query.academyEventPayments.findMany({
+            columns: {
+              id: true,
+              paymentNumber: true,
+              paymentDate: true,
+              amount: true,
+              paymentMethod: true,
+              reference: true,
+              internalNote: true,
+            },
+            where: and(
+              eq(academyEventPayments.academyId, academy.id),
+              eq(academyEventPayments.eventId, eventContext.selectedEventId),
+              isNull(academyEventPayments.annulledAt),
+            ),
+            orderBy: [
+              desc(academyEventPayments.paymentDate),
+              desc(academyEventPayments.paymentNumber),
+              desc(academyEventPayments.createdAt),
+            ],
+          }),
+          readActiveDepositInvoices({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+          readDepositInvoiceCandidates({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+        ]);
 
   return {
     academy,
+    canIssueInvoices: user.role === "admin",
     canRegisterPayments: user.role === "admin",
+    depositInvoiceCandidates,
+    activeDepositInvoices,
     payments,
     selectedEventId: eventContext.selectedEventId,
     summary,
@@ -83,48 +111,204 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
   if (eventContext.selectedEventId === null) {
     return {
       status: "error",
-      message: "Activá un evento para registrar pagos.",
+      message: "Activá un evento para operar la cuenta corriente.",
       fieldErrors: {},
-      values: defaultRegisterPaymentValues(),
+      values: defaultActionValues(),
     };
   }
 
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent !== "register-payment") {
-    return {
-      status: "error",
-      message: "No pudimos procesar esa acción.",
-      fieldErrors: {},
-      values: defaultRegisterPaymentValues(),
-    };
+  if (intent === "register-payment") {
+    const values = readRegisterPaymentValues(formData);
+    const parsed = registerPaymentSchema.safeParse(values);
+
+    if (!parsed.success) {
+      return {
+        status: "error",
+        message: "Revisá los datos del pago.",
+        fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
+        values: {
+          invoice: defaultIssueDepositInvoicesValues(),
+          payment: values,
+        },
+      };
+    }
+
+    await registerAcademyEventPayment({
+      academyId,
+      amount: Number(parsed.data.amount),
+      createdByUserId: adminUser.id,
+      eventId: eventContext.selectedEventId,
+      internalNote: parsed.data.internalNote || null,
+      paymentDate: parsed.data.paymentDate,
+      paymentMethod: parsed.data.paymentMethod,
+      reference: parsed.data.reference || null,
+    });
+
+    throw redirect(input.request.url);
   }
 
-  const values = readRegisterPaymentValues(formData);
-  const parsed = registerPaymentSchema.safeParse(values);
+  if (intent === "issue-deposit-invoices") {
+    const values = readIssueDepositInvoicesValues(formData);
+    const parsed = issueDepositInvoicesSchema.safeParse(values);
 
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "Revisá los datos del pago.",
-      fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
-      values,
-    };
+    if (!parsed.success) {
+      return {
+        status: "error",
+        message: "Revisá los datos de la factura.",
+        fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
+        values: {
+          invoice: values,
+          payment: defaultRegisterPaymentValues(),
+        },
+      };
+    }
+
+    const result = await issueDepositInvoices({
+      academyId,
+      choreographyIds: parsed.data.choreographyIds,
+      createdByUserId: adminUser.id,
+      eventId: eventContext.selectedEventId,
+      issueDate: parsed.data.issueDate,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error",
+        message: result.message,
+        fieldErrors: result.fieldErrors,
+        values: {
+          invoice: values,
+          payment: defaultRegisterPaymentValues(),
+        },
+      };
+    }
+
+    throw redirect(input.request.url);
   }
 
-  await registerAcademyEventPayment({
-    academyId,
-    amount: Number(parsed.data.amount),
-    createdByUserId: adminUser.id,
-    eventId: eventContext.selectedEventId,
-    internalNote: parsed.data.internalNote || null,
-    paymentDate: parsed.data.paymentDate,
-    paymentMethod: parsed.data.paymentMethod,
-    reference: parsed.data.reference || null,
-  });
+  return {
+    status: "error",
+    message: "No pudimos procesar esa acción.",
+    fieldErrors: {},
+    values: defaultActionValues(),
+  };
+}
 
-  throw redirect(input.request.url);
+async function readActiveDepositInvoices(input: {
+  academyId: string;
+  eventId: string;
+}) {
+  return await db
+    .select({
+      amount: academyEventChoreographyInvoices.depositAmount,
+      choreographyId: choreographies.id,
+      choreographyName: choreographies.name,
+      id: academyEventChoreographyInvoices.id,
+      invoiceNumber: academyEventChoreographyInvoices.invoiceNumber,
+      issueDate: academyEventChoreographyInvoices.issueDate,
+      selectedPaymentDeadline:
+        academyEventChoreographyInvoices.selectedPaymentDeadline,
+    })
+    .from(academyEventChoreographyInvoices)
+    .innerJoin(
+      choreographies,
+      eq(academyEventChoreographyInvoices.choreographyId, choreographies.id),
+    )
+    .where(
+      and(
+        eq(academyEventChoreographyInvoices.academyId, input.academyId),
+        eq(academyEventChoreographyInvoices.eventId, input.eventId),
+        eq(academyEventChoreographyInvoices.invoiceType, "sena"),
+        isNull(academyEventChoreographyInvoices.cancelledAt),
+      ),
+    )
+    .orderBy(
+      desc(academyEventChoreographyInvoices.issueDate),
+      desc(academyEventChoreographyInvoices.invoiceNumber),
+    );
+}
+
+async function readDepositInvoiceCandidates(input: {
+  academyId: string;
+  eventId: string;
+}) {
+  const choreographyRows = await db
+    .select({
+      createdAt: choreographies.createdAt,
+      id: choreographies.id,
+      modalityName: modalities.name,
+      name: choreographies.name,
+      groupType: choreographies.groupType,
+      scheduleId: schedules.id,
+      submodalityName: submodalities.name,
+    })
+    .from(choreographies)
+    .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
+    .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .leftJoin(
+      schedules,
+      or(
+        eq(choreographies.scheduleId, schedules.id),
+        eq(scheduleCapacities.scheduleId, schedules.id),
+      ),
+    )
+    .where(
+      and(
+        eq(choreographies.academyId, input.academyId),
+        eq(choreographies.eventId, input.eventId),
+      ),
+    )
+    .orderBy(asc(choreographies.name), asc(choreographies.createdAt));
+
+  const activeInvoiceIds = await listActiveInvoiceChoreographyIds(
+    choreographyRows.map((row) => row.id),
+  );
+  const eligibleRows = choreographyRows.filter(
+    (row) => !activeInvoiceIds.has(row.id),
+  );
+
+  return await Promise.all(
+    eligibleRows.map(async (row) => {
+      const priceResult = await resolveApplicablePrice({
+        eventId: input.eventId,
+        groupType: row.groupType,
+        paymentDate: new Date(),
+        scheduleId: row.scheduleId,
+      });
+
+      return {
+        createdOn: row.createdAt.toISOString().slice(0, 10),
+        estimatedDepositAmount:
+          priceResult.ok === true
+            ? Math.round((priceResult.price.amount * 100) / 100)
+            : null,
+        estimatedBasePriceAmount: priceResult.ok
+          ? priceResult.price.amount
+          : null,
+        id: row.id,
+        modalityLabel: [row.modalityName, row.submodalityName]
+          .filter(Boolean)
+          .join(" / "),
+        name: row.name,
+        selectedPaymentDeadline:
+          priceResult.ok === true ? priceResult.price.paymentDeadline : null,
+      };
+    }),
+  );
+}
+
+function defaultActionValues() {
+  return {
+    invoice: defaultIssueDepositInvoicesValues(),
+    payment: defaultRegisterPaymentValues(),
+  };
 }
 
 async function readAcademy(academyId: string) {

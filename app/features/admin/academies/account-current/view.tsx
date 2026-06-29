@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { loadAdministrativeAcademyAccountCurrent } from "./server";
 import {
+  defaultIssueDepositInvoicesValues,
   defaultRegisterPaymentValues,
   formatPaymentMethodLabel,
   paymentMethodOptions,
@@ -55,7 +56,10 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   actionData,
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
-  const values = actionData?.values ?? defaultRegisterPaymentValues();
+  const values = actionData?.values ?? {
+    invoice: defaultIssueDepositInvoicesValues(),
+    payment: defaultRegisterPaymentValues(),
+  };
 
   return (
     <AdminResourceLayout
@@ -88,10 +92,58 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           </Alert>
         ) : null}
 
+        {loaderData.canIssueInvoices ? (
+          <DepositInvoiceForm
+            candidates={loaderData.depositInvoiceCandidates}
+            fieldErrors={actionData?.fieldErrors ?? {}}
+            values={values.invoice}
+          />
+        ) : null}
+
+        {loaderData.activeDepositInvoices.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Facturas de seña activas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Factura</TableHead>
+                    <TableHead>Coreografía</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Vence</TableHead>
+                    <TableHead className="text-right">Importe</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loaderData.activeDepositInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">
+                        {`N° ${invoice.invoiceNumber}`}
+                      </TableCell>
+                      <TableCell>{invoice.choreographyName}</TableCell>
+                      <TableCell>{formatDate(invoice.issueDate)}</TableCell>
+                      <TableCell>
+                        {invoice.selectedPaymentDeadline
+                          ? formatDate(invoice.selectedPaymentDeadline)
+                          : "Sin vencimiento"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(invoice.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {loaderData.canRegisterPayments ? (
           <PaymentForm
             fieldErrors={actionData?.fieldErrors ?? {}}
-            values={values}
+            values={values.payment}
           />
         ) : null}
 
@@ -268,6 +320,113 @@ function PaymentForm({
             <Button type="submit">Registrar pago</Button>
           </div>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DepositInvoiceForm({
+  candidates,
+  fieldErrors,
+  values,
+}: {
+  candidates: LoaderData["depositInvoiceCandidates"];
+  fieldErrors: Partial<Record<string, string>>;
+  values: ReturnType<typeof defaultIssueDepositInvoicesValues>;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Emitir factura de seña</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        {candidates.length > 0 ? (
+          <form method="post" className="flex flex-col gap-5" noValidate>
+            <input type="hidden" name="intent" value="issue-deposit-invoices" />
+            <FieldGroup className="grid gap-5 md:grid-cols-[minmax(0,16rem)_1fr]">
+              <DateOnlyField
+                defaultValue={values.issueDate}
+                error={fieldErrors.issueDate}
+                id="invoice-issue-date"
+                label="Fecha de emisión"
+                name="issueDate"
+              />
+            </FieldGroup>
+
+            <Field
+              data-invalid={fieldErrors.choreographyIds ? true : undefined}
+              orientation="vertical"
+            >
+              <FieldLabel>Coreografías sin seña activa</FieldLabel>
+              <FieldContent>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">Sel.</TableHead>
+                        <TableHead>Coreografía</TableHead>
+                        <TableHead>Modalidad</TableHead>
+                        <TableHead>Creada</TableHead>
+                        <TableHead>Vence</TableHead>
+                        <TableHead className="text-right">
+                          Base estimada
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {candidates.map((candidate) => {
+                        const checked = values.choreographyIds.includes(
+                          candidate.id,
+                        );
+
+                        return (
+                          <TableRow key={candidate.id}>
+                            <TableCell>
+                              <input
+                                defaultChecked={checked}
+                                name="choreographyIds"
+                                type="checkbox"
+                                value={candidate.id}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {candidate.name}
+                            </TableCell>
+                            <TableCell>{candidate.modalityLabel}</TableCell>
+                            <TableCell>
+                              {formatDate(candidate.createdOn)}
+                            </TableCell>
+                            <TableCell>
+                              {candidate.selectedPaymentDeadline
+                                ? formatDate(candidate.selectedPaymentDeadline)
+                                : "Sin vencimiento"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {candidate.estimatedBasePriceAmount === null
+                                ? "Pendiente"
+                                : formatAmount(
+                                    candidate.estimatedBasePriceAmount,
+                                  )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                <FieldError>{fieldErrors.choreographyIds}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <div className="flex justify-end">
+              <Button type="submit">Emitir factura de seña</Button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No hay Coreografías elegibles para emitir una seña nueva.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
