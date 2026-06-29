@@ -180,6 +180,10 @@ _Evitar_: Estado financiero, estado del evento
 Situación financiera derivada de documentos e imputaciones vigentes de una coreografía.
 _Evitar_: Estado operativo, estado del evento
 
+**Estado de factura**:
+Situación financiera propia de una factura según sus imputaciones y cancelación.
+_Evitar_: Estado financiero de coreografía
+
 **Presentación**:
 Instancia ordenada de una coreografía para el día del evento.
 _Evitar_: Coreografía, estado operativo, estado financiero
@@ -244,6 +248,10 @@ _Evitar_: Factura, imputación, estado financiero de coreografía
 Documento financiero que vincula una coreografía con un importe a cobrar.
 _Evitar_: Pago, inscripción
 
+**Seña de coreografía**:
+Parte inicial del Precio de coreografía, calculada con el porcentaje de seña del evento sobre el precio base congelado por la fecha de pago de la seña.
+_Evitar_: Pago, descuento, saldo
+
 **Imputación**:
 Aplicación de saldo de un pago a una factura.
 _Evitar_: Pago, factura
@@ -252,6 +260,14 @@ _Evitar_: Pago, factura
 Saldo financiero de una academia compuesto por pagos, imputaciones, facturas, cancelaciones y notas de crédito.
 _Evitar_: Estado financiero de coreografía, pago
 
+**Saldo disponible**:
+Monto de pagos activos de una academia que todavía no fue imputado a facturas activas.
+_Evitar_: Saldo adeudado, total pagado
+
+**Saldo adeudado**:
+Monto pendiente de cubrir de las facturas activas de una academia.
+_Evitar_: Saldo disponible, total pagado
+
 **Precio de coreografía**:
 Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago, fecha de seña y descuentos individuales.
 _Evitar_: Pago, estado financiero
@@ -259,6 +275,10 @@ _Evitar_: Pago, estado financiero
 **Fecha límite de pago**:
 Fecha hasta la que un Precio de coreografía puede aplicarse cuando una academia paga la seña.
 _Evitar_: Fecha de seña, vencimiento de factura
+
+**Descuento administrativo**:
+Reducción excepcional aplicada por administración a una factura de saldo, independiente de descuentos por bailarín o fechas de pago.
+_Evitar_: Descuento individual, precio base
 
 **Modalidad**:
 Clasificación artística elegida al registrar una coreografía.

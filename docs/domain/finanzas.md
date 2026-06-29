@@ -2,19 +2,105 @@
 
 Rules for financial states, invoices, payments, account balance and pricing.
 
+- In V1, `Administrador` can mutate financial records and `Auditor` can read financial records.
+- Persisted monetary amounts are whole Argentine pesos app-wide; the UI does not show cents.
+- Percentage calculations can use decimals internally, but invoice, payment and imputation amounts are rounded to whole pesos before persistence.
+- Percentage-derived amounts use commercial rounding to the nearest whole peso.
 - `Estado financiero de coreografía` is derived from active documents and imputations.
+- `Estado financiero de coreografía` is not stored on the choreography record; it is derived from active financial records.
+- Active financial blocking is derived from active invoices; `Coreografía` does not keep a separate active-financial-link flag.
 - Values: impaga, señada, pagada.
+- Canceling invoices or annulling imputations can move a choreography back from pagada to señada or impaga, because financial state is derived from active financial records.
 - Invoice existence and free account balance do not change choreography financial state until there is active imputation.
+- Partial imputation is allowed, but a choreography becomes señada only when its down-payment invoice is fully covered.
 - A choreography can be signed or paid while operationally incomplete.
+- Administration can issue and collect down-payment or balance invoices for operationally incomplete choreographies.
 - Only signed or paid coreografías count for ordering and competition.
+- If a choreography loses its signed or paid state through cancellation or annulment, it immediately stops counting for ordering and competition.
+- Being fully paid does not make an operationally incomplete choreography ready to present.
 - `Factura de coreografía` can be for seña or saldo.
+- A choreography can have at most one active down-payment invoice and at most one active balance invoice.
+- `Factura de coreografía` has a visible internal invoice number in V1; it is not a fiscal invoice number.
+- Internal invoice number is sequential within the event, not within each academy.
+- Internal invoice and payment numbers are never reused after cancellation or annulment.
+- `Factura de coreografía` amount is fixed by the calculated down-payment or balance amount; administration cannot issue arbitrary-amount choreography invoices.
+- `Estado de factura` values are pendiente, parcial, pagada and cancelada.
+- Canceled invoices cannot receive imputations.
+- An invoice with active imputations cannot be canceled until those imputations are annulled.
+- A choreography cannot be invoiced as one total invoice. It must first have a down-payment invoice and can have a balance invoice only after the down-payment invoice is fully covered.
+- A balance invoice cannot be issued while the down-payment invoice is pending or partial.
+- `Factura de coreografía` is issued manually by administration; confirming a coreografía does not create an invoice.
+- Invoice issue date is editable by administration, defaults to today and cannot be in the future.
+- Invoice issue date cannot be earlier than the choreography creation date.
+- Administration can issue down-payment invoices in batches for multiple coreografías of the same academy.
+- V1 must preserve traceability for corrections by allowing invoices, payments and imputations to be canceled or annulled with an administrative reason.
+- Financial records store the internal user who created them and the internal user who canceled or annulled them.
+- Formal credit note issuance is deferred from V1; canceled invoices, annulled payments and annulled imputations are enough for V1 correction workflows.
+- Administration can register a payment before or after issuing invoices.
+- A V1 payment requires academy, active event, payment date, amount and payment method.
+- Payment amount must be positive. Corrections are made by annulling the wrong payment, not by registering negative or zero payments.
+- A payment with active imputations cannot be annulled until those imputations are annulled.
+- Money refunds are outside V1 financial workflows. Overpayments remain as `Saldo disponible` in the active event.
+- Payment date cannot be in the future.
+- V1 payment methods are transferencia, efectivo, mercado_pago and otro.
+- V1 payments have a visible internal payment number, sequential within the event; it is not a fiscal receipt number.
+- Payment reference and internal note are optional in V1.
+- Payment proof file uploads are outside V1.
+- A registered payment can remain as available academy balance until it is imputed to one or more invoices.
+- Issuing invoices never imputes available balance automatically; imputation is an explicit administrative action.
+- An imputation has its own required imputation date, separate from payment date, and it cannot be in the future.
+- Imputation date cannot be earlier than the payment date of the payment it consumes.
+- Imputation date cannot be earlier than the issue date of the invoice it covers.
+- A balance invoice can be issued even when the academy has enough `Saldo disponible`; issuing it fixes debt, not payment application.
+- The Portal de academias financial view is read-only in V1; academies do not initiate payments or upload payment proof from the portal.
+- The Portal de academias financial view shows `Saldo disponible` and `Saldo adeudado` for the academy in the active event.
+- The Portal de academias financial view shows active payment details: internal payment number, date, method, amount, imputed amount and available amount.
+- Internal administrative payment notes are not shown in the Portal de academias.
+- The Portal de academias main financial view shows active records only; canceled invoices and annulled payments or imputations are admin-auditable but hidden from the portal main view.
 - Balance invoice is issued only after down-payment invoice has enough imputation.
 - Active invoice blocks structural edits and deletion, but does not by itself make coreografía eligible to compete.
 - `Pago` can be unlinked, linked to one or many invoices, or left as available balance.
 - `Cuenta corriente de academia` is built from payments, imputations, invoices, cancellations and credit notes.
+- In V1, `Cuenta corriente de academia` is scoped to the Evento activo. Payments, invoices and imputations do not carry balance across events.
+- Payments and imputations cannot cross academies. A payment registered for the wrong academy must be annulled and re-registered.
+- `Monto total pagado` is the sum of active payments registered for an academy in the active event.
+- `Saldo disponible` is active payments minus active imputations.
+- `Saldo adeudado` is the unpaid amount of active invoices.
+- Account-current reporting shows both `Saldo disponible` and `Saldo adeudado`; it does not collapse them into one ambiguous balance column.
+- V1 account-current reporting starts as an on-screen view; XLS export is deferred.
+- An imputation cannot exceed the unpaid amount of its invoice; any excess payment remains as `Saldo disponible`.
+- The Panel de administración financial workflow is organized by `Cuenta corriente de academia`; coreografías are invoice and imputation targets inside that account.
+- The Panel de administración account-current view includes an auditable movement history for payments, invoices, imputations, cancellations and annulments.
+- V1 account-current movements are derived from financial records; there is no separate persisted ledger table.
 - `Precio de coreografía` is estimated while unpaid or signed, final when paid.
 - Each `Precio de coreografía` has a payment deadline. The down-payment date selects the earliest applicable deadline for that group type and optional cronograma.
-- Down payment fixes applicable price date, but discounts can still change until full payment.
+- `Seña de coreografía` uses the event down-payment percentage, which defaults to 30%.
+- In V1, the down-payment percentage is an event-level Bases del evento setting.
+- Changing the event down-payment percentage is not retroactive for issued invoices.
+- Down-payment invoices store the percentage used when they are issued.
+- Down-payment invoices store calculation snapshots: estimated base price at issue time, selected payment deadline, down-payment percentage and down-payment amount.
+- Down-payment invoice issue date selects the initial estimated base price.
+- Once fully covered, down-payment invoices store the completion date that freezes the base price.
+- `Seña de coreografía` is calculated from the base price selected by group type, payment deadline and down-payment date.
+- Down payment fixes applicable price date only when the down-payment invoice becomes fully covered.
+- Partial down-payment imputation does not freeze the price date.
+- If multiple imputations cover the down-payment invoice, the imputation date that completes the invoice freezes the price date.
+- When a down-payment invoice becomes fully covered, the system validates the invoice amount against the base price selected by that completion date.
+- If the base price changed after issuing the down-payment invoice, administration must cancel and reissue the invoice with the correct amount before the choreography becomes señada.
+- An imputation that would complete an outdated down-payment invoice is blocked until administration cancels and reissues that invoice.
+- Individual discounts apply to the balance, not to the down-payment amount.
+- Administration can apply an exceptional `Descuento administrativo` to a balance invoice.
+- `Descuento administrativo` is independent from dancer discounts and payment-date pricing.
+- `Descuento administrativo` applies only to balance invoices, is stored as whole pesos and requires an administrative reason when greater than zero.
+- `Descuento administrativo` cannot make the balance invoice amount negative.
+- `Descuento administrativo` is set when issuing the balance invoice; changing it later requires canceling and reissuing the invoice.
+- `Descuento administrativo` stores an internal reason and can store an optional public label for the Portal de academias.
+- The Portal de academias shows the administrative discount amount; when no public label exists, it shows a generic administrative discount label.
+- Balance amount is estimated until administration issues the balance invoice.
+- Balance invoice amount is the final discounted choreography total minus the fixed down-payment amount.
+- Balance invoices store calculation snapshots: frozen base price, applied down-payment amount, applied discount total, final total and down-payment completion date.
+- Administration previews the balance calculation before issuing the balance invoice, including base price, down-payment, dancer discounts, administrative discount, final total and balance invoice amount.
+- Issuing the balance invoice fixes the balance amount; later discount or correction changes require cancellation, credit note or a new administrative correction instead of silently changing the invoice.
 - Dancer discounts use signed or paid coreografías of same dancer, academy and event.
 - No discounts cross academies.
 - If a coreografía stops being signed due to cancellation/accreditation, it stops counting toward discounts.
