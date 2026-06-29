@@ -5,7 +5,6 @@ import {
   handleAdministrativeAcademyAccountCurrentAction,
   loadAdministrativeAcademyAccountCurrent,
 } from "@/features/admin/academies/account-current/server";
-import { type AdministrativeAcademyAccountCurrentActionData } from "@/features/admin/academies/account-current/shared";
 import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView } from "@/features/admin/academies/account-current/view";
 
 import type { Route } from "./+types/administracion.academias_.$academyId";
@@ -67,5 +66,3 @@ export default function AdministracionAcademiaCuentaCorrienteRoute({
     />
   );
 }
-
-export type { AdministrativeAcademyAccountCurrentActionData };

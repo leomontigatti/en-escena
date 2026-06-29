@@ -1,5 +1,4 @@
 import {
-  type ActionData,
   type DepositPercentageActionValues,
   type EventBasesActionInput,
   withEventBasesNotification,
@@ -68,10 +67,4 @@ export async function runDepositPercentageIntent(input: EventBasesActionInput) {
     ok: true,
     record: result.event,
   } as const;
-}
-
-export function isDepositPercentageActionValues(
-  values: ActionData["values"] | undefined,
-): values is DepositPercentageActionValues {
-  return values !== undefined && "requiredDepositPercentage" in values;
 }

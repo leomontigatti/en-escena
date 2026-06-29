@@ -53,8 +53,6 @@ export const registerPaymentSchema = z.object({
   internalNote: z.string().trim(),
 });
 
-export type RegisterPaymentValues = z.infer<typeof registerPaymentSchema>;
-
 export type AdministrativeAcademyAccountCurrentActionData = {
   fieldErrors: Partial<Record<PaymentFieldName, string>>;
   message: string;
