@@ -24,20 +24,21 @@ export async function loadAdministrativeAcademyAccountCurrentReport(
 ) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
+  const selectedEventId = eventContext.selectedEventId;
 
-  if (eventContext.selectedEventId === null) {
+  if (selectedEventId === null) {
     return {
       rows: [] as SummaryRow[],
       selectedEventId: null,
     };
   }
 
-  const academyIds = await listAcademyIdsForEvent(eventContext.selectedEventId);
+  const academyIds = await listAcademyIdsForEvent(selectedEventId);
 
   if (academyIds.length === 0) {
     return {
       rows: [] as SummaryRow[],
-      selectedEventId: eventContext.selectedEventId,
+      selectedEventId,
     };
   }
 
@@ -62,7 +63,7 @@ export async function loadAdministrativeAcademyAccountCurrentReport(
         .from(academyEventPayments)
         .where(
           and(
-            eq(academyEventPayments.eventId, eventContext.selectedEventId),
+            eq(academyEventPayments.eventId, selectedEventId),
             inArray(academyEventPayments.academyId, academyIds),
             isNull(academyEventPayments.annulledAt),
           ),
@@ -79,10 +80,7 @@ export async function loadAdministrativeAcademyAccountCurrentReport(
         .from(academyEventChoreographyInvoices)
         .where(
           and(
-            eq(
-              academyEventChoreographyInvoices.eventId,
-              eventContext.selectedEventId,
-            ),
+            eq(academyEventChoreographyInvoices.eventId, selectedEventId),
             inArray(academyEventChoreographyInvoices.academyId, academyIds),
             isNull(academyEventChoreographyInvoices.cancelledAt),
           ),
@@ -99,10 +97,7 @@ export async function loadAdministrativeAcademyAccountCurrentReport(
         .from(academyEventInvoiceImputations)
         .where(
           and(
-            eq(
-              academyEventInvoiceImputations.eventId,
-              eventContext.selectedEventId,
-            ),
+            eq(academyEventInvoiceImputations.eventId, selectedEventId),
             inArray(academyEventInvoiceImputations.academyId, academyIds),
             isNull(academyEventInvoiceImputations.annulledAt),
           ),
@@ -124,20 +119,34 @@ export async function loadAdministrativeAcademyAccountCurrentReport(
   );
 
   return {
-    rows: academyRows.map((academy) => {
-      const totalPaidAmount = paymentTotals.get(academy.id) ?? 0;
-      const totalInvoiceAmount = invoiceTotals.get(academy.id) ?? 0;
-      const totalImputedAmount = imputationTotals.get(academy.id) ?? 0;
+    rows: academyRows.map((academy) =>
+      buildSummaryRow({
+        academy,
+        imputationTotals,
+        invoiceTotals,
+        paymentTotals,
+      }),
+    ),
+    selectedEventId,
+  };
+}
 
-      return {
-        academyId: academy.id,
-        academyName: academy.name,
-        availableBalanceAmount: totalPaidAmount - totalImputedAmount,
-        owedAmount: Math.max(0, totalInvoiceAmount - totalImputedAmount),
-        totalPaidAmount,
-      };
-    }),
-    selectedEventId: eventContext.selectedEventId,
+function buildSummaryRow(input: {
+  academy: { id: string; name: string };
+  imputationTotals: Map<string, number>;
+  invoiceTotals: Map<string, number>;
+  paymentTotals: Map<string, number>;
+}): SummaryRow {
+  const totalPaidAmount = input.paymentTotals.get(input.academy.id) ?? 0;
+  const totalInvoiceAmount = input.invoiceTotals.get(input.academy.id) ?? 0;
+  const totalImputedAmount = input.imputationTotals.get(input.academy.id) ?? 0;
+
+  return {
+    academyId: input.academy.id,
+    academyName: input.academy.name,
+    availableBalanceAmount: totalPaidAmount - totalImputedAmount,
+    owedAmount: Math.max(0, totalInvoiceAmount - totalImputedAmount),
+    totalPaidAmount,
   };
 }
 

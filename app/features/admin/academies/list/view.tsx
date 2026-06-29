@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { Building2, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router";
 
 import {
@@ -69,6 +69,7 @@ export function AdministracionAcademiasRouteView({
       headerAction={
         <Button asChild variant="outline">
           <Link to="/administracion/academias/reporte">
+            <FileSpreadsheet aria-hidden="true" data-icon />
             Reporte de cuenta corriente
           </Link>
         </Button>
