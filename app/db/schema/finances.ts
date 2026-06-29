@@ -126,6 +126,7 @@ export const academyEventChoreographyInvoices = createTable(
       "required_deposit_percentage_snapshot",
     ).notNull(),
     depositAmount: integer("deposit_amount").notNull(),
+    depositCompletedOn: text("deposit_completed_on"),
     cancelledAt: timestamp("cancelled_at", {
       mode: "date",
       withTimezone: true,
@@ -165,6 +166,68 @@ export const academyEventChoreographyInvoices = createTable(
     ),
     index("academy_event_choreography_invoice_choreography_idx").on(
       table.choreographyId,
+      table.createdAt,
+    ),
+  ],
+).enableRLS();
+
+export const academyEventInvoiceImputations = createTable(
+  "academy_event_invoice_imputation",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id, { onDelete: "cascade" }),
+    paymentId: varchar("payment_id", { length: 255 })
+      .notNull()
+      .references(() => academyEventPayments.id),
+    invoiceId: varchar("invoice_id", { length: 255 })
+      .notNull()
+      .references(() => academyEventChoreographyInvoices.id),
+    amount: integer("amount").notNull(),
+    imputationDate: text("imputation_date").notNull(),
+    annulledAt: timestamp("annulled_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    annulledReason: text("annulled_reason"),
+    createdByUserId: varchar("created_by_user_id", { length: 255 })
+      .notNull()
+      .references(() => user.id),
+    annulledByUserId: varchar("annulled_by_user_id", {
+      length: 255,
+    }).references(() => user.id),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("academy_event_invoice_imputation_event_academy_idx").on(
+      table.eventId,
+      table.academyId,
+      table.createdAt,
+    ),
+    index("academy_event_invoice_imputation_payment_idx").on(
+      table.paymentId,
+      table.createdAt,
+    ),
+    index("academy_event_invoice_imputation_invoice_idx").on(
+      table.invoiceId,
       table.createdAt,
     ),
   ],

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   academies,
   academyEventChoreographyInvoices,
+  academyEventInvoiceImputations,
   academyEventPayments,
   choreographies,
   eventFinancialSequences,
@@ -18,6 +19,13 @@ import {
   issueDepositInvoices,
   listActiveInvoiceChoreographyIds,
 } from "@/lib/finances/choreography-invoices.server";
+import {
+  createPaymentImputation,
+  deriveChoreographyFinancialStates,
+  getInvoiceState,
+  listActiveImputationTotalsByIds,
+  listActiveImputationsForAcademyEvent,
+} from "@/lib/finances/payment-imputations.server";
 import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
 import {
   requireAdminUser,
@@ -28,12 +36,16 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import {
   defaultAccountCurrentActionValues,
   defaultIssueDepositInvoicesValues,
+  defaultPaymentImputationValues,
   defaultRegisterPaymentValues,
+  imputationFieldNames,
   invoiceFieldNames,
-  paymentFieldNames,
-  readIssueDepositInvoicesValues,
-  readRegisterPaymentValues,
   issueDepositInvoicesSchema,
+  paymentFieldNames,
+  paymentImputationSchema,
+  readIssueDepositInvoicesValues,
+  readPaymentImputationValues,
+  readRegisterPaymentValues,
   registerPaymentSchema,
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
@@ -48,14 +60,19 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
 
   const summary =
     eventContext.selectedEventId === null
-      ? { totalPaidAmount: 0, availableBalanceAmount: 0 }
+      ? { totalPaidAmount: 0, availableBalanceAmount: 0, owedAmount: 0 }
       : await readAcademyEventPaymentSummary({
           academyId: academy.id,
           eventId: eventContext.selectedEventId,
         });
-  const [payments, activeDepositInvoices, depositInvoiceCandidates] =
+  const [
+    payments,
+    activeDepositInvoices,
+    depositInvoiceCandidates,
+    imputations,
+  ] =
     eventContext.selectedEventId === null
-      ? [[], [], []]
+      ? [[], [], [], []]
       : await Promise.all([
           db.query.academyEventPayments.findMany({
             columns: {
@@ -86,20 +103,60 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
+          listActiveImputationsForAcademyEvent({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
         ]);
+
+  const imputationTotals = await listActiveImputationTotalsByIds({
+    invoiceIds: activeDepositInvoices.map((invoice) => invoice.id),
+    paymentIds: payments.map((payment) => payment.id),
+  });
+  const choreographyFinancialStates = await deriveChoreographyFinancialStates(
+    activeDepositInvoices.map((invoice) => invoice.choreographyId),
+  );
+  const hydratedPayments = payments.map((payment) => {
+    const imputedAmount = imputationTotals.paymentTotals.get(payment.id) ?? 0;
+
+    return {
+      ...payment,
+      availableAmount: payment.amount - imputedAmount,
+      imputedAmount,
+    };
+  });
+  const hydratedDepositInvoices = activeDepositInvoices.map((invoice) => {
+    const imputedAmount = imputationTotals.invoiceTotals.get(invoice.id) ?? 0;
+    const pendingAmount = Math.max(0, invoice.amount - imputedAmount);
+
+    return {
+      ...invoice,
+      choreographyFinancialState:
+        choreographyFinancialStates.get(invoice.choreographyId) ?? "impaga",
+      imputedAmount,
+      pendingAmount,
+      status: getInvoiceState({
+        amount: invoice.amount,
+        imputedAmount,
+      }),
+    };
+  });
 
   return {
     academy,
     canIssueInvoices: user.role === "admin",
+    canImputePayments: user.role === "admin",
     canRegisterPayments: user.role === "admin",
     depositInvoiceCandidates,
-    activeDepositInvoices,
-    payments,
+    activeDepositInvoices: hydratedDepositInvoices,
+    imputations,
+    payments: hydratedPayments,
     selectedEventId: eventContext.selectedEventId,
     summary,
   };
 }
 
+// fallow-ignore-next-line complexity
 export async function handleAdministrativeAcademyAccountCurrentAction(input: {
   params: { academyId?: string };
   request: Request;
@@ -131,6 +188,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         message: "Revisá los datos del pago.",
         fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
         values: {
+          imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: values,
         },
@@ -161,6 +219,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         message: "Revisá los datos de la factura.",
         fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
         values: {
+          imputation: defaultPaymentImputationValues(),
           invoice: values,
           payment: defaultRegisterPaymentValues(),
         },
@@ -181,7 +240,51 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         message: result.message,
         fieldErrors: result.fieldErrors,
         values: {
+          imputation: defaultPaymentImputationValues(),
           invoice: values,
+          payment: defaultRegisterPaymentValues(),
+        },
+      };
+    }
+
+    throw redirect(input.request.url);
+  }
+
+  if (intent === "impute-payment") {
+    const values = readPaymentImputationValues(formData);
+    const parsed = paymentImputationSchema.safeParse(values);
+
+    if (!parsed.success) {
+      return {
+        status: "error",
+        message: "Revisá los datos de la imputación.",
+        fieldErrors: getFieldErrors(parsed.error, imputationFieldNames),
+        values: {
+          imputation: values,
+          invoice: defaultIssueDepositInvoicesValues(),
+          payment: defaultRegisterPaymentValues(),
+        },
+      };
+    }
+
+    const result = await createPaymentImputation({
+      academyId,
+      amount: Number(parsed.data.amount),
+      createdByUserId: adminUser.id,
+      eventId: eventContext.selectedEventId,
+      imputationDate: parsed.data.imputationDate,
+      invoiceId: parsed.data.invoiceId,
+      paymentId: parsed.data.paymentId,
+    });
+
+    if (!result.ok) {
+      return {
+        status: "error",
+        message: result.message,
+        fieldErrors: result.fieldErrors,
+        values: {
+          imputation: values,
+          invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
         },
       };
@@ -323,26 +426,62 @@ async function readAcademyEventPaymentSummary(input: {
   academyId: string;
   eventId: string;
 }) {
-  const [row] = await db
-    .select({
-      totalPaidAmount:
-        sql<number>`coalesce(sum(${academyEventPayments.amount}), 0)`.mapWith(
-          Number,
+  const [[paymentRow], [invoiceRow], [imputationRow]] = await Promise.all([
+    db
+      .select({
+        totalPaidAmount:
+          sql<number>`coalesce(sum(${academyEventPayments.amount}), 0)`.mapWith(
+            Number,
+          ),
+      })
+      .from(academyEventPayments)
+      .where(
+        and(
+          eq(academyEventPayments.academyId, input.academyId),
+          eq(academyEventPayments.eventId, input.eventId),
+          isNull(academyEventPayments.annulledAt),
         ),
-    })
-    .from(academyEventPayments)
-    .where(
-      and(
-        eq(academyEventPayments.academyId, input.academyId),
-        eq(academyEventPayments.eventId, input.eventId),
-        isNull(academyEventPayments.annulledAt),
       ),
-    );
-  const totalPaidAmount = Number(row?.totalPaidAmount ?? 0);
+    db
+      .select({
+        totalInvoiceAmount:
+          sql<number>`coalesce(sum(${academyEventChoreographyInvoices.depositAmount}), 0)`.mapWith(
+            Number,
+          ),
+      })
+      .from(academyEventChoreographyInvoices)
+      .where(
+        and(
+          eq(academyEventChoreographyInvoices.academyId, input.academyId),
+          eq(academyEventChoreographyInvoices.eventId, input.eventId),
+          eq(academyEventChoreographyInvoices.invoiceType, "sena"),
+          isNull(academyEventChoreographyInvoices.cancelledAt),
+        ),
+      ),
+    db
+      .select({
+        totalImputedAmount:
+          sql<number>`coalesce(sum(${academyEventInvoiceImputations.amount}), 0)`.mapWith(
+            Number,
+          ),
+      })
+      .from(academyEventInvoiceImputations)
+      .where(
+        and(
+          eq(academyEventInvoiceImputations.academyId, input.academyId),
+          eq(academyEventInvoiceImputations.eventId, input.eventId),
+          isNull(academyEventInvoiceImputations.annulledAt),
+        ),
+      ),
+  ]);
+  const totalPaidAmount = Number(paymentRow?.totalPaidAmount ?? 0);
+  const totalInvoiceAmount = Number(invoiceRow?.totalInvoiceAmount ?? 0);
+  const totalImputedAmount = Number(imputationRow?.totalImputedAmount ?? 0);
 
   return {
     totalPaidAmount,
-    availableBalanceAmount: totalPaidAmount,
+    availableBalanceAmount: totalPaidAmount - totalImputedAmount,
+    owedAmount: Math.max(0, totalInvoiceAmount - totalImputedAmount),
   };
 }
 

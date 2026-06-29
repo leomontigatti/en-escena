@@ -39,6 +39,7 @@ import type { loadAdministrativeAcademyAccountCurrent } from "./server";
 import {
   defaultAccountCurrentActionValues,
   defaultIssueDepositInvoicesValues,
+  defaultPaymentImputationValues,
   defaultRegisterPaymentValues,
   formatPaymentMethodLabel,
   paymentMethodOptions,
@@ -72,7 +73,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
       }}
     >
       <div className="flex flex-col gap-6">
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className="grid gap-4 md:grid-cols-3">
           <SummaryCard
             title="Monto total pagado"
             icon={Receipt}
@@ -82,6 +83,11 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
             title="Saldo disponible"
             icon={CircleDollarSign}
             value={formatAmount(loaderData.summary.availableBalanceAmount)}
+          />
+          <SummaryCard
+            title="Saldo adeudado"
+            icon={Landmark}
+            value={formatAmount(loaderData.summary.owedAmount)}
           />
         </section>
 
@@ -99,6 +105,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           />
         ) : null}
 
+        {/* fallow-ignore-next-line code-duplication */}
         {loaderData.activeDepositInvoices.length > 0 ? (
           <Card>
             <CardHeader>
@@ -110,8 +117,12 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
                   <TableRow>
                     <TableHead>Factura</TableHead>
                     <TableHead>Coreografía</TableHead>
+                    <TableHead>Estado financiero</TableHead>
+                    <TableHead>Estado factura</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Vence</TableHead>
+                    <TableHead className="text-right">Imputado</TableHead>
+                    <TableHead className="text-right">Pendiente</TableHead>
                     <TableHead className="text-right">Importe</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -122,11 +133,25 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
                         {`N° ${invoice.invoiceNumber}`}
                       </TableCell>
                       <TableCell>{invoice.choreographyName}</TableCell>
+                      <TableCell>
+                        {formatChoreographyFinancialState(
+                          invoice.choreographyFinancialState,
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {formatInvoiceState(invoice.status)}
+                      </TableCell>
                       <TableCell>{formatDate(invoice.issueDate)}</TableCell>
                       <TableCell>
                         {invoice.selectedPaymentDeadline
                           ? formatDate(invoice.selectedPaymentDeadline)
                           : "Sin vencimiento"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(invoice.imputedAmount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(invoice.pendingAmount)}
                       </TableCell>
                       <TableCell className="text-right">
                         {formatAmount(invoice.amount)}
@@ -139,6 +164,23 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           </Card>
         ) : null}
 
+        {loaderData.canImputePayments &&
+        loaderData.payments.some((payment) => payment.availableAmount > 0) &&
+        loaderData.activeDepositInvoices.some(
+          (invoice) => invoice.pendingAmount > 0,
+        ) ? (
+          <PaymentImputationForm
+            fieldErrors={actionData?.fieldErrors ?? {}}
+            invoices={loaderData.activeDepositInvoices.filter(
+              (invoice) => invoice.pendingAmount > 0,
+            )}
+            payments={loaderData.payments.filter(
+              (payment) => payment.availableAmount > 0,
+            )}
+            values={values.imputation}
+          />
+        ) : null}
+
         {loaderData.canRegisterPayments ? (
           <PaymentForm
             fieldErrors={actionData?.fieldErrors ?? {}}
@@ -146,6 +188,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           />
         ) : null}
 
+        {/* fallow-ignore-next-line code-duplication */}
         {loaderData.payments.length > 0 ? (
           <Card>
             <CardHeader>
@@ -160,6 +203,8 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
                     <TableHead>Medio</TableHead>
                     <TableHead>Referencia</TableHead>
                     <TableHead>Nota interna</TableHead>
+                    <TableHead className="text-right">Imputado</TableHead>
+                    <TableHead className="text-right">Disponible</TableHead>
                     <TableHead className="text-right">Monto</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -176,6 +221,12 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
                       <TableCell>{payment.reference ?? ""}</TableCell>
                       <TableCell>{payment.internalNote ?? ""}</TableCell>
                       <TableCell className="text-right">
+                        {formatAmount(payment.imputedAmount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(payment.availableAmount)}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {formatAmount(payment.amount)}
                       </TableCell>
                     </TableRow>
@@ -191,6 +242,43 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
             description="Cuando administración registre pagos para esta academia, los vas a poder revisar acá junto con el saldo disponible."
           />
         )}
+
+        {/* fallow-ignore-next-line code-duplication */}
+        {loaderData.imputations.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Imputaciones activas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Pago</TableHead>
+                    <TableHead>Factura</TableHead>
+                    <TableHead>Coreografía</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loaderData.imputations.map((imputation) => (
+                    <TableRow key={imputation.id}>
+                      <TableCell>
+                        {formatDate(imputation.imputationDate)}
+                      </TableCell>
+                      <TableCell>{`N° ${imputation.paymentNumber}`}</TableCell>
+                      <TableCell>{`N° ${imputation.invoiceNumber}`}</TableCell>
+                      <TableCell>{imputation.choreographyName}</TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(imputation.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </AdminResourceLayout>
   );
@@ -324,6 +412,110 @@ function PaymentForm({
   );
 }
 
+function PaymentImputationForm({
+  fieldErrors,
+  invoices,
+  payments,
+  values,
+}: {
+  fieldErrors: Partial<Record<string, string>>;
+  invoices: Array<LoaderData["activeDepositInvoices"][number]>;
+  payments: Array<LoaderData["payments"][number]>;
+  values: ReturnType<typeof defaultPaymentImputationValues>;
+}) {
+  const amountId = useId();
+  const invoiceId = useId();
+  const paymentId = useId();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Imputar pago</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form method="post" className="flex flex-col gap-5" noValidate>
+          <input type="hidden" name="intent" value="impute-payment" />
+          <FieldGroup className="grid gap-5 md:grid-cols-2">
+            <Field
+              data-invalid={fieldErrors.paymentId ? true : undefined}
+              orientation="vertical"
+            >
+              <FieldLabel htmlFor={paymentId}>Pago</FieldLabel>
+              <FieldContent>
+                <Select name="paymentId" defaultValue={values.paymentId}>
+                  <SelectTrigger id={paymentId}>
+                    <SelectValue placeholder="Seleccioná un Pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payments.map((payment) => (
+                      <SelectItem key={payment.id} value={payment.id}>
+                        {`N° ${payment.paymentNumber} · Disponible ${formatAmount(payment.availableAmount)}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError>{fieldErrors.paymentId}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <Field
+              data-invalid={fieldErrors.invoiceId ? true : undefined}
+              orientation="vertical"
+            >
+              <FieldLabel htmlFor={invoiceId}>Factura de seña</FieldLabel>
+              <FieldContent>
+                <Select name="invoiceId" defaultValue={values.invoiceId}>
+                  <SelectTrigger id={invoiceId}>
+                    <SelectValue placeholder="Seleccioná una factura" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {invoices.map((invoice) => (
+                      <SelectItem key={invoice.id} value={invoice.id}>
+                        {`N° ${invoice.invoiceNumber} · ${invoice.choreographyName} · Pendiente ${formatAmount(invoice.pendingAmount)}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError>{fieldErrors.invoiceId}</FieldError>
+              </FieldContent>
+            </Field>
+
+            <DateOnlyField
+              defaultValue={values.imputationDate}
+              error={fieldErrors.imputationDate}
+              id="imputation-date"
+              label="Fecha de imputación"
+              name="imputationDate"
+            />
+
+            <Field
+              data-invalid={fieldErrors.amount ? true : undefined}
+              orientation="vertical"
+            >
+              <FieldLabel htmlFor={amountId}>Monto</FieldLabel>
+              <FieldContent>
+                <Input
+                  id={amountId}
+                  name="amount"
+                  inputMode="numeric"
+                  min="1"
+                  step="1"
+                  defaultValue={values.amount}
+                />
+                <FieldError>{fieldErrors.amount}</FieldError>
+              </FieldContent>
+            </Field>
+          </FieldGroup>
+
+          <div className="flex justify-end">
+            <Button type="submit">Imputar pago</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DepositInvoiceForm({
   candidates,
   fieldErrors,
@@ -429,6 +621,30 @@ function DepositInvoiceForm({
       </CardContent>
     </Card>
   );
+}
+
+function formatInvoiceState(status: "parcial" | "pagada" | "pendiente") {
+  switch (status) {
+    case "pendiente":
+      return "Pendiente";
+    case "parcial":
+      return "Parcial";
+    case "pagada":
+      return "Pagada";
+  }
+}
+
+function formatChoreographyFinancialState(
+  status: "impaga" | "pagada" | "señada",
+) {
+  switch (status) {
+    case "impaga":
+      return "Impaga";
+    case "señada":
+      return "Señada";
+    case "pagada":
+      return "Pagada";
+  }
 }
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {

@@ -33,9 +33,16 @@ export const paymentFieldNames = [
   "internalNote",
 ] as const;
 export const invoiceFieldNames = ["issueDate", "choreographyIds"] as const;
+export const imputationFieldNames = [
+  "paymentId",
+  "invoiceId",
+  "imputationDate",
+  "amount",
+] as const;
 
 export type PaymentFieldName = (typeof paymentFieldNames)[number];
 export type InvoiceFieldName = (typeof invoiceFieldNames)[number];
+export type ImputationFieldName = (typeof imputationFieldNames)[number];
 
 export type RegisterPaymentFormValues = {
   amount: string;
@@ -48,6 +55,13 @@ export type RegisterPaymentFormValues = {
 export type IssueDepositInvoicesFormValues = {
   choreographyIds: string[];
   issueDate: string;
+};
+
+export type PaymentImputationFormValues = {
+  amount: string;
+  imputationDate: string;
+  invoiceId: string;
+  paymentId: string;
 };
 
 export const registerPaymentSchema = z.object({
@@ -129,11 +143,59 @@ export const issueDepositInvoicesSchema = z.object({
     }),
 });
 
+export const paymentImputationSchema = z.object({
+  paymentId: z.string().trim().min(1, {
+    message: "Seleccioná un Pago.",
+  }),
+  invoiceId: z.string().trim().min(1, {
+    message: "Seleccioná una factura.",
+  }),
+  imputationDate: z
+    .string()
+    .trim()
+    .superRefine((value, context) => {
+      if (!value) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá la fecha de imputación.",
+        });
+        return;
+      }
+
+      if (!isDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá una fecha válida.",
+        });
+        return;
+      }
+
+      if (isFutureDateOnly(value)) {
+        context.addIssue({
+          code: "custom",
+          message: "La fecha de imputación no puede ser futura.",
+        });
+      }
+    }),
+  amount: z
+    .string()
+    .trim()
+    .refine((value) => /^\d+$/.test(value), {
+      message: "Ingresá un monto entero en pesos, sin centavos.",
+    })
+    .refine((value) => Number(value) > 0, {
+      message: "Ingresá un monto mayor a cero.",
+    }),
+});
+
 export type AdministrativeAcademyAccountCurrentActionData = {
-  fieldErrors: Partial<Record<PaymentFieldName | InvoiceFieldName, string>>;
+  fieldErrors: Partial<
+    Record<PaymentFieldName | InvoiceFieldName | ImputationFieldName, string>
+  >;
   message: string;
   status: "error";
   values: {
+    imputation: PaymentImputationFormValues;
     invoice: IssueDepositInvoicesFormValues;
     payment: RegisterPaymentFormValues;
   };
@@ -156,8 +218,18 @@ export function defaultIssueDepositInvoicesValues(): IssueDepositInvoicesFormVal
   };
 }
 
+export function defaultPaymentImputationValues(): PaymentImputationFormValues {
+  return {
+    amount: "",
+    imputationDate: todayDateOnly(),
+    invoiceId: "",
+    paymentId: "",
+  };
+}
+
 export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
   return {
+    imputation: defaultPaymentImputationValues(),
     invoice: defaultIssueDepositInvoicesValues(),
     payment: defaultRegisterPaymentValues(),
   };
@@ -187,6 +259,17 @@ export function readIssueDepositInvoicesValues(
           : [],
       ),
     issueDate: String(formData.get("issueDate") ?? "").trim(),
+  };
+}
+
+export function readPaymentImputationValues(
+  formData: FormData,
+): PaymentImputationFormValues {
+  return {
+    amount: String(formData.get("amount") ?? "").trim(),
+    imputationDate: String(formData.get("imputationDate") ?? "").trim(),
+    invoiceId: String(formData.get("invoiceId") ?? "").trim(),
+    paymentId: String(formData.get("paymentId") ?? "").trim(),
   };
 }
 
