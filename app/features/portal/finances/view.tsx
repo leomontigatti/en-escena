@@ -16,6 +16,7 @@ import {
   formatInvoiceState,
 } from "@/features/admin/academies/account-current/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
+import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
 
 type PortalAcademyFinancesLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyFinances>
@@ -270,19 +271,4 @@ function BalanceInvoicesTable({
       </CardContent>
     </Card>
   );
-}
-
-function formatPaymentMethodLabel(value: string) {
-  switch (value) {
-    case "transferencia":
-      return "Transferencia";
-    case "efectivo":
-      return "Efectivo";
-    case "mercado_pago":
-      return "Mercado Pago";
-    case "otro":
-      return "Otro";
-    default:
-      return value;
-  }
 }
