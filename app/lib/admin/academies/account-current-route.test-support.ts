@@ -212,6 +212,87 @@ export async function buildPaymentImputationRequest(input: {
   };
 }
 
+export async function buildAnnulImputationRequest(input: {
+  imputationId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "annul-imputation");
+  formData.set("imputationId", input.imputationId);
+  formData.set("reason", input.reason);
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
+export async function buildCancelInvoiceRequest(input: {
+  invoiceId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "cancel-invoice");
+  formData.set("invoiceId", input.invoiceId);
+  formData.set("reason", input.reason);
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
+export async function buildAnnulPaymentRequest(input: {
+  paymentId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "annul-payment");
+  formData.set("paymentId", input.paymentId);
+  formData.set("reason", input.reason);
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
 export async function registerPaymentForTest(input: {
   academyId: string;
   amount: string;

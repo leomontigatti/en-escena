@@ -39,10 +39,17 @@ export const imputationFieldNames = [
   "imputationDate",
   "amount",
 ] as const;
+export const correctionFieldNames = [
+  "paymentId",
+  "invoiceId",
+  "imputationId",
+  "reason",
+] as const;
 
 export type PaymentFieldName = (typeof paymentFieldNames)[number];
 export type InvoiceFieldName = (typeof invoiceFieldNames)[number];
 export type ImputationFieldName = (typeof imputationFieldNames)[number];
+export type CorrectionFieldName = (typeof correctionFieldNames)[number];
 
 export type RegisterPaymentFormValues = {
   amount: string;
@@ -62,6 +69,13 @@ export type PaymentImputationFormValues = {
   imputationDate: string;
   invoiceId: string;
   paymentId: string;
+};
+
+export type AccountCurrentCorrectionFormValues = {
+  imputationId: string;
+  invoiceId: string;
+  paymentId: string;
+  reason: string;
 };
 
 export const registerPaymentSchema = z.object({
@@ -188,13 +202,45 @@ export const paymentImputationSchema = z.object({
     }),
 });
 
+const correctionReasonSchema = z.string().trim().min(1, {
+  message: "Ingresá un motivo para registrar esta corrección.",
+});
+
+export const annulImputationSchema = z.object({
+  imputationId: z.string().trim().min(1, {
+    message: "Seleccioná una imputación.",
+  }),
+  reason: correctionReasonSchema,
+});
+
+export const cancelInvoiceSchema = z.object({
+  invoiceId: z.string().trim().min(1, {
+    message: "Seleccioná una factura.",
+  }),
+  reason: correctionReasonSchema,
+});
+
+export const annulPaymentSchema = z.object({
+  paymentId: z.string().trim().min(1, {
+    message: "Seleccioná un Pago.",
+  }),
+  reason: correctionReasonSchema,
+});
+
 export type AdministrativeAcademyAccountCurrentActionData = {
   fieldErrors: Partial<
-    Record<PaymentFieldName | InvoiceFieldName | ImputationFieldName, string>
+    Record<
+      | PaymentFieldName
+      | InvoiceFieldName
+      | ImputationFieldName
+      | CorrectionFieldName,
+      string
+    >
   >;
   message: string;
   status: "error";
   values: {
+    correction: AccountCurrentCorrectionFormValues;
     imputation: PaymentImputationFormValues;
     invoice: IssueDepositInvoicesFormValues;
     payment: RegisterPaymentFormValues;
@@ -227,8 +273,18 @@ export function defaultPaymentImputationValues(): PaymentImputationFormValues {
   };
 }
 
+export function defaultAccountCurrentCorrectionValues(): AccountCurrentCorrectionFormValues {
+  return {
+    imputationId: "",
+    invoiceId: "",
+    paymentId: "",
+    reason: "",
+  };
+}
+
 export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
   return {
+    correction: defaultAccountCurrentCorrectionValues(),
     imputation: defaultPaymentImputationValues(),
     invoice: defaultIssueDepositInvoicesValues(),
     payment: defaultRegisterPaymentValues(),
@@ -270,6 +326,17 @@ export function readPaymentImputationValues(
     imputationDate: String(formData.get("imputationDate") ?? "").trim(),
     invoiceId: String(formData.get("invoiceId") ?? "").trim(),
     paymentId: String(formData.get("paymentId") ?? "").trim(),
+  };
+}
+
+export function readAccountCurrentCorrectionValues(
+  formData: FormData,
+): AccountCurrentCorrectionFormValues {
+  return {
+    imputationId: String(formData.get("imputationId") ?? "").trim(),
+    invoiceId: String(formData.get("invoiceId") ?? "").trim(),
+    paymentId: String(formData.get("paymentId") ?? "").trim(),
+    reason: String(formData.get("reason") ?? "").trim(),
   };
 }
 
