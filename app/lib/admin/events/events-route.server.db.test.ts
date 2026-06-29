@@ -243,7 +243,7 @@ describe("administracion/eventos route", () => {
       fieldErrors: {
         name: "Este campo es obligatorio.",
         requiredDepositPercentage:
-          "La seña requerida debe ser un entero entre 0 y 100.",
+          "La seña de coreografía debe ser un entero entre 1 y 100.",
       },
     });
     await expect(db.query.events.findMany()).resolves.toEqual([]);

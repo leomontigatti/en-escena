@@ -63,8 +63,13 @@ export type ScheduleActionValues = {
   scheduleCapacities: ScheduleCapacityActionValues[];
 };
 
+export type DepositPercentageActionValues = {
+  requiredDepositPercentage: string;
+};
+
 export type EventBasesActionValues =
   | CategoryActionValues
+  | DepositPercentageActionValues
   | ModalityActionValues
   | NameActionValues
   | PriceActionValues
@@ -98,6 +103,7 @@ export type EventBasesActionInput = {
   scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
   submodalities: NameActionValuesWithId[];
   submodalitiesMode: string;
+  requiredDepositPercentage: number;
 };
 
 export type EventBasesActionResult =

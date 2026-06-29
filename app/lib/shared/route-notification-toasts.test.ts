@@ -91,6 +91,11 @@ describe("route notification toasts", () => {
       message: "Evento guardado.",
       variant: "success",
     });
+    expect(routeNotificationToasts["sena-coreografia-guardada"]).toEqual({
+      id: "route-notification:sena-coreografia-guardada",
+      message: "Seña de coreografía guardada.",
+      variant: "success",
+    });
     expect(routeNotificationToasts["precio-guardado"]).toEqual({
       id: "route-notification:precio-guardado",
       message: "Precio guardado.",

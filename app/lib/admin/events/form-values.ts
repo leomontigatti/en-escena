@@ -8,6 +8,12 @@ import {
   BUSINESS_TIME_ZONE,
   BUSINESS_TIME_ZONE_UTC_OFFSET,
 } from "@/lib/shared/business-time-zone";
+import {
+  MAX_REQUIRED_DEPOSIT_PERCENTAGE,
+  MIN_REQUIRED_DEPOSIT_PERCENTAGE,
+  DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
+  invalidRequiredDepositPercentageMessage,
+} from "@/lib/events/deposit-percentage";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { z } from "zod";
 
@@ -17,9 +23,7 @@ export type FieldErrors = NonNullable<
   Extract<EventMutationResult, { ok: false }>["fieldErrors"]
 >;
 
-const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = "30";
-export const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
-export const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
+export { MAX_REQUIRED_DEPOSIT_PERCENTAGE, MIN_REQUIRED_DEPOSIT_PERCENTAGE };
 
 export const eventFormSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
@@ -40,7 +44,7 @@ export const eventFormSchema = z.object({
       percentage >= MIN_REQUIRED_DEPOSIT_PERCENTAGE &&
       percentage <= MAX_REQUIRED_DEPOSIT_PERCENTAGE
     );
-  }, "La seña requerida debe ser un entero entre 0 y 100."),
+  }, invalidRequiredDepositPercentageMessage),
 });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -126,7 +130,7 @@ export function defaultEventFormValues(): EventFormValues {
     registrationEndsAt: "",
     startsAt: "",
     endsAt: "",
-    requiredDepositPercentage: DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
+    requiredDepositPercentage: String(DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE),
   };
 }
 

@@ -1,5 +1,10 @@
+import { useActionData } from "react-router";
+
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeEventPricesList } from "@/features/admin/event-prices/list/server";
+import {
+  loadAdministrativeEventPricesList,
+  updateAdministrativeEventPricesList,
+} from "@/features/admin/event-prices/list/server";
 import {
   AdministrativeEventPricesListView,
   type AdministrativeEventPricesListViewProps,
@@ -15,12 +20,29 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadAdministrativeEventPricesList(request);
 }
 
+export async function action({ request }: Route.ActionArgs) {
+  return updateAdministrativeEventPricesList(request);
+}
+
 export function AdministracionPreciosRouteView({
   loaderData,
+  actionData,
 }: AdministrativeEventPricesListViewProps) {
-  return <AdministrativeEventPricesListView loaderData={loaderData} />;
+  return (
+    <AdministrativeEventPricesListView
+      loaderData={loaderData}
+      actionData={actionData}
+    />
+  );
 }
 
 export default function AdminPricesRoute({ loaderData }: Route.ComponentProps) {
-  return <AdministracionPreciosRouteView loaderData={loaderData} />;
+  const actionData = useActionData<typeof action>();
+
+  return (
+    <AdministracionPreciosRouteView
+      loaderData={loaderData}
+      actionData={actionData}
+    />
+  );
 }

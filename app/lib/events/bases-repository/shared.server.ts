@@ -5,6 +5,7 @@ import {
   categories,
   categoryExperienceLevels,
   categoryModalities,
+  events,
   experienceLevels,
   modalities,
   prices,
@@ -48,6 +49,7 @@ export const priceDefaultNames: Record<GroupType, string> = {
 };
 
 export type EventBaseRecord =
+  | typeof events.$inferSelect
   | typeof modalities.$inferSelect
   | typeof scheduleCapacities.$inferSelect
   | typeof schedules.$inferSelect

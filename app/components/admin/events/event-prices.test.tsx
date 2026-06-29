@@ -290,6 +290,7 @@ function createLoaderData({
 }): EventBasesLoaderData {
   return {
     selectedEventId: "event_1",
+    requiredDepositPercentage: 30,
     modalities: [],
     submodalities: [],
     experienceLevels: [],

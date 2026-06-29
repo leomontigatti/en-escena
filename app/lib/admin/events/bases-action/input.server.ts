@@ -44,6 +44,10 @@ export function readEventBasesActionInput(
       10,
     ),
     amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
+    requiredDepositPercentage: Number.parseInt(
+      String(formData.get("requiredDepositPercentage") ?? ""),
+      10,
+    ),
     scheduleCapacities: readScheduleCapacitiesInput(formData),
     submodalities: readSubmodalitiesInput(formData),
     submodalitiesMode: String(formData.get("submodalitiesMode") ?? ""),

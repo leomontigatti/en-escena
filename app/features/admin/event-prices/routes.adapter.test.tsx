@@ -157,6 +157,7 @@ function loaderData(
     experienceLevels: [],
     modalities: [],
     prices: [],
+    requiredDepositPercentage: 30,
     schedules: [],
     selectedEventId: "evento_1",
     submodalities: [],

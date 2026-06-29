@@ -1,4 +1,5 @@
 import { redirect } from "react-router";
+import { eq } from "drizzle-orm";
 
 import type {
   categories,
@@ -6,6 +7,8 @@ import type {
   modalities,
   submodalities,
 } from "@/db/schema";
+import { db } from "@/db";
+import { events } from "@/db/schema";
 import {
   runEventBasesAction,
   type ActionData,
@@ -30,6 +33,7 @@ type CategoryRow = typeof categories.$inferSelect & {
 
 export type EventBasesLoaderData = {
   selectedEventId: string | null;
+  requiredDepositPercentage: number | null;
   modalities: ModalityRow[];
   submodalities: SubmodalityRow[];
   experienceLevels: ExperienceLevelRow[];
@@ -47,19 +51,29 @@ export async function loadAdministrativeEventBases(request: Request) {
   }
 
   const selectedEventId = eventContext.selectedEventId;
-  const eventBases = selectedEventId
-    ? await getEventBases(selectedEventId)
-    : {
-        categories: [],
-        modalities: [],
-        submodalities: [],
-        experienceLevels: [],
-        schedules: [],
-        prices: [],
-      };
+  const [selectedEvent, eventBases] = selectedEventId
+    ? await Promise.all([
+        db.query.events.findFirst({
+          columns: { requiredDepositPercentage: true },
+          where: eq(events.id, selectedEventId),
+        }),
+        getEventBases(selectedEventId),
+      ])
+    : [
+        null,
+        {
+          categories: [],
+          modalities: [],
+          submodalities: [],
+          experienceLevels: [],
+          schedules: [],
+          prices: [],
+        },
+      ];
 
   return {
     selectedEventId,
+    requiredDepositPercentage: selectedEvent?.requiredDepositPercentage ?? null,
     ...eventBases,
   } satisfies EventBasesLoaderData;
 }

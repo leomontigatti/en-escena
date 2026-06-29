@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { modalities, prices, schedules } from "@/db/schema";
+import { events, modalities, prices, schedules } from "@/db/schema";
 import { createModality } from "@/lib/events/bases-repository.server";
 import { loader } from "@/lib/admin/events/event-bases.server";
 
@@ -23,6 +23,93 @@ import {
 installDatabaseTestHooks();
 
 describe.sequential("administracion Bases del evento routes", () => {
+  test("loads and updates Seña de coreografía from Bases del evento", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const otherEvent = await createSavedEvent("Nacional 2026", {
+      activate: false,
+    });
+    const listRequest = await createSignedInRequest({
+      email: "admin.sena.coreografia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+    });
+    const initialData = await loader(routeArgs(listRequest.request));
+    const initialMarkup = renderPreciosRoute(initialData);
+
+    expect(initialData.requiredDepositPercentage).toBe(30);
+    expect(initialMarkup).toContain("Seña de coreografía");
+    expect(initialMarkup).toContain('name="requiredDepositPercentage"');
+    expect(initialMarkup).toContain('value="30"');
+
+    const invalidUpdateRequest = await createSignedInRequest({
+      email: "admin.sena.coreografia.invalida@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      body: formData({
+        intent: "update-required-deposit-percentage",
+        requiredDepositPercentage: "0",
+      }),
+    });
+
+    await expect(
+      action(routeArgs(invalidUpdateRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message: "Revisá la seña de coreografía.",
+      fieldErrors: {
+        requiredDepositPercentage:
+          "La seña de coreografía debe ser un entero entre 1 y 100.",
+      },
+      scope: {
+        intent: "update-required-deposit-percentage",
+      },
+      values: {
+        requiredDepositPercentage: "0",
+      },
+    });
+
+    const validUpdateRequest = await createSignedInRequest({
+      email: "admin.sena.coreografia.guarda@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
+      body: formData({
+        intent: "update-required-deposit-percentage",
+        requiredDepositPercentage: "45",
+      }),
+    });
+
+    const updateResponse = await expectThrownResponse(
+      action(routeArgs(validUpdateRequest.request)),
+      302,
+    );
+
+    expect(updateResponse.headers.get("location")).toBe(
+      "/administracion/precios?notificacion=sena-coreografia-guardada",
+    );
+    await expect(
+      db.query.events.findFirst({
+        columns: { requiredDepositPercentage: true },
+        where: eq(events.id, event.id),
+      }),
+    ).resolves.toMatchObject({
+      requiredDepositPercentage: 45,
+    });
+    await expect(
+      db.query.events.findFirst({
+        columns: { requiredDepositPercentage: true },
+        where: eq(events.id, otherEvent.id),
+      }),
+    ).resolves.toMatchObject({
+      requiredDepositPercentage: 30,
+    });
+
+    const reloadedData = await loader(routeArgs(listRequest.request));
+    const reloadedMarkup = renderPreciosRoute(reloadedData);
+
+    expect(reloadedData.requiredDepositPercentage).toBe(45);
+    expect(reloadedMarkup).toContain('value="45"');
+  });
+
   test("renders the precios list with alcance and dedicated route actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
@@ -343,7 +430,7 @@ describe.sequential("administracion Bases del evento routes", () => {
 
     expect(markup).toContain("Precio bloque");
     expect(markup).toContain("Solo");
-    expect(markup).toContain("$15000");
+    expect(markup).toContain("$ 15.000");
 
     const editPriceRequest = await createSignedInRequest({
       email: "admin.edita.precio@example.com",

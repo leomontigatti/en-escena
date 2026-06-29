@@ -145,6 +145,7 @@ const expectedAdminComponentFiles = [
   "events/event-prices.test.tsx",
   "events/event-prices.tsx",
   "events/event-prices/actions.tsx",
+  "events/event-prices/deposit-percentage-form.tsx",
   "events/event-prices/form.tsx",
   "events/event-prices/list-table.tsx",
   "events/event-prices/route-views.tsx",

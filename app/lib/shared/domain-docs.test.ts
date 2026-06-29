@@ -216,7 +216,7 @@ describe("domain documentation", () => {
     );
     const adrFiles = await readdir("docs/adr");
 
-    expect(linkedFiles).toHaveLength(8);
+    expect(linkedFiles).toHaveLength(9);
 
     for (const file of linkedFiles) {
       expect(adrFiles).toContain(file);

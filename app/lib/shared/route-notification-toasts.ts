@@ -24,6 +24,7 @@ export const routeNotificationToastIds = {
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
+  "sena-coreografia-guardada": "route-notification:sena-coreografia-guardada",
   "evento-eliminado": "route-notification:evento-eliminado",
   "cronograma-guardado": "route-notification:cronograma-guardado",
   "cronograma-eliminado": "route-notification:cronograma-eliminado",
@@ -132,6 +133,11 @@ export const routeNotificationToasts = {
   "evento-guardado": {
     id: routeNotificationToastIds["evento-guardado"],
     message: "Evento guardado.",
+    variant: "success",
+  },
+  "sena-coreografia-guardada": {
+    id: routeNotificationToastIds["sena-coreografia-guardada"],
+    message: "Seña de coreografía guardada.",
     variant: "success",
   },
   "evento-eliminado": {

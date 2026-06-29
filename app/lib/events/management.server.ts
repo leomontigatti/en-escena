@@ -2,10 +2,12 @@ import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
+import {
+  DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
+  isValidRequiredDepositPercentage,
+  invalidRequiredDepositPercentageMessage,
+} from "@/lib/events/deposit-percentage";
 
-const DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE = 30;
-const MIN_REQUIRED_DEPOSIT_PERCENTAGE = 0;
-const MAX_REQUIRED_DEPOSIT_PERCENTAGE = 100;
 const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
 
 const ACTIVE_EVENT_EXISTS_ERROR =
@@ -181,6 +183,34 @@ export async function updateEvent(
   return { ok: true, event: updatedEvent };
 }
 
+export async function updateEventRequiredDepositPercentage(
+  eventId: string,
+  requiredDepositPercentage: number,
+): Promise<EventMutationResult> {
+  if (!isValidRequiredDepositPercentage(requiredDepositPercentage)) {
+    return {
+      ok: false,
+      code: "invalid-event",
+      error: INVALID_EVENT_ERROR,
+      fieldErrors: {
+        requiredDepositPercentage: invalidRequiredDepositPercentageMessage,
+      },
+    };
+  }
+
+  const [updatedEvent] = await db
+    .update(events)
+    .set({ requiredDepositPercentage })
+    .where(eq(events.id, eventId))
+    .returning();
+
+  if (!updatedEvent) {
+    return eventNotFound();
+  }
+
+  return { ok: true, event: updatedEvent };
+}
+
 export async function deactivateEvent(
   eventId: string,
 ): Promise<EventMutationResult> {
@@ -258,13 +288,9 @@ function validateEventInput(input: CreateEventInput) {
     fieldErrors.name = "Ingresá el nombre del Evento.";
   }
 
-  if (
-    !Number.isInteger(requiredDepositPercentage) ||
-    requiredDepositPercentage < MIN_REQUIRED_DEPOSIT_PERCENTAGE ||
-    requiredDepositPercentage > MAX_REQUIRED_DEPOSIT_PERCENTAGE
-  ) {
+  if (!isValidRequiredDepositPercentage(requiredDepositPercentage)) {
     fieldErrors.requiredDepositPercentage =
-      "La seña requerida debe ser un entero entre 0 y 100.";
+      invalidRequiredDepositPercentageMessage;
   }
 
   if (input.registrationStartsAt >= input.registrationEndsAt) {
