@@ -30,6 +30,11 @@ An issue is **unblocked** if it has zero blocking dependencies on other open iss
 
 For each unblocked issue, assign a branch name using the exact format `sandcastle/issue-{id}` (no slug or other suffix). This must be deterministic so that re-planning the same issue always produces the same branch name and accumulated progress is preserved.
 
+If an open issue already has its deterministic branch and that branch appears to
+contain the implementation, still include the issue in the plan. The
+orchestrator will detect existing unmerged commits and send the branch directly
+to merge instead of asking an implementer to create more commits.
+
 # OUTPUT
 
 Output your plan as a JSON object wrapped in `<plan>` tags:

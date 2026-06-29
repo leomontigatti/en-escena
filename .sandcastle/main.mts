@@ -152,9 +152,23 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // runWithConcurrency limits pressure on Docker, pnpm install, and Postgres.
   // -------------------------------------------------------------------------
 
+  const issuesReadyToMerge = issues.filter((issue) =>
+    branchHasUnmergedCommits(issue.branch, TARGET_BRANCH),
+  );
+  const issuesToImplement = issues.filter(
+    (issue) => !issuesReadyToMerge.some((ready) => ready.id === issue.id),
+  );
+
+  if (issuesReadyToMerge.length > 0) {
+    console.log("\nIssue branch(es) already have unmerged commits:");
+    for (const issue of issuesReadyToMerge) {
+      console.log(`  ${issue.id}: ${issue.branch}`);
+    }
+  }
+
   const settled = await runWithConcurrency(
-    issues,
-    Math.min(MAX_PARALLEL, issues.length),
+    issuesToImplement,
+    Math.min(MAX_PARALLEL, issuesToImplement.length),
     async (issue) => {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
@@ -210,23 +224,30 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   for (const [i, outcome] of settled.entries()) {
     if (outcome.status === "rejected") {
       console.error(
-        `  ✗ ${issues[i]!.id} (${issues[i]!.branch}) failed: ${outcome.reason}`,
+        `  ✗ ${issuesToImplement[i]!.id} (${issuesToImplement[i]!.branch}) failed: ${outcome.reason}`,
       );
     }
   }
 
-  // Only pass branches that actually produced commits to the merge phase.
-  // An agent that ran successfully but made no commits has nothing to merge.
+  // Pass branches that produced commits in this run, or that already have
+  // commits not merged into the target branch. The second check recovers from
+  // sandbox/worktree metadata issues where Sandcastle reports no run commits
+  // even though the deterministic issue branch moved on the host.
   const completedIssues = settled
-    .map((outcome, i) => ({ outcome, issue: issues[i]! }))
+    .map((outcome, i) => ({ outcome, issue: issuesToImplement[i]! }))
     .filter(
       (entry) =>
         entry.outcome.status === "fulfilled" &&
-        entry.outcome.value.commits.length > 0,
+        (entry.outcome.value.commits.length > 0 ||
+          branchHasUnmergedCommits(entry.issue.branch, TARGET_BRANCH)),
     )
     .map((entry) => entry.issue);
 
-  const completedBranches = completedIssues.map((i) => i.branch);
+  const mergeIssues = uniqueIssuesByBranch([
+    ...issuesReadyToMerge,
+    ...completedIssues,
+  ]);
+  const completedBranches = mergeIssues.map((i) => i.branch);
 
   console.log(
     `\nExecution complete. ${completedBranches.length} branch(es) with commits:`,
@@ -251,6 +272,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // uses to know which branches to merge and which issues to close.
   // -------------------------------------------------------------------------
   await sandcastle.run({
+    branch: TARGET_BRANCH,
     hooks,
     sandbox: createDockerSandbox({ databaseNameSuffix: "merger" }),
     name: "merger",
@@ -261,7 +283,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
       // A markdown list of branch names, one per line.
       BRANCHES: completedBranches.map((b) => `- ${b}`).join("\n"),
       // A markdown list of issue IDs and titles, one per line.
-      ISSUES: completedIssues.map((i) => `- ${i.id}: ${i.title}`).join("\n"),
+      ISSUES: mergeIssues.map((i) => `- ${i.id}: ${i.title}`).join("\n"),
     },
   });
 
@@ -432,6 +454,42 @@ function getRequestedIssue(issueId: string): PlannedIssue {
     title: issue.title,
     branch: `sandcastle/issue-${issue.number}`,
   };
+}
+
+function branchHasUnmergedCommits(branch: string, baseBranch: string): boolean {
+  if (!branchExists(branch)) return false;
+
+  const result = spawnSync("git", ["merge-base", "--is-ancestor", branch, baseBranch], {
+    stdio: "ignore",
+  });
+
+  if (result.status === 0) return false;
+  if (result.status === 1) return true;
+
+  throw new Error(
+    `Could not compare branch ${branch} against ${baseBranch} for unmerged commits.`,
+  );
+}
+
+function branchExists(branch: string): boolean {
+  const result = spawnSync("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
+    stdio: "ignore",
+  });
+
+  return result.status === 0;
+}
+
+function uniqueIssuesByBranch(issues: readonly PlannedIssue[]): PlannedIssue[] {
+  const seen = new Set<string>();
+  const unique: PlannedIssue[] = [];
+
+  for (const issue of issues) {
+    if (seen.has(issue.branch)) continue;
+    seen.add(issue.branch);
+    unique.push(issue);
+  }
+
+  return unique;
 }
 
 function getIssueContext(issueId: string): string {
