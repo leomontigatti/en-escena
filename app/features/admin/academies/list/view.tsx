@@ -1,4 +1,5 @@
 import { Building2 } from "lucide-react";
+import { Link } from "react-router";
 
 import {
   AdminEmptyState,
@@ -9,6 +10,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { Button } from "@/components/ui/button";
 
 import type { loadAdministrativeAcademiesList } from "./server";
 
@@ -64,6 +66,13 @@ export function AdministracionAcademiasRouteView({
       selectedEventId={loaderData.selectedEventId}
       title="Academias"
       description="Abrí la cuenta corriente de cada academia dentro del evento activo para registrar pagos y revisar su saldo disponible."
+      headerAction={
+        <Button asChild variant="outline">
+          <Link to="/administracion/academias/reporte">
+            Reporte de cuenta corriente
+          </Link>
+        </Button>
+      }
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar academias",
         description:

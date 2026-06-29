@@ -17,6 +17,10 @@ import {
   AdministracionAcademiaCuentaCorrienteRouteView,
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
+import {
+  AdministracionAcademiasReporteCuentaCorrienteRouteView,
+  loader as accountCurrentReportLoader,
+} from "@/routes/administracion.academias.reporte";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
 
 export async function createSavedEvent(
@@ -449,8 +453,28 @@ export function renderAccountCurrentRoute(input: {
   );
 }
 
+export function renderAccountCurrentReportRoute(input: {
+  loaderData: Awaited<ReturnType<typeof accountCurrentReportLoader>>;
+}) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      {
+        initialEntries: ["/administracion/academias/reporte"],
+      },
+      createElement(AdministracionAcademiasReporteCuentaCorrienteRouteView, {
+        loaderData: input.loaderData,
+      }),
+    ),
+  );
+}
+
 export function accountCurrentUrl(academyId: string, eventId: string) {
   return `http://localhost/administracion/academias/${academyId}?evento=${eventId}`;
+}
+
+export function reportUrl(eventId: string) {
+  return `http://localhost/administracion/academias/reporte?evento=${eventId}`;
 }
 
 export function routeArgs(request: Request) {
@@ -480,6 +504,16 @@ export function detailActionArgs(request: Request, academyId: string) {
     context: {},
     url: new URL(request.url),
     pattern: "/administracion/academias/:academyId",
+  };
+}
+
+export function reportRouteArgs(request: Request) {
+  return {
+    request,
+    params: {},
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/academias/reporte",
   };
 }
 
