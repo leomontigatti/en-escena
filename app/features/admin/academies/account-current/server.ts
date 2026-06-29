@@ -2,12 +2,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  academyEventChoreographyInvoices,
-  academyEventPayments,
-  choreographies,
-} from "@/db/schema";
+import { academies, academyEventPayments } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
   annulPayment,
@@ -28,6 +23,10 @@ import {
   listActiveImputationsForAcademyEvent,
 } from "@/lib/finances/payment-imputations.server";
 import {
+  readActiveAcademyEventInvoices,
+  readAcademyEventPaymentSummary,
+} from "@/lib/finances/academy-account-current.server";
+import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
@@ -36,10 +35,7 @@ import {
   readBalanceInvoiceCandidates,
   readDepositInvoiceCandidates,
 } from "./invoice-candidates.server";
-import {
-  readAcademyEventPaymentSummary,
-  registerAcademyEventPayment,
-} from "./payments.server";
+import { registerAcademyEventPayment } from "./payments.server";
 
 import {
   annulImputationSchema,
@@ -122,7 +118,7 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
               desc(academyEventPayments.createdAt),
             ],
           }),
-          readActiveInvoices({
+          readActiveAcademyEventInvoices({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -563,51 +559,6 @@ function correctionActionError(input: {
       payment: defaultRegisterPaymentValues(),
     },
   };
-}
-
-async function readActiveInvoices(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  return await db
-    .select({
-      administrativeDiscountAmount:
-        academyEventChoreographyInvoices.administrativeDiscountAmount,
-      administrativeDiscountPublicLabel:
-        academyEventChoreographyInvoices.administrativeDiscountPublicLabel,
-      amount: academyEventChoreographyInvoices.depositAmount,
-      appliedDepositAmount:
-        academyEventChoreographyInvoices.appliedDepositAmount,
-      choreographyId: choreographies.id,
-      choreographyName: choreographies.name,
-      dancerDiscountAmount:
-        academyEventChoreographyInvoices.dancerDiscountAmount,
-      depositCompletedOn: academyEventChoreographyInvoices.depositCompletedOn,
-      finalTotalAmount: academyEventChoreographyInvoices.finalTotalAmount,
-      id: academyEventChoreographyInvoices.id,
-      invoiceNumber: academyEventChoreographyInvoices.invoiceNumber,
-      invoiceType: academyEventChoreographyInvoices.invoiceType,
-      issueDate: academyEventChoreographyInvoices.issueDate,
-      selectedPaymentDeadline:
-        academyEventChoreographyInvoices.selectedPaymentDeadline,
-      totalDiscountAmount: academyEventChoreographyInvoices.totalDiscountAmount,
-    })
-    .from(academyEventChoreographyInvoices)
-    .innerJoin(
-      choreographies,
-      eq(academyEventChoreographyInvoices.choreographyId, choreographies.id),
-    )
-    .where(
-      and(
-        eq(academyEventChoreographyInvoices.academyId, input.academyId),
-        eq(academyEventChoreographyInvoices.eventId, input.eventId),
-        isNull(academyEventChoreographyInvoices.cancelledAt),
-      ),
-    )
-    .orderBy(
-      desc(academyEventChoreographyInvoices.issueDate),
-      desc(academyEventChoreographyInvoices.invoiceNumber),
-    );
 }
 
 async function readAcademy(academyId: string) {
