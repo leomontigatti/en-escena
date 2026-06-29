@@ -261,3 +261,49 @@ export function ActiveImputationsTable({
     </Card>
   );
 }
+
+export function MovementsTable({
+  movements,
+}: {
+  movements: AccountCurrentLoaderData["movements"];
+}) {
+  if (movements.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Movimientos</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Movimiento</TableHead>
+              <TableHead>Detalle</TableHead>
+              <TableHead>Actor</TableHead>
+              <TableHead>Motivo</TableHead>
+              <TableHead className="text-right">Importe</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {movements.map((movement) => (
+              <TableRow key={movement.key}>
+                <TableCell>{formatDate(movement.occurredOn)}</TableCell>
+                <TableCell className="font-medium">{movement.label}</TableCell>
+                <TableCell>{movement.detail}</TableCell>
+                <TableCell>{movement.actorEmail}</TableCell>
+                <TableCell>{movement.reason ?? ""}</TableCell>
+                <TableCell className="text-right">
+                  {formatAmount(movement.amount)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatAmount } from "./formatters";
 import {
   BalanceInvoiceForm,
+  CorrectionActionsForm,
   DepositInvoiceForm,
   PaymentForm,
   PaymentImputationForm,
@@ -20,6 +21,7 @@ import {
   ActiveDepositInvoicesTable,
   ActiveImputationsTable,
   ActivePaymentsTable,
+  MovementsTable,
 } from "./tables";
 import type { AccountCurrentLoaderData } from "./types";
 
@@ -102,6 +104,20 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           invoices={loaderData.activeBalanceInvoices}
         />
 
+        {loaderData.canCorrectRecords ? (
+          <CorrectionActionsForm
+            fieldErrors={fieldErrors}
+            invoices={loaderData.activeDepositInvoices.filter(
+              (invoice) => invoice.imputedAmount === 0,
+            )}
+            imputations={loaderData.imputations}
+            payments={loaderData.payments.filter(
+              (payment) => payment.imputedAmount === 0,
+            )}
+            values={values.correction}
+          />
+        ) : null}
+
         {loaderData.canImputePayments &&
         loaderData.payments.some((payment) => payment.availableAmount > 0) &&
         pendingInvoices.length > 0 ? (
@@ -122,6 +138,8 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
         <ActivePaymentsTable payments={loaderData.payments} />
 
         <ActiveImputationsTable imputations={loaderData.imputations} />
+
+        <MovementsTable movements={loaderData.movements} />
       </div>
     </AdminResourceLayout>
   );

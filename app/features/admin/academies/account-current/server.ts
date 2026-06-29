@@ -1,24 +1,23 @@
-import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
 import {
   academies,
   academyEventChoreographyInvoices,
-  academyEventInvoiceImputations,
   academyEventPayments,
   choreographies,
-  eventFinancialSequences,
-  modalities,
-  scheduleCapacities,
-  schedules,
-  submodalities,
 } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
+  annulPayment,
+  annulPaymentImputation,
+  cancelDepositInvoice,
+  type CorrectionResult,
+} from "@/lib/finances/account-current-corrections.server";
+import {
   issueDepositInvoices,
   issueBalanceInvoice,
-  listActiveInvoiceChoreographyIds,
   previewBalanceInvoice,
 } from "@/lib/finances/choreography-invoices.server";
 import {
@@ -28,18 +27,31 @@ import {
   listActiveImputationTotalsByIds,
   listActiveImputationsForAcademyEvent,
 } from "@/lib/finances/payment-imputations.server";
-import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
+import {
+  readBalanceInvoiceCandidates,
+  readDepositInvoiceCandidates,
+} from "./invoice-candidates.server";
+import {
+  readAcademyEventPaymentSummary,
+  registerAcademyEventPayment,
+} from "./payments.server";
 
 import {
+  annulImputationSchema,
+  annulPaymentSchema,
   balanceInvoiceFieldNames,
   balanceInvoiceSchema,
-  defaultBalanceInvoiceValues,
+  cancelInvoiceSchema,
+  type AccountCurrentCorrectionFormValues,
+  correctionFieldNames,
   defaultAccountCurrentActionValues,
+  defaultAccountCurrentCorrectionValues,
+  defaultBalanceInvoiceValues,
   defaultIssueDepositInvoicesValues,
   defaultPaymentImputationValues,
   defaultRegisterPaymentValues,
@@ -48,6 +60,7 @@ import {
   issueDepositInvoicesSchema,
   paymentFieldNames,
   paymentImputationSchema,
+  readAccountCurrentCorrectionValues,
   readBalanceInvoiceValues,
   readIssueDepositInvoicesValues,
   readPaymentImputationValues,
@@ -55,6 +68,12 @@ import {
   registerPaymentSchema,
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
+import { listAccountCurrentMovements } from "./movements";
+
+type CorrectionSchema =
+  | typeof annulImputationSchema
+  | typeof annulPaymentSchema
+  | typeof cancelInvoiceSchema;
 
 export async function loadAdministrativeAcademyAccountCurrent(input: {
   params: { academyId?: string };
@@ -77,9 +96,10 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
     depositInvoiceCandidates,
     balanceInvoiceCandidates,
     imputations,
+    movements,
   ] =
     eventContext.selectedEventId === null
-      ? [[], [], [], [], []]
+      ? [[], [], [], [], [], []]
       : await Promise.all([
           db.query.academyEventPayments.findMany({
             columns: {
@@ -115,6 +135,10 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
             eventId: eventContext.selectedEventId,
           }),
           listActiveImputationsForAcademyEvent({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+          listAccountCurrentMovements({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -155,6 +179,7 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
 
   return {
     academy,
+    canCorrectRecords: user.role === "admin",
     canIssueInvoices: user.role === "admin",
     canImputePayments: user.role === "admin",
     canRegisterPayments: user.role === "admin",
@@ -167,6 +192,7 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
     balanceInvoiceCandidates,
     depositInvoiceCandidates,
     imputations,
+    movements,
     payments: hydratedPayments,
     selectedEventId: eventContext.selectedEventId,
     summary,
@@ -192,6 +218,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     };
   }
 
+  const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
 
@@ -206,6 +233,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
         values: {
           balanceInvoice: defaultBalanceInvoiceValues(),
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: values,
@@ -217,7 +245,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       amount: Number(parsed.data.amount),
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       internalNote: parsed.data.internalNote || null,
       paymentDate: parsed.data.paymentDate,
       paymentMethod: parsed.data.paymentMethod,
@@ -238,6 +266,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
         values: {
           balanceInvoice: defaultBalanceInvoiceValues(),
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: values,
           payment: defaultRegisterPaymentValues(),
@@ -249,7 +278,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       choreographyIds: parsed.data.choreographyIds,
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       issueDate: parsed.data.issueDate,
     });
 
@@ -260,6 +289,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: result.fieldErrors,
         values: {
           balanceInvoice: defaultBalanceInvoiceValues(),
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: values,
           payment: defaultRegisterPaymentValues(),
@@ -281,6 +311,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
         values: {
           balanceInvoice: values,
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -298,7 +329,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       administrativeDiscountPublicLabel:
         parsed.data.administrativeDiscountPublicLabel || null,
       choreographyId: parsed.data.choreographyId,
-      eventId: eventContext.selectedEventId,
+      eventId,
       issueDate: parsed.data.issueDate,
     });
 
@@ -309,6 +340,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: result.fieldErrors,
         values: {
           balanceInvoice: values,
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -321,6 +353,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       preview: result.preview,
       values: {
         balanceInvoice: values,
+        correction: defaultAccountCurrentCorrectionValues(),
         imputation: defaultPaymentImputationValues(),
         invoice: defaultIssueDepositInvoicesValues(),
         payment: defaultRegisterPaymentValues(),
@@ -339,6 +372,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
         values: {
           balanceInvoice: values,
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -357,7 +391,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         parsed.data.administrativeDiscountPublicLabel || null,
       choreographyId: parsed.data.choreographyId,
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       issueDate: parsed.data.issueDate,
     });
 
@@ -368,6 +402,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: result.fieldErrors,
         values: {
           balanceInvoice: values,
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: defaultPaymentImputationValues(),
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -389,6 +424,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: getFieldErrors(parsed.error, imputationFieldNames),
         values: {
           balanceInvoice: defaultBalanceInvoiceValues(),
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: values,
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -400,7 +436,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       amount: Number(parsed.data.amount),
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       imputationDate: parsed.data.imputationDate,
       invoiceId: parsed.data.invoiceId,
       paymentId: parsed.data.paymentId,
@@ -413,6 +449,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
         fieldErrors: result.fieldErrors,
         values: {
           balanceInvoice: defaultBalanceInvoiceValues(),
+          correction: defaultAccountCurrentCorrectionValues(),
           imputation: values,
           invoice: defaultIssueDepositInvoicesValues(),
           payment: defaultRegisterPaymentValues(),
@@ -423,11 +460,108 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     throw redirect(input.request.url);
   }
 
+  if (intent === "annul-imputation") {
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: annulImputationSchema,
+      run: (data) =>
+        annulPaymentImputation({
+          academyId,
+          annulledByUserId: adminUser.id,
+          eventId,
+          imputationId: data.imputationId,
+          reason: data.reason,
+        }),
+    });
+  }
+
+  if (intent === "cancel-invoice") {
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: cancelInvoiceSchema,
+      run: (data) =>
+        cancelDepositInvoice({
+          academyId,
+          cancelledByUserId: adminUser.id,
+          eventId,
+          invoiceId: data.invoiceId,
+          reason: data.reason,
+        }),
+    });
+  }
+
+  if (intent === "annul-payment") {
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: annulPaymentSchema,
+      run: (data) =>
+        annulPayment({
+          academyId,
+          annulledByUserId: adminUser.id,
+          eventId,
+          paymentId: data.paymentId,
+          reason: data.reason,
+        }),
+    });
+  }
+
   return {
     status: "error",
     message: "No pudimos procesar esa acción.",
     fieldErrors: {},
     values: defaultAccountCurrentActionValues(),
+  };
+}
+
+async function handleCorrectionAction(input: {
+  formData: FormData;
+  requestUrl: string;
+  run: (data: AccountCurrentCorrectionFormValues) => Promise<CorrectionResult>;
+  schema: CorrectionSchema;
+}): Promise<AdministrativeAcademyAccountCurrentActionData | never> {
+  const values = readAccountCurrentCorrectionValues(input.formData);
+  const parsed = input.schema.safeParse(values);
+
+  if (!parsed.success) {
+    return correctionActionError({
+      fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
+      message: "Revisá los datos de la corrección.",
+      values,
+    });
+  }
+
+  const result = await input.run(values);
+
+  if (!result.ok) {
+    return correctionActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values,
+    });
+  }
+
+  throw redirect(input.requestUrl);
+}
+
+function correctionActionError(input: {
+  fieldErrors: Partial<Record<string, string>>;
+  message: string;
+  values: AccountCurrentCorrectionFormValues;
+}): AdministrativeAcademyAccountCurrentActionData {
+  return {
+    status: "error",
+    message: input.message,
+    fieldErrors: input.fieldErrors,
+    values: {
+      balanceInvoice: defaultBalanceInvoiceValues(),
+      correction: input.values,
+      imputation: defaultPaymentImputationValues(),
+      invoice: defaultIssueDepositInvoicesValues(),
+      payment: defaultRegisterPaymentValues(),
+    },
   };
 }
 
@@ -476,123 +610,6 @@ async function readActiveInvoices(input: {
     );
 }
 
-async function readDepositInvoiceCandidates(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  const choreographyRows = await db
-    .select({
-      createdAt: choreographies.createdAt,
-      id: choreographies.id,
-      modalityName: modalities.name,
-      name: choreographies.name,
-      groupType: choreographies.groupType,
-      scheduleId: schedules.id,
-      submodalityName: submodalities.name,
-    })
-    .from(choreographies)
-    .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
-    .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .leftJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
-    .where(
-      and(
-        eq(choreographies.academyId, input.academyId),
-        eq(choreographies.eventId, input.eventId),
-      ),
-    )
-    .orderBy(asc(choreographies.name), asc(choreographies.createdAt));
-
-  const activeInvoiceIds = await listActiveInvoiceChoreographyIds(
-    choreographyRows.map((row) => row.id),
-  );
-  const eligibleRows = choreographyRows.filter(
-    (row) => !activeInvoiceIds.has(row.id),
-  );
-
-  return await Promise.all(
-    eligibleRows.map(async (row) => {
-      const priceResult = await resolveApplicablePrice({
-        eventId: input.eventId,
-        groupType: row.groupType,
-        paymentDate: new Date(),
-        scheduleId: row.scheduleId,
-      });
-
-      return {
-        createdOn: row.createdAt.toISOString().slice(0, 10),
-        estimatedBasePriceAmount: priceResult.ok
-          ? priceResult.price.amount
-          : null,
-        id: row.id,
-        modalityLabel: [row.modalityName, row.submodalityName]
-          .filter(Boolean)
-          .join(" / "),
-        name: row.name,
-        selectedPaymentDeadline:
-          priceResult.ok === true ? priceResult.price.paymentDeadline : null,
-      };
-    }),
-  );
-}
-
-async function readBalanceInvoiceCandidates(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  const choreographyRows = await db
-    .select({
-      id: choreographies.id,
-      name: choreographies.name,
-    })
-    .from(choreographies)
-    .where(
-      and(
-        eq(choreographies.academyId, input.academyId),
-        eq(choreographies.eventId, input.eventId),
-      ),
-    )
-    .orderBy(asc(choreographies.name), asc(choreographies.createdAt));
-
-  const [activeBalanceInvoiceIds, paidDepositInvoices] = await Promise.all([
-    listActiveInvoiceChoreographyIds(
-      choreographyRows.map((row) => row.id),
-      "saldo",
-    ),
-    db.query.academyEventChoreographyInvoices.findMany({
-      columns: {
-        choreographyId: true,
-        depositCompletedOn: true,
-      },
-      where: and(
-        eq(academyEventChoreographyInvoices.academyId, input.academyId),
-        eq(academyEventChoreographyInvoices.eventId, input.eventId),
-        eq(academyEventChoreographyInvoices.invoiceType, "sena"),
-        isNull(academyEventChoreographyInvoices.cancelledAt),
-      ),
-    }),
-  ]);
-
-  const paidDepositIds = new Set(
-    paidDepositInvoices
-      .filter((invoice) => invoice.depositCompletedOn !== null)
-      .map((invoice) => invoice.choreographyId),
-  );
-
-  return choreographyRows.filter(
-    (row) => paidDepositIds.has(row.id) && !activeBalanceInvoiceIds.has(row.id),
-  );
-}
-
 async function readAcademy(academyId: string) {
   const academy = await db.query.academies.findFirst({
     columns: {
@@ -609,122 +626,6 @@ async function readAcademy(academyId: string) {
   }
 
   return academy;
-}
-
-async function readAcademyEventPaymentSummary(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  const [[paymentRow], [invoiceRow], [imputationRow]] = await Promise.all([
-    db
-      .select({
-        totalPaidAmount:
-          sql<number>`coalesce(sum(${academyEventPayments.amount}), 0)`.mapWith(
-            Number,
-          ),
-      })
-      .from(academyEventPayments)
-      .where(
-        and(
-          eq(academyEventPayments.academyId, input.academyId),
-          eq(academyEventPayments.eventId, input.eventId),
-          isNull(academyEventPayments.annulledAt),
-        ),
-      ),
-    db
-      .select({
-        totalInvoiceAmount:
-          sql<number>`coalesce(sum(${academyEventChoreographyInvoices.depositAmount}), 0)`.mapWith(
-            Number,
-          ),
-      })
-      .from(academyEventChoreographyInvoices)
-      .where(
-        and(
-          eq(academyEventChoreographyInvoices.academyId, input.academyId),
-          eq(academyEventChoreographyInvoices.eventId, input.eventId),
-          isNull(academyEventChoreographyInvoices.cancelledAt),
-        ),
-      ),
-    db
-      .select({
-        totalImputedAmount:
-          sql<number>`coalesce(sum(${academyEventInvoiceImputations.amount}), 0)`.mapWith(
-            Number,
-          ),
-      })
-      .from(academyEventInvoiceImputations)
-      .where(
-        and(
-          eq(academyEventInvoiceImputations.academyId, input.academyId),
-          eq(academyEventInvoiceImputations.eventId, input.eventId),
-          isNull(academyEventInvoiceImputations.annulledAt),
-        ),
-      ),
-  ]);
-  const totalPaidAmount = Number(paymentRow?.totalPaidAmount ?? 0);
-  const totalInvoiceAmount = Number(invoiceRow?.totalInvoiceAmount ?? 0);
-  const totalImputedAmount = Number(imputationRow?.totalImputedAmount ?? 0);
-
-  return {
-    totalPaidAmount,
-    availableBalanceAmount: totalPaidAmount - totalImputedAmount,
-    owedAmount: Math.max(0, totalInvoiceAmount - totalImputedAmount),
-  };
-}
-
-async function registerAcademyEventPayment(input: {
-  academyId: string;
-  amount: number;
-  createdByUserId: string;
-  eventId: string;
-  internalNote: string | null;
-  paymentDate: string;
-  paymentMethod: (typeof academyEventPayments.$inferInsert)["paymentMethod"];
-  reference: string | null;
-}) {
-  return await db.transaction(async (tx) => {
-    await tx
-      .insert(eventFinancialSequences)
-      .values({
-        eventId: input.eventId,
-      })
-      .onConflictDoNothing();
-
-    const [sequence] = await tx
-      .select({
-        nextPaymentNumber: eventFinancialSequences.nextPaymentNumber,
-      })
-      .from(eventFinancialSequences)
-      .where(eq(eventFinancialSequences.eventId, input.eventId))
-      .for("update");
-
-    if (!sequence) {
-      throw new Error("Expected event financial sequence to exist.");
-    }
-
-    const paymentNumber = sequence.nextPaymentNumber;
-
-    await tx.insert(academyEventPayments).values({
-      academyId: input.academyId,
-      amount: input.amount,
-      createdByUserId: input.createdByUserId,
-      eventId: input.eventId,
-      internalNote: input.internalNote,
-      paymentDate: input.paymentDate,
-      paymentMethod: input.paymentMethod,
-      paymentNumber,
-      reference: input.reference,
-    });
-
-    await tx
-      .update(eventFinancialSequences)
-      .set({
-        nextPaymentNumber: paymentNumber + 1,
-        updatedAt: new Date(),
-      })
-      .where(eq(eventFinancialSequences.eventId, input.eventId));
-  });
 }
 
 function readAcademyId(params: { academyId?: string }) {

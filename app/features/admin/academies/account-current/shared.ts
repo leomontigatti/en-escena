@@ -46,11 +46,18 @@ export const imputationFieldNames = [
   "imputationDate",
   "amount",
 ] as const;
+export const correctionFieldNames = [
+  "paymentId",
+  "invoiceId",
+  "imputationId",
+  "reason",
+] as const;
 
 export type PaymentFieldName = (typeof paymentFieldNames)[number];
 export type InvoiceFieldName = (typeof invoiceFieldNames)[number];
 export type BalanceInvoiceFieldName = (typeof balanceInvoiceFieldNames)[number];
 export type ImputationFieldName = (typeof imputationFieldNames)[number];
+export type CorrectionFieldName = (typeof correctionFieldNames)[number];
 
 export type RegisterPaymentFormValues = {
   amount: string;
@@ -78,6 +85,13 @@ export type BalanceInvoiceFormValues = {
   administrativeDiscountPublicLabel: string;
   choreographyId: string;
   issueDate: string;
+};
+
+export type AccountCurrentCorrectionFormValues = {
+  imputationId: string;
+  invoiceId: string;
+  paymentId: string;
+  reason: string;
 };
 
 export const registerPaymentSchema = z.object({
@@ -260,6 +274,31 @@ export type BalanceInvoicePreviewData = {
   totalDiscountAmount: number;
 };
 
+const correctionReasonSchema = z.string().trim().min(1, {
+  message: "Ingresá un motivo para registrar esta corrección.",
+});
+
+export const annulImputationSchema = z.object({
+  imputationId: z.string().trim().min(1, {
+    message: "Seleccioná una imputación.",
+  }),
+  reason: correctionReasonSchema,
+});
+
+export const cancelInvoiceSchema = z.object({
+  invoiceId: z.string().trim().min(1, {
+    message: "Seleccioná una factura.",
+  }),
+  reason: correctionReasonSchema,
+});
+
+export const annulPaymentSchema = z.object({
+  paymentId: z.string().trim().min(1, {
+    message: "Seleccioná un Pago.",
+  }),
+  reason: correctionReasonSchema,
+});
+
 export type AdministrativeAcademyAccountCurrentActionData =
   | {
       fieldErrors: Partial<
@@ -267,7 +306,8 @@ export type AdministrativeAcademyAccountCurrentActionData =
           | PaymentFieldName
           | InvoiceFieldName
           | BalanceInvoiceFieldName
-          | ImputationFieldName,
+          | ImputationFieldName
+          | CorrectionFieldName,
           string
         >
       >;
@@ -275,6 +315,7 @@ export type AdministrativeAcademyAccountCurrentActionData =
       status: "error";
       values: {
         balanceInvoice: BalanceInvoiceFormValues;
+        correction: AccountCurrentCorrectionFormValues;
         imputation: PaymentImputationFormValues;
         invoice: IssueDepositInvoicesFormValues;
         payment: RegisterPaymentFormValues;
@@ -285,6 +326,7 @@ export type AdministrativeAcademyAccountCurrentActionData =
       status: "preview";
       values: {
         balanceInvoice: BalanceInvoiceFormValues;
+        correction: AccountCurrentCorrectionFormValues;
         imputation: PaymentImputationFormValues;
         invoice: IssueDepositInvoicesFormValues;
         payment: RegisterPaymentFormValues;
@@ -327,9 +369,19 @@ export function defaultBalanceInvoiceValues(): BalanceInvoiceFormValues {
   };
 }
 
+export function defaultAccountCurrentCorrectionValues(): AccountCurrentCorrectionFormValues {
+  return {
+    imputationId: "",
+    invoiceId: "",
+    paymentId: "",
+    reason: "",
+  };
+}
+
 export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
   return {
     balanceInvoice: defaultBalanceInvoiceValues(),
+    correction: defaultAccountCurrentCorrectionValues(),
     imputation: defaultPaymentImputationValues(),
     invoice: defaultIssueDepositInvoicesValues(),
     payment: defaultRegisterPaymentValues(),
@@ -389,6 +441,17 @@ export function readBalanceInvoiceValues(
     ).trim(),
     choreographyId: String(formData.get("choreographyId") ?? "").trim(),
     issueDate: String(formData.get("issueDate") ?? "").trim(),
+  };
+}
+
+export function readAccountCurrentCorrectionValues(
+  formData: FormData,
+): AccountCurrentCorrectionFormValues {
+  return {
+    imputationId: String(formData.get("imputationId") ?? "").trim(),
+    invoiceId: String(formData.get("invoiceId") ?? "").trim(),
+    paymentId: String(formData.get("paymentId") ?? "").trim(),
+    reason: String(formData.get("reason") ?? "").trim(),
   };
 }
 

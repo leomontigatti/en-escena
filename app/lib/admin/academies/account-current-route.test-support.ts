@@ -296,6 +296,84 @@ export async function buildPaymentImputationRequest(input: {
   };
 }
 
+export async function buildAnnulImputationRequest(input: {
+  imputationId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  return await buildCorrectionRequest({
+    fieldName: "imputationId",
+    fieldValue: input.imputationId,
+    intent: "annul-imputation",
+    reason: input.reason,
+    requestUrl: input.requestUrl,
+    role: input.role,
+  });
+}
+
+export async function buildCancelInvoiceRequest(input: {
+  invoiceId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  return await buildCorrectionRequest({
+    fieldName: "invoiceId",
+    fieldValue: input.invoiceId,
+    intent: "cancel-invoice",
+    reason: input.reason,
+    requestUrl: input.requestUrl,
+    role: input.role,
+  });
+}
+
+export async function buildAnnulPaymentRequest(input: {
+  paymentId: string;
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  return await buildCorrectionRequest({
+    fieldName: "paymentId",
+    fieldValue: input.paymentId,
+    intent: "annul-payment",
+    reason: input.reason,
+    requestUrl: input.requestUrl,
+    role: input.role,
+  });
+}
+
+async function buildCorrectionRequest(input: {
+  fieldName: "imputationId" | "invoiceId" | "paymentId";
+  fieldValue: string;
+  intent: "annul-imputation" | "annul-payment" | "cancel-invoice";
+  reason: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", input.intent);
+  formData.set(input.fieldName, input.fieldValue);
+  formData.set("reason", input.reason);
+
+  return {
+    userId: signedIn.userId,
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
 export async function registerPaymentForTest(input: {
   academyId: string;
   amount: string;
