@@ -41,6 +41,7 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import {
   annulImputationSchema,
   annulPaymentSchema,
+  type AccountCurrentCorrectionFormValues,
   cancelInvoiceSchema,
   defaultAccountCurrentActionValues,
   defaultAccountCurrentCorrectionValues,
@@ -61,6 +62,13 @@ import {
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
 import { listAccountCurrentMovements } from "./movements";
+
+type CorrectionSchema =
+  | typeof annulImputationSchema
+  | typeof annulPaymentSchema
+  | typeof cancelInvoiceSchema;
+
+type CorrectionResult = Awaited<ReturnType<typeof annulPaymentImputation>>;
 
 export async function loadAdministrativeAcademyAccountCurrent(input: {
   params: { academyId?: string };
@@ -194,6 +202,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     };
   }
 
+  const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
 
@@ -219,7 +228,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       amount: Number(parsed.data.amount),
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       internalNote: parsed.data.internalNote || null,
       paymentDate: parsed.data.paymentDate,
       paymentMethod: parsed.data.paymentMethod,
@@ -251,7 +260,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       choreographyIds: parsed.data.choreographyIds,
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       issueDate: parsed.data.issueDate,
     });
 
@@ -294,7 +303,7 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
       academyId,
       amount: Number(parsed.data.amount),
       createdByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
+      eventId,
       imputationDate: parsed.data.imputationDate,
       invoiceId: parsed.data.invoiceId,
       paymentId: parsed.data.paymentId,
@@ -318,132 +327,51 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
   }
 
   if (intent === "annul-imputation") {
-    const values = readAccountCurrentCorrectionValues(formData);
-    const parsed = annulImputationSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la corrección.",
-        fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await annulPaymentImputation({
-      academyId,
-      annulledByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
-      imputationId: parsed.data.imputationId,
-      reason: parsed.data.reason,
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: annulImputationSchema,
+      run: (data) =>
+        annulPaymentImputation({
+          academyId,
+          annulledByUserId: adminUser.id,
+          eventId,
+          imputationId: data.imputationId,
+          reason: data.reason,
+        }),
     });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
   }
 
   if (intent === "cancel-invoice") {
-    const values = readAccountCurrentCorrectionValues(formData);
-    const parsed = cancelInvoiceSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la corrección.",
-        fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await cancelDepositInvoice({
-      academyId,
-      cancelledByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
-      invoiceId: parsed.data.invoiceId,
-      reason: parsed.data.reason,
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: cancelInvoiceSchema,
+      run: (data) =>
+        cancelDepositInvoice({
+          academyId,
+          cancelledByUserId: adminUser.id,
+          eventId,
+          invoiceId: data.invoiceId,
+          reason: data.reason,
+        }),
     });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
   }
 
   if (intent === "annul-payment") {
-    const values = readAccountCurrentCorrectionValues(formData);
-    const parsed = annulPaymentSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la corrección.",
-        fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await annulPayment({
-      academyId,
-      annulledByUserId: adminUser.id,
-      eventId: eventContext.selectedEventId,
-      paymentId: parsed.data.paymentId,
-      reason: parsed.data.reason,
+    return await handleCorrectionAction({
+      formData,
+      requestUrl: input.request.url,
+      schema: annulPaymentSchema,
+      run: (data) =>
+        annulPayment({
+          academyId,
+          annulledByUserId: adminUser.id,
+          eventId,
+          paymentId: data.paymentId,
+          reason: data.reason,
+        }),
     });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          correction: values,
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
   }
 
   return {
@@ -451,6 +379,54 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
     message: "No pudimos procesar esa acción.",
     fieldErrors: {},
     values: defaultAccountCurrentActionValues(),
+  };
+}
+
+async function handleCorrectionAction(input: {
+  formData: FormData;
+  requestUrl: string;
+  run: (data: AccountCurrentCorrectionFormValues) => Promise<CorrectionResult>;
+  schema: CorrectionSchema;
+}): Promise<AdministrativeAcademyAccountCurrentActionData | never> {
+  const values = readAccountCurrentCorrectionValues(input.formData);
+  const parsed = input.schema.safeParse(values);
+
+  if (!parsed.success) {
+    return correctionActionError({
+      fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
+      message: "Revisá los datos de la corrección.",
+      values,
+    });
+  }
+
+  const result = await input.run(values);
+
+  if (!result.ok) {
+    return correctionActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values,
+    });
+  }
+
+  throw redirect(input.requestUrl);
+}
+
+function correctionActionError(input: {
+  fieldErrors: AdministrativeAcademyAccountCurrentActionData["fieldErrors"];
+  message: string;
+  values: AccountCurrentCorrectionFormValues;
+}): AdministrativeAcademyAccountCurrentActionData {
+  return {
+    status: "error",
+    message: input.message,
+    fieldErrors: input.fieldErrors,
+    values: {
+      correction: input.values,
+      imputation: defaultPaymentImputationValues(),
+      invoice: defaultIssueDepositInvoicesValues(),
+      payment: defaultRegisterPaymentValues(),
+    },
   };
 }
 
