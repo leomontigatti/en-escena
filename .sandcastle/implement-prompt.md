@@ -78,34 +78,34 @@ If applicable, use RGR to complete the task.
 
 Before committing, run the validation commands in this order:
 
-1. `npm run format` when you need to apply formatting, otherwise
-   `npm run format:check` for final formatting verification
-2. `npm run check:repo-styles` when the change adds or edits app UI code
-3. `npm run check:file-tokens`
-4. `npm run typecheck`
-5. `npm run test`
-6. `npm run test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-7. `npm run build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
+1. `pnpm format` when you need to apply formatting, otherwise
+   `pnpm format:check` for final formatting verification
+2. `pnpm check:repo-styles` when the change adds or edits app UI code
+3. `pnpm check:file-tokens`
+4. `pnpm typecheck`
+5. `pnpm test`
+6. `pnpm test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
+7. `pnpm build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 Do not start `typecheck`, tests, DB tests, or build while formatting or
 `format:check` is failing, while repo-style or file-token checks are failing, or
 while formatting changes are unverified. Do not run validation commands in
 parallel when later commands depend on earlier code state.
-`npm run check:file-tokens` is strict for staged application source files. If it
+`pnpm check:file-tokens` is strict for staged application source files. If it
 fails, split at a clear module boundary before committing; do not create shallow
 wrappers just to reduce token count.
 When validation output is long, use the failing test names, error summaries, and
 focused reruns to diagnose. Do not paste or re-read full logs when a narrower
 command gives the needed signal.
 During development, use focused test commands for the code you are changing.
-For focused DB tests, use `npm run test:db:file -- <path-to-db-test>`; this
+For focused DB tests, use `pnpm test:db:file -- <path-to-db-test>`; this
 uses the fast PGlite harness for one file. Do not expect
-`npm run test:db -- <path>` to narrow the suite.
-For final database-backed validation, use `npm run test:db`; this is the
+`pnpm test:db -- <path>` to narrow the suite.
+For final database-backed validation, use `pnpm test:db`; this is the
 reliable Postgres path through `TEST_DATABASE_URL`. Do not use the experimental
-full PGlite suite (`npm run test:db:fast:full`) as the final confidence check.
-Run the full validation sequence once at the end. If `npm run test:db` fails
+full PGlite suite (`pnpm test:db:fast:full`) as the final confidence check.
+Run the full validation sequence once at the end. If `pnpm test:db` fails
 because of infrastructure or unrelated database state, do a focused diagnosis
 before repeating the full DB suite. Do not run multiple DB validation commands
 in parallel against the shared test database.

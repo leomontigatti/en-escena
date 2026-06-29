@@ -20,6 +20,12 @@ The repository must have at least one commit before Sandcastle runs. Sandcastle
 creates Git worktrees from `HEAD`, so an unborn branch such as `No commits yet on
 master` cannot be used as the base.
 
+After changing `.sandcastle/Dockerfile`, rebuild the sandbox image:
+
+```bash
+pnpm exec sandcastle docker build-image
+```
+
 Sandcastle uses the host Codex CLI ChatGPT login, not an OpenAI Platform API
 key. Run this on the host before starting Sandcastle:
 
@@ -41,7 +47,7 @@ docker compose up -d postgres
 
 Sandcastle containers attach to the `en-escena_default` Docker network by
 default and receive `DATABASE_URL` and `TEST_DATABASE_URL` pointing at the
-Compose service hostname `postgres`. This lets agents run `npm run test:db` for
+Compose service hostname `postgres`. This lets agents run `pnpm test:db` for
 persistence-backed changes without accidentally using the host development
 database URL.
 
@@ -54,7 +60,7 @@ example, issue 34 uses `en-escena-test-issue-34`, and the merge phase uses
 Run the normal planner workflow:
 
 ```bash
-npm run sandcastle
+pnpm sandcastle
 ```
 
 The planner only loads open issues labeled `ready-for-agent`.
@@ -62,15 +68,15 @@ The planner only loads open issues labeled `ready-for-agent`.
 Run a single issue without changing labels on the rest of the backlog:
 
 ```bash
-npm run sandcastle -- --issue 4
+pnpm sandcastle -- --issue 4
 ```
 
 Equivalent forms:
 
 ```bash
-npm run sandcastle -- 4
-npm run sandcastle -- --issue=4
-npm run sandcastle -- -i 4
+pnpm sandcastle -- 4
+pnpm sandcastle -- --issue=4
+pnpm sandcastle -- -i 4
 ```
 
 Single-issue mode skips the planner, verifies that the issue is open and labeled
@@ -80,15 +86,15 @@ Single-issue mode skips the planner, verifies that the issue is open and labeled
 
 Sandcastle prompts must preserve this repo's validation order:
 
-1. `npm run format` when formatting needs to be applied, otherwise
-   `npm run format:check` for final formatting verification
-2. `npm run check:repo-styles` when the change adds or edits app UI code
-3. `npm run check:file-tokens`
-4. `npm run typecheck`
-5. `npm run test`
-6. `npm run test:db` when the change touches database schema, repositories,
+1. `pnpm format` when formatting needs to be applied, otherwise
+   `pnpm format:check` for final formatting verification
+2. `pnpm check:repo-styles` when the change adds or edits app UI code
+3. `pnpm check:file-tokens`
+4. `pnpm typecheck`
+5. `pnpm test`
+6. `pnpm test:db` when the change touches database schema, repositories,
    loaders/actions that persist data, or persistence-backed business rules
-7. `npm run build` when the change touches routing, server rendering, bundling,
+7. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix it and rerun that same command before starting the next
@@ -96,20 +102,20 @@ validation command. Do not run `typecheck`, tests, DB tests, or build while
 formatting, `format:check`, repo-style checks, or file-token checks are still
 broken.
 
-`npm run check:file-tokens` is strict for staged application source files.
+`pnpm check:file-tokens` is strict for staged application source files.
 Sandcastle agents should split files at real module boundaries before committing
 instead of adding shallow pass-through wrappers to satisfy the token limit.
 
 During development, focused DB tests can target one file:
 
 ```bash
-npm run test:db:file -- app/lib/example.db.test.ts
+pnpm test:db:file -- app/lib/example.db.test.ts
 ```
 
-Focused DB tests use the fast PGlite harness. Use full `npm run test:db` before
+Focused DB tests use the fast PGlite harness. Use full `pnpm test:db` before
 finishing database-backed work; it is the reliable Postgres path through
-`TEST_DATABASE_URL`. `npm run test:db:fast:full` is an experimental full PGlite
+`TEST_DATABASE_URL`. `pnpm test:db:fast:full` is an experimental full PGlite
 suite for harness debugging, not a final confidence check.
 
-Do not use `npx tsc` directly in this repo. `npm run typecheck` generates React
+Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates React
 Router route types before running TypeScript.

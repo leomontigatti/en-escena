@@ -17,10 +17,10 @@
 // issues are picked up after each round of merges.
 //
 // Usage:
-//   npx tsx .sandcastle/main.mts
-//   npx tsx .sandcastle/main.mts --issue 4
+//   pnpm exec tsx .sandcastle/main.mts
+//   pnpm exec tsx .sandcastle/main.mts --issue 4
 // Or add to package.json:
-//   "scripts": { "sandcastle": "npx tsx .sandcastle/main.mts" }
+//   "scripts": { "sandcastle": "pnpm exec tsx .sandcastle/main.mts" }
 
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
@@ -78,15 +78,17 @@ const ISSUE_COMMENT_MAX_COUNT = 3;
 const POSTGRES_IDENTIFIER_MAX_LENGTH = 63;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
-// npm install ensures the sandbox always has fresh dependencies.
+// pnpm install ensures the sandbox always has fresh dependencies.
 const hooks = {
   sandbox: {
-    onSandboxReady: [{ command: "npm install" }],
+    onSandboxReady: [
+      { command: "corepack pnpm install --frozen-lockfile", timeoutMs: 300_000 },
+    ],
   },
 };
 
 // Copy node_modules from the host into the worktree before each sandbox
-// starts. Avoids a full npm install from scratch; the hook above handles
+// starts. Avoids a full pnpm install from scratch; the hook above handles
 // platform-specific binaries and any packages added since the last copy.
 const copyToWorktree = ["node_modules"];
 
@@ -143,7 +145,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // runs first; if it produces commits, the reviewer runs in the same sandbox.
   //
   // Settled-result collection means one failing pipeline doesn't cancel the others.
-  // runWithConcurrency limits pressure on Docker, npm install, and Postgres.
+  // runWithConcurrency limits pressure on Docker, pnpm install, and Postgres.
   // -------------------------------------------------------------------------
 
   const settled = await runWithConcurrency(
@@ -291,7 +293,7 @@ function parseIssueArg(args: readonly string[]): string | undefined {
 }
 
 function usageMessage(): string {
-  return "Usage: npm run sandcastle [-- --issue <number>] or npm run sandcastle [-- <number>]";
+  return "Usage: pnpm sandcastle [--issue <number>] or pnpm sandcastle [<number>]";
 }
 
 function createCodexAgent(model = CODEX_MODEL): ReturnType<typeof sandcastle.codex> {

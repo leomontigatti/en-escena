@@ -25,7 +25,8 @@ ARG AGENT_GID=1000
 RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
 
 # Install Codex CLI (run as root before USER agent)
-RUN npm install -g @openai/codex
+RUN npm install -g @openai/codex \
+  && corepack enable
 
 USER ${AGENT_UID}:${AGENT_GID}
 
