@@ -82,7 +82,11 @@ const POSTGRES_IDENTIFIER_MAX_LENGTH = 63;
 const hooks = {
   sandbox: {
     onSandboxReady: [
-      { command: "corepack pnpm install --frozen-lockfile", timeoutMs: 300_000 },
+      {
+        command:
+          "CI=true corepack pnpm install --frozen-lockfile --store-dir /home/agent/.pnpm-store",
+        timeoutMs: 300_000,
+      },
     ],
   },
 };
