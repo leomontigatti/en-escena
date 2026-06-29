@@ -251,6 +251,28 @@ describe.sequential(
         status: 302,
       });
 
+      const { request: cancelledInvoiceImputationRequest } =
+        await buildPaymentImputationRequest({
+          amount: "3000",
+          imputationDate: "2026-03-22",
+          invoiceId: invoice.id,
+          paymentId: payment.id,
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const cancelledInvoiceImputationResult = await accountCurrentAction(
+        detailActionArgs(cancelledInvoiceImputationRequest, academy.academy.id),
+      );
+
+      expect(cancelledInvoiceImputationResult).toMatchObject({
+        status: "error",
+        message: "Revisá los datos de la imputación.",
+        fieldErrors: {
+          paymentId: "Pago o factura inválidos para esta academia.",
+        },
+      });
+
       const { request: annulPaymentRequest, userId: annullingPaymentUserId } =
         await buildAnnulPaymentRequest({
           paymentId: payment.id,
