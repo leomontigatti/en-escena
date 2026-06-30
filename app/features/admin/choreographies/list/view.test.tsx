@@ -143,20 +143,16 @@ describe("AdministracionCoreografiasRouteView", () => {
     const href = buildDataTableFilterHref({
       basePath: "/administracion/coreografias",
       currentSearch: "?busqueda=Luna&orden=nombre:desc&pagina=2",
-      filter: {
-        columnId: "filters",
-        label: "Filtros",
-        groups: [
-          {
-            id: "estado",
-            label: "Estado",
-            options: [
-              { label: "Completa", value: "completa" },
-              { label: "Incompleta", value: "incompleta" },
-            ],
-          },
-        ],
-      },
+      groups: [
+        {
+          id: "estado",
+          label: "Estado",
+          options: [
+            { label: "Completa", value: "completa" },
+            { label: "Incompleta", value: "incompleta" },
+          ],
+        },
+      ],
       pageParamName: "pagina",
       values: { estado: "completa" },
     });

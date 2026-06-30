@@ -43,9 +43,13 @@ type ScheduleResolution =
 
 export function useChoreographyRosterEditorForm({
   actionData,
+  hasMusicChanged,
+  musicHasValidationError,
   loaderData,
 }: {
   actionData: ChoreographyRosterEditorActionData;
+  hasMusicChanged: boolean;
+  musicHasValidationError: boolean;
   loaderData: ChoreographyRosterEditorLoaderData;
 }) {
   const experienceLevelFieldId = useId();
@@ -112,6 +116,8 @@ export function useChoreographyRosterEditorForm({
   const canEditDancers = loaderData.dancerEditingEligibility.canEdit;
   const canEditProfessors =
     !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
+  const canEditMusic =
+    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
   const isResolving = resolutionFetcher.state !== "idle";
   const isSubmitting =
     navigation.state !== "idle" &&
@@ -168,13 +174,16 @@ export function useChoreographyRosterEditorForm({
   );
   const canSubmit = canSubmitChoreographyEdit({
     canEditDancers,
+    canEditMusic,
     canEditProfessors,
     dancerSelectionKey,
     derivedResolution,
+    hasMusicChanged,
     hasProfessorsChanged,
     hasRosterChanged,
     isResolving,
     isSubmitting,
+    musicHasValidationError,
     resolution,
     resolvedSelectionKey,
     scheduleResolution,
@@ -198,8 +207,10 @@ export function useChoreographyRosterEditorForm({
     submittedSelectionKeyRef.current = null;
   }, [
     actionData?.selectedExperienceLevelId,
+    actionData?.selectedMusicStorageKey,
     actionData?.selectedScheduleCapacityId,
     choreography.experienceLevelId,
+    choreography.musicStorageKey,
     choreography.scheduleCapacityId,
     form,
     persistedResolution,
@@ -377,6 +388,7 @@ export function useChoreographyRosterEditorForm({
 
   return {
     canEditDancers,
+    canEditMusic,
     canEditProfessors,
     canSubmit,
     dancerOptions,
@@ -415,6 +427,8 @@ function buildChoreographyEditDefaultValues({
       actionData?.selectedExperienceLevelId ??
       choreography.experienceLevelId ??
       "",
+    musicStorageKey:
+      actionData?.selectedMusicStorageKey ?? choreography.musicStorageKey ?? "",
     scheduleCapacityId:
       actionData?.selectedScheduleCapacityId ??
       choreography.scheduleCapacityId ??
@@ -424,13 +438,16 @@ function buildChoreographyEditDefaultValues({
 
 function canSubmitChoreographyEdit({
   canEditDancers,
+  canEditMusic,
   canEditProfessors,
   dancerSelectionKey,
   derivedResolution,
   hasProfessorsChanged,
+  hasMusicChanged,
   hasRosterChanged,
   isResolving,
   isSubmitting,
+  musicHasValidationError,
   resolution,
   resolvedSelectionKey,
   scheduleResolution,
@@ -439,13 +456,16 @@ function canSubmitChoreographyEdit({
   watchedScheduleCapacityId,
 }: {
   canEditDancers: boolean;
+  canEditMusic: boolean;
   canEditProfessors: boolean;
   dancerSelectionKey: string;
   derivedResolution: DancerResolutionState;
   hasProfessorsChanged: boolean;
+  hasMusicChanged: boolean;
   hasRosterChanged: boolean;
   isResolving: boolean;
   isSubmitting: boolean;
+  musicHasValidationError: boolean;
   resolution: ResolveChoreographyDancersResult | null;
   resolvedSelectionKey: string;
   scheduleResolution: ScheduleResolution;
@@ -453,7 +473,7 @@ function canSubmitChoreographyEdit({
   watchedExperienceLevelId: string;
   watchedScheduleCapacityId: string;
 }) {
-  if (!hasRosterChanged && !hasProfessorsChanged) {
+  if (!hasRosterChanged && !hasProfessorsChanged && !hasMusicChanged) {
     return false;
   }
 
@@ -463,6 +483,14 @@ function canSubmitChoreographyEdit({
 
   if (hasProfessorsChanged && !canEditProfessors) {
     return false;
+  }
+
+  if (hasMusicChanged && (!canEditMusic || musicHasValidationError)) {
+    return false;
+  }
+
+  if (!hasRosterChanged && !hasProfessorsChanged) {
+    return true;
   }
 
   if (!hasRosterChanged) {

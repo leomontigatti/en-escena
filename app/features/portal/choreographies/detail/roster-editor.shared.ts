@@ -14,15 +14,39 @@ import type {
 
 export const choreographyResolutionErrorToastId =
   "choreography-resolution-error";
+export const choreographyMusicUploadErrorToastId =
+  "choreography-music-upload-error";
 export const resolveChoreographyDancersIntent = "resolve-choreography-dancers";
 export const updateChoreographyIntent = "update-choreography";
 export const rosterEditorReviewMessage =
   "Revisá los bailarines de la coreografía.";
+export const choreographyMusicAccept =
+  "audio/mpeg,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/ogg";
+export const choreographyMusicAllowedMimeTypes = [
+  "audio/aac",
+  "audio/m4a",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/x-m4a",
+  "audio/x-wav",
+];
+export const choreographyMusicMaxFileSizeBytes = 50 * 1024 * 1024;
+export const choreographyMusicInvalidTypeMessage =
+  "El archivo de música debe ser MP3, M4A, WAV u OGG.";
+export const choreographyMusicMaxFileSizeMessage =
+  "El archivo de música no puede superar 50 MB.";
+export const choreographyMusicUploadErrorMessage =
+  "No pudimos subir el archivo de música. Intentá nuevamente.";
+export const choreographyMusicPresentationBlockedMessage =
+  "No podés editar la música porque la coreografía ya tiene una presentación asociada.";
 
 export const choreographyEditSchema = z.object({
   dancerIds: z.array(z.string().trim().min(1)).min(1, requiredFieldMessage),
   professorIds: z.array(z.string().trim().min(1)),
   experienceLevelId: z.string().trim().optional(),
+  musicStorageKey: z.string().trim().optional(),
   scheduleCapacityId: z.string().trim().optional(),
 });
 
@@ -45,6 +69,7 @@ export type ChoreographyRosterEditorActionData =
       fieldErrors?: ChoreographyEditFieldErrors;
       message: string;
       selectedDancerIds: string[];
+      selectedMusicStorageKey?: string;
       selectedProfessorIds: string[];
       selectedExperienceLevelId: string | null;
       selectedScheduleCapacityId?: string;
@@ -54,6 +79,17 @@ export type ChoreographyRosterEditorActionData =
       section: "professors";
       message: string;
       selectedDancerIds: string[];
+      selectedMusicStorageKey?: string;
+      selectedProfessorIds: string[];
+      selectedExperienceLevelId: string | null;
+      selectedScheduleCapacityId?: string;
+    }
+  | {
+      status: "update-error";
+      section: "music";
+      message: string;
+      selectedDancerIds: string[];
+      selectedMusicStorageKey?: string;
       selectedProfessorIds: string[];
       selectedExperienceLevelId: string | null;
       selectedScheduleCapacityId?: string;
@@ -79,6 +115,8 @@ type ChoreographySummary = {
   experienceLevelId: string | null;
   experienceLevelName: string | null;
   operationalStatus: ChoreographyOperationalStatus;
+  musicStorageKey?: string | null;
+  musicDownloadUrl?: string | null;
   scheduleCapacityId: string | null;
   scheduleLabel: string;
   dancers: ChoreographyDancer[];

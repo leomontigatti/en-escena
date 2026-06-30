@@ -2,14 +2,8 @@ import { Lock, type LucideIcon } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,7 +40,7 @@ export function AcademyUserFormCard({
   return (
     <UserFormCard
       footer={
-        <Button asChild variant="outline" size="lg">
+        <Button asChild variant="outline">
           <Link to={backToList}>Volver</Link>
         </Button>
       }
@@ -69,23 +63,9 @@ export function UserFormCard({
   title?: string;
 }) {
   return (
-    <Card>
-      {title ? (
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      ) : null}
-      <CardContent>
-        <FieldGroup className="grid gap-5 md:grid-cols-2">
-          {children}
-        </FieldGroup>
-      </CardContent>
-      {footer ? (
-        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          {footer}
-        </CardFooter>
-      ) : null}
-    </Card>
+    <AdminResourceFormCard footer={footer} title={title}>
+      <FieldGroup className="grid gap-5 md:grid-cols-2">{children}</FieldGroup>
+    </AdminResourceFormCard>
   );
 }
 

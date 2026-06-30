@@ -58,6 +58,25 @@ describe("internal navigation", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/registro/academia");
   });
+
+  test("keeps public routes available while clearing stale Supabase cookies", async () => {
+    getAccessSession.mockResolvedValue(null);
+
+    const { redirectSignedInUserFromPublicRoute } =
+      await import("@/lib/auth/internal-navigation.server");
+
+    const result = await redirectSignedInUserFromPublicRoute(
+      new Request("http://localhost/registro", {
+        headers: {
+          cookie: "theme=escena; sb-project-auth-token=stale",
+        },
+      }),
+    );
+
+    expect(getSetCookieValues(new Headers(result?.headers))).toEqual([
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+    ]);
+  });
 });
 
 function createPendingOnboardingSession() {
@@ -82,4 +101,14 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a redirect response.");
+}
+
+function getSetCookieValues(headers: Headers) {
+  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+
+  const setCookie = headers.get("set-cookie");
+
+  return setCookie ? [setCookie] : [];
 }

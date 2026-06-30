@@ -4,12 +4,20 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { cn } from "@/lib/shared/utils";
 
 type AdminResourceLayoutSelectedEvent = {
   selectedEventId: string | null;
@@ -41,6 +49,14 @@ type AdminEmptyStateProps = {
   title: string;
 };
 
+type AdminResourceFormCardProps = {
+  children: ReactNode;
+  className?: string;
+  contentClassName?: string;
+  footer?: ReactNode;
+  title?: ReactNode;
+};
+
 export function AdminResourceLayout({
   action,
   headerAction,
@@ -58,7 +74,7 @@ export function AdminResourceLayout({
   return requireSelectedEvent && !resolvedSelectedEventId ? (
     <AdminEventRequiredEmptyState copy={eventRequiredEmptyState} />
   ) : (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminResourceHeader
         title={title}
         description={description}
@@ -109,6 +125,32 @@ export function AdminEmptyState({
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
     </Empty>
+  );
+}
+
+export function AdminResourceFormCard({
+  children,
+  className,
+  contentClassName,
+  footer,
+  title,
+}: AdminResourceFormCardProps) {
+  return (
+    <Card className={cn("w-full", className)}>
+      {title ? (
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+      ) : null}
+      <CardContent className={cn("flex flex-col gap-6", contentClassName)}>
+        {children}
+      </CardContent>
+      {footer ? (
+        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+          {footer}
+        </CardFooter>
+      ) : null}
+    </Card>
   );
 }
 

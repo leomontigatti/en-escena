@@ -10,11 +10,12 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { MultiCombobox } from "@/components/shared/multi-combobox";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Field,
   FieldError,
@@ -167,7 +168,6 @@ export function ScheduleForm({
           name="totalCapacity"
           serverError={fieldErrors.totalCapacity}
           step={1}
-          type="number"
         />
         <Controller
           control={form.control}
@@ -230,11 +230,7 @@ export function ScheduleFormActions({
 }
 
 export function ScheduleFormPanel({ children }: { children: ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-6">{children}</CardContent>
-    </Card>
-  );
+  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
 function ScheduleTextField({
@@ -245,7 +241,6 @@ function ScheduleTextField({
   name,
   serverError,
   step,
-  type = "text",
 }: {
   className?: string;
   form: ScheduleFormController;
@@ -254,7 +249,6 @@ function ScheduleTextField({
   name: "name" | "startTime" | "totalCapacity";
   serverError?: string;
   step?: number;
-  type?: "number" | "text";
 }) {
   return (
     <Controller
@@ -266,14 +260,21 @@ function ScheduleTextField({
         return (
           <Field className={className} data-invalid={error ? true : undefined}>
             <FieldLabel htmlFor={name}>{label}</FieldLabel>
-            <Input
-              id={name}
-              aria-invalid={error ? true : undefined}
-              type={type}
-              min={min}
-              step={step}
-              {...field}
-            />
+            {name === "totalCapacity" ? (
+              <IntegerInput
+                id={name}
+                aria-invalid={error ? true : undefined}
+                min={min}
+                step={step}
+                {...field}
+              />
+            ) : (
+              <Input
+                id={name}
+                aria-invalid={error ? true : undefined}
+                {...field}
+              />
+            )}
             <FieldError>{error}</FieldError>
           </Field>
         );
@@ -580,10 +581,9 @@ function ScheduleCapacityInlineFields({
               >
                 Cupo
               </FieldLabel>
-              <Input
+              <IntegerInput
                 id={`schedule-capacity-capacity-${index}`}
                 aria-invalid={error ? true : undefined}
-                type="number"
                 min={1}
                 step={1}
                 {...controllerField}

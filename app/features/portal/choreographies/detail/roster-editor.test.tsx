@@ -5,9 +5,21 @@ import "@/test/react-test-env";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+const toastErrorMock = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastErrorMock,
+  },
+}));
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
+import {
+  choreographyMusicUploadErrorMessage,
+  choreographyMusicUploadErrorToastId,
+} from "@/features/portal/choreographies/detail/roster-editor.shared";
 
 type PortalChoreographyDetailRouteViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView
@@ -31,6 +43,7 @@ describe("coreografía detail readonly form", () => {
     }
 
     document.body.innerHTML = "";
+    toastErrorMock.mockReset();
   });
 
   test("renders choreography data as disabled form fields", async () => {
@@ -123,8 +136,86 @@ describe("coreografía detail readonly form", () => {
     );
   });
 
+  test("locks dancers without financial helper copy when there is an active financial link", async () => {
+    await renderRoute(
+      buildLoaderData({
+        dancerEditingEligibility: {
+          canEdit: false,
+          reasonCode: "active-financial-link",
+          reasonText:
+            "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+        },
+        choreography: {
+          ...buildLoaderData().choreography,
+          dancerEditingEligibility: {
+            canEdit: false,
+            reasonCode: "active-financial-link",
+            reasonText:
+              "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+          },
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["music"],
+          },
+        },
+      }),
+    );
+
+    const text = document.body.textContent ?? "";
+
+    expect(document.body.textContent).toContain("Bailarines");
+    expect(text).not.toContain(
+      "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
+    );
+    expect(text).toContain(
+      "La lista de bailarines no puede modificarse porque la coreografía tiene una factura o un pago relacionados.",
+    );
+    expect(text).toContain("Falta cargar archivo de música.");
+    expect(
+      text.indexOf(
+        "La lista de bailarines no puede modificarse porque la coreografía tiene una factura o un pago relacionados.",
+      ),
+    ).toBeLessThan(text.indexOf("Falta cargar archivo de música."));
+    expect(text).not.toContain("Luz Rios");
+    const dancerTrigger = document.querySelectorAll(
+      '[data-slot="combobox-trigger"]',
+    )[0];
+    const dancerCombobox = dancerTrigger.closest(
+      '[data-slot="combobox-chips"]',
+    );
+
+    expect(
+      dancerCombobox?.querySelector(
+        'svg[aria-label="Bailarines bloqueados por vínculo financiero activo"]',
+      ),
+    ).not.toBeNull();
+    expect(dancerTrigger.querySelector(".lucide-chevron-down")).toBeNull();
+  });
+
+  test("shows generic music upload failures as toast instead of field error", async () => {
+    await renderRoute(buildLoaderData(), {
+      status: "update-error",
+      section: "music",
+      message: choreographyMusicUploadErrorMessage,
+      selectedDancerIds: ["dancer_1"],
+      selectedMusicStorageKey: "music/detail.mp3",
+      selectedProfessorIds: [],
+      selectedExperienceLevelId: "level_1",
+      selectedScheduleCapacityId: "schedule_1",
+    });
+
+    expect(document.body.textContent).not.toContain(
+      choreographyMusicUploadErrorMessage,
+    );
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      choreographyMusicUploadErrorMessage,
+      { id: choreographyMusicUploadErrorToastId },
+    );
+  });
+
   async function renderRoute(
     loaderData: PortalChoreographyDetailRouteViewProps["loaderData"] = buildLoaderData(),
+    actionData?: PortalChoreographyDetailRouteViewProps["actionData"],
   ) {
     const router = createMemoryRouter(
       [
@@ -132,7 +223,10 @@ describe("coreografía detail readonly form", () => {
           path: "/portal/coreografias/choreo_1",
           action: async () => null,
           element: (
-            <PortalChoreographyDetailRouteView loaderData={loaderData} />
+            <PortalChoreographyDetailRouteView
+              actionData={actionData}
+              loaderData={loaderData}
+            />
           ),
         },
       ],

@@ -97,10 +97,10 @@ export function getFilterGroupQueryParamKey(
 }
 
 export function getFacetedFilterSummary(
-  filter: DataTableFacetedFilter,
+  groups: DataTableFacetedFilter[],
   selectedValues: DataTableFacetedFilterValue,
 ) {
-  const parts = filter.groups.flatMap((group) => {
+  const parts = groups.flatMap((group) => {
     const selectedValue = selectedValues[getFilterGroupQueryParamKey(group)];
 
     if (!selectedValue) {
@@ -262,19 +262,19 @@ export function buildDataTableSearchHref({
 export function buildDataTableFilterHref({
   basePath,
   currentSearch,
-  filter,
+  groups,
   pageParamName = "page",
   values,
 }: {
   basePath: string;
   currentSearch: string;
-  filter: DataTableFacetedFilter;
+  groups: DataTableFacetedFilter[];
   pageParamName?: string;
   values: DataTableFacetedFilterValue;
 }) {
   const searchParams = new URLSearchParams(currentSearch);
 
-  for (const group of filter.groups) {
+  for (const group of groups) {
     const queryParamKey = getFilterGroupQueryParamKey(group);
     const nextValue = values[queryParamKey];
 

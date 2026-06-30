@@ -1,14 +1,8 @@
+import { redirect } from "react-router";
+
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademyAccountCurrentReport } from "@/features/admin/academies/account-current-report/server";
-import { AdministracionAcademiasReporteCuentaCorrienteRouteView } from "@/features/admin/academies/account-current-report/view";
 
 import type { Route } from "./+types/administracion.academias.reporte";
-
-type LoaderData = Awaited<ReturnType<typeof loader>>;
-
-type AdministracionAcademiasReporteCuentaCorrienteRouteProps = {
-  loaderData: LoaderData;
-};
 
 export const meta: Route.MetaFunction = () => [
   {
@@ -24,17 +18,11 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyAccountCurrentReport(request);
+  const url = new URL(request.url);
+
+  throw redirect(`/administracion/finanzas${url.search}`);
 }
 
-export { AdministracionAcademiasReporteCuentaCorrienteRouteView };
-
-export default function AdministracionAcademiasReporteCuentaCorrienteRoute({
-  loaderData,
-}: AdministracionAcademiasReporteCuentaCorrienteRouteProps) {
-  return (
-    <AdministracionAcademiasReporteCuentaCorrienteRouteView
-      loaderData={loaderData}
-    />
-  );
+export default function AdministracionAcademiasReporteCuentaCorrienteRoute() {
+  return null;
 }

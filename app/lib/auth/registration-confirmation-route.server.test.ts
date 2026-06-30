@@ -52,33 +52,46 @@ describe("registro confirm loader", () => {
     confirmEmailOtp.mockRejectedValue(new Error("otp_expired"));
 
     const response = await expectRedirect(
-      loadRegistrationConfirmationRoute("token_hash=hash-vencido&type=signup"),
+      loadRegistrationConfirmationRoute("token_hash=hash-vencido&type=signup", {
+        cookie: "sb-project-auth-token=stale",
+      }),
     );
 
     expect(response.headers.get("location")).toBe(
       PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
     );
+    expect(getSetCookieValues(response.headers)).toEqual([
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+    ]);
   });
 
   test("redirects malformed confirmation links to the access error path", async () => {
     const response = await expectRedirect(
-      loadRegistrationConfirmationRoute("type=email"),
+      loadRegistrationConfirmationRoute("type=email", {
+        cookie: "sb-project-auth-token=stale",
+      }),
     );
 
     expect(confirmEmailOtp).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe(
       PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
     );
+    expect(getSetCookieValues(response.headers)).toEqual([
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+    ]);
   });
 });
 
-function loadRegistrationConfirmationRoute(search: string) {
+function loadRegistrationConfirmationRoute(
+  search: string,
+  headers?: HeadersInit,
+) {
   const url = new URL(
     `http://localhost${PUBLIC_REGISTRATION_CONFIRMATION_PATH}?${search}`,
   );
 
   return loader({
-    request: new Request(url),
+    request: new Request(url, { headers }),
     params: {},
     context: {},
     url,
@@ -95,4 +108,14 @@ async function expectRedirect(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a redirect response.");
+}
+
+function getSetCookieValues(headers: Headers) {
+  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+
+  const setCookie = headers.get("set-cookie");
+
+  return setCookie ? [setCookie] : [];
 }

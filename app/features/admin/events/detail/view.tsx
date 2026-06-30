@@ -4,15 +4,17 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
-import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import {
   DestroyButton,
   SubmitButton,
 } from "@/components/shared/action-buttons";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -145,18 +147,19 @@ function EditEventPanel({
       noValidate
       onSubmit={eventForm.handleSubmit}
     >
-      <Card>
-        <CardContent>
-          <input type="hidden" name="intent" value="update" />
-          <EventFormFields controller={eventForm} />
-        </CardContent>
-        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <Button asChild variant="outline" size="lg">
-            <Link to="/administracion/eventos">Volver</Link>
-          </Button>
-          <SubmitButton size="lg" isPending={eventForm.isPending} />
-        </CardFooter>
-      </Card>
+      <AdminResourceFormCard
+        footer={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/administracion/eventos">Volver</Link>
+            </Button>
+            <SubmitButton isPending={eventForm.isPending} />
+          </>
+        }
+      >
+        <input type="hidden" name="intent" value="update" />
+        <EventFormFields controller={eventForm} />
+      </AdminResourceFormCard>
     </form>
   );
 }

@@ -22,7 +22,7 @@ type ServerFieldNameResolver<TFieldValues extends FieldValues> = (
 ) => FieldPath<TFieldValues> | null;
 
 function applyServerFieldErrors<TFieldValues extends FieldValues>(
-  form: Pick<UseFormReturn<TFieldValues>, "setError">,
+  form: Pick<UseFormReturn<TFieldValues, unknown, FieldValues>, "setError">,
   fieldErrors: ServerFieldErrors,
   resolveFieldName?: ServerFieldNameResolver<TFieldValues>,
 ) {
@@ -51,7 +51,7 @@ function applyServerFieldErrors<TFieldValues extends FieldValues>(
 }
 
 export function useApplyServerFieldErrors<TFieldValues extends FieldValues>(
-  form: Pick<UseFormReturn<TFieldValues>, "setError">,
+  form: Pick<UseFormReturn<TFieldValues, unknown, FieldValues>, "setError">,
   fieldErrors: ServerFieldErrors,
   resolveFieldName?: ServerFieldNameResolver<TFieldValues>,
 ) {
@@ -102,14 +102,18 @@ function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
 
 export function createValidatedReactRouterSubmitHandler<
   TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
 >(
-  form: Pick<UseFormReturn<TFieldValues>, "handleSubmit">,
+  form: Pick<
+    UseFormReturn<TFieldValues, unknown, TTransformedValues>,
+    "handleSubmit"
+  >,
   submit: ReactRouterFormSubmit,
   submitOptions?: ReactRouterSubmitOptions,
 ): SubmitEventHandler<HTMLFormElement> {
   return (event) => {
     const formElement = event.currentTarget;
-    const submitRouterForm: SubmitHandler<TFieldValues> = (values) => {
+    const submitRouterForm: SubmitHandler<TTransformedValues> = (values) => {
       submit(
         createReactRouterFormSubmission(formElement, values),
         submitOptions,
@@ -164,6 +168,33 @@ export function createValidatedRouteSubmitHandler<
 
     const submitRouteForm: SubmitHandler<TFieldValues> = () => {
       submit(submitTarget, {
+        action: action ?? getFormActionPath(formElement),
+        encType: formElement.enctype as FormEncType,
+        method: formElement.method as HTMLFormMethod,
+      });
+    };
+
+    void form.handleSubmit(submitRouteForm)(event);
+  };
+}
+
+export function createValidatedRouteFormDataSubmitHandler<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>(
+  form: Pick<
+    UseFormReturn<TFieldValues, unknown, TTransformedValues>,
+    "handleSubmit"
+  >,
+  submit: SubmitFunction,
+  action?: string,
+): SubmitEventHandler<HTMLFormElement> {
+  return (event) => {
+    event.preventDefault();
+
+    const formElement = event.currentTarget;
+    const submitRouteForm: SubmitHandler<TTransformedValues> = (values) => {
+      submit(createReactRouterFormSubmission(formElement, values), {
         action: action ?? getFormActionPath(formElement),
         encType: formElement.enctype as FormEncType,
         method: formElement.method as HTMLFormMethod,

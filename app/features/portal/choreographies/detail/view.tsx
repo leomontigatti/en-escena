@@ -1,6 +1,9 @@
+import { Info } from "lucide-react";
 import { useState } from "react";
 
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -38,6 +41,8 @@ export function PortalChoreographyDetailRouteView({
   initialDeleteDialogOpen = false,
 }: PortalChoreographyDetailRouteViewProps) {
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
+  const hasActiveFinancialLink =
+    loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
@@ -53,7 +58,7 @@ export function PortalChoreographyDetailRouteView({
             Editar coreografía
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Actualizá bailarines y profesores de esta coreografía.
+            Actualizá bailarines, profesores y música de esta coreografía.
           </p>
         </div>
         {canDeleteChoreography ? (
@@ -73,9 +78,20 @@ export function PortalChoreographyDetailRouteView({
         ) : null}
       </div>
 
-      <OperationalStatusSummary
-        operationalStatus={loaderData.choreography.operationalStatus}
-      />
+      <AlertStack>
+        {hasActiveFinancialLink ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              La lista de bailarines no puede modificarse porque la coreografía
+              tiene una factura o un pago relacionados.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <OperationalStatusSummary
+          operationalStatus={loaderData.choreography.operationalStatus}
+        />
+      </AlertStack>
 
       <ChoreographyRosterEditorForm
         actionData={actionData}

@@ -57,6 +57,10 @@ Hook guidance:
   `pnpm check:file-tokens`. Treat that as the minimum commit gate, not as the
   only validation path for agent work. Hooks can be skipped and may not run in
   every environment.
+- `pnpm check:file-tokens` is a staged-source commit gate, not a required
+  validation command after every implementation. Run it before committing
+  staged application source, before a PR handoff that depends on staged files,
+  or while working on a file-size refactor.
 - Prefer running `pnpm typecheck` explicitly before finishing. This command
   must stay as `pnpm typecheck`, not `pnpm exec tsc`, because it generates React
   Router route types before TypeScript runs.
@@ -69,9 +73,12 @@ changed before running the broader final checks:
   utilities in application source, while keeping explicit coded exceptions for
   intentional patterns such as the overlapping `AvatarGroup`.
 - `pnpm check:file-tokens` is a strict file-token check for staged
-  application source files. It fails when a staged `app` module is above `5500`
-  estimated tokens (`bytes / 4`). Refactor at a clear module boundary before
-  committing instead of adding a large staged file.
+  application source files, so it belongs to the commit or PR-handoff path
+  rather than every normal implementation pass. It fails when a staged `app`
+  module is above `5500` estimated tokens (`bytes / 4`). Refactor at a clear
+  module boundary before committing instead of adding a large staged file. Run
+  it earlier only when the change is likely to push a touched app file over the
+  threshold or when validating a file-size refactor.
 - Run the nearest relevant Vitest file or test name for small non-database
   changes, then run `pnpm test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with

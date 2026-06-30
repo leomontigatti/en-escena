@@ -1,6 +1,7 @@
 import { useId } from "react";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -109,10 +110,9 @@ export function BalanceInvoiceForm({
                     Descuento administrativo
                   </FieldLabel>
                   <FieldContent>
-                    <Input
+                    <IntegerInput
                       id={administrativeDiscountAmountId}
                       name="administrativeDiscountAmount"
-                      inputMode="numeric"
                       min="0"
                       step="1"
                       defaultValue={values.administrativeDiscountAmount}

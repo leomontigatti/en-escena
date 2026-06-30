@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import {
   AdminEmptyState,
+  AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
@@ -20,14 +21,13 @@ import {
   SubmitButton,
 } from "@/components/shared/action-buttons";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -286,8 +286,7 @@ function ModalitiesTable({
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={modalities}
       columns={columns}
       getRowKey={(modality) => modality.id}
@@ -428,11 +427,7 @@ function ModalityFormActions({
 }
 
 function ModalityFormPanel({ children }: { children: ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-6">{children}</CardContent>
-    </Card>
-  );
+  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
 function ModalityActions({ modality }: { modality: ModalityRow }) {

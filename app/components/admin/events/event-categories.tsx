@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import {
   AdminEmptyState,
+  AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
@@ -14,15 +15,15 @@ import {
   SubmitButton,
 } from "@/components/shared/action-buttons";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -323,8 +324,7 @@ function CategoriesTable({
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={categories}
       columns={columns}
       getRowKey={(category) => category.id}
@@ -332,14 +332,8 @@ function CategoriesTable({
       textFilterColumnId="name"
       facetedFilters={[
         {
-          columnId: "groupTypes",
-          label: "Filtros",
-          groups: [
-            {
-              label: "Tipo de grupo",
-              options: groupTypeOptions,
-            },
-          ],
+          label: "Tipo de grupo",
+          options: groupTypeOptions,
         },
       ]}
       emptyMessage="No hay categorías que coincidan con la búsqueda."
@@ -528,7 +522,7 @@ function CategoryForm({
         <CategoryTextField
           className="sm:col-span-2"
           form={form}
-          label="Nombre de la categoría"
+          label="Nombre"
           name="name"
         />
         <CategoryTextField
@@ -537,7 +531,6 @@ function CategoryForm({
           min="0"
           name="minAge"
           placeholder="Inclusive"
-          type="number"
         />
         <CategoryTextField
           form={form}
@@ -545,7 +538,6 @@ function CategoryForm({
           min="0"
           name="maxAge"
           placeholder="Inclusive"
-          type="number"
         />
 
         <MultiComboboxField
@@ -602,13 +594,25 @@ function CategoryTextField({
         control={form.control}
         name={name}
         render={({ field }) => (
-          <Input
-            id={`category-${name}`}
-            aria-invalid={error ? true : undefined}
-            autoComplete="off"
-            {...inputProps}
-            {...field}
-          />
+          <>
+            {name === "minAge" || name === "maxAge" ? (
+              <IntegerInput
+                id={`category-${name}`}
+                aria-invalid={error ? true : undefined}
+                autoComplete="off"
+                {...inputProps}
+                {...field}
+              />
+            ) : (
+              <Input
+                id={`category-${name}`}
+                aria-invalid={error ? true : undefined}
+                autoComplete="off"
+                {...inputProps}
+                {...field}
+              />
+            )}
+          </>
         )}
       />
       <FieldError>{error}</FieldError>
@@ -637,11 +641,7 @@ function CategoryFormActions({
 }
 
 function CategoryFormPanel({ children }: { children: ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-6">{children}</CardContent>
-    </Card>
-  );
+  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
 function EmptyResourceState({ children }: { children: ReactNode }) {

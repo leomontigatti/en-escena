@@ -12,8 +12,16 @@ import {
   createEventCatalog,
   date as choreographyDate,
 } from "@/features/portal/choreographies/test-support/db";
+import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as reportLoader } from "@/routes/administracion.academias.reporte";
+import { loader as financeInvoicesLoader } from "@/routes/administracion.facturas";
+import { loader as legacyReportLoader } from "@/routes/administracion.academias.reporte";
+import { loader as financeAccountsLoader } from "@/routes/administracion.finanzas";
+import { loader as financePaymentsLoader } from "@/routes/administracion.pagos";
+import {
+  action as paymentCreateAction,
+  loader as paymentCreateLoader,
+} from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -21,6 +29,7 @@ import {
   buildAnnulImputationRequest,
   buildAnnulPaymentRequest,
   buildCancelInvoiceRequest,
+  buildGlobalPaymentRequest,
   buildPaymentImputationRequest,
   createAcademyUser,
   createInactiveEvent,
@@ -32,15 +41,18 @@ import {
   renderAcademiesRoute,
   reportRouteArgs,
   reportUrl,
-  renderAccountCurrentReportRoute,
   routeArgs,
+  renderFinanceAccountsRoute,
+  renderFinanceInvoicesRoute,
+  renderFinancePaymentsRoute,
+  paymentCreateRouteArgs,
 } from "./account-current-route.test-support";
 import { action as accountCurrentAction } from "@/routes/administracion.academias_.$academyId";
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion academias reporte cuenta corriente", () => {
-  test("lets admin open the report from academies and renders event-scoped academy balances", async () => {
+describe.sequential("administracion finanzas", () => {
+  test("lets admin open finance accounts from academies and renders event-scoped balances", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
@@ -265,17 +277,21 @@ describe.sequential("administracion academias reporte cuenta corriente", () => {
       loaderData: academiesLoaderData,
     });
 
-    expect(academiesMarkup).toContain("/administracion/academias/reporte");
-    expect(academiesMarkup).toContain("Reporte de cuenta corriente");
+    expect(academiesMarkup).not.toContain('aria-label="Acciones"');
+    expect(academiesMarkup).not.toContain(
+      '<a href="/administracion/academias/reporte"',
+    );
 
-    const { request: reportRequest } = await createSignedInRequest({
+    const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",
       role: "admin",
       requestUrl: reportUrl(event.id),
     });
 
-    const loaderData = await reportLoader(reportRouteArgs(reportRequest));
-    const markup = renderAccountCurrentReportRoute({
+    const loaderData = await financeAccountsLoader(
+      reportRouteArgs(financesRequest),
+    );
+    const markup = renderFinanceAccountsRoute({
       loaderData,
     });
 
@@ -285,21 +301,32 @@ describe.sequential("administracion academias reporte cuenta corriente", () => {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 9000,
+        availablePaymentCount: 1,
+        lastMovementDate: "2026-03-21",
         owedAmount: 2000,
+        pendingInvoiceCount: 1,
+        status: "mixto",
         totalPaidAmount: 10000,
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 0,
+        availablePaymentCount: 0,
+        lastMovementDate: null,
         owedAmount: 0,
+        pendingInvoiceCount: 0,
+        status: "al_dia",
         totalPaidAmount: 0,
       },
     ]);
-    expect(markup).toContain("Reporte de cuenta corriente");
-    expect(markup).toContain("Monto total pagado");
+    expect(markup).toContain("Resumen");
+    expect(markup).toContain("Total pagado");
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
+    expect(markup).not.toContain("Facturas pendientes");
+    expect(markup).not.toContain("Pagos sin imputar");
+    expect(markup).not.toContain("Mixto");
     expect(markup).toContain("$ 10.000");
     expect(markup).toContain("$ 9.000");
     expect(markup).toContain("$ 2.000");
@@ -307,20 +334,281 @@ describe.sequential("administracion academias reporte cuenta corriente", () => {
     expect(markup).not.toContain("$ 3.000");
   });
 
+  test("renders payment and invoice control lists for the active event", async () => {
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const academy = await createAcademyUser({
+      email: "academia.finanzas.listas@example.com",
+      academyName: "Academia Listas",
+    });
+    const eventCatalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: academy.academy.id,
+      categoryId: eventCatalog.categoryWithLevel.id,
+      createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+      eventId: event.id,
+      experienceLevelId: eventCatalog.level.id,
+      modalityId: eventCatalog.modality.id,
+      name: "Coreografía Facturada",
+      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
+      submodalityId: eventCatalog.submodality.id,
+    });
+
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "5000",
+      eventId: event.id,
+      paymentDate: "2026-03-15",
+    });
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "7000",
+      eventId: event.id,
+      paymentDate: "2026-03-16",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+
+    const [payment] = await db.query.academyEventPayments.findMany({
+      where: eq(academyEventPayments.paymentDate, "2026-03-15"),
+    });
+    const [invoice] = await db.query.academyEventChoreographyInvoices.findMany({
+      where: eq(
+        academyEventChoreographyInvoices.choreographyId,
+        choreography.id,
+      ),
+    });
+
+    if (!payment || !invoice) {
+      throw new Error("Expected payment and invoice for finance lists.");
+    }
+
+    const { request: imputationRequest } = await buildPaymentImputationRequest({
+      amount: "1000",
+      imputationDate: "2026-03-21",
+      invoiceId: invoice.id,
+      paymentId: payment.id,
+      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      role: "admin",
+    });
+    await expect(
+      accountCurrentAction(
+        detailActionArgs(imputationRequest, academy.academy.id),
+      ),
+    ).rejects.toMatchObject({
+      status: 302,
+    });
+
+    const [annullablePayment] = await db.query.academyEventPayments.findMany({
+      where: eq(academyEventPayments.paymentDate, "2026-03-16"),
+    });
+
+    if (!annullablePayment) {
+      throw new Error("Expected annullable payment for finance lists.");
+    }
+
+    const { request: annulPaymentRequest } = await buildAnnulPaymentRequest({
+      paymentId: annullablePayment.id,
+      reason: "Pago duplicado en conciliación.",
+      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      role: "admin",
+    });
+    await expect(
+      accountCurrentAction(
+        detailActionArgs(annulPaymentRequest, academy.academy.id),
+      ),
+    ).rejects.toMatchObject({
+      status: 302,
+    });
+
+    const { request: paymentsRequest } = await createSignedInRequest({
+      email: "admin.finanzas.pagos@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/pagos?evento=${event.id}`,
+    });
+    const paymentsData = await financePaymentsLoader(
+      reportRouteArgs(paymentsRequest),
+    );
+    const paymentsMarkup = renderFinancePaymentsRoute({
+      loaderData: paymentsData,
+    });
+
+    expect(paymentsData.rows).toEqual([
+      expect.objectContaining({
+        academyName: "Academia Listas",
+        amount: 5000,
+        paymentDate: "2026-03-15",
+        paymentMethod: "transferencia",
+        paymentNumber: 1,
+      }),
+    ]);
+    expect(paymentsMarkup).toContain("Pagos");
+    expect(paymentsMarkup).toContain("Nuevo pago");
+    expect(paymentsMarkup).toContain("/administracion/pagos/nuevo");
+    expect(paymentsMarkup).toContain("Transferencia");
+    expect(paymentsMarkup).toContain("$ 5.000");
+    expect(paymentsMarkup).not.toContain("$ 7.000");
+
+    const { request: annulledPaymentsRequest } = await createSignedInRequest({
+      email: "admin.finanzas.pagos.anulados@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/pagos?evento=${event.id}&estado=anulados`,
+    });
+    const annulledPaymentsData = await financePaymentsLoader(
+      reportRouteArgs(annulledPaymentsRequest),
+    );
+    const annulledPaymentsMarkup = renderFinancePaymentsRoute({
+      loaderData: annulledPaymentsData,
+    });
+
+    expect(annulledPaymentsData.rows).toEqual([
+      expect.objectContaining({
+        academyName: "Academia Listas",
+        amount: 7000,
+        paymentDate: "2026-03-16",
+        paymentMethod: "transferencia",
+        paymentNumber: 2,
+      }),
+    ]);
+    expect(annulledPaymentsMarkup).toContain("Anulado");
+    expect(annulledPaymentsMarkup).toContain("$ 7.000");
+    expect(annulledPaymentsMarkup).not.toContain("$ 5.000");
+
+    const { request: invoicesRequest } = await createSignedInRequest({
+      email: "admin.finanzas.facturas@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/facturas?evento=${event.id}`,
+    });
+    let invoicesRedirect: Response | null = null;
+
+    try {
+      await financeInvoicesLoader(reportRouteArgs(invoicesRequest));
+    } catch (error) {
+      invoicesRedirect = error as Response;
+    }
+
+    expect(invoicesRedirect).toMatchObject({ status: 302 });
+    expect(invoicesRedirect?.headers.get("location")).toBe("/administracion");
+
+    const invoicesData = await loadAdminInvoicesList(invoicesRequest);
+    const invoicesMarkup = renderFinanceInvoicesRoute({
+      loaderData: invoicesData,
+    });
+
+    expect(invoicesData.rows).toEqual([
+      expect.objectContaining({
+        academyName: "Academia Listas",
+        amount: 3000,
+        choreographyName: "Coreografía Facturada",
+        imputedAmount: 1000,
+        invoiceType: "sena",
+        pendingAmount: 2000,
+        status: "parcial",
+      }),
+    ]);
+    expect(invoicesMarkup).toContain("Facturas");
+    expect(invoicesMarkup).toContain("Coreografía Facturada");
+    expect(invoicesMarkup).toContain("Parcial");
+  });
+
+  test("lets admin create a payment from the payments form", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "academia.pago.global@example.com",
+      academyName: "Academia Pago Global",
+    });
+    const createUrl = `http://localhost/administracion/pagos/nuevo?evento=${event.id}`;
+    const { request: loaderRequest } = await createSignedInRequest({
+      email: "admin.pago.global@example.com",
+      role: "admin",
+      requestUrl: createUrl,
+    });
+
+    const loaderData = await paymentCreateLoader(
+      paymentCreateRouteArgs(loaderRequest),
+    );
+
+    expect(loaderData.selectedEventId).toBe(event.id);
+    expect(loaderData.academies).toEqual([
+      expect.objectContaining({
+        id: academy.academy.id,
+        name: "Academia Pago Global",
+      }),
+    ]);
+
+    const { request: invalidRequest } = await buildGlobalPaymentRequest({
+      academyId: "",
+      amount: "0",
+      paymentDate: "2026-04-10",
+      paymentMethod: "transferencia",
+      requestUrl: createUrl,
+      role: "admin",
+    });
+    const invalidResult = await paymentCreateAction(
+      paymentCreateRouteArgs(invalidRequest),
+    );
+
+    expect(invalidResult).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        academyId: "Seleccioná una academia.",
+        amount: "Ingresá un monto mayor a cero.",
+      },
+    });
+
+    const { request: createRequest } = await buildGlobalPaymentRequest({
+      academyId: academy.academy.id,
+      amount: "12500",
+      internalNote: "Pago cargado desde pagos",
+      paymentDate: "2026-04-10",
+      paymentMethod: "transferencia",
+      reference: "TRX-GLOBAL",
+      requestUrl: createUrl,
+      role: "admin",
+    });
+
+    await expect(
+      paymentCreateAction(paymentCreateRouteArgs(createRequest)),
+    ).rejects.toMatchObject({
+      status: 302,
+    });
+
+    const payments = await db.query.academyEventPayments.findMany({
+      where: eq(academyEventPayments.academyId, academy.academy.id),
+    });
+
+    expect(payments).toEqual([
+      expect.objectContaining({
+        amount: 12500,
+        eventId: event.id,
+        internalNote: "Pago cargado desde pagos",
+        paymentDate: "2026-04-10",
+        paymentMethod: "transferencia",
+        paymentNumber: 1,
+        reference: "TRX-GLOBAL",
+      }),
+    ]);
+  });
+
   test("shows the blocked state when there is no active event", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.reporte.sin.evento@example.com",
       role: "admin",
-      requestUrl: "http://localhost/administracion/academias/reporte",
+      requestUrl: "http://localhost/administracion/finanzas",
     });
 
-    const loaderData = await reportLoader(reportRouteArgs(request));
-    const markup = renderAccountCurrentReportRoute({
+    const loaderData = await financeAccountsLoader(reportRouteArgs(request));
+    const markup = renderFinanceAccountsRoute({
       loaderData,
     });
 
     expect(loaderData.selectedEventId).toBeNull();
-    expect(markup).toContain("No hay un evento activo para reportar");
+    expect(markup).toContain("No hay un evento activo para operar finanzas");
   });
 
   test("allows auditor access and blocks academy users", async () => {
@@ -332,7 +620,7 @@ describe.sequential("administracion academias reporte cuenta corriente", () => {
     });
 
     await expect(
-      reportLoader(reportRouteArgs(auditorRequest)),
+      financeAccountsLoader(reportRouteArgs(auditorRequest)),
     ).resolves.toMatchObject({
       selectedEventId: event.id,
     });
@@ -344,9 +632,27 @@ describe.sequential("administracion academias reporte cuenta corriente", () => {
     });
 
     await expect(
-      reportLoader(reportRouteArgs(academyRequest)),
+      financeAccountsLoader(reportRouteArgs(academyRequest)),
     ).rejects.toMatchObject({
       status: 403,
+    });
+  });
+
+  test("redirects the legacy account-current report URL to finances", async () => {
+    const event = await createSavedEvent();
+    const { request } = await createSignedInRequest({
+      email: "admin.reporte.legacy@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/academias/reporte?evento=${event.id}`,
+    });
+
+    await expect(
+      legacyReportLoader(reportRouteArgs(request)),
+    ).rejects.toMatchObject({
+      status: 302,
+      headers: expect.objectContaining({
+        get: expect.any(Function),
+      }),
     });
   });
 });

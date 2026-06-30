@@ -137,6 +137,11 @@ describe("EventPriceDetailRouteView", () => {
       root,
     });
 
+    expect(container.textContent).not.toContain("Seña de coreografía");
+    expect(
+      container.querySelector('input[name="requiredDepositPercentage"]'),
+    ).toBeNull();
+
     const priceNames = Array.from(
       container.querySelectorAll<HTMLAnchorElement>("tbody a"),
     ).map((link) => link.textContent);

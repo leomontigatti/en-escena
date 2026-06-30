@@ -107,7 +107,7 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).toContain("Editar coreografía");
     expect(markup).not.toContain("Profesores actualizados correctamente.");
     expect(markup).toContain(
-      "Actualizá bailarines y profesores de esta coreografía.",
+      "Actualizá bailarines, profesores y música de esta coreografía.",
     );
     expect(markup).not.toContain("Buscar profesores");
     expect(markup).toContain("Mora Archivada");
@@ -157,7 +157,7 @@ describe("PortalChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Editar coreografía");
     expect(markup).toContain(
-      "Actualizá bailarines y profesores de esta coreografía.",
+      "Actualizá bailarines, profesores y música de esta coreografía.",
     );
     expect(markup).not.toContain("Buscar bailarines");
     expect(markup).toContain("Mora Archivada");

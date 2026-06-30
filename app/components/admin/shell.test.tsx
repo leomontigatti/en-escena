@@ -28,28 +28,39 @@ describe("AdminShell", () => {
     expect(markup).toContain("Usuarios");
     expect(markup).toContain("/administracion/usuarios");
     expect(markup).toContain("text-brand");
-    expect(markup).toContain("Bases del evento");
+    expect(markup).toContain("Bases");
     expect(markup).toContain('href="/administracion/eventos"');
     expect(markup).toContain("Coreografías");
     expect(markup).toContain("/administracion/coreografias");
-    expect(markup.indexOf("Academias")).toBeLessThan(
-      markup.indexOf("Coreografías"),
-    );
+    expect(markup).toContain("Resumen");
+    expect(markup).toContain("/administracion/finanzas");
+    expect(markup).toContain("Pagos");
+    expect(markup).toContain("/administracion/pagos");
+    expect(markup).toContain("Facturas");
+    expect(markup).not.toContain('href="/administracion/facturas"');
+    expect(markup).toContain("disabled");
     expect(markup.indexOf("Coreografías")).toBeLessThan(
-      markup.indexOf("Bailarines"),
+      markup.indexOf("Profesores"),
     );
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
     expect(markup.indexOf("Bailarines")).toBeLessThan(
-      markup.indexOf("Bases del evento"),
+      markup.indexOf("Resumen"),
     );
-    expect(markup.indexOf("Bases del evento")).toBeLessThan(
-      markup.indexOf("Usuarios"),
+    expect(markup.indexOf("Coreografías")).toBeLessThan(
+      markup.indexOf("Resumen"),
+    );
+    expect(markup.indexOf("Resumen")).toBeLessThan(markup.indexOf("Pagos"));
+    expect(markup.indexOf("Pagos")).toBeLessThan(markup.indexOf("Facturas"));
+    expect(markup.indexOf("Facturas")).toBeLessThan(markup.indexOf("Bases"));
+    expect(markup.indexOf("Bases")).toBeLessThan(markup.indexOf("Usuarios"));
+    expect(markup.indexOf("Usuarios")).toBeLessThan(
+      markup.indexOf("Academias"),
     );
   });
 
-  test("opens Bases del evento navigation only as a collapsible section", () => {
+  test("opens Bases navigation only as a collapsible section", () => {
     const markup = renderAdminShell(
       {},
       { initialEntry: "/administracion/eventos" },

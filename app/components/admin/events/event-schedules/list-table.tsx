@@ -1,5 +1,5 @@
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -69,8 +69,7 @@ export function ScheduleList({
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={schedules}
       columns={columns}
       getRowKey={(schedule) => schedule.id}

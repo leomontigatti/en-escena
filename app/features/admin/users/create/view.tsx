@@ -4,6 +4,10 @@ import { useEffect, useId } from "react";
 import { Controller, type Control, useForm } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,88 +92,85 @@ export function AdministracionUsuariosNuevoRouteView({
   const handleSubmit = createValidatedRouteSubmitHandler(form, submit);
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <section className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Nuevo usuario</h1>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Creá accesos internos con nombre de usuario propio y cambio
-          obligatorio de contraseña en el primer ingreso.
-        </p>
-      </section>
+    <AdminResourceLayout
+      title="Nuevo usuario"
+      description="Creá accesos internos con nombre de usuario propio y cambio obligatorio de contraseña en el primer ingreso."
+      requireSelectedEvent={false}
+    >
+      <div className="flex w-full flex-col gap-6">
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>
+            Compartí la contraseña temporal por un canal seguro
+          </AlertTitle>
+          <AlertDescription>
+            La contraseña temporal no vuelve a mostrarse después de guardar y no
+            se registra en auditoría.
+          </AlertDescription>
+        </Alert>
 
-      <Alert variant="warning">
-        <TriangleAlert aria-hidden="true" />
-        <AlertTitle>
-          Compartí la contraseña temporal por un canal seguro
-        </AlertTitle>
-        <AlertDescription>
-          La contraseña temporal no vuelve a mostrarse después de guardar y no
-          se registra en auditoría.
-        </AlertDescription>
-      </Alert>
+        <form method="post" noValidate onSubmit={handleSubmit}>
+          <input type="hidden" name="intent" value={createInternalUserIntent} />
+          <AdminResourceFormCard
+            footer={
+              <>
+                <Button asChild variant="outline">
+                  <Link to="/administracion">Volver al panel</Link>
+                </Button>
+                <Button type="submit" disabled={isCreatingUser}>
+                  {isCreatingUser ? (
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="animate-spin"
+                      data-icon
+                    />
+                  ) : null}
+                  Nuevo usuario
+                </Button>
+              </>
+            }
+          >
+            <FieldGroup>
+              <CreateInternalUserTextField
+                autoComplete="name"
+                control={form.control}
+                label="Nombre visible"
+                name="name"
+              />
 
-      <form
-        method="post"
-        noValidate
-        className="rounded-lg border bg-card p-6 shadow-sm"
-        onSubmit={handleSubmit}
-      >
-        <input type="hidden" name="intent" value={createInternalUserIntent} />
-        <FieldGroup>
-          <CreateInternalUserTextField
-            autoComplete="name"
-            control={form.control}
-            label="Nombre visible"
-            name="name"
-          />
+              <CreateInternalUserTextField
+                autoComplete="username"
+                control={form.control}
+                description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
+                label="Nombre de usuario interno"
+                name="internalUsername"
+                spellCheck={false}
+              />
 
-          <CreateInternalUserTextField
-            autoComplete="username"
-            control={form.control}
-            description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
-            label="Nombre de usuario interno"
-            name="internalUsername"
-            spellCheck={false}
-          />
+              <CreateInternalUserRoleField control={form.control} />
 
-          <CreateInternalUserRoleField control={form.control} />
+              <CreateInternalUserTextField
+                autoComplete="new-password"
+                control={form.control}
+                description="Debe tener al menos 8 caracteres."
+                label="Contraseña temporal"
+                name="temporaryPassword"
+                type="password"
+              />
 
-          <CreateInternalUserTextField
-            autoComplete="new-password"
-            control={form.control}
-            description="Debe tener al menos 8 caracteres."
-            label="Contraseña temporal"
-            name="temporaryPassword"
-            type="password"
-          />
-
-          <CreateInternalUserTextField
-            autoComplete="email"
-            control={form.control}
-            description="Opcional. No se verifica ni se usa para ingresar."
-            label="Correo"
-            name="email"
-            type="email"
-          />
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="submit" disabled={isCreatingUser}>
-              {isCreatingUser ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon
-                />
-              ) : null}
-              Nuevo usuario
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/administracion">Volver al panel</Link>
-            </Button>
-          </div>
-        </FieldGroup>
-      </form>
-    </div>
+              <CreateInternalUserTextField
+                autoComplete="email"
+                control={form.control}
+                description="Opcional. No se verifica ni se usa para ingresar."
+                label="Correo"
+                name="email"
+                type="email"
+              />
+            </FieldGroup>
+          </AdminResourceFormCard>
+        </form>
+      </div>
+    </AdminResourceLayout>
   );
 }
 

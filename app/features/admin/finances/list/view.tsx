@@ -1,0 +1,94 @@
+import { Landmark } from "lucide-react";
+
+import {
+  AdminEmptyState,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
+import {
+  ClientDataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { formatAmount } from "@/features/admin/academies/account-current/formatters";
+
+import type {
+  FinanceAccountRow,
+  loadAdminFinanceAccountCurrentList,
+} from "./server";
+
+type AccountCurrentLoaderData = Awaited<
+  ReturnType<typeof loadAdminFinanceAccountCurrentList>
+>;
+
+type AdministracionFinanzasRouteViewProps = {
+  loaderData: AccountCurrentLoaderData;
+};
+
+const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
+  {
+    id: "academyName",
+    header: "Nombre",
+    className: "min-w-56 font-medium",
+    cell: (row) => row.academyName,
+    filterValue: (row) => row.academyName,
+    sortValue: (row) => row.academyName,
+  },
+  {
+    id: "totalPaidAmount",
+    header: "Total pagado",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.totalPaidAmount),
+  },
+  {
+    id: "availableBalanceAmount",
+    header: "Saldo disponible",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.availableBalanceAmount),
+  },
+  {
+    id: "owedAmount",
+    header: "Saldo adeudado",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.owedAmount),
+  },
+];
+
+export function AdministracionFinanzasRouteView({
+  loaderData,
+}: AdministracionFinanzasRouteViewProps) {
+  return (
+    <AdminResourceLayout
+      selectedEventId={loaderData.selectedEventId}
+      title="Resumen"
+      description="Revisá saldos, deuda y pagos sin imputar por academia dentro del evento activo."
+      eventRequiredEmptyState={{
+        title: "No hay un evento activo para operar finanzas",
+        description:
+          "Activá un evento para revisar cuentas corrientes, pagos y facturas.",
+      }}
+    >
+      {loaderData.rows.length > 0 ? (
+        <ClientDataTable
+          rows={loaderData.rows}
+          columns={accountColumns}
+          getRowKey={(row) => row.academyId}
+          searchPlaceholder="Buscar academia por nombre"
+          textFilterColumnId="academyName"
+          initialSort={{
+            columnId: "academyName",
+            direction: "asc",
+          }}
+          emptyMessage="No hay cuentas corrientes para mostrar."
+        />
+      ) : (
+        <AdminEmptyState
+          icon={Landmark}
+          title="Todavía no hay resumen financiero."
+          description="Cuando el evento activo tenga academias con coreografías o movimientos financieros, van a aparecer acá."
+        />
+      )}
+    </AdminResourceLayout>
+  );
+}

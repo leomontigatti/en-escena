@@ -1,10 +1,12 @@
 import { Link } from "react-router";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
-import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -37,17 +39,18 @@ export function AdministrativeEventCreateView({
     >
       <form method="post" noValidate onSubmit={eventForm.handleSubmit}>
         <input type="hidden" name="intent" value="create" />
-        <Card>
-          <CardContent>
-            <EventFormFields controller={eventForm} />
-          </CardContent>
-          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline" size="lg">
-              <Link to="/administracion/eventos">Volver</Link>
-            </Button>
-            <SubmitButton size="lg" isPending={eventForm.isPending} />
-          </CardFooter>
-        </Card>
+        <AdminResourceFormCard
+          footer={
+            <>
+              <Button asChild variant="outline">
+                <Link to="/administracion/eventos">Volver</Link>
+              </Button>
+              <SubmitButton isPending={eventForm.isPending} />
+            </>
+          }
+        >
+          <EventFormFields controller={eventForm} />
+        </AdminResourceFormCard>
       </form>
     </AdminResourceLayout>
   );

@@ -17,10 +17,21 @@ import {
   AdministracionAcademiaCuentaCorrienteRouteView,
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
+import { AdministracionFacturasRouteView } from "@/routes/administracion.facturas";
+import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import {
-  AdministracionAcademiasReporteCuentaCorrienteRouteView,
-  loader as accountCurrentReportLoader,
-} from "@/routes/administracion.academias.reporte";
+  AdministracionPagosRouteView,
+  loader as financePaymentsLoader,
+} from "@/routes/administracion.pagos";
+import {
+  AdministracionPagosNuevoRouteView,
+  action as paymentCreateAction,
+  loader as paymentCreateLoader,
+} from "@/routes/administracion.pagos_.nuevo";
+import {
+  AdministracionFinanzasRouteView,
+  loader as financeAccountsLoader,
+} from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
 
 export async function createSavedEvent(
@@ -138,6 +149,41 @@ export async function buildPaymentRequest(input: {
   });
   const formData = new FormData();
   formData.set("intent", "register-payment");
+  formData.set("amount", input.amount);
+  formData.set("paymentDate", input.paymentDate);
+  formData.set("paymentMethod", input.paymentMethod);
+  formData.set("reference", input.reference ?? "");
+  formData.set("internalNote", input.internalNote ?? "");
+
+  return {
+    request: new Request(input.requestUrl, {
+      method: "POST",
+      body: formData,
+      headers: {
+        cookie: signedIn.request.headers.get("cookie") ?? "",
+      },
+    }),
+  };
+}
+
+export async function buildGlobalPaymentRequest(input: {
+  academyId: string;
+  amount: string;
+  internalNote?: string;
+  paymentDate: string;
+  paymentMethod: string;
+  reference?: string;
+  requestUrl: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: input.role,
+    requestUrl: input.requestUrl,
+  });
+  const formData = new FormData();
+  formData.set("intent", "create-payment");
+  formData.set("academyId", input.academyId);
   formData.set("amount", input.amount);
   formData.set("paymentDate", input.paymentDate);
   formData.set("paymentMethod", input.paymentMethod);
@@ -453,16 +499,66 @@ export function renderAccountCurrentRoute(input: {
   );
 }
 
-export function renderAccountCurrentReportRoute(input: {
-  loaderData: Awaited<ReturnType<typeof accountCurrentReportLoader>>;
+export function renderFinanceAccountsRoute(input: {
+  loaderData: Awaited<ReturnType<typeof financeAccountsLoader>>;
 }) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       {
-        initialEntries: ["/administracion/academias/reporte"],
+        initialEntries: ["/administracion/finanzas"],
       },
-      createElement(AdministracionAcademiasReporteCuentaCorrienteRouteView, {
+      createElement(AdministracionFinanzasRouteView, {
+        loaderData: input.loaderData,
+      }),
+    ),
+  );
+}
+
+export function renderFinancePaymentsRoute(input: {
+  loaderData: Awaited<ReturnType<typeof financePaymentsLoader>>;
+}) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      {
+        initialEntries: ["/administracion/pagos"],
+      },
+      createElement(AdministracionPagosRouteView, {
+        loaderData: input.loaderData,
+      }),
+    ),
+  );
+}
+
+export function renderPaymentCreateRoute(input: {
+  actionData?: Awaited<ReturnType<typeof paymentCreateAction>>;
+  loaderData: Awaited<ReturnType<typeof paymentCreateLoader>>;
+}) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      {
+        initialEntries: ["/administracion/pagos/nuevo"],
+      },
+      createElement(AdministracionPagosNuevoRouteView, {
+        actionData: input.actionData,
+        loaderData: input.loaderData,
+      }),
+    ),
+  );
+}
+
+export function renderFinanceInvoicesRoute(input: {
+  loaderData: Awaited<ReturnType<typeof loadAdminInvoicesList>>;
+}) {
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      {
+        initialEntries: ["/administracion/facturas"],
+      },
+      createElement(AdministracionFacturasRouteView, {
         loaderData: input.loaderData,
       }),
     ),
@@ -474,7 +570,7 @@ export function accountCurrentUrl(academyId: string, eventId: string) {
 }
 
 export function reportUrl(eventId: string) {
-  return `http://localhost/administracion/academias/reporte?evento=${eventId}`;
+  return `http://localhost/administracion/finanzas?evento=${eventId}`;
 }
 
 export function routeArgs(request: Request) {
@@ -513,7 +609,17 @@ export function reportRouteArgs(request: Request) {
     params: {},
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/academias/reporte",
+    pattern: "/administracion/finanzas",
+  };
+}
+
+export function paymentCreateRouteArgs(request: Request) {
+  return {
+    request,
+    params: {},
+    context: {},
+    url: new URL(request.url),
+    pattern: "/administracion/pagos/nuevo",
   };
 }
 

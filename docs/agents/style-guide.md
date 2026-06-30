@@ -226,8 +226,16 @@ Reglas:
   (`Panel de administración`, `Portal de academias`, auth, juzgamiento o vistas
   públicas).
 - Definir el schema con Zod y pasarlo a `useForm` mediante `zodResolver`.
+- Derivar los tipos del formulario desde el schema cuando haya validación Zod:
+  usar `z.input<typeof schema>` para los valores editables del formulario y
+  `z.output<typeof schema>` para los valores ya validados/normalizados. Evitar
+  castear `zodResolver`; si TypeScript pide un cast, revisar primero si los
+  tipos manuales están divergiendo del schema.
 - Reusar el mismo schema o reglas equivalentes en la acción server para no
   divergir entre cliente y servidor.
+- Mantener las mutaciones en React Router `action`/`fetcher` server-side. RHF
+  valida y controla estado en cliente; el action vuelve a validar, autoriza y
+  persiste.
 - Usar `Controller` con componentes controlados shadcn como `Select`,
   `Checkbox`, `Switch`, `Combobox`, date pickers y campos custom.
 - Para inputs simples, preferir el patrón shadcn con `Controller` y spread de
@@ -254,6 +262,15 @@ Reglas:
   `FieldDescription`; usar `field.id` como key.
 - Integrar errores server con `form.setError` cuando la acción devuelve
   `fieldErrors`.
+- Cuando un formulario RHF postea a un React Router action con `useSubmit`, usar
+  `createValidatedRouteFormDataSubmitHandler` para que el `FormData` enviado se
+  construya desde los valores validados por RHF, conservando `intent`, botones
+  submit y otros campos ocultos del DOM. Usar `createValidatedRouteSubmitHandler`
+  sólo cuando explícitamente se quiera enviar el target DOM sin reescribirlo
+  desde los valores RHF.
+- En efectos que llamen métodos de RHF (`reset`, `setError`, etc.), destructurar
+  el método y usarlo en las dependencias (`const { reset } = form`) en lugar de
+  depender del objeto `form` completo.
 - Los formularios RHF no deben terminar en `form.submit()` ni en
   `HTMLFormElement.prototype.submit()`. Después de validar con RHF, enviar por
   React Router con `useSubmit`, `useFetcher.submit` o el helper compartido que

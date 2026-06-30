@@ -6,6 +6,16 @@ Codex should follow the project workflows in `docs/agents/codex-workflows.md`.
 
 Important command rule: do not run `pnpm exec tsc` for validation in this repo. Use `pnpm typecheck` so React Router route types are generated before TypeScript runs. Do not run `pnpm typecheck` in parallel with `pnpm build`; run them sequentially because the build regenerates `build/`.
 
+### Investigation before implementation
+
+When the user asks to investigate, review, diagnose, audit, analyze, or explain
+something, do not automatically implement changes. Return findings, relevant
+context, options or tradeoffs, and a recommended next step, then wait for the
+user to explicitly ask for implementation before editing files.
+
+Only start implementing immediately when the user clearly asks to implement,
+fix, apply changes, or make the change.
+
 ### Coding standards
 
 All code changes should follow [docs/agents/coding-standards.md](docs/agents/coding-standards.md). Treat it as repo-wide guidance, not Sandcastle-only guidance.

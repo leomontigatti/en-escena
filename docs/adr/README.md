@@ -10,6 +10,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Code organization: `0004-organize-app-code-by-product-surface.md`
 - Database test strategy: `0007-db-test-isolation-model.md`
 - Uploaded assets: `0008-use-supabase-storage-for-uploaded-assets.md`
+- Choreography music storage: `0010-choreography-music-storage-contract.md`
 - Finances: `0009-manual-event-scoped-account-current.md`
 
 ## Decisions
@@ -23,3 +24,4 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0007: DB test isolation model](./0007-db-test-isolation-model.md) - keeps focused DB tests on PGlite snapshots and final DB confidence on Postgres.
 - [ADR-0008: Supabase Storage for uploaded assets](./0008-use-supabase-storage-for-uploaded-assets.md) - current object storage boundary for uploaded assets.
 - [ADR-0009: Manual event-scoped account currents](./0009-manual-event-scoped-account-current.md) - keeps V1 financial operations manual, event-scoped and account-current based.
+- [ADR-0010: Choreography music storage contract](./0010-choreography-music-storage-contract.md) - current bucket, file type and replacement contract for choreography music.

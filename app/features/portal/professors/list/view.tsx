@@ -4,7 +4,7 @@ import { useFetcher } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -24,7 +24,7 @@ type ProfessorBadge = {
 };
 
 const baseProfessorFilters = {
-  status: {
+  filters: {
     archivo: "active",
   },
 };
@@ -165,8 +165,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
@@ -174,29 +173,23 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       textFilterColumnId="name"
       facetedFilters={[
         {
-          columnId: "status",
-          label: "Filtros",
-          groups: [
-            {
-              label: "Participación",
-              options: [
-                { label: "Participando", value: "participating" },
-                { label: "No participando", value: "not-participating" },
-              ],
-            },
-            {
-              label: "Completitud",
-              options: [
-                { label: "Completo", value: "complete" },
-                { label: "Incompleto", value: "incomplete" },
-              ],
-            },
-            {
-              id: "archivo",
-              label: "Archivo",
-              options: [{ label: "Archivado", value: "archived" }],
-            },
+          label: "Participación",
+          options: [
+            { label: "Participando", value: "participating" },
+            { label: "No participando", value: "not-participating" },
           ],
+        },
+        {
+          label: "Completitud",
+          options: [
+            { label: "Completo", value: "complete" },
+            { label: "Incompleto", value: "incomplete" },
+          ],
+        },
+        {
+          id: "archivo",
+          label: "Archivo",
+          options: [{ label: "Archivado", value: "archived" }],
         },
       ]}
       baseFacetedFilterValues={baseProfessorFilters}

@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronsUpDown,
   Building2,
+  FileText,
   GraduationCap,
   Home,
   LogOut,
@@ -12,6 +13,8 @@ import {
   Clock,
   DollarSign,
   Music2,
+  ClipboardList,
+  HandCoins,
 } from "lucide-react";
 import { Link, NavLink, useLocation, type UIMatch } from "react-router";
 
@@ -119,11 +122,6 @@ const primaryNavigationItems = [
     icon: CalendarDays,
   },
   {
-    label: "Academias",
-    to: "/administracion/academias",
-    icon: Building2,
-  },
-  {
     label: "Coreografías",
     to: "/administracion/coreografias",
     icon: Music2,
@@ -150,10 +148,39 @@ const secondaryNavigationItems = [
     to: "/administracion/usuarios",
     icon: Users,
   },
+  {
+    label: "Academias",
+    to: "/administracion/academias",
+    icon: Building2,
+  },
 ] satisfies Array<{
   label: string;
   to: string;
   icon: typeof Home;
+}>;
+
+const financeNavigationItems = [
+  {
+    label: "Resumen",
+    to: "/administracion/finanzas",
+    icon: ClipboardList,
+  },
+  {
+    label: "Pagos",
+    to: "/administracion/pagos",
+    icon: HandCoins,
+  },
+  {
+    label: "Facturas",
+    to: "/administracion/facturas",
+    icon: FileText,
+    disabled: true,
+  },
+] satisfies Array<{
+  label: string;
+  to: string;
+  icon: typeof Home;
+  disabled?: boolean;
 }>;
 
 export function AdminShell({
@@ -218,7 +245,41 @@ export function AdminShell({
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>Bases del evento</SidebarGroupLabel>
+              <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
+              <SidebarMenu>
+                {financeNavigationItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      {item.disabled ? (
+                        <SidebarMenuButton disabled tooltip={item.label}>
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={item.label}
+                          isActive={isNavigationItemActive(
+                            location.pathname,
+                            item.to,
+                          )}
+                        >
+                          <NavLink to={item.to}>
+                            <Icon aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Bases</SidebarGroupLabel>
               <SidebarMenu>
                 {eventBaseNavigationItems.map((item) => {
                   const Icon = item.icon;

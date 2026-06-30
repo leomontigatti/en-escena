@@ -79,6 +79,9 @@ Guideline:
   `bytes / 4` as the practical estimate.
 - `pnpm check:file-tokens` checks staged application source files and fails
   when a staged `app` module crosses the 5500-token threshold.
+- This check is required before committing staged application source, not after
+  every implementation pass. Run it earlier when a change materially grows a
+  touched app file or when validating a file-size refactor.
 - Exclude docs, generated files, lockfiles, and public assets from this rule.
   Use normal review judgment there instead of forcing the same threshold.
 - Do not game the number with shallow wrappers. Split when there is a clear

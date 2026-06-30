@@ -5,12 +5,13 @@ import { Link } from "react-router";
 
 import {
   AdminEmptyState,
+  AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import {
@@ -101,6 +102,11 @@ export function AdministracionBailarinDetalleRouteView({
     loaderData.canEdit &&
     hasDancerVerificationMinimumData(dancer) &&
     dancer.identificationStatus !== "verified";
+  const identificationAlert = getIdentificationAlert(
+    dancer.identificationStatus,
+  );
+  const identificationAlertVariant =
+    dancer.identificationStatus === "unverified" ? "info" : "warning";
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
     getInitialDialogIntent({
       actionData,
@@ -175,120 +181,33 @@ export function AdministracionBailarinDetalleRouteView({
       }
     >
       <section className="flex flex-col gap-6">
-        <DancerStatusAlerts
-          active={dancer.active}
-          canVerifyIdentity={canVerifyIdentity}
-          identificationStatus={dancer.identificationStatus}
-          onVerifyIdentity={() => {
-            setDialogIntent("verify");
-          }}
-        />
-
-        <Card>
-          <CardContent>
-            <form
-              id={editFormId}
-              method="post"
-              noValidate
-              onSubmit={editForm.handleSubmit}
-              className="flex flex-col gap-6"
+        <AlertStack>
+          {!dancer.active ? (
+            <DancerAlert icon={CircleAlert} variant="destructive">
+              Este bailarín está archivado.
+            </DancerAlert>
+          ) : null}
+          {identificationAlert ? (
+            <DancerAlert
+              variant={identificationAlertVariant}
+              action={
+                canVerifyIdentity
+                  ? {
+                      label: "Verificar",
+                      onClick: () => {
+                        setDialogIntent("verify");
+                      },
+                    }
+                  : undefined
+              }
             >
-              <input type="hidden" name="intent" value="update-dancer" />
-              <FieldGroup className="grid gap-5 md:grid-cols-2">
-                <ReadOnlyField
-                  className="md:col-span-2"
-                  label="Academia"
-                  value={dancer.academy.name}
-                />
-                {isEditing ? (
-                  <>
-                    <DancerTextField
-                      form={editForm.form}
-                      label="Nombre"
-                      name="firstName"
-                    />
-                    <DancerTextField
-                      form={editForm.form}
-                      label="Apellido"
-                      name="lastName"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ReadOnlyField label="Nombre" value={dancer.firstName} />
-                    <ReadOnlyField label="Apellido" value={dancer.lastName} />
-                  </>
-                )}
-              </FieldGroup>
+              {identificationAlert}
+            </DancerAlert>
+          ) : null}
+        </AlertStack>
 
-              <Tabs defaultValue="identificacion">
-                <TabsList variant="line">
-                  <TabsTrigger value="identificacion">
-                    Identificación
-                  </TabsTrigger>
-                  <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
-                </TabsList>
-                <TabsContent value="identificacion" className="pt-2">
-                  <FieldGroup className="grid gap-5 md:grid-cols-2">
-                    {isEditing ? (
-                      <>
-                        <DancerBirthDateField form={editForm.form} />
-                        <div aria-hidden="true" className="hidden md:block" />
-                        <DancerDocumentTypeField form={editForm.form} />
-                        <DancerTextField
-                          form={editForm.form}
-                          label="Número de documento"
-                          name="documentNumber"
-                        />
-                        <ReadOnlyDocumentImageField
-                          label="Imagen frente del documento"
-                          name="documentFrontImageStorageKey"
-                          storageKey={dancer.documentFrontImageStorageKey}
-                          url={loaderData.documentImageUrls.front}
-                        />
-                        <ReadOnlyDocumentImageField
-                          label="Imagen dorso del documento"
-                          name="documentBackImageStorageKey"
-                          storageKey={dancer.documentBackImageStorageKey}
-                          url={loaderData.documentImageUrls.back}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <ReadOnlyDateField value={dancer.birthDate} />
-                        <div aria-hidden="true" className="hidden md:block" />
-                        <ReadOnlyField
-                          label="Tipo de documento"
-                          value={formatDancerDocumentType(dancer.documentType)}
-                        />
-                        <ReadOnlyField
-                          label="Número de documento"
-                          value={dancer.documentNumber ?? ""}
-                        />
-                        <ReadOnlyDocumentImageField
-                          label="Imagen frente del documento"
-                          storageKey={dancer.documentFrontImageStorageKey}
-                          url={loaderData.documentImageUrls.front}
-                        />
-                        <ReadOnlyDocumentImageField
-                          label="Imagen dorso del documento"
-                          storageKey={dancer.documentBackImageStorageKey}
-                          url={loaderData.documentImageUrls.back}
-                        />
-                      </>
-                    )}
-                  </FieldGroup>
-                </TabsContent>
-                <TabsContent value="inscripciones" className="pt-2">
-                  <InscriptionsSection
-                    inscriptions={dancer.inscriptions}
-                    selectedEventId={loaderData.selectedEventId}
-                  />
-                </TabsContent>
-              </Tabs>
-            </form>
-          </CardContent>
-          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+        <AdminResourceFormCard
+          footer={
             <DancerDetailFooterActions
               backToList={loaderData.backToList}
               canEdit={loaderData.canEdit}
@@ -301,8 +220,108 @@ export function AdministracionBailarinDetalleRouteView({
               }}
               shouldConfirmSave={shouldConfirmSave}
             />
-          </CardFooter>
-        </Card>
+          }
+        >
+          <form
+            id={editFormId}
+            method="post"
+            noValidate
+            onSubmit={editForm.handleSubmit}
+            className="flex flex-col gap-6"
+          >
+            <input type="hidden" name="intent" value="update-dancer" />
+            <FieldGroup className="grid gap-5 md:grid-cols-2">
+              <ReadOnlyField
+                className="md:col-span-2"
+                label="Academia"
+                value={dancer.academy.name}
+              />
+              {isEditing ? (
+                <>
+                  <DancerTextField
+                    form={editForm.form}
+                    label="Nombre"
+                    name="firstName"
+                  />
+                  <DancerTextField
+                    form={editForm.form}
+                    label="Apellido"
+                    name="lastName"
+                  />
+                </>
+              ) : (
+                <>
+                  <ReadOnlyField label="Nombre" value={dancer.firstName} />
+                  <ReadOnlyField label="Apellido" value={dancer.lastName} />
+                </>
+              )}
+            </FieldGroup>
+
+            <Tabs defaultValue="identificacion">
+              <TabsList variant="line">
+                <TabsTrigger value="identificacion">Identificación</TabsTrigger>
+                <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+              </TabsList>
+              <TabsContent value="identificacion" className="pt-2">
+                <FieldGroup className="grid gap-5 md:grid-cols-2">
+                  {isEditing ? (
+                    <>
+                      <DancerBirthDateField form={editForm.form} />
+                      <div aria-hidden="true" className="hidden md:block" />
+                      <DancerDocumentTypeField form={editForm.form} />
+                      <DancerTextField
+                        form={editForm.form}
+                        label="Número de documento"
+                        name="documentNumber"
+                      />
+                      <ReadOnlyDocumentImageField
+                        label="Imagen frente del documento"
+                        name="documentFrontImageStorageKey"
+                        storageKey={dancer.documentFrontImageStorageKey}
+                        url={loaderData.documentImageUrls.front}
+                      />
+                      <ReadOnlyDocumentImageField
+                        label="Imagen dorso del documento"
+                        name="documentBackImageStorageKey"
+                        storageKey={dancer.documentBackImageStorageKey}
+                        url={loaderData.documentImageUrls.back}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <ReadOnlyDateField value={dancer.birthDate} />
+                      <div aria-hidden="true" className="hidden md:block" />
+                      <ReadOnlyField
+                        label="Tipo de documento"
+                        value={formatDancerDocumentType(dancer.documentType)}
+                      />
+                      <ReadOnlyField
+                        label="Número de documento"
+                        value={dancer.documentNumber ?? ""}
+                      />
+                      <ReadOnlyDocumentImageField
+                        label="Imagen frente del documento"
+                        storageKey={dancer.documentFrontImageStorageKey}
+                        url={loaderData.documentImageUrls.front}
+                      />
+                      <ReadOnlyDocumentImageField
+                        label="Imagen dorso del documento"
+                        storageKey={dancer.documentBackImageStorageKey}
+                        url={loaderData.documentImageUrls.back}
+                      />
+                    </>
+                  )}
+                </FieldGroup>
+              </TabsContent>
+              <TabsContent value="inscripciones" className="pt-2">
+                <InscriptionsSection
+                  inscriptions={dancer.inscriptions}
+                  selectedEventId={loaderData.selectedEventId}
+                />
+              </TabsContent>
+            </Tabs>
+          </form>
+        </AdminResourceFormCard>
 
         <DancerConfirmationDialog
           birthDateMayNeedRecalculation={birthDateMayNeedRecalculation}
@@ -346,7 +365,7 @@ function DancerDetailFooterActions({
 }) {
   return (
     <>
-      <Button asChild variant="outline" size="lg">
+      <Button asChild variant="outline">
         <Link to={isEditing ? cancelHref : backToList}>
           {isEditing ? "Cancelar" : "Volver"}
         </Link>
@@ -384,7 +403,7 @@ function DancerPrimaryFooterAction({
 
   if (!isEditing) {
     return (
-      <Button asChild size="lg">
+      <Button asChild>
         <Link to={editHref}>
           <Pencil aria-hidden="true" data-icon="inline-start" />
           Editar
@@ -395,7 +414,7 @@ function DancerPrimaryFooterAction({
 
   if (shouldConfirmSave) {
     return (
-      <Button type="button" size="lg" onClick={onConfirmSave}>
+      <Button type="button" onClick={onConfirmSave}>
         <Check aria-hidden="true" data-icon="inline-start" />
         Guardar
       </Button>
@@ -403,55 +422,10 @@ function DancerPrimaryFooterAction({
   }
 
   return (
-    <Button type="submit" form={editFormId} size="lg">
+    <Button type="submit" form={editFormId}>
       <Check aria-hidden="true" data-icon="inline-start" />
       Guardar
     </Button>
-  );
-}
-
-function DancerStatusAlerts({
-  active,
-  canVerifyIdentity,
-  identificationStatus,
-  onVerifyIdentity,
-}: {
-  active: boolean;
-  canVerifyIdentity: boolean;
-  identificationStatus: DancerDetailLoaderData["dancer"]["identificationStatus"];
-  onVerifyIdentity: () => void;
-}) {
-  const identificationAlert = getIdentificationAlert(identificationStatus);
-  const identificationAlertVariant =
-    identificationStatus === "unverified" ? "info" : "warning";
-
-  if (active && !identificationAlert) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {!active ? (
-        <DancerAlert icon={CircleAlert} variant="destructive">
-          Este bailarín está archivado.
-        </DancerAlert>
-      ) : null}
-      {identificationAlert ? (
-        <DancerAlert
-          variant={identificationAlertVariant}
-          action={
-            canVerifyIdentity
-              ? {
-                  label: "Verificar",
-                  onClick: onVerifyIdentity,
-                }
-              : undefined
-          }
-        >
-          {identificationAlert}
-        </DancerAlert>
-      ) : null}
-    </div>
   );
 }
 
@@ -475,12 +449,7 @@ function DancerAlert({
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">
-          <Button
-            type="button"
-            variant="link"
-            size="sm"
-            onClick={action.onClick}
-          >
+          <Button type="button" variant="link" onClick={action.onClick}>
             {action.label}
           </Button>
         </AlertAction>

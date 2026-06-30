@@ -5,7 +5,7 @@ import { useFetcher } from "react-router";
 import { AccessNotice } from "@/components/auth/access-ui";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -182,8 +182,7 @@ function ChoreographyTable({
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={choreographies}
       columns={columns}
       getRowKey={(choreography) => choreography.id}
@@ -201,43 +200,37 @@ function buildChoreographyFacetedFilters(
 ) {
   return [
     {
-      columnId: "status",
-      label: "Filtros",
-      groups: [
-        {
-          label: "Estado",
-          options: [
-            { label: "Completa", value: "complete" },
-            { label: "Incompleta", value: "incomplete" },
-          ],
-        },
-        {
-          label: "Modalidad",
-          options: getUniqueSortedOptions(
-            choreographies.map((choreography) => ({
-              label: choreography.modalityName,
-              value: choreography.modalityName,
-            })),
-          ),
-        },
-        {
-          label: "Categoría",
-          options: getUniqueSortedOptions(
-            choreographies.map((choreography) => ({
-              label: choreography.categoryName ?? "Sin asignar",
-              value: choreography.categoryName ?? "pending-category",
-            })),
-          ),
-        },
-        {
-          label: "Tipo de grupo",
-          options: [
-            { label: "Solo", value: "solo" },
-            { label: "Dúo", value: "duo" },
-            { label: "Trío", value: "trio" },
-            { label: "Grupal", value: "grupal" },
-          ],
-        },
+      label: "Estado",
+      options: [
+        { label: "Completa", value: "complete" },
+        { label: "Incompleta", value: "incomplete" },
+      ],
+    },
+    {
+      label: "Modalidad",
+      options: getUniqueSortedOptions(
+        choreographies.map((choreography) => ({
+          label: choreography.modalityName,
+          value: choreography.modalityName,
+        })),
+      ),
+    },
+    {
+      label: "Categoría",
+      options: getUniqueSortedOptions(
+        choreographies.map((choreography) => ({
+          label: choreography.categoryName ?? "Sin asignar",
+          value: choreography.categoryName ?? "pending-category",
+        })),
+      ),
+    },
+    {
+      label: "Tipo de grupo",
+      options: [
+        { label: "Solo", value: "solo" },
+        { label: "Dúo", value: "duo" },
+        { label: "Trío", value: "trio" },
+        { label: "Grupal", value: "grupal" },
       ],
     },
   ];

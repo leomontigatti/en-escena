@@ -3,6 +3,10 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academyEventPayments } from "@/db/schema";
+import {
+  createChoreographyRecord,
+  createEventCatalog,
+} from "@/features/portal/choreographies/test-support/db";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
 import {
   action as accountCurrentAction,
@@ -37,6 +41,17 @@ describe.sequential("administracion academias cuenta corriente", () => {
       email: "academia.sur.finanzas@example.com",
       academyName: "Academia Sur",
     });
+    const eventCatalog = await createEventCatalog(event.id);
+    await createChoreographyRecord({
+      academyId: academyNorth.academy.id,
+      categoryId: eventCatalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: eventCatalog.level.id,
+      modalityId: eventCatalog.modality.id,
+      name: "Norte Activa",
+      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
+      submodalityId: eventCatalog.submodality.id,
+    });
     const { request } = await createSignedInRequest({
       email: "admin.academias.lista@example.com",
       role: "admin",
@@ -55,7 +70,42 @@ describe.sequential("administracion academias cuenta corriente", () => {
     expect(markup).toContain(
       `/administracion/academias/${academyNorth.academy.id}`,
     );
-    expect(markup).toContain("Cuenta corriente");
+    expect(markup).toContain("Participando");
+    expect(markup).toContain("No participando");
+    expect(markup).toContain('aria-label="Filtros"');
+    expect(markup).toMatch(/<button[^>]*>Nombre/);
+    expect(markup).not.toMatch(/<button[^>]*>Contacto/);
+    expect(markup).not.toMatch(/<button[^>]*>Estado/);
+    expect(markup).not.toContain("Finanzas");
+    expect(markup).not.toContain("Cuenta corriente</td>");
+  });
+
+  test("shows academies list without an active event", async () => {
+    await createAcademyUser({
+      email: "academia.visible.sin.evento@example.com",
+      academyName: "Academia Visible",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.academias.sin.evento@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/academias",
+    });
+
+    const loaderData = await academiesLoader(routeArgs(request));
+    const markup = renderAcademiesRoute({ loaderData });
+
+    expect(loaderData.selectedEventId).toBeNull();
+    expect(loaderData.academies).toMatchObject([
+      {
+        name: "Academia Visible",
+        isParticipating: false,
+      },
+    ]);
+    expect(markup).toContain("Academia Visible");
+    expect(markup).toContain("No participando");
+    expect(markup).not.toContain(
+      "Elegí un evento activo para revisar academias",
+    );
   });
 
   test("shows the blocked admin state when there is no active event", async () => {

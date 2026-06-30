@@ -10,6 +10,7 @@ import {
 } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Field,
@@ -113,7 +114,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         eventForm={form}
         label="Seña (%)"
         name="requiredDepositPercentage"
-        type="number"
         min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
         max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
         step="1"
@@ -172,14 +172,25 @@ function TextField<TName extends EventFormStringFieldName>({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.error ? true : undefined}>
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Input
-            id={id}
-            aria-invalid={fieldState.error ? true : undefined}
-            aria-describedby={fieldState.error ? errorId : undefined}
-            autoComplete="off"
-            {...field}
-            {...inputProps}
-          />
+          {name === "requiredDepositPercentage" ? (
+            <IntegerInput
+              id={id}
+              aria-invalid={fieldState.error ? true : undefined}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              autoComplete="off"
+              {...field}
+              {...inputProps}
+            />
+          ) : (
+            <Input
+              id={id}
+              aria-invalid={fieldState.error ? true : undefined}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              autoComplete="off"
+              {...field}
+              {...inputProps}
+            />
+          )}
           <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
         </Field>
       )}

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -33,6 +34,7 @@ type MultiComboboxFieldProps<
   options: TOption[];
   placeholder: string;
   searchable?: boolean;
+  trailingIcon?: ReactNode;
 };
 
 function MultiComboboxField<
@@ -52,6 +54,7 @@ function MultiComboboxField<
   options,
   placeholder,
   searchable,
+  trailingIcon,
 }: MultiComboboxFieldProps<TFieldValues, TName, TOption>) {
   return (
     <Controller
@@ -64,6 +67,7 @@ function MultiComboboxField<
         return (
           <Field
             className={className}
+            data-disabled={disabled ? true : undefined}
             data-invalid={isInvalid ? true : undefined}
           >
             <FieldLabel>{label}</FieldLabel>
@@ -82,6 +86,7 @@ function MultiComboboxField<
                 options={options}
                 placeholder={placeholder}
                 searchable={searchable}
+                trailingIcon={trailingIcon}
                 value={currentValue}
               />
               {fieldState.error?.message ? (

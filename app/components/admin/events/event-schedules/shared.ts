@@ -99,14 +99,8 @@ export function parseTimeValue(value: string) {
 export function buildScheduleFacetedFilters(schedules: ScheduleListItem[]) {
   return [
     {
-      columnId: "modalities",
-      label: "Filtros",
-      groups: [
-        {
-          label: "Modalidad",
-          options: getScheduleModalityOptions(schedules),
-        },
-      ],
+      label: "Modalidad",
+      options: getScheduleModalityOptions(schedules),
     },
   ];
 }

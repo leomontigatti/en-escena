@@ -8,6 +8,7 @@ import {
   MANDATORY_PASSWORD_CHANGE_PATH,
   PUBLIC_ACADEMY_ONBOARDING_PATH,
 } from "@/lib/auth/access-paths.shared";
+import { createSupabaseSessionClearHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import {
   requireSignedInAccessState,
   requireInternalUser,
@@ -70,7 +71,9 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
   const session = await accessAuthProvider.getAccessSession(request);
 
   if (!session) {
-    return null;
+    return {
+      headers: createSupabaseSessionClearHeaders(request),
+    };
   }
 
   const landingPath = await getPostLoginPathForRequest(request);

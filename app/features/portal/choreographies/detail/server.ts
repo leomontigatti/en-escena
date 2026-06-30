@@ -2,6 +2,10 @@ import { redirect } from "react-router";
 
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
+  choreographyMusicInvalidTypeMessage,
+  choreographyMusicMaxFileSizeMessage,
+  choreographyMusicPresentationBlockedMessage,
+  choreographyMusicUploadErrorMessage,
   choreographyEditSchema,
   resolveChoreographyDancersIntent,
   rosterEditorReviewMessage,
@@ -14,6 +18,10 @@ import {
   findChoreographyForAcademyEvent,
   getChoreographyDeletionAvailability,
 } from "@/lib/portal/choreographies.server";
+import {
+  loadChoreographyMusicDownloadUrl,
+  updateChoreographyMusic,
+} from "@/lib/portal/choreography-music.server";
 import {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
@@ -73,6 +81,9 @@ export async function loadPortalChoreographyDetail({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
+  const musicDownloadUrl = await loadChoreographyMusicDownloadUrl(
+    choreography.musicStorageKey,
+  );
   const { availableDancers, availableProfessors } =
     await loadChoreographyRosterEditorOptions({
       academyId: academy.id,
@@ -80,7 +91,10 @@ export async function loadPortalChoreographyDetail({
     });
 
   return {
-    choreography,
+    choreography: {
+      ...choreography,
+      musicDownloadUrl,
+    },
     dancerEditingEligibility: choreography.dancerEditingEligibility,
     availableDancers,
     availableProfessors,
@@ -176,6 +190,13 @@ async function handlePortalChoreographyDetailAction(input: {
         "experienceLevelId",
       ),
       isRegistrationOpen: input.isRegistrationOpen,
+      musicFile: readOptionalFormFile(input.formData, "musicFile"),
+      musicStorageKey: readFormString(input.formData, "musicStorageKey"),
+      musicWasSubmitted: input.formData.has("musicStorageKey"),
+      musicValidationError: readFormString(
+        input.formData,
+        "musicFileValidationError",
+      ),
       professorIds: readFormStringArray(input.formData, "professorIds"),
       scheduleCapacityId: readOptionalFormString(
         input.formData,
@@ -215,6 +236,16 @@ function readOptionalFormString(formData: FormData, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function readOptionalFormFile(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null;
+  }
+
+  return value;
+}
+
 async function handleUpdateChoreographyAction(input: {
   academyId: string;
   choreographyId: string;
@@ -222,11 +253,20 @@ async function handleUpdateChoreographyAction(input: {
   eventId: string;
   experienceLevelId: string | null;
   isRegistrationOpen: boolean;
+  musicFile: File | null;
+  musicStorageKey: string;
+  musicWasSubmitted: boolean;
+  musicValidationError: string;
   professorIds: string[];
   scheduleCapacityId: string | null;
 }) {
+  if (input.musicValidationError) {
+    return buildMusicUpdateError(input, input.musicValidationError);
+  }
+
   const parsed = choreographyEditSchema.safeParse({
     dancerIds: input.dancerIds,
+    musicStorageKey: input.musicStorageKey,
     professorIds: input.professorIds,
     scheduleCapacityId: input.scheduleCapacityId ?? "",
   });
@@ -244,6 +284,7 @@ async function handleUpdateChoreographyAction(input: {
       },
       message: rosterEditorReviewMessage,
       selectedDancerIds: input.dancerIds,
+      selectedMusicStorageKey: input.musicStorageKey,
       selectedProfessorIds: input.professorIds,
       selectedExperienceLevelId: input.experienceLevelId,
       selectedScheduleCapacityId: input.scheduleCapacityId ?? undefined,
@@ -268,15 +309,82 @@ async function handleUpdateChoreographyAction(input: {
       fieldErrors: result.fieldErrors,
       message: result.message,
       selectedDancerIds: parsed.data.dancerIds,
+      selectedMusicStorageKey: parsed.data.musicStorageKey ?? "",
       selectedProfessorIds: input.professorIds,
       selectedExperienceLevelId: input.experienceLevelId,
       selectedScheduleCapacityId: parsed.data.scheduleCapacityId,
     } satisfies ActionData;
   }
 
+  if (input.musicWasSubmitted || input.musicFile) {
+    try {
+      const musicResult = await updateChoreographyMusic({
+        academyId: input.academyId,
+        choreographyId: input.choreographyId,
+        eventId: input.eventId,
+        file: input.musicFile,
+        submittedStorageKey: parsed.data.musicStorageKey ?? "",
+      });
+
+      if (!musicResult.ok) {
+        return buildMusicUpdateError(input, musicResult.message);
+      }
+    } catch (error) {
+      return buildMusicUpdateError(input, getMusicUploadErrorMessage(error));
+    }
+  }
+
   return redirect(
     `/portal/coreografias/${input.choreographyId}?${routeNotificationSearchParam}=${choreographySavedNotification}`,
   );
+}
+
+function buildMusicUpdateError(
+  input: {
+    dancerIds: string[];
+    experienceLevelId: string | null;
+    musicStorageKey: string;
+    professorIds: string[];
+    scheduleCapacityId: string | null;
+  },
+  message: string,
+) {
+  return {
+    status: "update-error" as const,
+    section: "music" as const,
+    message,
+    selectedDancerIds: input.dancerIds,
+    selectedMusicStorageKey: input.musicStorageKey,
+    selectedProfessorIds: input.professorIds,
+    selectedExperienceLevelId: input.experienceLevelId,
+    selectedScheduleCapacityId: input.scheduleCapacityId ?? undefined,
+  } satisfies ActionData;
+}
+
+function getMusicUploadErrorMessage(error: unknown) {
+  if (
+    error instanceof Error &&
+    error.message === "Choreography music must be 50 MB or smaller."
+  ) {
+    return choreographyMusicMaxFileSizeMessage;
+  }
+
+  if (
+    error instanceof Error &&
+    error.message ===
+      "Choreography music must be an MP3, M4A, WAV, or OGG file."
+  ) {
+    return choreographyMusicInvalidTypeMessage;
+  }
+
+  if (
+    error instanceof Error &&
+    error.message === choreographyMusicPresentationBlockedMessage
+  ) {
+    return choreographyMusicPresentationBlockedMessage;
+  }
+
+  return choreographyMusicUploadErrorMessage;
 }
 
 async function handleDeleteChoreographyAction(input: {

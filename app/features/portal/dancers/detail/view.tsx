@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
@@ -87,10 +88,6 @@ export function PortalDancerDetailRouteView({
     : formValues;
   const showsIdentificationAlert = verificationStatus === "incomplete";
   const showsPendingVerificationAlert = verificationStatus === "unverified";
-  const showsStatusAlerts =
-    !loaderData.dancer.active ||
-    showsIdentificationAlert ||
-    showsPendingVerificationAlert;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
@@ -137,49 +134,47 @@ export function PortalDancerDetailRouteView({
           </ResourceActionsMenu>
         </div>
 
-        {showsStatusAlerts ? (
-          <div className="flex flex-col gap-3">
-            {!loaderData.dancer.active ? (
-              <Alert variant="destructive">
-                <CircleAlert aria-hidden="true" />
-                <AlertDescription>
-                  Este bailarín está archivado. Reactivalo para que vuelva a
-                  aparecer en las listas activas y en próximas selecciones de
-                  coreografías.
-                </AlertDescription>
-                <AlertAction className="top-1/2 -translate-y-1/2">
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={() => {
-                      setStatusDialogIntent("reactivate-dancer");
-                    }}
-                  >
-                    Reactivar
-                  </Button>
-                </AlertAction>
-              </Alert>
-            ) : null}
-            {showsIdentificationAlert ? (
-              <Alert variant="warning">
-                <TriangleAlert aria-hidden="true" />
-                <AlertDescription>
-                  Completá los datos e imágenes del documento para poder
-                  verificar la identidad del bailarín.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            {showsPendingVerificationAlert ? (
-              <Alert variant="info">
-                <Info aria-hidden="true" />
-                <AlertDescription>
-                  La identidad del bailarín está sin verificar.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-          </div>
-        ) : null}
+        <AlertStack>
+          {!loaderData.dancer.active ? (
+            <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
+              <AlertDescription>
+                Este bailarín está archivado. Reactivalo para que vuelva a
+                aparecer en las listas activas y en próximas selecciones de
+                coreografías.
+              </AlertDescription>
+              <AlertAction className="top-1/2 -translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setStatusDialogIntent("reactivate-dancer");
+                  }}
+                >
+                  Reactivar
+                </Button>
+              </AlertAction>
+            </Alert>
+          ) : null}
+          {showsIdentificationAlert ? (
+            <Alert variant="warning">
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Completá los datos e imágenes del documento para poder verificar
+                la identidad del bailarín.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {showsPendingVerificationAlert ? (
+            <Alert variant="info">
+              <Info aria-hidden="true" />
+              <AlertDescription>
+                La identidad del bailarín está sin verificar.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </AlertStack>
 
         <Card>
           <CardContent>

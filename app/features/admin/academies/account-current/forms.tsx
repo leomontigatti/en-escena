@@ -1,6 +1,10 @@
-import { useId } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useId } from "react";
+import { Controller, type Control, useForm } from "react-hook-form";
+import { useSubmit } from "react-router";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +32,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  createValidatedRouteFormDataSubmitHandler,
+  useApplyServerFieldErrors,
+} from "@/lib/shared/forms";
 
 import { formatAmount, formatDate } from "./formatters";
 import {
@@ -35,11 +43,21 @@ import {
   defaultPaymentImputationValues,
   defaultRegisterPaymentValues,
   paymentMethodOptions,
+  registerPaymentSchema,
+  type PaymentFieldName,
+  type RegisterPaymentFormValues,
+  type RegisterPaymentSubmissionValues,
 } from "./shared";
 import type { AccountCurrentLoaderData } from "./types";
 
 export { BalanceInvoiceForm } from "./balance-invoice-form";
 export { CorrectionActionsForm } from "./correction-actions-form";
+
+type RegisterPaymentControl = Control<
+  RegisterPaymentFormValues,
+  unknown,
+  RegisterPaymentSubmissionValues
+>;
 
 export function PaymentForm({
   fieldErrors,
@@ -48,10 +66,24 @@ export function PaymentForm({
   fieldErrors: Partial<Record<string, string>>;
   values: ReturnType<typeof defaultRegisterPaymentValues>;
 }) {
-  const amountId = useId();
-  const methodId = useId();
-  const referenceId = useId();
-  const internalNoteId = useId();
+  const form = useForm<
+    RegisterPaymentFormValues,
+    unknown,
+    RegisterPaymentSubmissionValues
+  >({
+    defaultValues: values,
+    mode: "onSubmit",
+    resolver: zodResolver(registerPaymentSchema),
+  });
+  const submit = useSubmit();
+  const { reset } = form;
+  const resetKey = JSON.stringify(values);
+
+  useEffect(() => {
+    reset(values);
+  }, [reset, resetKey, values]);
+
+  useApplyServerFieldErrors(form, fieldErrors);
 
   return (
     <Card>
@@ -59,81 +91,53 @@ export function PaymentForm({
         <CardTitle>Registrar pago</CardTitle>
       </CardHeader>
       <CardContent>
-        <form method="post" className="flex flex-col gap-5" noValidate>
+        <form
+          method="post"
+          className="flex flex-col gap-5"
+          noValidate
+          onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
+        >
           <input type="hidden" name="intent" value="register-payment" />
           <FieldGroup className="grid gap-5 md:grid-cols-2">
-            <DateOnlyField
-              defaultValue={values.paymentDate}
-              error={fieldErrors.paymentDate}
-              id="payment-date"
-              label="Fecha de pago"
+            <Controller<RegisterPaymentFormValues, "paymentDate">
+              control={form.control}
               name="paymentDate"
+              render={({ field, fieldState }) => (
+                <DateOnlyField
+                  defaultValue={field.value}
+                  error={fieldState.error?.message}
+                  id="payment-date"
+                  label="Fecha de pago"
+                  name={field.name}
+                  onBlur={field.onBlur}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                />
+              )}
             />
 
-            <Field
-              data-invalid={fieldErrors.amount ? true : undefined}
-              orientation="vertical"
-            >
-              <FieldLabel htmlFor={amountId}>Monto</FieldLabel>
-              <FieldContent>
-                <Input
-                  id={amountId}
-                  name="amount"
-                  inputMode="numeric"
-                  min="1"
-                  step="1"
-                  defaultValue={values.amount}
-                />
-                <FieldError>{fieldErrors.amount}</FieldError>
-              </FieldContent>
-            </Field>
+            <RegisterPaymentTextField
+              control={form.control}
+              label="Monto"
+              min="1"
+              name="amount"
+              step="1"
+            />
 
-            <Field
-              data-invalid={fieldErrors.paymentMethod ? true : undefined}
-              orientation="vertical"
-            >
-              <FieldLabel htmlFor={methodId}>Medio de pago</FieldLabel>
-              <FieldContent>
-                <Select
-                  name="paymentMethod"
-                  defaultValue={values.paymentMethod}
-                >
-                  <SelectTrigger id={methodId}>
-                    <SelectValue placeholder="Seleccioná un medio de pago" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethodOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldError>{fieldErrors.paymentMethod}</FieldError>
-              </FieldContent>
-            </Field>
+            <RegisterPaymentMethodField control={form.control} />
 
-            <Field orientation="vertical">
-              <FieldLabel htmlFor={referenceId}>Referencia</FieldLabel>
-              <FieldContent>
-                <Input
-                  id={referenceId}
-                  name="reference"
-                  defaultValue={values.reference}
-                />
-              </FieldContent>
-            </Field>
+            <RegisterPaymentTextField
+              control={form.control}
+              label="Referencia"
+              name="reference"
+            />
 
-            <Field className="md:col-span-2" orientation="vertical">
-              <FieldLabel htmlFor={internalNoteId}>Nota interna</FieldLabel>
-              <FieldContent>
-                <Textarea
-                  id={internalNoteId}
-                  name="internalNote"
-                  defaultValue={values.internalNote}
-                />
-              </FieldContent>
-            </Field>
+            <RegisterPaymentTextareaField
+              className="md:col-span-2"
+              control={form.control}
+              label="Nota interna"
+              name="internalNote"
+            />
           </FieldGroup>
 
           <div className="flex justify-end">
@@ -142,6 +146,146 @@ export function PaymentForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function RegisterPaymentTextField({
+  control,
+  label,
+  name,
+  ...inputProps
+}: {
+  control: RegisterPaymentControl;
+  label: string;
+  name: Extract<PaymentFieldName, "amount" | "reference">;
+} & Omit<
+  React.ComponentProps<typeof Input>,
+  "defaultValue" | "name" | "onBlur" | "onChange" | "value"
+>) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<RegisterPaymentFormValues, typeof name>
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="vertical"
+        >
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            {name === "amount" ? (
+              <IntegerInput
+                id={id}
+                aria-describedby={fieldState.error ? errorId : undefined}
+                aria-invalid={fieldState.error ? true : undefined}
+                {...inputProps}
+                {...field}
+                value={field.value ?? ""}
+              />
+            ) : (
+              <Input
+                id={id}
+                aria-describedby={fieldState.error ? errorId : undefined}
+                aria-invalid={fieldState.error ? true : undefined}
+                {...inputProps}
+                {...field}
+                value={field.value ?? ""}
+              />
+            )}
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function RegisterPaymentMethodField({
+  control,
+}: {
+  control: RegisterPaymentControl;
+}) {
+  const id = useId();
+
+  return (
+    <Controller<RegisterPaymentFormValues, "paymentMethod">
+      control={control}
+      name="paymentMethod"
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="vertical"
+        >
+          <FieldLabel htmlFor={id}>Medio de pago</FieldLabel>
+          <FieldContent>
+            <Select
+              name={field.name}
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger
+                id={id}
+                aria-invalid={fieldState.error ? true : undefined}
+              >
+                <SelectValue placeholder="Seleccioná un medio de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentMethodOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
+  );
+}
+
+function RegisterPaymentTextareaField({
+  className,
+  control,
+  label,
+  name,
+}: {
+  className?: string;
+  control: RegisterPaymentControl;
+  label: string;
+  name: "internalNote";
+}) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<RegisterPaymentFormValues, typeof name>
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field
+          className={className}
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="vertical"
+        >
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
+              {...field}
+              value={field.value ?? ""}
+            />
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }
 
@@ -230,10 +374,9 @@ export function PaymentImputationForm({
             >
               <FieldLabel htmlFor={amountId}>Monto</FieldLabel>
               <FieldContent>
-                <Input
+                <IntegerInput
                   id={amountId}
                   name="amount"
-                  inputMode="numeric"
                   min="1"
                   step="1"
                   defaultValue={values.amount}

@@ -7,7 +7,6 @@ import { buildPriceCreatePath } from "@/lib/admin/events/event-bases-navigation"
 import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { DepositPercentageForm } from "./deposit-percentage-form";
 import { EmptyResourceState, PriceActions } from "./actions";
 import { PriceForm, PriceFormActions, PriceFormPanel } from "./form";
 import { PriceListTable } from "./list-table";
@@ -40,12 +39,6 @@ export function EventPricesRouteView({
       }}
     >
       <div className="flex flex-col gap-6">
-        {loaderData.requiredDepositPercentage !== null ? (
-          <DepositPercentageForm
-            actionData={actionData}
-            requiredDepositPercentage={loaderData.requiredDepositPercentage}
-          />
-        ) : null}
         {loaderData.prices.length > 0 ? (
           <PriceListTable
             prices={loaderData.prices}

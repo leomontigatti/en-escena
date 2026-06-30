@@ -10,6 +10,7 @@ import {
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
@@ -128,8 +129,6 @@ export function PortalProfessorDetailRouteView({
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
   const statusAction = getProfessorStatusAction(loaderData.professor.active);
-  const showsStatusAlerts =
-    !loaderData.professor.active || loaderData.professor.isIncomplete;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
@@ -176,40 +175,38 @@ export function PortalProfessorDetailRouteView({
           </ResourceActionsMenu>
         </div>
 
-        {showsStatusAlerts ? (
-          <div className="flex flex-col gap-3">
-            {!loaderData.professor.active ? (
-              <Alert variant="destructive">
-                <CircleAlert aria-hidden="true" />
-                <AlertDescription>
-                  Este profesor está archivado. Reactivalo para que vuelva a
-                  aparecer en las listas activas y en próximas selecciones de
-                  coreografías.
-                </AlertDescription>
-                <AlertAction className="top-1/2 -translate-y-1/2">
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={() => {
-                      setStatusDialogIntent(reactivateProfessorIntent);
-                    }}
-                  >
-                    Reactivar
-                  </Button>
-                </AlertAction>
-              </Alert>
-            ) : null}
-            {loaderData.professor.isIncomplete ? (
-              <Alert variant="warning">
-                <TriangleAlert aria-hidden="true" />
-                <AlertDescription>
-                  Faltan datos de identificación.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-          </div>
-        ) : null}
+        <AlertStack>
+          {!loaderData.professor.active ? (
+            <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
+              <AlertDescription>
+                Este profesor está archivado. Reactivalo para que vuelva a
+                aparecer en las listas activas y en próximas selecciones de
+                coreografías.
+              </AlertDescription>
+              <AlertAction className="top-1/2 -translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setStatusDialogIntent(reactivateProfessorIntent);
+                  }}
+                >
+                  Reactivar
+                </Button>
+              </AlertAction>
+            </Alert>
+          ) : null}
+          {loaderData.professor.isIncomplete ? (
+            <Alert variant="warning">
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>
+                Faltan datos de identificación.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </AlertStack>
 
         <Card>
           <CardContent>

@@ -88,10 +88,10 @@ export function InternalUserEditCard({
       <UserFormCard
         footer={
           <>
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline">
               <Link to={cancelHref}>Volver</Link>
             </Button>
-            <Button type="submit" size="lg">
+            <Button type="submit">
               <Check aria-hidden="true" data-icon="inline-start" />
               Guardar
             </Button>

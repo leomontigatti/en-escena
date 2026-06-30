@@ -1,16 +1,15 @@
-import { Building2, FileSpreadsheet } from "lucide-react";
-import { Link } from "react-router";
+import { Building2 } from "lucide-react";
 
 import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import type { loadAdministrativeAcademiesList } from "./server";
 
@@ -24,37 +23,48 @@ type AdministracionAcademiasRouteViewProps = {
 const academyColumns: DataTableColumn<AcademyRow>[] = [
   {
     id: "name",
-    header: "Academia",
+    header: "Nombre",
     className: "min-w-56 font-medium",
-    cell: (academy) => (
-      <DataTableLink to={`/administracion/academias/${academy.id}`}>
-        {academy.name}
-      </DataTableLink>
-    ),
+    cell: (academy) => academy.name,
     filterValue: (academy) => academy.name,
     sortValue: (academy) => academy.name,
   },
   {
-    id: "contactName",
+    id: "contact",
     header: "Contacto",
     className: "text-muted-foreground",
     cell: (academy) => academy.contactName,
     filterValue: (academy) => academy.contactName,
-    sortValue: (academy) => academy.contactName,
   },
   {
-    id: "phone",
-    header: "Teléfono",
-    className: "text-muted-foreground",
-    cell: (academy) => academy.phone,
-    filterValue: (academy) => academy.phone,
+    id: "status",
+    header: "Estado",
+    cell: (academy) =>
+      academy.isParticipating ? (
+        <Badge variant="success">Participando</Badge>
+      ) : (
+        <Badge variant="secondary">No participando</Badge>
+      ),
+    filterValue: (academy) =>
+      academy.isParticipating ? "Participando" : "No participando",
   },
   {
-    id: "account",
-    header: "Finanzas",
-    className: "text-muted-foreground",
-    cell: () => "Cuenta corriente",
-    filterValue: () => "Cuenta corriente",
+    id: "filters",
+    header: "Filtros",
+    hidden: true,
+    cell: () => null,
+    filterValue: (academy) => (academy.isParticipating ? "si" : "no"),
+  },
+];
+
+const academyFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "participando",
+    label: "Participación",
+    options: [
+      { label: "Participando", value: "si" },
+      { label: "No participando", value: "no" },
+    ],
   },
 ];
 
@@ -63,38 +73,25 @@ export function AdministracionAcademiasRouteView({
 }: AdministracionAcademiasRouteViewProps) {
   return (
     <AdminResourceLayout
+      requireSelectedEvent={false}
       selectedEventId={loaderData.selectedEventId}
       title="Academias"
-      description="Abrí la cuenta corriente de cada academia dentro del evento activo para registrar pagos y revisar su saldo disponible."
-      headerAction={
-        <Button asChild variant="outline">
-          <Link to="/administracion/academias/reporte">
-            <FileSpreadsheet aria-hidden="true" data-icon />
-            Reporte de cuenta corriente
-          </Link>
-        </Button>
-      }
-      eventRequiredEmptyState={{
-        title: "Elegí un evento activo para revisar academias",
-        description:
-          "Activá un evento para abrir la cuenta corriente de cada academia y registrar pagos.",
-      }}
+      description="Consultá las academias registradas y, si hay evento activo, su participación."
     >
       {loaderData.academies.length > 0 ? (
-        <DataTable
-          mode="client"
+        <ClientDataTable
           rows={loaderData.academies}
           columns={academyColumns}
+          facetedFilters={academyFacetedFilters}
           getRowKey={(academy) => academy.id}
-          searchPlaceholder="Buscar academia por nombre, contacto o teléfono"
-          textFilterColumnId="name"
+          searchPlaceholder="Buscar academia por nombre o contacto"
           emptyMessage="No hay academias que coincidan con la búsqueda."
         />
       ) : (
         <AdminEmptyState
           icon={Building2}
           title="Todavía no hay academias registradas."
-          description="Cuando exista al menos una academia, vas a poder abrir su cuenta corriente desde este listado."
+          description="Cuando exista al menos una academia, va a aparecer en este listado."
         />
       )}
     </AdminResourceLayout>

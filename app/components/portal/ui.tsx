@@ -3,7 +3,7 @@ import {
   AudioLines,
   ChevronsUpDown,
   CircleCheck,
-  CircleDollarSign,
+  ClipboardList,
   GraduationCap,
   Home,
   Inbox,
@@ -173,13 +173,46 @@ type EventStatusPresentation = {
   variant: BadgeVariant;
 };
 
-const portalNavigationItems = [
-  { to: "/portal", label: "Inicio", icon: Home },
-  { to: "/portal/finanzas", label: "Finanzas", icon: CircleDollarSign },
-  { to: "/portal/profesores", label: "Profesores", icon: GraduationCap },
-  { to: "/portal/bailarines", label: "Bailarines", icon: Users },
-  { to: "/portal/coreografias", label: "Coreografías", icon: AudioLines },
-] as const;
+const primaryNavigationItems = [
+  {
+    label: "Inicio",
+    to: "/portal",
+    icon: Home,
+  },
+  {
+    label: "Profesores",
+    to: "/portal/profesores",
+    icon: GraduationCap,
+  },
+  {
+    label: "Bailarines",
+    to: "/portal/bailarines",
+    icon: Users,
+  },
+  {
+    label: "Coreografías",
+    to: "/portal/coreografias",
+    icon: AudioLines,
+  },
+] satisfies Array<{
+  label: string;
+  to: string;
+  icon: typeof Home;
+}>;
+
+const financeNavigationItems = [
+  {
+    label: "Resumen",
+    to: "/administracion/finanzas",
+    icon: ClipboardList,
+    disabled: true,
+  },
+] satisfies Array<{
+  label: string;
+  to: string;
+  icon: typeof Home;
+  disabled?: boolean;
+}>;
 
 const creationAvailabilityPresentationByTone: Record<
   CoreographyCreationState["tone"],
@@ -234,9 +267,9 @@ export function PortalShell({
 
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Portal</SidebarGroupLabel>
+              <SidebarGroupLabel>Administración</SidebarGroupLabel>
               <SidebarMenu>
-                {portalNavigationItems.map((item) => {
+                {primaryNavigationItems.map((item) => {
                   const Icon = item.icon;
 
                   return (
@@ -254,6 +287,40 @@ export function PortalShell({
                           <span>{item.label}</span>
                         </NavLink>
                       </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
+              <SidebarMenu>
+                {financeNavigationItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      {item.disabled ? (
+                        <SidebarMenuButton disabled tooltip={item.label}>
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={item.label}
+                          isActive={isNavigationItemActive(
+                            location.pathname,
+                            item.to,
+                          )}
+                        >
+                          <NavLink to={item.to}>
+                            <Icon aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      )}
                     </SidebarMenuItem>
                   );
                 })}

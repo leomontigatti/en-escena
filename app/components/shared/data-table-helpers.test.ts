@@ -15,22 +15,16 @@ import type { DataTableFacetedFilter } from "@/components/shared/data-table.shar
 
 describe("data-table helpers", () => {
   const statusFilter: DataTableFacetedFilter = {
-    columnId: "status",
-    label: "Filtros",
-    groups: [
-      {
-        id: "estado",
-        label: "Estado",
-        options: [
-          { label: "Activos", value: "active" },
-          { label: "Archivados", value: "archived" },
-        ],
-      },
-      {
-        label: "Sede",
-        options: [{ label: "Norte", value: "north" }],
-      },
+    id: "estado",
+    label: "Estado",
+    options: [
+      { label: "Activos", value: "active" },
+      { label: "Archivados", value: "archived" },
     ],
+  };
+  const locationFilter: DataTableFacetedFilter = {
+    label: "Sede",
+    options: [{ label: "Norte", value: "north" }],
   };
 
   test("builds compact pagination ranges with ellipses around the current page", () => {
@@ -134,7 +128,7 @@ describe("data-table helpers", () => {
 
   test("summarizes only active faceted filter labels", () => {
     expect(
-      getFacetedFilterSummary(statusFilter, {
+      getFacetedFilterSummary([statusFilter, locationFilter], {
         estado: "archived",
         Sede: "north",
       }),

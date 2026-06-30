@@ -7,5 +7,6 @@
 - [coreografias.md](./coreografias.md) - roster links, choreography registration, locks and Bases del evento.
 - [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
 - [finanzas.md](./finanzas.md) - financial states, invoices, payments, account balance and pricing.
+- [auditoria.md](./auditoria.md) - traceability, audit history and state-level audit fields.
 
 Implementation entry points live in [docs/agents/codebase-map.md](../agents/codebase-map.md).

@@ -2,8 +2,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
-  DataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
@@ -123,8 +123,7 @@ export function AdministracionCoreografiasRouteView({
 
 function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
   return (
-    <DataTable
-      mode="server"
+    <AdminResourceDataTable
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
@@ -137,9 +136,6 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       initialSort={loaderData.filters.order}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
-      pageParamName="pagina"
-      searchParamName="busqueda"
-      sortParamName="orden"
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
@@ -178,30 +174,24 @@ function buildAdministrativeChoreographyFacetedFilters(
 ): DataTableFacetedFilter[] {
   return [
     {
-      columnId: "filters",
-      label: "Filtros",
-      groups: [
-        {
-          id: "estado",
-          label: "Estado",
-          options: administrativeChoreographyStatusFilterOptions,
-        },
-        {
-          id: "modalidad",
-          label: "Modalidad",
-          options: loaderData.facets.modalities,
-        },
-        {
-          id: "categoria",
-          label: "Categoría",
-          options: loaderData.facets.categories,
-        },
-        {
-          id: "tipo-grupo",
-          label: "Tipo de grupo",
-          options: administrativeChoreographyGroupTypeFilterOptions,
-        },
-      ],
+      id: "estado",
+      label: "Estado",
+      options: administrativeChoreographyStatusFilterOptions,
+    },
+    {
+      id: "modalidad",
+      label: "Modalidad",
+      options: loaderData.facets.modalities,
+    },
+    {
+      id: "categoria",
+      label: "Categoría",
+      options: loaderData.facets.categories,
+    },
+    {
+      id: "tipo-grupo",
+      label: "Tipo de grupo",
+      options: administrativeChoreographyGroupTypeFilterOptions,
     },
   ];
 }

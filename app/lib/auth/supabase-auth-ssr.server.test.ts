@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  createSupabaseSessionClearHeaders,
   createSupabaseServerCookieBridge,
   withSupabaseSsrHeaders,
 } from "@/lib/auth/supabase-auth-ssr.server";
@@ -79,6 +80,22 @@ describe("supabase auth ssr helpers", () => {
     expect(getSetCookieValues(new Headers(init.headers))).toEqual([
       "sb-access-token=1; Path=/; HttpOnly",
       "sb-refresh=2; Path=/; HttpOnly",
+    ]);
+  });
+
+  test("expires stale Supabase auth cookies without touching app cookies", () => {
+    const request = new Request("http://localhost/registro", {
+      headers: {
+        cookie:
+          "theme=escena; sb-project-auth-token=stale; sb-project-code-verifier=old",
+      },
+    });
+
+    const headers = createSupabaseSessionClearHeaders(request);
+
+    expect(getSetCookieValues(headers)).toEqual([
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+      "sb-project-code-verifier=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
     ]);
   });
 });

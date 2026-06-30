@@ -156,6 +156,10 @@ _Evitar_: Datos operativos pendientes, datos financieros
 Datos de una coreografía que pueden completarse sin cambiar cálculo, cupo ni ubicación competitiva.
 _Evitar_: Datos bloqueados, datos financieros
 
+**Archivo de música**:
+Archivo de audio privado asociado a una Coreografía y gestionado como dato operativo pendiente.
+_Evitar_: Audio de evaluación, devolución, pista pública
+
 **Bailarines de coreografía**:
 Bailarines vinculados a una coreografía mediante inscripciones.
 _Evitar_: Profesores, datos financieros

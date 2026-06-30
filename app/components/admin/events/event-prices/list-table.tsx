@@ -1,5 +1,5 @@
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -72,8 +72,7 @@ export function PriceListTable({
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={prices}
       columns={columns}
       getRowKey={(price) => price.id}
@@ -81,20 +80,14 @@ export function PriceListTable({
       textFilterColumnId="name"
       facetedFilters={[
         {
-          columnId: "filters",
-          label: "Filtros",
-          groups: [
-            {
-              label: "Tipo de grupo",
-              options: groupTypeOptions,
-            },
-            {
-              label: "Cronograma",
-              options: [
-                { label: "Sí", value: "yes" },
-                { label: "No", value: "no" },
-              ],
-            },
+          label: "Tipo de grupo",
+          options: groupTypeOptions,
+        },
+        {
+          label: "Cronograma",
+          options: [
+            { label: "Sí", value: "yes" },
+            { label: "No", value: "no" },
           ],
         },
       ]}

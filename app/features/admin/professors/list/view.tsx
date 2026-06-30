@@ -2,8 +2,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
-  DataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
@@ -20,7 +20,7 @@ import type { loadAdministrativeProfessorsList } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdministrativeProfessorsList>>;
 type ProfessorRow = LoaderData["professors"][number];
-type FacetedFilterGroup = DataTableFacetedFilter["groups"][number];
+type FacetedFilterGroup = DataTableFacetedFilter;
 
 export type AdministracionProfesoresRouteViewProps = {
   loaderData: LoaderData;
@@ -104,8 +104,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
   ];
 
   return (
-    <DataTable
-      mode="server"
+    <AdminResourceDataTable
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
@@ -119,8 +118,6 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       }}
       emptyMessage="No hay Profesores que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
-      pageParamName="pagina"
-      searchParamName="busqueda"
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
@@ -164,13 +161,7 @@ function buildProfessorFacetedFilters(
     options: [{ label: "Archivado", value: "archivados" }],
   });
 
-  return [
-    {
-      columnId: "filters",
-      label: "Filtros",
-      groups,
-    },
-  ];
+  return [...groups];
 }
 
 function buildProfessorStatusSummary(

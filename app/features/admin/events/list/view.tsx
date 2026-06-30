@@ -3,7 +3,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -120,8 +120,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={events}
       columns={columns}
       getRowKey={(event) => event.id}

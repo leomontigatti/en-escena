@@ -13,6 +13,7 @@ export type ChoreographyListItem = {
   groupType: ChoreographyGroupType;
   categoryName: string | null;
   experienceLevelName: string | null;
+  musicStorageKey?: string | null;
   operationalStatus: ChoreographyOperationalStatus;
 };
 

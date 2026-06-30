@@ -1,6 +1,9 @@
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle, Lock } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Form, Link } from "react-router";
+import { toast } from "sonner";
 
+import { FileUploadField } from "@/components/shared/file-upload-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -15,6 +18,14 @@ import {
   ReadonlyDetailField,
 } from "@/features/portal/choreographies/detail/roster-editor-fields";
 import {
+  choreographyMusicAccept,
+  choreographyMusicAllowedMimeTypes,
+  choreographyMusicInvalidTypeMessage,
+  choreographyMusicMaxFileSizeBytes,
+  choreographyMusicMaxFileSizeMessage,
+  choreographyMusicPresentationBlockedMessage,
+  choreographyMusicUploadErrorMessage,
+  choreographyMusicUploadErrorToastId,
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
   updateChoreographyIntent,
@@ -29,9 +40,56 @@ export function ChoreographyRosterEditorForm({
   loaderData: ChoreographyRosterEditorLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  const editor = useChoreographyRosterEditorForm({ actionData, loaderData });
+  const [musicHasValidationError, setMusicHasValidationError] = useState(false);
+  const [selectedMusicFileName, setSelectedMusicFileName] = useState<
+    string | null
+  >(null);
+  const selectedMusicStorageKey =
+    actionData?.selectedMusicStorageKey ?? choreography.musicStorageKey ?? "";
+  const [musicStorageKey, setMusicStorageKey] = useState(
+    selectedMusicStorageKey,
+  );
+  const hasActiveFinancialLink =
+    loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
+  const musicFieldError =
+    actionData?.status === "update-error" &&
+    actionData.section === "music" &&
+    actionData.message !== choreographyMusicUploadErrorMessage
+      ? actionData.message
+      : null;
+
+  useEffect(() => {
+    setMusicStorageKey(selectedMusicStorageKey);
+    setSelectedMusicFileName(null);
+  }, [selectedMusicStorageKey]);
+
+  useEffect(() => {
+    if (
+      actionData?.status === "update-error" &&
+      actionData.section === "music" &&
+      actionData.message === choreographyMusicUploadErrorMessage
+    ) {
+      toast.error(actionData.message, {
+        id: choreographyMusicUploadErrorToastId,
+      });
+    }
+  }, [actionData?.message, actionData?.section, actionData?.status]);
+
+  const hasMusicChanged = useMemo(
+    () =>
+      selectedMusicFileName !== null ||
+      musicStorageKey !== (choreography.musicStorageKey ?? ""),
+    [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
+  );
+  const editor = useChoreographyRosterEditorForm({
+    actionData,
+    hasMusicChanged,
+    loaderData,
+    musicHasValidationError,
+  });
   const {
     canEditDancers,
+    canEditMusic,
     canEditProfessors,
     canSubmit,
     dancerOptions,
@@ -50,9 +108,33 @@ export function ChoreographyRosterEditorForm({
     scheduleResolution,
     scheduleSelectOptions,
   } = editor;
+  const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
+    setMusicHasValidationError(hasError);
+  }, []);
+  const handleMusicStorageKeyChange = useCallback(
+    (nextStorageKey: string) => {
+      setMusicStorageKey(nextStorageKey);
+      form.setValue("musicStorageKey", nextStorageKey, {
+        shouldDirty: true,
+      });
+    },
+    [form],
+  );
+  const handleSelectedMusicFileChange = useCallback(
+    (file: File | null) => {
+      setSelectedMusicFileName(file?.name ?? null);
+
+      if (file) {
+        form.setValue("musicStorageKey", choreography.musicStorageKey ?? "", {
+          shouldDirty: true,
+        });
+      }
+    },
+    [choreography.musicStorageKey, form],
+  );
 
   return (
-    <Form method="post" onSubmit={handleSubmit}>
+    <Form method="post" encType="multipart/form-data" onSubmit={handleSubmit}>
       <Card>
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
@@ -122,8 +204,13 @@ export function ChoreographyRosterEditorForm({
               options={dancerOptions}
               placeholder="Buscar bailarines"
               searchable={true}
+              trailingIcon={
+                hasActiveFinancialLink ? (
+                  <Lock aria-label="Bailarines bloqueados por vínculo financiero activo" />
+                ) : null
+              }
             />
-            {!canEditDancers ? (
+            {!canEditDancers && !hasActiveFinancialLink ? (
               <FieldDescription>
                 {loaderData.dancerEditingEligibility.reasonText}
               </FieldDescription>
@@ -146,8 +233,35 @@ export function ChoreographyRosterEditorForm({
                 presentación asociada.
               </FieldDescription>
             ) : null}
-            {actionData?.status === "update-error" ? (
-              <FieldError>{actionData.message}</FieldError>
+            <FileUploadField
+              name="musicFile"
+              disabled={!canEditMusic}
+              storageKeyInputName="musicStorageKey"
+              storageKeyValue={musicStorageKey}
+              fieldLabel="Archivo de música"
+              label="Arrastrá o hacé click para cargar la música"
+              uploadedLabel="Archivo de música cargado"
+              helperText="MP3, M4A, WAV u OGG - max 50 MB"
+              downloadLabel="Descargar música"
+              downloadUrl={choreography.musicDownloadUrl}
+              accept={choreographyMusicAccept}
+              allowedMimeTypes={choreographyMusicAllowedMimeTypes}
+              invalidTypeMessage={choreographyMusicInvalidTypeMessage}
+              maxFileSizeBytes={choreographyMusicMaxFileSizeBytes}
+              maxFileSizeMessage={choreographyMusicMaxFileSizeMessage}
+              previewSelectedFile={false}
+              removeLabel="Borrar música"
+              onSelectedFileChange={handleSelectedMusicFileChange}
+              onStorageKeyChange={handleMusicStorageKeyChange}
+              onValidationErrorChange={handleMusicValidationErrorChange}
+            />
+            {!canEditMusic ? (
+              <FieldDescription>
+                {choreographyMusicPresentationBlockedMessage}
+              </FieldDescription>
+            ) : null}
+            {musicFieldError ? (
+              <FieldError>{musicFieldError}</FieldError>
             ) : null}
           </FieldGroup>
         </CardContent>
@@ -165,7 +279,7 @@ export function ChoreographyRosterEditorForm({
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}
-            Guardar coreografía
+            Guardar
           </Button>
         </CardFooter>
       </Card>

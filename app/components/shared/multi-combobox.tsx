@@ -1,3 +1,4 @@
+import { ChevronDownIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import {
@@ -32,6 +33,7 @@ type MultiComboboxProps<TOption extends MultiComboboxOption> = {
   onValueChange: (value: string[]) => void;
   options: TOption[];
   placeholder: string;
+  trailingIcon?: ReactNode;
   renderChip?: (option: TOption) => ReactNode;
   renderOption?: (option: TOption) => ReactNode;
   searchable?: boolean;
@@ -53,6 +55,7 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
   onValueChange,
   options,
   placeholder,
+  trailingIcon,
   renderChip,
   renderOption,
   searchable = false,
@@ -112,6 +115,7 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
           ))
         : null}
       <Combobox
+        disabled={disabled}
         items={comboboxItems}
         itemToStringLabel={getOptionLabel}
         itemToStringValue={getOptionLabel}
@@ -121,15 +125,27 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
       >
         <ComboboxChips
           ref={anchorRef}
+          aria-disabled={disabled ? true : undefined}
           aria-invalid={error ? true : undefined}
-          className={className}
+          className={cn(
+            disabled &&
+              "cursor-default border-input/50 bg-input/25 has-data-[slot=combobox-chip]:px-2.5 dark:bg-input/40",
+            "relative pr-9",
+            className,
+          )}
         >
           <ComboboxValue>
             {value.map((selectedValue) => {
               const option = getOption(selectedValue);
 
               return (
-                <ComboboxChip key={selectedValue} showRemove={!disabled}>
+                <ComboboxChip
+                  key={selectedValue}
+                  className={
+                    disabled ? "bg-transparent px-0 text-foreground/50" : ""
+                  }
+                  showRemove={!disabled}
+                >
                   {renderChip ? renderChip(option) : option.label}
                 </ComboboxChip>
               );
@@ -138,10 +154,11 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
           <ComboboxTrigger
             disabled={disabled}
             className={cn(
-              "flex min-w-16 flex-1 items-center justify-between text-left text-muted-foreground outline-none",
-              disabled && "pointer-events-none opacity-50",
+              "flex min-w-16 flex-1 items-center justify-between gap-2 text-left text-muted-foreground outline-none",
+              disabled && "pointer-events-none",
             )}
             onBlur={onBlur}
+            showChevron={false}
           >
             {value.length === 0 ? (
               <span className="truncate">{placeholder}</span>
@@ -149,44 +166,55 @@ function MultiCombobox<TOption extends MultiComboboxOption>({
               <span aria-hidden="true" />
             )}
           </ComboboxTrigger>
+          <span className="pointer-events-none absolute top-1/2 right-3 flex size-4 -translate-y-1/2 items-center justify-center text-muted-foreground">
+            {trailingIcon ? (
+              <span className="flex size-3 items-center justify-center [&_svg]:size-3">
+                {trailingIcon}
+              </span>
+            ) : (
+              <ChevronDownIcon aria-hidden="true" className="size-4" />
+            )}
+          </span>
         </ComboboxChips>
-        <ComboboxContent
-          anchor={anchorRef}
-          collisionAvoidance={
-            isInsideDialog
-              ? {
-                  side: "none",
-                  align: "shift",
-                  fallbackAxisSide: "none",
-                }
-              : undefined
-          }
-          dismissableLayerBranch={isInsideDialog}
-          positionerClassName={
-            isInsideDialog ? "pointer-events-auto z-60" : undefined
-          }
-          portalContainer={portalContainer}
-        >
-          {searchable ? (
-            <ComboboxInput
-              disabled={disabled || options.length === 0}
-              placeholder="Buscar"
-              showTrigger={false}
-            />
-          ) : null}
-          <ComboboxEmpty>{currentEmptyMessage}</ComboboxEmpty>
-          <ComboboxList>
-            {(itemValue) => {
-              const option = getOption(itemValue);
+        {!disabled ? (
+          <ComboboxContent
+            anchor={anchorRef}
+            collisionAvoidance={
+              isInsideDialog
+                ? {
+                    side: "none",
+                    align: "shift",
+                    fallbackAxisSide: "none",
+                  }
+                : undefined
+            }
+            dismissableLayerBranch={isInsideDialog}
+            positionerClassName={
+              isInsideDialog ? "pointer-events-auto z-60" : undefined
+            }
+            portalContainer={portalContainer}
+          >
+            {searchable ? (
+              <ComboboxInput
+                disabled={options.length === 0}
+                placeholder="Buscar"
+                showTrigger={false}
+              />
+            ) : null}
+            <ComboboxEmpty>{currentEmptyMessage}</ComboboxEmpty>
+            <ComboboxList>
+              {(itemValue) => {
+                const option = getOption(itemValue);
 
-              return (
-                <ComboboxItem key={itemValue} value={itemValue}>
-                  {renderOption ? renderOption(option) : option.label}
-                </ComboboxItem>
-              );
-            }}
-          </ComboboxList>
-        </ComboboxContent>
+                return (
+                  <ComboboxItem key={itemValue} value={itemValue}>
+                    {renderOption ? renderOption(option) : option.label}
+                  </ComboboxItem>
+                );
+              }}
+            </ComboboxList>
+          </ComboboxContent>
+        ) : null}
       </Combobox>
     </>
   );

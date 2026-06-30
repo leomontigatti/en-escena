@@ -3,10 +3,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
+import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { IntegerInput } from "@/components/shared/integer-input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Field,
   FieldError,
@@ -198,13 +199,12 @@ export function PriceForm({
             options={groupTypeOptions}
             placeholder="Elegí un tipo"
           />
-          <TextField
+          <IntegerTextField
             form={form}
             label="Monto"
             min="1"
             name="amount"
             step="1"
-            type="number"
           />
         </FieldGroup>
       </FieldGroup>
@@ -233,11 +233,7 @@ export function PriceFormActions({
 }
 
 export function PriceFormPanel({ children }: { children: ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-6">{children}</CardContent>
-    </Card>
-  );
+  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
 function NameField({ form }: { form: PriceFormController }) {
@@ -272,7 +268,7 @@ function NameField({ form }: { form: PriceFormController }) {
   );
 }
 
-function TextField({
+function IntegerTextField({
   className,
   form,
   label,
@@ -283,7 +279,10 @@ function TextField({
   form: PriceFormController;
   label: string;
   name: PriceTextFieldName;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "form" | "name">) {
+} & Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "form" | "inputMode" | "name" | "pattern" | "type"
+>) {
   const id = useId();
   const errorId = `${id}-error`;
   const error = form.formState.errors[name]?.message;
@@ -295,7 +294,7 @@ function TextField({
         control={form.control}
         name={name}
         render={({ field }) => (
-          <Input
+          <IntegerInput
             id={id}
             aria-describedby={error ? errorId : undefined}
             aria-invalid={error ? true : undefined}

@@ -4,10 +4,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/components/shared/data-table";
+import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
+import { type DataTableColumn } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,8 +145,7 @@ function UsersTable({
   ];
 
   return (
-    <DataTable
-      mode="server"
+    <AdminResourceDataTable
       rows={users}
       columns={columns}
       getRowKey={(savedUser) => savedUser.id}
@@ -156,32 +153,24 @@ function UsersTable({
       initialSearchValue={filters.query}
       facetedFilters={[
         {
-          columnId: "status",
-          label: "Filtros",
-          groups: [
-            {
-              id: "rol",
-              label: "Rol",
-              options: roleFilterOptions,
-            },
-            {
-              id: "estado",
-              label: "Estado",
-              options: stateFilterOptions,
-            },
-            {
-              id: "archivado",
-              label: "Archivo",
-              options: [{ label: "Archivado", value: "si" }],
-            },
-          ],
+          id: "rol",
+          label: "Rol",
+          options: roleFilterOptions,
+        },
+        {
+          id: "estado",
+          label: "Estado",
+          options: stateFilterOptions,
+        },
+        {
+          id: "archivado",
+          label: "Archivo",
+          options: [{ label: "Archivado", value: "si" }],
         },
       ]}
       initialFacetedFilterValues={buildInitialUserFilterValues(filters)}
       emptyMessage="No hay Usuarios que coincidan con la búsqueda o los filtros."
       currentPage={1}
-      pageParamName="pagina"
-      searchParamName="busqueda"
       totalPages={1}
       totalRows={users.length}
     />
@@ -213,7 +202,7 @@ function buildInitialUserFilterValues(
     return {};
   }
 
-  return { status: values };
+  return { filters: values };
 }
 
 function buildUserDetailHref(

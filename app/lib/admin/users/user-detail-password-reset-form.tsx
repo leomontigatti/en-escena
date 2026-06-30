@@ -75,10 +75,10 @@ export function InternalUserResetPasswordCard({
         title="Restablecimiento administrativo de contraseña"
         footer={
           <>
-            <Button type="submit">Guardar contraseña temporal</Button>
             <Button asChild variant="outline">
               <Link to={cancelHref}>Cancelar</Link>
             </Button>
+            <Button type="submit">Guardar contraseña temporal</Button>
           </>
         }
       >

@@ -43,14 +43,6 @@ export type BalanceInvoiceFieldName = (typeof balanceInvoiceFieldNames)[number];
 export type ImputationFieldName = (typeof imputationFieldNames)[number];
 export type CorrectionFieldName = (typeof correctionFieldNames)[number];
 
-export type RegisterPaymentFormValues = {
-  amount: string;
-  internalNote: string;
-  paymentDate: string;
-  paymentMethod: string;
-  reference: string;
-};
-
 export type IssueDepositInvoicesFormValues = {
   choreographyIds: string[];
   issueDate: string;
@@ -115,12 +107,22 @@ export const registerPaymentSchema = z.object({
     .refine((value) => Number(value) > 0, {
       message: "Ingresá un monto mayor a cero.",
     }),
-  paymentMethod: z.enum(paymentMethodValues, {
-    message: "Seleccioná un medio de pago.",
-  }),
+  paymentMethod: z
+    .string()
+    .trim()
+    .pipe(
+      z.enum(paymentMethodValues, {
+        message: "Seleccioná un medio de pago.",
+      }),
+    ),
   reference: z.string().trim(),
   internalNote: z.string().trim(),
 });
+
+export type RegisterPaymentFormValues = z.input<typeof registerPaymentSchema>;
+export type RegisterPaymentSubmissionValues = z.output<
+  typeof registerPaymentSchema
+>;
 
 export const issueDepositInvoicesSchema = z.object({
   issueDate: z

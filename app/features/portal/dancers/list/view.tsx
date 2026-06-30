@@ -4,7 +4,7 @@ import { useFetcher } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -20,7 +20,7 @@ type ActionData = CreateDancerActionData;
 type DancerRow = LoaderData["dancers"][number];
 
 const baseDancerFilters = {
-  status: {
+  filters: {
     archivo: "active",
   },
 };
@@ -164,8 +164,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
   ];
 
   return (
-    <DataTable
-      mode="client"
+    <ClientDataTable
       rows={dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
@@ -173,30 +172,24 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       textFilterColumnId="name"
       facetedFilters={[
         {
-          columnId: "status",
-          label: "Filtros",
-          groups: [
-            {
-              label: "Participación",
-              options: [
-                { label: "Participando", value: "participating" },
-                { label: "No participando", value: "not-participating" },
-              ],
-            },
-            {
-              label: "Verificación",
-              options: [
-                { label: "Incompleto", value: "incomplete" },
-                { label: "Sin verificar", value: "unverified" },
-                { label: "Verificado", value: "verified" },
-              ],
-            },
-            {
-              id: "archivo",
-              label: "Archivo",
-              options: [{ label: "Archivado", value: "archived" }],
-            },
+          label: "Participación",
+          options: [
+            { label: "Participando", value: "participating" },
+            { label: "No participando", value: "not-participating" },
           ],
+        },
+        {
+          label: "Verificación",
+          options: [
+            { label: "Incompleto", value: "incomplete" },
+            { label: "Sin verificar", value: "unverified" },
+            { label: "Verificado", value: "verified" },
+          ],
+        },
+        {
+          id: "archivo",
+          label: "Archivo",
+          options: [{ label: "Archivado", value: "archived" }],
         },
       ]}
       baseFacetedFilterValues={baseDancerFilters}

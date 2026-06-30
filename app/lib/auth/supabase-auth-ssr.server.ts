@@ -50,6 +50,26 @@ export function withSupabaseSsrHeaders(
   };
 }
 
+export function createSupabaseSessionClearHeaders(request: Request) {
+  const headers = new Headers();
+
+  appendSerializedCookies(
+    headers,
+    getSupabaseCookieNames(request).map((name) => ({
+      name,
+      options: {
+        expires: new Date(0),
+        maxAge: 0,
+        path: "/",
+        sameSite: "lax" as const,
+      },
+      value: "",
+    })),
+  );
+
+  return headers;
+}
+
 function mergeHeaders(
   baseHeaders: HeadersInit | undefined,
   supabaseHeaders: Headers,
@@ -108,6 +128,12 @@ function parseRequestCookies(cookieHeader: string | null) {
   return Object.entries(parse(cookieHeader)).flatMap(([name, value]) =>
     typeof value === "string" ? [{ name, value }] : [],
   );
+}
+
+function getSupabaseCookieNames(request: Request) {
+  return parseRequestCookies(request.headers.get("cookie"))
+    .map((cookie) => cookie.name)
+    .filter((name) => name.startsWith("sb-"));
 }
 
 export function getRequiredSupabaseEnv(

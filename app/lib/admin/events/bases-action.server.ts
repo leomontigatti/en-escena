@@ -8,14 +8,6 @@ import {
   readCategorySubmittedValues,
   runCategoryIntent,
 } from "@/lib/admin/events/bases-action/categories.server";
-import {
-  buildDepositPercentageActionErrorScope,
-  buildDepositPercentageRedirectUrl,
-  getDepositPercentageConfirmationError,
-  handlesDepositPercentageIntent,
-  readDepositPercentageSubmittedValues,
-  runDepositPercentageIntent,
-} from "@/lib/admin/events/bases-action/deposit-percentage.server";
 import { readEventBasesActionInput } from "@/lib/admin/events/bases-action/input.server";
 import {
   buildModalityActionErrorScope,
@@ -105,16 +97,6 @@ const modalityActionHandler: EventBasesActionHandler = {
   run: runModalityIntent,
 };
 
-const depositPercentageActionHandler: EventBasesActionHandler = {
-  buildErrorScope: buildDepositPercentageActionErrorScope,
-  buildRedirectUrl: (requestUrl) =>
-    buildDepositPercentageRedirectUrl(requestUrl),
-  getConfirmationError: getDepositPercentageConfirmationError,
-  readSubmittedValues: (input) => readDepositPercentageSubmittedValues(input),
-  run: runDepositPercentageIntent,
-  invalidateRegistrationReadiness: false,
-};
-
 const priceActionHandler: EventBasesActionHandler = {
   buildErrorScope: buildPriceActionErrorScope,
   buildRedirectUrl: buildPriceRedirectUrl,
@@ -201,10 +183,6 @@ async function runEventBasesIntentWithReadinessInvalidation(
 function getEventBasesActionHandler(intent: string): EventBasesActionHandler {
   if (handlesCategoryIntent(intent)) {
     return categoryActionHandler;
-  }
-
-  if (handlesDepositPercentageIntent(intent)) {
-    return depositPercentageActionHandler;
   }
 
   if (handlesModalityIntent(intent)) {

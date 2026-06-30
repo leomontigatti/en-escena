@@ -6,7 +6,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
-  DataTable,
+  ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
@@ -81,8 +81,7 @@ export function AdministracionAcademiasReporteCuentaCorrienteRouteView({
       }
     >
       {loaderData.rows.length > 0 ? (
-        <DataTable
-          mode="client"
+        <ClientDataTable
           rows={loaderData.rows}
           columns={reportColumns}
           getRowKey={(row) => row.academyId}

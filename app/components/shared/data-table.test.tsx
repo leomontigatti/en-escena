@@ -13,7 +13,8 @@ import {
   buildDataTablePageHref,
   buildDataTableSearchHref,
   buildDataTableSortHref,
-  DataTable,
+  ClientDataTable,
+  ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 
@@ -78,8 +79,7 @@ describe("DataTable", () => {
     await act(async () => {
       root?.render(
         <MemoryRouter initialEntries={["/administracion/eventos"]}>
-          <DataTable
-            mode="client"
+          <ClientDataTable
             rows={[
               {
                 id: "event_1",
@@ -94,16 +94,10 @@ describe("DataTable", () => {
             textFilterColumnId="name"
             facetedFilters={[
               {
-                columnId: "filters",
-                label: "Filtros",
-                groups: [
-                  {
-                    label: "Estado",
-                    options: [
-                      { label: "Activo", value: "active" },
-                      { label: "Archivado", value: "archived" },
-                    ],
-                  },
+                label: "Estado",
+                options: [
+                  { label: "Activo", value: "active" },
+                  { label: "Archivado", value: "archived" },
                 ],
               },
             ]}
@@ -127,8 +121,7 @@ describe("DataTable", () => {
           "/administracion/profesores?q=Ana&estado=archivados&page=2",
         ]}
       >
-        <DataTable
-          mode="server"
+        <ServerDataTable
           rows={[
             {
               id: "professor_1",
@@ -143,18 +136,12 @@ describe("DataTable", () => {
           initialSearchValue="Ana"
           facetedFilters={[
             {
-              columnId: "filters",
-              label: "Filtros",
-              groups: [
-                {
-                  id: "estado",
-                  label: "Estado",
-                  options: [
-                    { label: "Activos", value: "activos" },
-                    { label: "Archivados", value: "archivados" },
-                    { label: "Todos", value: "todos" },
-                  ],
-                },
+              id: "estado",
+              label: "Estado",
+              options: [
+                { label: "Activos", value: "activos" },
+                { label: "Archivados", value: "archivados" },
+                { label: "Todos", value: "todos" },
               ],
             },
           ]}
@@ -196,8 +183,7 @@ describe("DataTable", () => {
   test("preserves client-side filtering behavior when server-side mode is not enabled", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/portal/profesores"]}>
-        <DataTable
-          mode="client"
+        <ClientDataTable
           rows={[
             {
               id: "professor_1",
@@ -229,8 +215,7 @@ describe("DataTable", () => {
   test("applies client-side base faceted filters without showing an active filter badge", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/portal/profesores"]}>
-        <DataTable
-          mode="client"
+        <ClientDataTable
           rows={[
             {
               id: "professor_1",
@@ -251,19 +236,13 @@ describe("DataTable", () => {
           textFilterColumnId="name"
           facetedFilters={[
             {
-              columnId: "status",
-              label: "Filtros",
-              groups: [
-                {
-                  id: "archivo",
-                  label: "Archivo",
-                  options: [{ label: "Archivado", value: "archived" }],
-                },
-              ],
+              id: "archivo",
+              label: "Archivo",
+              options: [{ label: "Archivado", value: "archived" }],
             },
           ]}
           baseFacetedFilterValues={{
-            status: {
+            filters: {
               archivo: "active",
             },
           }}
@@ -303,17 +282,13 @@ describe("DataTable server-side href helpers", () => {
       buildDataTableFilterHref({
         basePath: "/administracion/profesores",
         currentSearch: "?q=Ana&estado=archivados&page=2",
-        filter: {
-          columnId: "filters",
-          label: "Filtros",
-          groups: [
-            {
-              id: "estado",
-              label: "Estado",
-              options: [],
-            },
-          ],
-        },
+        groups: [
+          {
+            id: "estado",
+            label: "Estado",
+            options: [],
+          },
+        ],
         values: {},
       }),
     ).toBe("/administracion/profesores?q=Ana");

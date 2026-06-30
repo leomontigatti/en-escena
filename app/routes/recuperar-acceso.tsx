@@ -43,9 +43,9 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await redirectSignedInUserFromPublicRoute(request);
+  const publicRouteInit = await redirectSignedInUserFromPublicRoute(request);
 
-  return null;
+  return data(null, publicRouteInit ?? undefined);
 }
 
 export async function action({ request }: Route.ActionArgs) {

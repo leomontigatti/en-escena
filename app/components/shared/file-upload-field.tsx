@@ -1,4 +1,4 @@
-import { CloudUpload, Trash2 } from "lucide-react";
+import { CloudUpload, Download, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -13,29 +13,47 @@ import { cn } from "@/lib/shared/utils";
 
 type FileUploadFieldProps = Omit<ComponentProps<"input">, "type"> & {
   allowedMimeTypes: string[];
+  downloadLabel?: string;
+  downloadUrl?: string | null;
   existingPreviewUrl?: string | null;
+  fieldLabel?: string;
   helperText: string;
+  invalidTypeMessage?: string;
   label: string;
   maxFileSizeBytes?: number;
+  maxFileSizeMessage?: string;
+  onSelectedFileChange?: (file: File | null) => void;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
+  previewSelectedFile?: boolean;
+  removeLabel?: string;
   storageKeyInputName?: string;
   storageKeyValue?: string;
+  uploadedLabel?: string;
 };
 
 export function FileUploadField({
   allowedMimeTypes,
   className,
+  downloadLabel = "Descargar archivo",
+  downloadUrl,
   existingPreviewUrl,
+  fieldLabel,
   helperText,
   id: providedId,
+  invalidTypeMessage = "El archivo debe ser JPG, PNG o WEBP.",
   label,
   maxFileSizeBytes,
+  maxFileSizeMessage = "El archivo no puede superar 10 MB.",
   onChange,
+  onSelectedFileChange,
   onStorageKeyChange,
   onValidationErrorChange,
+  previewSelectedFile = true,
+  removeLabel = "Borrar imagen",
   storageKeyInputName,
   storageKeyValue = "",
+  uploadedLabel = "Imagen cargada",
   ...props
 }: FileUploadFieldProps) {
   const generatedId = useId();
@@ -46,6 +64,7 @@ export function FileUploadField({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const hasImage = selectedFileName !== null || currentStorageKey.length > 0;
+  const downloadHref = currentStorageKey.length > 0 ? downloadUrl : null;
   const displayedPreviewUrl =
     previewUrl ?? (currentStorageKey ? existingPreviewUrl : null);
   const showsFileActions = hasImage || errorMessage !== null;
@@ -80,6 +99,9 @@ export function FileUploadField({
         name={`${props.name ?? id}ValidationError`}
         value={errorMessage ?? ""}
       />
+      {fieldLabel ? (
+        <span className="text-sm leading-snug font-medium">{fieldLabel}</span>
+      ) : null}
       <div className="relative">
         <label
           htmlFor={id}
@@ -122,7 +144,8 @@ export function FileUploadField({
               </span>
               <span className="flex flex-col gap-1">
                 <span className="break-all text-sm font-medium text-foreground">
-                  {currentStorageKey ? "Imagen cargada" : label}
+                  {selectedFileName ??
+                    (currentStorageKey ? uploadedLabel : label)}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {helperText}
@@ -146,17 +169,28 @@ export function FileUploadField({
             }}
           />
         </label>
-        {showsFileActions ? (
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon-sm"
-            className="absolute top-2 right-2 z-10"
-            onClick={clearFile}
-          >
-            <Trash2 aria-hidden="true" />
-            <span className="sr-only">Borrar imagen</span>
-          </Button>
+        {showsFileActions || downloadHref ? (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+            {downloadHref ? (
+              <Button asChild variant="outline" size="icon-sm">
+                <a href={downloadHref} target="_blank" rel="noreferrer">
+                  <Download aria-hidden="true" />
+                  <span className="sr-only">{downloadLabel}</span>
+                </a>
+              </Button>
+            ) : null}
+            {showsFileActions ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon-sm"
+                onClick={clearFile}
+              >
+                <Trash2 aria-hidden="true" />
+                <span className="sr-only">{removeLabel}</span>
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {errorMessage ? (
@@ -174,6 +208,7 @@ export function FileUploadField({
 
     if (!file) {
       setSelectedFileName(null);
+      onSelectedFileChange?.(null);
       onChange?.(event as ChangeEvent<HTMLInputElement>);
       return;
     }
@@ -184,12 +219,16 @@ export function FileUploadField({
       input.value = "";
       setErrorMessage(validationError);
       setSelectedFileName(null);
+      onSelectedFileChange?.(null);
       return;
     }
 
     setErrorMessage(null);
     setSelectedFileName(file.name);
-    setPreviewUrl(createPreviewUrl(file));
+    if (previewSelectedFile) {
+      setPreviewUrl(createPreviewUrl(file));
+    }
+    onSelectedFileChange?.(file);
     onChange?.(event as ChangeEvent<HTMLInputElement>);
   }
 
@@ -202,6 +241,7 @@ export function FileUploadField({
     onStorageKeyChange?.("");
     setErrorMessage(null);
     setSelectedFileName(null);
+    onSelectedFileChange?.(null);
     clearPreview();
   }
 
@@ -217,11 +257,11 @@ export function FileUploadField({
 
   function getFileValidationError(file: File) {
     if (!allowedMimeTypes.includes(file.type)) {
-      return "El archivo debe ser JPG, PNG o WEBP.";
+      return invalidTypeMessage;
     }
 
     if (maxFileSizeBytes !== undefined && file.size > maxFileSizeBytes) {
-      return "El archivo no puede superar 10 MB.";
+      return maxFileSizeMessage;
     }
 
     return null;

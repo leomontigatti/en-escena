@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 export type DataTableSortDirection = "asc" | "desc";
 
@@ -22,11 +22,9 @@ export type DataTableColumn<TData> = {
   sortValue?: (row: TData) => DataTableSortValue;
 };
 
-export type DataTableFacetedFilter = {
-  columnId: string;
-  label: string;
-  groups: DataTableFacetedFilterGroup[];
-};
+export const dataTableFacetedFilterColumnId = "filters";
+
+export type DataTableFacetedFilter = DataTableFacetedFilterGroup;
 
 export type DataTableFacetedFilterGroup = {
   id?: string;
@@ -40,3 +38,43 @@ export type DataTableFacetedFilterOption = {
 };
 
 export type DataTableFacetedFilterValue = Record<string, string>;
+
+export type DataTableBaseProps<TData> = {
+  rows: TData[];
+  columns: DataTableColumn<TData>[];
+  getRowKey: (row: TData) => string;
+  getRowProps?: (row: TData) => ComponentProps<"tr">;
+  searchPlaceholder: string;
+  initialSearchValue?: string;
+  facetedFilters?: DataTableFacetedFilter[];
+  emptyMessage?: string;
+  baseFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
+  initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
+};
+
+export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
+  textFilterColumnId?: string;
+  initialSort?: {
+    columnId: string;
+    direction: DataTableSortDirection;
+  };
+};
+
+export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
+  currentPage: number;
+  totalPages: number;
+  totalRows: number;
+  basePath?: string;
+  initialSort?: {
+    columnId: string;
+    direction: DataTableSortDirection;
+  };
+  loading?: boolean;
+  pageParamName?: string;
+  searchParamName?: string;
+  sortParamName?: string;
+};
+
+export type DataTableProps<TData> =
+  | (ClientDataTableProps<TData> & { mode: "client" })
+  | (ServerDataTableProps<TData> & { mode: "server" });

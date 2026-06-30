@@ -96,6 +96,12 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
 - Music and professor links can be edited while presentation is pending, even if registration is closed or the choreography has an active financial link.
 - Music/professor links stop being editable once presentation is no longer pending.
+- `Archivo de música` is stored as a private audio file for a choreography and is not uploaded during initial registration.
+- A choreography can have at most one current Archivo de música.
+- Replacing the Archivo de música uploads the new file first, then removes the previous object when the upload succeeds.
+- Removing the Archivo de música is allowed while presentation is pending and makes music pending again for operational status.
+- V1 accepts MP3, M4A/AAC, WAV and OGG audio files up to 50 MB.
+- The Portal de academias exposes the current Archivo de música through a short-lived signed download URL, not a public URL.
 
 ## Bases del evento
 

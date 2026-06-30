@@ -1,5 +1,7 @@
 import { redirect } from "react-router";
 
+import { createSupabaseSessionClearHeaders } from "@/lib/auth/supabase-auth-ssr.server";
+
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
@@ -10,11 +12,15 @@ export type LoginRedirectReason =
   | typeof EXPIRED_REASON;
 
 export function redirectToLoginForRequest(request: Request): never {
+  const reason = hasAccessSessionCookie(request)
+    ? EXPIRED_REASON
+    : CONTINUE_REASON;
+
   throw redirect(
-    buildLoginRedirectUrl(
-      request,
-      hasAccessSessionCookie(request) ? EXPIRED_REASON : CONTINUE_REASON,
-    ),
+    buildLoginRedirectUrl(request, reason),
+    reason === EXPIRED_REASON
+      ? { headers: createSupabaseSessionClearHeaders(request) }
+      : undefined,
   );
 }
 

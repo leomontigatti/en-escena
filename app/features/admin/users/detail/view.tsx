@@ -1,5 +1,6 @@
 import { Form, Link } from "react-router";
 
+import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   DropdownMenuGroup,
@@ -41,22 +42,22 @@ export function AdministracionUsuarioDetalleRouteView({
   });
 
   return (
-    <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Editar usuario</h2>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            {getDetailDescription(savedUser.userType, loaderData.canManage)}
-          </p>
-        </div>
-        {canManageInternalUser ? (
+    <AdminResourceLayout
+      title="Editar usuario"
+      description={getDetailDescription(
+        savedUser.userType,
+        loaderData.canManage,
+      )}
+      headerAction={
+        canManageInternalUser ? (
           <UserActionsMenu
             resetPasswordHref={loaderData.resetPasswordHref}
             user={savedUser}
           />
-        ) : null}
-      </header>
-
+        ) : null
+      }
+      requireSelectedEvent={false}
+    >
       <UserDetailBody
         actionData={actionData}
         backToList={loaderData.backToList}
@@ -65,7 +66,7 @@ export function AdministracionUsuarioDetalleRouteView({
         isResettingPassword={isResettingPassword}
         user={savedUser}
       />
-    </section>
+    </AdminResourceLayout>
   );
 }
 

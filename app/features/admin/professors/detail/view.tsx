@@ -2,10 +2,13 @@ import { Check, CircleAlert, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
-import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -139,7 +142,7 @@ export function AdministracionProfesorDetalleRouteView({
       }
     >
       <section className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
+        <AlertStack>
           {!professor.active ? (
             <Alert variant="destructive">
               <CircleAlert aria-hidden="true" />
@@ -153,7 +156,6 @@ export function AdministracionProfesorDetalleRouteView({
                   <Button
                     type="button"
                     variant="link"
-                    size="sm"
                     onClick={() => {
                       openStatusDialog("reactivate-professor");
                     }}
@@ -172,95 +174,87 @@ export function AdministracionProfesorDetalleRouteView({
               </AlertDescription>
             </Alert>
           ) : null}
-        </div>
+        </AlertStack>
 
-        <Card>
-          <CardContent>
-            <form
-              id="administracion-profesor-form"
-              method="post"
-              noValidate
-              onSubmit={handleEditSubmit}
-            >
-              <input type="hidden" name="intent" value="update-professor" />
-              <FieldGroup className="grid gap-5 md:grid-cols-2">
-                <ReadOnlyField
-                  className="md:col-span-2"
-                  label="Academia"
-                  value={professor.academy.name}
-                />
-                {isEditing ? (
-                  <>
-                    <ProfessorTextField
-                      form={editForm.form}
-                      label="Nombre"
-                      name="firstName"
-                    />
-                    <ProfessorTextField
-                      form={editForm.form}
-                      label="Apellido"
-                      name="lastName"
-                    />
-                    <ProfessorDocumentTypeField form={editForm.form} />
-                    <ProfessorTextField
-                      form={editForm.form}
-                      label="Número de documento"
-                      name="documentNumber"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ReadOnlyField label="Nombre" value={professor.firstName} />
-                    <ReadOnlyField
-                      label="Apellido"
-                      value={professor.lastName}
-                    />
-                    <ReadOnlyField
-                      label="Tipo de documento"
-                      value={formatProfessorDocumentType(
-                        professor.documentType,
-                      )}
-                    />
-                    <ReadOnlyField
-                      label="Número de documento"
-                      value={professor.documentNumber ?? ""}
-                    />
-                  </>
-                )}
-              </FieldGroup>
-            </form>
-          </CardContent>
-          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            {isEditing ? (
-              <Button asChild variant="outline" size="lg">
-                <Link to={loaderData.cancelHref}>Cancelar</Link>
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="lg">
-                <Link to={loaderData.backToList}>Volver</Link>
-              </Button>
-            )}
-            {loaderData.canEdit ? (
-              isEditing ? (
-                <Button
-                  type="submit"
-                  form="administracion-profesor-form"
-                  size="lg"
-                >
-                  <Check aria-hidden="true" data-icon="inline-start" />
-                  Guardar
+        <AdminResourceFormCard
+          footer={
+            <>
+              {isEditing ? (
+                <Button asChild variant="outline">
+                  <Link to={loaderData.cancelHref}>Cancelar</Link>
                 </Button>
               ) : (
-                <Button asChild size="lg">
-                  <Link to={loaderData.editHref}>
-                    <Pencil aria-hidden="true" data-icon="inline-start" />
-                    Editar
-                  </Link>
+                <Button asChild variant="outline">
+                  <Link to={loaderData.backToList}>Volver</Link>
                 </Button>
-              )
-            ) : null}
-          </CardFooter>
-        </Card>
+              )}
+              {loaderData.canEdit ? (
+                isEditing ? (
+                  <Button type="submit" form="administracion-profesor-form">
+                    <Check aria-hidden="true" data-icon="inline-start" />
+                    Guardar
+                  </Button>
+                ) : (
+                  <Button asChild>
+                    <Link to={loaderData.editHref}>
+                      <Pencil aria-hidden="true" data-icon="inline-start" />
+                      Editar
+                    </Link>
+                  </Button>
+                )
+              ) : null}
+            </>
+          }
+        >
+          <form
+            id="administracion-profesor-form"
+            method="post"
+            noValidate
+            onSubmit={handleEditSubmit}
+          >
+            <input type="hidden" name="intent" value="update-professor" />
+            <FieldGroup className="grid gap-5 md:grid-cols-2">
+              <ReadOnlyField
+                className="md:col-span-2"
+                label="Academia"
+                value={professor.academy.name}
+              />
+              {isEditing ? (
+                <>
+                  <ProfessorTextField
+                    form={editForm.form}
+                    label="Nombre"
+                    name="firstName"
+                  />
+                  <ProfessorTextField
+                    form={editForm.form}
+                    label="Apellido"
+                    name="lastName"
+                  />
+                  <ProfessorDocumentTypeField form={editForm.form} />
+                  <ProfessorTextField
+                    form={editForm.form}
+                    label="Número de documento"
+                    name="documentNumber"
+                  />
+                </>
+              ) : (
+                <>
+                  <ReadOnlyField label="Nombre" value={professor.firstName} />
+                  <ReadOnlyField label="Apellido" value={professor.lastName} />
+                  <ReadOnlyField
+                    label="Tipo de documento"
+                    value={formatProfessorDocumentType(professor.documentType)}
+                  />
+                  <ReadOnlyField
+                    label="Número de documento"
+                    value={professor.documentNumber ?? ""}
+                  />
+                </>
+              )}
+            </FieldGroup>
+          </form>
+        </AdminResourceFormCard>
       </section>
 
       <ProfessorConfirmationDialog

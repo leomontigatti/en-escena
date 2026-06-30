@@ -26,6 +26,7 @@ describe("AdministracionProfesorDetalleRouteView", () => {
     expect(markup).not.toContain("Editar");
     expect(markup).not.toContain("Guardar");
     expect(markup).not.toContain("Acciones");
+    expect(markup).not.toContain('class="flex flex-col gap-3"></div>');
   });
 
   test("shows edit controls and alerts for admin users", () => {

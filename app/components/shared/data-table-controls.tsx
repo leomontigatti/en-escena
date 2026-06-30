@@ -43,7 +43,7 @@ import {
 import { cn } from "@/lib/shared/utils";
 
 type DataTableFacetedFilterControlProps = {
-  filter: DataTableFacetedFilter;
+  groups: DataTableFacetedFilter[];
   selectedValues: DataTableFacetedFilterValue;
   onChange: (values: DataTableFacetedFilterValue) => void;
 };
@@ -65,7 +65,7 @@ type SortIconProps = {
 };
 
 export function DataTableFacetedFilterControl({
-  filter,
+  groups,
   selectedValues,
   onChange,
 }: DataTableFacetedFilterControlProps) {
@@ -75,10 +75,10 @@ export function DataTableFacetedFilterControl({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const activeFilterSummary = getFacetedFilterSummary(filter, selectedValues);
+  const activeFilterSummary = getFacetedFilterSummary(groups, selectedValues);
   const triggerLabel = hasSelectedValues
-    ? `${filter.label}: ${activeFilterSummary}`
-    : filter.label;
+    ? `Filtros: ${activeFilterSummary}`
+    : "Filtros";
 
   const handleTooltipOpenChange = (open: boolean) => {
     if (open && isDropdownOpen) {
@@ -145,7 +145,7 @@ export function DataTableFacetedFilterControl({
               Limpiar filtros
             </DropdownMenuItem>
           </DropdownMenuGroup>
-          {filter.groups.map((group) => {
+          {groups.map((group) => {
             const groupId = getFilterGroupQueryParamKey(group);
             const selectedValue = selectedValues[groupId] ?? "";
 
@@ -180,7 +180,7 @@ export function DataTableFacetedFilterControl({
         </DropdownMenuContent>
       </DropdownMenu>
       <TooltipContent id={tooltipId} side="left" sideOffset={6}>
-        {filter.label}
+        Filtros
       </TooltipContent>
     </Tooltip>
   );

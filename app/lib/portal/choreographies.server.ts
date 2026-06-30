@@ -28,6 +28,7 @@ export type ChoreographyDetail = ChoreographyListItem & {
   experienceLevelId: string | null;
   dancerEditingEligibility: DancerEditingEligibility;
   hasPresentation?: boolean;
+  musicStorageKey: string | null;
   scheduleCapacityId: string;
   scheduleName: string;
   scheduleLabel: string;
@@ -214,6 +215,7 @@ export async function findChoreographyForAcademyEvent(
     }),
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
+    musicStorageKey: row.musicStorageKey,
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
@@ -377,6 +379,7 @@ async function hydrateChoreographyRows(
     groupType: row.groupType,
     categoryName: row.categoryName,
     experienceLevelName: row.experienceLevelName,
+    musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
