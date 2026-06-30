@@ -146,7 +146,7 @@ function CreateChoreographyStepContent({
           fieldName="name"
           id={fieldIds.name}
           label="Nombre"
-          placeholder="Ej.: Danza de la luna"
+          placeholder="Una vez guardado no puede modificarse"
         />
       </section>
     ),
