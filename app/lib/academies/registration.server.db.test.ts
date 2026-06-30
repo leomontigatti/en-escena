@@ -86,6 +86,12 @@ describe("academy registration start", () => {
     });
     expect(await db.query.user.findMany()).toEqual([]);
     expect(await db.query.academies.findMany()).toEqual([]);
+    expect(startAcademyUserSignUpMock).toHaveBeenCalledWith({
+      email: "academia@example.com",
+      password: "password-segura",
+      redirectTo: "http://localhost/registro/confirmar",
+      request: expect.any(Request),
+    });
   });
 });
 

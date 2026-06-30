@@ -71,7 +71,7 @@ async function isEligibleAcademyRegistrationEmail(email: string) {
     where: eq(user.email, email),
   });
 
-  return existingUser === null;
+  return !existingUser;
 }
 
 function isRegistrationEmailConflict(error: unknown): boolean {
