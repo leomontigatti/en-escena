@@ -5,6 +5,7 @@ import { useFetcher } from "react-router";
 import { toast } from "sonner";
 
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
+import { hasChoreographyNameContent } from "@/lib/choreographies/choreography-name";
 import {
   buildCreateChoreographyFormData,
   buildResolveChoreographyFormData,
@@ -286,7 +287,7 @@ export function useCreateChoreographyDialog({
     setCurrentStepIndex((stepIndex) => stepIndex + 1);
   }
 
-  const canAdvanceFromName = watchedValues.name.trim().length > 0;
+  const canAdvanceFromName = hasChoreographyNameContent(watchedValues.name);
   const canAdvanceFromModality = selectedModalityId.length > 0;
   const canAdvanceFromSubmodality =
     !canChooseSubmodality || selectedSubmodalityId.length > 0;

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  createChoreographySchema,
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
 } from "@/features/portal/choreographies/create/flow";
@@ -73,5 +74,27 @@ describe("choreography create flow helpers", () => {
         resolution,
       }),
     ).toBe(4);
+  });
+
+  test("rejects placeholder-only choreography names", () => {
+    const result = createChoreographySchema.safeParse({
+      name: "-",
+      modalityId: "modality_1",
+      submodalityId: "",
+      dancerIds: ["dancer_1"],
+      professorIds: [],
+      experienceLevelId: "",
+      scheduleCapacityId: "",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Ingresá un nombre válido para la Coreografía.",
+          path: ["name"],
+        }),
+      ]),
+    );
   });
 });

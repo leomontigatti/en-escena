@@ -107,6 +107,40 @@ describe.sequential("choreography registration confirmation", () => {
     ]);
   });
 
+  test("rejects placeholder-only choreography names before inserting records", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Nombre Inválido",
+      email: "registro.coreografia.nombre-invalido@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+    });
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "-",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+        professorIds: [],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "invalid-name",
+      error: "Ingresá un nombre válido para la Coreografía.",
+    });
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(0);
+  });
+
   test("revalidates Nivel and Cupo de cronograma on final confirmation and rejects stale or tampered payloads", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Revalidación",

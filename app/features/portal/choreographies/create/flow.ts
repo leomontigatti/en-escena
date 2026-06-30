@@ -2,6 +2,11 @@ import type { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 import type { CreateChoreographyRegistrationResult } from "@/lib/choreographies/registration-confirmation.server";
+import {
+  choreographyNameMaxLength,
+  hasChoreographyNameContent,
+  invalidChoreographyNameMessage,
+} from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -41,8 +46,9 @@ export const createChoreographySchema = z.object({
     .string()
     .trim()
     .min(1, requiredFieldMessage)
+    .refine(hasChoreographyNameContent, invalidChoreographyNameMessage)
     .max(
-      120,
+      choreographyNameMaxLength,
       "El nombre de la coreografía no puede superar los 120 caracteres.",
     ),
   modalityId: z.string().trim().min(1, requiredFieldMessage),

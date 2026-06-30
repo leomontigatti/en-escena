@@ -10,6 +10,12 @@ import {
   scheduleCapacities,
 } from "@/db/schema";
 import {
+  choreographyNameMaxLength,
+  collapseChoreographyNameWhitespace,
+  hasChoreographyNameContent,
+  invalidChoreographyNameMessage,
+} from "@/lib/choreographies/choreography-name";
+import {
   resolveChoreographyRegistrationOperation,
   type ChoreographyRegistrationOperationFailureCode,
   type ChoreographyRegistrationOperationInput,
@@ -272,7 +278,7 @@ function normalizeChoreographyName(
 ):
   | { ok: true; value: string }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
-  const normalizedValue = collapseWhitespace(value);
+  const normalizedValue = collapseChoreographyNameWhitespace(value);
 
   if (normalizedValue.length === 0) {
     return {
@@ -284,7 +290,14 @@ function normalizeChoreographyName(
     };
   }
 
-  if (normalizedValue.length > 120) {
+  if (!hasChoreographyNameContent(normalizedValue)) {
+    return {
+      ok: false,
+      failure: createFailure("invalid-name", invalidChoreographyNameMessage),
+    };
+  }
+
+  if (normalizedValue.length > choreographyNameMaxLength) {
     return {
       ok: false,
       failure: createFailure(
@@ -327,10 +340,6 @@ function capitalizeFirstCharacter(value: string) {
   }
 
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
-}
-
-function collapseWhitespace(value: string) {
-  return value.trim().replace(/\s+/g, " ");
 }
 
 async function resolveProfessorIds(input: {
