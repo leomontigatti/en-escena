@@ -89,9 +89,10 @@ If you use a transaction pooler, validate the app before rollout because
 transaction pooling can affect prepared statements and session-level database
 behavior.
 
-For schema changes against Supabase, run `pnpm db:push` only after verifying
-that `DATABASE_URL` points at the intended hosted database. Database-backed tests
-keep two paths:
+For schema changes against production Supabase, use the guarded production
+schema push runbook in [docs/db/production-schema-push.md](db/production-schema-push.md).
+Do not point local `.env` at production just to run `pnpm db:push`.
+Database-backed tests keep two paths:
 
 - `pnpm test:db:file <archivo>`: fast focused `PGlite` path backed by the
   cached schema snapshot.
@@ -117,6 +118,9 @@ Validation mode requirements:
 
 When local development needs production-like data, create and restore a fresh
 production dump with [docs/db/production-dump.md](db/production-dump.md).
+
+For a quick index of repo commands, see
+[docs/operations/scripts.md](operations/scripts.md).
 
 ## Running Locally
 

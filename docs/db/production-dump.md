@@ -31,6 +31,9 @@ Use the Supabase dashboard Postgres connection string, not `SUPABASE_URL`. The
 direct connection or session pooler is the best fit for `pg_dump`. Avoid the
 transaction pooler for dumps.
 
+For the opposite direction, applying the local Drizzle schema to production,
+use [Production Schema Push](production-schema-push.md).
+
 ## Create a Dump
 
 Create dumps in the workspace under `tmp/db-dumps/`, which is ignored by git.
