@@ -1,12 +1,14 @@
 import { redirect } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import { AdministracionFacturasRouteView } from "@/features/admin/invoices/list/view";
 
 import type { Route } from "./+types/administracion.facturas";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminInvoicesList>>;
+type LoaderData = {
+  rows: [];
+  selectedEventId: null;
+};
 
 type AdministracionFacturasRouteProps = {
   loaderData: LoaderData;
