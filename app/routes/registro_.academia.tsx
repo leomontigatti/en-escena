@@ -25,7 +25,7 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 
-import type { Route } from "./+types/registro.academia";
+import type { Route } from "./+types/registro_.academia";
 
 const academyOnboardingSchema = z.object({
   academyName: requiredTextField(),

@@ -1,7 +1,7 @@
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessSecondaryLink } from "@/components/auth/access-ui";
 
-import type { Route } from "./+types/registro.error-confirmacion";
+import type { Route } from "./+types/registro_.error-confirmacion";
 
 export const meta: Route.MetaFunction = () => [
   { title: "Confirmación inválida | En Escena" },

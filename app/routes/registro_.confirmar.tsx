@@ -10,7 +10,7 @@ import {
   withSupabaseSsrHeaders,
 } from "@/lib/auth/supabase-auth-ssr.server";
 
-import type { Route } from "./+types/registro.confirmar";
+import type { Route } from "./+types/registro_.confirmar";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);

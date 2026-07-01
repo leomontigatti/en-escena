@@ -6,7 +6,7 @@ import { academies, user } from "@/db/schema";
 import {
   action as academyOnboardingAction,
   loader as academyOnboardingLoader,
-} from "@/routes/registro.academia";
+} from "@/routes/registro_.academia";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

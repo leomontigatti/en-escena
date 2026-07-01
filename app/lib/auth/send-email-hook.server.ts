@@ -133,13 +133,29 @@ function getHookRedirectUrl(
   payload: SendEmailHookPayload,
   fallbackPath: string,
 ) {
+  const baseUrl = getHookBaseUrl(payload);
+
+  baseUrl.pathname = fallbackPath;
+  baseUrl.search = "";
+  baseUrl.hash = "";
+
+  return baseUrl;
+}
+
+function getHookBaseUrl(payload: SendEmailHookPayload) {
   const redirectTo = payload.email_data.redirect_to;
 
   if (redirectTo) {
     return new URL(redirectTo);
   }
 
-  return new URL(fallbackPath, getRequiredHookEnv("APP_URL"));
+  const siteUrl = payload.email_data.site_url;
+
+  if (siteUrl) {
+    return new URL(siteUrl);
+  }
+
+  return new URL(getRequiredHookEnv("APP_URL"));
 }
 
 function verifySupabaseHookSignature(input: {

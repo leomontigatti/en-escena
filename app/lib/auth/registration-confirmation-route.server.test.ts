@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/access-auth-provider.server", () => ({
   },
 }));
 
-import { loader } from "@/routes/registro.confirmar";
+import { loader } from "@/routes/registro_.confirmar";
 
 describe("registro confirm loader", () => {
   afterEach(() => {
