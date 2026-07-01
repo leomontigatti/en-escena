@@ -3,5 +3,6 @@ build
 .react-router
 .firecrawl
 .sandcastle
+supabase/.temp
 package-lock.json
 docs/agents/vendor

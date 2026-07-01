@@ -63,13 +63,14 @@ docker compose up -d postgres
 ```
 
 After changing schema or starting from an empty database, push the Drizzle schema
-to `DATABASE_URL`:
+to the local `DATABASE_URL`:
 
 ```sh
 pnpm db:push
 ```
 
-Confirm `.env` points at the local container before running `pnpm db:push`.
+`pnpm db:push` refuses non-local hosts. Confirm `.env` points at the local
+container before running it.
 
 ### Supabase Postgres
 
@@ -89,9 +90,10 @@ If you use a transaction pooler, validate the app before rollout because
 transaction pooling can affect prepared statements and session-level database
 behavior.
 
-For schema changes against production Supabase, use the guarded production
-schema push runbook in [docs/db/production-schema-push.md](db/production-schema-push.md).
-Do not point local `.env` at production just to run `pnpm db:push`.
+For schema changes against production Supabase, use versioned Supabase SQL
+migrations in [docs/db/production-schema-push.md](db/production-schema-push.md).
+Do not point local `.env` at production to run `pnpm db:push`; production
+Drizzle pushes are intentionally blocked.
 Database-backed tests keep two paths:
 
 - `pnpm test:db:file <archivo>`: fast focused `PGlite` path backed by the

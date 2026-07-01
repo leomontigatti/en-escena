@@ -1,70 +1,78 @@
-# Production Schema Push
+# Production Schema Migrations
 
-Use this runbook when the local Drizzle schema is ready to be applied to the
-production Supabase Postgres database.
+Production schema changes use Supabase CLI migrations in
+`supabase/migrations/*.sql`.
 
-For the normal workflow, run:
+Do not apply Drizzle's declarative schema directly to production. Drizzle remains
+the application data access layer and typed schema for app code, but production
+DDL is reviewed and applied as versioned SQL migrations.
 
-```sh
-pnpm db:push:prod
-```
+## Current Baseline
 
-The script prompts for the production Postgres URL, rejects localhost targets,
-shows the target host, requires an explicit confirmation phrase, and runs
-`drizzle-kit push --config=drizzle.config.ts` with the production URL only in
-the subprocess environment. The URL is not written to disk.
-
-The confirmation phrase is:
+The production `public` schema was baselined from project
+`bcfxnroogbbochhruyda` into:
 
 ```text
-push schema to production
+supabase/migrations/20260701035459_baseline_production_schema.sql
 ```
 
-Use the Supabase dashboard Postgres connection string, not `SUPABASE_URL`. The
-direct connection or session pooler is the best fit for schema pushes. Avoid the
-transaction pooler for this operation.
+That baseline version is marked as applied in the linked production project's
+migration history, so future pushes should only apply newer migration files.
 
-## Before Pushing
+The legacy `en_escena_academy_registration_token` table is not present in this
+baseline.
 
-Validate the change locally first:
+## Link The Project
+
+On a fresh checkout or machine, link the repo before running linked production
+commands:
 
 ```sh
-docker compose up -d postgres
-pnpm db:push
-pnpm typecheck
+pnpm exec supabase link --project-ref bcfxnroogbbochhruyda
 ```
 
-Run the relevant tests for the schema change before touching production. For
-database-backed behavior, use the focused DB test while iterating and the full
-DB suite before release:
+The Supabase CLI stores local link metadata under `supabase/.temp/`, which is
+ignored by git. Do not commit database passwords, access tokens, URLs with
+passwords, or generated temp files.
+
+If a linked command cannot authenticate to the database, set the production
+database password for that command:
 
 ```sh
-pnpm test:db:file <path-to-db-test>
-pnpm test:db
+SUPABASE_DB_PASSWORD="..." pnpm db:migration:dry-run
 ```
 
-If the schema change affects routing, server rendering, bundling, CSS, or
-deployment behavior, run:
+## Create A Migration
+
+Create a timestamped SQL file through the CLI:
 
 ```sh
-pnpm build
+pnpm db:migration:new <descriptive_name>
 ```
 
-## Push To Production
+Edit the generated SQL manually. For every migration that changes app-owned
+tables, update `app/db/schema/*` in the same changeset so Drizzle's typed schema
+continues to match production.
 
-Run:
+## Review Before Applying
+
+Run these commands before applying a production migration:
 
 ```sh
-pnpm db:push:prod
+pnpm db:migration:dry-run
+pnpm db:migration:advisors
 ```
 
-Paste the production `DATABASE_URL` only when prompted. Do not commit it to
-`.env`, documentation, shell history, or logs.
+Review the SQL that would run and any advisor findings. Fix relevant security or
+performance issues before applying the migration.
 
-When the script shows the target host, confirm it is the intended Supabase
-project before typing the confirmation phrase.
+## Apply
 
-## After Pushing
+After review:
+
+```sh
+pnpm db:migration:push
+```
 
 Smoke-test the deployed application path that depends on the schema change.
 When the change is risky, also refresh a local copy of production data and
@@ -74,3 +82,13 @@ verify the relevant flow against it:
 pnpm db:refresh:prod
 pnpm dev
 ```
+
+## Drizzle Role
+
+Use `pnpm db:push` only for local development databases. The command refuses to
+run unless `DATABASE_URL` points at `localhost`, `127.0.0.1`, or `::1`.
+
+Do not point `.env` at production to run `pnpm db:push`.
+
+The old `pnpm db:push:prod` path is intentionally blocked. It exists only to
+fail with instructions for this migration workflow.

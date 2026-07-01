@@ -26,13 +26,18 @@ use when a script has operational risk.
 
 ## Database
 
-| Script                 | Purpose                                                                                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:push`         | Push the Drizzle schema to `DATABASE_URL`. For local use, confirm `.env` points at local Postgres.                                        |
-| `pnpm db:push:prod`    | Push the local Drizzle schema to production with prompts and confirmation. See [Production Schema Push](../db/production-schema-push.md). |
-| `pnpm db:refresh:prod` | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                         |
-| `pnpm db:test:push`    | Reset and push the schema to `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                            |
-| `pnpm db:studio`       | Open Drizzle Studio using `.env`.                                                                                                         |
+| Script                         | Purpose                                                                                                                          |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:push`                 | Push the Drizzle schema to a local `DATABASE_URL`; refuses non-local hosts.                                                      |
+| `pnpm db:push:prod`            | Blocked guardrail for the old Drizzle production push path. See [Production Schema Migrations](../db/production-schema-push.md). |
+| `pnpm db:migration:new <name>` | Create a timestamped Supabase SQL migration file.                                                                                |
+| `pnpm db:migration:list`       | List local and linked production Supabase migrations.                                                                            |
+| `pnpm db:migration:dry-run`    | Show linked production migrations that would be applied without applying them.                                                   |
+| `pnpm db:migration:advisors`   | Run Supabase database advisors against the linked project.                                                                       |
+| `pnpm db:migration:push`       | Apply pending Supabase SQL migrations to the linked project after review.                                                        |
+| `pnpm db:refresh:prod`         | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                |
+| `pnpm db:test:push`            | Reset and push the schema to `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                   |
+| `pnpm db:studio`               | Open Drizzle Studio using `.env`.                                                                                                |
 
 ## Database Tests
 
