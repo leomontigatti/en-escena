@@ -3,12 +3,10 @@ import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categories,
-  categoryExperienceLevels,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
   dancers,
-  experienceLevels,
   modalities,
   professors,
   schedules,
@@ -22,6 +20,7 @@ import {
   getDancerEditingEligibility,
   type DancerEditingEligibility,
 } from "@/lib/portal/choreography-roster.server";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
@@ -65,7 +64,7 @@ type ChoreographyRow = {
   modalityName: string;
   submodalityName: string | null;
   categoryName: string | null;
-  experienceLevelName: string | null;
+  categoryExperienceLevels: string[] | null;
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
@@ -92,16 +91,12 @@ export async function listChoreographiesForAcademyEvent(
       modalityName: modalities.name,
       submodalityName: submodalities.name,
       categoryName: categories.name,
-      experienceLevelName: experienceLevels.name,
+      categoryExperienceLevels: categories.experienceLevels,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(
-      experienceLevels,
-      eq(choreographies.experienceLevelId, experienceLevels.id),
-    )
     .where(
       and(
         eq(choreographies.academyId, academyId),
@@ -133,7 +128,7 @@ export async function findChoreographyForAcademyEvent(
       modalityName: modalities.name,
       submodalityName: submodalities.name,
       categoryName: categories.name,
-      experienceLevelName: experienceLevels.name,
+      categoryExperienceLevels: categories.experienceLevels,
       scheduleId: schedules.id,
       scheduleName: schedules.name,
       scheduleDate: schedules.scheduledDate,
@@ -144,10 +139,6 @@ export async function findChoreographyForAcademyEvent(
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(
-      experienceLevels,
-      eq(choreographies.experienceLevelId, experienceLevels.id),
-    )
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
@@ -341,34 +332,16 @@ async function hydrateChoreographyRows(
   }
 
   const choreographyIds = rows.map((row) => row.id);
-  const categoryIds = [
-    ...new Set(
-      rows
-        .map((row) => row.categoryId)
-        .filter((value): value is string => value !== null),
-    ),
-  ];
-  const [choreographiesWithProfessors, categoryLevelRows] = await Promise.all([
+  const [choreographiesWithProfessors] = await Promise.all([
     db
       .select({
         choreographyId: choreographyProfessors.choreographyId,
       })
       .from(choreographyProfessors)
       .where(inArray(choreographyProfessors.choreographyId, choreographyIds)),
-    categoryIds.length > 0
-      ? db
-          .select({
-            categoryId: categoryExperienceLevels.categoryId,
-          })
-          .from(categoryExperienceLevels)
-          .where(inArray(categoryExperienceLevels.categoryId, categoryIds))
-      : Promise.resolve([]),
   ]);
   const choreographyIdsWithProfessors = new Set(
     choreographiesWithProfessors.map((row) => row.choreographyId),
-  );
-  const categoryIdsWithLevels = new Set(
-    categoryLevelRows.map((row) => row.categoryId),
   );
 
   return rows.map((row) => ({
@@ -378,7 +351,7 @@ async function hydrateChoreographyRows(
     submodalityName: row.submodalityName,
     groupType: row.groupType,
     categoryName: row.categoryName,
-    experienceLevelName: row.experienceLevelName,
+    experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryId: row.categoryId,
@@ -386,7 +359,16 @@ async function hydrateChoreographyRows(
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
       requiresExperienceLevel:
-        row.categoryId !== null && categoryIdsWithLevels.has(row.categoryId),
+        row.categoryExperienceLevels !== null &&
+        row.categoryExperienceLevels.length > 0,
     }),
   }));
+}
+
+function formatExperienceLevelName(experienceLevelId: string | null) {
+  if (experienceLevelId === null) {
+    return null;
+  }
+
+  return experienceLevelLabels[experienceLevelId] ?? experienceLevelId;
 }

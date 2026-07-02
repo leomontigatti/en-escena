@@ -62,7 +62,11 @@ function MultiComboboxField<
       name={name}
       render={({ field, fieldState }) => {
         const currentValue = Array.isArray(field.value) ? field.value : [];
-        const isInvalid = fieldState.error ? true : false;
+        const errorMessage =
+          fieldState.error?.type === "server"
+            ? undefined
+            : fieldState.error?.message;
+        const isInvalid = Boolean(errorMessage);
 
         return (
           <Field
@@ -89,9 +93,7 @@ function MultiComboboxField<
                 trailingIcon={trailingIcon}
                 value={currentValue}
               />
-              {fieldState.error?.message ? (
-                <FieldError>{fieldState.error.message}</FieldError>
-              ) : null}
+              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
             </FieldContent>
           </Field>
         );

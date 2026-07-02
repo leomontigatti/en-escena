@@ -8,7 +8,7 @@ import {
   schedules,
 } from "@/db/schema";
 import type { AdministrativeDancerInscription } from "@/lib/admin/dancers/dancers.server.types";
-import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
+import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 
 export async function findAdministrativeDancerInscriptions(input: {
   dancerId: string;

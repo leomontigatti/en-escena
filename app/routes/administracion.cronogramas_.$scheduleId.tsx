@@ -4,12 +4,12 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   loadAdministrativeEventScheduleDetail,
   updateAdministrativeEventSchedule,
-} from "@/features/admin/event-schedules/detail/server";
+} from "@/features/admin/schedules/detail/server";
 import {
   AdministrativeEventScheduleDetailView,
   type AdministrativeEventScheduleDetailViewProps,
-} from "@/features/admin/event-schedules/detail/view";
-import type { AdministrativeEventSchedulesLoaderData } from "@/features/admin/event-schedules/shared";
+} from "@/features/admin/schedules/detail/view";
+import type { AdministrativeEventSchedulesLoaderData } from "@/features/admin/schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.$scheduleId";
 

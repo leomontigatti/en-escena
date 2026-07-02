@@ -26,8 +26,8 @@ describe("choreography create flow helpers", () => {
         },
       ],
       experienceLevel: {
-        required: true,
-        options: [{ id: "level_1", name: "Inicial" }],
+        required: true as const,
+        options: [{ id: "amateur" as const, name: "Amateur" }],
       },
       groupType: "solo" as const,
       schedule: {

@@ -29,9 +29,6 @@ export function readEventBasesActionInput(
     isSpecialPrice: String(formData.get("isSpecialPrice") ?? "") === "true",
     modalityIds: formData.getAll("modalityIds").map(String),
     modalityId: String(formData.get("modalityId") ?? ""),
-    newExperienceLevelName: String(
-      formData.get("newExperienceLevelName") ?? "",
-    ),
     name: String(formData.get("name") ?? ""),
     scheduleId: String(formData.get("scheduleId") ?? ""),
     priceScheduleId: String(formData.get("scheduleId") ?? "") || null,

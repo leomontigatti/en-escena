@@ -3,14 +3,14 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { scheduleCapacities } from "@/db/schema";
+import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createModality,
-  createScheduleCapacity,
   createSchedule,
+  createScheduleCapacity,
   deleteScheduleCapacity,
   resolveCompatibleScheduleCapacities,
   updateScheduleCapacity,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
 import {
   createSavedEvent,
   expectCreated,

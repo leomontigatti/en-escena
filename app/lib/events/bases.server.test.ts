@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-const listEventBasesData = vi.hoisted(() => vi.fn());
 const listChoreographyRegistrationBaseOptionsData = vi.hoisted(() => vi.fn());
+const listModalities = vi.hoisted(() => vi.fn());
+const listSubmodalities = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/events/bases-repository.server", () => ({
+vi.mock("@/lib/modalities/repository.server", () => ({
   listChoreographyRegistrationBaseOptionsData,
-  listEventBasesData,
-  resolveApplicablePrice: vi.fn(),
-  resolveCompatibleScheduleCapacities: vi.fn(),
+  listModalities,
+  listSubmodalities,
 }));
 
 describe("event bases service", () => {
@@ -40,6 +40,7 @@ describe("event bases service", () => {
     expect(listChoreographyRegistrationBaseOptionsData).toHaveBeenCalledWith(
       "event-1",
     );
-    expect(listEventBasesData).not.toHaveBeenCalled();
+    expect(listModalities).not.toHaveBeenCalled();
+    expect(listSubmodalities).not.toHaveBeenCalled();
   });
 });

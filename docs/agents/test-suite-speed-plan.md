@@ -251,7 +251,7 @@ Suite regular con mocks, stubs, reseteo de modulos o mutacion de entorno:
 
 Suite regular con mutaciones globales de `window`, `document` o runtime DOM:
 
-- `app/components/admin/events/event-prices.test.tsx`
+- `app/features/admin/prices/view.test.tsx`
 - `app/components/shared/data-table.test.tsx`
 - `app/features/portal/choreographies/detail/roster-editor.test.tsx`
 - `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`

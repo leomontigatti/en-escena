@@ -1,15 +1,17 @@
 import { describe, expect, test } from "vitest";
 
+import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createModality,
   createPrice,
-  createSchedule,
   deletePrice,
-  deleteSchedule,
-  listEventBasesData,
+  listPrices,
   resolveApplicablePrice,
   updatePrice,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/prices/repository.server";
+import {
+  createSchedule,
+  deleteSchedule,
+} from "@/lib/schedules/repository.server";
 import {
   createSavedEvent,
   expectCreated,
@@ -226,25 +228,23 @@ describe("Bases del evento repository", () => {
       }),
     );
 
-    await expect(listEventBasesData(event.id)).resolves.toMatchObject({
-      prices: [
-        {
-          eventId: event.id,
-          paymentDeadline: "2026-05-31",
-          schedule: { name: "Sábado Mañana" },
-        },
-        {
-          eventId: event.id,
-          paymentDeadline: "2026-05-31",
-          schedule: null,
-        },
-        {
-          eventId: event.id,
-          paymentDeadline: "2026-06-30",
-          schedule: null,
-        },
-      ],
-    });
+    await expect(listPrices(event.id)).resolves.toMatchObject([
+      {
+        eventId: event.id,
+        paymentDeadline: "2026-05-31",
+        schedule: { name: "Sábado Mañana" },
+      },
+      {
+        eventId: event.id,
+        paymentDeadline: "2026-05-31",
+        schedule: null,
+      },
+      {
+        eventId: event.id,
+        paymentDeadline: "2026-06-30",
+        schedule: null,
+      },
+    ]);
 
     await expect(
       updatePrice(

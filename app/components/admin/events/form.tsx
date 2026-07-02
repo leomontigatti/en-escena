@@ -10,7 +10,7 @@ import {
 } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input";
+import { IntegerInput } from "@/components/shared/integer-input-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Field,

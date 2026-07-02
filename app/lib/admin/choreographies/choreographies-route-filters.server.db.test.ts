@@ -13,14 +13,17 @@ import {
   user,
 } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createCategory } from "@/lib/categories/repository.server";
 import {
-  createCategory,
-  createExperienceLevel,
   createModality,
+  createSubmodality,
+} from "@/lib/modalities/repository.server";
+import {
   createSchedule,
   createScheduleCapacity,
-  createSubmodality,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
+import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
+import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { AdministracionRouteView } from "@/routes/administracion";
 import {
@@ -396,11 +399,7 @@ async function createEventCatalog(
       name: "Lyrical",
     }),
   );
-  const level = await expectCreated(
-    createExperienceLevel(eventId, {
-      name: `${modalityName} Inicial`,
-    }),
-  );
+  const level = fixedExperienceLevel(eventId);
   const category = await expectCreated(
     createCategory(eventId, {
       experienceLevelIds: [level.id],
@@ -456,7 +455,10 @@ async function createChoreographyRecord(input: {
       categoryCalculationMode: "oldest",
       categoryId: input.categoryId ?? null,
       eventId: input.eventId,
-      experienceLevelId: input.experienceLevelId ?? null,
+      experienceLevelId:
+        input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
+          ? input.experienceLevelId
+          : null,
       groupType: input.groupType,
       modalityId: input.modalityId,
       musicStorageKey: input.musicStorageKey ?? null,

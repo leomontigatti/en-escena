@@ -9,7 +9,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input";
+import { IntegerInput } from "@/components/shared/integer-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

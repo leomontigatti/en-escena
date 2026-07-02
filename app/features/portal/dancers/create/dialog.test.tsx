@@ -30,7 +30,7 @@ describe("PortalDancersListRouteView dialog", () => {
     document.body.innerHTML = "";
   });
 
-  test("shows the create dialog with server field errors and submitted values", async () => {
+  test("shows the create dialog with submitted values after a server error", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -62,8 +62,10 @@ describe("PortalDancersListRouteView dialog", () => {
     expect(document.body.textContent).toContain(
       "Ingresá los datos mínimos para cargarlo en la academia.",
     );
-    expect(document.body.textContent).toContain("Este campo es obligatorio.");
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent).not.toContain(
+      "Este campo es obligatorio.",
+    );
+    expect(document.body.textContent).not.toContain(
       "La fecha de nacimiento no puede ser futura.",
     );
     expect(

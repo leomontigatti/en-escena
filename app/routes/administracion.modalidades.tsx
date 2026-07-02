@@ -1,9 +1,9 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeEventModalitiesList } from "@/features/admin/event-modalities/list/server";
+import { loadAdministrativeEventModalitiesList } from "@/features/admin/modalities/list/server";
 import {
   AdministrativeEventModalitiesListView,
   type AdministrativeEventModalitiesListViewProps,
-} from "@/features/admin/event-modalities/list/view";
+} from "@/features/admin/modalities/list/view";
 
 import type { Route } from "./+types/administracion.modalidades";
 

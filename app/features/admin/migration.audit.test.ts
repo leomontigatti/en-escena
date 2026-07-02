@@ -18,10 +18,10 @@ describe("admin migration audit", () => {
     expect(codebaseMap).toContain("## Admin Choreographies");
     expect(codebaseMap).toContain("## Admin Events And Bases Del Evento");
     expect(codebaseMap).toContain("app/features/admin/events/list/");
-    expect(codebaseMap).toContain("app/features/admin/event-modalities/");
-    expect(codebaseMap).toContain("app/features/admin/event-categories/");
-    expect(codebaseMap).toContain("app/features/admin/event-schedules/");
-    expect(codebaseMap).toContain("app/features/admin/event-prices/");
+    expect(codebaseMap).toContain("app/features/admin/modalities/");
+    expect(codebaseMap).toContain("app/features/admin/categories/");
+    expect(codebaseMap).toContain("app/features/admin/schedules/");
+    expect(codebaseMap).toContain("app/features/admin/prices/");
     expect(codebaseMap).not.toContain(
       "## Admin Migration To app/features/admin",
     );
@@ -57,15 +57,15 @@ const migratedAdminRouteAudits = [
   ),
   migratedAdminRoute(
     "administracion.categorias.tsx",
-    "@/features/admin/event-categories/",
+    "@/features/admin/categories/",
   ),
   migratedAdminRoute(
     "administracion.categorias_.nueva.tsx",
-    "@/features/admin/event-categories/",
+    "@/features/admin/categories/",
   ),
   migratedAdminRoute(
     "administracion.categorias_.$categoryId.tsx",
-    "@/features/admin/event-categories/",
+    "@/features/admin/categories/",
   ),
   migratedAdminRoute(
     "administracion.coreografias.tsx",
@@ -73,15 +73,15 @@ const migratedAdminRouteAudits = [
   ),
   migratedAdminRoute(
     "administracion.cronogramas.tsx",
-    "@/features/admin/event-schedules/",
+    "@/features/admin/schedules/",
   ),
   migratedAdminRoute(
     "administracion.cronogramas_.nuevo.tsx",
-    "@/features/admin/event-schedules/",
+    "@/features/admin/schedules/",
   ),
   migratedAdminRoute(
     "administracion.cronogramas_.$scheduleId.tsx",
-    "@/features/admin/event-schedules/",
+    "@/features/admin/schedules/",
   ),
   migratedAdminRoute("administracion.eventos.tsx", "@/features/admin/events/"),
   migratedAdminRoute(
@@ -94,27 +94,24 @@ const migratedAdminRouteAudits = [
   ),
   migratedAdminRoute(
     "administracion.modalidades.tsx",
-    "@/features/admin/event-modalities/",
+    "@/features/admin/modalities/",
   ),
   migratedAdminRoute(
     "administracion.modalidades_.nueva.tsx",
-    "@/features/admin/event-modalities/",
+    "@/features/admin/modalities/",
   ),
   migratedAdminRoute(
     "administracion.modalidades_.$modalityId.tsx",
-    "@/features/admin/event-modalities/",
+    "@/features/admin/modalities/",
   ),
-  migratedAdminRoute(
-    "administracion.precios.tsx",
-    "@/features/admin/event-prices/",
-  ),
+  migratedAdminRoute("administracion.precios.tsx", "@/features/admin/prices/"),
   migratedAdminRoute(
     "administracion.precios_.nuevo.tsx",
-    "@/features/admin/event-prices/",
+    "@/features/admin/prices/",
   ),
   migratedAdminRoute(
     "administracion.precios_.$priceId.tsx",
-    "@/features/admin/event-prices/",
+    "@/features/admin/prices/",
   ),
   migratedAdminRoute(
     "administracion.profesores.tsx",
@@ -140,22 +137,6 @@ const migratedAdminRouteAudits = [
 ] as const;
 
 const expectedAdminComponentFiles = [
-  "events/event-categories.tsx",
-  "events/event-modalities.tsx",
-  "events/event-prices.test.tsx",
-  "events/event-prices.tsx",
-  "events/event-prices/actions.tsx",
-  "events/event-prices/form.tsx",
-  "events/event-prices/list-table.tsx",
-  "events/event-prices/route-views.tsx",
-  "events/event-prices/shared.ts",
-  "events/event-schedules.tsx",
-  "events/event-schedules/dialogs.tsx",
-  "events/event-schedules/form.tsx",
-  "events/event-schedules/list-table.tsx",
-  "events/event-schedules/route-views.tsx",
-  "events/event-schedules/shared.ts",
-  "events/event-schedules/submitted-values.ts",
   "events/form.tsx",
   "resource-data-table.tsx",
   "resource-layout.test.tsx",

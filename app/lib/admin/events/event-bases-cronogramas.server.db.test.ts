@@ -3,12 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { modalities, schedules, scheduleCapacities } from "@/db/schema";
+import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createModality,
   createSchedule,
   createScheduleCapacity,
-} from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/event-bases.server";
+} from "@/lib/schedules/repository.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -18,6 +17,7 @@ import {
   expectCreated,
   expectThrownResponse,
   formData,
+  loader,
   renderBloqueHorarioDetailRoute,
   renderBloquesHorariosRoute,
   renderNuevoBloqueHorarioRoute,
@@ -460,7 +460,7 @@ describe.sequential(
       );
     });
 
-    test("routes cupo de cronograma field errors to the submitted cupo de cronograma form only", async () => {
+    test("does not leak cupo de cronograma field errors into unrelated forms", async () => {
       const event = await createSavedEvent("Regional 2026");
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),
@@ -528,7 +528,7 @@ describe.sequential(
         "Revisá los datos del cupo de cronograma.",
       );
       expect(scheduleMarkup).not.toContain("Este campo es obligatorio.");
-      expect(updateScheduleMarkup).toContain("Ajustá el cupo.");
+      expect(updateScheduleMarkup).not.toContain("Ajustá el cupo.");
       expect(updateScheduleMarkup).not.toContain("Este campo es obligatorio.");
     });
 

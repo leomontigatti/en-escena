@@ -10,7 +10,7 @@ import {
   createAcademySession,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { createModality } from "@/lib/events/bases-repository.server";
+import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   handlePortalProfessorsListAction,

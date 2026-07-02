@@ -7,8 +7,7 @@ import { events, modalities, submodalities } from "@/db/schema";
 import {
   createModality,
   createSubmodality,
-} from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/event-bases.server";
+} from "@/lib/modalities/repository.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -18,6 +17,7 @@ import {
   expectCreated,
   expectThrownResponse,
   formData,
+  loader,
   renderCategoriaDetalleRoute,
   renderCategoriaNuevaRoute,
   renderModalidadesRoute,
@@ -64,7 +64,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(data.selectedEventId).toBe(event.id);
     expect(data).not.toHaveProperty("email");
     expect(data).not.toHaveProperty("events");
-    expect(markup).toContain("Bases del evento");
+    expect(markup).toContain("Bases");
     expect(markup).toContain("/administracion/modalidades");
     expect(markup).toContain("/administracion/categorias");
     expect(markup).toContain("/administracion/cronogramas");

@@ -9,20 +9,22 @@ import {
   academies,
   administrativeAuditEntries,
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   choreographyDancers,
   choreographies,
   dancers,
-  experienceLevels,
   user,
 } from "@/db/schema";
+import { createModality } from "@/lib/modalities/repository.server";
+import { createPrice } from "@/lib/prices/repository.server";
 import {
-  createModality,
-  createPrice,
   createSchedule,
   createScheduleCapacity,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
+import {
+  experienceLevelLabels,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 import {
   toAdminDancerIdentificationSearchValue,
   toAdminDancerParticipationSearchValue,
@@ -1919,6 +1921,7 @@ async function createAdministrativeCorrectionCatalog(
       maxAge: 12,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [level.id],
       experienceLevelKey: level.id,
     })
     .returning();
@@ -1931,6 +1934,7 @@ async function createAdministrativeCorrectionCatalog(
       maxAge: 17,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: input.olderCategoryKeepsLevel ? [level.id] : [],
       experienceLevelKey: input.olderCategoryKeepsLevel ? level.id : "",
     })
     .returning();
@@ -1945,18 +1949,6 @@ async function createAdministrativeCorrectionCatalog(
       modalityId: modality.id,
     },
   ]);
-  await db.insert(categoryExperienceLevels).values({
-    categoryId: youngerCategory.id,
-    experienceLevelId: level.id,
-  });
-
-  if (input.olderCategoryKeepsLevel) {
-    await db.insert(categoryExperienceLevels).values({
-      categoryId: olderCategory.id,
-      experienceLevelId: level.id,
-    });
-  }
-
   const block = await expectCreated(
     createSchedule(eventId, {
       name: `Cat Bloque ${eventId}`,
@@ -1983,15 +1975,11 @@ async function createAdministrativeCorrectionCatalog(
 }
 
 async function createAdministrativeExperienceLevel(eventId: string) {
-  const [level] = await db
-    .insert(experienceLevels)
-    .values({
-      eventId,
-      name: `Nivel ${eventId}`,
-    })
-    .returning();
-
-  return level;
+  return {
+    id: "amateur",
+    eventId,
+    name: experienceLevelLabels.amateur,
+  } as const;
 }
 
 async function createAdministrativeLinkedChoreography(input: {
@@ -2015,7 +2003,10 @@ async function createAdministrativeLinkedChoreography(input: {
       categoryId: input.categoryId,
       categoryCalculationMode: "oldest",
       categoryAgeBasis: 12,
-      experienceLevelId: input.experienceLevelId,
+      experienceLevelId:
+        input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
+          ? input.experienceLevelId
+          : null,
       scheduleCapacityId: input.scheduleCapacityId,
       hasActiveFinancialLink: input.hasActiveFinancialLink,
     })

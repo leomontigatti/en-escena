@@ -4,12 +4,10 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   choreographies,
   choreographyDancers,
   events,
-  experienceLevels,
   modalities,
   prices,
   scheduleCapacities,
@@ -19,6 +17,10 @@ import {
 } from "@/db/schema";
 import { recalculateLinkedChoreographiesForDancerBirthDateCorrection } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { createAcademySession } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  experienceLevelLabels,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -190,13 +192,7 @@ async function createCorrectionCatalog(input: {
       name: `${input.eventName} Mod`,
     })
     .returning();
-  const [level] = await db
-    .insert(experienceLevels)
-    .values({
-      eventId: event.id,
-      name: `${input.eventName} Nivel`,
-    })
-    .returning();
+  const level = { id: "amateur", name: experienceLevelLabels.amateur } as const;
   const [youngerCategory] = await db
     .insert(categories)
     .values({
@@ -206,6 +202,7 @@ async function createCorrectionCatalog(input: {
       maxAge: 12,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [level.id],
       experienceLevelKey: level.id,
     })
     .returning();
@@ -223,6 +220,9 @@ async function createCorrectionCatalog(input: {
               maxAge: 17,
               groupTypes: ["solo"],
               groupTypeKey: "solo",
+              experienceLevels: input.categoryRequiresLevelOnOlderRange
+                ? [level.id]
+                : [],
               experienceLevelKey: input.categoryRequiresLevelOnOlderRange
                 ? level.id
                 : "",
@@ -244,18 +244,6 @@ async function createCorrectionCatalog(input: {
         ]
       : []),
   ]);
-  await db.insert(categoryExperienceLevels).values({
-    categoryId: youngerCategory.id,
-    experienceLevelId: level.id,
-  });
-
-  if (olderCategory && input.categoryRequiresLevelOnOlderRange) {
-    await db.insert(categoryExperienceLevels).values({
-      categoryId: olderCategory.id,
-      experienceLevelId: level.id,
-    });
-  }
-
   const [schedule] = await db
     .insert(schedules)
     .values({
@@ -340,7 +328,10 @@ async function createLinkedChoreography(input: {
       categoryId: input.categoryId,
       categoryCalculationMode: "oldest",
       categoryAgeBasis: 12,
-      experienceLevelId: input.experienceLevelId,
+      experienceLevelId:
+        input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
+          ? input.experienceLevelId
+          : null,
       scheduleId: null,
       scheduleCapacityId: input.scheduleCapacityId,
       hasPresentation: input.hasPresentation,

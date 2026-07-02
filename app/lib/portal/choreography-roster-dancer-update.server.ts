@@ -28,6 +28,10 @@ import {
   type ResolvedChoreographyDancerUpdateContext,
   type UpdateChoreographyDancersResult,
 } from "@/lib/portal/choreography-roster.shared";
+import {
+  type ExperienceLevel,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 
 export async function updateChoreographyDancers(input: {
   academyId: string;
@@ -370,7 +374,7 @@ function resolveSelectedExperienceLevelId(input: {
   experienceLevelId: string | null;
   resolution: ChoreographyRegistrationOperationResolution;
 }):
-  | { ok: true; value: string | null }
+  | { ok: true; value: ExperienceLevel | null }
   | {
       ok: false;
       message: string;
@@ -390,6 +394,7 @@ function resolveSelectedExperienceLevelId(input: {
   if (
     !categoryChanged &&
     input.currentExperienceLevelId &&
+    isExperienceLevel(input.currentExperienceLevelId) &&
     input.resolution.experienceLevel.options.some(
       (option) => option.id === input.currentExperienceLevelId,
     )
@@ -407,11 +412,21 @@ function resolveSelectedExperienceLevelId(input: {
     };
   }
 
-  const isValidLevel = input.resolution.experienceLevel.options.some(
+  if (!isExperienceLevel(input.experienceLevelId)) {
+    return {
+      ok: false,
+      message: invalidExperienceLevelMessage,
+      fieldErrors: {
+        experienceLevelId: invalidExperienceLevelMessage,
+      },
+    };
+  }
+
+  const isAllowedLevel = input.resolution.experienceLevel.options.some(
     (option) => option.id === input.experienceLevelId,
   );
 
-  if (!isValidLevel) {
+  if (!isAllowedLevel) {
     return {
       ok: false,
       message: invalidExperienceLevelMessage,

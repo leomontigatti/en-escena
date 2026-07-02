@@ -16,6 +16,10 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import type { ChoreographyBirthDateCorrectionAuditSnapshot } from "@/lib/choreographies/choreography-audit.server";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
+import {
+  experienceLevelLabels,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryExecutor = typeof db | DatabaseExecutor;
@@ -138,7 +142,9 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
         categoryId: afterPlacement.categoryId,
         categoryCalculationMode: afterPlacement.categoryCalculationMode,
         categoryAgeBasis: afterPlacement.categoryAgeBasis,
-        experienceLevelId: afterPlacement.experienceLevelId,
+        experienceLevelId: toExperienceLevelValue(
+          afterPlacement.experienceLevelId,
+        ),
       })
       .where(eq(choreographies.id, choreography.choreographyId));
 
@@ -236,10 +242,7 @@ function buildAuditSnapshot(input: {
     category: findNamedRecord(input.eventBases.categories, input.categoryId),
     categoryCalculationMode: input.categoryCalculationMode,
     categoryAgeBasis: input.categoryAgeBasis,
-    experienceLevel: findNamedRecord(
-      input.eventBases.experienceLevels,
-      input.experienceLevelId,
-    ),
+    experienceLevel: findExperienceLevelSnapshot(input.experienceLevelId),
     dancerCompetitiveAge: input.competitiveAge,
   };
 }
@@ -303,6 +306,24 @@ function findNamedRecord(
   const record = records.find((item) => item.id === id);
 
   return record ? { id: record.id, name: record.name } : null;
+}
+
+function findExperienceLevelSnapshot(value: string | null) {
+  if (value === null || !isExperienceLevel(value)) {
+    return null;
+  }
+
+  const name = experienceLevelLabels[value];
+
+  return name ? { id: value, name } : null;
+}
+
+function toExperienceLevelValue(value: string | null) {
+  if (value === null || !isExperienceLevel(value)) {
+    return null;
+  }
+
+  return value;
 }
 
 function groupLinkedDancersByChoreographyId(linkedDancers: LinkedDancerRow[]) {
@@ -377,6 +398,7 @@ function resolveRetainedExperienceLevelId(input: {
 
   if (
     input.currentExperienceLevelId &&
+    isExperienceLevel(input.currentExperienceLevelId) &&
     input.resolution.experienceLevel.options.some(
       (option) => option.id === input.currentExperienceLevelId,
     )

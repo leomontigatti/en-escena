@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import {
   categories,
@@ -7,9 +7,11 @@ import {
   categoryValues,
   created,
   db,
+  experienceLevelOrder,
+  groupRelationIdsByCategory,
   groupTypeOrder,
   haveSameValues,
-  experienceLevels,
+  isExperienceLevel,
   isGroupType,
   modalities,
   replaceCategoryRelations,
@@ -23,6 +25,38 @@ import type {
   EventBasesMutationResult,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
+
+export async function listCategories(eventId: string) {
+  const [eventCategories, eventCategoryModalities] = await Promise.all([
+    db.query.categories.findMany({
+      where: eq(categories.eventId, eventId),
+      orderBy: [
+        asc(categories.minAge),
+        asc(categories.maxAge),
+        asc(categories.name),
+      ],
+    }),
+    db
+      .select({
+        categoryId: categoryModalities.categoryId,
+        modalityId: categoryModalities.modalityId,
+      })
+      .from(categoryModalities)
+      .innerJoin(categories, eq(categories.id, categoryModalities.categoryId))
+      .where(eq(categories.eventId, eventId)),
+  ]);
+
+  const modalityIdsByCategory = groupRelationIdsByCategory(
+    eventCategoryModalities,
+    (relation) => relation.modalityId,
+  );
+
+  return eventCategories.map((category) => ({
+    ...category,
+    modalityIds: modalityIdsByCategory.get(category.id) ?? [],
+    experienceLevelIds: category.experienceLevels,
+  }));
+}
 
 export async function createCategory(
   eventId: string,
@@ -187,29 +221,24 @@ async function validateCategoryInput(
     };
   }
 
-  const experienceLevelIds = uniqueValues(input.experienceLevelIds).sort();
+  const experienceLevelIds = uniqueValues(input.experienceLevelIds)
+    .filter(isExperienceLevel)
+    .sort(
+      (a, b) =>
+        experienceLevelOrder.indexOf(a) - experienceLevelOrder.indexOf(b),
+    );
 
-  if (experienceLevelIds.length > 0) {
-    const validExperienceLevels = await db
-      .select({ id: experienceLevels.id })
-      .from(experienceLevels)
-      .where(
-        and(
-          eq(experienceLevels.eventId, eventId),
-          inArray(experienceLevels.id, experienceLevelIds),
-        ),
-      );
-
-    if (validExperienceLevels.length !== experienceLevelIds.length) {
-      return {
-        ok: false,
-        code: "invalid-experience-level",
-        error: "Elegí niveles de experiencia del evento activo.",
-        fieldErrors: {
-          experienceLevelIds: "Elegí niveles de experiencia del evento activo.",
-        },
-      };
-    }
+  if (
+    experienceLevelIds.length !== uniqueValues(input.experienceLevelIds).length
+  ) {
+    return {
+      ok: false,
+      code: "invalid-experience-level",
+      error: "Elegí niveles de experiencia válidos.",
+      fieldErrors: {
+        experienceLevelIds: "Elegí niveles de experiencia válidos.",
+      },
+    };
   }
 
   const validInput = {

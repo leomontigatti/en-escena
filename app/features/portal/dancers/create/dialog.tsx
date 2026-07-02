@@ -25,12 +25,10 @@ import { Input } from "@/components/ui/input";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import {
   createDancerIntent,
   createDancerSchema,
-  emptyDancerFieldErrors,
   emptyDancerValues,
   type CreateDancerActionData,
   type CreateDancerFormValues,
@@ -56,13 +54,10 @@ export function CreateDancerDialog({
     resolver: zodResolver(createDancerSchema),
     defaultValues: actionData?.values ?? emptyDancerValues,
   });
-  const serverFieldErrors = actionData?.fieldErrors ?? emptyDancerFieldErrors;
 
   useEffect(() => {
     form.reset(actionData?.values ?? emptyDancerValues);
   }, [actionData?.values, form]);
-
-  useApplyServerFieldErrors(form, serverFieldErrors);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -89,7 +84,6 @@ export function CreateDancerDialog({
               id={firstNameId}
               label="Nombre"
               autoComplete="given-name"
-              serverError={serverFieldErrors.firstName}
             />
 
             <DancerTextField
@@ -98,7 +92,6 @@ export function CreateDancerDialog({
               id={lastNameId}
               label="Apellido"
               autoComplete="family-name"
-              serverError={serverFieldErrors.lastName}
             />
 
             <Controller
@@ -106,7 +99,9 @@ export function CreateDancerDialog({
               name="birthDate"
               render={({ field, fieldState }) => {
                 const errorMessage =
-                  fieldState.error?.message ?? serverFieldErrors.birthDate;
+                  fieldState.error?.type === "server"
+                    ? undefined
+                    : fieldState.error?.message;
 
                 return (
                   <DateOnlyField
@@ -146,21 +141,22 @@ function DancerTextField({
   fieldName,
   id,
   label,
-  serverError,
 }: {
   autoComplete: string;
   control: Control<CreateDancerFormValues>;
   fieldName: keyof CreateDancerFormValues;
   id: string;
   label: string;
-  serverError?: string;
 }) {
   return (
     <Controller
       control={control}
       name={fieldName}
       render={({ field, fieldState }) => {
-        const errorMessage = fieldState.error?.message ?? serverError;
+        const errorMessage =
+          fieldState.error?.type === "server"
+            ? undefined
+            : fieldState.error?.message;
         const isInvalid = Boolean(errorMessage);
 
         return (

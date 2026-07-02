@@ -1,9 +1,9 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeEventSchedulesList } from "@/features/admin/event-schedules/list/server";
+import { loadAdministrativeEventSchedulesList } from "@/features/admin/schedules/list/server";
 import {
   AdministrativeEventSchedulesListView,
   type AdministrativeEventSchedulesListViewProps,
-} from "@/features/admin/event-schedules/list/view";
+} from "@/features/admin/schedules/list/view";
 
 import type { Route } from "./+types/administracion.cronogramas";
 

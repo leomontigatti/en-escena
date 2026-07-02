@@ -10,18 +10,15 @@ import {
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import {
-  buildAdministrativeDancerWhere,
-  readAdministrativeDancerFilters,
-} from "@/lib/admin/dancers/dancers-list-filters.server";
+import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 import type { AdministrativeDancerListResult } from "@/lib/admin/dancers/dancers.server.types";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
-export async function listAdministrativeDancers(input: {
+async function listDancers(input: {
   selectedEventId: string | null;
   filters: AdministrativeDancerListFilters;
 }): Promise<AdministrativeDancerListResult> {
-  const where = buildAdministrativeDancerWhere(input);
+  const where = buildDancerFilters(input);
 
   const [{ count: totalUnfilteredCount }] = await db
     .select({
@@ -105,4 +102,4 @@ export async function listAdministrativeDancers(input: {
   };
 }
 
-export { readAdministrativeDancerFilters };
+export { listDancers };

@@ -5,12 +5,12 @@ import {
   getAdministrativeEventPriceDisplayName,
   AdministrativeEventPriceDetailView,
   type AdministrativeEventPriceDetailViewProps,
-} from "@/features/admin/event-prices/detail/view";
+} from "@/features/admin/prices/detail/view";
 import {
   loadAdministrativeEventPriceDetail,
   updateAdministrativeEventPrice,
-} from "@/features/admin/event-prices/detail/server";
-import type { AdministrativeEventPricesLoaderData } from "@/features/admin/event-prices/shared";
+} from "@/features/admin/prices/detail/server";
+import type { AdministrativeEventPricesLoaderData } from "@/features/admin/prices/shared";
 
 import type { Route } from "./+types/administracion.precios_.$priceId";
 

@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
-import { createModality } from "@/lib/events/bases-repository.server";
+import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   handlePortalDancersListAction,

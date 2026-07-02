@@ -16,6 +16,15 @@ export const groupType = pgEnum("en_escena_group_type", [
   "grupal",
 ]);
 
+export const experienceLevel = pgEnum("en_escena_experience_level", [
+  "amateur",
+  "profesional",
+  "elite",
+  "pre_elite",
+  "pro_am",
+  "nudo",
+]);
+
 export const documentType = pgEnum("en_escena_document_type", [
   "dni",
   "passport",

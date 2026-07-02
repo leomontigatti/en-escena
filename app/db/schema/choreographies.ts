@@ -14,12 +14,12 @@ import { academies } from "./academies";
 import {
   choreographyCategoryCalculationMode,
   createTable,
+  experienceLevel,
   groupType,
 } from "./core";
 import {
   categories,
   events,
-  experienceLevels,
   modalities,
   scheduleCapacities,
   schedules,
@@ -53,9 +53,7 @@ export const choreographies = createTable(
     categoryCalculationMode: choreographyCategoryCalculationMode(
       "category_calculation_mode",
     ).notNull(),
-    experienceLevelId: varchar("experience_level_id", {
-      length: 255,
-    }),
+    experienceLevelId: experienceLevel("experience_level"),
     scheduleId: varchar("schedule_id", { length: 255 }),
     scheduleCapacityId: varchar("schedule_capacity_id", {
       length: 255,
@@ -88,11 +86,6 @@ export const choreographies = createTable(
       columns: [table.submodalityId],
       foreignColumns: [submodalities.id],
       name: "choreography_submodality_fk",
-    }),
-    foreignKey({
-      columns: [table.experienceLevelId],
-      foreignColumns: [experienceLevels.id],
-      name: "choreography_experience_level_fk",
     }),
     foreignKey({
       columns: [table.scheduleId],

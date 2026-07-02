@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input";
+import { IntegerInput } from "@/components/shared/integer-input-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

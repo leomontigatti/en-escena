@@ -1,8 +1,6 @@
 export { findAdministrativeDancer } from "@/lib/admin/dancers/dancers-detail.server";
-export {
-  listAdministrativeDancers,
-  readAdministrativeDancerFilters,
-} from "@/lib/admin/dancers/dancers-list.server";
+export { readDancerFilters as readAdministrativeDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
+export { listDancers as listAdministrativeDancers } from "@/lib/admin/dancers/dancers-list.server";
 export { setAdministrativeDancerActiveState } from "@/lib/admin/dancers/dancers-active-state.server";
 export { verifyAdministrativeDancerIdentity } from "@/lib/admin/dancers/dancers-identity.server";
 export type {

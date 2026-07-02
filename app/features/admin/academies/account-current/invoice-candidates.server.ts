@@ -9,7 +9,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
-import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
+import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import { listActiveInvoiceChoreographyIds } from "@/lib/finances/choreography-invoices.server";
 
 export async function readDepositInvoiceCandidates(input: {

@@ -3,15 +3,17 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
+import { createCategory } from "@/lib/categories/repository.server";
 import {
-  createCategory,
-  createExperienceLevel,
   createModality,
-  createPrice,
+  createSubmodality,
+} from "@/lib/modalities/repository.server";
+import { createPrice } from "@/lib/prices/repository.server";
+import {
   createSchedule,
   createScheduleCapacity,
-  createSubmodality,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
+import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
 import { createEvent } from "@/lib/events/management.server";
 import {
   getEventRegistrationReadiness,
@@ -32,9 +34,7 @@ describe("event registration readiness", () => {
     const contemporaneo = await expectCreated(
       createModality(event.id, { name: "Contemporáneo" }),
     );
-    const inicial = await expectCreated(
-      createExperienceLevel(event.id, { name: "Inicial" }),
-    );
+    const inicial = fixedExperienceLevel(event.id);
 
     await expectCreated(
       createSubmodality(event.id, {
@@ -106,9 +106,7 @@ describe("event registration readiness", () => {
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
-    const inicial = await expectCreated(
-      createExperienceLevel(event.id, { name: "Inicial" }),
-    );
+    const inicial = fixedExperienceLevel(event.id);
 
     await expectCreated(
       createSubmodality(event.id, {

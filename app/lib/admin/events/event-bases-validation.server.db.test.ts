@@ -1,11 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  createCategory,
-  createModality,
-  createSchedule,
-} from "@/lib/events/bases-repository.server";
-import { loader } from "@/lib/admin/events/event-bases.server";
+import { createCategory } from "@/lib/categories/repository.server";
+import { createModality } from "@/lib/modalities/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -15,6 +12,7 @@ import {
   expectCreated,
   expectThrownResponse,
   formData,
+  loader,
   renderModalidadDetalleRoute,
   renderNuevaModalidadRoute,
   routeArgs,
@@ -104,7 +102,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       maxAge: "12",
       groupTypes: ["solo"],
       modalityIds: [modality.id],
-      experienceLevelIds: ["Elite"],
+      experienceLevelIds: [],
     };
     const duplicateCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.duplicada@example.com",
@@ -350,10 +348,12 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(createMarkup).not.toContain(
       "Ya existe una modalidad con ese nombre en este evento.",
     );
-    expect(createMarkup).toContain("Usá un nombre distinto para la modalidad.");
+    expect(createMarkup).not.toContain(
+      "Usá un nombre distinto para la modalidad.",
+    );
     expect(detailMarkup).not.toContain(
       "Usá un nombre distinto para la modalidad.",
     );
-    expect(detailMarkup).toContain("Ingresá el nombre de la submodalidad.");
+    expect(detailMarkup).not.toContain("Ingresá el nombre de la submodalidad.");
   });
 });

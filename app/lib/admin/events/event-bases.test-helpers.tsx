@@ -1,54 +1,78 @@
 import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, redirect } from "react-router";
 import { expect } from "vitest";
 
-import {
-  EventCategoryDetailRouteView,
-  NewEventCategoryRouteView,
-  EventCategoriesRouteView,
-} from "@/components/admin/events/event-categories";
+import { CategoryDetailView } from "@/features/admin/categories/detail/view";
+import { CategoryCreateView } from "@/features/admin/categories/create/view";
+import { CategoriesListView } from "@/features/admin/categories/list/view";
+import { handleCategoryAction } from "@/features/admin/categories/action.server";
+import { handleEventModalityAction } from "@/features/admin/modalities/action.server";
 import {
   EventModalityDetailRouteView,
   EventModalitiesRouteView,
   NewEventModalityRouteView,
-} from "@/components/admin/events/event-modalities";
+} from "@/features/admin/modalities/route-views";
+import { handleEventPriceAction } from "@/features/admin/prices/action.server";
 import {
   EventPriceDetailRouteView,
   NewEventPriceRouteView,
   EventPricesRouteView,
-} from "@/components/admin/events/event-prices";
+} from "@/features/admin/prices/route-views";
+import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
 import {
   EventSchedulesRouteView,
   EventScheduleDetailRouteView,
   NewEventScheduleRouteView,
-} from "@/components/admin/events/event-schedules";
+} from "@/features/admin/schedules/route-views";
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import type { categories, modalities, submodalities } from "@/db/schema";
+import { events, user } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
+import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
-  action,
-  type ActionData,
-  type EventBasesLoaderData,
-} from "@/lib/admin/events/event-bases.server";
+  getEventBases,
+  type PriceListItem,
+  type ScheduleListItem,
+} from "@/lib/events/bases.server";
 import {
   createSavedEvent as createEventFixture,
   expectCreated,
+  fixedExperienceLevel,
 } from "@/lib/events/bases-test-fixtures.server.db";
 import { AdministracionRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
 import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.cronogramas_.nuevo";
-import { handle as categoriasHandle } from "@/routes/administracion.categorias";
-import { handle as categoriaDetalleHandle } from "@/routes/administracion.categorias_.$categoryId";
-import { handle as categoriaNuevaHandle } from "@/routes/administracion.categorias_.nueva";
+import { handle as categoriasHandle } from "../../../routes/administracion.categorias";
+import { handle as categoriaDetalleHandle } from "../../../routes/administracion.categorias_.$categoryId";
+import { handle as categoriaNuevaHandle } from "../../../routes/administracion.categorias_.nueva";
 import { handle as modalidadesHandle } from "@/routes/administracion.modalidades";
 import { handle as modalidadDetalleHandle } from "@/routes/administracion.modalidades_.$modalityId";
 import { handle as modalidadNuevaHandle } from "@/routes/administracion.modalidades_.nueva";
 import { handle as preciosHandle } from "@/routes/administracion.precios";
 import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
 import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
+
+type ModalityRow = typeof modalities.$inferSelect;
+type SubmodalityRow = typeof submodalities.$inferSelect;
+type CategoryRow = Omit<typeof categories.$inferSelect, "experienceLevels"> & {
+  modalityIds: string[];
+  experienceLevelIds: string[];
+};
+
+export type EventBasesLoaderData = {
+  selectedEventId: string | null;
+  requiredDepositPercentage: number | null;
+  modalities: ModalityRow[];
+  submodalities: SubmodalityRow[];
+  categories: CategoryRow[];
+  schedules: ScheduleListItem[];
+  prices: PriceListItem[];
+};
 
 export async function createSavedEvent(
   name: string,
@@ -114,7 +138,7 @@ export function renderCategoriasRoute(loaderData: EventBasesLoaderData) {
     path: "categorias",
     url: "/administracion/categorias",
     handle: categoriasHandle,
-    element: createElement(EventCategoriesRouteView, { loaderData }),
+    element: createElement(CategoriesListView, { loaderData }),
   });
 }
 
@@ -127,7 +151,7 @@ export function renderCategoriaNuevaRoute(
     path: "categorias/nueva",
     url: "/administracion/categorias/nueva",
     handle: categoriaNuevaHandle,
-    element: createElement(NewEventCategoryRouteView, {
+    element: createElement(CategoryCreateView, {
       loaderData,
       actionData,
     }),
@@ -143,7 +167,7 @@ export function renderCategoriaDetalleRoute(
     path: "categorias/:categoryId",
     url: `/administracion/categorias/${categoryId}`,
     handle: categoriaDetalleHandle,
-    element: createElement(EventCategoryDetailRouteView, {
+    element: createElement(CategoryDetailView, {
       loaderData,
       categoryId,
     }),
@@ -334,6 +358,77 @@ export function routeArgs(request: Request) {
   };
 }
 
+export async function loader({ request }: { request: Request }) {
+  await requireAdminPanelUser(request);
+  const eventContext = await loadAdminEventContext(request);
+
+  if (eventContext.redirectTo) {
+    throw redirect(eventContext.redirectTo);
+  }
+
+  const selectedEventId = eventContext.selectedEventId;
+  const [selectedEvent, eventBases] = selectedEventId
+    ? await Promise.all([
+        db.query.events.findFirst({
+          columns: { requiredDepositPercentage: true },
+          where: eq(events.id, selectedEventId),
+        }),
+        getEventBases(selectedEventId),
+      ])
+    : [
+        null,
+        {
+          categories: [],
+          modalities: [],
+          submodalities: [],
+          schedules: [],
+          prices: [],
+        },
+      ];
+
+  return {
+    selectedEventId,
+    requiredDepositPercentage: selectedEvent?.requiredDepositPercentage ?? null,
+    ...eventBases,
+  } satisfies EventBasesLoaderData;
+}
+
+export async function action({ request }: { request: Request }) {
+  const pathname = new URL(request.url).pathname;
+
+  if (pathname.startsWith("/administracion/categorias")) {
+    return handleCategoryAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/modalidades")) {
+    return handleEventModalityAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/cronogramas")) {
+    return handleEventScheduleAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/precios")) {
+    return handleEventPriceAction(request);
+  }
+
+  const intent = await readIntent(request);
+
+  if (isCategoryIntent(intent)) {
+    return handleCategoryAction(request);
+  }
+
+  if (isModalityIntent(intent)) {
+    return handleEventModalityAction(request);
+  }
+
+  if (isScheduleIntent(intent)) {
+    return handleEventScheduleAction(request);
+  }
+
+  return handleEventPriceAction(request);
+}
+
 function createRequestCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
 
@@ -393,5 +488,23 @@ export function renderScheduleDetailErrorRoute(
   });
 }
 
-export { action };
 export { expectCreated };
+export { fixedExperienceLevel };
+
+async function readIntent(request: Request) {
+  const formData = await request.clone().formData();
+
+  return String(formData.get("intent") ?? "");
+}
+
+function isCategoryIntent(intent: string) {
+  return intent.endsWith("-category");
+}
+
+function isModalityIntent(intent: string) {
+  return intent.endsWith("-modality") || intent.endsWith("-submodality");
+}
+
+function isScheduleIntent(intent: string) {
+  return intent.endsWith("-schedule") || intent.endsWith("-schedule-capacity");
+}

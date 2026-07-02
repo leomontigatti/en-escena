@@ -2,7 +2,7 @@ import type {
   EventBasesDeleteResult,
   EventBasesMutationResult,
   ScheduleCapacityInput,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
 
 export type ActionData = {
   status: "error";
@@ -88,7 +88,6 @@ export type EventBasesActionInput = {
   isSpecialPrice: boolean;
   modalityIds: string[];
   modalityId: string;
-  newExperienceLevelName: string;
   name: string;
   experienceLevelIds: string[];
   scheduledDate: string;

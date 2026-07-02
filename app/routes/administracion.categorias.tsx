@@ -1,28 +1,24 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeEventCategoriesList } from "@/features/admin/event-categories/list/server";
+import { loadCategoriesList } from "@/features/admin/categories/list/server";
 import {
-  AdministrativeEventCategoriesListView,
-  type AdministrativeEventCategoriesListViewProps,
-} from "@/features/admin/event-categories/list/view";
+  CategoriesListView,
+  type CategoriesListViewProps,
+} from "@/features/admin/categories/list/view";
 
 import type { Route } from "./+types/administracion.categorias";
 
-export const handle = {
+const handle = {
   adminBreadcrumbs: [{ label: "Categorías" }],
 } satisfies AdminRouteHandle;
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventCategoriesList(request);
+async function loader({ request }: Route.LoaderArgs) {
+  return loadCategoriesList(request);
 }
 
-export function AdministracionCategoriasRouteView({
-  loaderData,
-}: AdministrativeEventCategoriesListViewProps) {
-  return <AdministrativeEventCategoriesListView loaderData={loaderData} />;
+export function CategoriesRouteView({ loaderData }: CategoriesListViewProps) {
+  return <CategoriesListView loaderData={loaderData} />;
 }
 
-export default function AdminCategoriesRoute({
-  loaderData,
-}: AdministrativeEventCategoriesListViewProps) {
-  return <AdministracionCategoriasRouteView loaderData={loaderData} />;
-}
+export default CategoriesRouteView;
+
+export { handle, loader };

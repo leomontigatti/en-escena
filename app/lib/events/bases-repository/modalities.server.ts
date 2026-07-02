@@ -1,21 +1,17 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
 import {
-  categoryExperienceLevels,
   categoryModalities,
   created,
   db,
   eventBaseCopy,
   eventBaseEntityNotFound,
-  experienceLevels,
-  findExperienceLevelsByNames,
   modalities,
   normalizeEventBaseName,
   requiredFieldMessage,
   scheduleModalities,
   submodalities,
   toTitleCase,
-  uniqueValues,
   validateEventBaseName,
 } from "@/lib/events/bases-repository/shared.server";
 import type {
@@ -290,127 +286,6 @@ export async function deleteSubmodality(
   return { ok: true };
 }
 
-export async function createExperienceLevel(
-  eventId: string,
-  input: EventBaseNameInput,
-): Promise<EventBasesMutationResult> {
-  const validation = await validateEventBaseName({
-    eventId,
-    name: input.name,
-    kind: "experience-level",
-  });
-
-  if (!validation.ok) {
-    return validation;
-  }
-
-  const [record] = await db
-    .insert(experienceLevels)
-    .values({ eventId, name: input.name.trim() })
-    .returning();
-
-  return created(record);
-}
-
-export async function ensureExperienceLevelsForEvent(
-  eventId: string,
-  names: string[],
-) {
-  const uniqueNames = uniqueValues(names);
-
-  if (uniqueNames.length === 0) {
-    return [];
-  }
-
-  const existingLevels = await findExperienceLevelsByNames(
-    eventId,
-    uniqueNames,
-  );
-  const idsByName = new Map(
-    existingLevels.map((level) => [
-      normalizeEventBaseName(level.name),
-      level.id,
-    ]),
-  );
-  const missingNames = uniqueNames.filter(
-    (name) => !idsByName.has(normalizeEventBaseName(name)),
-  );
-
-  if (missingNames.length > 0) {
-    const createdLevels = await db
-      .insert(experienceLevels)
-      .values(missingNames.map((name) => ({ eventId, name })))
-      .returning();
-
-    for (const level of createdLevels) {
-      idsByName.set(normalizeEventBaseName(level.name), level.id);
-    }
-  }
-
-  return uniqueNames
-    .map((name) => idsByName.get(normalizeEventBaseName(name)))
-    .filter((id): id is string => Boolean(id));
-}
-
-export async function updateExperienceLevel(
-  experienceLevelId: string,
-  input: EventBaseNameInput,
-): Promise<EventBasesMutationResult> {
-  const experienceLevel = await db.query.experienceLevels.findFirst({
-    where: eq(experienceLevels.id, experienceLevelId),
-  });
-
-  if (!experienceLevel) {
-    return eventBaseEntityNotFound("experience-level");
-  }
-
-  const validation = await validateEventBaseName({
-    eventId: experienceLevel.eventId,
-    name: input.name,
-    kind: "experience-level",
-    exceptId: experienceLevelId,
-  });
-
-  if (!validation.ok) {
-    return validation;
-  }
-
-  const [record] = await db
-    .update(experienceLevels)
-    .set({ name: input.name.trim() })
-    .where(eq(experienceLevels.id, experienceLevelId))
-    .returning();
-
-  return created(record);
-}
-
-export async function deleteExperienceLevel(
-  experienceLevelId: string,
-): Promise<EventBasesDeleteResult> {
-  const experienceLevel = await db.query.experienceLevels.findFirst({
-    where: eq(experienceLevels.id, experienceLevelId),
-  });
-
-  if (!experienceLevel) {
-    return eventBaseEntityNotFound("experience-level");
-  }
-
-  if (await experienceLevelHasCategoryDependencies(experienceLevelId)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error:
-        "No se puede borrar el nivel de experiencia porque tiene categorías relacionadas.",
-    };
-  }
-
-  await db
-    .delete(experienceLevels)
-    .where(eq(experienceLevels.id, experienceLevelId));
-
-  return { ok: true };
-}
-
 async function validateSubmodalityInput(
   eventId: string,
   input: SubmodalityInput,
@@ -600,15 +475,4 @@ async function modalityHasEventBaseDependencies(
   }
 
   return { ok: true };
-}
-
-async function experienceLevelHasCategoryDependencies(
-  experienceLevelId: string,
-) {
-  const categoryRelation = await db.query.categoryExperienceLevels.findFirst({
-    columns: { categoryId: true },
-    where: eq(categoryExperienceLevels.experienceLevelId, experienceLevelId),
-  });
-
-  return Boolean(categoryRelation);
 }

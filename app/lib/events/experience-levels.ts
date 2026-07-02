@@ -1,19 +1,38 @@
-enum ExperienceLevel {
-  Amateur = "Amateur",
-  Profesional = "Profesional",
-  Elite = "Elite",
-  PreElite = "Pre Elite",
-  ProAm = "Pro-Am",
-  Nudo = "Nudo",
-}
+const experienceLevelValues = [
+  "amateur",
+  "profesional",
+  "elite",
+  "pre_elite",
+  "pro_am",
+  "nudo",
+] as const;
 
-export const experienceLevelOptions = Object.values(ExperienceLevel).map(
-  (level) => ({
-    value: level,
-    label: level,
+type ExperienceLevel = (typeof experienceLevelValues)[number];
+
+const experienceLevelLabels: Record<string, string> = {
+  amateur: "Amateur",
+  profesional: "Profesional",
+  elite: "Elite",
+  pre_elite: "Pre Elite",
+  pro_am: "Pro-Am",
+  nudo: "Nudo",
+};
+
+const experienceLevelOptions = Object.entries(experienceLevelLabels).map(
+  ([value, label]) => ({
+    value,
+    label,
   }),
 );
 
-export function isExperienceLevel(value: string): value is ExperienceLevel {
-  return Object.values(ExperienceLevel).includes(value as ExperienceLevel);
+function isExperienceLevel(value: string): value is ExperienceLevel {
+  return experienceLevelValues.includes(value as ExperienceLevel);
 }
+
+export {
+  experienceLevelLabels,
+  experienceLevelOptions,
+  experienceLevelValues,
+  isExperienceLevel,
+};
+export type { ExperienceLevel };

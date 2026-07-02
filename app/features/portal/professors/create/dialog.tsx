@@ -24,12 +24,10 @@ import { Input } from "@/components/ui/input";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import {
   createProfessorIntent,
   createProfessorSchema,
-  emptyProfessorFieldErrors,
   emptyProfessorValues,
   type CreateProfessorActionData,
   type CreateProfessorFormValues,
@@ -54,14 +52,10 @@ export function CreateProfessorDialog({
     resolver: zodResolver(createProfessorSchema),
     defaultValues: actionData?.values ?? emptyProfessorValues,
   });
-  const serverFieldErrors =
-    actionData?.fieldErrors ?? emptyProfessorFieldErrors;
 
   useEffect(() => {
     form.reset(actionData?.values ?? emptyProfessorValues);
   }, [actionData?.values, form]);
-
-  useApplyServerFieldErrors(form, serverFieldErrors);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -88,7 +82,6 @@ export function CreateProfessorDialog({
               id={firstNameId}
               label="Nombre"
               autoComplete="given-name"
-              serverError={serverFieldErrors.firstName}
             />
 
             <ProfessorTextField
@@ -97,7 +90,6 @@ export function CreateProfessorDialog({
               id={lastNameId}
               label="Apellido"
               autoComplete="family-name"
-              serverError={serverFieldErrors.lastName}
             />
           </FieldGroup>
 
@@ -121,21 +113,22 @@ function ProfessorTextField({
   fieldName,
   id,
   label,
-  serverError,
 }: {
   autoComplete: string;
   control: Control<CreateProfessorFormValues>;
   fieldName: keyof CreateProfessorFormValues;
   id: string;
   label: string;
-  serverError?: string;
 }) {
   return (
     <Controller
       control={control}
       name={fieldName}
       render={({ field, fieldState }) => {
-        const errorMessage = fieldState.error?.message ?? serverError;
+        const errorMessage =
+          fieldState.error?.type === "server"
+            ? undefined
+            : fieldState.error?.message;
         const isInvalid = Boolean(errorMessage);
 
         return (

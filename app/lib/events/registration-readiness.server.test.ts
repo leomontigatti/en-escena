@@ -15,7 +15,6 @@ describe("event registration readiness from loaded bases", () => {
           modalityId: "modality_jazz",
         },
       ],
-      experienceLevels: [{ id: "level_inicial", name: "Inicial" }],
       categories: [
         {
           id: "category_infantil",
@@ -24,7 +23,7 @@ describe("event registration readiness from loaded bases", () => {
           maxAge: 12,
           groupTypes: ["solo", "duo"],
           modalityIds: ["modality_jazz"],
-          experienceLevelIds: ["level_inicial"],
+          experienceLevelIds: ["amateur"],
         },
       ],
       schedules: [
@@ -88,7 +87,6 @@ describe("event registration readiness from loaded bases", () => {
     const eventBases = {
       modalities: [{ id: "modality_jazz", name: "Jazz" }],
       submodalities: [],
-      experienceLevels: [],
       categories: [
         {
           id: "category_infantil",

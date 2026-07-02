@@ -1,10 +1,12 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { createAdministrativeEventModality } from "@/features/admin/event-modalities/create/server";
-import type { AdministrativeEventModalityActionData } from "@/features/admin/event-modalities/shared";
-import { loadAdministrativeEventModalitiesList } from "@/features/admin/event-modalities/list/server";
-import { AdministrativeEventModalityCreateView } from "@/features/admin/event-modalities/create/view";
+import {
+  createAdministrativeEventModality,
+  loadAdministrativeEventModalityCreate,
+} from "@/features/admin/modalities/create/server";
+import type { AdministrativeEventModalityActionData } from "@/features/admin/modalities/shared";
+import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
@@ -21,7 +23,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventModalitiesList(request);
+  return loadAdministrativeEventModalityCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

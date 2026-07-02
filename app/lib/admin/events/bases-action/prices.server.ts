@@ -1,8 +1,3 @@
-import {
-  buildPriceDetailPath,
-  buildPriceListPath,
-  isPriceDetailPath,
-} from "@/lib/admin/events/event-bases-navigation";
 import type {
   ActionErrorScope,
   EventBasesActionInput,
@@ -11,6 +6,7 @@ import type {
   PriceActionValues,
   RequiredFieldErrorResult,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
   buildDefaultActionErrorScope,
   buildRecordActionScope,
@@ -25,10 +21,25 @@ import {
   deletePrice,
   type PriceInput,
   updatePrice,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/prices/repository.server";
+import {
+  buildDetailPath,
+  buildListPath,
+  isDetailPath,
+} from "@/lib/shared/navigation";
 
+const priceBasePath = "/administracion/precios";
 const priceSavedNotification = "precio-guardado";
 const priceDeletedNotification = "precio-eliminado";
+
+export const priceActionHandler: EventBasesActionHandler = {
+  buildErrorScope: buildPriceActionErrorScope,
+  buildRedirectUrl: buildPriceRedirectUrl,
+  getConfirmationError: getPriceConfirmationError,
+  getRequiredFieldErrors: getPriceRequiredFieldErrors,
+  readSubmittedValues: readPriceSubmittedValues,
+  run: runPriceIntent,
+};
 
 export function handlesPriceIntent(intent: string) {
   return (
@@ -44,7 +55,7 @@ export function getPriceConfirmationError(
 ) {
   if (
     input.intent === "delete-price" &&
-    isPriceDetailPath(requestUrl) &&
+    isDetailPath(priceBasePath, requestUrl) &&
     input.confirmDeletion !== input.id
   ) {
     return {
@@ -126,7 +137,7 @@ export function buildPriceRedirectUrl(
 
   if (input.intent === "delete-price") {
     return withEventBasesNotification(
-      buildPriceListPath(null),
+      buildListPath(priceBasePath, null),
       priceDeletedNotification,
     );
   }
@@ -137,7 +148,7 @@ export function buildPriceRedirectUrl(
     hasEventBaseRecord(result)
   ) {
     return withEventBasesNotification(
-      buildPriceDetailPath(result.record.id, null),
+      buildDetailPath(priceBasePath, result.record.id, null),
       priceSavedNotification,
     );
   }

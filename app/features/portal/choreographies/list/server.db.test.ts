@@ -4,14 +4,12 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import {
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
   dancers,
   events,
-  experienceLevels,
   modalities,
   prices,
   professors,
@@ -20,15 +18,18 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { createCategory } from "@/lib/categories/repository.server";
 import {
-  createCategory,
-  createExperienceLevel,
   createModality,
-  createPrice,
+  createSubmodality,
+} from "@/lib/modalities/repository.server";
+import { createPrice } from "@/lib/prices/repository.server";
+import {
   createSchedule,
   createScheduleCapacity,
-  createSubmodality,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
+import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { loadCreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
 import {
@@ -84,9 +85,7 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     const modality = await expectCreated(
       createModality(activeEvent.id, { name: "Jazz" }),
     );
-    const level = await expectCreated(
-      createExperienceLevel(activeEvent.id, { name: "Inicial" }),
-    );
+    const level = fixedExperienceLevel(activeEvent.id);
     await expectCreated(
       createSubmodality(activeEvent.id, {
         modalityId: modality.id,
@@ -441,17 +440,15 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     const event = await createSavedEvent({
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
-      startsAt: date("2026-07-01T12:00:00Z"),
-      endsAt: date("2026-07-03T12:00:00Z"),
+      registrationEndsAt: date("2026-07-30T12:00:00Z"),
+      startsAt: date("2026-07-31T12:00:00Z"),
+      endsAt: date("2026-08-02T12:00:00Z"),
     });
     await activateEvent(event.id);
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
-    const level = await expectCreated(
-      createExperienceLevel(event.id, { name: "Inicial" }),
-    );
+    const level = fixedExperienceLevel(event.id);
     const submodality = await expectCreated(
       createSubmodality(event.id, {
         modalityId: modality.id,
@@ -646,13 +643,7 @@ async function createEventCatalog(eventId: string) {
       name: `Lyrical ${eventId}`,
     })
     .returning();
-  const [level] = await db
-    .insert(experienceLevels)
-    .values({
-      eventId,
-      name: `Inicial ${eventId}`,
-    })
-    .returning();
+  const level = { id: "amateur", name: experienceLevelLabels.amateur } as const;
   const [categoryWithLevel] = await db
     .insert(categories)
     .values({
@@ -662,6 +653,7 @@ async function createEventCatalog(eventId: string) {
       maxAge: 17,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [level.id],
       experienceLevelKey: level.id,
     })
     .returning();
@@ -674,6 +666,7 @@ async function createEventCatalog(eventId: string) {
       maxAge: 99,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [],
       experienceLevelKey: "",
     })
     .returning();
@@ -687,10 +680,6 @@ async function createEventCatalog(eventId: string) {
       modalityId: modality.id,
     },
   ]);
-  await db.insert(categoryExperienceLevels).values({
-    categoryId: categoryWithLevel.id,
-    experienceLevelId: level.id,
-  });
   const [schedule] = await db
     .insert(schedules)
     .values({

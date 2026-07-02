@@ -37,15 +37,15 @@ vi.mock("react-router", async () => {
   };
 });
 
-import { EventCategoryDetailRouteView } from "@/components/admin/events/event-categories";
+import { CategoryDetailView } from "@/features/admin/categories/detail/view";
 import {
   EventModalityDetailRouteView,
   NewEventModalityRouteView,
-} from "@/components/admin/events/event-modalities";
-import { EventPriceDetailRouteView } from "@/components/admin/events/event-prices";
-import { EventScheduleDetailRouteView } from "@/components/admin/events/event-schedules";
-import type { ActionData } from "@/lib/admin/events/bases-action.server";
-import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.server";
+} from "@/features/admin/modalities/route-views";
+import { EventPriceDetailRouteView } from "@/features/admin/prices/route-views";
+import { EventScheduleDetailRouteView } from "@/features/admin/schedules/route-views";
+import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
+import type { EventBasesLoaderData } from "./event-bases.test-helpers";
 
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;
@@ -92,7 +92,7 @@ describe("Evento bases migrated forms", () => {
       description: "categorías",
       formId: "update-category-form",
       renderView: () => (
-        <EventCategoryDetailRouteView
+        <CategoryDetailView
           loaderData={buildLoaderData()}
           categoryId="category_1"
         />
@@ -277,7 +277,7 @@ describe("Evento bases migrated forms", () => {
     expect(submitSpy).not.toHaveBeenCalled();
   });
 
-  test("keeps server field errors visible in the migrated form", () => {
+  test("keeps server field errors out of the migrated form fields", () => {
     reactRouterMocks.useFormAction.mockReturnValue(
       "/administracion/modalidades/modality_1",
     );
@@ -306,7 +306,7 @@ describe("Evento bases migrated forms", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent).not.toContain(
       "Usá un nombre distinto para la modalidad.",
     );
   });
@@ -367,14 +367,6 @@ function buildLoaderData(): EventBasesLoaderData {
         createdAt,
       },
     ],
-    experienceLevels: [
-      {
-        id: "experience_1",
-        eventId: "event_1",
-        name: "Amateur",
-        createdAt,
-      },
-    ],
     categories: [
       {
         id: "category_1",
@@ -384,10 +376,10 @@ function buildLoaderData(): EventBasesLoaderData {
         maxAge: 99,
         groupTypes: ["solo"],
         groupTypeKey: "solo",
-        experienceLevelKey: "experience_1",
+        experienceLevelKey: "amateur",
         createdAt,
         modalityIds: ["modality_1"],
-        experienceLevelIds: ["experience_1"],
+        experienceLevelIds: ["amateur"],
       },
     ],
     schedules: [

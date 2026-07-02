@@ -5,7 +5,6 @@ import { db } from "@/db";
 import {
   academies,
   categories,
-  categoryExperienceLevels,
   choreographies,
   choreographyProfessors,
   modalities,
@@ -25,6 +24,7 @@ type AdministrativeChoreographyRow = {
   categoryId: string | null;
   categoryName: string | null;
   experienceLevelId: string | null;
+  categoryExperienceLevels: string[] | null;
   groupType: ChoreographyGroupType;
   id: string;
   modalityId: string;
@@ -143,6 +143,7 @@ export async function loadAdministrativeChoreographies(input: {
       categoryId: choreographies.categoryId,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
+      categoryExperienceLevels: categories.experienceLevels,
       groupType: choreographies.groupType,
       id: choreographies.id,
       modalityId: choreographies.modalityId,
@@ -323,35 +324,17 @@ async function hydrateAdministrativeChoreographies(
   }
 
   const choreographyIds = rows.map((row) => row.id);
-  const categoryIds = [
-    ...new Set(
-      rows
-        .map((row) => row.categoryId)
-        .filter((categoryId): categoryId is string => categoryId !== null),
-    ),
-  ];
-  const [professorRows, categoryLevelRows] = await Promise.all([
+  const [professorRows] = await Promise.all([
     db
       .select({
         choreographyId: choreographyProfessors.choreographyId,
       })
       .from(choreographyProfessors)
       .where(inArray(choreographyProfessors.choreographyId, choreographyIds)),
-    categoryIds.length > 0
-      ? db
-          .select({
-            categoryId: categoryExperienceLevels.categoryId,
-          })
-          .from(categoryExperienceLevels)
-          .where(inArray(categoryExperienceLevels.categoryId, categoryIds))
-      : Promise.resolve([]),
   ]);
 
   const choreographyIdsWithProfessors = new Set(
     professorRows.map((row) => row.choreographyId),
-  );
-  const categoryIdsWithLevels = new Set(
-    categoryLevelRows.map((row) => row.categoryId),
   );
 
   return rows.map((row) => ({
@@ -369,7 +352,8 @@ async function hydrateAdministrativeChoreographies(
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
       requiresExperienceLevel:
-        row.categoryId !== null && categoryIdsWithLevels.has(row.categoryId),
+        row.categoryExperienceLevels !== null &&
+        row.categoryExperienceLevels.length > 0,
     }),
     submodalityName: row.submodalityName,
   }));

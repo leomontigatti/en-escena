@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
 
+import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createModality,
   createSchedule,
   createScheduleWithEntries,
   deleteSchedule,
-  listEventBasesData,
+  listSchedules,
   updateSchedule,
   updateScheduleWithEntries,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
 import {
   createSavedEvent,
   expectCreated,
@@ -104,17 +104,15 @@ describe("Bases del evento repository", () => {
       }),
     );
 
-    await expect(listEventBasesData(event.id)).resolves.toMatchObject({
-      schedules: [
-        expect.objectContaining({
-          eventId: event.id,
-          name: "Sábado Mañana",
-          startTime: "09:00",
-          modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
-        }),
-        expect.objectContaining({ name: "Sábado Mañana", startTime: "11:00" }),
-      ],
-    });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      expect.objectContaining({
+        eventId: event.id,
+        name: "Sábado Mañana",
+        startTime: "09:00",
+        modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
+      }),
+      expect.objectContaining({ name: "Sábado Mañana", startTime: "11:00" }),
+    ]);
   });
 
   test("updates cronogramas names while blocking structural edits with dependencies", async () => {
@@ -199,23 +197,21 @@ describe("Bases del evento repository", () => {
       }),
     );
 
-    await expect(listEventBasesData(event.id)).resolves.toMatchObject({
-      schedules: [
-        {
-          id: schedule.id,
-          modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
-          occupiedCapacity: 14,
-          scheduleCapacities: expect.arrayContaining([
-            expect.objectContaining({ groupType: "solo", capacity: 6 }),
-            expect.objectContaining({ groupType: "duo", capacity: 8 }),
-          ]),
-        },
-      ],
-    });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      {
+        id: schedule.id,
+        modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
+        occupiedCapacity: 14,
+        scheduleCapacities: expect.arrayContaining([
+          expect.objectContaining({ groupType: "solo", capacity: 6 }),
+          expect.objectContaining({ groupType: "duo", capacity: 8 }),
+        ]),
+      },
+    ]);
 
-    const savedSchedule = await listEventBasesData(event.id);
+    const savedSchedule = await listSchedules(event.id);
     const savedEntries =
-      savedSchedule.schedules.find((entry) => entry.id === schedule.id)
+      savedSchedule.find((entry) => entry.id === schedule.id)
         ?.scheduleCapacities ?? [];
     const soloCapacity = savedEntries.find(
       (entry) => entry.groupType === "solo",
@@ -249,18 +245,16 @@ describe("Bases del evento repository", () => {
       record: { totalCapacity: 24 },
     });
 
-    await expect(listEventBasesData(event.id)).resolves.toMatchObject({
-      schedules: [
-        {
-          id: schedule.id,
-          modalityIds: [jazz.id],
-          occupiedCapacity: 14,
-          scheduleCapacities: [
-            expect.objectContaining({ groupType: "solo", capacity: 10 }),
-            expect.objectContaining({ groupType: "trio", capacity: 4 }),
-          ],
-        },
-      ],
-    });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      {
+        id: schedule.id,
+        modalityIds: [jazz.id],
+        occupiedCapacity: 14,
+        scheduleCapacities: [
+          expect.objectContaining({ groupType: "solo", capacity: 10 }),
+          expect.objectContaining({ groupType: "trio", capacity: 4 }),
+        ],
+      },
+    ]);
   });
 });

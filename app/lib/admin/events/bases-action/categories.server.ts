@@ -1,9 +1,3 @@
-import {
-  buildCategoriasListPath,
-  buildCategoryDetailPath,
-  isCategoryDetailPath,
-} from "@/lib/admin/events/event-bases-navigation";
-import { readNameActionValues } from "@/lib/admin/events/bases-action/input.server";
 import type {
   ActionErrorScope,
   CategoryActionValues,
@@ -11,6 +5,7 @@ import type {
   EventBasesActionResult,
   EventBasesActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
   buildDefaultActionErrorScope,
   buildRecordActionScope,
@@ -20,20 +15,25 @@ import {
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createCategory,
-  createExperienceLevel,
   deleteCategory,
-  deleteExperienceLevel,
-  ensureExperienceLevelsForEvent,
   type EventBasesMutationResult,
   updateCategory,
-  updateExperienceLevel,
-} from "@/lib/events/bases-repository.server";
-import { isExperienceLevel } from "@/lib/events/experience-levels";
+} from "@/lib/categories/repository.server";
+import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
 
+const categoryBasePath = "/administracion/categorias";
 const categorySavedNotification = "categoria-guardada";
 const categoryDeletedNotification = "categoria-eliminada";
 const categoryDeleteConfirmationMessage =
   "Confirmá el borrado de la categoría antes de continuar.";
+
+export const categoryActionHandler: EventBasesActionHandler = {
+  buildErrorScope: buildCategoryActionErrorScope,
+  buildRedirectUrl: buildCategoryRedirectUrl,
+  getConfirmationError: getCategoryConfirmationError,
+  readSubmittedValues: readCategorySubmittedValues,
+  run: runCategoryIntent,
+};
 
 type CategoryMutationIntent = "create-category" | "update-category";
 type CategoryMutationInput = {
@@ -46,22 +46,15 @@ type CategoryMutationInput = {
 };
 
 export function handlesCategoryIntent(intent: string) {
-  return (
-    isCategoryMutationIntent(intent) ||
-    intent === "delete-category" ||
-    intent === "create-experience-level" ||
-    intent === "update-experience-level" ||
-    intent === "delete-experience-level"
-  );
+  return isCategoryMutationIntent(intent) || intent === "delete-category";
 }
 
 export function getCategoryConfirmationError(
-  requestUrl: string,
+  _requestUrl: string,
   input: EventBasesActionInput,
 ) {
   if (
     input.intent === "delete-category" &&
-    isCategoryDetailPath(requestUrl) &&
     input.confirmDeletion !== input.id
   ) {
     return {
@@ -93,13 +86,6 @@ export function readCategorySubmittedValues(
     return readCategoryActionValues(formData);
   }
 
-  if (
-    input.intent === "create-experience-level" ||
-    input.intent === "update-experience-level"
-  ) {
-    return readNameActionValues(formData);
-  }
-
   return undefined;
 }
 
@@ -122,12 +108,6 @@ export async function runCategoryIntent(
         };
       }
       return deleteCategory(input.id);
-    case "create-experience-level":
-      return createExperienceLevel(input.eventId, { name: input.name });
-    case "update-experience-level":
-      return updateExperienceLevel(input.id, { name: input.name });
-    case "delete-experience-level":
-      return deleteExperienceLevel(input.id);
     default:
       return invalidEventBasesActionResult();
   }
@@ -142,7 +122,7 @@ export function buildCategoryRedirectUrl(
 
   if (input.intent === "delete-category") {
     return withEventBasesNotification(
-      buildCategoriasListPath(null),
+      buildListPath(categoryBasePath, null),
       categoryDeletedNotification,
     );
   }
@@ -153,17 +133,12 @@ export function buildCategoryRedirectUrl(
     hasEventBaseRecord(result)
   ) {
     return withEventBasesNotification(
-      buildCategoryDetailPath(result.record.id, null),
+      buildDetailPath(categoryBasePath, result.record.id, null),
       categorySavedNotification,
     );
   }
 
-  if (
-    isCategoryMutationIntent(input.intent) ||
-    input.intent === "create-experience-level" ||
-    input.intent === "update-experience-level" ||
-    input.intent === "delete-experience-level"
-  ) {
+  if (isCategoryMutationIntent(input.intent)) {
     return withEventBasesNotification(
       currentUrl.pathname,
       categorySavedNotification,
@@ -203,16 +178,6 @@ function isCategoryMutationIntent(
   return intent === "create-category" || intent === "update-category";
 }
 
-function appendExperienceLevelId(
-  input: CategoryMutationInput,
-  experienceLevelId: string,
-): CategoryMutationInput {
-  return {
-    ...input,
-    experienceLevelIds: [...input.experienceLevelIds, experienceLevelId],
-  };
-}
-
 async function runCategoryMutation(
   input: EventBasesActionInput,
   categoryInput: CategoryMutationInput,
@@ -236,50 +201,5 @@ async function runCategoryMutation(
 async function saveCategory(
   input: EventBasesActionInput,
 ): Promise<EventBasesMutationResult> {
-  const fixedExperienceLevelNames =
-    input.experienceLevelIds.filter(isExperienceLevel);
-  const fixedExperienceLevelIds = await ensureExperienceLevelsForEvent(
-    input.eventId,
-    fixedExperienceLevelNames,
-  );
-  const categoryInput = {
-    ...getCategoryMutationInput(input),
-    experienceLevelIds: [
-      ...input.experienceLevelIds.filter(
-        (experienceLevelId) => !isExperienceLevel(experienceLevelId),
-      ),
-      ...fixedExperienceLevelIds,
-    ],
-  };
-  const normalizedNewExperienceLevelName = input.newExperienceLevelName.trim();
-
-  if (!normalizedNewExperienceLevelName) {
-    return runCategoryMutation(input, categoryInput);
-  }
-
-  const levelResult = await createExperienceLevel(input.eventId, {
-    name: normalizedNewExperienceLevelName,
-  });
-
-  if (!levelResult.ok) {
-    return {
-      ...levelResult,
-      fieldErrors: {
-        ...(levelResult.fieldErrors ?? {}),
-        newExperienceLevelName:
-          levelResult.fieldErrors?.name ?? levelResult.error,
-      },
-    };
-  }
-
-  const categoryResult = await runCategoryMutation(
-    input,
-    appendExperienceLevelId(categoryInput, levelResult.record.id),
-  );
-
-  if (!categoryResult.ok) {
-    await deleteExperienceLevel(levelResult.record.id);
-  }
-
-  return categoryResult;
+  return runCategoryMutation(input, getCategoryMutationInput(input));
 }

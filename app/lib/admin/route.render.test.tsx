@@ -93,7 +93,6 @@ describe("administracion layout route", () => {
               selectedEventId: "evento_2026",
               modalities: [{ id: "mod_1", name: "Jazz Contemporáneo" }],
               submodalities: [],
-              experienceLevels: [],
               categories: [],
               schedules: [],
               prices: [],

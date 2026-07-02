@@ -1,14 +1,22 @@
 import {
   listChoreographyRegistrationBaseOptionsData,
-  listEventBasesData,
+  listModalities,
+  listSubmodalities,
+} from "@/lib/modalities/repository.server";
+import { listCategories } from "@/lib/categories/repository.server";
+import {
+  listPrices,
   resolveApplicablePrice,
+  type PriceListItem,
+  type PriceResolutionResult,
+} from "@/lib/prices/repository.server";
+import {
+  listSchedules,
   resolveCompatibleScheduleCapacities,
   type CompatibleScheduleCapacity,
   type CompatibleScheduleCapacityResolution,
-  type PriceListItem,
-  type PriceResolutionResult,
   type ScheduleListItem,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
 
 export type {
   CompatibleScheduleCapacity,
@@ -19,7 +27,22 @@ export type {
 };
 
 export async function getEventBases(eventId: string) {
-  return listEventBasesData(eventId);
+  const [modalities, submodalities, categories, schedules, prices] =
+    await Promise.all([
+      listModalities(eventId),
+      listSubmodalities(eventId),
+      listCategories(eventId),
+      listSchedules(eventId),
+      listPrices(eventId),
+    ]);
+
+  return {
+    modalities,
+    submodalities,
+    categories,
+    schedules,
+    prices,
+  };
 }
 
 export type EventBases = Awaited<ReturnType<typeof getEventBases>>;

@@ -10,6 +10,11 @@ import {
   type CompatibleScheduleCapacityResolution,
   type EventBases,
 } from "@/lib/events/bases.server";
+import {
+  type ExperienceLevel,
+  experienceLevelLabels,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
 
 const EVENT_TIME_ZONE = BUSINESS_TIME_ZONE;
@@ -33,8 +38,8 @@ type RegistrationBaseResolutionInput = Omit<
   event: typeof events.$inferSelect;
 };
 
-type ExperienceLevelSummary = {
-  id: string;
+type ExperienceLevelOption = {
+  id: ExperienceLevel;
   name: string;
 };
 
@@ -70,7 +75,7 @@ type CategoryCandidate = {
   name: string;
   minAge: number;
   maxAge: number;
-  experienceLevelIds: string[];
+  experienceLevels: ExperienceLevel[];
 };
 
 type CategoryResolution =
@@ -87,11 +92,11 @@ type CategoryResolution =
 type ExperienceLevelResolution =
   | {
       required: true;
-      options: ExperienceLevelSummary[];
+      options: ExperienceLevelOption[];
     }
   | {
       required: false;
-      options: ExperienceLevelSummary[];
+      options: ExperienceLevelOption[];
     };
 
 type ScheduleResolution =
@@ -207,7 +212,7 @@ export async function resolveChoreographyRegistrationOperationForResolvedDancers
 }
 
 export function resolveChoreographyClassificationForResolvedDancers(input: {
-  eventBases: Pick<EventBases, "categories" | "experienceLevels">;
+  eventBases: Pick<EventBases, "categories">;
   modalityId: string;
   dancers: ResolvedRegistrationDancer[];
 }) {
@@ -224,8 +229,8 @@ export function resolveChoreographyClassificationForResolvedDancers(input: {
     categories: categoryCandidates,
   });
   const experienceLevel = resolveExperienceLevel({
-    availableLevels: input.eventBases.experienceLevels,
-    requiredLevelIds: categoryResolution.resolvedCategoryExperienceLevelIds,
+    requiredExperienceLevels:
+      categoryResolution.resolvedCategoryExperienceLevels,
     category: categoryResolution.category,
   });
 
@@ -465,7 +470,7 @@ function toCategoryCandidate(
     name: category.name,
     minAge: category.minAge,
     maxAge: category.maxAge,
-    experienceLevelIds: category.experienceLevelIds,
+    experienceLevels: category.experienceLevelIds.filter(isExperienceLevel),
   };
 }
 
@@ -476,7 +481,7 @@ function resolveCategory(input: {
   category: CategoryResolution;
   categoryCalculationMode: CategoryCalculationMode;
   categoryAgeBasis: number | null;
-  resolvedCategoryExperienceLevelIds: string[];
+  resolvedCategoryExperienceLevels: ExperienceLevel[];
 } {
   if (input.dancers.length <= 3) {
     const oldestAge = Math.max(
@@ -490,7 +495,7 @@ function resolveCategory(input: {
       category: toCategoryResolution(category),
       categoryCalculationMode: "oldest",
       categoryAgeBasis: oldestAge,
-      resolvedCategoryExperienceLevelIds: category?.experienceLevelIds ?? [],
+      resolvedCategoryExperienceLevels: category?.experienceLevels ?? [],
     };
   }
 
@@ -514,7 +519,7 @@ function resolveCategory(input: {
       },
       categoryCalculationMode: "group_tolerance",
       categoryAgeBasis: null,
-      resolvedCategoryExperienceLevelIds: toleranceCategory.experienceLevelIds,
+      resolvedCategoryExperienceLevels: toleranceCategory.experienceLevels,
     };
   }
 
@@ -530,8 +535,7 @@ function resolveCategory(input: {
     category: toCategoryResolution(averageCategory),
     categoryCalculationMode: "group_average",
     categoryAgeBasis: averageAge,
-    resolvedCategoryExperienceLevelIds:
-      averageCategory?.experienceLevelIds ?? [],
+    resolvedCategoryExperienceLevels: averageCategory?.experienceLevels ?? [],
   };
 }
 
@@ -550,13 +554,12 @@ function toCategoryResolution(
 }
 
 function resolveExperienceLevel(input: {
-  availableLevels: EventBases["experienceLevels"];
-  requiredLevelIds: string[];
+  requiredExperienceLevels: ExperienceLevel[];
   category: CategoryResolution;
 }): ExperienceLevelResolution {
   if (
     input.category.status !== "resolved" ||
-    input.requiredLevelIds.length === 0
+    input.requiredExperienceLevels.length === 0
   ) {
     return {
       required: false,
@@ -566,12 +569,10 @@ function resolveExperienceLevel(input: {
 
   return {
     required: true,
-    options: input.availableLevels
-      .filter((level) => input.requiredLevelIds.includes(level.id))
-      .map((level) => ({
-        id: level.id,
-        name: level.name,
-      })),
+    options: input.requiredExperienceLevels.map((level) => ({
+      id: level,
+      name: experienceLevelLabels[level] ?? level,
+    })),
   };
 }
 

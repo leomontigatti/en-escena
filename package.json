@@ -26,7 +26,6 @@
     "backup:db:b2": "sh scripts/backup-database-to-b2.sh",
     "backup:storage:b2": "sh scripts/backup-storage-to-b2.sh",
     "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
-    "import:odoo-roster": "node --env-file=.env scripts/import-odoo-roster.mjs",
     "db:push:prod": "node scripts/blocked-production-drizzle-push.mjs",
     "db:migration:new": "supabase migration new",
     "db:migration:list": "supabase migration list --linked",

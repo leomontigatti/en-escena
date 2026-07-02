@@ -1,9 +1,4 @@
 import {
-  buildScheduleDetailPath,
-  buildSchedulesPath,
-  isScheduleDetailPath,
-} from "@/lib/admin/events/event-bases-navigation";
-import {
   readScheduleCapacityActionValues,
   readScheduleCapacityActionValuesList,
 } from "@/lib/admin/events/bases-action/input.server";
@@ -15,6 +10,7 @@ import type {
   RequiredFieldErrorResult,
   ScheduleActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
   buildDefaultActionErrorScope,
   buildParentRecordActionScope,
@@ -36,14 +32,29 @@ import {
   type ScheduleWithEntriesInput,
   updateScheduleCapacity,
   updateScheduleWithEntries,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
+import {
+  buildDetailPath,
+  buildListPath,
+  isDetailPath,
+} from "@/lib/shared/navigation";
 
+const scheduleBasePath = "/administracion/cronogramas";
 const scheduleSavedNotification = "cronograma-guardado";
 const scheduleDeletedNotification = "cronograma-eliminado";
 const scheduleCapacitySavedNotification = "cupo-cronograma-guardado";
 const scheduleCapacityDeletedNotification = "cupo-cronograma-eliminado";
 const scheduleDeleteConfirmationMessage =
   "Confirmá el borrado del cronograma antes de continuar.";
+
+export const scheduleActionHandler: EventBasesActionHandler = {
+  buildErrorScope: buildScheduleActionErrorScope,
+  buildRedirectUrl: buildScheduleRedirectUrl,
+  getConfirmationError: getScheduleConfirmationError,
+  getRequiredFieldErrors: getScheduleRequiredFieldErrors,
+  readSubmittedValues: readScheduleSubmittedValues,
+  run: runScheduleIntent,
+};
 
 export function handlesScheduleIntent(intent: string) {
   return (
@@ -62,7 +73,7 @@ export function getScheduleConfirmationError(
 ) {
   if (
     input.intent === "delete-schedule" &&
-    isScheduleDetailPath(requestUrl) &&
+    isDetailPath(scheduleBasePath, requestUrl) &&
     !input.confirmDelete
   ) {
     return {
@@ -166,7 +177,7 @@ export function buildScheduleRedirectUrl(
 
   if (input.intent === "delete-schedule") {
     return withEventBasesNotification(
-      buildSchedulesPath(null),
+      buildListPath(scheduleBasePath, null),
       scheduleDeletedNotification,
     );
   }
@@ -184,7 +195,7 @@ export function buildScheduleRedirectUrl(
     hasEventBaseRecord(result)
   ) {
     return withEventBasesNotification(
-      buildScheduleDetailPath(result.record.id, null),
+      buildDetailPath(scheduleBasePath, result.record.id, null),
       scheduleSavedNotification,
     );
   }

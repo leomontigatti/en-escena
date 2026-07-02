@@ -3,11 +3,9 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
-import {
-  createCategory,
-  createExperienceLevel,
-  createModality,
-} from "@/lib/events/bases-repository.server";
+import { createCategory } from "@/lib/categories/repository.server";
+import { createModality } from "@/lib/modalities/repository.server";
+import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
 import { createEvent } from "@/lib/events/management.server";
 import { handlePortalDancerDetailAction } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancerDetail } from "@/features/portal/dancers/detail/server";
@@ -128,9 +126,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
-    const level = await expectCreated(
-      createExperienceLevel(event.id, { name: "Inicial" }),
-    );
+    const level = fixedExperienceLevel(event.id);
     const youngerCategory = await expectCreated(
       createCategory(event.id, {
         name: "Menor",
@@ -973,10 +969,10 @@ function date(value: string) {
   return new Date(value);
 }
 
-async function expectCreated(
+async function expectCreated<TRecord extends { id: string }>(
   resultPromise: Promise<{
     ok: boolean;
-    record?: { id: string };
+    record?: TRecord;
   }>,
 ) {
   const result = await resultPromise;

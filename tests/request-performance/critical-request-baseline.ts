@@ -4,7 +4,7 @@ import { db } from "@/db";
 import * as adminEventContextModule from "@/lib/admin/event-context.server";
 import * as adminDancersModule from "@/lib/admin/dancers/dancers.server";
 import * as adminProfessorsModule from "@/lib/admin/professors/professors.server";
-import * as adminEventBasesModule from "@/lib/admin/events/bases-action.server";
+import * as adminEventModalitiesActionModule from "@/features/admin/modalities/action.server";
 import * as internalAccessModule from "@/lib/auth/internal-access.server";
 import * as internalNavigationModule from "@/lib/auth/internal-navigation.server";
 import * as eventsManagementModule from "@/lib/events/management.server";
@@ -19,10 +19,8 @@ import * as portalProfileModule from "@/features/portal/profile/academy-profile.
 import * as choreographyRegistrationModule from "@/lib/choreographies/registration-confirmation.server";
 import { loader as adminLayoutLoader } from "@/routes/administracion";
 import { loader as adminDancersLoader } from "@/routes/administracion.bailarines";
-import {
-  action as adminBasesAction,
-  loader as adminBasesLoader,
-} from "@/lib/admin/events/event-bases.server";
+import { loader as adminModalitiesLoader } from "@/routes/administracion.modalidades";
+import { action as adminModalityCreateAction } from "@/routes/administracion.modalidades_.nueva";
 import { loader as adminEventosLoader } from "@/routes/administracion.eventos";
 import {
   action as adminEventoDetailAction,
@@ -291,7 +289,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
       ],
       run: () =>
-        adminBasesLoader(
+        adminModalitiesLoader(
           adminLoaderArgs(fixture.adminRequest("/administracion/modalidades")),
         ),
     }),
@@ -311,10 +309,14 @@ export async function measureCriticalRequestBaseline(): Promise<
           "loadAdminEventContext",
           "eventContextMs",
         ),
-        trackAsync(adminEventBasesModule, "runEventBasesAction", "actionMs"),
+        trackAsync(
+          adminEventModalitiesActionModule,
+          "handleEventModalityAction",
+          "actionMs",
+        ),
       ],
       run: () =>
-        adminBasesAction(
+        adminModalityCreateAction(
           adminLoaderArgs(
             fixture.adminRequest(
               "/administracion/modalidades/nueva",
@@ -326,7 +328,7 @@ export async function measureCriticalRequestBaseline(): Promise<
           ),
         ),
       runRevalidation: async () => {
-        await adminBasesLoader(
+        await adminModalitiesLoader(
           adminLoaderArgs(fixture.adminRequest("/administracion/modalidades")),
         );
       },

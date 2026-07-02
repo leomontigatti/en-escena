@@ -14,7 +14,7 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
-export function readAdministrativeDancerFilters(
+function readDancerFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
 ): AdministrativeDancerListFilters {
@@ -33,7 +33,7 @@ export function readAdministrativeDancerFilters(
   };
 }
 
-export function buildAdministrativeDancerWhere(input: {
+function buildDancerFilters(input: {
   selectedEventId: string | null;
   filters: AdministrativeDancerListFilters;
 }) {
@@ -101,3 +101,5 @@ export function buildAdministrativeDancerWhere(input: {
 
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
+
+export { readDancerFilters, buildDancerFilters };

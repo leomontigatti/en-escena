@@ -2,12 +2,10 @@ import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   choreographies,
   dancers,
   events,
-  experienceLevels,
   modalities,
   prices,
   professors,
@@ -16,6 +14,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import {
   createAcademyRecord as createPortalAcademyRecord,
   createAcademySession as createPortalAcademySession,
@@ -89,13 +88,7 @@ export async function createEventCatalog(eventId: string) {
       name: `Lyrical ${eventId}`,
     })
     .returning();
-  const [level] = await db
-    .insert(experienceLevels)
-    .values({
-      eventId,
-      name: `Inicial ${eventId}`,
-    })
-    .returning();
+  const level = { id: "amateur", name: experienceLevelLabels.amateur } as const;
   const [categoryWithLevel] = await db
     .insert(categories)
     .values({
@@ -105,6 +98,7 @@ export async function createEventCatalog(eventId: string) {
       maxAge: 17,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [level.id],
       experienceLevelKey: level.id,
     })
     .returning();
@@ -117,6 +111,7 @@ export async function createEventCatalog(eventId: string) {
       maxAge: 99,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
+      experienceLevels: [],
       experienceLevelKey: "",
     })
     .returning();
@@ -131,10 +126,6 @@ export async function createEventCatalog(eventId: string) {
       modalityId: modality.id,
     },
   ]);
-  await db.insert(categoryExperienceLevels).values({
-    categoryId: categoryWithLevel.id,
-    experienceLevelId: level.id,
-  });
 
   const [schedule] = await db
     .insert(schedules)

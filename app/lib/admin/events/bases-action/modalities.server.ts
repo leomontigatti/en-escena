@@ -1,9 +1,4 @@
 import {
-  buildModalidadDetallePath,
-  buildModalidadesListPath,
-  isModalityDetailPath,
-} from "@/lib/admin/events/event-bases-navigation";
-import {
   readNameActionValues,
   readSubmodalitiesInput,
 } from "@/lib/admin/events/bases-action/input.server";
@@ -14,6 +9,7 @@ import type {
   EventBasesActionValues,
   ModalityActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
   buildDefaultActionErrorScope,
   buildParentRecordActionScope,
@@ -30,10 +26,24 @@ import {
   updateModality,
   updateModalityWithSubmodalities,
   updateSubmodality,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/modalities/repository.server";
+import {
+  buildDetailPath,
+  buildListPath,
+  isDetailPath,
+} from "@/lib/shared/navigation";
 
+const modalityBasePath = "/administracion/modalidades";
 const modalitySavedNotification = "modalidad-guardada";
 const modalityDeletedNotification = "modalidad-eliminada";
+
+export const modalityActionHandler: EventBasesActionHandler = {
+  buildErrorScope: buildModalityActionErrorScope,
+  buildRedirectUrl: buildModalityRedirectUrl,
+  getConfirmationError: getModalityConfirmationError,
+  readSubmittedValues: readModalitySubmittedValues,
+  run: runModalityIntent,
+};
 
 export function handlesModalityIntent(intent: string) {
   return (
@@ -52,7 +62,7 @@ export function getModalityConfirmationError(
 ) {
   if (
     input.intent === "delete-modality" &&
-    isModalityDetailPath(requestUrl) &&
+    isDetailPath(modalityBasePath, requestUrl) &&
     input.confirmDeletion !== input.id
   ) {
     return {
@@ -148,7 +158,7 @@ export function buildModalityRedirectUrl(
 
   if (input.intent === "delete-modality") {
     return withEventBasesNotification(
-      buildModalidadesListPath(null),
+      buildListPath(modalityBasePath, null),
       modalityDeletedNotification,
     );
   }
@@ -159,7 +169,7 @@ export function buildModalityRedirectUrl(
     hasEventBaseRecord(result)
   ) {
     return withEventBasesNotification(
-      buildModalidadDetallePath(result.record.id, null),
+      buildDetailPath(modalityBasePath, result.record.id, null),
       modalitySavedNotification,
     );
   }

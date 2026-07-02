@@ -8,7 +8,6 @@ import {
   choreographyDancers,
   choreographyProfessors,
   dancers,
-  experienceLevels,
   professors,
   scheduleCapacities,
 } from "@/db/schema";
@@ -282,11 +281,6 @@ describe.sequential("portal choreography deletion", () => {
       db
         .delete(categories)
         .where(eq(categories.id, catalog.categoryWithLevel.id)),
-    ).rejects.toThrow();
-    await expect(
-      db
-        .delete(experienceLevels)
-        .where(eq(experienceLevels.id, catalog.level.id)),
     ).rejects.toThrow();
     await expect(
       db

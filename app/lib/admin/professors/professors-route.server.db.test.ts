@@ -13,11 +13,11 @@ import {
   professors,
   user,
 } from "@/db/schema";
+import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createModality,
   createSchedule,
   createScheduleCapacity,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/schedules/repository.server";
 import {
   toAdminProfessorParticipationSearchValue,
   toAdminProfessorStatusSearchValue,

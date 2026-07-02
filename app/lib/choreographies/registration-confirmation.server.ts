@@ -21,6 +21,10 @@ import {
   type ChoreographyRegistrationOperationInput,
   type ChoreographyRegistrationOperationResolution,
 } from "@/lib/choreographies/registration-resolution.server";
+import {
+  type ExperienceLevel,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
 
 const INVALID_EXPERIENCE_LEVEL_ERROR =
   "Elegí un Nivel de experiencia válido para confirmar la Coreografía.";
@@ -381,7 +385,7 @@ function resolveSelectedExperienceLevelId(input: {
   resolution: ChoreographyRegistrationOperationResolution;
   experienceLevelId: string | null;
 }):
-  | { ok: true; value: string | null }
+  | { ok: true; value: ExperienceLevel | null }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
   if (!input.resolution.experienceLevel.required) {
     return { ok: true, value: null };
@@ -397,11 +401,21 @@ function resolveSelectedExperienceLevelId(input: {
     };
   }
 
-  const isValidLevel = input.resolution.experienceLevel.options.some(
+  if (!isExperienceLevel(input.experienceLevelId)) {
+    return {
+      ok: false,
+      failure: createFailure(
+        "invalid-experience-level",
+        INVALID_EXPERIENCE_LEVEL_ERROR,
+      ),
+    };
+  }
+
+  const isAllowedLevel = input.resolution.experienceLevel.options.some(
     (option) => option.id === input.experienceLevelId,
   );
 
-  if (!isValidLevel) {
+  if (!isAllowedLevel) {
     return {
       ok: false,
       failure: createFailure(

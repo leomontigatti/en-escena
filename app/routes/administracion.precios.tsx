@@ -4,11 +4,11 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   loadAdministrativeEventPricesList,
   updateAdministrativeEventPricesList,
-} from "@/features/admin/event-prices/list/server";
+} from "@/features/admin/prices/list/server";
 import {
   AdministrativeEventPricesListView,
   type AdministrativeEventPricesListViewProps,
-} from "@/features/admin/event-prices/list/view";
+} from "@/features/admin/prices/list/view";
 
 import type { Route } from "./+types/administracion.precios";
 

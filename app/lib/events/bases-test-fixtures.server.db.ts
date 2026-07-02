@@ -1,4 +1,8 @@
 import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  experienceLevelLabels,
+  type ExperienceLevel,
+} from "@/lib/events/experience-levels";
 
 type SavedEventFixtureOptions = {
   activate?: boolean;
@@ -55,4 +59,16 @@ export async function expectCreated<TRecord extends { id: string }>(
   }
 
   return result.record;
+}
+
+export function fixedExperienceLevel(
+  eventId: string,
+  id: ExperienceLevel = "amateur",
+) {
+  return {
+    id,
+    eventId,
+    name: experienceLevelLabels[id],
+    createdAt: new Date(0),
+  };
 }

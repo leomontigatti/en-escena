@@ -5,21 +5,21 @@ import { db } from "@/db";
 import { submodalities } from "@/db/schema";
 import {
   createCategory,
-  createExperienceLevel,
+  deleteCategory,
+  updateCategory,
+} from "@/lib/categories/repository.server";
+import {
   createModality,
   createSubmodality,
-  deleteCategory,
-  deleteExperienceLevel,
   deleteModality,
   deleteSubmodality,
-  updateCategory,
-  updateExperienceLevel,
   updateModality,
   updateSubmodality,
-} from "@/lib/events/bases-repository.server";
+} from "@/lib/modalities/repository.server";
 import {
   createSavedEvent,
   expectCreated,
+  fixedExperienceLevel,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -119,31 +119,6 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("keeps nivel de experiencia names unique inside one evento only", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
-
-    const level = await expectCreated(
-      createExperienceLevel(firstEvent.id, { name: "Inicial" }),
-    );
-
-    await expect(
-      createExperienceLevel(secondEvent.id, { name: "Inicial" }),
-    ).resolves.toMatchObject({ ok: true });
-    await expect(
-      createExperienceLevel(firstEvent.id, { name: " inicial " }),
-    ).resolves.toMatchObject({
-      ok: false,
-      error: "Ya existe un nivel de experiencia con ese nombre en este evento.",
-      fieldErrors: {
-        name: "Usá un nombre distinto para el nivel de experiencia.",
-      },
-    });
-    await expect(
-      updateExperienceLevel(level.id, { name: "Principiante" }),
-    ).resolves.toMatchObject({ ok: true, record: { name: "Principiante" } });
-  });
-
   test("updates Bases del evento labels while preserving event-scoped uniqueness", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
@@ -197,9 +172,7 @@ describe("Bases del evento repository", () => {
     const secondModality = await expectCreated(
       createModality(secondEvent.id, { name: "Jazz" }),
     );
-    const firstLevel = await expectCreated(
-      createExperienceLevel(firstEvent.id, { name: "Inicial" }),
-    );
+    const firstLevel = fixedExperienceLevel(firstEvent.id);
 
     const category = await expectCreated(
       createCategory(firstEvent.id, {
@@ -252,18 +225,12 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("rejects categoría age overlaps and foreign event experience levels", async () => {
+  test("rejects categoría age overlaps and invalid experience levels", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
     const firstModality = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
-    const firstLevel = await expectCreated(
-      createExperienceLevel(firstEvent.id, { name: "Inicial" }),
-    );
-    const secondLevel = await expectCreated(
-      createExperienceLevel(secondEvent.id, { name: "Inicial" }),
-    );
+    const firstLevel = fixedExperienceLevel(firstEvent.id);
 
     await expectCreated(
       createCategory(firstEvent.id, {
@@ -298,13 +265,13 @@ describe("Bases del evento repository", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [secondLevel.id],
+        experienceLevelIds: ["level_other"],
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "Elegí niveles de experiencia del evento activo.",
+      error: "Elegí niveles de experiencia válidos.",
       fieldErrors: {
-        experienceLevelIds: "Elegí niveles de experiencia del evento activo.",
+        experienceLevelIds: "Elegí niveles de experiencia válidos.",
       },
     });
   });
@@ -313,9 +280,6 @@ describe("Bases del evento repository", () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
-    );
-    const level = await expectCreated(
-      createExperienceLevel(event.id, { name: "Inicial" }),
     );
     const category = await expectCreated(
       createCategory(event.id, {
@@ -340,9 +304,6 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       ok: true,
       record: { name: "Infantil A" },
-    });
-    await expect(deleteExperienceLevel(level.id)).resolves.toEqual({
-      ok: true,
     });
     await expect(deleteModality(modality.id)).resolves.toMatchObject({
       ok: false,

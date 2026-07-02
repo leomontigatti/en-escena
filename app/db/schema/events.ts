@@ -11,7 +11,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { createTable, groupType } from "./core";
+import { createTable, experienceLevel, groupType } from "./core";
 
 export const events = createTable(
   "event",
@@ -135,33 +135,6 @@ export const submodalities = createTable(
   ],
 ).enableRLS();
 
-export const experienceLevels = createTable(
-  "experience_level",
-  {
-    id: varchar("id", { length: 255 })
-      .primaryKey()
-      .notNull()
-      .$defaultFn(() => crypto.randomUUID()),
-    eventId: varchar("event_id", { length: 255 })
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [
-    index("experience_level_event_id_idx").on(table.eventId),
-    uniqueIndex("experience_level_event_name_unique").on(
-      table.eventId,
-      table.name,
-    ),
-  ],
-).enableRLS();
-
 export const categories = createTable(
   "category",
   {
@@ -177,6 +150,10 @@ export const categories = createTable(
     maxAge: integer("max_age").notNull(),
     groupTypes: groupType("group_types").array().notNull(),
     groupTypeKey: text("group_type_key").notNull(),
+    experienceLevels: experienceLevel("experience_levels")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::en_escena_experience_level[]`),
     experienceLevelKey: text("experience_level_key").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -217,33 +194,6 @@ export const categoryModalities = createTable(
       table.modalityId,
     ),
     index("category_modality_modality_id_idx").on(table.modalityId),
-  ],
-).enableRLS();
-
-export const categoryExperienceLevels = createTable(
-  "category_experience_level",
-  {
-    categoryId: varchar("category_id", { length: 255 }).notNull(),
-    experienceLevelId: varchar("experience_level_id", {
-      length: 255,
-    }).notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.categoryId],
-      foreignColumns: [categories.id],
-      name: "category_level_category_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.experienceLevelId],
-      foreignColumns: [experienceLevels.id],
-      name: "category_level_level_fk",
-    }),
-    uniqueIndex("category_experience_level_unique").on(
-      table.categoryId,
-      table.experienceLevelId,
-    ),
-    index("category_experience_level_level_id_idx").on(table.experienceLevelId),
   ],
 ).enableRLS();
 

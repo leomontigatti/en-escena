@@ -8,7 +8,7 @@ import {
   choreographies,
   scheduleCapacities,
 } from "@/db/schema";
-import { resolveApplicablePrice } from "@/lib/events/bases-repository.server";
+import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 
 type InvoiceState = "pendiente" | "parcial" | "pagada";

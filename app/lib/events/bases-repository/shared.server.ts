@@ -1,12 +1,10 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   events,
-  experienceLevels,
   modalities,
   prices,
   scheduleCapacities,
@@ -16,13 +14,21 @@ import {
 } from "@/db/schema";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
+import {
+  type ExperienceLevel,
+  experienceLevelValues,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
+import {
+  type GroupType,
+  groupTypeValues,
+  isGroupType,
+} from "@/lib/events/group-types";
 
 export {
   categories,
-  categoryExperienceLevels,
   categoryModalities,
   db,
-  experienceLevels,
   modalities,
   prices,
   requiredFieldMessage,
@@ -34,13 +40,12 @@ export {
 };
 
 export type EventBaseEntityKind = EventBaseUniqueEntityKind | "schedule";
-export type EventBaseUniqueEntityKind =
-  | "modality"
-  | "submodality"
-  | "experience-level";
-export type GroupType = "solo" | "duo" | "trio" | "grupal";
+export type EventBaseUniqueEntityKind = "modality" | "submodality";
 
-export const groupTypeOrder: GroupType[] = ["solo", "duo", "trio", "grupal"];
+export const groupTypeOrder: GroupType[] = [...groupTypeValues];
+export const experienceLevelOrder: ExperienceLevel[] = [
+  ...experienceLevelValues,
+];
 export const priceDefaultNames: Record<GroupType, string> = {
   solo: "Precio Solo",
   duo: "Precio Duo",
@@ -54,7 +59,6 @@ export type EventBaseRecord =
   | typeof scheduleCapacities.$inferSelect
   | typeof schedules.$inferSelect
   | typeof submodalities.$inferSelect
-  | typeof experienceLevels.$inferSelect
   | typeof categories.$inferSelect
   | typeof prices.$inferSelect;
 
@@ -114,7 +118,7 @@ export type ValidCategoryInput = {
   maxAge: number;
   groupTypes: GroupType[];
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevelIds: ExperienceLevel[];
   groupTypeKey: string;
   experienceLevelKey: string;
 };
@@ -257,14 +261,6 @@ export const eventBaseCopy = {
       "Ya existe una submodalidad con ese nombre en esta modalidad.",
     duplicateFieldError: "Usá un nombre distinto para la submodalidad.",
   },
-  "experience-level": {
-    label: "nivel de experiencia",
-    invalidError: "Revisá los datos del nivel de experiencia.",
-    requiredNameError: "Ingresá el nombre del nivel de experiencia.",
-    duplicateError:
-      "Ya existe un nivel de experiencia con ese nombre en este evento.",
-    duplicateFieldError: "Usá un nombre distinto para el nivel de experiencia.",
-  },
   schedule: {
     label: "cronograma",
     invalidError: "Revisá los datos del cronograma.",
@@ -381,8 +377,6 @@ function getUniqueNameTable(kind: EventBaseUniqueEntityKind) {
       return modalities;
     case "submodality":
       return submodalities;
-    case "experience-level":
-      return experienceLevels;
   }
 }
 
@@ -426,10 +420,6 @@ export function sortedIds(ids: string[]) {
   return uniqueValues(ids).sort((first, second) => first.localeCompare(second));
 }
 
-export function isGroupType(value: string): value is GroupType {
-  return ["solo", "duo", "trio", "grupal"].includes(value);
-}
-
 export function categoryValues(input: ValidCategoryInput) {
   return {
     name: input.name,
@@ -437,6 +427,7 @@ export function categoryValues(input: ValidCategoryInput) {
     maxAge: input.maxAge,
     groupTypes: input.groupTypes,
     groupTypeKey: input.groupTypeKey,
+    experienceLevels: input.experienceLevelIds,
     experienceLevelKey: input.experienceLevelKey,
   };
 }
@@ -492,9 +483,6 @@ export async function replaceCategoryRelations(
   await tx
     .delete(categoryModalities)
     .where(eq(categoryModalities.categoryId, categoryId));
-  await tx
-    .delete(categoryExperienceLevels)
-    .where(eq(categoryExperienceLevels.categoryId, categoryId));
 
   await tx.insert(categoryModalities).values(
     input.modalityIds.map((modalityId) => ({
@@ -502,28 +490,7 @@ export async function replaceCategoryRelations(
       modalityId,
     })),
   );
-
-  if (input.experienceLevelIds.length > 0) {
-    await tx.insert(categoryExperienceLevels).values(
-      input.experienceLevelIds.map((experienceLevelId) => ({
-        categoryId,
-        experienceLevelId,
-      })),
-    );
-  }
 }
 
-export async function findExperienceLevelsByNames(
-  eventId: string,
-  names: string[],
-) {
-  return db.query.experienceLevels.findMany({
-    where: and(
-      eq(experienceLevels.eventId, eventId),
-      inArray(
-        sql`lower(${experienceLevels.name})`,
-        names.map((name) => normalizeEventBaseName(name)),
-      ),
-    ),
-  });
-}
+export { isExperienceLevel, isGroupType };
+export type { ExperienceLevel, GroupType };

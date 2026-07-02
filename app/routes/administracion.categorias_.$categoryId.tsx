@@ -2,18 +2,18 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdministrativeEventCategoryDetail,
-  updateAdministrativeEventCategory,
-} from "@/features/admin/event-categories/detail/server";
+  loadCategoryDetail,
+  updateCategory,
+} from "@/features/admin/categories/detail/server";
 import {
-  AdministrativeEventCategoryDetailView,
-  type AdministrativeEventCategoryDetailViewProps,
-} from "@/features/admin/event-categories/detail/view";
-import type { AdministrativeEventCategoriesLoaderData } from "@/features/admin/event-categories/shared";
+  CategoryDetailView,
+  type CategoryDetailViewProps,
+} from "@/features/admin/categories/detail/view";
+import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
 
 import type { Route } from "./+types/administracion.categorias_.$categoryId";
 
-type LoaderData = AdministrativeEventCategoriesLoaderData;
+type LoaderData = CategoryDetailLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -29,20 +29,20 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventCategoryDetail(request);
+  return loadCategoryDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  return updateAdministrativeEventCategory(request);
+  return updateCategory(request);
 }
 
 export function AdministracionCategoriaDetalleRouteView({
   loaderData,
   actionData,
   categoryId,
-}: AdministrativeEventCategoryDetailViewProps) {
+}: CategoryDetailViewProps) {
   return (
-    <AdministrativeEventCategoryDetailView
+    <CategoryDetailView
       loaderData={loaderData}
       actionData={actionData}
       categoryId={categoryId}

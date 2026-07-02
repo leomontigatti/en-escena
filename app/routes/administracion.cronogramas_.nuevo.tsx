@@ -1,13 +1,15 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { createAdministrativeEventSchedule } from "@/features/admin/event-schedules/create/server";
+import {
+  createAdministrativeEventSchedule,
+  loadAdministrativeEventScheduleCreate,
+} from "@/features/admin/schedules/create/server";
 import {
   AdministrativeEventScheduleCreateView,
   type AdministrativeEventScheduleCreateViewProps,
-} from "@/features/admin/event-schedules/create/view";
-import type { AdministrativeEventScheduleActionData } from "@/features/admin/event-schedules/shared";
-import { loadAdministrativeEventSchedulesList } from "@/features/admin/event-schedules/list/server";
+} from "@/features/admin/schedules/create/view";
+import type { AdministrativeEventScheduleActionData } from "@/features/admin/schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.nuevo";
 
@@ -24,7 +26,7 @@ type AdministracionCronogramaNuevoRouteProps = {
 };
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventSchedulesList(request);
+  return loadAdministrativeEventScheduleCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

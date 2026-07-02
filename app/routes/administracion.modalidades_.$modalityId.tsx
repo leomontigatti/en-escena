@@ -4,12 +4,12 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   loadAdministrativeEventModalityDetail,
   updateAdministrativeEventModality,
-} from "@/features/admin/event-modalities/detail/server";
+} from "@/features/admin/modalities/detail/server";
 import {
   AdministrativeEventModalityDetailView,
   type AdministrativeEventModalityDetailViewProps,
-} from "@/features/admin/event-modalities/detail/view";
-import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/event-modalities/shared";
+} from "@/features/admin/modalities/detail/view";
+import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
 type LoaderData = AdministrativeEventModalitiesLoaderData;

@@ -51,8 +51,6 @@ Current high-value request paths for this refactor:
   Event edit action path and readiness loader.
 - `app/routes/administracion.eventos_.nuevo.tsx`
   Event creation form/action path.
-- `app/lib/admin/events/event-bases.server.ts`
-  Shared loader/action seam behind event configuration screens.
 - `app/routes/administracion.modalidades.tsx`
 - `app/routes/administracion.modalidades_.$modalityId.tsx`
 - `app/routes/administracion.modalidades_.nueva.tsx`
@@ -134,10 +132,10 @@ Migrated RHF + React Router submit patterns:
 - `app/components/auth/access-form.tsx`
   Auth forms validate with RHF and submit through React Router.
 - `app/components/admin/events/form.tsx`
-- `app/components/admin/events/event-modalities.tsx`
-- `app/components/admin/events/event-categories.tsx`
-- `app/components/admin/events/event-schedules.tsx`
-- `app/components/admin/events/event-prices.tsx`
+- `app/features/admin/modalities/route-views.tsx`
+- `app/features/admin/categories/form.tsx`
+- `app/features/admin/schedules/route-views.tsx`
+- `app/features/admin/prices/route-views.tsx`
 - `app/routes/administracion.usuarios_.nuevo.tsx`
 - `app/routes/portal.bailarines.tsx`
 - `app/routes/portal.bailarines_.$dancerId.tsx`

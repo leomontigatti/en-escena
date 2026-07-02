@@ -1,12 +1,14 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { createAdministrativeEventCategory } from "@/features/admin/event-categories/create/server";
 import {
-  AdministrativeEventCategoryCreateView,
-  type AdministrativeEventCategoryCreateViewProps,
-} from "@/features/admin/event-categories/create/view";
-import { loadAdministrativeEventCategoriesList } from "@/features/admin/event-categories/list/server";
+  createCategory,
+  loadCategoryCreate,
+} from "@/features/admin/categories/create/server";
+import {
+  CategoryCreateView,
+  type CategoryCreateViewProps,
+} from "@/features/admin/categories/create/view";
 
 import type { Route } from "./+types/administracion.categorias_.nueva";
 
@@ -18,28 +20,23 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventCategoriesList(request);
+  return loadCategoryCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  return createAdministrativeEventCategory(request);
+  return createCategory(request);
 }
 
 export function AdministracionCategoriaNuevaRouteView({
   loaderData,
   actionData,
-}: AdministrativeEventCategoryCreateViewProps) {
-  return (
-    <AdministrativeEventCategoryCreateView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+}: CategoryCreateViewProps) {
+  return <CategoryCreateView loaderData={loaderData} actionData={actionData} />;
 }
 
 export default function AdminNewCategoryRoute({
   loaderData,
-}: AdministrativeEventCategoryCreateViewProps) {
+}: CategoryCreateViewProps) {
   const actionData = useActionData<typeof action>();
 
   return (

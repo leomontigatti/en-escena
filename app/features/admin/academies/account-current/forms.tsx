@@ -4,7 +4,7 @@ import { Controller, type Control, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input";
+import { IntegerInput } from "@/components/shared/integer-input-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
