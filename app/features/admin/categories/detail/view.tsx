@@ -27,19 +27,15 @@ import type {
 type CategoryDetailViewProps = {
   loaderData: CategoryDetailLoaderData;
   actionData?: CategoryActionData;
-  categoryId: string;
 };
 
 function CategoryDetailView({
   loaderData,
   actionData,
-  categoryId,
 }: CategoryDetailViewProps) {
   useServerActionToast(actionData);
 
-  const category = loaderData.categories.find(
-    (currentCategory) => currentCategory.id === categoryId,
-  );
+  const category = loaderData.category;
 
   return (
     <AdminResourceLayout
@@ -64,7 +60,7 @@ function CategoryDetailView({
             maxAge={category.maxAge}
             groupTypes={category.groupTypes}
             modalityIds={category.modalityIds}
-            experienceLevelIds={category.experienceLevelIds}
+            experienceLevels={category.experienceLevels}
             submittedValues={getCategorySubmittedValues(
               actionData,
               "update-category",

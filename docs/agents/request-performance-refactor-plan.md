@@ -132,10 +132,10 @@ Migrated RHF + React Router submit patterns:
 - `app/components/auth/access-form.tsx`
   Auth forms validate with RHF and submit through React Router.
 - `app/components/admin/events/form.tsx`
-- `app/features/admin/modalities/route-views.tsx`
+- `app/features/admin/modalities/form.tsx`
 - `app/features/admin/categories/form.tsx`
-- `app/features/admin/schedules/route-views.tsx`
-- `app/features/admin/prices/route-views.tsx`
+- `app/features/admin/schedules/form.tsx`
+- `app/features/admin/prices/form.tsx`
 - `app/routes/administracion.usuarios_.nuevo.tsx`
 - `app/routes/portal.bailarines.tsx`
 - `app/routes/portal.bailarines_.$dancerId.tsx`

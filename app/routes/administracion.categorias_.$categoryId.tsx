@@ -20,39 +20,28 @@ export const handle = {
     { label: "Categorías", to: "/administracion/categorias" },
     (match) => {
       const data = match.data as LoaderData | undefined;
-      const category = data?.categories.find(
-        (currentCategory) => currentCategory.id === match.params.categoryId,
-      );
-      return { label: category?.name ?? "Categoría" };
+      return { label: data?.category?.name ?? "Categoría" };
     },
   ],
 } satisfies AdminRouteHandle;
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return loadCategoryDetail(request);
+export async function loader({ request, params }: Route.LoaderArgs) {
+  return loadCategoryDetail(request, params.categoryId ?? "");
 }
 
-export async function action({ request }: Route.ActionArgs) {
-  return updateCategory(request);
+export async function action({ request, params }: Route.ActionArgs) {
+  return updateCategory(request, params.categoryId ?? "");
 }
 
 export function AdministracionCategoriaDetalleRouteView({
   loaderData,
   actionData,
-  categoryId,
 }: CategoryDetailViewProps) {
-  return (
-    <CategoryDetailView
-      loaderData={loaderData}
-      actionData={actionData}
-      categoryId={categoryId}
-    />
-  );
+  return <CategoryDetailView loaderData={loaderData} actionData={actionData} />;
 }
 
 export default function AdminCategoryDetailRoute({
   loaderData,
-  params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
@@ -60,7 +49,6 @@ export default function AdminCategoryDetailRoute({
     <AdministracionCategoriaDetalleRouteView
       loaderData={loaderData}
       actionData={actionData}
-      categoryId={params.categoryId ?? ""}
     />
   );
 }

@@ -266,6 +266,8 @@ describe("administracion/eventos route", () => {
 
     await expect(createAction(newRouteArgs(request))).resolves.toMatchObject({
       status: "error",
+      message:
+        "El cierre de inscripción no puede ser posterior al cierre del Evento.",
       fieldErrors: {
         registrationEndsAt:
           "El cierre de inscripción no puede ser posterior al cierre del Evento.",

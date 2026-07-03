@@ -26,10 +26,12 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain('name="firstName" value="Ana"');
     expect(markup).toContain('name="lastName" value="Alvarez"');
     expect(markup).toContain("Acciones");
-    expect(markup).toContain("Este bailarín está archivado");
+    expect(markup).toContain(
+      "Este bailarín está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
+    );
     expect(markup).toContain("Reactivar");
     expect(markup).toContain(
-      "Completá los datos e imágenes del documento para poder verificar la identidad del bailarín.",
+      "Faltan completar tipo de documento, número de documento, frente del documento y dorso del documento para poder verificar la identidad del bailarín.",
     );
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Apellido");
@@ -50,7 +52,7 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).not.toContain("Activo");
   });
 
-  test("shows incomplete alert when document images are missing", () => {
+  test("shows missing document images in the incomplete alert", () => {
     const markup = renderDancerDetail({
       loaderData: dancerDetailLoaderData({
         dancer: dancerDetailRow({
@@ -61,8 +63,29 @@ describe("PortalDancerDetailRouteView", () => {
     });
 
     expect(markup).toContain(
-      "Completá los datos e imágenes del documento para poder verificar la identidad del bailarín.",
+      "Faltan completar frente del documento y dorso del documento para poder verificar la identidad del bailarín.",
     );
+  });
+
+  test("shows missing document data in the incomplete alert", () => {
+    const markup = renderDancerDetail({
+      loaderData: dancerDetailLoaderData({
+        dancer: dancerDetailRow({
+          documentFrontImageStorageKey: "dancers/front.jpg",
+          documentBackImageStorageKey: "dancers/back.jpg",
+        }),
+        documentImageUrls: {
+          front: "https://storage.example/front.jpg",
+          back: "https://storage.example/back.jpg",
+        },
+      }),
+    });
+
+    expect(markup).toContain(
+      "Faltan completar tipo de documento y número de documento para poder verificar la identidad del bailarín.",
+    );
+    expect(markup).not.toContain("frente del documento");
+    expect(markup).not.toContain("dorso del documento");
   });
 
   test("shows unverified alert when document data and images are complete", () => {
@@ -86,7 +109,7 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain("https://storage.example/front.jpg");
     expect(markup).toContain("https://storage.example/back.jpg");
     expect(markup).not.toContain("Imagen cargada");
-    expect(markup).not.toContain("Completá los datos e imágenes");
+    expect(markup).not.toContain("Faltan completar");
   });
 
   test("renders verified identification fields as locked readonly inputs", () => {
@@ -114,12 +137,15 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain('disabled="" readOnly="" value="12345678"');
     expect(markup).toContain("Frente del documento");
     expect(markup).toContain("Dorso del documento");
+    expect(markup).toContain(
+      "La identidad del bailarín está verificada. Comunicate con nosotros si necesitás realizar algún cambio.",
+    );
     expect(countOccurrences(markup, "Imagen cargada")).toBe(2);
     expect(countOccurrences(markup, "lucide-lock")).toBe(5);
-    expect(markup).not.toContain("Completá los datos e imágenes");
+    expect(markup).not.toContain("Faltan completar");
   });
 
-  test("shows field errors and preserves submitted values", () => {
+  test("preserves submitted values without rendering server field errors inline", () => {
     const markup = renderDancerDetail({
       actionData: {
         status: "error",
@@ -140,8 +166,8 @@ describe("PortalDancerDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain("Seleccioná el tipo de documento.");
-    expect(markup).toContain("Ingresá el número de documento.");
+    expect(markup).not.toContain("Seleccioná el tipo de documento.");
+    expect(markup).not.toContain("Ingresá el número de documento.");
     expect(markup).toContain('name="firstName" value="Ana"');
     expect(markup).toContain('name="birthDate" value="2014-02-01"');
   });

@@ -1,20 +1,8 @@
-import { Controller, type Control } from "react-hook-form";
+import { type Control } from "react-hook-form";
 
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/shared/select-field";
+import { TextInputField } from "@/components/shared/text-input-field";
 import type { CreateChoreographyFormValues } from "@/features/portal/choreographies/create/flow";
 
 import type {
@@ -47,27 +35,12 @@ export function CreateChoreographyTextField({
   placeholder?: string;
 }) {
   return (
-    <Controller
+    <TextInputField
       control={control}
+      id={id}
+      label={label}
       name={fieldName}
-      render={({ field, fieldState }) => {
-        const isInvalid = Boolean(fieldState.error?.message);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Input
-                {...field}
-                id={id}
-                placeholder={placeholder}
-                aria-invalid={isInvalid ? true : undefined}
-              />
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
+      placeholder={placeholder}
     />
   );
 }
@@ -88,49 +61,20 @@ export function CreateChoreographySelectField({
   options: SelectOption[];
 }) {
   return (
-    <Controller
+    <SelectField
       control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const isInvalid = Boolean(fieldState.error?.message);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Select
-                name={field.name}
-                value={field.value ?? ""}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  onValueChange?.(value);
-                }}
-              >
-                <SelectTrigger
-                  id={id}
-                  aria-invalid={isInvalid ? true : undefined}
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Seleccionar" />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={false}
-                >
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </FieldContent>
-          </Field>
-        );
+      contentProps={{
+        position: "popper",
+        side: "bottom",
+        align: "start",
+        avoidCollisions: false,
       }}
+      id={id}
+      label={label}
+      name={fieldName}
+      onValueChange={onValueChange}
+      options={options}
+      placeholder="Seleccionar"
     />
   );
 }

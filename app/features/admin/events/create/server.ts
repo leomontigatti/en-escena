@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 
 import {
+  getEventFormErrorMessage,
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
@@ -26,10 +27,12 @@ export async function createAdministrativeEvent(request: Request) {
   const result = await createEvent(parsed.input);
 
   if (!result.ok) {
+    const fieldErrors = result.fieldErrors ?? {};
+
     return {
       status: "error" as const,
-      message: result.error,
-      fieldErrors: result.fieldErrors ?? {},
+      message: getEventFormErrorMessage(fieldErrors, result.error),
+      fieldErrors,
       values,
     };
   }

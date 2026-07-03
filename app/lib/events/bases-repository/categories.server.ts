@@ -54,8 +54,38 @@ export async function listCategories(eventId: string) {
   return eventCategories.map((category) => ({
     ...category,
     modalityIds: modalityIdsByCategory.get(category.id) ?? [],
-    experienceLevelIds: category.experienceLevels,
+    experienceLevels: category.experienceLevels,
   }));
+}
+
+export async function getCategory(eventId: string, categoryId: string) {
+  const [category, eventCategoryModalities] = await Promise.all([
+    db.query.categories.findFirst({
+      where: and(
+        eq(categories.eventId, eventId),
+        eq(categories.id, categoryId),
+      ),
+    }),
+    db
+      .select({
+        modalityId: categoryModalities.modalityId,
+      })
+      .from(categoryModalities)
+      .innerJoin(categories, eq(categories.id, categoryModalities.categoryId))
+      .where(
+        and(eq(categories.eventId, eventId), eq(categories.id, categoryId)),
+      ),
+  ]);
+
+  if (!category) {
+    return null;
+  }
+
+  return {
+    ...category,
+    modalityIds: eventCategoryModalities.map((relation) => relation.modalityId),
+    experienceLevels: category.experienceLevels,
+  };
 }
 
 export async function createCategory(
@@ -221,22 +251,20 @@ async function validateCategoryInput(
     };
   }
 
-  const experienceLevelIds = uniqueValues(input.experienceLevelIds)
+  const experienceLevels = uniqueValues(input.experienceLevels)
     .filter(isExperienceLevel)
     .sort(
       (a, b) =>
         experienceLevelOrder.indexOf(a) - experienceLevelOrder.indexOf(b),
     );
 
-  if (
-    experienceLevelIds.length !== uniqueValues(input.experienceLevelIds).length
-  ) {
+  if (experienceLevels.length !== uniqueValues(input.experienceLevels).length) {
     return {
       ok: false,
       code: "invalid-experience-level",
       error: "Elegí niveles de experiencia válidos.",
       fieldErrors: {
-        experienceLevelIds: "Elegí niveles de experiencia válidos.",
+        experienceLevels: "Elegí niveles de experiencia válidos.",
       },
     };
   }
@@ -247,9 +275,9 @@ async function validateCategoryInput(
     maxAge: input.maxAge,
     groupTypes,
     modalityIds: modalityIds.sort(),
-    experienceLevelIds,
+    experienceLevels,
     groupTypeKey: groupTypes.join("|"),
-    experienceLevelKey: experienceLevelIds.join("|"),
+    experienceLevelKey: experienceLevels.join("|"),
   };
 
   if (await findDuplicateCategory(eventId, validInput, exceptId)) {

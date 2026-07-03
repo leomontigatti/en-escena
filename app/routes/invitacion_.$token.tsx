@@ -119,7 +119,6 @@ export default function CompletarInvitacionRoute() {
   const form = useAccessForm({
     schema: completeInvitationSchema,
     values: actionData?.values ?? emptyCompleteInvitationValues,
-    fieldErrors: actionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

@@ -2,7 +2,6 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { AccessNotice } from "@/components/auth/access-ui";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -29,7 +28,6 @@ import { showRouteNotificationToast } from "@/lib/shared/route-notification-toas
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
   created?: boolean;
-  deleted?: boolean;
   initialCreateDialogOpen?: boolean;
 };
 
@@ -39,7 +37,6 @@ type PortalChoreographiesEventContext =
 export function PortalChoreographiesListRouteView({
   loaderData,
   created = false,
-  deleted = false,
   initialCreateDialogOpen = false,
 }: PortalChoreographiesListRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
@@ -76,12 +73,6 @@ export function PortalChoreographiesListRouteView({
           ) : null
         }
       >
-        {deleted ? (
-          <AccessNotice variant="success">
-            La coreografía se eliminó correctamente.
-          </AccessNotice>
-        ) : null}
-
         {selectedEvent && loaderData.choreographies.length > 0 ? (
           <ChoreographyTable choreographies={loaderData.choreographies} />
         ) : (

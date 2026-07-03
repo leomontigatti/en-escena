@@ -200,19 +200,18 @@ const primaryNavigationItems = [
   icon: typeof Home;
 }>;
 
-const financeNavigationItems = [
-  {
-    label: "Resumen",
-    to: "/administracion/finanzas",
-    icon: ClipboardList,
-    disabled: true,
-  },
-] satisfies Array<{
+const financeNavigationItems: Array<{
   label: string;
   to: string;
   icon: typeof Home;
   disabled?: boolean;
-}>;
+}> = [
+  {
+    label: "Resumen",
+    to: "/portal/finanzas",
+    icon: ClipboardList,
+  },
+];
 
 const creationAvailabilityPresentationByTone: Record<
   CoreographyCreationState["tone"],

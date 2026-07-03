@@ -1,18 +1,8 @@
-import { redirect } from "react-router";
-
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { listCategories } from "@/lib/categories/repository.server";
+import { loadCategoryEventContext } from "../server";
 
 async function loadCategoriesList(request: Request) {
-  await requireAdminPanelUser(request);
-
-  const eventContext = await loadAdminEventContext(request);
-
-  if (eventContext.redirectTo) {
-    throw redirect(eventContext.redirectTo);
-  }
-
+  const eventContext = await loadCategoryEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
   return {

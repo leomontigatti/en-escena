@@ -163,7 +163,7 @@ describe("Evento RHF + React Router form submission", () => {
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
-  test("keeps server field errors visible on the Evento detail form", () => {
+  test("keeps server field errors out of the Evento detail form fields", () => {
     reactRouterMocks.useFormAction.mockReturnValue(
       "/administracion/eventos/evento_1",
     );
@@ -175,7 +175,7 @@ describe("Evento RHF + React Router form submission", () => {
         loaderData={buildDetailLoaderData()}
         actionData={{
           status: "error",
-          message: "Revisá los datos del evento.",
+          message: "Usá un nombre distinto para el evento.",
           fieldErrors: {
             name: "Usá un nombre distinto para el evento.",
           },
@@ -191,7 +191,7 @@ describe("Evento RHF + React Router form submission", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent).not.toContain(
       "Usá un nombre distinto para el evento.",
     );
   });

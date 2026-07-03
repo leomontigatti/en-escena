@@ -23,7 +23,7 @@ describe("event registration readiness from loaded bases", () => {
           maxAge: 12,
           groupTypes: ["solo", "duo"],
           modalityIds: ["modality_jazz"],
-          experienceLevelIds: ["amateur"],
+          experienceLevels: ["amateur"],
         },
       ],
       schedules: [
@@ -95,7 +95,7 @@ describe("event registration readiness from loaded bases", () => {
           maxAge: 12,
           groupTypes: ["solo"],
           modalityIds: ["modality_jazz"],
-          experienceLevelIds: [],
+          experienceLevels: [],
         },
       ],
       schedules: [

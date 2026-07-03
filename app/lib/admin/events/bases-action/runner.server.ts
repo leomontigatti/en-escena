@@ -36,15 +36,21 @@ async function runEventBasesActionWithHandler({
   allowedIntents,
   eventId,
   handler,
+  recordId,
   request,
 }: {
   allowedIntents?: string[];
   eventId: string;
   handler: EventBasesActionHandler;
+  recordId?: string;
   request: Request;
 }) {
   const formData = await request.formData();
-  const input = readEventBasesActionInput(eventId, formData);
+  const submittedInput = readEventBasesActionInput(eventId, formData);
+  const input =
+    recordId !== undefined
+      ? { ...submittedInput, id: recordId }
+      : submittedInput;
 
   if (
     allowedIntents &&

@@ -470,7 +470,7 @@ function toCategoryCandidate(
     name: category.name,
     minAge: category.minAge,
     maxAge: category.maxAge,
-    experienceLevels: category.experienceLevelIds.filter(isExperienceLevel),
+    experienceLevels: category.experienceLevels.filter(isExperienceLevel),
   };
 }
 

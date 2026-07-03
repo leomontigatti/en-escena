@@ -113,7 +113,6 @@ export default function RegistroRoute() {
   const form = useAccessForm({
     schema: requestRegistrationSchema,
     values: actionData?.values ?? emptyRegistrationValues,
-    fieldErrors: actionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

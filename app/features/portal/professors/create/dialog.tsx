@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,14 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
@@ -46,8 +40,6 @@ export function CreateProfessorDialog({
   onOpenChange: (nextOpen: boolean) => void;
   submit: ReactRouterFormSubmit;
 }) {
-  const firstNameId = useId();
-  const lastNameId = useId();
   const form = useForm<CreateProfessorFormValues>({
     resolver: zodResolver(createProfessorSchema),
     defaultValues: actionData?.values ?? emptyProfessorValues,
@@ -76,20 +68,18 @@ export function CreateProfessorDialog({
         >
           <input type="hidden" name="intent" value={createProfessorIntent} />
           <FieldGroup>
-            <ProfessorTextField
-              control={form.control}
-              fieldName="firstName"
-              id={firstNameId}
-              label="Nombre"
+            <TextInputField
               autoComplete="given-name"
+              control={form.control}
+              label="Nombre"
+              name="firstName"
             />
 
-            <ProfessorTextField
-              control={form.control}
-              fieldName="lastName"
-              id={lastNameId}
-              label="Apellido"
+            <TextInputField
               autoComplete="family-name"
+              control={form.control}
+              label="Apellido"
+              name="lastName"
             />
           </FieldGroup>
 
@@ -104,48 +94,5 @@ export function CreateProfessorDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ProfessorTextField({
-  autoComplete,
-  control,
-  fieldName,
-  id,
-  label,
-}: {
-  autoComplete: string;
-  control: Control<CreateProfessorFormValues>;
-  fieldName: keyof CreateProfessorFormValues;
-  id: string;
-  label: string;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const errorMessage =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Input
-                {...field}
-                id={id}
-                autoComplete={autoComplete}
-                aria-invalid={isInvalid ? true : undefined}
-              />
-              <FieldError>{errorMessage}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
-    />
   );
 }

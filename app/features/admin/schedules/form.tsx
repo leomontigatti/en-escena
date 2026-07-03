@@ -1,8 +1,7 @@
 import { Link } from "react-router";
-import { Clock, Plus, Trash } from "lucide-react";
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { Plus, Trash } from "lucide-react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import {
-  Controller,
   useFieldArray,
   useForm,
   useWatch,
@@ -13,30 +12,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input-field";
-import { MultiCombobox } from "@/components/shared/multi-combobox";
+import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { SelectField } from "@/components/shared/select-field";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { TimeOnlyField } from "@/components/shared/time-only-field";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FieldGroup, FieldSet } from "@/components/ui/field";
 import {
   Tooltip,
   TooltipContent,
@@ -61,10 +43,7 @@ import {
   emptyScheduleCapacities,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
-  parseTimeValue,
   scheduleFormSchema,
-  timePickerHourOptions,
-  timePickerMinuteOptions,
   toScheduleCapacityFormValues,
   type ScheduleFormValues,
 } from "./view-shared";
@@ -156,28 +135,14 @@ export function ScheduleForm({
           name="totalCapacity"
           step={1}
         />
-        <Controller
+        <DateOnlyField
           control={form.control}
           name="scheduledDate"
-          render={({ field, fieldState }) => (
-            <DateOnlyField
-              id={`schedule-date-${id ?? intent}`}
-              label="Fecha"
-              name="scheduledDate"
-              buttonClassName="w-full"
-              defaultValue={scheduledDate ?? ""}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              error={
-                fieldState.error?.type === "server"
-                  ? undefined
-                  : fieldState.error?.message
-              }
-            />
-          )}
+          id={`schedule-date-${id ?? intent}`}
+          label="Fecha"
+          buttonClassName="w-full"
         />
-        <ScheduleTimePickerField form={form} label="Hora" name="startTime" />
+        <TimeOnlyField control={form.control} label="Hora" name="startTime" />
         <ScheduleMultipleSelectField
           className="sm:col-span-2"
           form={form}
@@ -230,178 +195,28 @@ function ScheduleTextField({
   name: "name" | "startTime" | "totalCapacity";
   step?: number;
 }) {
-  return (
-    <Controller
-      control={form.control}
-      name={name}
-      render={({ field, fieldState }) => {
-        const error =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
-
-        return (
-          <Field className={className} data-invalid={error ? true : undefined}>
-            <FieldLabel htmlFor={name}>{label}</FieldLabel>
-            {name === "totalCapacity" ? (
-              <IntegerInput
-                id={name}
-                aria-invalid={error ? true : undefined}
-                min={min}
-                step={step}
-                {...field}
-              />
-            ) : (
-              <Input
-                id={name}
-                aria-invalid={error ? true : undefined}
-                {...field}
-              />
-            )}
-            <FieldError>{error}</FieldError>
-          </Field>
-        );
-      }}
-    />
-  );
-}
-
-function ScheduleTimePickerField({
-  form,
-  label,
-  name,
-}: {
-  form: ScheduleFormController;
-  label: string;
-  name: "startTime";
-}) {
-  return (
-    <Controller
-      control={form.control}
-      name={name}
-      render={({ field, fieldState }) => {
-        const error =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
-
-        return (
-          <TimePickerField
-            error={error}
-            label={label}
-            name={name}
-            onBlur={field.onBlur}
-            onChange={field.onChange}
-            value={field.value}
-          />
-        );
-      }}
-    />
-  );
-}
-
-function TimePickerField({
-  error,
-  label,
-  name,
-  onBlur,
-  onChange,
-  value,
-}: {
-  error?: string;
-  label: string;
-  name: string;
-  onBlur: () => void;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const { hour, minute } = parseTimeValue(value);
-  const errorId = `${name}-error`;
-
-  function updateTime(nextPart: { hour?: string; minute?: string }) {
-    const nextHour = nextPart.hour ?? hour ?? "00";
-    const nextMinute = nextPart.minute ?? minute ?? "00";
-
-    onChange(`${nextHour}:${nextMinute}`);
+  if (name === "totalCapacity") {
+    return (
+      <IntegerInputField
+        className={className}
+        control={form.control}
+        id={name}
+        label={label}
+        min={min}
+        name={name}
+        step={step}
+      />
+    );
   }
 
   return (
-    <Field data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <input type="hidden" name={name} value={value} />
-      <Popover
-        open={open}
-        onOpenChange={(nextOpen) => {
-          setOpen(nextOpen);
-
-          if (!nextOpen) {
-            onBlur();
-          }
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            id={name}
-            type="button"
-            variant="outline"
-            className="w-full cursor-pointer justify-between font-normal"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : undefined}
-          >
-            {value || "Seleccioná hora"}
-            <Clock data-icon="inline-end" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64" align="start">
-          <div className="grid grid-cols-2 gap-3">
-            <Field>
-              <FieldLabel>Hora</FieldLabel>
-              <Select
-                value={hour ?? ""}
-                onValueChange={(nextHour) => updateTime({ hour: nextHour })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Hora" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {timePickerHourOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>Minutos</FieldLabel>
-              <Select
-                value={minute ?? ""}
-                onValueChange={(nextMinute) =>
-                  updateTime({ minute: nextMinute })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Min." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {timePickerMinuteOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-        </PopoverContent>
-      </Popover>
-      <FieldError id={errorId}>{error}</FieldError>
-    </Field>
+    <TextInputField
+      className={className}
+      control={form.control}
+      id={name}
+      label={label}
+      name={name}
+    />
   );
 }
 
@@ -518,61 +333,30 @@ function ScheduleCapacityInlineFields({
   onRemove: () => void;
 }) {
   const idFieldName = `scheduleCapacities.${index}.id` as const;
+  const groupTypeFieldName = `scheduleCapacities.${index}.groupType` as const;
+  const capacityFieldName = `scheduleCapacities.${index}.capacity` as const;
 
   return (
     <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
-      <Controller
+      <SelectField
         control={form.control}
-        name={`scheduleCapacities.${index}.groupType`}
-        render={({ field: controllerField, fieldState }) => (
-          <ScheduleCapacitySelectFieldView
-            error={
-              fieldState.error?.type === "server"
-                ? undefined
-                : fieldState.error?.message
-            }
-            name={`scheduleCapacities.${index}.groupType`}
-            onBlur={controllerField.onBlur}
-            onChange={controllerField.onChange}
-            options={options}
-            placeholder="Elegí un tipo"
-            value={controllerField.value}
-            labelClassName="sr-only"
-            title="Tipo de grupo"
-          />
-        )}
+        name={groupTypeFieldName}
+        label="Tipo de grupo"
+        labelClassName="sr-only"
+        options={options}
+        placeholder="Elegí un tipo"
       />
-      <Controller
+      <IntegerInputField
         control={form.control}
-        name={`scheduleCapacities.${index}.capacity`}
-        render={({ field: controllerField, fieldState }) => {
-          const error =
-            fieldState.error?.type === "server"
-              ? undefined
-              : fieldState.error?.message;
-
-          return (
-            <Field data-invalid={error ? true : undefined}>
-              <FieldLabel
-                className="sr-only"
-                htmlFor={`schedule-capacity-capacity-${index}`}
-              >
-                Cupo
-              </FieldLabel>
-              <IntegerInput
-                id={`schedule-capacity-capacity-${index}`}
-                aria-invalid={error ? true : undefined}
-                min={1}
-                step={1}
-                {...controllerField}
-              />
-              <FieldError>{error}</FieldError>
-            </Field>
-          );
-        }}
+        name={capacityFieldName}
+        id={`schedule-capacity-capacity-${index}`}
+        label="Cupo"
+        labelClassName="sr-only"
+        min={1}
+        step={1}
       />
       <Button
         type="button"
@@ -601,89 +385,15 @@ function ScheduleMultipleSelectField({
   title: string;
 }) {
   return (
-    <Controller
+    <MultiComboboxField
+      className={className}
       control={form.control}
+      emptyMessage="Sin modalidades disponibles"
+      inputName={name}
+      label={title}
       name={name}
-      render={({ field, fieldState }) => {
-        const error =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
-
-        return (
-          <Field className={className} data-invalid={error ? true : undefined}>
-            <FieldLabel>{title}</FieldLabel>
-            <MultiCombobox
-              emptyMessage="Sin modalidades disponibles"
-              error={Boolean(error)}
-              name={name}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={options}
-              placeholder="Seleccioná modalidades"
-              value={field.value}
-            />
-            <FieldError>{error}</FieldError>
-          </Field>
-        );
-      }}
+      options={options}
+      placeholder="Seleccioná modalidades"
     />
-  );
-}
-
-function ScheduleCapacitySelectFieldView({
-  className,
-  error,
-  labelClassName,
-  name,
-  onBlur,
-  onChange,
-  options,
-  placeholder,
-  value,
-  title,
-}: {
-  className?: string;
-  error?: string;
-  labelClassName?: string;
-  name: string;
-  onBlur: () => void;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-  placeholder: string;
-  value: string;
-  title: string;
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <Field className={className} data-invalid={error ? true : undefined}>
-      <FieldLabel className={labelClassName} htmlFor={id}>
-        {title}
-      </FieldLabel>
-      <input type="hidden" name={name} value={value} />
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger
-          id={id}
-          aria-describedby={error ? errorId : undefined}
-          aria-invalid={error ? true : undefined}
-          className="w-full"
-          onBlur={onBlur}
-        >
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <FieldError id={errorId}>{error}</FieldError>
-    </Field>
   );
 }

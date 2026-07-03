@@ -42,7 +42,7 @@ type CategoryMutationInput = {
   maxAge: number;
   groupTypes: string[];
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevels: string[];
 };
 
 export function handlesCategoryIntent(intent: string) {
@@ -155,7 +155,7 @@ function readCategoryActionValues(formData: FormData): CategoryActionValues {
     maxAge: String(formData.get("maxAge") ?? ""),
     groupTypes: formData.getAll("groupTypes").map(String),
     modalityIds: formData.getAll("modalityIds").map(String),
-    experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
+    experienceLevels: formData.getAll("experienceLevels").map(String),
   };
 }
 
@@ -168,7 +168,7 @@ function getCategoryMutationInput(
     maxAge: input.maxAge,
     groupTypes: input.groupTypes,
     modalityIds: input.modalityIds,
-    experienceLevelIds: input.experienceLevelIds,
+    experienceLevels: input.experienceLevels,
   };
 }
 

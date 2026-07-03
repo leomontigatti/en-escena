@@ -8,24 +8,19 @@ import { CategoryDetailView } from "@/features/admin/categories/detail/view";
 import { CategoryCreateView } from "@/features/admin/categories/create/view";
 import { CategoriesListView } from "@/features/admin/categories/list/view";
 import { handleCategoryAction } from "@/features/admin/categories/action.server";
+import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
 import { handleEventModalityAction } from "@/features/admin/modalities/action.server";
-import {
-  EventModalityDetailRouteView,
-  EventModalitiesRouteView,
-  NewEventModalityRouteView,
-} from "@/features/admin/modalities/route-views";
+import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { AdministrativeEventModalitiesListView } from "@/features/admin/modalities/list/view";
 import { handleEventPriceAction } from "@/features/admin/prices/action.server";
-import {
-  EventPriceDetailRouteView,
-  NewEventPriceRouteView,
-  EventPricesRouteView,
-} from "@/features/admin/prices/route-views";
+import { AdministrativeEventPriceCreateView } from "@/features/admin/prices/create/view";
+import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { AdministrativeEventPricesListView } from "@/features/admin/prices/list/view";
 import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
-import {
-  EventSchedulesRouteView,
-  EventScheduleDetailRouteView,
-  NewEventScheduleRouteView,
-} from "@/features/admin/schedules/route-views";
+import { AdministrativeEventScheduleCreateView } from "@/features/admin/schedules/create/view";
+import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
 import { events, user } from "@/db/schema";
@@ -61,7 +56,7 @@ type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;
 type CategoryRow = Omit<typeof categories.$inferSelect, "experienceLevels"> & {
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevels: string[];
 };
 
 export type EventBasesLoaderData = {
@@ -109,7 +104,7 @@ export function renderRoute(
       hydrationData: {
         loaderData: {
           admin: adminLoaderData(loaderData),
-          [childRoute.id]: loaderData,
+          [childRoute.id]: childRoute.routeLoaderData ?? loaderData,
         },
       },
     }),
@@ -121,6 +116,7 @@ type AdminChildRouteFixture = {
   handle?: unknown;
   id: string;
   path: string;
+  routeLoaderData?: unknown;
   url: string;
 };
 
@@ -162,16 +158,31 @@ export function renderCategoriaDetalleRoute(
   loaderData: EventBasesLoaderData,
   categoryId: string,
 ) {
+  const routeLoaderData = buildCategoryDetailLoaderData(loaderData, categoryId);
+
   return renderRoute(loaderData, {
     id: "category-detail",
     path: "categorias/:categoryId",
     url: `/administracion/categorias/${categoryId}`,
     handle: categoriaDetalleHandle,
     element: createElement(CategoryDetailView, {
-      loaderData,
-      categoryId,
+      loaderData: routeLoaderData,
     }),
+    routeLoaderData,
   });
+}
+
+function buildCategoryDetailLoaderData(
+  loaderData: EventBasesLoaderData,
+  categoryId: string,
+): CategoryDetailLoaderData {
+  return {
+    selectedEventId: loaderData.selectedEventId,
+    category:
+      loaderData.categories.find((category) => category.id === categoryId) ??
+      null,
+    modalities: loaderData.modalities,
+  };
 }
 
 export function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
@@ -180,7 +191,7 @@ export function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
     path: "modalidades",
     url: "/administracion/modalidades",
     handle: modalidadesHandle,
-    element: createElement(EventModalitiesRouteView, {
+    element: createElement(AdministrativeEventModalitiesListView, {
       loaderData,
     }),
   });
@@ -195,7 +206,7 @@ export function renderNuevaModalidadRoute(
     path: "modalidades/nueva",
     url: "/administracion/modalidades/nueva",
     handle: modalidadNuevaHandle,
-    element: createElement(NewEventModalityRouteView, {
+    element: createElement(AdministrativeEventModalityCreateView, {
       loaderData,
       actionData,
     }),
@@ -212,7 +223,7 @@ export function renderModalidadDetalleRoute(
     path: "modalidades/:modalityId",
     url: `/administracion/modalidades/${modalityId}`,
     handle: modalidadDetalleHandle,
-    element: createElement(EventModalityDetailRouteView, {
+    element: createElement(AdministrativeEventModalityDetailView, {
       loaderData,
       modalityId,
       actionData,
@@ -226,7 +237,7 @@ export function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
     path: "cronogramas",
     url: "/administracion/cronogramas",
     handle: bloquesHorariosHandle,
-    element: createElement(EventSchedulesRouteView, {
+    element: createElement(AdministrativeEventSchedulesListView, {
       loaderData,
     }),
   });
@@ -240,7 +251,7 @@ export function renderNuevoBloqueHorarioRoute(
     path: "cronogramas/nuevo",
     url: "/administracion/cronogramas/nuevo",
     handle: bloqueHorarioNuevoHandle,
-    element: createElement(NewEventScheduleRouteView, {
+    element: createElement(AdministrativeEventScheduleCreateView, {
       loaderData,
     }),
   });
@@ -256,7 +267,7 @@ export function renderBloqueHorarioDetailRoute(
     path: "cronogramas/:scheduleId",
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
-    element: createElement(EventScheduleDetailRouteView, {
+    element: createElement(AdministrativeEventScheduleDetailView, {
       loaderData,
       scheduleId,
       actionData,
@@ -270,7 +281,7 @@ export function renderPreciosRoute(loaderData: EventBasesLoaderData) {
     path: "precios",
     url: "/administracion/precios",
     handle: preciosHandle,
-    element: createElement(EventPricesRouteView, { loaderData }),
+    element: createElement(AdministrativeEventPricesListView, { loaderData }),
   });
 }
 
@@ -280,7 +291,7 @@ export function renderPrecioNuevoRoute(loaderData: EventBasesLoaderData) {
     path: "precios/nuevo",
     url: "/administracion/precios/nuevo",
     handle: precioNuevoHandle,
-    element: createElement(NewEventPriceRouteView, { loaderData }),
+    element: createElement(AdministrativeEventPriceCreateView, { loaderData }),
   });
 }
 
@@ -293,7 +304,7 @@ export function renderPrecioDetalleRoute(
     path: "precios/:priceId",
     url: `/administracion/precios/${priceId}`,
     handle: precioDetalleHandle,
-    element: createElement(EventPriceDetailRouteView, {
+    element: createElement(AdministrativeEventPriceDetailView, {
       loaderData,
       priceId,
     }),
@@ -463,7 +474,7 @@ export function renderPriceNewErrorRoute(
     path: "precios/nuevo",
     url: "/administracion/precios/nuevo",
     handle: precioNuevoHandle,
-    element: createElement(NewEventPriceRouteView, {
+    element: createElement(AdministrativeEventPriceCreateView, {
       loaderData,
       actionData,
     }),
@@ -480,7 +491,7 @@ export function renderScheduleDetailErrorRoute(
     path: "cronogramas/:scheduleId",
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
-    element: createElement(EventScheduleDetailRouteView, {
+    element: createElement(AdministrativeEventScheduleDetailView, {
       loaderData,
       scheduleId,
       actionData,

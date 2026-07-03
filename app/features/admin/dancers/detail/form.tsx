@@ -1,45 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ExternalLink, Lock } from "lucide-react";
 import { useEffect, useId } from "react";
-import {
-  Controller,
-  type FieldPath,
-  useForm,
-  type UseFormReturn,
-} from "react-hook-form";
+import { type FieldPath, useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { TextareaField } from "@/components/shared/textarea-field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import type {
-  AdministrativeDancerFieldErrors,
-  AdministrativeDancerStatusInput,
-} from "@/lib/admin/dancers/dancers.server";
-import {
-  createValidatedNativeSubmitHandler,
-  useApplyServerFieldErrors,
-} from "@/lib/shared/forms";
+import type { AdministrativeDancerStatusInput } from "@/lib/admin/dancers/dancers.server";
+import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import {
   buildDancerStatusSchema,
   buildDancerUpdateSchema,
-  emptyDancerFieldErrors,
   formatDateOnlyLabel,
-  noDocumentTypeSelectValue,
   type DancerEditFormValues,
 } from "./shared";
 
@@ -51,11 +27,9 @@ type DancerEditFormReturn = UseFormReturn<
 
 export function useDancerEditForm({
   correctionReasonRequired,
-  fieldErrors = emptyDancerFieldErrors,
   values,
 }: {
   correctionReasonRequired: boolean;
-  fieldErrors?: AdministrativeDancerFieldErrors;
   values: DancerEditFormValues;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
@@ -78,18 +52,14 @@ export function useDancerEditForm({
     values.lastName,
   ]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
-
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
 export function useDancerStatusForm({
   correctionReasonRequired,
-  fieldErrors = emptyDancerFieldErrors,
   values,
 }: {
   correctionReasonRequired: boolean;
-  fieldErrors?: AdministrativeDancerFieldErrors;
   values: AdministrativeDancerStatusInput;
 }) {
   const form = useForm<
@@ -105,8 +75,6 @@ export function useDancerStatusForm({
   useEffect(() => {
     form.reset(values);
   }, [form, values.correctionReason]);
-
-  useApplyServerFieldErrors(form, fieldErrors);
 
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
@@ -125,28 +93,12 @@ export function DancerTextField({
     | "firstName"
     | "lastName";
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <TextInputField
+      autoComplete="off"
       control={form.control}
+      label={label}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              aria-invalid={fieldState.error ? true : undefined}
-              aria-describedby={fieldState.error ? errorId : undefined}
-              autoComplete="off"
-              {...field}
-            />
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
     />
   );
 }
@@ -161,22 +113,12 @@ export function DancerBirthDateField({
   const id = useId();
 
   return (
-    <Controller
+    <DateOnlyField
       control={form.control}
       name="birthDate"
-      render={({ field, fieldState }) => (
-        <DateOnlyField
-          className={className}
-          id={id}
-          label="Fecha de nacimiento"
-          name={field.name}
-          defaultValue={field.value}
-          error={fieldState.error?.message}
-          onBlur={field.onBlur}
-          onValueChange={field.onChange}
-          value={field.value}
-        />
-      )}
+      className={className}
+      id={id}
+      label="Fecha de nacimiento"
     />
   );
 }
@@ -186,47 +128,11 @@ export function DancerDocumentTypeField({
 }: {
   form: DancerEditFormReturn;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <DocumentTypeSelectField
       control={form.control}
       name="documentType"
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
-          <FieldContent>
-            <Select
-              value={field.value || noDocumentTypeSelectValue}
-              onValueChange={(value) => {
-                field.onChange(
-                  value === noDocumentTypeSelectValue ? "" : value,
-                );
-              }}
-            >
-              <input type="hidden" name={field.name} value={field.value} />
-              <SelectTrigger
-                id={id}
-                aria-invalid={fieldState.error ? true : undefined}
-                aria-describedby={fieldState.error ? errorId : undefined}
-                className="w-full"
-              >
-                <SelectValue placeholder="Sin documento" />
-              </SelectTrigger>
-              <SelectContent align="start" position="popper" side="bottom">
-                <SelectItem value={noDocumentTypeSelectValue}>
-                  Sin documento
-                </SelectItem>
-                <SelectItem value="dni">DNI</SelectItem>
-                <SelectItem value="passport">Pasaporte</SelectItem>
-                <SelectItem value="other">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
+      contentProps={{ align: "start", position: "popper", side: "bottom" }}
     />
   );
 }
@@ -242,36 +148,17 @@ export function DancerCorrectionReasonField<
   formId?: string;
   required: boolean;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
-
   return (
-    <Controller
+    <TextareaField
       control={form.control}
       name={"correctionReason" as FieldPath<TFieldValues>}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Motivo de corrección</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id={id}
-              aria-invalid={fieldState.error ? true : undefined}
-              aria-describedby={
-                fieldState.error ? `${hintId} ${errorId}` : hintId
-              }
-              form={formId}
-              {...field}
-            />
-            <FieldDescription id={hintId}>
-              {required
-                ? "Obligatorio entre 10 y 500 caracteres para este Bailarín."
-                : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."}
-            </FieldDescription>
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
+      label="Motivo de corrección"
+      description={
+        required
+          ? "Obligatorio entre 10 y 500 caracteres para este Bailarín."
+          : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."
+      }
+      form={formId}
     />
   );
 }

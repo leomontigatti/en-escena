@@ -1,4 +1,4 @@
-import { Check, CircleAlert, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Pencil, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -9,6 +9,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -39,10 +40,8 @@ import {
 } from "./form";
 import {
   formatDancerDocumentType,
-  getDancerEditFieldErrors,
   getDancerEditValues,
   getDancerStatusAction,
-  getDancerStatusFieldErrors,
   getDancerStatusValues,
   getIdentificationAlert,
   getInitialDialogIntent,
@@ -83,18 +82,10 @@ export function AdministracionBailarinDetalleRouteView({
   const submittedEditValues = getSubmittedDancerUpdateValues(actionData);
   const editForm = useDancerEditForm({
     correctionReasonRequired: dancer.correctionReasonRequired,
-    fieldErrors: getDancerEditFieldErrors(
-      actionData?.fieldErrors,
-      submittedEditValues !== null,
-    ),
     values: getDancerEditValues({ actionData, dancer }),
   });
   const statusForm = useDancerStatusForm({
     correctionReasonRequired: dancer.correctionReasonRequired,
-    fieldErrors: getDancerStatusFieldErrors(
-      actionData?.fieldErrors,
-      submittedEditValues !== null,
-    ),
     values: getDancerStatusValues(actionData),
   });
   const statusAction = getDancerStatusAction(dancer.active);
@@ -183,9 +174,16 @@ export function AdministracionBailarinDetalleRouteView({
       <section className="flex flex-col gap-6">
         <AlertStack>
           {!dancer.active ? (
-            <DancerAlert icon={CircleAlert} variant="destructive">
-              Este bailarín está archivado.
-            </DancerAlert>
+            <ArchivedPersonAlert
+              personLabel="bailarín"
+              onReactivate={
+                loaderData.canEdit
+                  ? () => {
+                      setDialogIntent("reactivate-dancer");
+                    }
+                  : undefined
+              }
+            />
           ) : null}
           {identificationAlert ? (
             <DancerAlert
@@ -432,7 +430,6 @@ function DancerPrimaryFooterAction({
 function DancerAlert({
   action,
   children,
-  icon: Icon = TriangleAlert,
   variant = "warning",
 }: {
   action?: {
@@ -440,12 +437,11 @@ function DancerAlert({
     onClick: () => void;
   };
   children: ReactNode;
-  icon?: typeof TriangleAlert;
   variant?: "destructive" | "info" | "warning";
 }) {
   return (
     <Alert variant={variant}>
-      <Icon aria-hidden="true" />
+      <TriangleAlert aria-hidden="true" />
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

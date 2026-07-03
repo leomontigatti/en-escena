@@ -49,7 +49,7 @@ describe("event registration readiness", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
-        experienceLevelIds: [inicial.id],
+        experienceLevels: [inicial.id],
       }),
     );
     await expectCreated(
@@ -59,7 +59,7 @@ describe("event registration readiness", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [contemporaneo.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
     const block = await expectCreated(
@@ -121,7 +121,7 @@ describe("event registration readiness", () => {
         maxAge: 17,
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
-        experienceLevelIds: [inicial.id],
+        experienceLevels: [inicial.id],
       }),
     );
     const block = await expectCreated(

@@ -12,6 +12,7 @@ import {
   DestroyButton,
   SubmitButton,
 } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -71,9 +72,13 @@ export function AdministrativeEventDetailView({
       requireSelectedEvent={false}
       headerAction={<EventActions event={loaderData.event} />}
     >
-      <EventRegistrationReadinessAlert
-        readiness={loaderData.registrationReadiness}
-      />
+      <AlertStack>
+        {!loaderData.registrationReadiness.isReady ? (
+          <EventRegistrationReadinessAlert
+            readiness={loaderData.registrationReadiness}
+          />
+        ) : null}
+      </AlertStack>
       <EditEventPanel event={loaderData.event} actionData={actionData} />
     </AdminResourceLayout>
   );
@@ -136,7 +141,6 @@ function EditEventPanel({
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({
     values: defaultValues,
-    fieldErrors: actionData?.fieldErrors,
     pendingScope: { intent: "update" },
   });
 

@@ -402,7 +402,7 @@ async function createEventCatalog(
   const level = fixedExperienceLevel(eventId);
   const category = await expectCreated(
     createCategory(eventId, {
-      experienceLevelIds: [level.id],
+      experienceLevels: [level.id],
       groupTypes: [options.groupType],
       maxAge: 17,
       minAge: 13,

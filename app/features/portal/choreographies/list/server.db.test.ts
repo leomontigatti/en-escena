@@ -99,7 +99,7 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     );
     const block = await expectCreated(
@@ -462,7 +462,7 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
         maxAge: 12,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     );
     const block = await expectCreated(

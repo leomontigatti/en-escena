@@ -81,7 +81,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "8",
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       },
     });
 
@@ -92,7 +92,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: 12,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
 
@@ -102,7 +102,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       maxAge: "12",
       groupTypes: ["solo"],
       modalityIds: [modality.id],
-      experienceLevelIds: [],
+      experienceLevels: [],
     };
     const duplicateCategoryRequest = await createSignedInRequest({
       email: "admin.categoria.duplicada@example.com",

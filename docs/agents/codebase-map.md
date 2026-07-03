@@ -10,11 +10,11 @@ only list stable entry points, coordination modules and high-signal tests.
 
 - `app/routes` files are thin React Router entrypoints. Keep long-lived table,
   form, modal and loader/action implementation in feature or lib modules.
-- `app/features/<surface>/<resource-or-flow>/` owns product experiences:
+- Feature folders under `app/features` own product experiences:
   route-level views, route loaders/actions, request and form parsing, redirects,
   pending state, UI copy and flow-specific tests. Prefer surface-first folders
   such as `admin/categories` and `portal/choreographies`.
-- `app/lib/<domain>/` owns reusable behavior behind small interfaces: domain
+- Domain folders under `app/lib` own reusable behavior behind small interfaces: domain
   rules, persistence modules, access policy, storage adapters and cross-surface
   orchestration. A module in `app/lib/categories/` should not depend on admin
   route action types, redirects, notifications or feature route paths.
@@ -23,7 +23,7 @@ only list stable entry points, coordination modules and high-signal tests.
   `dancer-records.server.ts`, `verification.ts` or `category-identity.ts`.
   Avoid growing catch-all files like `categories.server.ts` with unrelated
   route actions, form parsing and domain rules.
-- `app/lib/admin/*` and `app/lib/portal/*` are allowed for reusable behavior
+- `app/lib/admin/` and `app/lib/portal/` are allowed for reusable behavior
   that is still specific to one product surface. Do not create them as mirrors
   of every feature folder.
 - `Bases del evento` is domain vocabulary for modalidades, categorias,
@@ -33,7 +33,7 @@ only list stable entry points, coordination modules and high-signal tests.
 - For Bases del evento persistence, prefer resource-level interfaces for new
   callers: `app/lib/categories/`, `app/lib/modalities/`,
   `app/lib/schedules/` and `app/lib/prices/`. Existing
-  `app/lib/events/bases-repository*` modules may stay as implementation or
+  `app/lib/events/bases-repository/` modules may stay as implementation or
   compatibility facades during migration. Callers that need several resources
   coordinated should use `app/lib/events/bases.server.ts`.
 - Migrate existing code incrementally. When changing a vertical, choose the
@@ -168,8 +168,8 @@ cronogramas, cupos, precios and registration readiness.
 - Feature modules: `app/features/admin/events/list/`, `app/features/admin/events/create/`, `app/features/admin/events/detail/`, `app/features/admin/modalities/`, `app/features/admin/categories/`, `app/features/admin/schedules/`, `app/features/admin/prices/`
 - Shared admin modules kept because they still provide neutral contracts used by several admin event features: `app/lib/admin/event-context.server.ts`, `app/lib/admin/events/bases-action/runner.server.ts`, `app/lib/admin/events/bases-action/modalities.server.ts`, `app/lib/admin/events/bases-action/categories.server.ts`, `app/lib/admin/events/bases-action/schedules.server.ts`, `app/lib/admin/events/bases-action/prices.server.ts`, `app/lib/admin/events/bases-action/shared.server.ts`, `app/lib/admin/events/bases-action/input.server.ts`
 - Shared domain modules that remain cross-surface: `app/lib/events/management.server.ts`, `app/lib/events/bases.server.ts`, `app/lib/categories/repository.server.ts`, `app/lib/modalities/repository.server.ts`, `app/lib/schedules/repository.server.ts`, `app/lib/prices/repository.server.ts`, `app/lib/events/registration-readiness.server.ts`
-- Admin event-bases UI lives with each feature module: `app/features/admin/modalities/route-views.tsx`, `app/features/admin/schedules/route-views.tsx`, `app/features/admin/prices/route-views.tsx`, and `app/features/admin/categories/`.
-- High-signal feature UI entry points: `app/features/admin/schedules/route-views.tsx`, `app/features/admin/prices/route-views.tsx`
+- Admin event-bases UI lives with each feature module: `app/features/admin/modalities/`, `app/features/admin/categories/`, `app/features/admin/schedules/`, and `app/features/admin/prices/`.
+- High-signal feature UI entry points: `app/features/admin/schedules/list/view.tsx`, `app/features/admin/schedules/detail/view.tsx`, `app/features/admin/prices/list/view.tsx`, `app/features/admin/prices/detail/view.tsx`
 - Test helpers: `app/lib/admin/events/event-bases.test-helpers.tsx`
 - Tests: `app/features/admin/events/routes.adapter.test.tsx`, `app/features/admin/modalities/routes.adapter.test.tsx`, `app/features/admin/categories/routes.adapter.test.tsx`, `app/features/admin/schedules/routes.adapter.test.tsx`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/events/bases-repository-catalog.server.db.test.ts`, `app/lib/events/bases-repository-schedules.server.db.test.ts`, `app/lib/events/bases-repository-prices.server.db.test.ts`, `app/lib/events/bases-repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`
 

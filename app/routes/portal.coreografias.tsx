@@ -35,7 +35,6 @@ export default function PortalCoreografiasRoute({
   return (
     <PortalChoreographiesListRouteView
       created={searchParams.get("creada") === "1"}
-      deleted={searchParams.get("eliminada") === "1"}
       loaderData={loaderData}
     />
   );

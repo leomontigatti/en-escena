@@ -38,12 +38,10 @@ vi.mock("react-router", async () => {
 });
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
-import {
-  EventModalityDetailRouteView,
-  NewEventModalityRouteView,
-} from "@/features/admin/modalities/route-views";
-import { EventPriceDetailRouteView } from "@/features/admin/prices/route-views";
-import { EventScheduleDetailRouteView } from "@/features/admin/schedules/route-views";
+import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesLoaderData } from "./event-bases.test-helpers";
 
@@ -77,7 +75,7 @@ describe("Evento bases migrated forms", () => {
       description: "modalidades",
       formId: "update-modality-form",
       renderView: () => (
-        <EventModalityDetailRouteView
+        <AdministrativeEventModalityDetailView
           loaderData={buildLoaderData()}
           modalityId="modality_1"
         />
@@ -92,10 +90,7 @@ describe("Evento bases migrated forms", () => {
       description: "categorías",
       formId: "update-category-form",
       renderView: () => (
-        <CategoryDetailView
-          loaderData={buildLoaderData()}
-          categoryId="category_1"
-        />
+        <CategoryDetailView loaderData={buildCategoryDetailLoaderData()} />
       ),
       submitLabel: "Guardar",
       navigation: buildPendingNavigation({
@@ -107,7 +102,7 @@ describe("Evento bases migrated forms", () => {
       description: "cronogramas",
       formId: "update-schedule-form",
       renderView: () => (
-        <EventScheduleDetailRouteView
+        <AdministrativeEventScheduleDetailView
           loaderData={buildLoaderData()}
           scheduleId="schedule_1"
         />
@@ -122,7 +117,7 @@ describe("Evento bases migrated forms", () => {
       description: "precios",
       formId: "update-price-form",
       renderView: () => (
-        <EventPriceDetailRouteView
+        <AdministrativeEventPriceDetailView
           loaderData={buildLoaderData()}
           priceId="price_1"
         />
@@ -162,7 +157,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <EventModalityDetailRouteView
+      <AdministrativeEventModalityDetailView
         loaderData={buildLoaderData()}
         modalityId="modality_1"
       />,
@@ -207,7 +202,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <EventScheduleDetailRouteView
+      <AdministrativeEventScheduleDetailView
         loaderData={buildLoaderData()}
         scheduleId="schedule_1"
       />,
@@ -252,7 +247,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <NewEventModalityRouteView
+      <AdministrativeEventModalityCreateView
         loaderData={buildLoaderData()}
         actionData={undefined}
       />,
@@ -299,7 +294,7 @@ describe("Evento bases migrated forms", () => {
     };
 
     render(
-      <EventModalityDetailRouteView
+      <AdministrativeEventModalityDetailView
         loaderData={buildLoaderData()}
         modalityId="modality_1"
         actionData={actionData}
@@ -320,6 +315,18 @@ function render(element: React.ReactNode) {
   act(() => {
     root?.render(element);
   });
+}
+
+function buildCategoryDetailLoaderData() {
+  const loaderData = buildLoaderData();
+
+  return {
+    selectedEventId: loaderData.selectedEventId,
+    category:
+      loaderData.categories.find((category) => category.id === "category_1") ??
+      null,
+    modalities: loaderData.modalities,
+  };
 }
 
 function buildPendingNavigation(values: Record<string, string>): {
@@ -379,7 +386,7 @@ function buildLoaderData(): EventBasesLoaderData {
         experienceLevelKey: "amateur",
         createdAt,
         modalityIds: ["modality_1"],
-        experienceLevelIds: ["amateur"],
+        experienceLevels: ["amateur"],
       },
     ],
     schedules: [

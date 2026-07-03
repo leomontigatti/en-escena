@@ -61,11 +61,11 @@ const categoryColumns: DataTableColumn<CategoryRow>[] = [
     header: "Niveles",
     cell: (category) => (
       <BadgesList
-        labels={category.experienceLevelIds.map(formatExperienceLevelLabel)}
+        labels={category.experienceLevels.map(formatExperienceLevelLabel)}
       />
     ),
     filterValue: (category) =>
-      category.experienceLevelIds.map(formatExperienceLevelLabel).join(" "),
+      category.experienceLevels.map(formatExperienceLevelLabel).join(" "),
   },
 ];
 

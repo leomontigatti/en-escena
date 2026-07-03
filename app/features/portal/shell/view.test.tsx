@@ -23,18 +23,21 @@ describe("portal route view", () => {
     expect(markup).toContain("Inicio");
     expect(markup).not.toContain("Perfil");
     expect(markup).toContain("Finanzas");
+    expect(markup).toContain("Resumen");
+    expect(markup).toContain('href="/portal/finanzas"');
+    expect(markup).not.toContain('href="/administracion/finanzas"');
     expect(markup).toContain("Profesores");
     expect(markup).toContain("Bailarines");
     expect(markup).toContain("Coreografías");
     expect(markup.indexOf("Inicio")).toBeLessThan(markup.indexOf("Profesores"));
-    expect(markup.indexOf("Finanzas")).toBeLessThan(
-      markup.indexOf("Profesores"),
-    );
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
     expect(markup.indexOf("Bailarines")).toBeLessThan(
       markup.indexOf("Coreografías"),
+    );
+    expect(markup.indexOf("Coreografías")).toBeLessThan(
+      markup.indexOf("Finanzas"),
     );
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain("Inicio");

@@ -10,6 +10,12 @@ type DancerVerificationInput = {
 
 export type DancerVerificationStatus = "incomplete" | "unverified" | "verified";
 
+export type DancerIdentificationPendingItem =
+  | "documentType"
+  | "documentNumber"
+  | "documentFrontImage"
+  | "documentBackImage";
+
 export function getDancerVerificationStatus(
   input: DancerVerificationInput,
 ): DancerVerificationStatus {
@@ -22,6 +28,45 @@ export function getDancerVerificationStatus(
   }
 
   return "unverified";
+}
+
+export function getDancerIdentificationPendingItems(
+  input: DancerVerificationInput,
+): DancerIdentificationPendingItem[] {
+  const pendingItems: DancerIdentificationPendingItem[] = [];
+
+  if (!input.documentType) {
+    pendingItems.push("documentType");
+  }
+
+  if (!input.documentNumber) {
+    pendingItems.push("documentNumber");
+  }
+
+  if (!input.documentFrontImageStorageKey) {
+    pendingItems.push("documentFrontImage");
+  }
+
+  if (!input.documentBackImageStorageKey) {
+    pendingItems.push("documentBackImage");
+  }
+
+  return pendingItems;
+}
+
+export function formatDancerIdentificationPendingItemLabel(
+  pendingItem: DancerIdentificationPendingItem,
+) {
+  switch (pendingItem) {
+    case "documentType":
+      return "tipo de documento";
+    case "documentNumber":
+      return "número de documento";
+    case "documentFrontImage":
+      return "frente del documento";
+    case "documentBackImage":
+      return "dorso del documento";
+  }
 }
 
 function hasCompleteIdentification(input: DancerVerificationInput) {

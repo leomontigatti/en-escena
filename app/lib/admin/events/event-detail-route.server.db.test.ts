@@ -86,6 +86,34 @@ describe("administracion/eventos/:eventId route", () => {
     );
   });
 
+  test("returns the field error message when the Evento detail form fails validation", async () => {
+    const event = await createSavedEvent({ name: "Regional 2026" });
+    const { request } = await createSignedInRequest({
+      email: "admin.editar.validacion@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+      body: formData({
+        intent: "update",
+        name: "Regional 2026",
+        registrationStartsAt: "2027-03-01",
+        registrationEndsAt: "2027-05-04",
+        startsAt: "2027-05-01",
+        endsAt: "2027-05-03",
+        requiredDepositPercentage: "30",
+      }),
+    });
+
+    await expect(action(routeArgs(request, event.id))).resolves.toMatchObject({
+      status: "error",
+      message:
+        "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+      fieldErrors: {
+        registrationEndsAt:
+          "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+      },
+    });
+  });
+
   test("reports activation conflicts without changing the selected Evento", async () => {
     const activeEvent = await createSavedEvent({ name: "Activo" });
     const inactiveEvent = await createSavedEvent({ name: "Inactivo" });

@@ -50,7 +50,9 @@ describe("AdministracionProfesorDetalleRouteView", () => {
 
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Editar");
-    expect(markup).toContain("Este profesor está archivado.");
+    expect(markup).toContain(
+      "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
+    );
     expect(markup).toContain("Reactivar");
     expect(markup).toContain("Faltan datos de identificación.");
   });

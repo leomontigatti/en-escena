@@ -30,9 +30,9 @@ import {
 } from "@/lib/portal/choreography-roster.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 
-const choreographyDeletedSearchParam = "eliminada";
 const routeNotificationSearchParam = "notificacion";
 const choreographySavedNotification = "coreografia-guardada";
+const choreographyDeletedNotification = "coreografia-eliminada";
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const readOnlyEventMessage = "Este Evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
@@ -398,7 +398,9 @@ async function handleDeleteChoreographyAction(input: {
     eventId: input.eventId,
   });
 
-  return redirect(`/portal/coreografias?${choreographyDeletedSearchParam}=1`);
+  return redirect(
+    `/portal/coreografias?${routeNotificationSearchParam}=${choreographyDeletedNotification}`,
+  );
 }
 
 function assertDeleteConfirmationMatches(

@@ -5,10 +5,7 @@ import { useForm } from "react-hook-form";
 import { useFetcher, useNavigation } from "react-router";
 import { toast } from "sonner";
 
-import {
-  requiredFieldMessage,
-  useApplyServerFieldErrors,
-} from "@/lib/shared/forms";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   buildResolveChoreographyDancersFormData,
   formatPersonName,
@@ -22,7 +19,6 @@ import {
   choreographyEditSchema,
   choreographyResolutionErrorToastId,
   resolveChoreographyDancersIntent,
-  type ChoreographyEditFieldErrors,
   type ChoreographyEditValues,
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
@@ -32,7 +28,6 @@ import {
 } from "@/features/portal/choreographies/detail/roster-editor.shared";
 import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
 
-const emptyChoreographyEditFieldErrors: ChoreographyEditFieldErrors = {};
 type ChoreographySummary = ChoreographyRosterEditorLoaderData["choreography"];
 type ScheduleResolution =
   | Extract<
@@ -152,10 +147,6 @@ export function useChoreographyRosterEditorForm({
     );
   }
 
-  const fieldErrors =
-    actionData?.status === "update-error" && actionData.section === "dancers"
-      ? (actionData.fieldErrors ?? emptyChoreographyEditFieldErrors)
-      : emptyChoreographyEditFieldErrors;
   const dancerOptions = useMemo(
     () =>
       loaderData.availableDancers.map((dancer) => ({
@@ -218,8 +209,6 @@ export function useChoreographyRosterEditorForm({
     selectedDancerIds,
     selectedProfessorIds,
   ]);
-
-  useApplyServerFieldErrors(form, fieldErrors);
 
   useEffect(() => {
     if (!hasRosterChanged) {

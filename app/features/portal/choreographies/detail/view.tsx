@@ -43,6 +43,8 @@ export function PortalChoreographyDetailRouteView({
   const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const hasActiveFinancialLink =
     loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
+  const hasOperationalStatusAlert =
+    loaderData.choreography.operationalStatus.pendingItems.length > 0;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
@@ -88,9 +90,11 @@ export function PortalChoreographyDetailRouteView({
             </AlertDescription>
           </Alert>
         ) : null}
-        <OperationalStatusSummary
-          operationalStatus={loaderData.choreography.operationalStatus}
-        />
+        {hasOperationalStatusAlert ? (
+          <OperationalStatusSummary
+            operationalStatus={loaderData.choreography.operationalStatus}
+          />
+        ) : null}
       </AlertStack>
 
       <ChoreographyRosterEditorForm

@@ -1,37 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
 import { useEffect, useId } from "react";
-import { Controller, useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
+import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { TextareaField } from "@/components/shared/textarea-field";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  createValidatedNativeSubmitHandler,
-  useApplyServerFieldErrors,
-} from "@/lib/shared/forms";
-import type { AdministrativeProfessorFieldErrors } from "@/lib/admin/professors/professors.server";
+import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import {
   buildProfessorEditSchema,
   buildProfessorReasonSchema,
-  emptyProfessorFieldErrors,
-  noDocumentTypeSelectValue,
   type ProfessorEditFormValues,
   type ProfessorReasonFormValues,
 } from "./shared";
@@ -49,10 +32,8 @@ type ProfessorReasonFormReturn = UseFormReturn<
 >;
 
 export function useProfessorEditForm({
-  fieldErrors = emptyProfessorFieldErrors,
   values,
 }: {
-  fieldErrors?: AdministrativeProfessorFieldErrors;
   values: ProfessorEditFormValues;
 }) {
   const form = useForm<
@@ -75,18 +56,14 @@ export function useProfessorEditForm({
     values.lastName,
   ]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
-
   return { form };
 }
 
 export function useProfessorReasonForm({
   correctionReasonRequired,
-  fieldErrors = emptyProfessorFieldErrors,
   values,
 }: {
   correctionReasonRequired: boolean;
-  fieldErrors?: AdministrativeProfessorFieldErrors;
   values: ProfessorReasonFormValues;
 }) {
   const form = useForm<
@@ -102,8 +79,6 @@ export function useProfessorReasonForm({
   useEffect(() => {
     form.reset(values);
   }, [form, values.correctionReason, values.statusIntent]);
-
-  useApplyServerFieldErrors(form, fieldErrors);
 
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
@@ -139,28 +114,12 @@ export function ProfessorTextField({
   label: string;
   name: "documentNumber" | "firstName" | "lastName";
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <TextInputField
+      autoComplete="off"
       control={form.control}
+      label={label}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              aria-invalid={fieldState.error ? true : undefined}
-              aria-describedby={fieldState.error ? errorId : undefined}
-              autoComplete="off"
-              {...field}
-            />
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
     />
   );
 }
@@ -170,47 +129,11 @@ export function ProfessorDocumentTypeField({
 }: {
   form: ProfessorEditFormReturn;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <DocumentTypeSelectField
       control={form.control}
       name="documentType"
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
-          <FieldContent>
-            <Select
-              value={field.value || noDocumentTypeSelectValue}
-              onValueChange={(value) => {
-                field.onChange(
-                  value === noDocumentTypeSelectValue ? "" : value,
-                );
-              }}
-            >
-              <input type="hidden" name={field.name} value={field.value} />
-              <SelectTrigger
-                id={id}
-                aria-invalid={fieldState.error ? true : undefined}
-                aria-describedby={fieldState.error ? errorId : undefined}
-                className="h-10 w-full"
-              >
-                <SelectValue placeholder="Sin documento" />
-              </SelectTrigger>
-              <SelectContent align="start" position="popper" side="bottom">
-                <SelectItem value={noDocumentTypeSelectValue}>
-                  Sin documento
-                </SelectItem>
-                <SelectItem value="dni">DNI</SelectItem>
-                <SelectItem value="passport">Pasaporte</SelectItem>
-                <SelectItem value="other">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
+      contentProps={{ align: "start", position: "popper", side: "bottom" }}
     />
   );
 }
@@ -222,41 +145,24 @@ export function ProfessorCorrectionReasonField({
   form: ProfessorReasonFormReturn;
   required: boolean;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
-
   return (
-    <Controller
-      control={form.control}
-      name="correctionReason"
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Motivo de corrección</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id={id}
-              aria-invalid={fieldState.error ? true : undefined}
-              aria-describedby={
-                fieldState.error ? `${hintId} ${errorId}` : hintId
-              }
-              {...field}
-            />
-            <FieldDescription id={hintId}>
-              {required
-                ? "Obligatorio entre 10 y 500 caracteres para este profesor."
-                : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."}
-            </FieldDescription>
-            <input
-              type="hidden"
-              name="statusIntent"
-              value={form.getValues("statusIntent") ?? ""}
-            />
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
+    <>
+      <TextareaField
+        control={form.control}
+        name="correctionReason"
+        label="Motivo de corrección"
+        description={
+          required
+            ? "Obligatorio entre 10 y 500 caracteres para este profesor."
+            : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."
+        }
+      />
+      <input
+        type="hidden"
+        name="statusIntent"
+        value={form.getValues("statusIntent") ?? ""}
+      />
+    </>
   );
 }
 

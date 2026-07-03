@@ -177,7 +177,6 @@ export default function IngresarRoute() {
   const form = useAccessForm({
     schema: signInSchema,
     values: actionData?.values ?? emptySignInValues,
-    fieldErrors: actionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

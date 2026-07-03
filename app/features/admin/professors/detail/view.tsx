@@ -1,4 +1,4 @@
-import { Check, CircleAlert, Pencil, TriangleAlert } from "lucide-react";
+import { Check, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
@@ -7,7 +7,8 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -25,9 +26,7 @@ import {
   formatProfessorDocumentType,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
-  getProfessorEditFieldErrors,
   getProfessorEditValues,
-  getProfessorReasonFieldErrors,
   getProfessorReasonValues,
   getSubmittedProfessorUpdateValues,
   type ProfessorActionError,
@@ -56,13 +55,9 @@ export function AdministracionProfesorDetalleRouteView({
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(actionData);
   const editValues = getProfessorEditValues({ actionData, professor });
   const reasonValues = getProfessorReasonValues(actionData);
-  const editForm = useProfessorEditForm({
-    fieldErrors: getProfessorEditFieldErrors(actionData?.fieldErrors),
-    values: editValues,
-  });
+  const editForm = useProfessorEditForm({ values: editValues });
   const reasonForm = useProfessorReasonForm({
     correctionReasonRequired: professor.correctionReasonRequired,
-    fieldErrors: getProfessorReasonFieldErrors(actionData?.fieldErrors),
     values: reasonValues,
   });
   const [dialogIntent, setDialogIntent] =
@@ -144,27 +139,16 @@ export function AdministracionProfesorDetalleRouteView({
       <section className="flex flex-col gap-6">
         <AlertStack>
           {!professor.active ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertDescription>
-                Este profesor está archivado. Reactivalo para que vuelva a
-                aparecer en las vistas activas y en próximas selecciones del
-                portal.
-              </AlertDescription>
-              {loaderData.canEdit ? (
-                <AlertAction className="top-1/2 -translate-y-1/2">
-                  <Button
-                    type="button"
-                    variant="link"
-                    onClick={() => {
+            <ArchivedPersonAlert
+              personLabel="profesor"
+              onReactivate={
+                loaderData.canEdit
+                  ? () => {
                       openStatusDialog("reactivate-professor");
-                    }}
-                  >
-                    Reactivar
-                  </Button>
-                </AlertAction>
-              ) : null}
-            </Alert>
+                    }
+                  : undefined
+              }
+            />
           ) : null}
           {professor.isIncomplete ? (
             <Alert variant="warning">

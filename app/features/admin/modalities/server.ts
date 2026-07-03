@@ -19,7 +19,7 @@ async function loadEventModalityContext(request: Request) {
   return eventContext;
 }
 
-export async function loadEventModalitiesData(request: Request) {
+async function loadEventModalitiesData(request: Request) {
   const eventContext = await loadEventModalityContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -42,3 +42,5 @@ export async function loadEventModalitiesData(request: Request) {
     submodalities,
   };
 }
+
+export { loadEventModalitiesData };

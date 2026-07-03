@@ -190,6 +190,14 @@ Reglas:
 - Mostrar ayuda con `FieldDescription`.
 - No depender solo de un asterisco para indicar obligatoriedad; usar copy claro
   cuando el contexto lo requiera.
+- En formularios React Hook Form, usar los campos compartidos antes de definir
+  campos locales con `Controller`: `TextInputField`, `IntegerInputField`,
+  `TextareaField`, `SelectField`, `DocumentTypeSelectField`, `ComboboxField`,
+  `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` y `FileUploadField`.
+  Crear un campo local sólo cuando el patrón todavía no exista como componente
+  compartido o cuando el formulario necesite una composición específica, por
+  ejemplo arrays dinámicos, grupos de checkboxes, switches con lógica de UI
+  propia o controles de confirmación.
 - Respetar altura, borde, foco y estados de `Input`, `Checkbox`, `Select`,
   `DateOnlyField` y demás controles existentes.
 - En formularios y filtros, cuando haga falta seleccionar múltiples opciones,
@@ -236,8 +244,15 @@ Reglas:
 - Mantener las mutaciones en React Router `action`/`fetcher` server-side. RHF
   valida y controla estado en cliente; el action vuelve a validar, autoriza y
   persiste.
-- Usar `Controller` con componentes controlados shadcn como `Select`,
-  `Checkbox`, `Switch`, `Combobox`, date pickers y campos custom.
+- Usar los componentes compartidos de formulario cuando cubran el caso:
+  `TextInputField`, `IntegerInputField`, `TextareaField`, `SelectField`,
+  `DocumentTypeSelectField`, `ComboboxField`, `MultiComboboxField`,
+  `DateOnlyField`, `TimeOnlyField` y `FileUploadField`. Estos componentes son
+  dueños de su `Controller`; las pantallas les pasan `control`, `name`, copy y
+  opciones.
+- Usar `Controller` localmente sólo para componentes controlados que todavía no
+  tengan wrapper compartido o para composiciones específicas como `Checkbox`,
+  `Switch`, arrays dinámicos y campos custom de una pantalla.
 - Para inputs simples, preferir el patrón shadcn con `Controller` y spread de
   `field` cuando el formulario ya use React Hook Form. Mantener `register` solo
   en formularios simples donde no complique la consistencia.
@@ -260,8 +275,10 @@ Reglas:
   y poner `aria-invalid` en `SelectTrigger`.
 - Para arrays dinámicos, usar `useFieldArray`, `FieldSet`, `FieldLegend` y
   `FieldDescription`; usar `field.id` como key.
-- Integrar errores server con `form.setError` cuando la acción devuelve
-  `fieldErrors`.
+- Mostrar inline solamente errores de validación cliente. Los errores devueltos
+  por el servidor no se integran con `form.setError` ni se muestran como
+  `FieldError`; se muestran con toast y, cuando sea útil, el formulario conserva
+  los valores enviados para que la persona pueda corregir y reenviar.
 - Cuando un formulario RHF postea a un React Router action con `useSubmit`, usar
   `createValidatedRouteFormDataSubmitHandler` para que el `FormData` enviado se
   construya desde los valores validados por RHF, conservando `intent`, botones
@@ -283,9 +300,9 @@ Reglas:
   checkboxes múltiples y futuros archivos.
 - Mostrar feedback de acciones server con toasts:
   - Éxito confirmado por el servidor: `toast.success`.
-  - Error no asociado a un campo concreto: `toast.error`.
-  - Error con `fieldErrors`: `form.setError` para cada campo y `toast.error`
-    como resumen de la acción fallida.
+  - Error confirmado por el servidor, tenga o no `fieldErrors`: `toast.error`.
+    No duplicar esos errores en campos inline; la validación inline pertenece al
+    schema cliente de RHF/Zod.
   - Para éxitos después de un redirect, usar una notificación de ruta
     centralizada mediante parámetro de búsqueda (`notificacion`) o el mecanismo
     compartido que lo reemplace. Mantener los mensajes, IDs y variantes

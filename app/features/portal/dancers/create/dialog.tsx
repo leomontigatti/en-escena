@@ -1,9 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,14 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
@@ -47,8 +41,6 @@ export function CreateDancerDialog({
   onOpenChange: (nextOpen: boolean) => void;
   submit: ReactRouterFormSubmit;
 }) {
-  const firstNameId = useId();
-  const lastNameId = useId();
   const birthDateId = useId();
   const form = useForm<CreateDancerFormValues>({
     resolver: zodResolver(createDancerSchema),
@@ -78,46 +70,27 @@ export function CreateDancerDialog({
         >
           <input type="hidden" name="intent" value={createDancerIntent} />
           <FieldGroup>
-            <DancerTextField
-              control={form.control}
-              fieldName="firstName"
-              id={firstNameId}
-              label="Nombre"
+            <TextInputField
               autoComplete="given-name"
-            />
-
-            <DancerTextField
               control={form.control}
-              fieldName="lastName"
-              id={lastNameId}
-              label="Apellido"
-              autoComplete="family-name"
+              label="Nombre"
+              name="firstName"
             />
 
-            <Controller
+            <TextInputField
+              autoComplete="family-name"
+              control={form.control}
+              label="Apellido"
+              name="lastName"
+            />
+
+            <DateOnlyField
               control={form.control}
               name="birthDate"
-              render={({ field, fieldState }) => {
-                const errorMessage =
-                  fieldState.error?.type === "server"
-                    ? undefined
-                    : fieldState.error?.message;
-
-                return (
-                  <DateOnlyField
-                    id={birthDateId}
-                    label="Fecha de nacimiento"
-                    name={field.name}
-                    defaultValue={field.value}
-                    value={field.value}
-                    onBlur={field.onBlur}
-                    onValueChange={field.onChange}
-                    error={errorMessage}
-                    endMonth={new Date()}
-                    startMonth={new Date(1900, 0)}
-                  />
-                );
-              }}
+              id={birthDateId}
+              label="Fecha de nacimiento"
+              endMonth={new Date()}
+              startMonth={new Date(1900, 0)}
             />
           </FieldGroup>
 
@@ -132,48 +105,5 @@ export function CreateDancerDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DancerTextField({
-  autoComplete,
-  control,
-  fieldName,
-  id,
-  label,
-}: {
-  autoComplete: string;
-  control: Control<CreateDancerFormValues>;
-  fieldName: keyof CreateDancerFormValues;
-  id: string;
-  label: string;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={fieldName}
-      render={({ field, fieldState }) => {
-        const errorMessage =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-
-        return (
-          <Field data-invalid={isInvalid ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              <Input
-                {...field}
-                id={id}
-                autoComplete={autoComplete}
-                aria-invalid={isInvalid ? true : undefined}
-              />
-              <FieldError>{errorMessage}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
-    />
   );
 }

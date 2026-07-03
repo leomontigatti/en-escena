@@ -1,5 +1,7 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 
 import {
@@ -7,7 +9,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TextareaField } from "@/components/shared/textarea-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +25,6 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -33,7 +34,10 @@ import {
   formatAmount,
   formatDate,
 } from "@/features/admin/academies/account-current/formatters";
+import { annulPaymentSchema } from "@/features/admin/academies/account-current/shared";
 import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
+import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type {
   AdminPaymentDetailActionData,
@@ -41,6 +45,10 @@ import type {
 } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentDetail>>;
+type AnnulPaymentFormValues = {
+  reason: string;
+};
+const annulPaymentDialogSchema = annulPaymentSchema.pick({ reason: true });
 
 type AdministracionPagoDetalleRouteViewProps = {
   actionData?: AdminPaymentDetailActionData;
@@ -55,6 +63,10 @@ export function AdministracionPagoDetalleRouteView({
   const [isAnnulDialogOpen, setIsAnnulDialogOpen] = useState(
     actionData?.status === "error",
   );
+
+  useServerActionToast(actionData, {
+    toastId: "admin-payment-detail:error",
+  });
 
   useEffect(() => {
     if (actionData?.status === "error") {
@@ -158,7 +170,21 @@ function AnnulPaymentDialog({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const reasonError = actionData?.fieldErrors.reason;
+  const form = useForm<AnnulPaymentFormValues, unknown, AnnulPaymentFormValues>(
+    {
+      defaultValues: {
+        reason: actionData?.values.reason ?? "",
+      },
+      mode: "onSubmit",
+      resolver: zodResolver(annulPaymentDialogSchema),
+    },
+  );
+
+  useEffect(() => {
+    form.reset({
+      reason: actionData?.values.reason ?? "",
+    });
+  }, [actionData?.values.reason, form]);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -170,26 +196,19 @@ function AnnulPaymentDialog({
             tiene imputaciones activas, anulá primero esas imputaciones.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {actionData?.status === "error" ? (
-          <Alert variant="destructive">
-            <AlertTitle>No pudimos anular el pago</AlertTitle>
-            <AlertDescription>{actionData.message}</AlertDescription>
-          </Alert>
-        ) : null}
-        <form id="admin-payment-annul-form" method="post" noValidate>
+        <form
+          id="admin-payment-annul-form"
+          method="post"
+          noValidate
+          onSubmit={createValidatedNativeSubmitHandler(form)}
+        >
           <input type="hidden" name="intent" value="annul-payment" />
-          <Field data-invalid={reasonError ? true : undefined}>
-            <FieldLabel htmlFor="annul-payment-reason">Motivo</FieldLabel>
-            <FieldContent>
-              <Textarea
-                id="annul-payment-reason"
-                name="reason"
-                defaultValue={actionData?.values.reason ?? ""}
-                aria-invalid={reasonError ? true : undefined}
-              />
-              <FieldError>{reasonError}</FieldError>
-            </FieldContent>
-          </Field>
+          <TextareaField
+            control={form.control}
+            name="reason"
+            id="annul-payment-reason"
+            label="Motivo"
+          />
         </form>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>

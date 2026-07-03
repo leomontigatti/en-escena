@@ -6,6 +6,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { FieldLockIcon } from "@/components/shared/field-lock-icon";
 import {
   MultiCombobox,
   type MultiComboboxOption,
@@ -62,10 +63,7 @@ function MultiComboboxField<
       name={name}
       render={({ field, fieldState }) => {
         const currentValue = Array.isArray(field.value) ? field.value : [];
-        const errorMessage =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
+        const errorMessage = fieldState.error?.message;
         const isInvalid = Boolean(errorMessage);
 
         return (
@@ -90,7 +88,9 @@ function MultiComboboxField<
                 options={options}
                 placeholder={placeholder}
                 searchable={searchable}
-                trailingIcon={trailingIcon}
+                trailingIcon={
+                  disabled ? (trailingIcon ?? <FieldLockIcon />) : trailingIcon
+                }
                 value={currentValue}
               />
               {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}

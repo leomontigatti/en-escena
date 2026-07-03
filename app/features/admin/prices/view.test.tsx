@@ -5,9 +5,9 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
-import type { EventPriceDetailRouteView as EventPriceDetailRouteViewType } from "@/features/admin/prices/route-views";
-import type { EventPricesRouteView as EventPricesRouteViewType } from "@/features/admin/prices/route-views";
-import type { getPriceDisplayName as GetPriceDisplayName } from "@/features/admin/prices/route-views";
+import type { AdministrativeEventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
+import type { AdministrativeEventPricesListView as EventPricesRouteViewType } from "@/features/admin/prices/list/view";
+import type { getPriceDisplayName as GetPriceDisplayName } from "@/features/admin/prices/view-shared";
 import type { AdministrativeEventPriceDetailLoaderData } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
@@ -21,8 +21,14 @@ describe("EventPriceDetailRouteView", () => {
   beforeAll(async () => {
     installReactTestEnvironment();
 
-    ({ EventPriceDetailRouteView, EventPricesRouteView, getPriceDisplayName } =
-      await import("@/features/admin/prices/route-views"));
+    const detailModule = await import("@/features/admin/prices/detail/view");
+    const listModule = await import("@/features/admin/prices/list/view");
+    const viewSharedModule =
+      await import("@/features/admin/prices/view-shared");
+
+    EventPriceDetailRouteView = detailModule.AdministrativeEventPriceDetailView;
+    EventPricesRouteView = listModule.AdministrativeEventPricesListView;
+    getPriceDisplayName = viewSharedModule.getPriceDisplayName;
   }, 30_000);
 
   afterEach(() => {

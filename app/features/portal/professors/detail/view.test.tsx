@@ -27,7 +27,9 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).toContain('name="firstName" value="Ana"');
     expect(markup).toContain('name="lastName" value="Perez"');
     expect(markup).toContain("Acciones");
-    expect(markup).toContain("Este profesor está archivado");
+    expect(markup).toContain(
+      "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
+    );
     expect(markup).toContain("Reactivar");
     expect(markup).toContain("Faltan datos de identificación.");
     expect(markup).not.toContain("validar la identificación");
@@ -44,7 +46,7 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).not.toContain("Activo");
   });
 
-  test("shows field errors and preserves submitted values", () => {
+  test("does not render server field errors and preserves submitted values", () => {
     const markup = renderProfessorDetail({
       actionData: {
         status: "error",
@@ -62,8 +64,8 @@ describe("PortalProfessorDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain("Seleccioná el tipo de documento.");
-    expect(markup).toContain("Ingresá el número de documento.");
+    expect(markup).not.toContain("Seleccioná el tipo de documento.");
+    expect(markup).not.toContain("Ingresá el número de documento.");
     expect(markup).toContain('name="documentNumber" value="1234"');
     expect(markup).toContain('name="documentType" value=""');
   });
@@ -93,7 +95,9 @@ describe("PortalProfessorDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain("Este profesor está archivado");
+    expect(markup).toContain(
+      "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
+    );
     expect(markup).toContain("Reactivar");
     expect(markup).toContain('href="/portal/profesores"');
     expect(markup).toContain("Volver");

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
-import { Controller, type Path, type Resolver, useForm } from "react-hook-form";
+import { useEffect, type ComponentProps, type ReactNode } from "react";
+import { type Path, type Resolver, useForm } from "react-hook-form";
 import type {
   DefaultValues,
   FieldValues,
@@ -9,19 +9,8 @@ import type {
 import { useSubmit } from "react-router";
 import type { ZodTypeAny } from "zod";
 
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  createValidatedRouteSubmitHandler,
-  useApplyServerFieldErrors,
-} from "@/lib/shared/forms";
-import type { ServerFieldErrors } from "@/lib/shared/forms";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { createValidatedRouteSubmitHandler } from "@/lib/shared/forms";
 
 export type AccessFormController<TFieldValues extends FieldValues> = {
   form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
@@ -31,11 +20,9 @@ export type AccessFormController<TFieldValues extends FieldValues> = {
 export function useAccessForm<TFieldValues extends FieldValues>({
   schema,
   values,
-  fieldErrors = {},
 }: {
   schema: ZodTypeAny;
   values: DefaultValues<TFieldValues>;
-  fieldErrors?: ServerFieldErrors;
 }): AccessFormController<TFieldValues> {
   const form = useForm<TFieldValues, unknown, TFieldValues>({
     defaultValues: values,
@@ -51,8 +38,6 @@ export function useAccessForm<TFieldValues extends FieldValues>({
   useEffect(() => {
     form.reset(values);
   }, [form, resetKey]);
-
-  useApplyServerFieldErrors(form, fieldErrors);
 
   const submit = useSubmit();
   const handleSubmit = createValidatedRouteSubmitHandler(form, submit);
@@ -70,48 +55,18 @@ export function AccessTextField<TFieldValues extends FieldValues>({
   controller: AccessFormController<TFieldValues>;
   label: string;
   name: Path<TFieldValues>;
-  description?: React.ReactNode;
+  description?: ReactNode;
 } & Omit<
-  React.ComponentProps<typeof Input>,
+  ComponentProps<"input">,
   "name" | "value" | "defaultValue" | "onChange" | "onBlur"
 >) {
-  const id = useId();
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <TextInputField
       control={controller.form.control}
+      description={description}
+      label={label}
       name={name}
-      render={({ field, fieldState }) => {
-        const describedBy = [
-          descriptionId,
-          fieldState.error ? errorId : undefined,
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        return (
-          <Field data-invalid={fieldState.error ? true : undefined}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <FieldContent>
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
-              <Input
-                {...inputProps}
-                {...field}
-                id={id}
-                aria-describedby={describedBy || undefined}
-                aria-invalid={fieldState.error ? true : undefined}
-              />
-              <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-            </FieldContent>
-          </Field>
-        );
-      }}
+      {...inputProps}
     />
   );
 }

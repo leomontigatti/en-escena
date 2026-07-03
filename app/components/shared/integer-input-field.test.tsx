@@ -33,6 +33,24 @@ function TestIntegerInputField() {
   );
 }
 
+function TestDisabledIntegerInputField() {
+  const form = useForm<TestFormValues>({
+    defaultValues: {
+      amount: "1200",
+    },
+  });
+
+  return (
+    <IntegerInputField
+      control={form.control}
+      disabled
+      id="amount"
+      label="Monto"
+      name="amount"
+    />
+  );
+}
+
 describe("IntegerInput", () => {
   test("renders a text input optimized for integer entry", () => {
     const markup = renderToStaticMarkup(<IntegerInput name="amount" />);
@@ -60,5 +78,13 @@ describe("IntegerInputField", () => {
     expect(markup).toContain('inputMode="numeric"');
     expect(markup).toContain('pattern="[0-9]*"');
     expect(markup).toContain("Ingresá solo números.");
+  });
+
+  test("passes disabled to the input and renders the lock affordance", () => {
+    const markup = renderToStaticMarkup(<TestDisabledIntegerInputField />);
+
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('data-disabled="true"');
+    expect(markup).toContain("lucide-lock");
   });
 });

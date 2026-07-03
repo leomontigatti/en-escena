@@ -620,6 +620,37 @@ describe.sequential("administracion/bailarines route", () => {
     expect(auditorMarkup).not.toContain("Acciones");
   });
 
+  test("shows the shared archived alert in the administrative detail", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.alertas.bailarines.academia@example.com",
+      academyName: "Academia Alertas Bailarines",
+      contactName: "Betina Alertas",
+      phone: "4444-1212",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lara",
+      lastName: "Archivada",
+      birthDate: "2014-03-12",
+      active: false,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.alertas.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
+    });
+
+    const markup = renderDetailRoute(
+      await detailLoader(detailRouteArgs(request, dancer.id)),
+      dancer.id,
+    );
+
+    expect(markup).toContain(
+      "Este bailarín está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
+    );
+    expect(markup).toContain("Reactivar");
+  });
+
   test("renders migrated Bailarines list and detail screens inside the shared administration shell", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({

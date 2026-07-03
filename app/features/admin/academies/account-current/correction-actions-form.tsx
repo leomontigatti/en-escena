@@ -2,12 +2,7 @@ import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -22,13 +17,11 @@ import { defaultAccountCurrentCorrectionValues } from "./shared";
 import type { AccountCurrentLoaderData } from "./types";
 
 export function CorrectionActionsForm({
-  fieldErrors,
   invoices,
   imputations,
   payments,
   values,
 }: {
-  fieldErrors: Partial<Record<string, string>>;
   invoices: Array<AccountCurrentLoaderData["activeDepositInvoices"][number]>;
   imputations: Array<AccountCurrentLoaderData["imputations"][number]>;
   payments: Array<AccountCurrentLoaderData["payments"][number]>;
@@ -51,7 +44,6 @@ export function CorrectionActionsForm({
         {imputations.length > 0 ? (
           <CorrectionForm
             buttonLabel="Anular imputación"
-            fieldErrors={fieldErrors}
             intent="annul-imputation"
             optionLabel="Imputación"
             options={imputations.map((imputation) => ({
@@ -67,7 +59,6 @@ export function CorrectionActionsForm({
         {invoices.length > 0 ? (
           <CorrectionForm
             buttonLabel="Cancelar factura"
-            fieldErrors={fieldErrors}
             intent="cancel-invoice"
             optionLabel="Factura"
             options={invoices.map((invoice) => ({
@@ -83,7 +74,6 @@ export function CorrectionActionsForm({
         {payments.length > 0 ? (
           <CorrectionForm
             buttonLabel="Anular pago"
-            fieldErrors={fieldErrors}
             intent="annul-payment"
             optionLabel="Pago"
             options={payments.map((payment) => ({
@@ -102,7 +92,6 @@ export function CorrectionActionsForm({
 
 function CorrectionForm({
   buttonLabel,
-  fieldErrors,
   intent,
   optionLabel,
   options,
@@ -111,7 +100,6 @@ function CorrectionForm({
   selectName,
 }: {
   buttonLabel: string;
-  fieldErrors: Partial<Record<string, string>>;
   intent: "annul-imputation" | "annul-payment" | "cancel-invoice";
   optionLabel: string;
   options: Array<{ label: string; value: string }>;
@@ -121,23 +109,15 @@ function CorrectionForm({
 }) {
   const selectId = useId();
   const reasonId = useId();
-  const selectError = fieldErrors[selectName];
-  const reasonError = fieldErrors.reason;
 
   return (
     <form method="post" className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="intent" value={intent} />
-      <Field
-        data-invalid={selectError ? true : undefined}
-        orientation="vertical"
-      >
+      <Field orientation="vertical">
         <FieldLabel htmlFor={selectId}>{optionLabel}</FieldLabel>
         <FieldContent>
           <Select name={selectName} defaultValue={selectedValue}>
-            <SelectTrigger
-              id={selectId}
-              aria-invalid={selectError ? true : undefined}
-            >
+            <SelectTrigger id={selectId}>
               <SelectValue
                 placeholder={`Seleccioná ${optionLabel.toLowerCase()}`}
               />
@@ -150,23 +130,13 @@ function CorrectionForm({
               ))}
             </SelectContent>
           </Select>
-          <FieldError>{selectError}</FieldError>
         </FieldContent>
       </Field>
 
-      <Field
-        data-invalid={reasonError ? true : undefined}
-        orientation="vertical"
-      >
+      <Field orientation="vertical">
         <FieldLabel htmlFor={reasonId}>Motivo</FieldLabel>
         <FieldContent>
-          <Textarea
-            id={reasonId}
-            name="reason"
-            defaultValue={reasonValue}
-            aria-invalid={reasonError ? true : undefined}
-          />
-          <FieldError>{reasonError}</FieldError>
+          <Textarea id={reasonId} name="reason" defaultValue={reasonValue} />
         </FieldContent>
       </Field>
 

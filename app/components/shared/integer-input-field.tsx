@@ -11,6 +11,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
   Field,
   FieldContent,
@@ -19,6 +20,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/shared/utils";
 
 type IntegerInputProps = Omit<
   ComponentProps<typeof Input>,
@@ -52,6 +54,7 @@ type IntegerInputFieldProps<
   label: ReactNode;
   labelClassName?: string;
   name: TName;
+  orientation?: ComponentProps<typeof Field>["orientation"];
 };
 
 function getIntegerInputValue(value: string) {
@@ -89,6 +92,8 @@ function IntegerInputField<
   label,
   labelClassName,
   name,
+  orientation,
+  disabled = false,
   ...inputProps
 }: IntegerInputFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
@@ -101,10 +106,7 @@ function IntegerInputField<
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        const errorMessage =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
+        const errorMessage = fieldState.error?.message;
         const isInvalid = Boolean(errorMessage);
         const describedBy = [descriptionId, isInvalid ? errorId : undefined]
           .filter(Boolean)
@@ -113,7 +115,9 @@ function IntegerInputField<
         return (
           <Field
             className={className}
+            data-disabled={disabled ? true : undefined}
             data-invalid={isInvalid ? true : undefined}
+            orientation={orientation}
           >
             <FieldLabel htmlFor={id} className={labelClassName}>
               {label}
@@ -124,14 +128,18 @@ function IntegerInputField<
                   {description}
                 </FieldDescription>
               ) : null}
-              <IntegerInput
-                {...inputProps}
-                {...field}
-                id={id}
-                aria-describedby={describedBy || undefined}
-                aria-invalid={isInvalid ? true : undefined}
-                className={inputClassName}
-              />
+              <div className="relative">
+                <IntegerInput
+                  {...inputProps}
+                  {...field}
+                  id={id}
+                  aria-describedby={describedBy || undefined}
+                  aria-invalid={isInvalid ? true : undefined}
+                  className={cn(disabled && "pr-9", inputClassName)}
+                  disabled={disabled}
+                />
+                {disabled ? <FieldControlLockIcon /> : null}
+              </div>
               <FieldError id={errorId} className={errorClassName}>
                 {errorMessage}
               </FieldError>

@@ -174,7 +174,7 @@ export function getClientDocumentImageValidationMessage(formData: FormData) {
 export function getGeneralActionError(
   actionData?: PortalDancerDetailActionData,
 ) {
-  if (!actionData || hasPortalDancerFieldErrors(actionData.fieldErrors)) {
+  if (!actionData) {
     return null;
   }
 
@@ -182,12 +182,6 @@ export function getGeneralActionError(
     status: "error" as const,
     message: actionData.message,
   };
-}
-
-function hasPortalDancerFieldErrors(
-  fieldErrors: PortalDancerDetailActionData["fieldErrors"],
-) {
-  return Object.values(fieldErrors).some(Boolean);
 }
 
 export function getPortalDancerStatusAction(isActive: boolean) {

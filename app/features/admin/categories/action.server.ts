@@ -3,11 +3,13 @@ import { categoryActionHandler } from "@/lib/admin/events/bases-action/categorie
 import { runEventBasesActionWithHandler } from "@/lib/admin/events/bases-action/runner.server";
 import { type ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { getCategory } from "@/lib/categories/repository.server";
 
 type CategoryIntent = "create-category" | "update-category" | "delete-category";
 
 type HandleCategoryActionOptions = {
   allowedIntents?: CategoryIntent[];
+  recordId?: string;
 };
 
 export async function handleCategoryAction(
@@ -28,10 +30,24 @@ export async function handleCategoryAction(
     };
   }
 
+  if (options.recordId !== undefined) {
+    const category = await getCategory(eventId, options.recordId);
+
+    if (!category) {
+      return {
+        status: "error",
+        message: "No encontramos esa categoría dentro del evento activo.",
+        fieldErrors: {},
+        scope: null,
+      };
+    }
+  }
+
   return runEventBasesActionWithHandler({
     allowedIntents: options.allowedIntents,
     eventId,
     handler: categoryActionHandler,
+    recordId: options.recordId,
     request,
   });
 }

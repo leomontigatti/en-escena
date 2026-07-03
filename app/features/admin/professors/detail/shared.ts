@@ -302,33 +302,6 @@ export function getProfessorReasonValues(
   };
 }
 
-export function getProfessorEditFieldErrors(
-  fieldErrors?: AdministrativeProfessorFieldErrors,
-) {
-  if (!fieldErrors) {
-    return emptyProfessorFieldErrors;
-  }
-
-  return {
-    firstName: fieldErrors.firstName,
-    lastName: fieldErrors.lastName,
-    documentType: fieldErrors.documentType,
-    documentNumber: fieldErrors.documentNumber,
-  } satisfies AdministrativeProfessorFieldErrors;
-}
-
-export function getProfessorReasonFieldErrors(
-  fieldErrors?: AdministrativeProfessorFieldErrors,
-) {
-  if (!fieldErrors) {
-    return emptyProfessorFieldErrors;
-  }
-
-  return {
-    correctionReason: fieldErrors.correctionReason,
-  } satisfies AdministrativeProfessorFieldErrors;
-}
-
 export function getInitialDialogIntent(
   actionData: ProfessorActionError | undefined,
   correctionReasonRequired: boolean,

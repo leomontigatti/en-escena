@@ -109,7 +109,7 @@ export type CategoryInput = EventBaseNameInput & {
   maxAge: number;
   groupTypes: string[];
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevels: string[];
 };
 
 export type ValidCategoryInput = {
@@ -118,7 +118,7 @@ export type ValidCategoryInput = {
   maxAge: number;
   groupTypes: GroupType[];
   modalityIds: string[];
-  experienceLevelIds: ExperienceLevel[];
+  experienceLevels: ExperienceLevel[];
   groupTypeKey: string;
   experienceLevelKey: string;
 };
@@ -427,7 +427,7 @@ export function categoryValues(input: ValidCategoryInput) {
     maxAge: input.maxAge,
     groupTypes: input.groupTypes,
     groupTypeKey: input.groupTypeKey,
-    experienceLevels: input.experienceLevelIds,
+    experienceLevels: input.experienceLevels,
     experienceLevelKey: input.experienceLevelKey,
   };
 }

@@ -7,16 +7,29 @@ import {
   type ChangeEvent,
   type ComponentProps,
 } from "react";
+import {
+  Controller,
+  type Control,
+  type FieldPath,
+  type FieldValues,
+} from "react-hook-form";
 
+import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { cn } from "@/lib/shared/utils";
 
-type FileUploadFieldProps = Omit<ComponentProps<"input">, "type"> & {
+type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   allowedMimeTypes: string[];
   downloadLabel?: string;
   downloadUrl?: string | null;
+  error?: boolean;
   existingPreviewUrl?: string | null;
-  fieldLabel?: string;
   helperText: string;
   invalidTypeMessage?: string;
   label: string;
@@ -25,6 +38,7 @@ type FileUploadFieldProps = Omit<ComponentProps<"input">, "type"> & {
   onSelectedFileChange?: (file: File | null) => void;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
+  onValidationErrorMessageChange?: (message: string | null) => void;
   previewSelectedFile?: boolean;
   removeLabel?: string;
   storageKeyInputName?: string;
@@ -32,13 +46,93 @@ type FileUploadFieldProps = Omit<ComponentProps<"input">, "type"> & {
   uploadedLabel?: string;
 };
 
-export function FileUploadField({
+type FileUploadFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+> = Omit<
+  FileUploadControlProps,
+  | "error"
+  | "name"
+  | "onStorageKeyChange"
+  | "onValidationErrorMessageChange"
+  | "storageKeyValue"
+> & {
+  control: Control<TFieldValues>;
+  fieldLabel: string;
+  fileInputName: string;
+  name: TName;
+  onStorageKeyChange?: (storageKey: string) => void;
+};
+
+export function FileUploadField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>({
+  control,
+  fieldLabel,
+  fileInputName,
+  name,
+  onStorageKeyChange,
+  onValidationErrorChange,
+  storageKeyInputName,
+  ...controlProps
+}: FileUploadFieldProps<TFieldValues, TName>) {
+  const generatedId = useId();
+  const id = controlProps.id ?? generatedId;
+  const [validationErrorMessage, setValidationErrorMessage] = useState<
+    string | null
+  >(null);
+
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const storageKeyValue =
+          typeof field.value === "string" ? field.value : "";
+        const errorMessage =
+          fieldState.error?.message ?? validationErrorMessage;
+        const isInvalid = Boolean(errorMessage);
+
+        return (
+          <Field
+            data-disabled={controlProps.disabled ? true : undefined}
+            data-invalid={isInvalid ? true : undefined}
+          >
+            <FieldLabel htmlFor={id}>{fieldLabel}</FieldLabel>
+            <FieldContent>
+              <FileUploadControl
+                {...controlProps}
+                id={id}
+                name={fileInputName}
+                error={isInvalid}
+                storageKeyInputName={storageKeyInputName ?? field.name}
+                storageKeyValue={storageKeyValue}
+                onBlur={field.onBlur}
+                onStorageKeyChange={(storageKey) => {
+                  field.onChange(storageKey);
+                  onStorageKeyChange?.(storageKey);
+                }}
+                onValidationErrorChange={onValidationErrorChange}
+                onValidationErrorMessageChange={setValidationErrorMessage}
+              />
+              <FieldError>{errorMessage}</FieldError>
+            </FieldContent>
+          </Field>
+        );
+      }}
+    />
+  );
+}
+
+function FileUploadControl({
   allowedMimeTypes,
   className,
+  disabled = false,
   downloadLabel = "Descargar archivo",
   downloadUrl,
+  error = false,
   existingPreviewUrl,
-  fieldLabel,
   helperText,
   id: providedId,
   invalidTypeMessage = "El archivo debe ser JPG, PNG o WEBP.",
@@ -49,13 +143,14 @@ export function FileUploadField({
   onSelectedFileChange,
   onStorageKeyChange,
   onValidationErrorChange,
+  onValidationErrorMessageChange,
   previewSelectedFile = true,
   removeLabel = "Borrar imagen",
   storageKeyInputName,
   storageKeyValue = "",
   uploadedLabel = "Imagen cargada",
   ...props
-}: FileUploadFieldProps) {
+}: FileUploadControlProps) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,11 +162,12 @@ export function FileUploadField({
   const downloadHref = currentStorageKey.length > 0 ? downloadUrl : null;
   const displayedPreviewUrl =
     previewUrl ?? (currentStorageKey ? existingPreviewUrl : null);
-  const showsFileActions = hasImage || errorMessage !== null;
+  const showsFileActions = !disabled && (hasImage || errorMessage !== null);
 
   useEffect(() => {
     onValidationErrorChange?.(errorMessage !== null);
-  }, [errorMessage, onValidationErrorChange]);
+    onValidationErrorMessageChange?.(errorMessage);
+  }, [errorMessage, onValidationErrorChange, onValidationErrorMessageChange]);
 
   useEffect(() => {
     setCurrentStorageKey(storageKeyValue);
@@ -99,15 +195,13 @@ export function FileUploadField({
         name={`${props.name ?? id}ValidationError`}
         value={errorMessage ?? ""}
       />
-      {fieldLabel ? (
-        <span className="text-sm leading-snug font-medium">{fieldLabel}</span>
-      ) : null}
       <div className="relative">
         <label
           htmlFor={id}
           className={cn(
             "flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-input bg-background px-4 py-6 text-center transition-colors hover:bg-muted/50 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/50 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:bg-input/50 has-disabled:opacity-50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20",
             displayedPreviewUrl && "px-3 py-3",
+            disabled && "pr-9",
             className,
           )}
           onDragOver={(event) => {
@@ -115,6 +209,10 @@ export function FileUploadField({
           }}
           onDrop={(event) => {
             event.preventDefault();
+
+            if (disabled) {
+              return;
+            }
 
             const input = inputRef.current;
             const files = event.dataTransfer.files;
@@ -158,8 +256,9 @@ export function FileUploadField({
             ref={inputRef}
             id={id}
             type="file"
-            aria-invalid={errorMessage ? true : undefined}
+            aria-invalid={error || errorMessage ? true : undefined}
             className="sr-only"
+            disabled={disabled}
             onChange={(event) => {
               handleSelectedFile(
                 event.currentTarget,
@@ -168,13 +267,14 @@ export function FileUploadField({
               );
             }}
           />
+          {disabled ? <FieldControlLockIcon /> : null}
         </label>
         {showsFileActions || downloadHref ? (
           <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
             {downloadHref ? (
               <Button asChild variant="outline" size="icon-sm">
                 <a href={downloadHref} target="_blank" rel="noreferrer">
-                  <Download aria-hidden="true" />
+                  <Download aria-hidden="true" data-icon />
                   <span className="sr-only">{downloadLabel}</span>
                 </a>
               </Button>
@@ -186,16 +286,13 @@ export function FileUploadField({
                 size="icon-sm"
                 onClick={clearFile}
               >
-                <Trash2 aria-hidden="true" />
+                <Trash2 aria-hidden="true" data-icon />
                 <span className="sr-only">{removeLabel}</span>
               </Button>
             ) : null}
           </div>
         ) : null}
       </div>
-      {errorMessage ? (
-        <p className="text-sm text-destructive">{errorMessage}</p>
-      ) : null}
     </div>
   );
 

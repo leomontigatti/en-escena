@@ -109,7 +109,6 @@ export default function AcademyOnboardingRoute() {
   const form = useAccessForm({
     schema: academyOnboardingSchema,
     values: actionData?.values ?? emptyAcademyOnboardingValues,
-    fieldErrors: actionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

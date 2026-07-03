@@ -6,6 +6,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
   Field,
   FieldContent,
@@ -14,6 +15,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/shared/utils";
 
 type TextInputFieldProps<
   TFieldValues extends FieldValues,
@@ -29,6 +31,7 @@ type TextInputFieldProps<
   | "onBlur"
   | "onChange"
   | "value"
+  | "placeholder"
 > & {
   className?: string;
   contentClassName?: string;
@@ -40,6 +43,8 @@ type TextInputFieldProps<
   label: ReactNode;
   labelClassName?: string;
   name: TName;
+  orientation?: ComponentProps<typeof Field>["orientation"];
+  placeholder?: string;
 };
 
 function TextInputField<
@@ -56,6 +61,9 @@ function TextInputField<
   label,
   labelClassName,
   name,
+  orientation,
+  disabled = false,
+  placeholder,
   ...inputProps
 }: TextInputFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
@@ -68,10 +76,7 @@ function TextInputField<
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        const errorMessage =
-          fieldState.error?.type === "server"
-            ? undefined
-            : fieldState.error?.message;
+        const errorMessage = fieldState.error?.message;
         const isInvalid = Boolean(errorMessage);
         const describedBy = [descriptionId, isInvalid ? errorId : undefined]
           .filter(Boolean)
@@ -80,7 +85,9 @@ function TextInputField<
         return (
           <Field
             className={className}
+            data-disabled={disabled ? true : undefined}
             data-invalid={isInvalid ? true : undefined}
+            orientation={orientation}
           >
             <FieldLabel htmlFor={id} className={labelClassName}>
               {label}
@@ -91,14 +98,19 @@ function TextInputField<
                   {description}
                 </FieldDescription>
               ) : null}
-              <Input
-                {...inputProps}
-                {...field}
-                id={id}
-                aria-describedby={describedBy || undefined}
-                aria-invalid={isInvalid ? true : undefined}
-                className={inputClassName}
-              />
+              <div className="relative">
+                <Input
+                  {...inputProps}
+                  {...field}
+                  id={id}
+                  aria-describedby={describedBy || undefined}
+                  aria-invalid={isInvalid ? true : undefined}
+                  className={cn(disabled && "pr-9", inputClassName)}
+                  disabled={disabled}
+                  placeholder={placeholder}
+                />
+                {disabled ? <FieldControlLockIcon /> : null}
+              </div>
               <FieldError id={errorId} className={errorClassName}>
                 {errorMessage}
               </FieldError>
@@ -110,4 +122,4 @@ function TextInputField<
   );
 }
 
-export { TextInputField, type TextInputFieldProps };
+export { TextInputField };

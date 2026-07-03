@@ -6,6 +6,8 @@ import { describe, expect, test } from "vitest";
 import type {
   CategoryActionData,
   CategoryDetailLoaderData,
+  CategoryFormLoaderData,
+  CategoriesListLoaderData,
 } from "@/features/admin/categories/shared";
 import { AdministracionCategoriaDetalleRouteView } from "../../../routes/administracion.categorias_.$categoryId";
 import { AdministracionCategoriaNuevaRouteView } from "../../../routes/administracion.categorias_.nueva";
@@ -15,7 +17,7 @@ describe("administracion.categorias route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
       createElement(CategoriesRouteView, {
-        loaderData: loaderData({
+        loaderData: categoriesListLoaderData({
           categories: [category("categoria_1", "Juvenil")],
         }),
       }),
@@ -31,7 +33,7 @@ describe("administracion.categorias route adapters", () => {
   test("renders the create feature view from the create route adapter", () => {
     const markup = renderRouteView(
       createElement(AdministracionCategoriaNuevaRouteView, {
-        loaderData: loaderData(),
+        loaderData: categoryFormLoaderData(),
         actionData: actionData("Revisá los campos."),
       }),
       "/administracion/categorias/nueva",
@@ -46,12 +48,11 @@ describe("administracion.categorias route adapters", () => {
   test("renders the detail feature view from the detail route adapter", () => {
     const markup = renderRouteView(
       createElement(AdministracionCategoriaDetalleRouteView, {
-        loaderData: loaderData({
-          categories: [category("categoria_1", "Juvenil")],
+        loaderData: categoryDetailLoaderData({
+          category: category("categoria_1", "Juvenil"),
           modalities: [modality("modalidad_1", "Jazz")],
         }),
         actionData: actionData("No pudimos guardar."),
-        categoryId: "categoria_1",
       }),
       "/administracion/categorias/categoria_1",
     );
@@ -66,8 +67,7 @@ describe("administracion.categorias route adapters", () => {
   test("renders the not-found detail state from the detail route adapter", () => {
     const markup = renderRouteView(
       createElement(AdministracionCategoriaDetalleRouteView, {
-        loaderData: loaderData(),
-        categoryId: "categoria_inexistente",
+        loaderData: categoryDetailLoaderData(),
       }),
       "/administracion/categorias/categoria_inexistente",
     );
@@ -96,7 +96,7 @@ function category(id: string, name: string) {
   return {
     createdAt: new Date("2026-01-01T00:00:00Z"),
     eventId: "evento_1",
-    experienceLevelIds: ["amateur"],
+    experienceLevels: ["amateur"],
     experienceLevelKey: "amateur",
     groupTypeKey: "solo",
     groupTypes: ["solo" as const],
@@ -117,13 +117,32 @@ function modality(id: string, name: string) {
   };
 }
 
-function loaderData(
+function categoriesListLoaderData(
+  overrides: Partial<CategoriesListLoaderData> = {},
+): CategoriesListLoaderData {
+  return {
+    categories: [],
+    selectedEventId: "evento_1",
+    ...overrides,
+  };
+}
+
+function categoryFormLoaderData(
+  overrides: Partial<CategoryFormLoaderData> = {},
+): CategoryFormLoaderData {
+  return {
+    modalities: [],
+    selectedEventId: "evento_1",
+    ...overrides,
+  };
+}
+
+function categoryDetailLoaderData(
   overrides: Partial<CategoryDetailLoaderData> = {},
 ): CategoryDetailLoaderData {
   return {
-    categories: [],
-    modalities: [],
-    selectedEventId: "evento_1",
+    ...categoryFormLoaderData(),
+    category: null,
     ...overrides,
   };
 }

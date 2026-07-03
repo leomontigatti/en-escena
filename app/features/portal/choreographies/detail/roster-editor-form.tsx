@@ -7,11 +7,7 @@ import { FileUploadField } from "@/components/shared/file-upload-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-} from "@/components/ui/field";
+import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import {
   ChoreographySelectPreviewField,
@@ -24,7 +20,6 @@ import {
   choreographyMusicMaxFileSizeBytes,
   choreographyMusicMaxFileSizeMessage,
   choreographyMusicPresentationBlockedMessage,
-  choreographyMusicUploadErrorMessage,
   choreographyMusicUploadErrorToastId,
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
@@ -51,24 +46,13 @@ export function ChoreographyRosterEditorForm({
   );
   const hasActiveFinancialLink =
     loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
-  const musicFieldError =
-    actionData?.status === "update-error" &&
-    actionData.section === "music" &&
-    actionData.message !== choreographyMusicUploadErrorMessage
-      ? actionData.message
-      : null;
-
   useEffect(() => {
     setMusicStorageKey(selectedMusicStorageKey);
     setSelectedMusicFileName(null);
   }, [selectedMusicStorageKey]);
 
   useEffect(() => {
-    if (
-      actionData?.status === "update-error" &&
-      actionData.section === "music" &&
-      actionData.message === choreographyMusicUploadErrorMessage
-    ) {
+    if (actionData?.status === "update-error") {
       toast.error(actionData.message, {
         id: choreographyMusicUploadErrorToastId,
       });
@@ -234,10 +218,10 @@ export function ChoreographyRosterEditorForm({
               </FieldDescription>
             ) : null}
             <FileUploadField
-              name="musicFile"
+              control={form.control}
+              name="musicStorageKey"
+              fileInputName="musicFile"
               disabled={!canEditMusic}
-              storageKeyInputName="musicStorageKey"
-              storageKeyValue={musicStorageKey}
               fieldLabel="Archivo de música"
               label="Arrastrá o hacé click para cargar la música"
               uploadedLabel="Archivo de música cargado"
@@ -259,9 +243,6 @@ export function ChoreographyRosterEditorForm({
               <FieldDescription>
                 {choreographyMusicPresentationBlockedMessage}
               </FieldDescription>
-            ) : null}
-            {musicFieldError ? (
-              <FieldError>{musicFieldError}</FieldError>
             ) : null}
           </FieldGroup>
         </CardContent>

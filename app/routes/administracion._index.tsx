@@ -9,11 +9,12 @@ import {
   Users,
 } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertStack } from "@/components/shared/alert-stack";
 import {
   HomeAccessCard,
   type HomeAccessCardItem,
 } from "@/components/shared/home-access-card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
@@ -81,24 +82,26 @@ export function AdministracionIndexRouteView({
         </p>
       </section>
 
-      {readinessAlertEvent ? (
-        <Alert variant="warning">
-          <TriangleAlert
-            aria-hidden="true"
-            className="self-center !translate-y-0"
-          />
-          <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
-            <span className="font-medium text-foreground">
-              Falta configurar bases para el evento activo.
-            </span>
-            <span>Podés revisarlas acá</span>
-            <Link to={`/administracion/eventos/${readinessAlertEvent.id}`}>
-              {readinessAlertEvent.name}
-            </Link>
-            <span>.</span>
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <AlertStack>
+        {readinessAlertEvent ? (
+          <Alert variant="warning">
+            <TriangleAlert
+              aria-hidden="true"
+              className="self-center !translate-y-0"
+            />
+            <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+              <span className="font-medium text-foreground">
+                Falta configurar bases para el evento activo.
+              </span>
+              <span>Podés revisarlas acá</span>
+              <Link to={`/administracion/eventos/${readinessAlertEvent.id}`}>
+                {readinessAlertEvent.name}
+              </Link>
+              <span>.</span>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+      </AlertStack>
 
       <nav
         className="grid gap-4 sm:grid-cols-2"

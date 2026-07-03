@@ -20,5 +20,10 @@ function isGroupType(value: string): value is GroupType {
   return groupTypeValues.includes(value as GroupType);
 }
 
-export { groupTypeLabels, groupTypeOptions, groupTypeValues, isGroupType };
-export type { GroupType };
+export {
+  groupTypeLabels,
+  groupTypeOptions,
+  groupTypeValues,
+  isGroupType,
+  type GroupType,
+};

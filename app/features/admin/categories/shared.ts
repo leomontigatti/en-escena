@@ -3,7 +3,7 @@ import type { categories, modalities } from "@/db/schema";
 
 type CategoryRow = Omit<typeof categories.$inferSelect, "experienceLevels"> & {
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevels: string[];
 };
 
 type ModalityRow = typeof modalities.$inferSelect;
@@ -17,7 +17,7 @@ type CategoryFormLoaderData = {
   modalities: ModalityRow[];
 };
 type CategoryDetailLoaderData = CategoryFormLoaderData & {
-  categories: CategoryRow[];
+  category: CategoryRow | null;
 };
 
 const basePath = "/administracion/categorias";

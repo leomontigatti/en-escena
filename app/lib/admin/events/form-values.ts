@@ -123,6 +123,13 @@ export function parseEventFormValues(
   };
 }
 
+export function getEventFormErrorMessage(
+  fieldErrors: FieldErrors,
+  fallback: string,
+) {
+  return Object.values(fieldErrors).find((message) => message) ?? fallback;
+}
+
 export function defaultEventFormValues(): EventFormValues {
   return {
     name: "",

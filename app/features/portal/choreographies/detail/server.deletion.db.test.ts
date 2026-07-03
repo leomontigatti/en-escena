@@ -87,7 +87,7 @@ describe.sequential("portal choreography deletion", () => {
     }
     expect(deleteResponse.status).toBe(302);
     expect(deleteResponse.headers.get("location")).toBe(
-      "/portal/coreografias?eliminada=1",
+      "/portal/coreografias?notificacion=coreografia-eliminada",
     );
 
     await expect(

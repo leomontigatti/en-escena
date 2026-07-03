@@ -23,7 +23,6 @@ export function AdministrativeEventCreateView({
   const defaultValues = actionData?.values ?? defaultEventFormValues();
   const eventForm = useEventForm({
     values: defaultValues,
-    fieldErrors: actionData?.fieldErrors,
     pendingScope: { intent: "create" },
   });
 

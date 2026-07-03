@@ -1,7 +1,12 @@
-import { useId } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { Controller, useForm, type Control } from "react-hook-form";
+import { useSubmit } from "react-router";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input-field";
+import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { SelectField } from "@/components/shared/select-field";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,14 +16,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -28,9 +25,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 
 import { formatAmount } from "./formatters";
 import {
+  balanceInvoiceSchema,
+  type BalanceInvoiceFormValues,
   defaultBalanceInvoiceValues,
   type BalanceInvoicePreviewData,
 } from "./shared";
@@ -38,19 +38,25 @@ import type { AccountCurrentLoaderData } from "./types";
 
 export function BalanceInvoiceForm({
   candidates,
-  fieldErrors,
   preview,
   values,
 }: {
   candidates: AccountCurrentLoaderData["balanceInvoiceCandidates"];
-  fieldErrors: Partial<Record<string, string>>;
   preview?: BalanceInvoicePreviewData;
   values: ReturnType<typeof defaultBalanceInvoiceValues>;
 }) {
-  const choreographyId = useId();
-  const administrativeDiscountAmountId = useId();
-  const administrativeDiscountInternalReasonId = useId();
-  const administrativeDiscountPublicLabelId = useId();
+  const form = useForm<BalanceInvoiceFormValues>({
+    defaultValues: values,
+    mode: "onSubmit",
+    resolver: zodResolver(balanceInvoiceSchema),
+  });
+  const submit = useSubmit();
+  const { reset } = form;
+  const resetKey = JSON.stringify(values);
+
+  useEffect(() => {
+    reset(values);
+  }, [reset, resetKey, values]);
 
   return (
     <Card>
@@ -60,107 +66,60 @@ export function BalanceInvoiceForm({
       <CardContent className="flex flex-col gap-5">
         {candidates.length > 0 ? (
           <>
-            <form method="post" className="flex flex-col gap-5" noValidate>
+            <form
+              method="post"
+              className="flex flex-col gap-5"
+              noValidate
+              onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
+            >
               <input
                 type="hidden"
                 name="intent"
                 value="preview-balance-invoice"
               />
               <FieldGroup className="grid gap-5 md:grid-cols-2">
-                <Field
-                  data-invalid={fieldErrors.choreographyId ? true : undefined}
-                  orientation="vertical"
-                >
-                  <FieldLabel htmlFor={choreographyId}>Coreografía</FieldLabel>
-                  <FieldContent>
-                    <Select
-                      name="choreographyId"
-                      defaultValue={values.choreographyId}
-                    >
-                      <SelectTrigger id={choreographyId}>
-                        <SelectValue placeholder="Seleccioná una Coreografía" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {candidates.map((candidate) => (
-                          <SelectItem key={candidate.id} value={candidate.id}>
-                            {candidate.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError>{fieldErrors.choreographyId}</FieldError>
-                  </FieldContent>
-                </Field>
+                <SelectField
+                  control={form.control}
+                  id="balance-invoice-choreography"
+                  label="Coreografía"
+                  name="choreographyId"
+                  options={candidates.map((candidate) => ({
+                    label: candidate.name,
+                    value: candidate.id,
+                  }))}
+                  placeholder="Seleccioná una Coreografía"
+                />
 
                 <DateOnlyField
-                  defaultValue={values.issueDate}
-                  error={fieldErrors.issueDate}
+                  control={form.control}
                   id="balance-invoice-issue-date"
                   label="Fecha de emisión"
                   name="issueDate"
                 />
 
-                <Field
-                  data-invalid={
-                    fieldErrors.administrativeDiscountAmount ? true : undefined
-                  }
-                  orientation="vertical"
-                >
-                  <FieldLabel htmlFor={administrativeDiscountAmountId}>
-                    Descuento administrativo
-                  </FieldLabel>
-                  <FieldContent>
-                    <IntegerInput
-                      id={administrativeDiscountAmountId}
-                      name="administrativeDiscountAmount"
-                      min="0"
-                      step="1"
-                      defaultValue={values.administrativeDiscountAmount}
-                    />
-                    <FieldError>
-                      {fieldErrors.administrativeDiscountAmount}
-                    </FieldError>
-                  </FieldContent>
-                </Field>
+                <IntegerInputField
+                  control={form.control}
+                  id="balance-invoice-administrative-discount-amount"
+                  label="Descuento administrativo"
+                  min="0"
+                  name="administrativeDiscountAmount"
+                  step="1"
+                />
 
-                <Field
-                  data-invalid={
-                    fieldErrors.administrativeDiscountInternalReason
-                      ? true
-                      : undefined
-                  }
-                  orientation="vertical"
-                >
-                  <FieldLabel htmlFor={administrativeDiscountInternalReasonId}>
-                    Motivo interno
-                  </FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id={administrativeDiscountInternalReasonId}
-                      name="administrativeDiscountInternalReason"
-                      defaultValue={values.administrativeDiscountInternalReason}
-                    />
-                    <FieldError>
-                      {fieldErrors.administrativeDiscountInternalReason}
-                    </FieldError>
-                  </FieldContent>
-                </Field>
+                <BalanceInvoiceTextareaField
+                  control={form.control}
+                  id="balance-invoice-administrative-discount-internal-reason"
+                  label="Motivo interno"
+                  name="administrativeDiscountInternalReason"
+                />
 
-                <Field className="md:col-span-2" orientation="vertical">
-                  <FieldLabel htmlFor={administrativeDiscountPublicLabelId}>
-                    Etiqueta pública opcional
-                  </FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id={administrativeDiscountPublicLabelId}
-                      name="administrativeDiscountPublicLabel"
-                      defaultValue={values.administrativeDiscountPublicLabel}
-                    />
-                    <FieldError>
-                      {fieldErrors.administrativeDiscountPublicLabel}
-                    </FieldError>
-                  </FieldContent>
-                </Field>
+                <TextInputField
+                  className="md:col-span-2"
+                  control={form.control}
+                  id="balance-invoice-administrative-discount-public-label"
+                  label="Etiqueta pública opcional"
+                  name="administrativeDiscountPublicLabel"
+                />
               </FieldGroup>
 
               <div className="flex justify-end">
@@ -263,5 +222,44 @@ export function BalanceInvoiceForm({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function BalanceInvoiceTextareaField({
+  control,
+  id,
+  label,
+  name,
+}: {
+  control: Control<BalanceInvoiceFormValues>;
+  id: string;
+  label: string;
+  name: "administrativeDiscountInternalReason";
+}) {
+  const errorId = `${id}-error`;
+
+  return (
+    <Controller<BalanceInvoiceFormValues, typeof name>
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field
+          data-invalid={fieldState.error ? true : undefined}
+          orientation="vertical"
+        >
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id={id}
+              aria-describedby={fieldState.error ? errorId : undefined}
+              aria-invalid={fieldState.error ? true : undefined}
+              {...field}
+              value={field.value ?? ""}
+            />
+            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
+    />
   );
 }

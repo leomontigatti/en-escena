@@ -1,18 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, CircleAlert, RotateCcw, TriangleAlert } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import {
-  Controller,
-  useForm,
-  type FieldPath,
-  type UseFormReturn,
-} from "react-hook-form";
+import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -25,38 +23,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FieldGroup } from "@/components/ui/field";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
   archiveProfessorIntent,
-  noDocumentTypeSelectValue,
   professorDetailFormId,
   professorSchema,
   reactivateProfessorIntent,
   updateProfessorIntent,
   type PortalProfessorDetailActionData,
   type PortalProfessorDetailLoaderData,
-  type ProfessorFieldErrors,
   type ProfessorFormValues,
   type ProfessorStatusIntent,
 } from "@/features/portal/professors/detail/shared";
@@ -76,8 +57,6 @@ type ProfessorStatusAction = {
   confirmButtonLabel: string;
   confirmButtonVariant: "default" | "destructive";
 };
-
-const emptyProfessorFieldErrors: ProfessorFieldErrors = {};
 
 const professorStatusActions = {
   [archiveProfessorIntent]: {
@@ -122,7 +101,6 @@ export function PortalProfessorDetailRouteView({
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = useProfessorForm({
-    fieldErrors: actionData?.fieldErrors,
     submit,
     values: formValues,
   });
@@ -177,26 +155,12 @@ export function PortalProfessorDetailRouteView({
 
         <AlertStack>
           {!loaderData.professor.active ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertDescription>
-                Este profesor está archivado. Reactivalo para que vuelva a
-                aparecer en las listas activas y en próximas selecciones de
-                coreografías.
-              </AlertDescription>
-              <AlertAction className="top-1/2 -translate-y-1/2">
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  onClick={() => {
-                    setStatusDialogIntent(reactivateProfessorIntent);
-                  }}
-                >
-                  Reactivar
-                </Button>
-              </AlertAction>
-            </Alert>
+            <ArchivedPersonAlert
+              personLabel="profesor"
+              onReactivate={() => {
+                setStatusDialogIntent(reactivateProfessorIntent);
+              }}
+            />
           ) : null}
           {loaderData.professor.isIncomplete ? (
             <Alert variant="warning">
@@ -224,23 +188,17 @@ export function PortalProfessorDetailRouteView({
               <FieldGroup className="grid gap-5 md:grid-cols-2">
                 <ProfessorTextField
                   form={form.form}
-                  error={actionData?.fieldErrors.firstName}
                   label="Nombre"
                   name="firstName"
                 />
                 <ProfessorTextField
                   form={form.form}
-                  error={actionData?.fieldErrors.lastName}
                   label="Apellido"
                   name="lastName"
                 />
-                <ProfessorDocumentTypeField
-                  error={actionData?.fieldErrors.documentType}
-                  form={form.form}
-                />
+                <ProfessorDocumentTypeField form={form.form} />
                 <ProfessorTextField
                   form={form.form}
-                  error={actionData?.fieldErrors.documentNumber}
                   label="Número de documento"
                   name="documentNumber"
                 />
@@ -275,11 +233,9 @@ export function PortalProfessorDetailRouteView({
 }
 
 function useProfessorForm({
-  fieldErrors = emptyProfessorFieldErrors,
   submit,
   values,
 }: {
-  fieldErrors?: ProfessorFieldErrors;
   submit: ReactRouterFormSubmit;
   values: ProfessorFormValues;
 }) {
@@ -299,8 +255,6 @@ function useProfessorForm({
     values.lastName,
   ]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
-
   return {
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
@@ -310,99 +264,28 @@ function useProfessorForm({
 }
 
 function ProfessorTextField({
-  error,
   form,
   label,
   name,
 }: {
-  error?: string;
   form: ProfessorFormReturn;
   label: string;
   name: FieldPath<ProfessorFormValues>;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
   const autoComplete = getProfessorFieldAutoComplete(name);
 
   return (
-    <Controller
+    <TextInputField
+      autoComplete={autoComplete}
       control={form.control}
+      label={label}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error || error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              autoComplete={autoComplete}
-              aria-invalid={fieldState.error || error ? true : undefined}
-              aria-describedby={fieldState.error || error ? errorId : undefined}
-              {...field}
-            />
-            <FieldError id={errorId}>
-              {fieldState.error?.message ?? error}
-            </FieldError>
-          </FieldContent>
-        </Field>
-      )}
     />
   );
 }
 
-function ProfessorDocumentTypeField({
-  error,
-  form,
-}: {
-  error?: string;
-  form: ProfessorFormReturn;
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <Controller
-      control={form.control}
-      name="documentType"
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error || error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
-          <FieldContent>
-            <Select
-              value={field.value || noDocumentTypeSelectValue}
-              onValueChange={(value) => {
-                field.onChange(
-                  value === noDocumentTypeSelectValue ? "" : value,
-                );
-              }}
-            >
-              <input type="hidden" name={field.name} value={field.value} />
-              <SelectTrigger
-                id={id}
-                aria-invalid={fieldState.error || error ? true : undefined}
-                aria-describedby={
-                  fieldState.error || error ? errorId : undefined
-                }
-                className="h-10 w-full"
-              >
-                <SelectValue placeholder="Sin documento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={noDocumentTypeSelectValue}>
-                  Sin documento
-                </SelectItem>
-                <SelectItem value="dni">DNI</SelectItem>
-                <SelectItem value="passport">Pasaporte</SelectItem>
-                <SelectItem value="other">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldError id={errorId}>
-              {fieldState.error?.message ?? error}
-            </FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
-  );
+function ProfessorDocumentTypeField({ form }: { form: ProfessorFormReturn }) {
+  return <DocumentTypeSelectField control={form.control} name="documentType" />;
 }
 
 function ProfessorStatusDialog({
@@ -497,7 +380,7 @@ function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {
 }
 
 function getGeneralActionError(actionData?: ActionData) {
-  if (!actionData || hasFieldErrors(actionData.fieldErrors)) {
+  if (!actionData) {
     return null;
   }
 
@@ -505,8 +388,4 @@ function getGeneralActionError(actionData?: ActionData) {
     status: "error" as const,
     message: actionData.message,
   };
-}
-
-function hasFieldErrors(fieldErrors: ProfessorFieldErrors) {
-  return Object.values(fieldErrors).some(Boolean);
 }

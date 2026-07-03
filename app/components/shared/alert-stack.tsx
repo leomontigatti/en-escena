@@ -1,11 +1,21 @@
-import { Children, type ReactNode } from "react";
+import { Children, type ComponentProps } from "react";
 
-export function AlertStack({ children }: { children: ReactNode }) {
+import { cn } from "@/lib/shared/utils";
+
+export function AlertStack({
+  children,
+  className,
+  ...props
+}: ComponentProps<"div">) {
   const alerts = Children.toArray(children);
 
   if (alerts.length === 0) {
     return null;
   }
 
-  return <div className="flex flex-col gap-3">{alerts}</div>;
+  return (
+    <div className={cn("flex flex-col gap-3", className)} {...props}>
+      {alerts}
+    </div>
+  );
 }

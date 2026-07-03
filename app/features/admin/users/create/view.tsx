@@ -1,35 +1,22 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
-import { useEffect, useId } from "react";
-import { Controller, type Control, useForm } from "react-hook-form";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
+import { SelectField } from "@/components/shared/select-field";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FieldGroup } from "@/components/ui/field";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -38,13 +25,15 @@ import {
   createInternalUserIntent,
   createInternalUserSchema,
   defaultCreateInternalUserFormValues,
-  emptyCreateInternalUserFieldErrors,
   type CreateInternalUserActionData,
-  type CreateInternalUserField,
   type CreateInternalUserFormValues,
 } from "./shared";
 
-type CreateInternalUserControl = Control<CreateInternalUserFormValues>;
+const createInternalUserRoleOptions = [
+  { value: "admin", label: "Administrador" },
+  { value: "auditor", label: "Auditor" },
+  { value: "judge", label: "Juez" },
+];
 
 export type AdministracionUsuariosNuevoRouteViewProps = {
   actionData?: CreateInternalUserActionData;
@@ -75,11 +64,6 @@ export function AdministracionUsuariosNuevoRouteView({
     formValues.temporaryPassword,
   ]);
 
-  useApplyServerFieldErrors(
-    form,
-    actionData?.fieldErrors ?? emptyCreateInternalUserFieldErrors,
-  );
-
   useServerActionToast(actionData, {
     toastId: routeNotificationToastIds["user-form-error"],
   });
@@ -98,16 +82,18 @@ export function AdministracionUsuariosNuevoRouteView({
       requireSelectedEvent={false}
     >
       <div className="flex w-full flex-col gap-6">
-        <Alert variant="warning">
-          <TriangleAlert aria-hidden="true" />
-          <AlertTitle>
-            Compartí la contraseña temporal por un canal seguro
-          </AlertTitle>
-          <AlertDescription>
-            La contraseña temporal no vuelve a mostrarse después de guardar y no
-            se registra en auditoría.
-          </AlertDescription>
-        </Alert>
+        <AlertStack>
+          <Alert variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            <AlertTitle>
+              Compartí la contraseña temporal por un canal seguro
+            </AlertTitle>
+            <AlertDescription>
+              La contraseña temporal no vuelve a mostrarse después de guardar y
+              no se registra en auditoría.
+            </AlertDescription>
+          </Alert>
+        </AlertStack>
 
         <form method="post" noValidate onSubmit={handleSubmit}>
           <input type="hidden" name="intent" value={createInternalUserIntent} />
@@ -131,39 +117,50 @@ export function AdministracionUsuariosNuevoRouteView({
             }
           >
             <FieldGroup>
-              <CreateInternalUserTextField
+              <TextInputField
                 autoComplete="name"
                 control={form.control}
                 label="Nombre visible"
                 name="name"
+                orientation="responsive"
               />
 
-              <CreateInternalUserTextField
+              <TextInputField
                 autoComplete="username"
                 control={form.control}
                 description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
                 label="Nombre de usuario interno"
                 name="internalUsername"
+                orientation="responsive"
                 spellCheck={false}
               />
 
-              <CreateInternalUserRoleField control={form.control} />
+              <SelectField
+                control={form.control}
+                label="Permiso principal"
+                name="role"
+                options={createInternalUserRoleOptions}
+                orientation="responsive"
+                placeholder="Elegí un permiso"
+              />
 
-              <CreateInternalUserTextField
+              <TextInputField
                 autoComplete="new-password"
                 control={form.control}
                 description="Debe tener al menos 8 caracteres."
                 label="Contraseña temporal"
                 name="temporaryPassword"
+                orientation="responsive"
                 type="password"
               />
 
-              <CreateInternalUserTextField
+              <TextInputField
                 autoComplete="email"
                 control={form.control}
                 description="Opcional. No se verifica ni se usa para ingresar."
                 label="Correo"
                 name="email"
+                orientation="responsive"
                 type="email"
               />
             </FieldGroup>
@@ -171,102 +168,5 @@ export function AdministracionUsuariosNuevoRouteView({
         </form>
       </div>
     </AdminResourceLayout>
-  );
-}
-
-function CreateInternalUserTextField({
-  autoComplete,
-  control,
-  description,
-  label,
-  name,
-  spellCheck,
-  type = "text",
-}: {
-  autoComplete?: string;
-  control: CreateInternalUserControl;
-  description?: string;
-  label: string;
-  name: CreateInternalUserField;
-  spellCheck?: boolean;
-  type?: React.InputHTMLAttributes<HTMLInputElement>["type"];
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <Controller<CreateInternalUserFormValues, CreateInternalUserField>
-      control={control}
-      name={name}
-      render={({ field, fieldState }) => (
-        <Field
-          data-invalid={fieldState.error ? true : undefined}
-          orientation="responsive"
-        >
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              aria-describedby={fieldState.error ? errorId : undefined}
-              aria-invalid={fieldState.error ? true : undefined}
-              autoComplete={autoComplete}
-              spellCheck={spellCheck}
-              type={type}
-              {...field}
-              value={field.value ?? ""}
-            />
-            {description ? (
-              <FieldDescription>{description}</FieldDescription>
-            ) : null}
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
-  );
-}
-
-function CreateInternalUserRoleField({
-  control,
-}: {
-  control: CreateInternalUserControl;
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <Controller<CreateInternalUserFormValues, "role">
-      control={control}
-      name="role"
-      render={({ field, fieldState }) => (
-        <Field
-          data-invalid={fieldState.error ? true : undefined}
-          orientation="responsive"
-        >
-          <FieldLabel htmlFor={id}>Permiso principal</FieldLabel>
-          <FieldContent>
-            <Select
-              name={field.name}
-              value={field.value}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger
-                id={id}
-                aria-describedby={fieldState.error ? errorId : undefined}
-                aria-invalid={fieldState.error ? true : undefined}
-              >
-                <SelectValue placeholder="Elegí un permiso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="auditor">Auditor</SelectItem>
-                <SelectItem value="judge">Juez</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
   );
 }

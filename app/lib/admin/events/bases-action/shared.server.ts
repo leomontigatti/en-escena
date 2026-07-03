@@ -32,7 +32,7 @@ export type CategoryActionValues = {
   maxAge: string;
   groupTypes: string[];
   modalityIds: string[];
-  experienceLevelIds: string[];
+  experienceLevels: string[];
 };
 
 export type ModalityActionValues = NameActionValues & {
@@ -89,7 +89,7 @@ export type EventBasesActionInput = {
   modalityIds: string[];
   modalityId: string;
   name: string;
-  experienceLevelIds: string[];
+  experienceLevels: string[];
   scheduledDate: string;
   startTime: string;
   totalCapacity: number;

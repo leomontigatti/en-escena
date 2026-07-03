@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  getEventFormErrorMessage,
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
@@ -143,10 +144,12 @@ async function updateEventAction(eventId: string, formData: FormData) {
   const result = await updateEvent(eventId, parsed.input);
 
   if (!result.ok) {
+    const fieldErrors = result.fieldErrors ?? {};
+
     return {
       status: "error" as const,
-      message: result.error,
-      fieldErrors: result.fieldErrors ?? {},
+      message: getEventFormErrorMessage(fieldErrors, result.error),
+      fieldErrors,
       values,
     };
   }

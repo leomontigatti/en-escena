@@ -1,28 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
-import { Controller, useForm, type UseFormReturn } from "react-hook-form";
+import { useEffect, useId } from "react";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { TextInputField } from "@/components/shared/text-input-field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   createValidatedReactRouterSubmitHandler,
   type ReactRouterFormSubmit,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 
 import {
@@ -30,10 +19,7 @@ import {
   dancerDocumentImageAllowedMimeTypes,
   dancerDocumentImageMaxFileSizeBytes,
   dancerSchema,
-  emptyPortalDancerFieldErrors,
   getPortalDancerFieldAutoComplete,
-  noDocumentTypeSelectValue,
-  type PortalDancerDetailActionData,
   type PortalDancerDetailLoaderData,
   type PortalDancerFormValues,
 } from "./shared";
@@ -52,11 +38,9 @@ type PortalDancerTextFieldName =
   | "lastName";
 
 export function usePortalDancerForm({
-  fieldErrors = emptyPortalDancerFieldErrors,
   submit,
   values,
 }: {
-  fieldErrors?: PortalDancerDetailActionData["fieldErrors"];
   submit: ReactRouterFormSubmit;
   values: PortalDancerFormValues;
 }) {
@@ -80,8 +64,6 @@ export function usePortalDancerForm({
     values.firstName,
     values.lastName,
   ]);
-
-  useApplyServerFieldErrors(form, fieldErrors);
 
   return {
     form,
@@ -129,214 +111,85 @@ export function ReadonlyLockedFormField({
 }
 
 export function PortalDancerTextField({
-  error,
   form,
   label,
   name,
 }: {
-  error?: string;
   form: PortalDancerFormReturn;
   label: string;
   name: PortalDancerTextFieldName;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <TextInputField
+      autoComplete={getPortalDancerFieldAutoComplete(name)}
       control={form.control}
+      label={label}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error || error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              autoComplete={getPortalDancerFieldAutoComplete(name)}
-              aria-invalid={fieldState.error || error ? true : undefined}
-              aria-describedby={fieldState.error || error ? errorId : undefined}
-              {...field}
-            />
-            <FieldError id={errorId}>
-              {fieldState.error?.message ?? error}
-            </FieldError>
-          </FieldContent>
-        </Field>
-      )}
     />
   );
 }
 
 export function PortalDancerBirthDateField({
-  error,
   form,
 }: {
-  error?: string;
   form: PortalDancerFormReturn;
 }) {
   const id = useId();
 
   return (
-    <Controller
+    <DateOnlyField
       control={form.control}
       name="birthDate"
-      render={({ field, fieldState }) => (
-        <DateOnlyField
-          id={id}
-          label="Fecha de nacimiento"
-          name={field.name}
-          defaultValue={field.value ?? ""}
-          value={field.value ?? ""}
-          onBlur={field.onBlur}
-          onValueChange={field.onChange}
-          error={fieldState.error?.message ?? error}
-          buttonClassName="mt-0 h-8 w-full font-normal"
-          endMonth={new Date()}
-          startMonth={new Date(1900, 0)}
-        />
-      )}
+      id={id}
+      label="Fecha de nacimiento"
+      buttonClassName="mt-0 h-8 w-full font-normal"
+      endMonth={new Date()}
+      startMonth={new Date(1900, 0)}
     />
   );
 }
 
 export function PortalDancerDocumentTypeField({
-  error,
   form,
 }: {
-  error?: string;
   form: PortalDancerFormReturn;
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <Controller
-      control={form.control}
-      name="documentType"
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error || error ? true : undefined}>
-          <FieldLabel htmlFor={id}>Tipo de documento</FieldLabel>
-          <FieldContent>
-            <Select
-              value={field.value || noDocumentTypeSelectValue}
-              onValueChange={(value) => {
-                field.onChange(
-                  value === noDocumentTypeSelectValue ? "" : value,
-                );
-              }}
-            >
-              <input type="hidden" name={field.name} value={field.value} />
-              <SelectTrigger
-                id={id}
-                aria-invalid={fieldState.error || error ? true : undefined}
-                aria-describedby={
-                  fieldState.error || error ? errorId : undefined
-                }
-                className="h-10 w-full"
-              >
-                <SelectValue placeholder="Sin documento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={noDocumentTypeSelectValue}>
-                  Sin documento
-                </SelectItem>
-                <SelectItem value="dni">DNI</SelectItem>
-                <SelectItem value="passport">Pasaporte</SelectItem>
-                <SelectItem value="other">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-            <FieldError id={errorId}>
-              {fieldState.error?.message ?? error}
-            </FieldError>
-          </FieldContent>
-        </Field>
-      )}
-    />
-  );
+  return <DocumentTypeSelectField control={form.control} name="documentType" />;
 }
 
 export function PortalDancerDocumentImageFields({
   form,
-  formValues,
   imageUrls,
 }: {
   form: PortalDancerFormReturn;
-  formValues: PortalDancerFormValues;
   imageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
 }) {
-  const frontImageId = useId();
-  const backImageId = useId();
-  const [frontImageHasError, setFrontImageHasError] = useState(false);
-  const [backImageHasError, setBackImageHasError] = useState(false);
-  const handleFrontImageValidationErrorChange = useCallback(
-    (hasError: boolean) => {
-      setFrontImageHasError(hasError);
-    },
-    [],
-  );
-  const handleBackImageValidationErrorChange = useCallback(
-    (hasError: boolean) => {
-      setBackImageHasError(hasError);
-    },
-    [],
-  );
-  const handleFrontImageStorageKeyChange = useCallback(
-    (storageKey: string) => {
-      form.setValue("documentFrontImageStorageKey", storageKey, {
-        shouldDirty: true,
-      });
-    },
-    [form],
-  );
-  const handleBackImageStorageKeyChange = useCallback(
-    (storageKey: string) => {
-      form.setValue("documentBackImageStorageKey", storageKey, {
-        shouldDirty: true,
-      });
-    },
-    [form],
-  );
-
   return (
     <>
-      <Field data-invalid={frontImageHasError ? true : undefined}>
-        <FieldLabel htmlFor={frontImageId}>Frente del documento</FieldLabel>
-        <FieldContent>
-          <FileUploadField
-            id={frontImageId}
-            name="documentFrontImage"
-            existingPreviewUrl={imageUrls.front}
-            storageKeyInputName="documentFrontImageStorageKey"
-            storageKeyValue={formValues.documentFrontImageStorageKey}
-            label="Arrastrá o hacé click"
-            helperText="JPG, PNG o WEBP - max 10 MB"
-            accept={dancerDocumentImageAccept}
-            allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
-            maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
-            onStorageKeyChange={handleFrontImageStorageKeyChange}
-            onValidationErrorChange={handleFrontImageValidationErrorChange}
-          />
-        </FieldContent>
-      </Field>
-      <Field data-invalid={backImageHasError ? true : undefined}>
-        <FieldLabel htmlFor={backImageId}>Dorso del documento</FieldLabel>
-        <FieldContent>
-          <FileUploadField
-            id={backImageId}
-            name="documentBackImage"
-            existingPreviewUrl={imageUrls.back}
-            storageKeyInputName="documentBackImageStorageKey"
-            storageKeyValue={formValues.documentBackImageStorageKey}
-            label="Arrastrá o hacé click"
-            helperText="JPG, PNG o WEBP - max 10 MB"
-            accept={dancerDocumentImageAccept}
-            allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
-            maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
-            onStorageKeyChange={handleBackImageStorageKeyChange}
-            onValidationErrorChange={handleBackImageValidationErrorChange}
-          />
-        </FieldContent>
-      </Field>
+      <FileUploadField
+        control={form.control}
+        name="documentFrontImageStorageKey"
+        fileInputName="documentFrontImage"
+        fieldLabel="Frente del documento"
+        existingPreviewUrl={imageUrls.front}
+        label="Arrastrá o hacé click"
+        helperText="JPG, PNG o WEBP - max 10 MB"
+        accept={dancerDocumentImageAccept}
+        allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
+        maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+      />
+      <FileUploadField
+        control={form.control}
+        name="documentBackImageStorageKey"
+        fileInputName="documentBackImage"
+        fieldLabel="Dorso del documento"
+        existingPreviewUrl={imageUrls.back}
+        label="Arrastrá o hacé click"
+        helperText="JPG, PNG o WEBP - max 10 MB"
+        accept={dancerDocumentImageAccept}
+        allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
+        maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+      />
     </>
   );
 }

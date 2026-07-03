@@ -94,7 +94,6 @@ export default function RecuperarAccesoRoute() {
   const form = useAccessForm({
     schema: requestRecoverySchema,
     values: actionData?.values ?? emptyRecoveryValues,
-    fieldErrors: actionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

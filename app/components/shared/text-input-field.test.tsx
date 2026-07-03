@@ -27,6 +27,24 @@ function TestTextInputField() {
   );
 }
 
+function TestDisabledTextInputField() {
+  const form = useForm<TestFormValues>({
+    defaultValues: {
+      name: "Ada",
+    },
+  });
+
+  return (
+    <TextInputField
+      control={form.control}
+      disabled
+      id="person-name"
+      label="Nombre"
+      name="name"
+    />
+  );
+}
+
 describe("TextInputField", () => {
   test("renders a labelled input controlled by React Hook Form", () => {
     const markup = renderToStaticMarkup(<TestTextInputField />);
@@ -37,5 +55,13 @@ describe("TextInputField", () => {
     expect(markup).toContain('value="Ada"');
     expect(markup).toContain('autoComplete="given-name"');
     expect(markup).toContain("Usá el nombre que figura en el documento.");
+  });
+
+  test("passes disabled to the input and renders the lock affordance", () => {
+    const markup = renderToStaticMarkup(<TestDisabledTextInputField />);
+
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('data-disabled="true"');
+    expect(markup).toContain("lucide-lock");
   });
 });

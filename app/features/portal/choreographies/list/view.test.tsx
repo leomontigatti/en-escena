@@ -159,14 +159,6 @@ describe("PortalChoreographiesListRouteView", () => {
       "Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo.",
     );
   });
-
-  test("shows the delete success notice", () => {
-    const markup = renderChoreographiesList({
-      deleted: true,
-    });
-
-    expect(markup).toContain("La coreografía se eliminó correctamente.");
-  });
 });
 
 function renderChoreographiesList(
@@ -181,7 +173,6 @@ function renderChoreographiesList(
         element: (
           <PortalChoreographiesListRouteView
             created={input.created}
-            deleted={input.deleted}
             initialCreateDialogOpen={input.initialCreateDialogOpen}
             loaderData={loaderData}
           />

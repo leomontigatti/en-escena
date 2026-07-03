@@ -33,7 +33,7 @@ export function readEventBasesActionInput(
     scheduleId: String(formData.get("scheduleId") ?? ""),
     priceScheduleId: String(formData.get("scheduleId") ?? "") || null,
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
-    experienceLevelIds: formData.getAll("experienceLevelIds").map(String),
+    experienceLevels: formData.getAll("experienceLevels").map(String),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
     startTime: String(formData.get("startTime") ?? ""),
     totalCapacity: Number.parseInt(

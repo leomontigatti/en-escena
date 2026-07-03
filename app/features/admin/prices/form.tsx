@@ -6,7 +6,7 @@ import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInput } from "@/components/shared/integer-input-field";
+import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -15,14 +15,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
@@ -38,27 +30,23 @@ import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
   type RouteFormPendingScope,
-  useApplyServerFieldErrors,
   useOptionalFormAction,
   useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { buildListPath } from "@/lib/shared/navigation";
+import { SelectField } from "@/components/shared/select-field";
 
 import {
   EMPTY_SCHEDULE_VALUE,
-  emptyPriceFieldErrors,
   priceFormSchema,
   type PriceFormValues,
 } from "./view-shared";
 import { basePath } from "./shared";
 
-type PriceTextFieldName = "amount";
-type PriceSelectFieldName = "groupType" | "scheduleId";
 type PriceFormController = UseFormReturn<PriceFormValues>;
 type PriceFormProps = {
   amount?: number;
-  fieldErrors?: Record<string, string>;
   formId?: string;
   groupType?: string;
   id?: string;
@@ -112,7 +100,6 @@ function getPriceFormDefaultValues({
 
 export function PriceForm({
   amount,
-  fieldErrors = emptyPriceFieldErrors,
   formId,
   groupType,
   id,
@@ -147,8 +134,6 @@ export function PriceForm({
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
-
   const isSpecialPrice = form.watch("isSpecialPrice");
 
   return (
@@ -164,7 +149,7 @@ export function PriceForm({
         <NameField form={form} />
         {isSpecialPrice ? (
           <SelectField
-            form={form}
+            control={form.control}
             label="Cronograma"
             name="scheduleId"
             options={schedules.map((schedule) => ({
@@ -176,32 +161,22 @@ export function PriceForm({
         ) : (
           <input type="hidden" name="scheduleId" value="" />
         )}
-        <Controller
+        <DateOnlyField
           control={form.control}
           name="paymentDeadline"
-          render={({ field }) => (
-            <DateOnlyField
-              id={`price-payment-deadline-${id ?? intent}`}
-              label="Fecha límite de pago"
-              name="paymentDeadline"
-              defaultValue={paymentDeadline ?? ""}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              error={form.formState.errors.paymentDeadline?.message}
-            />
-          )}
+          id={`price-payment-deadline-${id ?? intent}`}
+          label="Fecha límite de pago"
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <SelectField
-            form={form}
+            control={form.control}
             label="Tipo de grupo"
             name="groupType"
             options={groupTypeOptions}
             placeholder="Elegí un tipo"
           />
-          <IntegerTextField
-            form={form}
+          <IntegerInputField
+            control={form.control}
             label="Monto"
             min="1"
             name="amount"
@@ -269,47 +244,6 @@ function NameField({ form }: { form: PriceFormController }) {
   );
 }
 
-function IntegerTextField({
-  className,
-  form,
-  label,
-  name,
-  ...inputProps
-}: {
-  className?: string;
-  form: PriceFormController;
-  label: string;
-  name: PriceTextFieldName;
-} & Omit<
-  React.InputHTMLAttributes<HTMLInputElement>,
-  "form" | "inputMode" | "name" | "pattern" | "type"
->) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  const error = form.formState.errors[name]?.message;
-
-  return (
-    <Field className={className} data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Controller
-        control={form.control}
-        name={name}
-        render={({ field }) => (
-          <IntegerInput
-            id={id}
-            aria-describedby={error ? errorId : undefined}
-            aria-invalid={error ? true : undefined}
-            autoComplete="off"
-            {...inputProps}
-            {...field}
-          />
-        )}
-      />
-      <FieldError id={errorId}>{error}</FieldError>
-    </Field>
-  );
-}
-
 function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
   const id = useId();
 
@@ -354,61 +288,5 @@ function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
         </>
       )}
     />
-  );
-}
-
-function SelectField({
-  className,
-  form,
-  label,
-  name,
-  options,
-  placeholder,
-}: {
-  className?: string;
-  form: PriceFormController;
-  label: string;
-  name: PriceSelectFieldName;
-  options: Array<{ label: string; value: string }>;
-  placeholder: string;
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  const error = form.formState.errors[name]?.message;
-
-  return (
-    <Field className={className} data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Controller
-        control={form.control}
-        name={name}
-        render={({ field }) => (
-          <>
-            <input type="hidden" name={field.name} value={field.value} />
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger
-                id={id}
-                aria-describedby={error ? errorId : undefined}
-                aria-invalid={error ? true : undefined}
-                className="w-full"
-                onBlur={field.onBlur}
-              >
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </>
-        )}
-      />
-      <FieldError id={errorId}>{error}</FieldError>
-    </Field>
   );
 }

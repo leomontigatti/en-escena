@@ -181,7 +181,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
     if (!("name" in category)) {
@@ -195,7 +195,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["duo", "solo"],
         modalityIds: [secondModality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(
@@ -205,7 +205,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["duo", "solo"],
         modalityIds: [otherFirstModality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(
@@ -215,7 +215,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["duo", "solo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [firstLevel.id],
+        experienceLevels: [firstLevel.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -239,7 +239,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
 
@@ -250,7 +250,7 @@ describe("Bases del evento repository", () => {
         maxAge: 14,
         groupTypes: ["solo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: [firstLevel.id],
+        experienceLevels: [firstLevel.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -265,13 +265,13 @@ describe("Bases del evento repository", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [firstModality.id],
-        experienceLevelIds: ["level_other"],
+        experienceLevels: ["level_other"],
       }),
     ).resolves.toMatchObject({
       ok: false,
       error: "Elegí niveles de experiencia válidos.",
       fieldErrors: {
-        experienceLevelIds: "Elegí niveles de experiencia válidos.",
+        experienceLevels: "Elegí niveles de experiencia válidos.",
       },
     });
   });
@@ -288,7 +288,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
 
@@ -299,7 +299,7 @@ describe("Bases del evento repository", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     ).resolves.toMatchObject({
       ok: true,

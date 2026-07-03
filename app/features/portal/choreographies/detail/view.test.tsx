@@ -112,6 +112,7 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Buscar profesores");
     expect(markup).toContain("Mora Archivada");
     expect(markup).not.toContain("Falta cargar");
+    expect(markup).not.toContain('class="flex flex-col gap-3"></div>');
     expect(markup).toContain("Acciones");
     expect(markup).not.toContain(
       "Confirmo que quiero eliminar esta Coreografía.",

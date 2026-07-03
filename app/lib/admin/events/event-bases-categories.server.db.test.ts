@@ -8,6 +8,10 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
+import {
+  action as categoryDetailAction,
+  loader as categoryDetailLoader,
+} from "../../../routes/administracion.categorias_.$categoryId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -72,7 +76,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "12",
         groupTypes: ["solo", "duo"],
         modalityIds: [modality?.id ?? ""],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     });
 
@@ -114,7 +118,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: 12,
         groupTypes: ["solo", "duo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     );
 
@@ -130,7 +134,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "12",
         groupTypes: ["solo", "duo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     });
 
@@ -194,7 +198,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: 17,
         groupTypes: ["solo", "grupal"],
         modalityIds: [jazz.id, urbano.id],
-        experienceLevelIds: [inicial.id],
+        experienceLevels: [inicial.id],
       }),
     );
 
@@ -238,7 +242,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "12",
         groupTypes: ["solo"],
         modalityIds: [jazz.id],
-        experienceLevelIds: ["amateur"],
+        experienceLevels: ["amateur"],
       },
     });
 
@@ -253,7 +257,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       `name="modalityIds" value="${jazz.id}"`,
     );
     expect(duplicateCategoryMarkup).toContain(
-      'name="experienceLevelIds" value="amateur"',
+      'name="experienceLevels" value="amateur"',
     );
 
     const createRequest = await createSignedInRequest({
@@ -267,7 +271,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "99",
         groupTypes: ["duo"],
         modalityIds: [urbano.id],
-        experienceLevelIds: ["elite"],
+        experienceLevels: ["elite"],
       }),
     });
 
@@ -290,7 +294,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       (candidate) => candidate.name === "Mayores",
     );
 
-    expect(category?.experienceLevelIds).toEqual(
+    expect(category?.experienceLevels).toEqual(
       expect.arrayContaining(["elite"]),
     );
 
@@ -314,7 +318,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: "99",
         groupTypes: ["duo", "trio"],
         modalityIds: [jazz.id, urbano.id],
-        experienceLevelIds: ["elite"],
+        experienceLevels: ["elite"],
       }),
     });
 
@@ -356,6 +360,169 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("loads Categoria detail data from the active event and route param", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const otherEvent = await createSavedEvent("Otra regional", {
+      activate: false,
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const otherModality = await expectCreated(
+      createModality(otherEvent.id, { name: "Jazz" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: ["amateur"],
+      }),
+    );
+    const otherCategory = await expectCreated(
+      createCategory(otherEvent.id, {
+        name: "Juvenil otro evento",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [otherModality.id],
+        experienceLevels: ["amateur"],
+      }),
+    );
+    const request = await createSignedInRequest({
+      email: "admin.categorias.detalle.loader@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/categorias/${category.id}?evento=${event.id}`,
+    });
+
+    const data = await categoryDetailLoader(
+      categoryRouteArgs(request.request, category.id),
+    );
+    const otherData = await categoryDetailLoader(
+      categoryRouteArgs(request.request, otherCategory.id),
+    );
+
+    expect(data).not.toHaveProperty("categories");
+    expect(data.category).toMatchObject({ id: category.id, name: "Juvenil" });
+    expect(data.modalities).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: modality.id })]),
+    );
+    expect(otherData.category).toBeNull();
+  });
+
+  test("uses the Categoria detail route param as the mutation id", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const routeCategory = await expectCreated(
+      createCategory(event.id, {
+        name: "Ruta",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: ["amateur"],
+      }),
+    );
+    const submittedCategory = await expectCreated(
+      createCategory(event.id, {
+        name: "Form oculto",
+        minAge: 18,
+        maxAge: 99,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: ["amateur"],
+      }),
+    );
+    const request = await createSignedInRequest({
+      email: "admin.categorias.detalle.action@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/categorias/${routeCategory.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-category",
+        id: submittedCategory.id,
+        name: "Actualizada desde ruta",
+        minAge: "13",
+        maxAge: "17",
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: ["amateur"],
+      }),
+    });
+
+    await expectThrownResponse(
+      categoryDetailAction(
+        categoryRouteArgs(request.request, routeCategory.id),
+      ),
+      302,
+    );
+
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, routeCategory.id),
+      }),
+    ).resolves.toMatchObject({ name: "Actualizada Desde Ruta" });
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, submittedCategory.id),
+      }),
+    ).resolves.toMatchObject({ name: "Form Oculto" });
+  });
+
+  test("rejects Categoria detail mutations outside the active event", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const otherEvent = await createSavedEvent("Otra regional", {
+      activate: false,
+    });
+    const otherModality = await expectCreated(
+      createModality(otherEvent.id, { name: "Jazz" }),
+    );
+    const otherCategory = await expectCreated(
+      createCategory(otherEvent.id, {
+        name: "Otro evento",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [otherModality.id],
+        experienceLevels: ["amateur"],
+      }),
+    );
+    const request = await createSignedInRequest({
+      email: "admin.categorias.detalle.otro-evento@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/categorias/${otherCategory.id}?evento=${event.id}`,
+      body: formData({
+        intent: "update-category",
+        id: otherCategory.id,
+        name: "No debe cambiar",
+        minAge: "13",
+        maxAge: "17",
+        groupTypes: ["solo"],
+        modalityIds: [otherModality.id],
+        experienceLevels: ["amateur"],
+      }),
+    });
+
+    await expect(
+      categoryDetailAction(
+        categoryRouteArgs(request.request, otherCategory.id),
+      ),
+    ).resolves.toEqual({
+      status: "error",
+      message: "No encontramos esa categoría dentro del evento activo.",
+      fieldErrors: {},
+      scope: null,
+    });
+    await expect(
+      db.query.categories.findFirst({
+        where: eq(categories.id, otherCategory.id),
+      }),
+    ).resolves.toMatchObject({ name: "Otro Evento" });
+  });
+
   test("requires confirmation before deleting a Categoria from its detail route", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
@@ -368,7 +535,7 @@ describe.sequential("administracion Bases del evento routes", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
 
@@ -454,3 +621,10 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 });
+
+function categoryRouteArgs(request: Request, categoryId: string) {
+  return {
+    ...routeArgs(request),
+    params: { categoryId },
+  };
+}

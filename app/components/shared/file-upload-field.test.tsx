@@ -5,26 +5,58 @@ import "@/test/react-test-env";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { useForm } from "react-hook-form";
 import { describe, expect, test, vi } from "vitest";
 
 import { FileUploadField } from "./file-upload-field";
 
+type TestFormValues = {
+  documentFrontImageStorageKey: string;
+};
+
+function TestFileUploadField({
+  defaultStorageKey = "",
+  existingPreviewUrl,
+  onStorageKeyChange,
+  onValidationErrorChange,
+}: {
+  defaultStorageKey?: string;
+  existingPreviewUrl?: string;
+  onStorageKeyChange?: (storageKey: string) => void;
+  onValidationErrorChange?: (hasError: boolean) => void;
+}) {
+  const form = useForm<TestFormValues>({
+    defaultValues: {
+      documentFrontImageStorageKey: defaultStorageKey,
+    },
+  });
+
+  return (
+    <FileUploadField
+      control={form.control}
+      name="documentFrontImageStorageKey"
+      fileInputName="documentFrontImage"
+      fieldLabel="Frente del documento"
+      label="Arrastrá o hacé click"
+      accept="image/jpeg,image/png,image/webp"
+      allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
+      existingPreviewUrl={existingPreviewUrl}
+      helperText="JPG, PNG o WEBP - max 10 MB"
+      onStorageKeyChange={onStorageKeyChange}
+      onValidationErrorChange={onValidationErrorChange}
+    />
+  );
+}
+
 describe("FileUploadField", () => {
   test("renders an accessible upload dropzone with semantic tokens", () => {
-    const markup = renderToStaticMarkup(
-      <FileUploadField
-        id="document-front"
-        name="documentFrontImage"
-        label="Arrastrá o hacé click"
-        accept="image/jpeg,image/png,image/webp"
-        allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
-        helperText="JPG, PNG o WEBP - max 10 MB"
-      />,
-    );
+    const markup = renderToStaticMarkup(<TestFileUploadField />);
 
     expect(markup).toContain('type="file"');
     expect(markup).toContain('name="documentFrontImage"');
     expect(markup).toContain('name="documentFrontImageValidationError"');
+    expect(markup).toContain('name="documentFrontImageStorageKey"');
+    expect(markup).toContain("Frente del documento");
     expect(markup).toContain("Arrastrá o hacé click");
     expect(markup).toContain("JPG, PNG o WEBP - max 10 MB");
     expect(markup).toContain("lucide-cloud-upload");
@@ -37,15 +69,9 @@ describe("FileUploadField", () => {
 
   test("renders an existing image preview without placeholder copy", () => {
     const markup = renderToStaticMarkup(
-      <FileUploadField
-        id="document-front"
-        name="documentFrontImage"
-        label="Arrastrá o hacé click"
-        accept="image/jpeg,image/png,image/webp"
-        allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
+      <TestFileUploadField
+        defaultStorageKey="dancers/document-front.jpg"
         existingPreviewUrl="https://storage.example/document-front.jpg"
-        helperText="JPG, PNG o WEBP - max 10 MB"
-        storageKeyValue="dancers/document-front.jpg"
       />,
     );
 
@@ -64,17 +90,10 @@ describe("FileUploadField", () => {
 
     await act(async () => {
       root.render(
-        <FileUploadField
-          id="document-front"
-          name="documentFrontImage"
-          label="Arrastrá o hacé click"
-          accept="image/jpeg,image/png,image/webp"
-          allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
+        <TestFileUploadField
+          defaultStorageKey="dancers/document-front.jpg"
           existingPreviewUrl="https://storage.example/document-front.jpg"
-          helperText="JPG, PNG o WEBP - max 10 MB"
           onStorageKeyChange={handleStorageKeyChange}
-          storageKeyInputName="documentFrontImageStorageKey"
-          storageKeyValue="dancers/document-front.jpg"
         />,
       );
     });
@@ -112,13 +131,7 @@ describe("FileUploadField", () => {
 
     await act(async () => {
       root.render(
-        <FileUploadField
-          id="document-front"
-          name="documentFrontImage"
-          label="Arrastrá o hacé click"
-          accept="image/jpeg,image/png,image/webp"
-          allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
-          helperText="JPG, PNG o WEBP - max 10 MB"
+        <TestFileUploadField
           onValidationErrorChange={handleValidationErrorChange}
         />,
       );

@@ -134,7 +134,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         maxAge: 12,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [level.id],
+        experienceLevels: [level.id],
       }),
     );
     const olderCategory = await expectCreated(
@@ -144,7 +144,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         maxAge: 17,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
-        experienceLevelIds: [],
+        experienceLevels: [],
       }),
     );
     const [dancer] = await db

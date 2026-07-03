@@ -253,7 +253,6 @@ function MandatoryPasswordChangeForm({
   const form = useAccessForm({
     schema: changePasswordSchema,
     values: mandatoryActionData?.values ?? emptyMandatoryChangeValues,
-    fieldErrors: mandatoryActionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {
@@ -332,7 +331,6 @@ function RecoveryPasswordChangeForm({
   const form = useAccessForm({
     schema: passwordConfirmationSchema,
     values: recoveryActionData?.values ?? emptyRecoveryChangeValues,
-    fieldErrors: recoveryActionData?.fieldErrors,
   });
 
   useServerActionToast(actionData, {

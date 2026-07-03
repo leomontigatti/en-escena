@@ -1,21 +1,9 @@
 import { Lock } from "lucide-react";
 import { useId } from "react";
-import { Controller, type Control } from "react-hook-form";
+import { type Control } from "react-hook-form";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { SelectField } from "@/components/shared/select-field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type {
   ChoreographyEditValues,
@@ -66,39 +54,13 @@ export function ChoreographySelectPreviewField({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <Controller
+    <SelectField
       control={control}
+      id={id}
+      label={label}
       name={fieldName}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Select
-              name={field.name}
-              value={field.value ?? ""}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger
-                id={id}
-                aria-invalid={fieldState.error ? true : undefined}
-                className="w-full"
-              >
-                <SelectValue placeholder="Seleccionar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldError>{fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
+      options={options}
+      placeholder="Seleccionar"
     />
   );
 }

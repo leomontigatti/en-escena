@@ -183,7 +183,7 @@ export async function getEventRegistrationReadinessForBases(
   );
 
   for (const category of eventBases.categories) {
-    const requiresExperienceLevel = category.experienceLevelIds.length > 0;
+    const requiresExperienceLevel = category.experienceLevels.length > 0;
 
     for (const modalityId of category.modalityIds) {
       const modality = modalitiesById.get(modalityId);

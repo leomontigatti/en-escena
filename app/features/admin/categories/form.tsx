@@ -53,7 +53,7 @@ const categoryFormSchema = z
       ),
     groupTypes: z.array(z.string()).min(1, requiredFieldMessage),
     modalityIds: z.array(z.string()).min(1, requiredFieldMessage),
-    experienceLevelIds: z.array(z.string()),
+    experienceLevels: z.array(z.string()),
   })
   .superRefine((values, context) => {
     const minAge = Number(values.minAge);
@@ -77,7 +77,7 @@ type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 const emptyCategorySelection: string[] = [];
 
 function CategoryForm({
-  experienceLevelIds = emptyCategorySelection,
+  experienceLevels = emptyCategorySelection,
   formId,
   groupTypes = emptyCategorySelection,
   id,
@@ -89,7 +89,7 @@ function CategoryForm({
   name,
   submittedValues,
 }: {
-  experienceLevelIds?: string[];
+  experienceLevels?: string[];
   formId: string;
   groupTypes?: string[];
   id?: string;
@@ -109,10 +109,10 @@ function CategoryForm({
         maxAge: maxAge === undefined ? "" : String(maxAge),
         groupTypes,
         modalityIds,
-        experienceLevelIds,
+        experienceLevels,
       },
     [
-      experienceLevelIds,
+      experienceLevels,
       groupTypes,
       maxAge,
       minAge,
@@ -174,8 +174,8 @@ function CategoryForm({
         <MultiComboboxField
           control={form.control}
           label="Niveles de experiencia"
-          name="experienceLevelIds"
-          inputName="experienceLevelIds"
+          name="experienceLevels"
+          inputName="experienceLevels"
           options={experienceLevelOptions}
           placeholder="Seleccioná niveles"
         />
@@ -240,7 +240,7 @@ function isCategoryActionValues(
     "minAge" in values &&
     "maxAge" in values &&
     "modalityIds" in values &&
-    "experienceLevelIds" in values
+    "experienceLevels" in values
   );
 }
 

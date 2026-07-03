@@ -1,16 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Info, KeyRound, Lock } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import {
-  Controller,
-  useForm,
-  type FieldPath,
-  type UseFormReturn,
-} from "react-hook-form";
+import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -27,7 +24,6 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -35,12 +31,10 @@ import { Input } from "@/components/ui/input";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
 import {
   academyProfileSchema,
-  emptyAcademyProfileFieldErrors,
   passwordRecoveryFormId,
   profileFormId,
   requestPasswordRecoveryIntent,
   updateAcademyProfileIntent,
-  type AcademyProfileFieldErrors,
   type AcademyProfileFormValues,
   type PortalProfileActionData,
 } from "@/features/portal/profile/shared";
@@ -48,7 +42,6 @@ import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
-  useApplyServerFieldErrors,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -75,10 +68,7 @@ export function PortalProfileRouteView({
     contactName: loaderData.academy.contactName,
     phone: loaderData.academy.phone,
   };
-  const form = useAcademyProfileForm({
-    fieldErrors: actionData?.fieldErrors,
-    values,
-  });
+  const form = useAcademyProfileForm({ values });
   const navigation = useNavigation();
   const isProfileSaving = isRouteFormPending(navigation, {
     intent: updateAcademyProfileIntent,
@@ -106,13 +96,15 @@ export function PortalProfileRouteView({
         <ProfileActionsMenu />
       </header>
 
-      <Alert variant="info">
-        <Info aria-hidden="true" />
-        <AlertDescription>
-          Para cambiar el nombre de la academia o el email de acceso, comunicate
-          con nosotros.
-        </AlertDescription>
-      </Alert>
+      <AlertStack>
+        <Alert variant="info">
+          <Info aria-hidden="true" />
+          <AlertDescription>
+            Para cambiar el nombre de la academia o el email de acceso,
+            comunicate con nosotros.
+          </AlertDescription>
+        </Alert>
+      </AlertStack>
 
       <Card>
         <CardContent>
@@ -137,14 +129,12 @@ export function PortalProfileRouteView({
               <ReadOnlyEmailField email={loaderData.email} />
               <AcademyProfileTextField
                 autoComplete="name"
-                error={actionData?.fieldErrors.contactName}
                 form={form.form}
                 label="Nombre de contacto"
                 name="contactName"
               />
               <AcademyProfileTextField
                 autoComplete="tel"
-                error={actionData?.fieldErrors.phone}
                 form={form.form}
                 inputMode="tel"
                 label="Teléfono de contacto"
@@ -171,10 +161,8 @@ export function PortalProfileRouteView({
 }
 
 function useAcademyProfileForm({
-  fieldErrors = emptyAcademyProfileFieldErrors,
   values,
 }: {
-  fieldErrors?: AcademyProfileFieldErrors;
   values: AcademyProfileFormValues;
 }) {
   const form = useForm<
@@ -191,7 +179,6 @@ function useAcademyProfileForm({
     form.reset(values);
   }, [form, values.contactName, values.name, values.phone]);
 
-  useApplyServerFieldErrors(form, fieldErrors);
   const submit = useSubmit();
 
   return {
@@ -202,7 +189,6 @@ function useAcademyProfileForm({
 
 function AcademyProfileTextField({
   autoComplete,
-  error,
   form,
   inputMode,
   label,
@@ -212,7 +198,6 @@ function AcademyProfileTextField({
   type = "text",
 }: {
   autoComplete: string;
-  error?: string;
   form: AcademyProfileFormReturn;
   inputMode?: "tel";
   label: string;
@@ -221,34 +206,16 @@ function AcademyProfileTextField({
   placeholder?: string;
   type?: "tel" | "text";
 }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
   return (
-    <Controller
+    <TextInputField
+      autoComplete={autoComplete}
       control={form.control}
+      inputMode={inputMode}
+      label={label}
+      maxLength={maxLength}
       name={name}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.error || error ? true : undefined}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <FieldContent>
-            <Input
-              id={id}
-              autoComplete={autoComplete}
-              aria-invalid={fieldState.error || error ? true : undefined}
-              aria-describedby={fieldState.error || error ? errorId : undefined}
-              inputMode={inputMode}
-              maxLength={maxLength}
-              placeholder={placeholder}
-              type={type}
-              {...field}
-            />
-            <FieldError id={errorId}>
-              {fieldState.error?.message ?? error}
-            </FieldError>
-          </FieldContent>
-        </Field>
-      )}
+      placeholder={placeholder}
+      type={type}
     />
   );
 }
@@ -377,10 +344,6 @@ function getGeneralActionError(
   actionData?: Extract<PortalProfileActionData, { status: "error" }>,
 ) {
   if (!actionData?.message) {
-    return undefined;
-  }
-
-  if (Object.values(actionData.fieldErrors).some(Boolean)) {
     return undefined;
   }
 
