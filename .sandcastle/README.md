@@ -6,8 +6,10 @@ Sandcastle runs the project issue workflow with isolated Docker worktrees.
 
 Create `.sandcastle/.env` from `.sandcastle/.env.example` and set:
 
-- `GH_TOKEN`: GitHub token with Issues read/write and Metadata read access. The
-  single-issue preflight also uses this token to read the selected issue.
+- `GH_TOKEN` only if Sandcastle should use a specific GitHub token. It must have
+  Issues read/write and Metadata read access. If this is empty, Sandcastle falls
+  back to the host `gh auth token` login and passes that token to Docker
+  sandboxes.
 - `CODEX_AUTH_JSON` only if your Codex auth file is not at
   `~/.codex/auth.json`.
 - `SANDCASTLE_DOCKER_NETWORK` only if your Docker Compose network is not

@@ -94,6 +94,13 @@ const ISSUE_COMMENT_MAX_LENGTH = 1_500;
 const ISSUE_COMMENT_MAX_COUNT = 3;
 const POSTGRES_IDENTIFIER_MAX_LENGTH = 63;
 
+type GitHubTokenSource = {
+  readonly source: string;
+  readonly token: string;
+};
+
+let cachedGitHubTokenSource: GitHubTokenSource | undefined;
+
 // Hooks run inside the sandbox before the agent starts each iteration.
 // pnpm install ensures the sandbox always has fresh dependencies.
 const hooks = {
@@ -620,44 +627,142 @@ function getCurrentBranch(): string {
 }
 
 function assertGitHubTokenWorks(): void {
+  const tokenSource = getGitHubTokenSource();
+  console.log(`GitHub auth OK (${tokenSource.source}).`);
+}
+
+function getGitHubCliEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    GH_TOKEN: getGitHubToken(),
+  };
+}
+
+function getGitHubToken(): string {
+  return getGitHubTokenSource().token;
+}
+
+function getGitHubTokenSource(): GitHubTokenSource {
+  if (cachedGitHubTokenSource) return cachedGitHubTokenSource;
+
+  const failures: string[] = [];
+
+  for (const candidate of getGitHubTokenCandidates()) {
+    const validationError = validateGitHubToken(candidate.token);
+    if (!validationError) {
+      cachedGitHubTokenSource = candidate;
+      return candidate;
+    }
+
+    failures.push(`${candidate.source}: ${validationError}`);
+  }
+
+  throw new Error(
+    [
+      "Sandcastle could not find a GitHub token that can read this repo's issues.",
+      "Tried GH_TOKEN from the process environment, GH_TOKEN from .sandcastle/.env, and the host `gh auth token` login.",
+      "Create a fine-grained token for leomontigatti/en-escena with Issues read/write and Metadata read, or run `gh auth login`, then rerun Sandcastle.",
+      failures.length > 0 ? `Failures:\n${failures.map((f) => `- ${f}`).join("\n")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
+function getGitHubTokenCandidates(): GitHubTokenSource[] {
+  const env = readSandcastleEnv();
+  const candidates: GitHubTokenSource[] = [];
+
+  if (process.env.GH_TOKEN) {
+    candidates.push({
+      source: "GH_TOKEN from process environment",
+      token: process.env.GH_TOKEN,
+    });
+  }
+
+  if (env.GH_TOKEN) {
+    candidates.push({
+      source: "GH_TOKEN from .sandcastle/.env",
+      token: env.GH_TOKEN,
+    });
+  }
+
+  const ghAuthToken = getHostGhAuthToken();
+  if (ghAuthToken) {
+    candidates.push({
+      source: "host gh auth token",
+      token: ghAuthToken,
+    });
+  }
+
+  return candidates;
+}
+
+function getHostGhAuthToken(): string | undefined {
+  try {
+    const token = execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      env: getProcessEnvWithoutGitHubTokens(),
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    return token || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function validateGitHubToken(token: string): string | undefined {
   try {
     execFileSync(
       "gh",
       ["issue", "list", "--state", "open", "--limit", "1", "--json", "number"],
       {
         encoding: "utf8",
-        env: getGitHubCliEnv(),
+        env: { ...process.env, GH_TOKEN: token, GITHUB_TOKEN: token },
         stdio: "pipe",
       },
     );
-  } catch {
-    throw new Error(
-      [
-        "GitHub rejected GH_TOKEN from .sandcastle/.env.",
-        "Create a fine-grained token for leomontigatti/en-escena with Issues read/write and Metadata read, then update GH_TOKEN.",
-      ].join("\n"),
-    );
+
+    return undefined;
+  } catch (error) {
+    return formatCommandError(error);
   }
 }
 
-function getGitHubCliEnv(): NodeJS.ProcessEnv {
-  const token = getGitHubToken();
+function formatCommandError(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "unknown error";
 
-  return {
-    ...process.env,
-    GH_TOKEN: token,
-  };
+  const output = [
+    getCommandErrorText(error, "stdout"),
+    getCommandErrorText(error, "stderr"),
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  if (!output) return "command failed without output";
+
+  return redactSensitiveText(output).split(/\r?\n/).slice(0, 3).join(" ");
 }
 
-function getGitHubToken(): string {
-  const env = readSandcastleEnv();
-  const token = env.GH_TOKEN || process.env.GH_TOKEN;
+function getCommandErrorText(
+  error: object,
+  key: "stdout" | "stderr",
+): string {
+  if (!(key in error)) return "";
 
-  if (!token) {
-    throw new Error("Sandcastle needs GH_TOKEN in .sandcastle/.env.");
-  }
+  const value = (error as Record<typeof key, unknown>)[key];
+  if (Buffer.isBuffer(value)) return value.toString("utf8");
+  if (typeof value === "string") return value;
 
-  return token;
+  return "";
+}
+
+function getProcessEnvWithoutGitHubTokens(): NodeJS.ProcessEnv {
+  const { GITHUB_TOKEN: _githubToken, GH_TOKEN: _ghToken, ...env } = process.env;
+
+  return env;
 }
 
 function assertCodexChatGptAuthWorks(): void {
