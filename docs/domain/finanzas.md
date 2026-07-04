@@ -66,6 +66,10 @@ Rules for financial states, invoices, payments, account balance and pricing.
 - `Monto total pagado` is the sum of active payments registered for an academy in the active event.
 - `Saldo disponible` is active payments minus active imputations.
 - `Saldo adeudado` is the unpaid amount of active invoices.
+- `Total estimado` is a pre-invoice operational amount for an academy in the active event: the sum of each choreography's applicable base price multiplied by its dancer inscription count, without discounts, payments, imputations or invoices.
+- `Seña estimada` is the event down-payment percentage applied to `Total estimado`, rounded to whole pesos with the same commercial rounding rule used for percentage-derived amounts.
+- `Total estimado` and `Seña estimada` help administration and academies know how much to collect or pay when one or more down-payments are registered before invoice issuance.
+- `Total estimado` and `Seña estimada` are not account-current debt and do not change `Saldo adeudado` until administration issues active invoices.
 - Account-current reporting shows both `Saldo disponible` and `Saldo adeudado`; it does not collapse them into one ambiguous balance column.
 - V1 account-current reporting starts as an on-screen view; XLS export is deferred.
 - An imputation cannot exceed the unpaid amount of its invoice; any excess payment remains as `Saldo disponible`.

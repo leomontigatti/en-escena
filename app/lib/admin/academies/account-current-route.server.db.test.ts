@@ -31,7 +31,7 @@ import {
 installDatabaseTestHooks();
 
 describe.sequential("administracion academias cuenta corriente", () => {
-  test("lets admin open an academy account current from the academies list", async () => {
+  test("renders academies participation without account-current links", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.finanzas@example.com",
@@ -67,7 +67,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
       "Academia Sur",
     ]);
     expect(markup).toContain("Academias");
-    expect(markup).toContain(
+    expect(markup).not.toContain(
       `/administracion/academias/${academyNorth.academy.id}`,
     );
     expect(markup).toContain("Participando");

@@ -281,6 +281,9 @@ describe.sequential("administracion finanzas", () => {
     expect(academiesMarkup).not.toContain(
       '<a href="/administracion/academias/reporte"',
     );
+    expect(academiesMarkup).not.toContain(
+      `/administracion/academias/${academyNorth.academy.id}`,
+    );
 
     const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",
@@ -321,6 +324,9 @@ describe.sequential("administracion finanzas", () => {
       },
     ]);
     expect(markup).toContain("Resumen");
+    expect(markup).toContain(
+      `/administracion/academias/${academyNorth.academy.id}`,
+    );
     expect(markup).toContain("Total pagado");
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");

@@ -8,6 +8,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { formatAmount } from "@/features/admin/academies/account-current/formatters";
 
 import type {
@@ -28,7 +29,11 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     id: "academyName",
     header: "Nombre",
     className: "min-w-56 font-medium",
-    cell: (row) => row.academyName,
+    cell: (row) => (
+      <DataTableLink to={`/administracion/academias/${row.academyId}`}>
+        {row.academyName}
+      </DataTableLink>
+    ),
     filterValue: (row) => row.academyName,
     sortValue: (row) => row.academyName,
   },

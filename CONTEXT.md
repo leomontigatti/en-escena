@@ -272,6 +272,14 @@ _Evitar_: Saldo adeudado, total pagado
 Monto pendiente de cubrir de las facturas activas de una academia.
 _Evitar_: Saldo disponible, total pagado
 
+**Total estimado**:
+Monto operativo previo a facturación para una academia en el Evento activo, calculado como la suma del precio base aplicable por la cantidad de bailarines inscriptos en sus coreografías, sin aplicar descuentos, pagos, imputaciones ni facturas.
+_Evitar_: Saldo adeudado, total pagado
+
+**Seña estimada**:
+Parte del Total estimado calculada con el porcentaje de seña del evento, usada para orientar el pago o cobro de una o varias señas antes de emitir facturas.
+_Evitar_: Factura de coreografía, saldo adeudado
+
 **Precio de coreografía**:
 Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago, fecha de seña y descuentos individuales.
 _Evitar_: Pago, estado financiero
