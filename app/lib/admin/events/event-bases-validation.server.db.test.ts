@@ -7,6 +7,11 @@ import { createSchedule } from "@/lib/schedules/repository.server";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
+  buildScheduleCapacityDraft,
+  buildScheduleDraft,
+  createEventScheduleAdminFixture,
+  createScheduleAdminRequest,
+  createScheduleCapacityAdminRequest,
   createSavedEvent,
   createSignedInRequest,
   expectCreated,
@@ -224,16 +229,15 @@ describe.sequential("administracion Bases del evento routes", () => {
   });
 
   test("returns cronograma and cupo de cronograma required errors from Bases del evento actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const modality = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const requiredScheduleRequest = await createSignedInRequest({
+    const { event, modalities } = await createEventScheduleAdminFixture([
+      "Jazz",
+    ]);
+    const requiredScheduleRequest = await createScheduleAdminRequest({
       email: "admin.bloque.requerido@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
-      body: formData({
-        intent: "create-schedule",
+      intent: "create-schedule",
+      schedule: buildScheduleDraft({
         name: "",
         scheduledDate: "",
         startTime: "",
@@ -273,17 +277,18 @@ describe.sequential("administracion Bases del evento routes", () => {
         scheduledDate: "2026-05-03",
         startTime: "15:00",
         totalCapacity: 10,
-        modalityIds: [modality.id],
+        modalityIds: [modalities[0].id],
       }),
     );
 
-    const requiredScheduleCapacityRequest = await createSignedInRequest({
+    const requiredScheduleCapacityRequest =
+      await createScheduleCapacityAdminRequest({
       email: "admin.cupo-cronograma.requerido@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}?evento=${event.id}`,
-      body: formData({
-        intent: "create-schedule-capacity",
-        scheduleId: createdBlock.id,
+      intent: "create-schedule-capacity",
+      scheduleId: createdBlock.id,
+      scheduleCapacity: buildScheduleCapacityDraft({
         groupType: "",
         capacity: "",
       }),

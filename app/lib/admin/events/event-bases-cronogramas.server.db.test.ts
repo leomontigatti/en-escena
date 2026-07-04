@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { modalities, schedules, scheduleCapacities } from "@/db/schema";
+import { scheduleCapacities } from "@/db/schema";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
   createSchedule,
@@ -12,11 +12,20 @@ import {
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
+  buildScheduleCapacityDraft,
+  buildScheduleDraft,
+  createDeleteScheduleAdminRequest,
+  createEventScheduleAdminFixture,
+  createScheduleAdminRequest,
+  createScheduleCapacityAdminRequest,
   createSavedEvent,
   createSignedInRequest,
   expectCreated,
+  expectScheduleCapacityBreakdown,
+  findSavedScheduleById,
+  findSavedScheduleByName,
   expectThrownResponse,
-  formData,
+  listSavedScheduleCapacities,
   loader,
   renderBloqueHorarioDetailRoute,
   renderBloquesHorariosRoute,
@@ -32,15 +41,7 @@ describe.sequential(
   "administracion Cronogramas de Bases del evento routes",
   () => {
     test("renders cronogramas as a browse list with ocupación and detail links", async () => {
-      const event = await createSavedEvent("Regional 2026");
-      const jazz = await createModality(event.id, { name: "Jazz" });
-      const urbanas = await createModality(event.id, {
-        name: "Danzas urbanas",
-      });
-
-      if (!jazz.ok || !jazz.record || !urbanas.ok || !urbanas.record) {
-        throw new Error("Expected schedule block modalities to be created.");
-      }
+      const { event, modalityIds } = await createEventScheduleAdminFixture();
 
       const schedule = await expectCreated(
         createSchedule(event.id, {
@@ -48,7 +49,7 @@ describe.sequential(
           scheduledDate: "2026-05-02",
           startTime: "09:00",
           totalCapacity: 24,
-          modalityIds: [jazz.record.id, urbanas.record.id],
+          modalityIds,
         }),
       );
 
@@ -89,12 +90,9 @@ describe.sequential(
     });
 
     test("renders dedicated create and detail routes for cronogramas", async () => {
-      const event = await createSavedEvent("Regional 2026");
-      const modality = await createModality(event.id, { name: "Jazz" });
-
-      if (!modality.ok || !modality.record) {
-        throw new Error("Expected cronograma modality to be created.");
-      }
+      const { event, modalities } = await createEventScheduleAdminFixture([
+        "Jazz",
+      ]);
 
       const schedule = await expectCreated(
         createSchedule(event.id, {
@@ -102,7 +100,7 @@ describe.sequential(
           scheduledDate: "2026-05-03",
           startTime: "15:00",
           totalCapacity: 18,
-          modalityIds: [modality.record.id],
+          modalityIds: [modalities[0].id],
         }),
       );
 
@@ -131,23 +129,15 @@ describe.sequential(
     });
 
     test("creates, edits and deletes Cronogramas through the admin action", async () => {
-      const event = await createSavedEvent("Regional 2026");
-      await createModality(event.id, { name: "Jazz" });
-      await createModality(event.id, { name: "Danzas urbanas" });
-      const eventModalities = await db.query.modalities.findMany({
-        where: eq(modalities.eventId, event.id),
-      });
-      const scheduleRequest = await createSignedInRequest({
+      const { event, modalities, modalityIds } =
+        await createEventScheduleAdminFixture();
+      const scheduleRequest = await createScheduleAdminRequest({
         email: "admin.crea.bloque@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-        body: formData({
-          intent: "create-schedule",
-          name: "Sábado mañana",
-          scheduledDate: "2026-05-02",
-          startTime: "09:00",
-          totalCapacity: "24",
-          modalityIds: eventModalities.map((modality) => modality.id),
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
+          modalityIds,
         }),
       });
 
@@ -159,9 +149,7 @@ describe.sequential(
         /\/administracion\/cronogramas\/[^?]+\?notificacion=cronograma-guardado/,
       );
 
-      const schedule = await db.query.schedules.findFirst({
-        where: eq(schedules.name, "Sábado Mañana"),
-      });
+      const schedule = await findSavedScheduleByName("Sábado Mañana");
       expect(schedule).toMatchObject({
         eventId: event.id,
         scheduledDate: "2026-05-02",
@@ -189,16 +177,16 @@ describe.sequential(
       expect(markup).toContain("Jazz");
       expect(markup).toContain("Danzas Urbanas");
 
-      const urbanas = eventModalities.find(
+      const urbanas = modalities.find(
         (modality) => modality.name === "Danzas Urbanas",
       );
-      const editScheduleRequest = await createSignedInRequest({
+      const editScheduleRequest = await createScheduleAdminRequest({
         email: "admin.edita.bloque@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-        body: formData({
-          intent: "update-schedule",
-          id: schedule?.id ?? "",
+        intent: "update-schedule",
+        scheduleId: schedule?.id ?? "",
+        schedule: buildScheduleDraft({
           name: "Sábado tarde",
           scheduledDate: "2026-05-02",
           startTime: "14:30",
@@ -214,24 +202,17 @@ describe.sequential(
       expect(updateScheduleResponse.headers.get("location")).toContain(
         "notificacion=cronograma-guardado",
       );
-      await expect(
-        db.query.schedules.findFirst({
-          where: eq(schedules.id, schedule?.id ?? ""),
-        }),
-      ).resolves.toMatchObject({
+      await expect(findSavedScheduleById(schedule?.id ?? "")).resolves.toMatchObject({
         name: "Sábado Tarde",
         startTime: "14:30",
         totalCapacity: 18,
       });
 
-      const deleteScheduleRequest = await createSignedInRequest({
+      const deleteScheduleRequest = await createDeleteScheduleAdminRequest({
         email: "admin.borra.bloque@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-        body: formData({
-          intent: "delete-schedule",
-          id: schedule?.id ?? "",
-        }),
+        scheduleId: schedule?.id ?? "",
       });
 
       const deleteScheduleResponse = await expectThrownResponse(
@@ -241,30 +222,21 @@ describe.sequential(
       expect(deleteScheduleResponse.headers.get("location")).toBe(
         "/administracion/cronogramas?notificacion=cronograma-eliminado",
       );
-      await expect(
-        db.query.schedules.findFirst({
-          where: eq(schedules.id, schedule?.id ?? ""),
-        }),
-      ).resolves.toBeUndefined();
+      await expect(findSavedScheduleById(schedule?.id ?? "")).resolves.toBeUndefined();
     });
 
     test("creates, edits and deletes cupos de cronograma inside cronogramas through the admin action", async () => {
-      const event = await createSavedEvent("Regional 2026");
-      await createModality(event.id, { name: "Jazz" });
-      const [modality] = await db.query.modalities.findMany({
-        where: eq(modalities.eventId, event.id),
-      });
-      const scheduleRequest = await createSignedInRequest({
+      const { event, modalities } = await createEventScheduleAdminFixture([
+        "Jazz",
+      ]);
+      const scheduleRequest = await createScheduleAdminRequest({
         email: "admin.crea.bloque.cupo-cronograma@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
-        body: formData({
-          intent: "create-schedule",
-          name: "Sábado mañana",
-          scheduledDate: "2026-05-02",
-          startTime: "09:00",
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
           totalCapacity: "12",
-          modalityIds: [modality?.id ?? ""],
+          modalityIds: [modalities[0].id],
         }),
       });
 
@@ -273,19 +245,15 @@ describe.sequential(
         302,
       );
 
-      const schedule = await db.query.schedules.findFirst({
-        where: eq(schedules.name, "Sábado Mañana"),
-      });
-      const createScheduleCapacityRequest = await createSignedInRequest({
+      const schedule = await findSavedScheduleByName("Sábado Mañana");
+      const createScheduleCapacityRequest =
+        await createScheduleCapacityAdminRequest({
         email: "admin.crea.cupo-cronograma@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
-        body: formData({
-          intent: "create-schedule-capacity",
-          scheduleId: schedule?.id ?? "",
-          groupType: "solo",
-          capacity: "8",
-        }),
+        intent: "create-schedule-capacity",
+        scheduleId: schedule?.id ?? "",
+        scheduleCapacity: buildScheduleCapacityDraft(),
       });
 
       const createScheduleCapacityResponse = await expectThrownResponse(
@@ -296,9 +264,9 @@ describe.sequential(
         "notificacion=cupo-cronograma-guardado",
       );
 
-      const scheduleCapacity = await db.query.scheduleCapacities.findFirst({
-        where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
-      });
+      const [scheduleCapacity] = await listSavedScheduleCapacities(
+        schedule?.id ?? "",
+      );
       expect(scheduleCapacity).toMatchObject({
         groupType: "solo",
         capacity: 8,
@@ -321,12 +289,14 @@ describe.sequential(
       expect(markup).toContain('name="scheduleCapacities.0.groupType"');
       expect(markup).toContain('name="scheduleCapacities.0.capacity"');
 
-      const editScheduleCapacityRequest = await createSignedInRequest({
+      const editScheduleCapacityRequest =
+        await createScheduleCapacityAdminRequest({
         email: "admin.edita.cupo-cronograma@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
-        body: formData({
-          intent: "update-schedule-capacity",
+        intent: "update-schedule-capacity",
+        scheduleId: schedule?.id ?? "",
+        scheduleCapacity: buildScheduleCapacityDraft({
           id: scheduleCapacity?.id ?? "",
           groupType: "trio",
           capacity: "4",
@@ -349,14 +319,14 @@ describe.sequential(
         capacity: 4,
       });
 
-      const deleteScheduleCapacityRequest = await createSignedInRequest({
+      const deleteScheduleCapacityRequest =
+        await createScheduleCapacityAdminRequest({
         email: "admin.borra.cupo-cronograma@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
-        body: formData({
-          intent: "delete-schedule-capacity",
-          id: scheduleCapacity?.id ?? "",
-        }),
+        intent: "delete-schedule-capacity",
+        scheduleId: schedule?.id ?? "",
+        scheduleCapacityId: scheduleCapacity?.id ?? "",
       });
 
       const deleteScheduleCapacityResponse = await expectThrownResponse(
@@ -366,33 +336,31 @@ describe.sequential(
       expect(deleteScheduleCapacityResponse.headers.get("location")).toContain(
         "notificacion=cupo-cronograma-eliminado",
       );
-      await expect(
-        db.query.scheduleCapacities.findFirst({
-          where: eq(scheduleCapacities.id, scheduleCapacity?.id ?? ""),
-        }),
-      ).resolves.toBeUndefined();
+      await expect(listSavedScheduleCapacities(schedule?.id ?? "")).resolves.toEqual([]);
     });
 
     test("saves inline cupos de cronograma through the cronograma form", async () => {
-      const event = await createSavedEvent("Regional 2026");
-      const modality = await expectCreated(
-        createModality(event.id, { name: "Jazz" }),
-      );
-      const createScheduleRequest = await createSignedInRequest({
+      const { event, modalities } = await createEventScheduleAdminFixture([
+        "Jazz",
+      ]);
+      const createScheduleRequest = await createScheduleAdminRequest({
         email: "admin.inline.cupos-cronograma@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
-        body: formData({
-          intent: "create-schedule",
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
           name: "Domingo tarde",
           scheduledDate: "2026-05-03",
           startTime: "15:00",
           totalCapacity: "12",
-          modalityIds: [modality.id],
-          "scheduleCapacities.0.groupType": "solo",
-          "scheduleCapacities.0.capacity": "5",
-          "scheduleCapacities.1.groupType": "grupal",
-          "scheduleCapacities.1.capacity": "7",
+          modalityIds: [modalities[0].id],
+          scheduleCapacities: [
+            buildScheduleCapacityDraft({ capacity: "5" }),
+            buildScheduleCapacityDraft({
+              groupType: "grupal",
+              capacity: "7",
+            }),
+          ],
         }),
       });
 
@@ -401,41 +369,43 @@ describe.sequential(
         302,
       );
 
-      const schedule = await db.query.schedules.findFirst({
-        where: eq(schedules.name, "Domingo Tarde"),
-      });
-      const createdEntries = await db.query.scheduleCapacities.findMany({
-        where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
-      });
+      const schedule = await findSavedScheduleByName("Domingo Tarde");
+      const createdEntries = await listSavedScheduleCapacities(
+        schedule?.id ?? "",
+      );
       const soloEntry = createdEntries.find(
         (entry) => entry.groupType === "solo",
       );
 
       expect(createdEntries).toHaveLength(2);
-      expect(createdEntries).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ groupType: "solo", capacity: 5 }),
-          expect.objectContaining({ groupType: "grupal", capacity: 7 }),
-        ]),
-      );
+      expectScheduleCapacityBreakdown(createdEntries, [
+        { groupType: "solo", capacity: 5 },
+        { groupType: "grupal", capacity: 7 },
+      ]);
 
-      const updateScheduleRequest = await createSignedInRequest({
+      const updateScheduleRequest = await createScheduleAdminRequest({
         email: "admin.inline.cupos-cronograma.edita@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
-        body: formData({
-          intent: "update-schedule",
-          id: schedule?.id ?? "",
+        intent: "update-schedule",
+        scheduleId: schedule?.id ?? "",
+        schedule: buildScheduleDraft({
           name: "Domingo tarde",
           scheduledDate: "2026-05-03",
           startTime: "15:00",
           totalCapacity: "12",
-          modalityIds: [modality.id],
-          "scheduleCapacities.0.id": soloEntry?.id ?? "",
-          "scheduleCapacities.0.groupType": "duo",
-          "scheduleCapacities.0.capacity": "3",
-          "scheduleCapacities.1.groupType": "trio",
-          "scheduleCapacities.1.capacity": "4",
+          modalityIds: [modalities[0].id],
+          scheduleCapacities: [
+            buildScheduleCapacityDraft({
+              id: soloEntry?.id ?? "",
+              groupType: "duo",
+              capacity: "3",
+            }),
+            buildScheduleCapacityDraft({
+              groupType: "trio",
+              capacity: "4",
+            }),
+          ],
         }),
       });
 
@@ -444,17 +414,20 @@ describe.sequential(
         302,
       );
 
-      const updatedEntries = await db.query.scheduleCapacities.findMany({
-        where: eq(scheduleCapacities.scheduleId, schedule?.id ?? ""),
-      });
+      const updatedEntries = await listSavedScheduleCapacities(
+        schedule?.id ?? "",
+      );
 
       expect(updatedEntries).toHaveLength(2);
       expect(updatedEntries).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ id: soloEntry?.id, groupType: "duo" }),
-          expect.objectContaining({ groupType: "trio", capacity: 4 }),
         ]),
       );
+      expectScheduleCapacityBreakdown(updatedEntries, [
+        { groupType: "duo", capacity: 3 },
+        { groupType: "trio", capacity: 4 },
+      ]);
       expect(updatedEntries.some((entry) => entry.groupType === "grupal")).toBe(
         false,
       );
@@ -537,21 +510,27 @@ describe.sequential(
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),
       );
-      const request = await createSignedInRequest({
+      const request = await createScheduleAdminRequest({
         email: "admin.inline.cupos.requeridos@example.com",
         role: "admin",
         requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
-        body: formData({
-          intent: "create-schedule",
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
           name: "Domingo tarde",
           scheduledDate: "2026-05-03",
           startTime: "15:00",
           totalCapacity: "12",
           modalityIds: [modality.id],
-          "scheduleCapacities.0.groupType": "",
-          "scheduleCapacities.0.capacity": "",
-          "scheduleCapacities.1.groupType": "grupal",
-          "scheduleCapacities.1.capacity": "7",
+          scheduleCapacities: [
+            buildScheduleCapacityDraft({
+              groupType: "",
+              capacity: "",
+            }),
+            buildScheduleCapacityDraft({
+              groupType: "grupal",
+              capacity: "7",
+            }),
+          ],
         }),
       });
 
