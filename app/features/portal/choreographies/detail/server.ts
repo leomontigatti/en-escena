@@ -46,6 +46,68 @@ type ActionData =
   | ChoreographyRosterEditorActionData
   | DancerResolutionActionData;
 
+type UpdateActionData = NonNullable<ChoreographyRosterEditorActionData>;
+type UpdateErrorSection = UpdateActionData["section"];
+type UpdateErrorFieldErrors = Extract<
+  UpdateActionData,
+  { section: "dancers" }
+>["fieldErrors"];
+
+type UpdateActionSelection = {
+  dancerIds: string[];
+  experienceLevelId: string | null;
+  musicStorageKey: string;
+  professorIds: string[];
+  scheduleCapacityId: string | null;
+};
+
+type ParsedPortalChoreographyDetailAction =
+  | {
+      intent: typeof resolveChoreographyDancersIntent;
+      academyId: string;
+      choreographyId: string;
+      dancerIds: string[];
+      eventId: string;
+      isRegistrationOpen: boolean;
+    }
+  | ({
+      intent: typeof updateChoreographyIntent;
+      academyId: string;
+      choreographyId: string;
+      eventId: string;
+      isRegistrationOpen: boolean;
+      musicFile: File | null;
+      musicWasSubmitted: boolean;
+      musicValidationError: string;
+    } & UpdateActionSelection)
+  | {
+      intent: typeof deleteChoreographyIntent;
+      academyId: string;
+      choreographyId: string;
+      eventId: string;
+    };
+
+type PortalChoreographyDetailActionResult =
+  | {
+      kind: "dancer-resolution";
+      result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
+    }
+  | ({
+      kind: "update-error";
+      error: {
+        fieldErrors?: UpdateErrorFieldErrors;
+        message: string;
+        section: UpdateErrorSection;
+      };
+    } & UpdateActionSelection)
+  | {
+      kind: "saved";
+      choreographyId: string;
+    }
+  | {
+      kind: "deleted";
+    };
+
 type ChoreographyRosterSummary = {
   id: string;
   dancers: Array<{ id: string }>;
@@ -127,13 +189,17 @@ export async function handlePortalChoreographyDetailRouteAction({
     throw new Response(readOnlyEventMessage, { status: 403 });
   }
 
-  return await handlePortalChoreographyDetailAction({
+  const parsedAction = parsePortalChoreographyDetailAction({
     academyId: academy.id,
     choreographyId,
     eventId: selectedEventId,
     formData: await request.formData(),
     isRegistrationOpen: eventContext.isRegistrationOpen,
   });
+
+  const result = await executePortalChoreographyDetailAction(parsedAction);
+
+  return adaptPortalChoreographyDetailActionResult(result);
 }
 
 export async function loadChoreographyRosterEditorOptions(input: {
@@ -157,30 +223,29 @@ export async function loadChoreographyRosterEditorOptions(input: {
   };
 }
 
-async function handlePortalChoreographyDetailAction(input: {
+function parsePortalChoreographyDetailAction(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
   formData: FormData;
   isRegistrationOpen: boolean;
-}) {
+}): ParsedPortalChoreographyDetailAction {
   const intent = readFormString(input.formData, "intent");
 
   if (intent === resolveChoreographyDancersIntent) {
     return {
       intent,
-      result: await resolveChoreographyDancers({
-        academyId: input.academyId,
-        choreographyId: input.choreographyId,
-        dancerIds: readFormStringArray(input.formData, "dancerIds"),
-        eventId: input.eventId,
-        isRegistrationOpen: input.isRegistrationOpen,
-      }),
-    } satisfies DancerResolutionActionData;
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      dancerIds: readFormStringArray(input.formData, "dancerIds"),
+      eventId: input.eventId,
+      isRegistrationOpen: input.isRegistrationOpen,
+    };
   }
 
   if (intent === updateChoreographyIntent) {
-    return await handleUpdateChoreographyAction({
+    return {
+      intent,
       academyId: input.academyId,
       choreographyId: input.choreographyId,
       dancerIds: readFormStringArray(input.formData, "dancerIds"),
@@ -202,20 +267,50 @@ async function handlePortalChoreographyDetailAction(input: {
         input.formData,
         "scheduleCapacityId",
       ),
-    });
+    };
   }
 
   if (intent === deleteChoreographyIntent) {
     assertDeleteConfirmationMatches(input.formData, input.choreographyId);
 
-    return await handleDeleteChoreographyAction({
+    return {
+      intent,
       academyId: input.academyId,
       choreographyId: input.choreographyId,
       eventId: input.eventId,
-    });
+    };
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
+}
+
+async function executePortalChoreographyDetailAction(
+  action: ParsedPortalChoreographyDetailAction,
+): Promise<PortalChoreographyDetailActionResult> {
+  if (action.intent === resolveChoreographyDancersIntent) {
+    return {
+      kind: "dancer-resolution",
+      result: await resolveChoreographyDancers({
+        academyId: action.academyId,
+        choreographyId: action.choreographyId,
+        dancerIds: action.dancerIds,
+        eventId: action.eventId,
+        isRegistrationOpen: action.isRegistrationOpen,
+      }),
+    };
+  }
+
+  if (action.intent === updateChoreographyIntent) {
+    return await executeUpdateChoreographyAction(action);
+  }
+
+  await deleteChoreography({
+    academyId: action.academyId,
+    choreographyId: action.choreographyId,
+    eventId: action.eventId,
+  });
+
+  return { kind: "deleted" };
 }
 
 function readFormString(formData: FormData, key: string) {
@@ -246,22 +341,48 @@ function readOptionalFormFile(formData: FormData, key: string) {
   return value;
 }
 
-async function handleUpdateChoreographyAction(input: {
-  academyId: string;
-  choreographyId: string;
-  dancerIds: string[];
-  eventId: string;
-  experienceLevelId: string | null;
-  isRegistrationOpen: boolean;
-  musicFile: File | null;
-  musicStorageKey: string;
-  musicWasSubmitted: boolean;
-  musicValidationError: string;
-  professorIds: string[];
-  scheduleCapacityId: string | null;
-}) {
-  if (input.musicValidationError) {
-    return buildMusicUpdateError(input, input.musicValidationError);
+async function executeUpdateChoreographyAction(
+  input: Extract<
+    ParsedPortalChoreographyDetailAction,
+    { intent: typeof updateChoreographyIntent }
+  >,
+): Promise<PortalChoreographyDetailActionResult> {
+  const selection = getUpdateActionSelection(input);
+  const parsedUpdate = parseUpdateChoreographyActionInput(input, selection);
+
+  if (!parsedUpdate.ok) {
+    return parsedUpdate.result;
+  }
+
+  const updateError = await persistChoreographyUpdate(input, parsedUpdate);
+
+  if (updateError) {
+    return updateError;
+  }
+
+  const musicError = await updateChoreographyActionMusic(input, parsedUpdate);
+
+  if (musicError) {
+    return musicError;
+  }
+
+  return {
+    kind: "saved",
+    choreographyId: input.choreographyId,
+  };
+}
+
+function parseUpdateChoreographyActionInput(
+  input: Extract<
+    ParsedPortalChoreographyDetailAction,
+    { intent: typeof updateChoreographyIntent }
+  >,
+  selection: UpdateActionSelection,
+) {
+  const preflightError = readUpdateChoreographyPreflightError(input, selection);
+
+  if (preflightError) {
+    return preflightError;
   }
 
   const parsed = choreographyEditSchema.safeParse({
@@ -271,94 +392,175 @@ async function handleUpdateChoreographyAction(input: {
     scheduleCapacityId: input.scheduleCapacityId ?? "",
   });
 
-  if (!parsed.success) {
-    return {
-      status: "update-error" as const,
-      section: "dancers" as const,
-      fieldErrors: {
+  const parsedError = readSubmittedChoreographyEditError(parsed, selection);
+
+  if (parsedError) {
+    return parsedError;
+  }
+
+  return {
+    ok: true as const,
+    parsed,
+    parsedSelection: {
+      ...selection,
+      dancerIds: parsed.data.dancerIds,
+      musicStorageKey: parsed.data.musicStorageKey ?? "",
+      scheduleCapacityId: parsed.data.scheduleCapacityId ?? null,
+    } satisfies UpdateActionSelection,
+  };
+}
+
+function readUpdateChoreographyPreflightError(
+  input: Extract<
+    ParsedPortalChoreographyDetailAction,
+    { intent: typeof updateChoreographyIntent }
+  >,
+  selection: UpdateActionSelection,
+) {
+  if (!input.musicValidationError) {
+    return null;
+  }
+
+  return {
+    ok: false as const,
+    result: buildUpdateErrorResult(
+      selection,
+      "music",
+      input.musicValidationError,
+    ),
+  };
+}
+
+function readSubmittedChoreographyEditError(
+  parsed: ReturnType<typeof choreographyEditSchema.safeParse>,
+  selection: UpdateActionSelection,
+) {
+  if (parsed.success) {
+    return null;
+  }
+
+  return {
+    ok: false as const,
+    result: buildUpdateErrorResult(
+      selection,
+      "dancers",
+      rosterEditorReviewMessage,
+      {
         dancerIds:
           parsed.error.flatten().fieldErrors.dancerIds?.[0] ?? undefined,
         scheduleCapacityId:
           parsed.error.flatten().fieldErrors.scheduleCapacityId?.[0] ??
           undefined,
       },
-      message: rosterEditorReviewMessage,
-      selectedDancerIds: input.dancerIds,
-      selectedMusicStorageKey: input.musicStorageKey,
-      selectedProfessorIds: input.professorIds,
-      selectedExperienceLevelId: input.experienceLevelId,
-      selectedScheduleCapacityId: input.scheduleCapacityId ?? undefined,
-    } satisfies ActionData;
-  }
+    ),
+  };
+}
 
+async function persistChoreographyUpdate(
+  input: Extract<
+    ParsedPortalChoreographyDetailAction,
+    { intent: typeof updateChoreographyIntent }
+  >,
+  parsedUpdate: Extract<
+    ReturnType<typeof parseUpdateChoreographyActionInput>,
+    { ok: true }
+  >,
+) {
   const result = await updateChoreography({
     academyId: input.academyId,
     choreographyId: input.choreographyId,
-    dancerIds: parsed.data.dancerIds,
+    dancerIds: parsedUpdate.parsed.data.dancerIds,
     eventId: input.eventId,
     experienceLevelId: input.experienceLevelId,
     isRegistrationOpen: input.isRegistrationOpen,
     professorIds: input.professorIds,
-    scheduleCapacityId: parsed.data.scheduleCapacityId,
+    scheduleCapacityId: parsedUpdate.parsed.data.scheduleCapacityId,
   });
 
-  if (!result.ok) {
-    return {
-      status: "update-error" as const,
-      section: result.section,
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      selectedDancerIds: parsed.data.dancerIds,
-      selectedMusicStorageKey: parsed.data.musicStorageKey ?? "",
-      selectedProfessorIds: input.professorIds,
-      selectedExperienceLevelId: input.experienceLevelId,
-      selectedScheduleCapacityId: parsed.data.scheduleCapacityId,
-    } satisfies ActionData;
+  if (result.ok) {
+    return null;
   }
 
-  if (input.musicWasSubmitted || input.musicFile) {
-    try {
-      const musicResult = await updateChoreographyMusic({
-        academyId: input.academyId,
-        choreographyId: input.choreographyId,
-        eventId: input.eventId,
-        file: input.musicFile,
-        submittedStorageKey: parsed.data.musicStorageKey ?? "",
-      });
-
-      if (!musicResult.ok) {
-        return buildMusicUpdateError(input, musicResult.message);
-      }
-    } catch (error) {
-      return buildMusicUpdateError(input, getMusicUploadErrorMessage(error));
-    }
-  }
-
-  return redirect(
-    `/portal/coreografias/${input.choreographyId}?${routeNotificationSearchParam}=${choreographySavedNotification}`,
+  return buildUpdateErrorResult(
+    parsedUpdate.parsedSelection,
+    result.section,
+    result.message,
+    result.fieldErrors,
   );
 }
 
-function buildMusicUpdateError(
-  input: {
-    dancerIds: string[];
-    experienceLevelId: string | null;
-    musicStorageKey: string;
-    professorIds: string[];
-    scheduleCapacityId: string | null;
-  },
+async function updateChoreographyActionMusic(
+  input: Extract<
+    ParsedPortalChoreographyDetailAction,
+    { intent: typeof updateChoreographyIntent }
+  >,
+  parsedUpdate: Extract<
+    ReturnType<typeof parseUpdateChoreographyActionInput>,
+    { ok: true }
+  >,
+) {
+  if (!input.musicWasSubmitted && !input.musicFile) {
+    return null;
+  }
+
+  try {
+    const musicResult = await updateChoreographyMusic({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      eventId: input.eventId,
+      file: input.musicFile,
+      submittedStorageKey: parsedUpdate.parsed.data.musicStorageKey ?? "",
+    });
+
+    if (musicResult.ok) {
+      return null;
+    }
+
+    return buildUpdateErrorResult(
+      parsedUpdate.parsedSelection,
+      "music",
+      musicResult.message,
+    );
+  } catch (error) {
+    return buildUpdateErrorResult(
+      parsedUpdate.parsedSelection,
+      "music",
+      getMusicUploadErrorMessage(error),
+    );
+  }
+}
+
+function getUpdateActionSelection(input: {
+  dancerIds: string[];
+  experienceLevelId: string | null;
+  musicStorageKey: string;
+  professorIds: string[];
+  scheduleCapacityId: string | null;
+}) {
+  return {
+    dancerIds: input.dancerIds,
+    experienceLevelId: input.experienceLevelId,
+    musicStorageKey: input.musicStorageKey,
+    professorIds: input.professorIds,
+    scheduleCapacityId: input.scheduleCapacityId,
+  };
+}
+
+function buildUpdateErrorResult(
+  selection: UpdateActionSelection,
+  section: UpdateErrorSection,
   message: string,
+  fieldErrors?: UpdateErrorFieldErrors,
 ) {
   return {
-    status: "update-error" as const,
-    section: "music" as const,
-    message,
-    selectedDancerIds: input.dancerIds,
-    selectedMusicStorageKey: input.musicStorageKey,
-    selectedProfessorIds: input.professorIds,
-    selectedExperienceLevelId: input.experienceLevelId,
-    selectedScheduleCapacityId: input.scheduleCapacityId ?? undefined,
-  } satisfies ActionData;
+    kind: "update-error" as const,
+    error: {
+      fieldErrors,
+      message,
+      section,
+    },
+    ...selection,
+  } satisfies PortalChoreographyDetailActionResult;
 }
 
 function getMusicUploadErrorMessage(error: unknown) {
@@ -387,16 +589,35 @@ function getMusicUploadErrorMessage(error: unknown) {
   return choreographyMusicUploadErrorMessage;
 }
 
-async function handleDeleteChoreographyAction(input: {
-  academyId: string;
-  choreographyId: string;
-  eventId: string;
-}) {
-  await deleteChoreography({
-    academyId: input.academyId,
-    choreographyId: input.choreographyId,
-    eventId: input.eventId,
-  });
+function adaptPortalChoreographyDetailActionResult(
+  result: PortalChoreographyDetailActionResult,
+): ActionData | Response {
+  if (result.kind === "dancer-resolution") {
+    return {
+      intent: resolveChoreographyDancersIntent,
+      result: result.result,
+    };
+  }
+
+  if (result.kind === "update-error") {
+    return {
+      status: "update-error",
+      fieldErrors: result.error.fieldErrors,
+      message: result.error.message,
+      section: result.error.section,
+      selectedDancerIds: result.dancerIds,
+      selectedMusicStorageKey: result.musicStorageKey,
+      selectedProfessorIds: result.professorIds,
+      selectedExperienceLevelId: result.experienceLevelId,
+      selectedScheduleCapacityId: result.scheduleCapacityId ?? undefined,
+    };
+  }
+
+  if (result.kind === "saved") {
+    return redirect(
+      `/portal/coreografias/${result.choreographyId}?${routeNotificationSearchParam}=${choreographySavedNotification}`,
+    );
+  }
 
   return redirect(
     `/portal/coreografias?${routeNotificationSearchParam}=${choreographyDeletedNotification}`,
