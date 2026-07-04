@@ -1,5 +1,5 @@
 import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
@@ -38,12 +38,12 @@ import {
   usePortalDancerForm,
 } from "./form";
 import {
+  buildPortalDancerDetailViewModel,
   formatDateOnlyLabel,
   formatDocumentTypeLabel,
   getDocumentImageStateLabel,
   getGeneralActionError,
   getPortalDancerFormValues,
-  getPortalDancerStatusAction,
   getPortalDancerStatusFormId,
   portalDancerFormId,
   portalDancerStatusActions,
@@ -75,31 +75,23 @@ export function PortalDancerDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
-  const statusAction = getPortalDancerStatusAction(loaderData.dancer.active);
   const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
   const identificationPendingItems = getDancerIdentificationPendingItems(
     loaderData.dancer,
   );
-  const isIdentityVerified = verificationStatus === "verified";
-  const identityFieldValues = isIdentityVerified
-    ? {
-        birthDate: loaderData.dancer.birthDate,
-        documentType: loaderData.dancer.documentType ?? "",
-        documentNumber: loaderData.dancer.documentNumber ?? "",
-      }
-    : formValues;
-  const showsIdentificationAlert = verificationStatus === "incomplete";
-  const showsPendingVerificationAlert = verificationStatus === "unverified";
-  const showsVerifiedIdentityAlert = verificationStatus === "verified";
+  const viewModel = buildPortalDancerDetailViewModel({
+    dancer: loaderData.dancer,
+    formValues,
+    identificationPendingItems,
+    verificationStatus,
+  });
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
-  const detailHref = `/portal/bailarines/${loaderData.dancer.id}`;
   const viewTransitionStyle = usePortalRecordTitleDetailTransitionStyle({
-    detailHref,
+    detailHref: viewModel.detailHref,
     listHref: "/portal/bailarines",
   });
-  const title = `${loaderData.dancer.firstName} ${loaderData.dancer.lastName}`;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
@@ -118,7 +110,7 @@ export function PortalDancerDetailRouteView({
               className="text-xl font-semibold"
               style={viewTransitionStyle}
             >
-              {title}
+              {viewModel.title}
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               Actualizá los datos de este bailarín.
@@ -126,54 +118,31 @@ export function PortalDancerDetailRouteView({
           </div>
           <ResourceActionsMenu contentClassName="w-40">
             <DropdownMenuItem
-              variant={statusAction.confirmButtonVariant}
+              variant={viewModel.statusAction.confirmButtonVariant}
               onSelect={(event) => {
                 event.preventDefault();
-                setStatusDialogIntent(statusAction.intent);
+                setStatusDialogIntent(viewModel.statusAction.intent);
               }}
             >
-              {statusAction.label}
+              {viewModel.statusAction.label}
             </DropdownMenuItem>
           </ResourceActionsMenu>
         </div>
 
-        <AlertStack>
-          {!loaderData.dancer.active ? (
-            <ArchivedPersonAlert
-              personLabel="bailarín"
-              onReactivate={() => {
-                setStatusDialogIntent("reactivate-dancer");
-              }}
-            />
-          ) : null}
-          {showsIdentificationAlert ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                {formatIdentificationPendingAlert(identificationPendingItems)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {showsPendingVerificationAlert ? (
-            <Alert variant="info">
-              <Info aria-hidden="true" />
-              <AlertDescription>
-                La identidad del bailarín está sin verificar.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {showsVerifiedIdentityAlert ? (
-            <Alert variant="info">
-              <Info aria-hidden="true" />
-              <AlertDescription>
-                La identidad del bailarín está verificada. Comunicate con
-                nosotros si necesitás realizar algún cambio.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </AlertStack>
+        <PortalDancerAlertsSection
+          dancerActive={loaderData.dancer.active}
+          identificationPendingItems={viewModel.identificationPendingItems}
+          onReactivate={() => {
+            setStatusDialogIntent("reactivate-dancer");
+          }}
+          showsIdentificationAlert={viewModel.showsIdentificationAlert}
+          showsPendingVerificationAlert={
+            viewModel.showsPendingVerificationAlert
+          }
+          showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
+        />
 
-        <Card>
+        <PortalDancerFormSection>
           <CardContent>
             <form
               id={portalDancerFormId}
@@ -194,36 +163,36 @@ export function PortalDancerDetailRouteView({
                   label="Apellido"
                   name="lastName"
                 />
-                {isIdentityVerified ? (
+                {viewModel.isIdentityVerified ? (
                   <ReadonlyLockedFormField
                     label="Fecha de nacimiento"
                     name="birthDate"
-                    value={identityFieldValues.birthDate}
+                    value={viewModel.identityFieldValues.birthDate}
                     displayValue={formatDateOnlyLabel(
-                      identityFieldValues.birthDate,
+                      viewModel.identityFieldValues.birthDate,
                     )}
                   />
                 ) : (
                   <PortalDancerBirthDateField form={form.form} />
                 )}
                 <div className="hidden md:block" aria-hidden="true" />
-                {isIdentityVerified ? (
+                {viewModel.isIdentityVerified ? (
                   <ReadonlyLockedFormField
                     label="Tipo de documento"
                     name="documentType"
-                    value={identityFieldValues.documentType}
+                    value={viewModel.identityFieldValues.documentType}
                     displayValue={formatDocumentTypeLabel(
-                      identityFieldValues.documentType,
+                      viewModel.identityFieldValues.documentType,
                     )}
                   />
                 ) : (
                   <PortalDancerDocumentTypeField form={form.form} />
                 )}
-                {isIdentityVerified ? (
+                {viewModel.isIdentityVerified ? (
                   <ReadonlyLockedFormField
                     label="Número de documento"
                     name="documentNumber"
-                    value={identityFieldValues.documentNumber}
+                    value={viewModel.identityFieldValues.documentNumber}
                   />
                 ) : (
                   <PortalDancerTextField
@@ -232,22 +201,30 @@ export function PortalDancerDetailRouteView({
                     name="documentNumber"
                   />
                 )}
-                {isIdentityVerified ? (
+                {viewModel.isIdentityVerified ? (
                   <>
                     <ReadonlyLockedFormField
                       label="Frente del documento"
                       name="documentFrontImageStorageKey"
-                      value={formValues.documentFrontImageStorageKey}
+                      value={
+                        viewModel.identityFieldValues
+                          .documentFrontImageStorageKey
+                      }
                       displayValue={getDocumentImageStateLabel(
-                        formValues.documentFrontImageStorageKey,
+                        viewModel.identityFieldValues
+                          .documentFrontImageStorageKey,
                       )}
                     />
                     <ReadonlyLockedFormField
                       label="Dorso del documento"
                       name="documentBackImageStorageKey"
-                      value={formValues.documentBackImageStorageKey}
+                      value={
+                        viewModel.identityFieldValues
+                          .documentBackImageStorageKey
+                      }
                       displayValue={getDocumentImageStateLabel(
-                        formValues.documentBackImageStorageKey,
+                        viewModel.identityFieldValues
+                          .documentBackImageStorageKey,
                       )}
                     />
                   </>
@@ -272,7 +249,7 @@ export function PortalDancerDetailRouteView({
               isPending={isSubmitting}
             />
           </CardFooter>
-        </Card>
+        </PortalDancerFormSection>
       </section>
 
       <PortalDancerStatusDialog
@@ -284,6 +261,80 @@ export function PortalDancerDetailRouteView({
         }}
       />
     </>
+  );
+}
+
+function PortalDancerAlertsSection({
+  dancerActive,
+  identificationPendingItems,
+  onReactivate,
+  showsIdentificationAlert,
+  showsPendingVerificationAlert,
+  showsVerifiedIdentityAlert,
+}: {
+  dancerActive: boolean;
+  identificationPendingItems: DancerIdentificationPendingItem[];
+  onReactivate: () => void;
+  showsIdentificationAlert: boolean;
+  showsPendingVerificationAlert: boolean;
+  showsVerifiedIdentityAlert: boolean;
+}) {
+  return (
+    <section
+      aria-labelledby="bailarin-detail-alerts-title"
+      className="flex flex-col gap-6"
+    >
+      <h2 id="bailarin-detail-alerts-title" className="sr-only">
+        Alertas de la ficha del bailarín
+      </h2>
+      <AlertStack>
+        {!dancerActive ? (
+          <ArchivedPersonAlert
+            personLabel="bailarín"
+            onReactivate={onReactivate}
+          />
+        ) : null}
+        {showsIdentificationAlert ? (
+          <Alert variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            <AlertDescription>
+              {formatIdentificationPendingAlert(identificationPendingItems)}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {showsPendingVerificationAlert ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              La identidad del bailarín está sin verificar.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {showsVerifiedIdentityAlert ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              La identidad del bailarín está verificada. Comunicate con nosotros
+              si necesitás realizar algún cambio.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+      </AlertStack>
+    </section>
+  );
+}
+
+function PortalDancerFormSection({ children }: { children: ReactNode }) {
+  return (
+    <section
+      aria-labelledby="bailarin-detail-form-title"
+      className="flex flex-col"
+    >
+      <h2 id="bailarin-detail-form-title" className="sr-only">
+        Ficha del bailarín
+      </h2>
+      <Card>{children}</Card>
+    </section>
   );
 }
 
