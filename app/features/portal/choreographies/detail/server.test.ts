@@ -176,9 +176,8 @@ describe("portal choreography detail server", () => {
       selectedEvent: { id: "event_1" },
     });
 
-    const { handlePortalChoreographyDetailRouteAction } = await import(
-      "@/features/portal/choreographies/detail/server"
-    );
+    const { handlePortalChoreographyDetailRouteAction } =
+      await import("@/features/portal/choreographies/detail/server");
 
     const formData = new FormData();
     formData.set("intent", "update-choreography");
@@ -229,9 +228,8 @@ describe("portal choreography detail server", () => {
       },
     });
 
-    const { handlePortalChoreographyDetailRouteAction } = await import(
-      "@/features/portal/choreographies/detail/server"
-    );
+    const { handlePortalChoreographyDetailRouteAction } =
+      await import("@/features/portal/choreographies/detail/server");
 
     const formData = new FormData();
     formData.set("intent", "update-choreography");

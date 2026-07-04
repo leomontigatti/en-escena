@@ -32,6 +32,10 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import {
+  expectPersistedDancer,
+  expectPersonDetailRedirect,
+} from "@/lib/test-support/person-detail-db-assertions";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -762,14 +766,11 @@ describe.sequential("administracion/bailarines route", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      response,
       `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
     );
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(dancer.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
       birthDate: "2012-05-06",
@@ -1337,14 +1338,11 @@ describe.sequential("administracion/bailarines route", () => {
       302,
     );
 
-    expect(verifyResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      verifyResponse,
       `/administracion/bailarines/${dancer.id}?notificacion=bailarin-verificado`,
     );
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(dancer.id, {
       identityVerifiedAt: expect.any(Date),
     });
 
@@ -1427,15 +1425,12 @@ describe.sequential("administracion/bailarines route", () => {
       ),
       302,
     );
-    expect(editResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      editResponse,
       `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado-requiere-verificacion`,
     );
 
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(dancer.id, {
       documentFrontImageStorageKey: "dancers/paula-front.jpg",
       documentBackImageStorageKey: "dancers/paula-back.jpg",
       identityVerifiedAt: null,
@@ -1519,14 +1514,11 @@ describe.sequential("administracion/bailarines route", () => {
       302,
     );
 
-    expect(archiveResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      archiveResponse,
       `/administracion/bailarines/${dancer.id}?notificacion=bailarin-archivado`,
     );
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({ active: false });
+    await expectPersistedDancer(dancer.id, { active: false });
 
     const archivedDetail = await detailLoader(
       detailRouteArgs(request, dancer.id),
@@ -1559,11 +1551,7 @@ describe.sequential("administracion/bailarines route", () => {
       302,
     );
 
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({ active: true });
+    await expectPersistedDancer(dancer.id, { active: true });
     await expect(
       db
         .select()
