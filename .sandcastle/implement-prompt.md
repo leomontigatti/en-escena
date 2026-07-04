@@ -68,12 +68,67 @@ the issue safely, but do not spend time on broad refactors, stylistic cleanup,
 or maintainability review that is not required for the task. The reviewer will
 apply project coding standards after implementation.
 
-If applicable, use RGR to complete the task.
+Use the vendored skill rules below while implementing. They are intentionally
+included here so the sandbox does not need access to any global agent skills.
+
+## TDD / RGR rules
+
+Use RGR when there is an existing or practical public seam for the behavior.
+Choose seams from the app's public interfaces and existing test patterns: route
+loaders/actions, rendered user behavior, repository/service APIs, domain
+functions, CLI commands, or other boundaries callers actually use. In this
+non-interactive Sandcastle run, do not stop to ask the user to approve a seam;
+use established repo seams and mention the chosen seam in the commit message if
+it is not obvious.
+
+Good tests verify observable behavior through public interfaces. Avoid tests
+that depend on private methods, internal collaborators, call counts, call order,
+or implementation-shaped snapshots. Expected values should come from the issue,
+a known literal, or a worked example rather than recomputing the implementation.
+
+Mock only system boundaries such as external APIs, email, payment providers,
+time, randomness, or filesystem access. Do not mock local modules you control
+just to make an internal interaction easy to assert. Prefer the repo's test
+database or established test harness over database mocks when persistence
+behavior matters.
+
+Work in vertical slices: one failing behavior test, the minimum implementation
+to pass it, then the next slice. Do not write a broad suite for imagined future
+behavior before the first implementation exists.
 
 1. RED: write one test
 2. GREEN: write the implementation to pass that test
 3. REPEAT until done
 4. REFACTOR the code
+
+If no correct automated seam exists for the issue, state that explicitly in the
+commit message or issue comment, run the tightest manual/focused validation you
+can, and keep the code change minimal.
+
+## Bug diagnosis rules
+
+For issues labeled or described as bugs, first build a feedback loop that can
+catch the user's exact symptom: a failing test, route/action invocation,
+browser/DOM check, CLI command, throwaway harness, or another deterministic
+signal. Reproduce and minimize the bug before changing production code.
+
+Generate a small set of falsifiable hypotheses before editing. Use targeted
+instrumentation only when it tests a specific hypothesis, tag temporary logs
+with a unique `[DEBUG-...]` prefix, and remove all such instrumentation before
+committing.
+
+Turn the minimized repro into a regression test at a correct seam when one
+exists. After the fix, rerun both the regression test and the original feedback
+loop so the observed symptom is confirmed fixed.
+
+## External research rules
+
+If the implementation depends on external API behavior, upstream source code,
+library docs, or framework semantics that are not already clear from the repo,
+use primary sources only: official docs, source code, specifications, or
+first-party APIs. Record any decision-relevant finding in the commit message or
+issue comment with enough detail that the reviewer can verify why the choice was
+made.
 
 # FEEDBACK LOOPS
 

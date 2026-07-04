@@ -20,13 +20,37 @@ functionality.
 
 # REVIEW PROCESS
 
+Use the vendored code-review rules below while reviewing. They are included
+here so this prompt is self-contained inside the Sandcastle sandbox.
+
 1. **Understand the change**: Read the diff and commits above to understand the intent.
    Use targeted `git diff {{BASE_BRANCH}}...{{BRANCH}} -- <path>` commands for
    the files that need review. Start with the changed files list and avoid
    loading the full branch diff unless the scoped diffs do not explain the
    change.
 
-2. **Analyze for improvements**: Look for opportunities to:
+2. **Pin the review base**: Treat `{{BASE_BRANCH}}` as the fixed point and
+   review the three-dot diff `{{BASE_BRANCH}}...{{BRANCH}}`. Confirm the base
+   ref resolves and the diff is non-empty before spending time on detailed
+   review. Use the commit list above to understand intent and scope.
+
+3. **Identify the spec source**: Find the issue or PRD that defines the work.
+   Prefer, in order: issue references in commit messages, a
+   `sandcastle/issue-<id>` branch name, explicit `Closes #<id>` / `Fixes #<id>`
+   references, or a matching PRD/spec under `docs/`, `specs/`, or `.scratch/`.
+   For issue-backed work, fetch the issue with `gh issue view <id> --comments`
+   and check every acceptance criterion. If there is no spec source, continue
+   the Standards review and note that the Spec review is limited.
+
+4. **Run a two-axis review**: Keep these axes separate so one does not mask the
+   other:
+
+   - **Standards**: Does the diff follow documented repo standards and avoid
+     avoidable complexity?
+   - **Spec**: Does the diff faithfully implement the issue or PRD, without
+     missing acceptance criteria or adding unrequested behavior?
+
+5. **Analyze for standards improvements**: Look for opportunities to:
    - Reduce unnecessary complexity and nesting
    - Eliminate redundant code and abstractions
    - Improve readability through clear variable and function names
@@ -37,26 +61,53 @@ functionality.
    - Keep changed application modules under 5500 estimated tokens by splitting
      at real module boundaries, not by adding shallow pass-through wrappers
 
-3. **Check correctness**:
+   Also apply this smell baseline as judgement calls, not automatic violations.
+   Documented repo standards override this baseline, and tooling-enforced issues
+   should be left to tooling:
+
+   - **Mysterious Name**: a function, variable, or type whose name does not
+     reveal what it does or holds
+   - **Duplicated Code**: the same logic shape appears in more than one hunk or
+     file
+   - **Feature Envy**: code reaches into another object's data more than its own
+   - **Data Clumps**: the same few fields or params keep travelling together
+   - **Primitive Obsession**: a primitive or string stands in for a domain concept
+   - **Repeated Switches**: the same conditional cascade on the same type recurs
+   - **Shotgun Surgery**: one logical change forces scattered edits across many
+     files
+   - **Divergent Change**: one module is edited for unrelated reasons
+   - **Speculative Generality**: abstraction, parameters, or hooks are added for
+     needs the spec does not have
+   - **Message Chains**: callers navigate long object chains they should not know
+   - **Middle Man**: a function or module mostly delegates without adding value
+   - **Refused Bequest**: an implementation ignores most of what it inherits
+
+6. **Check spec correctness**:
    - Does the implementation match the intent? Are edge cases handled?
    - Are new/changed behaviours covered by tests?
    - Does the branch satisfy every acceptance criterion listed in the GitHub issue?
    - Are there unsafe casts, `any` types, or unchecked assumptions?
    - Does the change introduce injection vulnerabilities, credential leaks, or other security issues?
+   - Is there scope creep: behavior, UI, migrations, or abstractions not asked
+     for by the issue/PRD?
 
-4. **Maintain balance**: Avoid over-simplification that could:
+7. **Maintain balance**: Avoid over-simplification that could:
    - Reduce code clarity or maintainability
    - Create overly clever solutions that are hard to understand
    - Combine too many concerns into single functions or components
    - Remove helpful abstractions that improve code organization
    - Make the code harder to debug or extend
 
-5. **Apply project standards**: You are the standards pass for this Sandcastle
+8. **Apply project standards**: You are the standards pass for this Sandcastle
    pipeline. Follow the coding standards defined in
-   @.sandcastle/CODING_STANDARDS.md, and make any standards-driven refinements
-   here rather than assuming the implementer already handled them.
+   @.sandcastle/CODING_STANDARDS.md when available. Also use
+   `docs/agents/coding-standards.md`, and use `docs/agents/style-guide.md` for
+   app UI changes. Make standards-driven refinements here rather than assuming
+   the implementer already handled them.
 
-6. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
+9. **Preserve functionality**: Never change what the code does unless required
+   to satisfy a missed acceptance criterion or fix a correctness bug introduced
+   by the branch. Refactors should preserve original outputs and behaviors.
 
 # PROGRESS UPDATES
 
