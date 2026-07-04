@@ -63,7 +63,9 @@ Run the normal planner workflow:
 pnpm sandcastle
 ```
 
-The planner only loads open issues labeled `ready-for-agent`.
+The planner only loads open issues labeled `ready-for-agent`. Native GitHub
+sub-issues are valid implementation targets when they have that label; parent
+PRDs, epics, and tracking issues should not carry `ready-for-agent`.
 
 Run a single issue without changing labels on the rest of the backlog:
 
@@ -80,7 +82,9 @@ pnpm sandcastle -- -i 4
 ```
 
 Single-issue mode skips the planner, verifies that the issue is open and labeled
-`ready-for-agent`, and works on `sandcastle/issue-<number>`.
+`ready-for-agent`, and works on `sandcastle/issue-<number>`. If the issue has a
+native GitHub parent, Sandcastle includes the parent issue context in the
+implementer prompt.
 
 ## Validation Rules
 

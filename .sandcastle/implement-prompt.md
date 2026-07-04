@@ -5,7 +5,8 @@ Fix issue {{TASK_ID}}: {{ISSUE_TITLE}}
 Use the issue context below as the initial source of truth. It is truncated to
 keep this run focused. Run `gh issue view {{TASK_ID}} --comments` only if the
 truncated context is missing information needed to complete the task. If it has
-a parent PRD, pull in that PRD too.
+a parent PRD and the parent context below is still insufficient, pull in that
+PRD too.
 
 <issue-context>
 

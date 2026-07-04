@@ -441,10 +441,10 @@ The PRD should be concrete enough for a later agent to break into implementation
 Use this when the user asks to break a PRD into implementation issues.
 
 1. Fetch the PRD with `gh issue view <number> --comments`.
-2. Confirm whether implementation issues already exist for that PRD.
+2. Confirm whether implementation issues already exist for that PRD, starting with native GitHub sub-issues from `gh issue view <number> --json subIssues,subIssuesSummary` and then checking body links or comments as a fallback.
 3. Draft a flat, ordered list of vertical slices.
 4. Review the proposed slices with the user before creating issues.
-5. Create GitHub issues only after approval.
+5. Create GitHub issues only after approval. Use `gh issue create --parent <PRD_NUMBER>` so each implementation issue is a native sub-issue of the PRD.
 
 Slice rules:
 

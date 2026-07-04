@@ -49,12 +49,27 @@ const issueSchema = z.object({
   state: z.string(),
   labels: z.array(z.object({ name: z.string() })),
 });
+const issueReferenceSchema = z
+  .object({
+    number: z.number(),
+    title: z.string().nullable().optional(),
+    url: z.string().nullable().optional(),
+  })
+  .passthrough();
 const issueContextSchema = z.object({
   number: z.number(),
   title: z.string(),
   body: z.string().nullable(),
   labels: z.array(z.object({ name: z.string() })),
   comments: z.array(z.object({ body: z.string().nullable() })),
+  parent: issueReferenceSchema.nullable().optional(),
+});
+const parentIssueContextSchema = z.object({
+  number: z.number(),
+  title: z.string(),
+  body: z.string().nullable(),
+  labels: z.array(z.object({ name: z.string() })),
+  url: z.string().nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -73,6 +88,7 @@ const DEFAULT_SANDBOX_DOCKER_NETWORK = "en-escena_default";
 const DEFAULT_SANDBOX_TEST_DATABASE_URL =
   "postgres://postgres:postgres@postgres:5432/en-escena-test";
 const ISSUE_BODY_MAX_LENGTH = 4_000;
+const PARENT_ISSUE_BODY_MAX_LENGTH = 2_000;
 const ISSUE_COMMENT_MAX_LENGTH = 1_500;
 const ISSUE_COMMENT_MAX_COUNT = 3;
 const POSTGRES_IDENTIFIER_MAX_LENGTH = 63;
@@ -272,7 +288,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // uses to know which branches to merge and which issues to close.
   // -------------------------------------------------------------------------
   await sandcastle.run({
-    branch: TARGET_BRANCH,
+    branchStrategy: { type: "branch", branch: TARGET_BRANCH },
     hooks,
     sandbox: createDockerSandbox({ databaseNameSuffix: "merger" }),
     name: "merger",
@@ -500,7 +516,7 @@ function getIssueContext(issueId: string): string {
       "view",
       issueId,
       "--json",
-      "number,title,body,comments,labels",
+      "number,title,body,comments,labels,parent",
     ],
     {
       encoding: "utf8",
@@ -509,6 +525,7 @@ function getIssueContext(issueId: string): string {
   );
   const issue = issueContextSchema.parse(JSON.parse(issueJson));
   const labels = issue.labels.map((label) => label.name).join(", ") || "(none)";
+  const parentIssue = issue.parent ?? null;
   const body = truncateText(
     redactSensitiveText(issue.body || ""),
     ISSUE_BODY_MAX_LENGTH,
@@ -520,9 +537,17 @@ function getIssueContext(issueId: string): string {
     "",
     `Labels: ${labels}`,
     "",
+    `Parent: ${formatIssueReference(parentIssue)}`,
+    "",
     "## Body",
     "",
     body || "(empty)",
+    "",
+    "## Parent issue context",
+    "",
+    parentIssue
+      ? getParentIssueContext(parentIssue.url ?? String(parentIssue.number))
+      : "(none)",
     "",
     "## Recent comments",
     "",
@@ -538,6 +563,47 @@ function getIssueContext(issueId: string): string {
           })
           .join("\n\n"),
   ].join("\n");
+}
+
+function getParentIssueContext(issueReference: string): string {
+  const issueJson = execFileSync(
+    "gh",
+    [
+      "issue",
+      "view",
+      issueReference,
+      "--json",
+      "number,title,body,labels,url",
+    ],
+    {
+      encoding: "utf8",
+      env: getGitHubCliEnv(),
+    },
+  );
+  const issue = parentIssueContextSchema.parse(JSON.parse(issueJson));
+  const labels = issue.labels.map((label) => label.name).join(", ") || "(none)";
+  const body = truncateText(
+    redactSensitiveText(issue.body || ""),
+    PARENT_ISSUE_BODY_MAX_LENGTH,
+  );
+
+  return [
+    formatIssueReference(issue),
+    `Labels: ${labels}`,
+    "",
+    body || "(empty)",
+  ].join("\n");
+}
+
+function formatIssueReference(
+  issue: z.infer<typeof issueReferenceSchema> | null,
+): string {
+  if (!issue) return "(none)";
+
+  const title = issue.title ? `: ${issue.title}` : "";
+  const url = issue.url ? ` (${issue.url})` : "";
+
+  return `#${issue.number}${title}${url}`;
 }
 
 function truncateText(text: string, maxLength: number): string {
