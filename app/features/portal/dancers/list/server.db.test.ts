@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
+import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -242,19 +243,4 @@ function dancerFormData(input: {
 
 function date(value: string) {
   return new Date(value);
-}
-
-async function expectCreated(
-  resultPromise: Promise<{
-    ok: boolean;
-    record?: { id: string };
-  }>,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok || !result.record) {
-    throw new Error("Expected Bases del evento creation to succeed.");
-  }
-
-  return result.record;
 }

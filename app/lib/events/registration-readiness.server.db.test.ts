@@ -13,8 +13,12 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
-import { createEvent } from "@/lib/events/management.server";
+import {
+  createEventFixtureDates,
+  createSavedEvent as createSavedEventFixture,
+  expectCreated,
+  fixedExperienceLevel,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import {
   getEventRegistrationReadiness,
   getEventRegistrationReadinessByEventId,
@@ -269,32 +273,7 @@ describe("event registration readiness", () => {
 });
 
 async function createSavedEvent(name: string) {
-  const result = await createEvent({
-    name,
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture(name, {
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
-async function expectCreated(
-  resultPromise: Promise<{
-    ok: boolean;
-    record?: { id: string };
-  }>,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok || !result.record) {
-    throw new Error("Expected event bases creation to succeed.");
-  }
-
-  return result.record;
 }

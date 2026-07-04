@@ -283,24 +283,29 @@ describe.sequential("administracion Bases del evento routes", () => {
       "notificacion=categoria-guardada",
     );
 
-    const createdCategory = await db.query.categories.findFirst({
-      where: eq(categories.name, "Mayores"),
-    });
+    const createdCategory = expectFound(
+      await db.query.categories.findFirst({
+        where: eq(categories.name, "Mayores"),
+      }),
+    );
+    const createdCategoryId = createdCategory.id;
 
     expect(createdCategory).toMatchObject({ eventId: event.id });
 
     const refreshedData = await loader(routeArgs(request.request));
-    const category = refreshedData.categories.find(
-      (candidate) => candidate.name === "Mayores",
+    const category = expectFound(
+      refreshedData.categories.find(
+        (candidate) => candidate.name === "Mayores",
+      ),
     );
 
-    expect(category?.experienceLevels).toEqual(
+    expect(category.experienceLevels).toEqual(
       expect.arrayContaining(["elite"]),
     );
 
     const detailMarkup = renderCategoriaDetalleRoute(
       refreshedData,
-      createdCategory?.id ?? "",
+      createdCategoryId,
     );
     expect(detailMarkup).toContain("Editar categoría");
     expect(detailMarkup).toContain("Acciones");
@@ -309,10 +314,10 @@ describe.sequential("administracion Bases del evento routes", () => {
     const updateRequest = await createSignedInRequest({
       email: "admin.categorias.edita@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${createdCategory?.id ?? ""}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}?evento=${event.id}`,
       body: formData({
         intent: "update-category",
-        id: createdCategory?.id ?? "",
+        id: createdCategoryId,
         name: "Mayores A",
         minAge: "18",
         maxAge: "99",
@@ -331,18 +336,18 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     await expect(
       db.query.categories.findFirst({
-        where: eq(categories.id, createdCategory?.id ?? ""),
+        where: eq(categories.id, createdCategoryId),
       }),
     ).resolves.toMatchObject({ name: "Mayores A" });
 
     const deleteRequest = await createSignedInRequest({
       email: "admin.categorias.borra@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/categorias/${createdCategory?.id ?? ""}?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/categorias/${createdCategoryId}?evento=${event.id}`,
       body: formData({
         intent: "delete-category",
-        id: createdCategory?.id ?? "",
-        confirmDeletion: createdCategory?.id ?? "",
+        id: createdCategoryId,
+        confirmDeletion: createdCategoryId,
       }),
     });
 
@@ -355,7 +360,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
     await expect(
       db.query.categories.findFirst({
-        where: eq(categories.id, createdCategory?.id ?? ""),
+        where: eq(categories.id, createdCategoryId),
       }),
     ).resolves.toBeUndefined();
   });
@@ -621,6 +626,14 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 });
+
+function expectFound<TRecord>(record: TRecord | null | undefined) {
+  if (!record) {
+    throw new Error("Expected record to exist.");
+  }
+
+  return record;
+}
 
 function categoryRouteArgs(request: Request, categoryId: string) {
   return {

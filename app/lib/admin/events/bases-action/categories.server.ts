@@ -1,7 +1,7 @@
 import type {
   ActionErrorScope,
   CategoryActionValues,
-  EventBasesActionInput,
+  EventBasesActionBaseInput,
   EventBasesActionResult,
   EventBasesActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
@@ -27,13 +27,15 @@ const categoryDeletedNotification = "categoria-eliminada";
 const categoryDeleteConfirmationMessage =
   "Confirmá el borrado de la categoría antes de continuar.";
 
-export const categoryActionHandler: EventBasesActionHandler = {
-  buildErrorScope: buildCategoryActionErrorScope,
-  buildRedirectUrl: buildCategoryRedirectUrl,
-  getConfirmationError: getCategoryConfirmationError,
-  readSubmittedValues: readCategorySubmittedValues,
-  run: runCategoryIntent,
-};
+export const categoryActionHandler: EventBasesActionHandler<CategoryActionInput> =
+  {
+    readInput: readCategoryActionInput,
+    buildErrorScope: buildCategoryActionErrorScope,
+    buildRedirectUrl: buildCategoryRedirectUrl,
+    getConfirmationError: getCategoryConfirmationError,
+    readSubmittedValues: readCategorySubmittedValues,
+    run: runCategoryIntent,
+  };
 
 type CategoryMutationIntent = "create-category" | "update-category";
 type CategoryMutationInput = {
@@ -44,14 +46,15 @@ type CategoryMutationInput = {
   modalityIds: string[];
   experienceLevels: string[];
 };
+type CategoryActionInput = EventBasesActionBaseInput & CategoryMutationInput;
 
-export function handlesCategoryIntent(intent: string) {
+function handlesCategoryIntent(intent: string) {
   return isCategoryMutationIntent(intent) || intent === "delete-category";
 }
 
-export function getCategoryConfirmationError(
+function getCategoryConfirmationError(
   _requestUrl: string,
-  input: EventBasesActionInput,
+  input: CategoryActionInput,
 ) {
   if (
     input.intent === "delete-category" &&
@@ -68,8 +71,8 @@ export function getCategoryConfirmationError(
   return null;
 }
 
-export function buildCategoryActionErrorScope(
-  input: EventBasesActionInput,
+function buildCategoryActionErrorScope(
+  input: CategoryActionInput,
 ): ActionErrorScope | null {
   if (!handlesCategoryIntent(input.intent)) {
     return buildDefaultActionErrorScope(input);
@@ -78,8 +81,8 @@ export function buildCategoryActionErrorScope(
   return buildRecordActionScope(input.intent, input.id);
 }
 
-export function readCategorySubmittedValues(
-  input: EventBasesActionInput,
+function readCategorySubmittedValues(
+  input: CategoryActionInput,
   formData: FormData,
 ): EventBasesActionValues | undefined {
   if (isCategoryMutationIntent(input.intent)) {
@@ -89,8 +92,8 @@ export function readCategorySubmittedValues(
   return undefined;
 }
 
-export async function runCategoryIntent(
-  input: EventBasesActionInput,
+async function runCategoryIntent(
+  input: CategoryActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
     case "create-category":
@@ -113,9 +116,9 @@ export async function runCategoryIntent(
   }
 }
 
-export function buildCategoryRedirectUrl(
+function buildCategoryRedirectUrl(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: CategoryActionInput,
   result: EventBasesActionResult,
 ) {
   const currentUrl = new URL(requestUrl);
@@ -148,6 +151,21 @@ export function buildCategoryRedirectUrl(
   return currentUrl.pathname;
 }
 
+function readCategoryActionInput(
+  baseInput: EventBasesActionBaseInput,
+  formData: FormData,
+): CategoryActionInput {
+  return {
+    ...baseInput,
+    name: String(formData.get("name") ?? ""),
+    minAge: Number(formData.get("minAge")),
+    maxAge: Number(formData.get("maxAge")),
+    groupTypes: formData.getAll("groupTypes").map(String),
+    modalityIds: formData.getAll("modalityIds").map(String),
+    experienceLevels: formData.getAll("experienceLevels").map(String),
+  };
+}
+
 function readCategoryActionValues(formData: FormData): CategoryActionValues {
   return {
     name: String(formData.get("name") ?? ""),
@@ -160,7 +178,7 @@ function readCategoryActionValues(formData: FormData): CategoryActionValues {
 }
 
 function getCategoryMutationInput(
-  input: EventBasesActionInput,
+  input: CategoryActionInput,
 ): CategoryMutationInput {
   return {
     name: input.name,
@@ -179,7 +197,7 @@ function isCategoryMutationIntent(
 }
 
 async function runCategoryMutation(
-  input: EventBasesActionInput,
+  input: CategoryActionInput,
   categoryInput: CategoryMutationInput,
 ): Promise<EventBasesMutationResult> {
   if (!isCategoryMutationIntent(input.intent)) {
@@ -199,7 +217,7 @@ async function runCategoryMutation(
 }
 
 async function saveCategory(
-  input: EventBasesActionInput,
+  input: CategoryActionInput,
 ): Promise<EventBasesMutationResult> {
   return runCategoryMutation(input, getCategoryMutationInput(input));
 }

@@ -1,4 +1,4 @@
-import type { SubmitEventHandler } from "react";
+import { useEffect, type SubmitEventHandler } from "react";
 import type {
   FieldValues,
   SubmitHandler,
@@ -13,6 +13,17 @@ import type {
 } from "react-router";
 
 export const requiredFieldMessage = "Este campo es obligatorio.";
+
+export function useResetFormValues<TValues>(
+  reset: (values: TValues) => void,
+  values: TValues,
+) {
+  const resetKey = JSON.stringify(values);
+
+  useEffect(() => {
+    reset(values);
+  }, [reset, resetKey, values]);
+}
 
 export function createValidatedNativeSubmitHandler<
   TFieldValues extends FieldValues,

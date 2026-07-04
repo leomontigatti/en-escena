@@ -1,13 +1,12 @@
-import {
-  readNameActionValues,
-  readSubmodalitiesInput,
-} from "@/lib/admin/events/bases-action/input.server";
+import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
 import type {
   ActionErrorScope,
-  EventBasesActionInput,
+  EventBasesActionBaseInput,
   EventBasesActionResult,
   EventBasesActionValues,
   ModalityActionValues,
+  NameActionValues,
+  NameActionValuesWithId,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
@@ -36,16 +35,63 @@ import {
 const modalityBasePath = "/administracion/modalidades";
 const modalitySavedNotification = "modalidad-guardada";
 const modalityDeletedNotification = "modalidad-eliminada";
+const submodalityFieldNames = ["id", "name"] as const;
 
-export const modalityActionHandler: EventBasesActionHandler = {
-  buildErrorScope: buildModalityActionErrorScope,
-  buildRedirectUrl: buildModalityRedirectUrl,
-  getConfirmationError: getModalityConfirmationError,
-  readSubmittedValues: readModalitySubmittedValues,
-  run: runModalityIntent,
+type ModalityActionInput = EventBasesActionBaseInput & {
+  modalityId: string;
+  name: string;
+  submodalities: NameActionValuesWithId[];
+  submodalitiesMode: string;
 };
 
-export function handlesModalityIntent(intent: string) {
+export const modalityActionHandler: EventBasesActionHandler<ModalityActionInput> =
+  {
+    readInput: readModalityActionInput,
+    buildErrorScope: buildModalityActionErrorScope,
+    buildRedirectUrl: buildModalityRedirectUrl,
+    getConfirmationError: getModalityConfirmationError,
+    readSubmittedValues: readModalitySubmittedValues,
+    run: runModalityIntent,
+  };
+
+function readModalityActionInput(
+  baseInput: EventBasesActionBaseInput,
+  formData: FormData,
+): ModalityActionInput {
+  return {
+    ...baseInput,
+    modalityId: String(formData.get("modalityId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    submodalities: readSubmodalitiesInput(formData),
+    submodalitiesMode: String(formData.get("submodalitiesMode") ?? ""),
+  };
+}
+
+function readNameActionValues(formData: FormData): NameActionValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+  };
+}
+
+function readSubmodalitiesInput(formData: FormData) {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "submodalities",
+    fieldNames: submodalityFieldNames,
+    createEntry: (): NameActionValuesWithId => ({ name: "" }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
+
+      if (fieldName === "name") {
+        entry.name = value;
+      }
+    },
+  });
+}
+
+function handlesModalityIntent(intent: string) {
   return (
     intent === "create-modality" ||
     intent === "update-modality" ||
@@ -56,9 +102,9 @@ export function handlesModalityIntent(intent: string) {
   );
 }
 
-export function getModalityConfirmationError(
+function getModalityConfirmationError(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: ModalityActionInput,
 ) {
   if (
     input.intent === "delete-modality" &&
@@ -74,8 +120,8 @@ export function getModalityConfirmationError(
   return null;
 }
 
-export function buildModalityActionErrorScope(
-  input: EventBasesActionInput,
+function buildModalityActionErrorScope(
+  input: ModalityActionInput,
 ): ActionErrorScope | null {
   if (!handlesModalityIntent(input.intent)) {
     return buildDefaultActionErrorScope(input);
@@ -95,8 +141,8 @@ export function buildModalityActionErrorScope(
   }
 }
 
-export function readModalitySubmittedValues(
-  input: EventBasesActionInput,
+function readModalitySubmittedValues(
+  input: ModalityActionInput,
   formData: FormData,
 ): EventBasesActionValues | undefined {
   if (isModalityFormMutation(input)) {
@@ -115,8 +161,8 @@ export function readModalitySubmittedValues(
   return undefined;
 }
 
-export async function runModalityIntent(
-  input: EventBasesActionInput,
+async function runModalityIntent(
+  input: ModalityActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
     case "create-modality":
@@ -149,9 +195,9 @@ export async function runModalityIntent(
   }
 }
 
-export function buildModalityRedirectUrl(
+function buildModalityRedirectUrl(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: ModalityActionInput,
   result: EventBasesActionResult,
 ) {
   const currentUrl = new URL(requestUrl);
@@ -193,7 +239,7 @@ function isModalityMutationIntent(intent: string) {
   );
 }
 
-function isModalityFormMutation(input: EventBasesActionInput) {
+function isModalityFormMutation(input: ModalityActionInput) {
   return (
     input.intent === "update-modality" && input.submodalitiesMode === "replace"
   );

@@ -1,8 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import { choreographyNotFoundMessage } from "@/lib/portal/choreography-roster.shared";
+import {
+  assertPortalChoreographyFound,
+  portalOwnedChoreographyWhere,
+} from "@/lib/portal/choreography-access.server";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 type PortalChoreographyMusicStorage = ReturnType<
@@ -38,21 +41,15 @@ export async function updateChoreographyMusic(input: {
   submittedStorageKey: string;
   storage?: PortalChoreographyMusicStorage;
 }): Promise<UpdateChoreographyMusicResult> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: {
-      hasPresentation: true,
-      musicStorageKey: true,
-    },
-    where: and(
-      eq(choreographies.id, input.choreographyId),
-      eq(choreographies.academyId, input.academyId),
-      eq(choreographies.eventId, input.eventId),
-    ),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
+  const choreography = assertPortalChoreographyFound(
+    await db.query.choreographies.findFirst({
+      columns: {
+        hasPresentation: true,
+        musicStorageKey: true,
+      },
+      where: portalOwnedChoreographyWhere(input),
+    }),
+  );
 
   const currentStorageKey = choreography.musicStorageKey ?? "";
   const hasSubmittedChange =

@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   categories,
   categoryModalities,
   choreographies,
@@ -22,6 +21,7 @@ import {
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createEvent, activateEvent } from "@/lib/events/management.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 let nextIdentity = 0;
 
@@ -247,34 +247,17 @@ async function createInternalSession(role: "admin" | "auditor") {
 
 async function createAcademySession() {
   const identity = nextEmailSlug();
-  const signUpResult = await createLocalAccessUser({
+  const academyUser = await createAcademyUser({
+    academyName: "Academia Medición",
+    contactName: "Contacto",
     email: `${identity}@example.com`,
-    name: `${identity}@example.com`,
-    password: "password-segura",
+    phone: "1112345678",
   });
 
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: "Academia Medición",
-      contactName: "Contacto",
-      phone: "1112345678",
-    })
-    .returning();
-
   return {
-    academy,
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
+    academy: academyUser.academy,
+    academyId: academyUser.academyId,
+    cookie: academyUser.cookie,
   };
 }
 

@@ -6,6 +6,8 @@ import {
   useState,
   type ChangeEvent,
   type ComponentProps,
+  type DragEvent,
+  type RefObject,
 } from "react";
 import {
   Controller,
@@ -45,6 +47,64 @@ type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   storageKeyValue?: string;
   uploadedLabel?: string;
 };
+
+type FileUploadInputProps = Omit<
+  ComponentProps<"input">,
+  "className" | "disabled" | "id" | "onChange" | "type"
+>;
+
+type FileUploadControlConfig = {
+  allowedMimeTypes: string[];
+  className?: string;
+  disabled: boolean;
+  downloadLabel: string;
+  downloadUrl?: string | null;
+  error: boolean;
+  existingPreviewUrl?: string | null;
+  helperText: string;
+  id: string;
+  inputProps: FileUploadInputProps;
+  invalidTypeMessage: string;
+  label: string;
+  maxFileSizeBytes?: number;
+  maxFileSizeMessage: string;
+  onChange?: ComponentProps<"input">["onChange"];
+  onSelectedFileChange?: (file: File | null) => void;
+  onStorageKeyChange?: (storageKey: string) => void;
+  onValidationErrorChange?: (hasError: boolean) => void;
+  onValidationErrorMessageChange?: (message: string | null) => void;
+  previewSelectedFile: boolean;
+  removeLabel: string;
+  storageKeyInputName?: string;
+  storageKeyValue: string;
+  uploadedLabel: string;
+  validationErrorInputName: string;
+};
+
+type FileUploadControlState = {
+  clearFile: () => void;
+  currentStorageKey: string;
+  displayedPreviewUrl: string | null;
+  downloadHref: string | null;
+  errorMessage: string | null;
+  handleDragOver: (event: DragEvent<HTMLLabelElement>) => void;
+  handleDrop: (event: DragEvent<HTMLLabelElement>) => void;
+  handleFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+  previewAlt: string;
+  selectedFileName: string | null;
+  showsFileActions: boolean;
+  uploadLabel: string;
+};
+
+type FileUploadControlDerivedState = Pick<
+  FileUploadControlState,
+  | "displayedPreviewUrl"
+  | "downloadHref"
+  | "previewAlt"
+  | "showsFileActions"
+  | "uploadLabel"
+>;
 
 type FileUploadFieldProps<
   TFieldValues extends FieldValues,
@@ -125,53 +185,112 @@ export function FileUploadField<
   );
 }
 
-function FileUploadControl({
-  allowedMimeTypes,
-  className,
-  disabled = false,
-  downloadLabel = "Descargar archivo",
-  downloadUrl,
-  error = false,
-  existingPreviewUrl,
-  helperText,
-  id: providedId,
-  invalidTypeMessage = "El archivo debe ser JPG, PNG o WEBP.",
-  label,
-  maxFileSizeBytes,
-  maxFileSizeMessage = "El archivo no puede superar 10 MB.",
-  onChange,
-  onSelectedFileChange,
-  onStorageKeyChange,
-  onValidationErrorChange,
-  onValidationErrorMessageChange,
-  previewSelectedFile = true,
-  removeLabel = "Borrar imagen",
-  storageKeyInputName,
-  storageKeyValue = "",
-  uploadedLabel = "Imagen cargada",
-  ...props
-}: FileUploadControlProps) {
+function FileUploadControl(props: FileUploadControlProps) {
   const generatedId = useId();
+  const config = getFileUploadControlConfig(props, generatedId);
+  const state = useFileUploadControlState(config);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <FileUploadHiddenInputs config={config} state={state} />
+      <div className="relative">
+        <FileUploadDropzone config={config} state={state} />
+        <FileUploadActions config={config} state={state} />
+      </div>
+    </div>
+  );
+}
+
+function getFileUploadControlConfig(
+  {
+    allowedMimeTypes,
+    className,
+    disabled = false,
+    downloadLabel = "Descargar archivo",
+    downloadUrl,
+    error = false,
+    existingPreviewUrl,
+    helperText,
+    id: providedId,
+    invalidTypeMessage = "El archivo debe ser JPG, PNG o WEBP.",
+    label,
+    maxFileSizeBytes,
+    maxFileSizeMessage = "El archivo no puede superar 10 MB.",
+    onChange,
+    onSelectedFileChange,
+    onStorageKeyChange,
+    onValidationErrorChange,
+    onValidationErrorMessageChange,
+    previewSelectedFile = true,
+    removeLabel = "Borrar imagen",
+    storageKeyInputName,
+    storageKeyValue = "",
+    uploadedLabel = "Imagen cargada",
+    ...inputProps
+  }: FileUploadControlProps,
+  generatedId: string,
+): FileUploadControlConfig {
   const id = providedId ?? generatedId;
+
+  return {
+    allowedMimeTypes,
+    className,
+    disabled,
+    downloadLabel,
+    downloadUrl,
+    error,
+    existingPreviewUrl,
+    helperText,
+    id,
+    inputProps,
+    invalidTypeMessage,
+    label,
+    maxFileSizeBytes,
+    maxFileSizeMessage,
+    onChange,
+    onSelectedFileChange,
+    onStorageKeyChange,
+    onValidationErrorChange,
+    onValidationErrorMessageChange,
+    previewSelectedFile,
+    removeLabel,
+    storageKeyInputName,
+    storageKeyValue,
+    uploadedLabel,
+    validationErrorInputName: `${inputProps.name ?? id}ValidationError`,
+  };
+}
+
+function useFileUploadControlState(
+  config: FileUploadControlConfig,
+): FileUploadControlState {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [currentStorageKey, setCurrentStorageKey] = useState(storageKeyValue);
+  const [currentStorageKey, setCurrentStorageKey] = useState(
+    config.storageKeyValue,
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const hasImage = selectedFileName !== null || currentStorageKey.length > 0;
-  const downloadHref = currentStorageKey.length > 0 ? downloadUrl : null;
-  const displayedPreviewUrl =
-    previewUrl ?? (currentStorageKey ? existingPreviewUrl : null);
-  const showsFileActions = !disabled && (hasImage || errorMessage !== null);
+  const derivedState = getFileUploadControlDerivedState({
+    config,
+    currentStorageKey,
+    errorMessage,
+    previewUrl,
+    selectedFileName,
+  });
 
   useEffect(() => {
-    onValidationErrorChange?.(errorMessage !== null);
-    onValidationErrorMessageChange?.(errorMessage);
-  }, [errorMessage, onValidationErrorChange, onValidationErrorMessageChange]);
+    config.onValidationErrorChange?.(errorMessage !== null);
+    config.onValidationErrorMessageChange?.(errorMessage);
+  }, [
+    errorMessage,
+    config.onValidationErrorChange,
+    config.onValidationErrorMessageChange,
+  ]);
 
   useEffect(() => {
-    setCurrentStorageKey(storageKeyValue);
-  }, [storageKeyValue]);
+    setCurrentStorageKey(config.storageKeyValue);
+  }, [config.storageKeyValue]);
 
   useEffect(() => {
     return () => {
@@ -181,120 +300,47 @@ function FileUploadControl({
     };
   }, [previewUrl]);
 
-  return (
-    <div className="flex flex-col gap-2">
-      {storageKeyInputName ? (
-        <input
-          type="hidden"
-          name={storageKeyInputName}
-          value={currentStorageKey}
-        />
-      ) : null}
-      <input
-        type="hidden"
-        name={`${props.name ?? id}ValidationError`}
-        value={errorMessage ?? ""}
-      />
-      <div className="relative">
-        <label
-          htmlFor={id}
-          className={cn(
-            "flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-input bg-background px-4 py-6 text-center transition-colors hover:bg-muted/50 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/50 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:bg-input/50 has-disabled:opacity-50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20",
-            displayedPreviewUrl && "px-3 py-3",
-            disabled && "pr-9",
-            className,
-          )}
-          onDragOver={(event) => {
-            event.preventDefault();
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
+  return {
+    clearFile,
+    currentStorageKey,
+    errorMessage,
+    handleDragOver,
+    handleDrop,
+    handleFileInputChange,
+    inputRef,
+    selectedFileName,
+    ...derivedState,
+  };
 
-            if (disabled) {
-              return;
-            }
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+  }
 
-            const input = inputRef.current;
-            const files = event.dataTransfer.files;
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
 
-            if (!input || files.length === 0) {
-              return;
-            }
+    if (config.disabled) {
+      return;
+    }
 
-            input.files = files;
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-          }}
-        >
-          {displayedPreviewUrl ? (
-            <img
-              src={displayedPreviewUrl}
-              alt={
-                selectedFileName
-                  ? `Vista previa de ${selectedFileName}`
-                  : "Vista previa del documento"
-              }
-              className="max-h-72 w-full rounded-md object-contain"
-            />
-          ) : (
-            <>
-              <span className="flex size-12 items-center justify-center rounded-lg bg-brand text-white">
-                <CloudUpload aria-hidden="true" />
-              </span>
-              <span className="flex flex-col gap-1">
-                <span className="break-all text-sm font-medium text-foreground">
-                  {selectedFileName ??
-                    (currentStorageKey ? uploadedLabel : label)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {helperText}
-                </span>
-              </span>
-            </>
-          )}
-          <input
-            {...props}
-            ref={inputRef}
-            id={id}
-            type="file"
-            aria-invalid={error || errorMessage ? true : undefined}
-            className="sr-only"
-            disabled={disabled}
-            onChange={(event) => {
-              handleSelectedFile(
-                event.currentTarget,
-                event.currentTarget.files?.[0] ?? null,
-                event,
-              );
-            }}
-          />
-          {disabled ? <FieldControlLockIcon /> : null}
-        </label>
-        {showsFileActions || downloadHref ? (
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-            {downloadHref ? (
-              <Button asChild variant="outline" size="icon-sm">
-                <a href={downloadHref} target="_blank" rel="noreferrer">
-                  <Download aria-hidden="true" data-icon />
-                  <span className="sr-only">{downloadLabel}</span>
-                </a>
-              </Button>
-            ) : null}
-            {showsFileActions ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon-sm"
-                onClick={clearFile}
-              >
-                <Trash2 aria-hidden="true" data-icon />
-                <span className="sr-only">{removeLabel}</span>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
+    const input = inputRef.current;
+    const files = event.dataTransfer.files;
+
+    if (!input || files.length === 0) {
+      return;
+    }
+
+    input.files = files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    handleSelectedFile(
+      event.currentTarget,
+      event.currentTarget.files?.[0] ?? null,
+      event,
+    );
+  }
 
   function handleSelectedFile(
     input: HTMLInputElement,
@@ -305,8 +351,8 @@ function FileUploadControl({
 
     if (!file) {
       setSelectedFileName(null);
-      onSelectedFileChange?.(null);
-      onChange?.(event as ChangeEvent<HTMLInputElement>);
+      config.onSelectedFileChange?.(null);
+      config.onChange?.(event as ChangeEvent<HTMLInputElement>);
       return;
     }
 
@@ -316,17 +362,17 @@ function FileUploadControl({
       input.value = "";
       setErrorMessage(validationError);
       setSelectedFileName(null);
-      onSelectedFileChange?.(null);
+      config.onSelectedFileChange?.(null);
       return;
     }
 
     setErrorMessage(null);
     setSelectedFileName(file.name);
-    if (previewSelectedFile) {
+    if (config.previewSelectedFile) {
       setPreviewUrl(createPreviewUrl(file));
     }
-    onSelectedFileChange?.(file);
-    onChange?.(event as ChangeEvent<HTMLInputElement>);
+    config.onSelectedFileChange?.(file);
+    config.onChange?.(event as ChangeEvent<HTMLInputElement>);
   }
 
   function clearFile() {
@@ -335,10 +381,10 @@ function FileUploadControl({
     }
 
     setCurrentStorageKey("");
-    onStorageKeyChange?.("");
+    config.onStorageKeyChange?.("");
     setErrorMessage(null);
     setSelectedFileName(null);
-    onSelectedFileChange?.(null);
+    config.onSelectedFileChange?.(null);
     clearPreview();
   }
 
@@ -353,16 +399,279 @@ function FileUploadControl({
   }
 
   function getFileValidationError(file: File) {
-    if (!allowedMimeTypes.includes(file.type)) {
-      return invalidTypeMessage;
+    if (!config.allowedMimeTypes.includes(file.type)) {
+      return config.invalidTypeMessage;
     }
 
-    if (maxFileSizeBytes !== undefined && file.size > maxFileSizeBytes) {
-      return maxFileSizeMessage;
+    if (
+      config.maxFileSizeBytes !== undefined &&
+      file.size > config.maxFileSizeBytes
+    ) {
+      return config.maxFileSizeMessage;
     }
 
     return null;
   }
+}
+
+function getFileUploadControlDerivedState({
+  config,
+  currentStorageKey,
+  errorMessage,
+  previewUrl,
+  selectedFileName,
+}: {
+  config: FileUploadControlConfig;
+  currentStorageKey: string;
+  errorMessage: string | null;
+  previewUrl: string | null;
+  selectedFileName: string | null;
+}): FileUploadControlDerivedState {
+  return {
+    displayedPreviewUrl: getDisplayedPreviewUrl({
+      currentStorageKey,
+      existingPreviewUrl: config.existingPreviewUrl,
+      previewUrl,
+    }),
+    downloadHref: getDownloadHref(currentStorageKey, config.downloadUrl),
+    previewAlt: getPreviewAlt(selectedFileName),
+    showsFileActions: getShowsFileActions({
+      currentStorageKey,
+      disabled: config.disabled,
+      errorMessage,
+      selectedFileName,
+    }),
+    uploadLabel: getUploadLabel({
+      currentStorageKey,
+      label: config.label,
+      selectedFileName,
+      uploadedLabel: config.uploadedLabel,
+    }),
+  };
+}
+
+function getDisplayedPreviewUrl({
+  currentStorageKey,
+  existingPreviewUrl,
+  previewUrl,
+}: {
+  currentStorageKey: string;
+  existingPreviewUrl?: string | null;
+  previewUrl: string | null;
+}) {
+  if (previewUrl) {
+    return previewUrl;
+  }
+
+  if (!currentStorageKey) {
+    return null;
+  }
+
+  return existingPreviewUrl ?? null;
+}
+
+function getDownloadHref(
+  currentStorageKey: string,
+  downloadUrl: string | null | undefined,
+) {
+  if (!currentStorageKey) {
+    return null;
+  }
+
+  return downloadUrl ?? null;
+}
+
+function getPreviewAlt(selectedFileName: string | null) {
+  if (selectedFileName) {
+    return `Vista previa de ${selectedFileName}`;
+  }
+
+  return "Vista previa del documento";
+}
+
+function getShowsFileActions({
+  currentStorageKey,
+  disabled,
+  errorMessage,
+  selectedFileName,
+}: {
+  currentStorageKey: string;
+  disabled: boolean;
+  errorMessage: string | null;
+  selectedFileName: string | null;
+}) {
+  if (disabled) {
+    return false;
+  }
+
+  return (
+    selectedFileName !== null ||
+    currentStorageKey.length > 0 ||
+    errorMessage !== null
+  );
+}
+
+function getUploadLabel({
+  currentStorageKey,
+  label,
+  selectedFileName,
+  uploadedLabel,
+}: {
+  currentStorageKey: string;
+  label: string;
+  selectedFileName: string | null;
+  uploadedLabel: string;
+}) {
+  if (selectedFileName) {
+    return selectedFileName;
+  }
+
+  if (currentStorageKey) {
+    return uploadedLabel;
+  }
+
+  return label;
+}
+
+function FileUploadHiddenInputs({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  return (
+    <>
+      {config.storageKeyInputName ? (
+        <input
+          type="hidden"
+          name={config.storageKeyInputName}
+          value={state.currentStorageKey}
+        />
+      ) : null}
+      <input
+        type="hidden"
+        name={config.validationErrorInputName}
+        value={state.errorMessage ?? ""}
+      />
+    </>
+  );
+}
+
+function FileUploadDropzone({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  return (
+    <label
+      htmlFor={config.id}
+      className={getFileUploadDropzoneClassName(config, state)}
+      onDragOver={state.handleDragOver}
+      onDrop={state.handleDrop}
+    >
+      {state.displayedPreviewUrl ? (
+        <FileUploadPreview state={state} />
+      ) : (
+        <FileUploadPlaceholder config={config} state={state} />
+      )}
+      <input
+        {...config.inputProps}
+        ref={state.inputRef}
+        id={config.id}
+        type="file"
+        aria-invalid={config.error || state.errorMessage ? true : undefined}
+        className="sr-only"
+        disabled={config.disabled}
+        onChange={state.handleFileInputChange}
+      />
+      {config.disabled ? <FieldControlLockIcon /> : null}
+    </label>
+  );
+}
+
+function FileUploadPreview({ state }: { state: FileUploadControlState }) {
+  return (
+    <img
+      src={state.displayedPreviewUrl ?? ""}
+      alt={state.previewAlt}
+      className="max-h-72 w-full rounded-md object-contain"
+    />
+  );
+}
+
+function FileUploadPlaceholder({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  return (
+    <>
+      <span className="flex size-12 items-center justify-center rounded-lg bg-brand text-white">
+        <CloudUpload aria-hidden="true" />
+      </span>
+      <span className="flex flex-col gap-1">
+        <span className="break-all text-sm font-medium text-foreground">
+          {state.uploadLabel}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {config.helperText}
+        </span>
+      </span>
+    </>
+  );
+}
+
+function FileUploadActions({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  if (!state.showsFileActions && !state.downloadHref) {
+    return null;
+  }
+
+  return (
+    <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+      {state.downloadHref ? (
+        <Button asChild variant="outline" size="icon-sm">
+          <a href={state.downloadHref} target="_blank" rel="noreferrer">
+            <Download aria-hidden="true" data-icon />
+            <span className="sr-only">{config.downloadLabel}</span>
+          </a>
+        </Button>
+      ) : null}
+      {state.showsFileActions ? (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon-sm"
+          onClick={state.clearFile}
+        >
+          <Trash2 aria-hidden="true" data-icon />
+          <span className="sr-only">{config.removeLabel}</span>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function getFileUploadDropzoneClassName(
+  config: FileUploadControlConfig,
+  state: FileUploadControlState,
+) {
+  return cn(
+    "flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-input bg-background px-4 py-6 text-center transition-colors hover:bg-muted/50 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/50 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:bg-input/50 has-disabled:opacity-50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20",
+    state.displayedPreviewUrl && "px-3 py-3",
+    config.disabled && "pr-9",
+    config.className,
+  );
 }
 
 function createPreviewUrl(file: File) {

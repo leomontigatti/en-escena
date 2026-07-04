@@ -2,11 +2,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
-import { Link } from "react-router";
 import { z } from "zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup, FieldSet, FieldTitle } from "@/components/ui/field";
@@ -23,15 +21,13 @@ import type {
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createValidatedRouteSubmitHandler,
-  isRouteFormPending,
   requiredFieldMessage,
   type RouteFormPendingScope,
   useOptionalFormAction,
-  useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { buildListPath } from "@/lib/shared/navigation";
 
+import { EventBasesFormActions } from "../events/bases-form-actions";
 import { basePath, type EventSubmodalityRow } from "./shared";
 
 const nameFormSchema = z.object({
@@ -120,16 +116,12 @@ function ModalityFormActions({
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, pendingScope);
-
   return (
-    <div className="flex justify-end gap-2">
-      <Button asChild variant="outline">
-        <Link to={buildListPath(basePath, null)}>Volver</Link>
-      </Button>
-      <SubmitButton form={formId} isPending={isPending} />
-    </div>
+    <EventBasesFormActions
+      basePath={basePath}
+      formId={formId}
+      pendingScope={pendingScope}
+    />
   );
 }
 

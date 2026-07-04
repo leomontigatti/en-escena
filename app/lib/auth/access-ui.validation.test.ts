@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 const signInCredentialUser = vi.hoisted(() => vi.fn());
 const findCredentialUserForIdentifier = vi.hoisted(() => vi.fn());
@@ -172,18 +173,3 @@ describe("access UI validation", () => {
     );
   });
 });
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
-}

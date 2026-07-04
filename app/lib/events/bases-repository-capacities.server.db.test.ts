@@ -3,16 +3,15 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { scheduleCapacities } from "@/db/schema";
-import { createModality } from "@/lib/modalities/repository.server";
 import {
-  createSchedule,
   createScheduleCapacity,
   deleteScheduleCapacity,
   resolveCompatibleScheduleCapacities,
   updateScheduleCapacity,
 } from "@/lib/schedules/repository.server";
 import {
-  createSavedEvent,
+  createEventModalitiesFixture,
+  createSavedSchedule,
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
@@ -22,28 +21,17 @@ installDatabaseTestHooks();
 
 describe("Bases del evento repository", () => {
   test("keeps cupos de cronograma unique per group type and inside the cronograma total", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 10,
-        modalityIds: [jazz.id],
-      }),
-    );
-    const otherBlock = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado tarde",
-        scheduledDate: "2026-05-02",
-        startTime: "14:00",
-        totalCapacity: 8,
-        modalityIds: [jazz.id],
-      }),
-    );
+    const { event, jazz } = await createEventModalitiesFixture();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const otherBlock = await createSavedSchedule(event.id, {
+      name: "Sábado tarde",
+      startTime: "14:00",
+      totalCapacity: 8,
+      modalityIds: [jazz.id],
+    });
 
     await expectCreated(
       createScheduleCapacity(block.id, {
@@ -84,31 +72,17 @@ describe("Bases del evento repository", () => {
   });
 
   test("resolves compatible cupos de cronograma by modalidad and group type", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const urbanas = await expectCreated(
-      createModality(event.id, { name: "Danzas urbanas" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 10,
-        modalityIds: [jazz.id],
-      }),
-    );
-    const otherBlock = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado tarde",
-        scheduledDate: "2026-05-02",
-        startTime: "14:00",
-        totalCapacity: 8,
-        modalityIds: [jazz.id],
-      }),
-    );
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const otherBlock = await createSavedSchedule(event.id, {
+      name: "Sábado tarde",
+      startTime: "14:00",
+      totalCapacity: 8,
+      modalityIds: [jazz.id],
+    });
     const soloSchedule = await expectCreated(
       createScheduleCapacity(block.id, {
         groupType: "solo",
@@ -148,19 +122,11 @@ describe("Bases del evento repository", () => {
   });
 
   test("blocks editing or deleting dependent cupos de cronograma", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 10,
-        modalityIds: [jazz.id],
-      }),
-    );
+    const { event, jazz } = await createEventModalitiesFixture();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
     const soloSchedule = await expectCreated(
       createScheduleCapacity(block.id, {
         groupType: "solo",

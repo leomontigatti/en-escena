@@ -6,8 +6,6 @@ export {
   updatePrice,
 } from "@/lib/events/bases-repository/prices.server";
 export type {
-  EventBasesDeleteResult,
-  EventBasesMutationResult,
   PriceInput,
   PriceListItem,
   PriceResolutionResult,

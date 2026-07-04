@@ -8,12 +8,9 @@ import {
 
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
 
 import {
   Select,
@@ -53,7 +50,7 @@ type SelectFieldProps<
   label: ReactNode;
   labelClassName?: string;
   name: TName;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
   placeholder?: string;
   options: readonly { value: string; label: string }[];
 };
@@ -81,9 +78,6 @@ function SelectField<
 }: SelectFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
-
   return (
     <Controller
       control={control}
@@ -91,67 +85,60 @@ function SelectField<
       render={({ field, fieldState }) => {
         const fieldValue = typeof field.value === "string" ? field.value : "";
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-        const describedBy = [descriptionId, isInvalid ? errorId : undefined]
-          .filter(Boolean)
-          .join(" ");
 
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-disabled={disabled ? true : undefined}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            disabled={disabled}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
             orientation={orientation}
           >
-            <FieldLabel htmlFor={id} className={labelClassName}>
-              {label}
-            </FieldLabel>
-            <FieldContent className={contentClassName}>
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
-              <input type="hidden" name={field.name} value={fieldValue} />
-              <div className="relative">
-                <Select
-                  disabled={disabled}
-                  value={fieldValue}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    onValueChange?.(value);
-                  }}
-                >
-                  <SelectTrigger
-                    id={id}
-                    aria-describedby={describedBy || undefined}
-                    aria-invalid={isInvalid ? true : undefined}
-                    className={cn(
-                      inputClassName,
-                      disabled && "pr-9 [&>svg]:hidden",
-                    )}
+            {({ describedBy, isInvalid }) => (
+              <>
+                <input type="hidden" name={field.name} value={fieldValue} />
+                <div className="relative">
+                  <Select
                     disabled={disabled}
-                    onBlur={field.onBlur}
+                    value={fieldValue}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      onValueChange?.(value);
+                    }}
                   >
-                    <SelectValue placeholder={placeholder} />
-                  </SelectTrigger>
-                  <SelectContent {...contentProps}>
-                    <SelectGroup>
-                      {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {disabled ? <FieldControlLockIcon /> : null}
-              </div>
-              <FieldError id={errorId} className={errorClassName}>
-                {errorMessage}
-              </FieldError>
-            </FieldContent>
-          </Field>
+                    <SelectTrigger
+                      id={id}
+                      aria-describedby={describedBy || undefined}
+                      aria-invalid={isInvalid ? true : undefined}
+                      className={cn(
+                        inputClassName,
+                        disabled && "pr-9 [&>svg]:hidden",
+                      )}
+                      disabled={disabled}
+                      onBlur={field.onBlur}
+                    >
+                      <SelectValue placeholder={placeholder} />
+                    </SelectTrigger>
+                    <SelectContent {...contentProps}>
+                      <SelectGroup>
+                        {options.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {disabled ? <FieldControlLockIcon /> : null}
+                </div>
+              </>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

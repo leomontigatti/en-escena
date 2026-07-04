@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   AdministracionUsuariosRouteView,
   loader,
@@ -324,19 +325,4 @@ function createRequestCookie(headers: Headers) {
   }
 
   return setCookie.split(";")[0] ?? "";
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }

@@ -97,10 +97,9 @@ export const emptyResetPasswordValues: ResetPasswordFormValues = {
   temporaryPassword: "",
 };
 
-export const emptyUpdateInternalUserFieldErrors =
+const emptyUpdateInternalUserFieldErrors =
   getEmptyFieldErrors<UpdateInternalUserField>();
-export const emptyResetPasswordFieldErrors =
-  getEmptyFieldErrors<ResetPasswordField>();
+const emptyResetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>();
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 

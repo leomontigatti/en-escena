@@ -1,11 +1,13 @@
 /** @vitest-environment jsdom */
 
-import "@/test/react-test-env";
-
 import { act } from "react";
 import type * as React from "react";
-import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
+
+import {
+  createReactDomTestRenderer,
+  getButton,
+} from "@/lib/test-support/react-dom";
 
 const reactRouterMocks = vi.hoisted(() => ({
   useFormAction: vi.fn(),
@@ -40,8 +42,7 @@ vi.mock("react-router", async () => {
 import { AdministracionEventoDetalleRouteView } from "@/routes/administracion.eventos_.$eventId";
 import { AdministracionEventoNuevoRouteView } from "@/routes/administracion.eventos_.nuevo";
 
-let container: HTMLDivElement | null = null;
-let root: ReturnType<typeof createRoot> | null = null;
+const renderer = createReactDomTestRenderer();
 
 describe("Evento RHF + React Router form submission", () => {
   afterEach(() => {
@@ -49,20 +50,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useFormAction.mockReset();
     reactRouterMocks.useNavigation.mockReset();
     reactRouterMocks.useSubmit.mockReset();
-
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    if (container) {
-      container.remove();
-      container = null;
-    }
-
-    document.body.innerHTML = "";
+    renderer.cleanup();
   });
 
   test("submits the new Evento form through React Router instead of form.submit()", async () => {
@@ -77,7 +65,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
-    render(
+    renderer.render(
       <AdministracionEventoNuevoRouteView
         actionData={{
           status: "error",
@@ -121,7 +109,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
-    render(<AdministracionEventoNuevoRouteView />);
+    renderer.render(<AdministracionEventoNuevoRouteView />);
 
     const form = document.querySelector("form");
 
@@ -151,7 +139,7 @@ describe("Evento RHF + React Router form submission", () => {
     });
     reactRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
-    render(
+    renderer.render(
       <AdministracionEventoDetalleRouteView
         loaderData={buildDetailLoaderData()}
       />,
@@ -170,7 +158,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
     reactRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
-    render(
+    renderer.render(
       <AdministracionEventoDetalleRouteView
         loaderData={buildDetailLoaderData()}
         actionData={{
@@ -196,28 +184,6 @@ describe("Evento RHF + React Router form submission", () => {
     );
   });
 });
-
-function render(element: React.ReactNode) {
-  container = document.createElement("div");
-  document.body.appendChild(container);
-  root = createRoot(container);
-
-  act(() => {
-    root?.render(element);
-  });
-}
-
-function getButton(label: string) {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.includes(label),
-  );
-
-  if (!(button instanceof HTMLButtonElement)) {
-    throw new Error(`Expected button "${label}" to be rendered.`);
-  }
-
-  return button;
-}
 
 function buildDetailLoaderData(): Parameters<
   typeof AdministracionEventoDetalleRouteView

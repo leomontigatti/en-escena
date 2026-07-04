@@ -8,7 +8,6 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
 export const portalDancerFormId = "portal-bailarin-form";
-export const noDocumentTypeSelectValue = "sin-documento";
 export const dancerDocumentImageAccept = "image/jpeg,image/png,image/webp";
 export const dancerDocumentImageAllowedMimeTypes = [
   "image/jpeg",
@@ -75,9 +74,6 @@ type PortalDancerStatusAction = {
   confirmButtonLabel: string;
   confirmButtonVariant: "default" | "destructive";
 };
-
-export const emptyPortalDancerFieldErrors: PortalDancerDetailActionData["fieldErrors"] =
-  {};
 
 export const portalDancerStatusActions = {
   "archive-dancer": {

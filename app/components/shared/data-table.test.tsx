@@ -1,9 +1,5 @@
 /** @vitest-environment jsdom */
 
-import "@/test/react-test-env";
-
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
@@ -17,6 +13,7 @@ import {
   ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type Row = {
   id: string;
@@ -56,56 +53,40 @@ const columns: DataTableColumn<Row>[] = [
 ];
 
 describe("DataTable", () => {
-  let container: HTMLDivElement | null = null;
-  let root: ReturnType<typeof createRoot> | null = null;
+  const renderer = createReactDomTestRenderer();
 
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    container?.remove();
-    container = null;
-  });
+  afterEach(renderer.cleanup);
 
   test("renders client-side faceted filters without initial values", async () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/eventos"]}>
+        <ClientDataTable
+          rows={[
+            {
+              id: "event_1",
+              academy: "En Escena",
+              name: "Evento Nacional",
+              status: "active",
+            },
+          ]}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar evento por nombre"
+          textFilterColumnId="name"
+          facetedFilters={[
+            {
+              label: "Estado",
+              options: [
+                { label: "Activo", value: "active" },
+                { label: "Archivado", value: "archived" },
+              ],
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
 
-    await act(async () => {
-      root?.render(
-        <MemoryRouter initialEntries={["/administracion/eventos"]}>
-          <ClientDataTable
-            rows={[
-              {
-                id: "event_1",
-                academy: "En Escena",
-                name: "Evento Nacional",
-                status: "active",
-              },
-            ]}
-            columns={columns}
-            getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar evento por nombre"
-            textFilterColumnId="name"
-            facetedFilters={[
-              {
-                label: "Estado",
-                options: [
-                  { label: "Activo", value: "active" },
-                  { label: "Archivado", value: "archived" },
-                ],
-              },
-            ]}
-          />
-        </MemoryRouter>,
-      );
-    });
-
+    const container = renderer.getContainer();
     expect(container.textContent).toContain("Evento Nacional");
     const tableHeaders = Array.from(container.querySelectorAll("th")).map(
       (header) => header.textContent,

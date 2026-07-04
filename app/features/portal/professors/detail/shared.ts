@@ -8,7 +8,6 @@ export const archiveProfessorIntent = "archive-professor";
 export const reactivateProfessorIntent = "reactivate-professor";
 export const professorNotFoundMessage = "No encontramos ese Profesor.";
 export const professorDetailFormId = "portal-profesor-form";
-export const noDocumentTypeSelectValue = "sin-documento";
 
 export const professorSchema = z
   .object({

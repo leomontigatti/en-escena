@@ -1,11 +1,12 @@
 /** @vitest-environment jsdom */
 
-import "@/test/react-test-env";
-
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
+
+import {
+  createReactDomTestRenderer,
+  getButton,
+} from "@/lib/test-support/react-dom";
 
 const useActionDataMock = vi.hoisted(() => vi.fn());
 const useFetcherMock = vi.hoisted(() => vi.fn());
@@ -28,21 +29,11 @@ vi.mock("react-router", async () => {
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
 
-let container: HTMLDivElement | null = null;
-let root: ReturnType<typeof createRoot> | null = null;
+const renderer = createReactDomTestRenderer();
 
 describe("coreografías request flow", () => {
   afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    container?.remove();
-    container = null;
-    document.body.innerHTML = "";
+    renderer.cleanup();
     useActionDataMock.mockReset();
     useFetcherMock.mockReset();
     useNavigationMock.mockReset();
@@ -74,7 +65,7 @@ describe("coreografías request flow", () => {
       { initialEntries: ["/portal/coreografias/choreo_1"] },
     );
 
-    await render(<RouterProvider router={router} />);
+    await renderer.renderAsync(<RouterProvider router={router} />);
 
     expect(getButton("Guardar").disabled).toBe(true);
   });
@@ -111,7 +102,7 @@ describe("coreografías request flow", () => {
       { initialEntries: ["/portal/coreografias/choreo_1"] },
     );
 
-    await render(<RouterProvider router={router} />);
+    await renderer.renderAsync(<RouterProvider router={router} />);
 
     expect(getButton("Guardar").disabled).toBe(true);
   });
@@ -163,7 +154,7 @@ describe("coreografías request flow", () => {
       { initialEntries: ["/portal/coreografias"] },
     );
 
-    await render(<RouterProvider router={router} />);
+    await renderer.renderAsync(<RouterProvider router={router} />);
 
     expect(document.body.textContent).toContain("Nueva coreografía");
     expect(document.body.textContent).toContain(
@@ -171,28 +162,6 @@ describe("coreografías request flow", () => {
     );
   });
 });
-
-async function render(element: React.ReactNode) {
-  container = document.createElement("div");
-  document.body.appendChild(container);
-  root = createRoot(container);
-
-  await act(async () => {
-    root?.render(element);
-  });
-}
-
-function getButton(label: string) {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.includes(label),
-  );
-
-  if (!(button instanceof HTMLButtonElement)) {
-    throw new Error(`Expected button "${label}" to be rendered.`);
-  }
-
-  return button;
-}
 
 function buildDetailLoaderData() {
   const eventSummary = {

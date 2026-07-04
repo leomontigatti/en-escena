@@ -8,11 +8,6 @@ import {
   academyEventPayments,
 } from "@/db/schema";
 import {
-  createChoreographyRecord,
-  createEventCatalog,
-  date as choreographyDate,
-} from "@/features/portal/choreographies/test-support/db";
-import {
   action as accountCurrentAction,
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
@@ -24,13 +19,11 @@ import {
   buildAnnulPaymentRequest,
   buildCancelInvoiceRequest,
   buildPaymentImputationRequest,
-  createAcademyUser,
+  createAccountCurrentInvoicePaymentFixture,
   createSavedEvent,
   createSignedInRequest,
   detailActionArgs,
   detailRouteArgs,
-  issueDepositInvoiceForTest,
-  registerPaymentForTest,
   renderAccountCurrentRoute,
 } from "./account-current-route.test-support";
 
@@ -43,50 +36,13 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const academy = await createAcademyUser({
-        email: "academia.correcciones.finanzas@example.com",
-        academyName: "Academia Correcciones",
-      });
-      const catalog = await createEventCatalog(event.id);
-      const choreography = await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Corregible",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-
-      await registerPaymentForTest({
-        academyId: academy.academy.id,
-        amount: "3000",
-        eventId: event.id,
-        paymentDate: "2026-03-15",
-      });
-      await issueDepositInvoiceForTest({
-        academyId: academy.academy.id,
-        choreographyIds: [choreography.id],
-        eventId: event.id,
-        issueDate: "2026-03-20",
-      });
-
-      const [payment] = await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
-      });
-      const [invoice] =
-        await db.query.academyEventChoreographyInvoices.findMany({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
+      const { academy, invoice, payment } =
+        await createAccountCurrentInvoicePaymentFixture({
+          event,
+          email: "academia.correcciones.finanzas@example.com",
+          academyName: "Academia Correcciones",
+          choreographyName: "Corregible",
         });
-
-      if (!payment || !invoice) {
-        throw new Error("Expected payment and invoice fixtures to exist.");
-      }
 
       const { request: imputationRequest } =
         await buildPaymentImputationRequest({

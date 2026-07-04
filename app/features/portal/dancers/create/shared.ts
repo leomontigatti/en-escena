@@ -18,10 +18,6 @@ export const emptyDancerValues: CreateDancerFormValues = {
   birthDate: "",
 };
 
-export const emptyDancerFieldErrors: Partial<
-  Record<keyof CreateDancerFormValues, string>
-> = {};
-
 export type CreateDancerActionData =
   | {
       status: "error";

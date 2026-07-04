@@ -1,39 +1,24 @@
 // @vitest-environment jsdom
 
-import "@/test/react-test-env";
-
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 type PortalChoreographyDetailRouteViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView
 >[0];
 
 describe("PortalChoreographyDetailRouteView delete dialog", () => {
-  let container: HTMLDivElement | null = null;
-  let root: ReturnType<typeof createRoot> | null = null;
+  const renderer = createReactDomTestRenderer();
 
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    container?.remove();
-    container = null;
-    document.body.innerHTML = "";
-  });
+  afterEach(renderer.cleanup);
 
   test("unmounts the delete confirmation dialog after canceling it", async () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
     const router = createMemoryRouter(
       [
         {
@@ -50,41 +35,18 @@ describe("PortalChoreographyDetailRouteView delete dialog", () => {
       { initialEntries: ["/portal/coreografias/choreo_1"] },
     );
 
-    await act(async () => {
-      root?.render(<RouterProvider router={router} />);
-    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
 
     expect(document.body.textContent).toContain("¿Eliminar Coreografía?");
     expect(document.body.textContent).toContain(
       "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
     );
 
-    await clickButton("Cancelar");
+    await clickReactDomButton("Cancelar", { exact: true });
 
     expect(document.body.textContent).not.toContain("¿Eliminar Coreografía?");
   });
 });
-
-function clickButton(label: string) {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) =>
-      candidate.textContent?.trim() === label ||
-      candidate.getAttribute("aria-label") === label,
-  );
-
-  if (!button) {
-    throw new Error(`No button found for label "${label}".`);
-  }
-
-  return act(async () => {
-    button.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  });
-}
 
 function buildLoaderData(
   overrides: Partial<PortalChoreographyDetailRouteViewProps["loaderData"]> = {},

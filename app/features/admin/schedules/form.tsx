@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, type ReactNode } from "react";
 import {
@@ -10,7 +9,6 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
@@ -30,14 +28,12 @@ import { groupTypeOptions } from "@/lib/events/group-types";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import {
   createValidatedRouteSubmitHandler,
-  isRouteFormPending,
   type RouteFormPendingScope,
   useOptionalFormAction,
-  useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { buildListPath } from "@/lib/shared/navigation";
 
+import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
   createEmptyScheduleCapacityFormValues,
   emptyScheduleCapacities,
@@ -163,16 +159,12 @@ export function ScheduleFormActions({
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, pendingScope);
-
   return (
-    <div className="flex justify-end gap-2">
-      <Button asChild variant="outline">
-        <Link to={buildListPath(basePath, null)}>Volver</Link>
-      </Button>
-      <SubmitButton form={formId} isPending={isPending} />
-    </div>
+    <EventBasesFormActions
+      basePath={basePath}
+      formId={formId}
+      pendingScope={pendingScope}
+    />
   );
 }
 

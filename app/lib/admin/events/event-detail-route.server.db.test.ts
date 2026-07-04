@@ -5,8 +5,11 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { events } from "@/db/schema";
+import {
+  createSignedInAdminRequest as createSignedInRequest,
+  expectThrownResponse,
+} from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   action,
@@ -314,37 +317,6 @@ function renderRoute(
   );
 }
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-  body?: FormData;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      method: input.body ? "POST" : "GET",
-      body: input.body,
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
 function formData(input: Record<string, string>) {
   const form = new FormData();
 
@@ -363,31 +335,6 @@ function routeArgs(request: Request, eventId: string) {
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }
 
 function date(value: string) {

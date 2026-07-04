@@ -12,8 +12,6 @@ import type { RouteNotificationKey } from "@/lib/shared/route-notification-toast
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
 
-export const noDocumentTypeSelectValue = "sin-documento";
-
 export const professorFieldNames = [
   "firstName",
   "lastName",
@@ -21,8 +19,6 @@ export const professorFieldNames = [
   "documentNumber",
   "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeProfessorFieldErrors>;
-
-export const emptyProfessorFieldErrors: AdministrativeProfessorFieldErrors = {};
 
 export type ProfessorDetailLoaderData = {
   backToList: string;

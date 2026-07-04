@@ -19,6 +19,7 @@ export default mergeConfig(
       },
     },
     test: {
+      setupFiles: ["./tests/setup/react-test-env.ts"],
       server: {
         deps: {
           inline: [/@opentelemetry\/semantic-conventions/],

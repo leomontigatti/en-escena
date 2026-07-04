@@ -97,8 +97,6 @@ export function formatAmount(amount: number) {
   return priceAmountFormatter.format(amount).replace(/\u00a0/g, " ");
 }
 
-export const emptyPriceFieldErrors: Record<string, string> = {};
-
 export function getPriceSubmittedValues(
   actionData: ActionData | undefined,
   intent: string,

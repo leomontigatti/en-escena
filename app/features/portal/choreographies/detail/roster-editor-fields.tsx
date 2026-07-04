@@ -1,10 +1,7 @@
-import { Lock } from "lucide-react";
-import { useId } from "react";
 import { type Control } from "react-hook-form";
 
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import type {
   ChoreographyEditValues,
   ChoreographyRosterEditorLoaderData,
@@ -13,32 +10,7 @@ import type {
 import { resolveChoreographyDancersIntent } from "@/features/portal/choreographies/detail/roster-editor.shared";
 import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
 
-export function ReadonlyDetailField({
-  className,
-  label,
-  value,
-}: {
-  className?: string;
-  label: string;
-  value: string;
-}) {
-  const id = useId();
-
-  return (
-    <Field className={className} data-disabled>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <FieldContent>
-        <div className="relative">
-          <Input id={id} value={value} disabled readOnly className="pr-9" />
-          <Lock
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
-          />
-        </div>
-      </FieldContent>
-    </Field>
-  );
-}
+export { ReadOnlyField as ReadonlyDetailField };
 
 export function ChoreographySelectPreviewField({
   control,

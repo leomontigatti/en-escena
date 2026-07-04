@@ -36,8 +36,6 @@ export async function action({ request }: Route.ActionArgs) {
   return await handleAdminPaymentCreateAction(request);
 }
 
-export { AdministracionPagosNuevoRouteView };
-
 export default function AdministracionPagosNuevoRoute({
   loaderData,
 }: AdministracionPagosNuevoRouteProps) {

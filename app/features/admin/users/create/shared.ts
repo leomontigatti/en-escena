@@ -76,9 +76,6 @@ export const defaultCreateInternalUserFormValues: CreateInternalUserFormValues =
     email: "",
   };
 
-export const emptyCreateInternalUserFieldErrors =
-  getEmptyFieldErrors<CreateInternalUserField>();
-
 export function readCreateInternalUserFormValues(
   formData: FormData,
 ): CreateInternalUserFormValues {

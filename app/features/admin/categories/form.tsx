@@ -1,34 +1,28 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "react-router";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
-import { Button } from "@/components/ui/button";
+import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
 import type {
   ActionData,
   CategoryActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
-import { buildListPath } from "@/lib/shared/navigation";
 import { experienceLevelOptions } from "@/lib/events/experience-levels";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import {
   createValidatedRouteSubmitHandler,
-  isRouteFormPending,
   requiredFieldMessage,
   type RouteFormPendingScope,
   useOptionalFormAction,
-  useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { basePath } from "./shared";
 
-import type { ModalityRow } from "./shared";
-import { TextInputField } from "@/components/shared/text-input-field";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { EventBasesFormActions } from "../events/bases-form-actions";
+import { basePath, type ModalityRow } from "./shared";
 
 const categoryFormSchema = z
   .object({
@@ -203,16 +197,13 @@ function CategoryFormActions({
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, pendingScope);
-
   return (
-    <div className="flex items-center justify-end gap-2">
-      <Button asChild variant="outline">
-        <Link to={buildListPath(basePath, null)}>Volver</Link>
-      </Button>
-      <SubmitButton form={formId} isPending={isPending} />
-    </div>
+    <EventBasesFormActions
+      basePath={basePath}
+      className="flex items-center justify-end gap-2"
+      formId={formId}
+      pendingScope={pendingScope}
+    />
   );
 }
 

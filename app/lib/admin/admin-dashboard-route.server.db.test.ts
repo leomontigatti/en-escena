@@ -1,12 +1,9 @@
-import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { db } from "@/db";
-import { user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   AdministracionIndexRouteView,
@@ -94,34 +91,6 @@ function renderRoute(
   );
 }
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
 function routeArgs(request: Request) {
   return {
     request,
@@ -130,16 +99,6 @@ function routeArgs(request: Request) {
     url: new URL(request.url),
     pattern: "/administracion",
   };
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
 }
 
 function date(value: string) {

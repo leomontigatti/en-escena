@@ -16,11 +16,16 @@ import {
   ClipboardList,
   HandCoins,
 } from "lucide-react";
-import { Link, NavLink, useLocation, type UIMatch } from "react-router";
+import { Link, useLocation, type UIMatch } from "react-router";
 
 import type { AdminEventOption } from "@/lib/admin/event-context.shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import {
+  SidebarNavigationGroups,
+  type SidebarNavigationGroup,
+  type SidebarNavigationItem,
+} from "@/components/shared/sidebar-navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -42,8 +47,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -104,11 +107,7 @@ const eventBaseNavigationItems = [
     to: "/administracion/precios",
     icon: DollarSign,
   },
-] satisfies Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-}>;
+] satisfies SidebarNavigationItem[];
 
 const primaryNavigationItems = [
   {
@@ -136,11 +135,7 @@ const primaryNavigationItems = [
     to: "/administracion/bailarines",
     icon: Users,
   },
-] satisfies Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-}>;
+] satisfies SidebarNavigationItem[];
 
 const secondaryNavigationItems = [
   {
@@ -153,11 +148,7 @@ const secondaryNavigationItems = [
     to: "/administracion/academias",
     icon: Building2,
   },
-] satisfies Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-}>;
+] satisfies SidebarNavigationItem[];
 
 const financeNavigationItems = [
   {
@@ -176,12 +167,25 @@ const financeNavigationItems = [
     icon: FileText,
     disabled: true,
   },
-] satisfies Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-  disabled?: boolean;
-}>;
+] satisfies SidebarNavigationItem[];
+
+const navigationGroups = [
+  {
+    label: "Administración",
+    items: primaryNavigationItems,
+  },
+  {
+    label: "Finanzas",
+    items: financeNavigationItems,
+  },
+  {
+    label: "Bases",
+    items: eventBaseNavigationItems,
+  },
+  {
+    items: secondaryNavigationItems,
+  },
+] satisfies SidebarNavigationGroup[];
 
 export function AdminShell({
   email,
@@ -217,119 +221,10 @@ export function AdminShell({
           </SidebarHeader>
 
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Administración</SidebarGroupLabel>
-              <SidebarMenu>
-                {primaryNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.label}
-                        isActive={isNavigationItemActive(
-                          location.pathname,
-                          item.to,
-                        )}
-                      >
-                        <NavLink to={item.to}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
-              <SidebarMenu>
-                {financeNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      {item.disabled ? (
-                        <SidebarMenuButton disabled tooltip={item.label}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton
-                          asChild
-                          tooltip={item.label}
-                          isActive={isNavigationItemActive(
-                            location.pathname,
-                            item.to,
-                          )}
-                        >
-                          <NavLink to={item.to}>
-                            <Icon aria-hidden="true" />
-                            <span>{item.label}</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Bases</SidebarGroupLabel>
-              <SidebarMenu>
-                {eventBaseNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.label}
-                        isActive={isNavigationItemActive(
-                          location.pathname,
-                          item.to,
-                        )}
-                      >
-                        <NavLink to={item.to}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarMenu>
-                {secondaryNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.label}
-                        isActive={isNavigationItemActive(
-                          location.pathname,
-                          item.to,
-                        )}
-                      >
-                        <NavLink to={item.to}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
+            <SidebarNavigationGroups
+              groups={navigationGroups}
+              rootPath="/administracion"
+            />
           </SidebarContent>
 
           <SidebarFooter>
@@ -512,14 +407,6 @@ function AdminActiveEventSummary({
 
 function getUserInitials(email: string) {
   return email.slice(0, 2).toUpperCase();
-}
-
-function isNavigationItemActive(pathname: string, to: string) {
-  if (to === "/administracion") {
-    return pathname === to;
-  }
-
-  return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 function AdminBrandLink() {

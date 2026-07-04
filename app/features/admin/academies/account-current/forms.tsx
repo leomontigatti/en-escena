@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
+import { useId } from "react";
 import { Controller, type Control, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
@@ -39,7 +39,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
+import {
+  createValidatedRouteFormDataSubmitHandler,
+  useResetFormValues,
+} from "@/lib/shared/forms";
 
 import { formatAmount, formatDate } from "./formatters";
 import {
@@ -82,12 +85,7 @@ export function PaymentForm({
     resolver: zodResolver(registerPaymentSchema),
   });
   const submit = useSubmit();
-  const { reset } = form;
-  const resetKey = JSON.stringify(values);
-
-  useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
+  useResetFormValues(form.reset, values);
 
   return (
     <Card>
@@ -303,12 +301,7 @@ export function PaymentImputationForm({
     resolver: zodResolver(paymentImputationSchema),
   });
   const submit = useSubmit();
-  const { reset } = form;
-  const resetKey = JSON.stringify(values);
-
-  useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
+  useResetFormValues(form.reset, values);
 
   return (
     <Card>
@@ -387,12 +380,7 @@ export function DepositInvoiceForm({
     resolver: zodResolver(issueDepositInvoicesSchema),
   });
   const submit = useSubmit();
-  const { reset } = form;
-  const resetKey = JSON.stringify(values);
-
-  useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
+  useResetFormValues(form.reset, values);
 
   return (
     <Card>

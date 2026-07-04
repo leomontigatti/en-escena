@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as changePasswordAction } from "@/routes/cambiar-contrasena";
 import { action as signInAction } from "@/routes/ingresar";
 
@@ -179,19 +180,4 @@ function extractSignedSessionCookie(headers: Headers) {
   }
 
   return sessionCookie[1];
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }

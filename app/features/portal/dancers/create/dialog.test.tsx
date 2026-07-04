@@ -1,43 +1,27 @@
 // @vitest-environment jsdom
 
-import "@/test/react-test-env";
-
-import { act, type ReactElement } from "react";
-import { createRoot } from "react-dom/client";
+import { type ReactElement } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 type PortalDancersListRouteViewProps = Parameters<
   typeof PortalDancersListRouteView
 >[0];
 
 describe("PortalDancersListRouteView dialog", () => {
-  let container: HTMLDivElement | null = null;
-  let root: ReturnType<typeof createRoot> | null = null;
+  const renderer = createReactDomTestRenderer();
 
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    container?.remove();
-    container = null;
-    document.body.innerHTML = "";
-  });
+  afterEach(renderer.cleanup);
 
   test("shows the create dialog with submitted values after a server error", async () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      renderRoute(
-        root,
+    await renderer.renderAsync(
+      createRouteElement(
         "/portal/bailarines",
         <PortalDancersListRouteView
           loaderData={createDancerLoaderData()}
@@ -55,8 +39,8 @@ describe("PortalDancersListRouteView dialog", () => {
             modalOpen: true,
           }}
         />,
-      );
-    });
+      ),
+    );
 
     expect(document.body.textContent).toContain("Nuevo bailarín");
     expect(document.body.textContent).toContain(
@@ -78,29 +62,21 @@ describe("PortalDancersListRouteView dialog", () => {
   });
 
   test("updates the open dancer dialog with submitted values after a server error", async () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      renderRoute(
-        root,
+    await renderer.renderAsync(
+      createRouteElement(
         "/portal/bailarines",
         <PortalDancersListRouteView loaderData={createDancerLoaderData()} />,
-      );
-    });
+      ),
+    );
 
-    await act(async () => {
-      clickButton("Nuevo bailarín");
-    });
+    await clickReactDomButton("Nuevo bailarín");
 
     expect(
       document.querySelector<HTMLInputElement>('input[name="lastName"]')?.value,
     ).toBe("");
 
-    await act(async () => {
-      renderRoute(
-        root,
+    await renderer.renderAsync(
+      createRouteElement(
         "/portal/bailarines",
         <PortalDancersListRouteView
           loaderData={createDancerLoaderData()}
@@ -117,8 +93,8 @@ describe("PortalDancersListRouteView dialog", () => {
             modalOpen: true,
           }}
         />,
-      );
-    });
+      ),
+    );
 
     expect(
       document.querySelector<HTMLInputElement>('input[name="firstName"]')
@@ -140,12 +116,8 @@ function createDancerLoaderData(): PortalDancersListRouteViewProps["loaderData"]
   };
 }
 
-function renderRoute(
-  root: ReturnType<typeof createRoot> | null,
-  path: string,
-  element: ReactElement,
-) {
-  root?.render(
+function createRouteElement(path: string, element: ReactElement) {
+  return (
     <RouterProvider
       router={createMemoryRouter(
         [
@@ -157,18 +129,6 @@ function renderRoute(
         ],
         { initialEntries: [path] },
       )}
-    />,
+    />
   );
-}
-
-function clickButton(label: string) {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.includes(label),
-  );
-
-  if (!button) {
-    throw new Error(`Expected button "${label}" to be rendered.`);
-  }
-
-  button.click();
 }

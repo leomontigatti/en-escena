@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { useSubmit } from "react-router";
 
@@ -25,7 +24,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
+import {
+  createValidatedRouteFormDataSubmitHandler,
+  useResetFormValues,
+} from "@/lib/shared/forms";
 
 import { formatAmount } from "./formatters";
 import {
@@ -51,12 +53,7 @@ export function BalanceInvoiceForm({
     resolver: zodResolver(balanceInvoiceSchema),
   });
   const submit = useSubmit();
-  const { reset } = form;
-  const resetKey = JSON.stringify(values);
-
-  useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
+  useResetFormValues(form.reset, values);
 
   return (
     <Card>

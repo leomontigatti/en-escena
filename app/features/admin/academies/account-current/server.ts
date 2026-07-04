@@ -46,11 +46,6 @@ import {
   type AccountCurrentCorrectionFormValues,
   correctionFieldNames,
   defaultAccountCurrentActionValues,
-  defaultAccountCurrentCorrectionValues,
-  defaultBalanceInvoiceValues,
-  defaultIssueDepositInvoicesValues,
-  defaultPaymentImputationValues,
-  defaultRegisterPaymentValues,
   imputationFieldNames,
   invoiceFieldNames,
   issueDepositInvoicesSchema,
@@ -70,6 +65,42 @@ type CorrectionSchema =
   | typeof annulImputationSchema
   | typeof annulPaymentSchema
   | typeof cancelInvoiceSchema;
+
+type AccountCurrentActionContext = {
+  academyId: string;
+  adminUserId: string;
+  eventId: string;
+  formData: FormData;
+  requestUrl: string;
+};
+
+type AccountCurrentActionHandler = (
+  context: AccountCurrentActionContext,
+) => Promise<AdministrativeAcademyAccountCurrentActionData | never>;
+
+type AccountCurrentActionErrorData = Extract<
+  AdministrativeAcademyAccountCurrentActionData,
+  { status: "error" }
+>;
+type AccountCurrentPreviewData = Extract<
+  AdministrativeAcademyAccountCurrentActionData,
+  { status: "preview" }
+>;
+type AccountCurrentActionValues =
+  AdministrativeAcademyAccountCurrentActionData["values"];
+
+const accountCurrentActionHandlers: Partial<
+  Record<string, AccountCurrentActionHandler>
+> = {
+  "annul-imputation": handleAnnulImputationAction,
+  "annul-payment": handleAnnulPaymentAction,
+  "cancel-invoice": handleCancelInvoiceAction,
+  "impute-payment": handleImputePaymentAction,
+  "issue-balance-invoice": handleIssueBalanceInvoiceAction,
+  "issue-deposit-invoices": handleIssueDepositInvoicesAction,
+  "preview-balance-invoice": handlePreviewBalanceInvoiceAction,
+  "register-payment": handleRegisterPaymentAction,
+};
 
 export async function loadAdministrativeAcademyAccountCurrent(input: {
   params: { academyId?: string };
@@ -195,7 +226,6 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
   };
 }
 
-// fallow-ignore-next-line complexity
 export async function handleAdministrativeAcademyAccountCurrentAction(input: {
   params: { academyId?: string };
   request: Request;
@@ -206,310 +236,257 @@ export async function handleAdministrativeAcademyAccountCurrentAction(input: {
   await readAcademy(academyId);
 
   if (eventContext.selectedEventId === null) {
-    return {
-      status: "error",
-      message: "Activá un evento para operar la cuenta corriente.",
+    return accountCurrentActionError({
       fieldErrors: {},
-      values: defaultAccountCurrentActionValues(),
-    };
+      message: "Activá un evento para operar la cuenta corriente.",
+    });
   }
 
   const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
+  const handler = accountCurrentActionHandlers[intent];
 
-  if (intent === "register-payment") {
-    const values = readRegisterPaymentValues(formData);
-    const parsed = registerPaymentSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos del pago.",
-        fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
-        values: {
-          balanceInvoice: defaultBalanceInvoiceValues(),
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: values,
-        },
-      };
-    }
-
-    await registerAcademyEventPayment({
-      academyId,
-      amount: Number(parsed.data.amount),
-      createdByUserId: adminUser.id,
-      eventId,
-      internalNote: parsed.data.internalNote || null,
-      paymentDate: parsed.data.paymentDate,
-      paymentMethod: parsed.data.paymentMethod,
-      reference: parsed.data.reference || null,
-    });
-
-    throw redirect(input.request.url);
-  }
-
-  if (intent === "issue-deposit-invoices") {
-    const values = readIssueDepositInvoicesValues(formData);
-    const parsed = issueDepositInvoicesSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la factura.",
-        fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
-        values: {
-          balanceInvoice: defaultBalanceInvoiceValues(),
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: values,
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await issueDepositInvoices({
-      academyId,
-      choreographyIds: parsed.data.choreographyIds,
-      createdByUserId: adminUser.id,
-      eventId,
-      issueDate: parsed.data.issueDate,
-    });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          balanceInvoice: defaultBalanceInvoiceValues(),
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: values,
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
-  }
-
-  if (intent === "preview-balance-invoice") {
-    const values = readBalanceInvoiceValues(formData);
-    const parsed = balanceInvoiceSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la factura.",
-        fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
-        values: {
-          balanceInvoice: values,
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await previewBalanceInvoice({
-      academyId,
-      administrativeDiscountAmount: Number(
-        parsed.data.administrativeDiscountAmount,
-      ),
-      administrativeDiscountInternalReason:
-        parsed.data.administrativeDiscountInternalReason || null,
-      administrativeDiscountPublicLabel:
-        parsed.data.administrativeDiscountPublicLabel || null,
-      choreographyId: parsed.data.choreographyId,
-      eventId,
-      issueDate: parsed.data.issueDate,
-    });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          balanceInvoice: values,
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    return {
-      status: "preview",
-      preview: result.preview,
-      values: {
-        balanceInvoice: values,
-        correction: defaultAccountCurrentCorrectionValues(),
-        imputation: defaultPaymentImputationValues(),
-        invoice: defaultIssueDepositInvoicesValues(),
-        payment: defaultRegisterPaymentValues(),
-      },
-    };
-  }
-
-  if (intent === "issue-balance-invoice") {
-    const values = readBalanceInvoiceValues(formData);
-    const parsed = balanceInvoiceSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la factura.",
-        fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
-        values: {
-          balanceInvoice: values,
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await issueBalanceInvoice({
-      academyId,
-      administrativeDiscountAmount: Number(
-        parsed.data.administrativeDiscountAmount,
-      ),
-      administrativeDiscountInternalReason:
-        parsed.data.administrativeDiscountInternalReason || null,
-      administrativeDiscountPublicLabel:
-        parsed.data.administrativeDiscountPublicLabel || null,
-      choreographyId: parsed.data.choreographyId,
-      createdByUserId: adminUser.id,
-      eventId,
-      issueDate: parsed.data.issueDate,
-    });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          balanceInvoice: values,
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: defaultPaymentImputationValues(),
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
-  }
-
-  if (intent === "impute-payment") {
-    const values = readPaymentImputationValues(formData);
-    const parsed = paymentImputationSchema.safeParse(values);
-
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "Revisá los datos de la imputación.",
-        fieldErrors: getFieldErrors(parsed.error, imputationFieldNames),
-        values: {
-          balanceInvoice: defaultBalanceInvoiceValues(),
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: values,
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    const result = await createPaymentImputation({
-      academyId,
-      amount: Number(parsed.data.amount),
-      createdByUserId: adminUser.id,
-      eventId,
-      imputationDate: parsed.data.imputationDate,
-      invoiceId: parsed.data.invoiceId,
-      paymentId: parsed.data.paymentId,
-    });
-
-    if (!result.ok) {
-      return {
-        status: "error",
-        message: result.message,
-        fieldErrors: result.fieldErrors,
-        values: {
-          balanceInvoice: defaultBalanceInvoiceValues(),
-          correction: defaultAccountCurrentCorrectionValues(),
-          imputation: values,
-          invoice: defaultIssueDepositInvoicesValues(),
-          payment: defaultRegisterPaymentValues(),
-        },
-      };
-    }
-
-    throw redirect(input.request.url);
-  }
-
-  if (intent === "annul-imputation") {
-    return await handleCorrectionAction({
-      formData,
-      requestUrl: input.request.url,
-      schema: annulImputationSchema,
-      run: (data) =>
-        annulPaymentImputation({
-          academyId,
-          annulledByUserId: adminUser.id,
-          eventId,
-          imputationId: data.imputationId,
-          reason: data.reason,
-        }),
+  if (!handler) {
+    return accountCurrentActionError({
+      fieldErrors: {},
+      message: "No pudimos procesar esa acción.",
     });
   }
 
-  if (intent === "cancel-invoice") {
-    return await handleCorrectionAction({
-      formData,
-      requestUrl: input.request.url,
-      schema: cancelInvoiceSchema,
-      run: (data) =>
-        cancelDepositInvoice({
-          academyId,
-          cancelledByUserId: adminUser.id,
-          eventId,
-          invoiceId: data.invoiceId,
-          reason: data.reason,
-        }),
+  return await handler({
+    academyId,
+    adminUserId: adminUser.id,
+    eventId,
+    formData,
+    requestUrl: input.request.url,
+  });
+}
+
+async function handleRegisterPaymentAction(
+  context: AccountCurrentActionContext,
+) {
+  const values = readRegisterPaymentValues(context.formData);
+  const parsed = registerPaymentSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return accountCurrentActionError({
+      fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
+      message: "Revisá los datos del pago.",
+      values: { payment: values },
     });
   }
 
-  if (intent === "annul-payment") {
-    return await handleCorrectionAction({
-      formData,
-      requestUrl: input.request.url,
-      schema: annulPaymentSchema,
-      run: (data) =>
-        annulPayment({
-          academyId,
-          annulledByUserId: adminUser.id,
-          eventId,
-          paymentId: data.paymentId,
-          reason: data.reason,
-        }),
+  await registerAcademyEventPayment({
+    academyId: context.academyId,
+    amount: Number(parsed.data.amount),
+    createdByUserId: context.adminUserId,
+    eventId: context.eventId,
+    internalNote: parsed.data.internalNote || null,
+    paymentDate: parsed.data.paymentDate,
+    paymentMethod: parsed.data.paymentMethod,
+    reference: parsed.data.reference || null,
+  });
+
+  throw redirect(context.requestUrl);
+}
+
+async function handleIssueDepositInvoicesAction(
+  context: AccountCurrentActionContext,
+) {
+  const values = readIssueDepositInvoicesValues(context.formData);
+  const parsed = issueDepositInvoicesSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return accountCurrentActionError({
+      fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
+      message: "Revisá los datos de la factura.",
+      values: { invoice: values },
     });
   }
 
-  return {
-    status: "error",
-    message: "No pudimos procesar esa acción.",
-    fieldErrors: {},
-    values: defaultAccountCurrentActionValues(),
-  };
+  const result = await issueDepositInvoices({
+    academyId: context.academyId,
+    choreographyIds: parsed.data.choreographyIds,
+    createdByUserId: context.adminUserId,
+    eventId: context.eventId,
+    issueDate: parsed.data.issueDate,
+  });
+
+  if (!result.ok) {
+    return accountCurrentActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values: { invoice: values },
+    });
+  }
+
+  throw redirect(context.requestUrl);
+}
+
+async function handlePreviewBalanceInvoiceAction(
+  context: AccountCurrentActionContext,
+) {
+  const values = readBalanceInvoiceValues(context.formData);
+  const parsed = balanceInvoiceSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return balanceInvoiceActionError({
+      fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
+      message: "Revisá los datos de la factura.",
+      values,
+    });
+  }
+
+  const result = await previewBalanceInvoice({
+    academyId: context.academyId,
+    administrativeDiscountAmount: Number(
+      parsed.data.administrativeDiscountAmount,
+    ),
+    administrativeDiscountInternalReason:
+      parsed.data.administrativeDiscountInternalReason || null,
+    administrativeDiscountPublicLabel:
+      parsed.data.administrativeDiscountPublicLabel || null,
+    choreographyId: parsed.data.choreographyId,
+    eventId: context.eventId,
+    issueDate: parsed.data.issueDate,
+  });
+
+  if (!result.ok) {
+    return balanceInvoiceActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values,
+    });
+  }
+
+  return accountCurrentPreview({
+    preview: result.preview,
+    values: { balanceInvoice: values },
+  });
+}
+
+async function handleIssueBalanceInvoiceAction(
+  context: AccountCurrentActionContext,
+) {
+  const values = readBalanceInvoiceValues(context.formData);
+  const parsed = balanceInvoiceSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return balanceInvoiceActionError({
+      fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
+      message: "Revisá los datos de la factura.",
+      values,
+    });
+  }
+
+  const result = await issueBalanceInvoice({
+    academyId: context.academyId,
+    administrativeDiscountAmount: Number(
+      parsed.data.administrativeDiscountAmount,
+    ),
+    administrativeDiscountInternalReason:
+      parsed.data.administrativeDiscountInternalReason || null,
+    administrativeDiscountPublicLabel:
+      parsed.data.administrativeDiscountPublicLabel || null,
+    choreographyId: parsed.data.choreographyId,
+    createdByUserId: context.adminUserId,
+    eventId: context.eventId,
+    issueDate: parsed.data.issueDate,
+  });
+
+  if (!result.ok) {
+    return balanceInvoiceActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values,
+    });
+  }
+
+  throw redirect(context.requestUrl);
+}
+
+async function handleImputePaymentAction(context: AccountCurrentActionContext) {
+  const values = readPaymentImputationValues(context.formData);
+  const parsed = paymentImputationSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return accountCurrentActionError({
+      fieldErrors: getFieldErrors(parsed.error, imputationFieldNames),
+      message: "Revisá los datos de la imputación.",
+      values: { imputation: values },
+    });
+  }
+
+  const result = await createPaymentImputation({
+    academyId: context.academyId,
+    amount: Number(parsed.data.amount),
+    createdByUserId: context.adminUserId,
+    eventId: context.eventId,
+    imputationDate: parsed.data.imputationDate,
+    invoiceId: parsed.data.invoiceId,
+    paymentId: parsed.data.paymentId,
+  });
+
+  if (!result.ok) {
+    return accountCurrentActionError({
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      values: { imputation: values },
+    });
+  }
+
+  throw redirect(context.requestUrl);
+}
+
+async function handleAnnulImputationAction(
+  context: AccountCurrentActionContext,
+) {
+  return await handleCorrectionAction({
+    formData: context.formData,
+    requestUrl: context.requestUrl,
+    schema: annulImputationSchema,
+    run: (data) =>
+      annulPaymentImputation({
+        academyId: context.academyId,
+        annulledByUserId: context.adminUserId,
+        eventId: context.eventId,
+        imputationId: data.imputationId,
+        reason: data.reason,
+      }),
+  });
+}
+
+async function handleCancelInvoiceAction(context: AccountCurrentActionContext) {
+  return await handleCorrectionAction({
+    formData: context.formData,
+    requestUrl: context.requestUrl,
+    schema: cancelInvoiceSchema,
+    run: (data) =>
+      cancelDepositInvoice({
+        academyId: context.academyId,
+        cancelledByUserId: context.adminUserId,
+        eventId: context.eventId,
+        invoiceId: data.invoiceId,
+        reason: data.reason,
+      }),
+  });
+}
+
+async function handleAnnulPaymentAction(context: AccountCurrentActionContext) {
+  return await handleCorrectionAction({
+    formData: context.formData,
+    requestUrl: context.requestUrl,
+    schema: annulPaymentSchema,
+    run: (data) =>
+      annulPayment({
+        academyId: context.academyId,
+        annulledByUserId: context.adminUserId,
+        eventId: context.eventId,
+        paymentId: data.paymentId,
+        reason: data.reason,
+      }),
+  });
 }
 
 async function handleCorrectionAction(input: {
@@ -542,23 +519,61 @@ async function handleCorrectionAction(input: {
   throw redirect(input.requestUrl);
 }
 
+function accountCurrentActionError(input: {
+  fieldErrors: Partial<Record<string, string>>;
+  message: string;
+  values?: Partial<AccountCurrentActionValues>;
+}): AccountCurrentActionErrorData {
+  return {
+    status: "error",
+    message: input.message,
+    fieldErrors: input.fieldErrors,
+    values: accountCurrentActionValues(input.values),
+  };
+}
+
+function balanceInvoiceActionError(input: {
+  fieldErrors: Partial<Record<string, string>>;
+  message: string;
+  values: AccountCurrentActionValues["balanceInvoice"];
+}) {
+  return accountCurrentActionError({
+    fieldErrors: input.fieldErrors,
+    message: input.message,
+    values: { balanceInvoice: input.values },
+  });
+}
+
+function accountCurrentPreview(input: {
+  preview: AccountCurrentPreviewData["preview"];
+  values?: Partial<AccountCurrentActionValues>;
+}): AccountCurrentPreviewData {
+  return {
+    status: "preview",
+    preview: input.preview,
+    values: accountCurrentActionValues(input.values),
+  };
+}
+
+function accountCurrentActionValues(
+  values: Partial<AccountCurrentActionValues> = {},
+): AccountCurrentActionValues {
+  return {
+    ...defaultAccountCurrentActionValues(),
+    ...values,
+  };
+}
+
 function correctionActionError(input: {
   fieldErrors: Partial<Record<string, string>>;
   message: string;
   values: AccountCurrentCorrectionFormValues;
 }): AdministrativeAcademyAccountCurrentActionData {
-  return {
-    status: "error",
-    message: input.message,
+  return accountCurrentActionError({
     fieldErrors: input.fieldErrors,
-    values: {
-      balanceInvoice: defaultBalanceInvoiceValues(),
-      correction: input.values,
-      imputation: defaultPaymentImputationValues(),
-      invoice: defaultIssueDepositInvoicesValues(),
-      payment: defaultRegisterPaymentValues(),
-    },
-  };
+    message: input.message,
+    values: { correction: input.values },
+  });
 }
 
 async function readAcademy(academyId: string) {

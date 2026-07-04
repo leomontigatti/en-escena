@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import "@/test/react-test-env";
-
 import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react";
 import { createRoot } from "react-dom/client";

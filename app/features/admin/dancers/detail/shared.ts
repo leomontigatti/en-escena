@@ -14,8 +14,6 @@ import type { RouteNotificationKey } from "@/lib/shared/route-notification-toast
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
 
-export const noDocumentTypeSelectValue = "sin-documento";
-
 export const dancerFieldNames = [
   "firstName",
   "lastName",
@@ -26,8 +24,6 @@ export const dancerFieldNames = [
   "documentBackImageStorageKey",
   "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeDancerFieldErrors>;
-
-export const emptyDancerFieldErrors: AdministrativeDancerFieldErrors = {};
 
 export type DancerDetailLoaderData = {
   backToList: string;
@@ -271,28 +267,6 @@ export function getDancerStatusValues(
   return {
     correctionReason: actionData?.values.correctionReason ?? "",
   };
-}
-
-export function getDancerEditFieldErrors(
-  fieldErrors: AdministrativeDancerFieldErrors | undefined,
-  hasSubmittedEditValues: boolean,
-): AdministrativeDancerFieldErrors {
-  if (!fieldErrors || !hasSubmittedEditValues) {
-    return emptyDancerFieldErrors;
-  }
-
-  return fieldErrors;
-}
-
-export function getDancerStatusFieldErrors(
-  fieldErrors: AdministrativeDancerFieldErrors | undefined,
-  hasSubmittedEditValues: boolean,
-): AdministrativeDancerFieldErrors {
-  if (!fieldErrors || hasSubmittedEditValues) {
-    return emptyDancerFieldErrors;
-  }
-
-  return fieldErrors;
 }
 
 export function getDancerStatusAction(active: boolean): DancerStatusAction {

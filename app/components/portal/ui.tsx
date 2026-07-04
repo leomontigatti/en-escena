@@ -13,10 +13,15 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Link, NavLink, useLocation, type UIMatch } from "react-router";
+import { Link, useLocation, type UIMatch } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import {
+  SidebarNavigationGroups,
+  type SidebarNavigationGroup,
+  type SidebarNavigationItem,
+} from "@/components/shared/sidebar-navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,8 +59,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -194,24 +197,26 @@ const primaryNavigationItems = [
     to: "/portal/coreografias",
     icon: AudioLines,
   },
-] satisfies Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-}>;
+] satisfies SidebarNavigationItem[];
 
-const financeNavigationItems: Array<{
-  label: string;
-  to: string;
-  icon: typeof Home;
-  disabled?: boolean;
-}> = [
+const financeNavigationItems = [
   {
     label: "Resumen",
     to: "/portal/finanzas",
     icon: ClipboardList,
   },
-];
+] satisfies SidebarNavigationItem[];
+
+const navigationGroups = [
+  {
+    label: "Administración",
+    items: primaryNavigationItems,
+  },
+  {
+    label: "Finanzas",
+    items: financeNavigationItems,
+  },
+] satisfies SidebarNavigationGroup[];
 
 const creationAvailabilityPresentationByTone: Record<
   CoreographyCreationState["tone"],
@@ -265,66 +270,10 @@ export function PortalShell({
           </SidebarHeader>
 
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Administración</SidebarGroupLabel>
-              <SidebarMenu>
-                {primaryNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.label}
-                        isActive={isNavigationItemActive(
-                          location.pathname,
-                          item.to,
-                        )}
-                      >
-                        <NavLink to={item.to}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
-              <SidebarMenu>
-                {financeNavigationItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      {item.disabled ? (
-                        <SidebarMenuButton disabled tooltip={item.label}>
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton
-                          asChild
-                          tooltip={item.label}
-                          isActive={isNavigationItemActive(
-                            location.pathname,
-                            item.to,
-                          )}
-                        >
-                          <NavLink to={item.to}>
-                            <Icon aria-hidden="true" />
-                            <span>{item.label}</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
+            <SidebarNavigationGroups
+              groups={navigationGroups}
+              rootPath="/portal"
+            />
           </SidebarContent>
 
           <SidebarFooter>
@@ -660,14 +609,6 @@ function getUserInitials(value: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function isNavigationItemActive(pathname: string, to: string) {
-  if (to === "/portal") {
-    return pathname === to;
-  }
-
-  return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 function getPortalEventStatus(isReadOnly: boolean): EventStatusPresentation {

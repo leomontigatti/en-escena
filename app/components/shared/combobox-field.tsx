@@ -19,12 +19,9 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
 
 type ComboboxFieldOption = {
   value: string;
@@ -49,7 +46,7 @@ type ComboboxFieldProps<
   labelClassName?: string;
   name: TName;
   options: readonly TOption[];
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
   placeholder?: string;
   popupClassName?: string;
 };
@@ -78,8 +75,6 @@ function ComboboxField<
 }: ComboboxFieldProps<TFieldValues, TName, TOption>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
   const anchorRef = useComboboxAnchor();
   const optionByValue = new Map(
     options.map((option) => [option.value, option] as const),
@@ -97,74 +92,67 @@ function ComboboxField<
       render={({ field, fieldState }) => {
         const fieldValue = typeof field.value === "string" ? field.value : "";
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-        const describedBy = [descriptionId, isInvalid ? errorId : undefined]
-          .filter(Boolean)
-          .join(" ");
 
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
             orientation={orientation}
           >
-            <FieldLabel htmlFor={id} className={labelClassName}>
-              {label}
-            </FieldLabel>
-            <FieldContent className={contentClassName}>
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
-              <input type="hidden" name={field.name} value={fieldValue} />
-              <Combobox
-                items={optionValues}
-                itemToStringLabel={getOptionLabel}
-                itemToStringValue={getOptionLabel}
-                value={fieldValue}
-                defaultValue={fieldValue}
-                onValueChange={field.onChange}
-              >
-                <ComboboxTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between font-normal"
-                      aria-describedby={describedBy || undefined}
-                      aria-invalid={isInvalid ? true : undefined}
-                    >
-                      {fieldValue ? <ComboboxValue /> : placeholder}
-                    </Button>
-                  }
-                />
-                <ComboboxContent
-                  anchor={anchorRef}
-                  className={popupClassName}
-                  {...contentProps}
+            {({ describedBy, isInvalid }) => (
+              <>
+                <input type="hidden" name={field.name} value={fieldValue} />
+                <Combobox
+                  items={optionValues}
+                  itemToStringLabel={getOptionLabel}
+                  itemToStringValue={getOptionLabel}
+                  value={fieldValue}
+                  defaultValue={fieldValue}
+                  onValueChange={field.onChange}
                 >
-                  <ComboboxInput
-                    id={id}
-                    aria-invalid={isInvalid ? true : undefined}
-                    placeholder={inputPlaceholder}
-                    showTrigger={false}
-                    onBlur={field.onBlur}
+                  <ComboboxTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                        aria-describedby={describedBy || undefined}
+                        aria-invalid={isInvalid ? true : undefined}
+                      >
+                        {fieldValue ? <ComboboxValue /> : placeholder}
+                      </Button>
+                    }
                   />
-                  <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-                  <ComboboxList>
-                    {(optionValue) => (
-                      <ComboboxItem key={optionValue} value={optionValue}>
-                        {getOptionLabel(optionValue)}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <FieldError id={errorId} className={errorClassName}>
-                {errorMessage}
-              </FieldError>
-            </FieldContent>
-          </Field>
+                  <ComboboxContent
+                    anchor={anchorRef}
+                    className={popupClassName}
+                    {...contentProps}
+                  >
+                    <ComboboxInput
+                      id={id}
+                      aria-invalid={isInvalid ? true : undefined}
+                      placeholder={inputPlaceholder}
+                      showTrigger={false}
+                      onBlur={field.onBlur}
+                    />
+                    <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+                    <ComboboxList>
+                      {(optionValue) => (
+                        <ComboboxItem key={optionValue} value={optionValue}>
+                          {getOptionLabel(optionValue)}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              </>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

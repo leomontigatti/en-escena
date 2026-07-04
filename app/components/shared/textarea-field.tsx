@@ -7,12 +7,9 @@ import {
 } from "react-hook-form";
 
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
 import { Textarea } from "@/components/ui/textarea";
 
 type TextareaFieldProps<
@@ -40,7 +37,7 @@ type TextareaFieldProps<
   label: ReactNode;
   labelClassName?: string;
   name: TName;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
 };
 
 function TextareaField<
@@ -63,31 +60,27 @@ function TextareaField<
 }: TextareaFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
-
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => {
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-        const describedBy = [descriptionId, isInvalid ? errorId : undefined]
-          .filter(Boolean)
-          .join(" ");
-
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-disabled={disabled ? true : undefined}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            descriptionPlacement="after-control"
+            disabled={disabled}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
             orientation={orientation}
           >
-            <FieldLabel htmlFor={id} className={labelClassName}>
-              {label}
-            </FieldLabel>
-            <FieldContent className={contentClassName}>
+            {({ describedBy, isInvalid }) => (
               <Textarea
                 {...textareaProps}
                 {...field}
@@ -98,16 +91,8 @@ function TextareaField<
                 disabled={disabled}
                 value={typeof field.value === "string" ? field.value : ""}
               />
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
-              <FieldError id={errorId} className={errorClassName}>
-                {errorMessage}
-              </FieldError>
-            </FieldContent>
-          </Field>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

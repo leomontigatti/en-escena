@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import "@/test/react-test-env";
-
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
+
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 type AdministracionBailarinDetalleRouteViewComponent =
   typeof import("@/routes/administracion.bailarines_.$dancerId").AdministracionBailarinDetalleRouteView;
@@ -13,8 +14,7 @@ type AdministracionBailarinDetalleRouteViewProps =
   Parameters<AdministracionBailarinDetalleRouteViewComponent>[0];
 
 describe("AdministracionBailarinDetalleRouteView dialogs", () => {
-  let container: HTMLDivElement | null = null;
-  let root: ReturnType<typeof createRoot> | null = null;
+  const renderer = createReactDomTestRenderer();
   let AdministracionBailarinDetalleRouteView: AdministracionBailarinDetalleRouteViewComponent;
 
   beforeAll(async () => {
@@ -22,70 +22,34 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
       await import("@/routes/administracion.bailarines_.$dancerId"));
   }, 30_000);
 
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-      root = null;
-    }
-
-    container?.remove();
-    container = null;
-    document.body.innerHTML = "";
-  });
+  afterEach(renderer.cleanup);
 
   test("unmounts closed confirmation dialogs so another dialog can be closed normally", async () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      root?.render(
-        <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-          <AdministracionBailarinDetalleRouteView
-            loaderData={createLoaderData()}
-          />
-        </MemoryRouter>,
-      );
-    });
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData()}
+        />
+      </MemoryRouter>,
+    );
 
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
     expect(document.body.textContent).not.toContain("¿Verificar?");
 
-    await clickButton("Verificar");
+    await clickReactDomButton("Verificar", { exact: true });
 
     expect(document.body.textContent).toContain("¿Verificar?");
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
 
-    await clickButton("Cancelar");
+    await clickReactDomButton("Cancelar", { exact: true });
 
     expect(document.body.textContent).not.toContain("¿Verificar?");
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
   });
 });
-
-function clickButton(label: string) {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.trim() === label,
-  );
-
-  if (!button) {
-    throw new Error(`No button found for label "${label}".`);
-  }
-
-  return act(async () => {
-    button.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  });
-}
 
 function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loaderData"] {
   return {

@@ -1,9 +1,8 @@
-import { createElement, type ReactElement } from "react";
+import { createElement } from "react";
 import type { ComponentType } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { renderRouteView } from "@/features/admin/test-support/render-route-view";
 import type {
   AdministrativeEventModalitiesLoaderData,
   AdministrativeEventModalityActionData,
@@ -84,21 +83,6 @@ describe("administracion.modalidades route adapters", () => {
     expect(markup).toContain("No encontramos esa modalidad.");
   });
 });
-
-function renderRouteView(element: ReactElement, url: string) {
-  const RoutesStub = createRoutesStub([
-    {
-      path: "*",
-      Component: () => element,
-    },
-  ]);
-
-  return renderToStaticMarkup(
-    createElement(RoutesStub, {
-      initialEntries: [url],
-    }),
-  );
-}
 
 function modality(id: string, name: string) {
   return {

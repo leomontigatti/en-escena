@@ -1,5 +1,5 @@
 import { Clock } from "lucide-react";
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -7,14 +7,12 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
-import { Button } from "@/components/ui/button";
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Popover,
   PopoverContent,
@@ -53,7 +51,7 @@ type TimeOnlyFieldProps<
   labelClassName?: string;
   minuteOptions?: readonly string[];
   name: TName;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
   placeholder?: string;
 };
 
@@ -138,20 +136,15 @@ function TimeOnlyFieldControl({
   name: string;
   onBlur: () => void;
   onValueChange: (value: string) => void;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
   placeholder: string;
   value: string;
 }) {
   const [open, setOpen] = useState(false);
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
   const { hour, minute } = parseTimeOnlyValue(value, {
     hourOptions,
     minuteOptions,
   });
-  const describedBy = [descriptionId, error ? errorId : undefined]
-    .filter(Boolean)
-    .join(" ");
 
   function updateTime(nextPart: { hour?: string; minute?: string }) {
     const nextHour = nextPart.hour ?? hour ?? "00";
@@ -161,96 +154,103 @@ function TimeOnlyFieldControl({
   }
 
   return (
-    <Field
+    <SharedFieldLayout
       className={className}
-      data-invalid={error ? true : undefined}
+      contentClassName={contentClassName}
+      description={description}
+      error={error}
+      errorClassName={errorClassName}
+      id={id}
+      label={label}
+      labelClassName={labelClassName}
       orientation={orientation}
     >
-      <FieldLabel htmlFor={id} className={labelClassName}>
-        {label}
-      </FieldLabel>
-      <FieldContent className={contentClassName}>
-        {description ? (
-          <FieldDescription id={descriptionId}>{description}</FieldDescription>
-        ) : null}
-        <input type="hidden" name={name} value={value} />
-        <Popover
-          open={open}
-          onOpenChange={(nextOpen) => {
-            setOpen(nextOpen);
+      {({ describedBy, isInvalid }) => (
+        <>
+          <input type="hidden" name={name} value={value} />
+          <Popover
+            open={open}
+            onOpenChange={(nextOpen) => {
+              setOpen(nextOpen);
 
-            if (!nextOpen) {
-              onBlur();
-            }
-          }}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              id={id}
-              type="button"
-              variant="outline"
-              className={cn(
-                "w-full cursor-pointer justify-between font-normal",
-                buttonClassName,
-              )}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={describedBy || undefined}
-            >
-              {value || placeholder}
-              <Clock data-icon="inline-end" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64" align="start">
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel>Hora</FieldLabel>
-                <Select
+              if (!nextOpen) {
+                onBlur();
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                id={id}
+                type="button"
+                variant="outline"
+                className={cn(
+                  "w-full cursor-pointer justify-between font-normal",
+                  buttonClassName,
+                )}
+                aria-invalid={isInvalid ? true : undefined}
+                aria-describedby={describedBy}
+              >
+                {value || placeholder}
+                <Clock data-icon="inline-end" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64" align="start">
+              <div className="grid grid-cols-2 gap-3">
+                <TimePartSelect
+                  label="Hora"
+                  options={hourOptions}
+                  placeholder="Hora"
                   value={hour ?? ""}
                   onValueChange={(nextHour) => updateTime({ hour: nextHour })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Hora" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {hourOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Minutos</FieldLabel>
-                <Select
+                />
+                <TimePartSelect
+                  label="Minutos"
+                  options={minuteOptions}
+                  placeholder="Min."
                   value={minute ?? ""}
                   onValueChange={(nextMinute) =>
                     updateTime({ minute: nextMinute })
                   }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Min." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {minuteOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </PopoverContent>
-        </Popover>
-        <FieldError id={errorId} className={errorClassName}>
-          {error}
-        </FieldError>
-      </FieldContent>
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
+    </SharedFieldLayout>
+  );
+}
+
+function TimePartSelect({
+  label,
+  onValueChange,
+  options,
+  placeholder,
+  value,
+}: {
+  label: ReactNode;
+  onValueChange: (value: string) => void;
+  options: readonly string[];
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
     </Field>
   );
 }

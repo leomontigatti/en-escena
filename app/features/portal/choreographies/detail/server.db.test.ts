@@ -36,6 +36,12 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+type AcademySessionFixture = Awaited<ReturnType<typeof createAcademySession>>;
+type ChoreographyEventFixture = Awaited<ReturnType<typeof createEventRecord>>;
+type ChoreographyCatalogFixture = Awaited<
+  ReturnType<typeof createEventCatalog>
+>;
+
 describe.sequential("portal choreographies reads", () => {
   test("shows detail only for the authenticated Academia inside the selected Evento and includes archived linked roster", async () => {
     const owner = await createAcademySession({
@@ -435,14 +441,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(updateResponse).toBeInstanceOf(Response);
-    if (!(updateResponse instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(updateResponse.status).toBe(302);
-    expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expectChoreographySavedRedirect(updateResponse, choreography.id);
 
     await expect(
       db.query.choreographyProfessors.findMany({
@@ -541,7 +540,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const archivedLinkedDancer = await createDancer(owner.academyId, {
@@ -650,14 +649,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(updateResponse).toBeInstanceOf(Response);
-    if (!(updateResponse instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(updateResponse.status).toBe(302);
-    expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expectChoreographySavedRedirect(updateResponse, choreography.id);
 
     await expect(
       db.query.choreographyDancers.findMany({
@@ -747,7 +739,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const [duoScheduleCapacity, trioScheduleCapacity] = await db
@@ -783,37 +775,14 @@ describe.sequential("portal choreographies reads", () => {
       }),
     ]);
 
-    await db
-      .update(categories)
-      .set({
-        groupTypes: ["solo", "duo", "trio"],
-        groupTypeKey: "duo|solo|trio",
-      })
-      .where(eq(categories.id, catalog.categoryWithLevel.id));
-
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
+    const choreography = await createEditableDuoChoreographyFixture({
+      catalog,
+      dancerIds: [linkedDancer.id, secondLinkedDancer.id],
+      event,
       name: "Editable con cupo de cronograma",
+      owner,
       scheduleCapacityId: duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
     });
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: choreography.id,
-        dancerId: linkedDancer.id,
-        ageAtEventStart: 14,
-      },
-      {
-        choreographyId: choreography.id,
-        dancerId: secondLinkedDancer.id,
-        ageAtEventStart: 14,
-      },
-    ]);
 
     const updateResponse = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
@@ -828,14 +797,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(updateResponse).toBeInstanceOf(Response);
-    if (!(updateResponse instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(updateResponse.status).toBe(302);
-    expect(updateResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expectChoreographySavedRedirect(updateResponse, choreography.id);
 
     await expect(
       db.query.choreographies.findFirst({
@@ -863,7 +825,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const [alternateSchedule] = await db
@@ -910,37 +872,14 @@ describe.sequential("portal choreographies reads", () => {
       createDancer(owner.academyId, { birthDate: "2012-06-05" }),
     ]);
 
-    await db
-      .update(categories)
-      .set({
-        groupTypes: ["solo", "duo", "trio"],
-        groupTypeKey: "duo|solo|trio",
-      })
-      .where(eq(categories.id, catalog.categoryWithLevel.id));
-
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
+    const choreography = await createEditableDuoChoreographyFixture({
+      catalog,
+      dancerIds: [dancers[0].id, dancers[1].id],
+      event,
       name: "Editable con selección",
+      owner,
       scheduleCapacityId: duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
     });
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[0].id,
-        ageAtEventStart: 14,
-      },
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[1].id,
-        ageAtEventStart: 14,
-      },
-    ]);
 
     const resolutionResponse = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
@@ -999,13 +938,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(saveResponse).toBeInstanceOf(Response);
-    if (!(saveResponse instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(saveResponse.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expectChoreographySavedRedirect(saveResponse, choreography.id);
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
@@ -1025,7 +958,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const [duoScheduleCapacity] = await db
@@ -1042,37 +975,14 @@ describe.sequential("portal choreographies reads", () => {
       createDancer(owner.academyId, { birthDate: "2012-06-05" }),
     ]);
 
-    await db
-      .update(categories)
-      .set({
-        groupTypes: ["solo", "duo", "trio"],
-        groupTypeKey: "duo|solo|trio",
-      })
-      .where(eq(categories.id, catalog.categoryWithLevel.id));
-
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
+    const choreography = await createEditableDuoChoreographyFixture({
+      catalog,
+      dancerIds: [dancers[0].id, dancers[1].id],
+      event,
       name: "Editable sin cupo de cronograma",
+      owner,
       scheduleCapacityId: duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
     });
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[0].id,
-        ageAtEventStart: 14,
-      },
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[1].id,
-        ageAtEventStart: 14,
-      },
-    ]);
 
     const response = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
@@ -1083,15 +993,7 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    expect(response).toBeInstanceOf(Response);
-
-    if (!(response instanceof Response)) {
-      throw new Error("Expected successful choreography update redirect.");
-    }
-
-    expect(response.headers.get("location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expectChoreographySavedRedirect(response, choreography.id);
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
@@ -1121,7 +1023,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const [duoScheduleCapacity, trioScheduleCapacity] = await db
@@ -1150,37 +1052,14 @@ describe.sequential("portal choreographies reads", () => {
       createDancer(other.academyId, { birthDate: "2012-06-05" }),
     ]);
 
-    await db
-      .update(categories)
-      .set({
-        groupTypes: ["solo", "duo", "trio"],
-        groupTypeKey: "duo|solo|trio",
-      })
-      .where(eq(categories.id, catalog.categoryWithLevel.id));
-
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
+    const choreography = await createEditableDuoChoreographyFixture({
+      catalog,
+      dancerIds: [dancers[0].id, dancers[1].id],
+      event,
       name: "Editable con cupo concurrente",
+      owner,
       scheduleCapacityId: duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
     });
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[0].id,
-        ageAtEventStart: 14,
-      },
-      {
-        choreographyId: choreography.id,
-        dancerId: dancers[1].id,
-        ageAtEventStart: 14,
-      },
-    ]);
 
     const resolutionResponse = await choreographyDetailAction({
       params: { choreographyId: choreography.id },
@@ -1272,7 +1151,7 @@ describe.sequential("portal choreographies reads", () => {
       active: true,
       name: "Regional 2026",
       registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
+      registrationEndsAt: date("2100-06-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
     const adultDancer = await createDancer(owner.academyId, {
@@ -1504,3 +1383,76 @@ describe.sequential("portal choreographies reads", () => {
     ).resolves.toMatchObject([{ professorId: professor.id }]);
   });
 });
+
+async function createEditableDuoChoreographyFixture({
+  catalog,
+  dancerIds,
+  event,
+  name,
+  owner,
+  scheduleCapacityId,
+}: {
+  catalog: ChoreographyCatalogFixture;
+  dancerIds: string[];
+  event: ChoreographyEventFixture;
+  name: string;
+  owner: AcademySessionFixture;
+  scheduleCapacityId: string;
+}) {
+  await allowCategoryDuoAndTrio(catalog);
+
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: catalog.level.id,
+    groupType: "duo",
+    modalityId: catalog.modality.id,
+    name,
+    scheduleCapacityId,
+    submodalityId: catalog.submodality.id,
+  });
+
+  await linkChoreographyDancers(choreography.id, dancerIds);
+
+  return choreography;
+}
+
+async function allowCategoryDuoAndTrio(catalog: ChoreographyCatalogFixture) {
+  await db
+    .update(categories)
+    .set({
+      groupTypes: ["solo", "duo", "trio"],
+      groupTypeKey: "duo|solo|trio",
+    })
+    .where(eq(categories.id, catalog.categoryWithLevel.id));
+}
+
+async function linkChoreographyDancers(
+  choreographyId: string,
+  dancerIds: string[],
+) {
+  await db.insert(choreographyDancers).values(
+    dancerIds.map((dancerId) => ({
+      choreographyId,
+      dancerId,
+      ageAtEventStart: 14,
+    })),
+  );
+}
+
+function expectChoreographySavedRedirect(
+  response: Awaited<ReturnType<typeof choreographyDetailAction>>,
+  choreographyId: string,
+) {
+  expect(response).toBeInstanceOf(Response);
+
+  if (!(response instanceof Response)) {
+    throw new Error("Expected choreography update redirect.");
+  }
+
+  expect(response.status).toBe(302);
+  expect(response.headers.get("location")).toBe(
+    `/portal/coreografias/${choreographyId}?notificacion=coreografia-guardada`,
+  );
+}

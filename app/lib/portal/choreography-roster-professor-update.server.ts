@@ -1,13 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import { choreographyProfessors, professors } from "@/db/schema";
 import {
-  choreographies,
-  choreographyProfessors,
-  professors,
-} from "@/db/schema";
+  assertPortalChoreographyFound,
+  portalOwnedChoreographyWhere,
+} from "@/lib/portal/choreography-access.server";
 import {
-  choreographyNotFoundMessage,
   invalidProfessorSelectionMessage,
   type UpdateChoreographyProfessorsResult,
 } from "@/lib/portal/choreography-roster.shared";
@@ -18,18 +17,12 @@ export async function updateChoreographyProfessors(input: {
   choreographyId: string;
   professorIds: string[];
 }): Promise<UpdateChoreographyProfessorsResult> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(choreographies.id, input.choreographyId),
-      eq(choreographies.academyId, input.academyId),
-      eq(choreographies.eventId, input.eventId),
-    ),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
+  assertPortalChoreographyFound(
+    await db.query.choreographies.findFirst({
+      columns: { id: true },
+      where: portalOwnedChoreographyWhere(input),
+    }),
+  );
 
   const validation = await validateChoreographyProfessorSelection({
     academyId: input.academyId,

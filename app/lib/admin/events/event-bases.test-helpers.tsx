@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, redirect } from "react-router";
-import { expect } from "vitest";
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
 import { CategoryCreateView } from "@/features/admin/categories/create/view";
@@ -23,8 +22,11 @@ import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedule
 import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
-import { events, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { events } from "@/db/schema";
+import {
+  createSignedInAdminRequest as createSignedInRequest,
+  expectThrownResponse,
+} from "@/lib/admin/test-support/db";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
@@ -51,6 +53,8 @@ import { handle as modalidadNuevaHandle } from "@/routes/administracion.modalida
 import { handle as preciosHandle } from "@/routes/administracion.precios";
 import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
 import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
+
+export { createSignedInRequest, expectThrownResponse };
 
 type ModalityRow = typeof modalities.$inferSelect;
 type SubmodalityRow = typeof submodalities.$inferSelect;
@@ -311,37 +315,6 @@ export function renderPrecioDetalleRoute(
   });
 }
 
-export async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-  body?: FormData;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      method: input.body ? "POST" : "GET",
-      body: input.body,
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
 export function formData(input: Record<string, string | string[]>) {
   const form = new FormData();
 
@@ -438,31 +411,6 @@ export async function action({ request }: { request: Request }) {
   }
 
   return handleEventPriceAction(request);
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
-}
-
-export async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }
 
 export function renderPriceNewErrorRoute(

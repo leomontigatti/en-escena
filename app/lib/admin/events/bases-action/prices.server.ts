@@ -1,6 +1,6 @@
 import type {
   ActionErrorScope,
-  EventBasesActionInput,
+  EventBasesActionBaseInput,
   EventBasesActionResult,
   EventBasesActionValues,
   PriceActionValues,
@@ -32,7 +32,8 @@ const priceBasePath = "/administracion/precios";
 const priceSavedNotification = "precio-guardado";
 const priceDeletedNotification = "precio-eliminado";
 
-export const priceActionHandler: EventBasesActionHandler = {
+export const priceActionHandler: EventBasesActionHandler<PriceActionInput> = {
+  readInput: readPriceActionInput,
   buildErrorScope: buildPriceActionErrorScope,
   buildRedirectUrl: buildPriceRedirectUrl,
   getConfirmationError: getPriceConfirmationError,
@@ -41,7 +42,15 @@ export const priceActionHandler: EventBasesActionHandler = {
   run: runPriceIntent,
 };
 
-export function handlesPriceIntent(intent: string) {
+type PriceActionInput = EventBasesActionBaseInput & {
+  name: string;
+  groupType: string;
+  amount: number;
+  paymentDeadline: string;
+  priceScheduleId: string | null;
+};
+
+function handlesPriceIntent(intent: string) {
   return (
     intent === "create-price" ||
     intent === "update-price" ||
@@ -49,9 +58,9 @@ export function handlesPriceIntent(intent: string) {
   );
 }
 
-export function getPriceConfirmationError(
+function getPriceConfirmationError(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: PriceActionInput,
 ) {
   if (
     input.intent === "delete-price" &&
@@ -67,8 +76,8 @@ export function getPriceConfirmationError(
   return null;
 }
 
-export function getPriceRequiredFieldErrors(
-  input: EventBasesActionInput,
+function getPriceRequiredFieldErrors(
+  input: PriceActionInput,
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   if (input.intent !== "create-price" && input.intent !== "update-price") {
@@ -92,8 +101,8 @@ export function getPriceRequiredFieldErrors(
   return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
 }
 
-export function buildPriceActionErrorScope(
-  input: EventBasesActionInput,
+function buildPriceActionErrorScope(
+  input: PriceActionInput,
 ): ActionErrorScope | null {
   if (!handlesPriceIntent(input.intent)) {
     return buildDefaultActionErrorScope(input);
@@ -102,8 +111,8 @@ export function buildPriceActionErrorScope(
   return buildRecordActionScope(input.intent, input.id);
 }
 
-export function readPriceSubmittedValues(
-  input: EventBasesActionInput,
+function readPriceSubmittedValues(
+  input: PriceActionInput,
   formData: FormData,
 ): EventBasesActionValues | undefined {
   if (input.intent !== "create-price" && input.intent !== "update-price") {
@@ -113,8 +122,8 @@ export function readPriceSubmittedValues(
   return readPriceActionValues(formData);
 }
 
-export async function runPriceIntent(
-  input: EventBasesActionInput,
+async function runPriceIntent(
+  input: PriceActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
     case "create-price":
@@ -128,9 +137,9 @@ export async function runPriceIntent(
   }
 }
 
-export function buildPriceRedirectUrl(
+function buildPriceRedirectUrl(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: PriceActionInput,
   result: EventBasesActionResult,
 ) {
   const currentUrl = new URL(requestUrl);
@@ -163,6 +172,20 @@ export function buildPriceRedirectUrl(
   return currentUrl.pathname;
 }
 
+function readPriceActionInput(
+  baseInput: EventBasesActionBaseInput,
+  formData: FormData,
+): PriceActionInput {
+  return {
+    ...baseInput,
+    name: String(formData.get("name") ?? ""),
+    groupType: String(formData.get("groupType") ?? ""),
+    amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
+    paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
+    priceScheduleId: String(formData.get("scheduleId") ?? "") || null,
+  };
+}
+
 function readPriceActionValues(formData: FormData): PriceActionValues {
   return {
     name: String(formData.get("name") ?? ""),
@@ -174,7 +197,7 @@ function readPriceActionValues(formData: FormData): PriceActionValues {
   };
 }
 
-function getPriceInput(input: EventBasesActionInput): PriceInput {
+function getPriceInput(input: PriceActionInput): PriceInput {
   return {
     name: input.name,
     groupType: input.groupType,

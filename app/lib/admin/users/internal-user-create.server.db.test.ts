@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { administrativeAuditEntries, user } from "@/db/schema";
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -156,19 +157,4 @@ function submitSignInAction(identifier: string, password: string) {
     params: {},
     context: {},
   });
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }

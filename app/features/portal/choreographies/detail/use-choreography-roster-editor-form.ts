@@ -1,7 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { SubmitEventHandler } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { useFetcher, useNavigation } from "react-router";
 import { toast } from "sonner";
 
@@ -16,6 +24,11 @@ import {
   mapResolvedDancerResolutionState,
 } from "@/features/portal/choreographies/detail/roster-editor-fields";
 import {
+  buildChoreographyEditDefaultValues,
+  canSubmitChoreographyEdit,
+  type ScheduleResolution,
+} from "@/features/portal/choreographies/detail/roster-editor-form-state";
+import {
   choreographyEditSchema,
   choreographyResolutionErrorToastId,
   resolveChoreographyDancersIntent,
@@ -29,12 +42,11 @@ import {
 import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
 
 type ChoreographySummary = ChoreographyRosterEditorLoaderData["choreography"];
-type ScheduleResolution =
-  | Extract<
-      ResolveChoreographyDancersResult,
-      { ok: true }
-    >["resolution"]["schedule"]
-  | null;
+type ChoreographyEditForm = UseFormReturn<ChoreographyEditValues>;
+type RosterResolutionFetcher = ReturnType<
+  typeof useFetcher<ChoreographyRosterEditorResolutionActionData>
+>;
+type ChoreographyEditNavigation = ReturnType<typeof useNavigation>;
 
 export function useChoreographyRosterEditorForm({
   actionData,
@@ -53,17 +65,16 @@ export function useChoreographyRosterEditorForm({
     useFetcher<ChoreographyRosterEditorResolutionActionData>();
   const navigation = useNavigation();
   const choreography = loaderData.choreography;
-  const initialDancerIds = useMemo(
-    () => choreography.dancers.map((dancer) => dancer.id),
-    [choreography.dancers],
-  );
-  const initialProfessorIds = useMemo(
-    () => choreography.professors.map((professor) => professor.id),
-    [choreography.professors],
-  );
-  const selectedDancerIds = actionData?.selectedDancerIds ?? initialDancerIds;
-  const selectedProfessorIds =
-    actionData?.selectedProfessorIds ?? initialProfessorIds;
+  const {
+    persistedProfessorSelectionKey,
+    persistedResolution,
+    persistedSelectionKey,
+    selectedDancerIds,
+    selectedProfessorIds,
+  } = useChoreographyRosterInitialState({
+    actionData,
+    choreography,
+  });
   const form = useForm<ChoreographyEditValues>({
     resolver: zodResolver(choreographyEditSchema),
     defaultValues: buildChoreographyEditDefaultValues({
@@ -73,18 +84,6 @@ export function useChoreographyRosterEditorForm({
       selectedProfessorIds,
     }),
   });
-  const persistedSelectionKey = useMemo(
-    () => getSelectionKey(initialDancerIds),
-    [initialDancerIds],
-  );
-  const persistedProfessorSelectionKey = useMemo(
-    () => getSelectionKey(initialProfessorIds),
-    [initialProfessorIds],
-  );
-  const persistedResolution = useMemo(
-    () => getPersistedDancerResolutionState(choreography),
-    [choreography],
-  );
   const [derivedResolution, setDerivedResolution] =
     useState<DancerResolutionState>(persistedResolution);
   const [resolution, setResolution] =
@@ -93,76 +92,46 @@ export function useChoreographyRosterEditorForm({
     persistedSelectionKey,
   );
   const submittedSelectionKeyRef = useRef<string | null>(null);
-  const watchedDancerIds = form.watch("dancerIds");
-  const watchedProfessorIds = form.watch("professorIds");
-  const watchedExperienceLevelId = form.watch("experienceLevelId") ?? "";
-  const watchedScheduleCapacityId = form.watch("scheduleCapacityId") ?? "";
-  const dancerSelectionKey = useMemo(
-    () => getSelectionKey(watchedDancerIds),
-    [watchedDancerIds],
-  );
-  const professorSelectionKey = useMemo(
-    () => getSelectionKey(watchedProfessorIds),
-    [watchedProfessorIds],
-  );
-  const hasRosterChanged = dancerSelectionKey !== persistedSelectionKey;
-  const hasProfessorsChanged =
-    professorSelectionKey !== persistedProfessorSelectionKey;
-  const canEditDancers = loaderData.dancerEditingEligibility.canEdit;
-  const canEditProfessors =
-    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
-  const canEditMusic =
-    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
+  const {
+    dancerSelectionKey,
+    hasProfessorsChanged,
+    hasRosterChanged,
+    watchedDancerIds,
+    watchedExperienceLevelId,
+    watchedScheduleCapacityId,
+  } = useWatchedChoreographyEditValues({
+    form,
+    persistedProfessorSelectionKey,
+    persistedSelectionKey,
+  });
+  const { canEditDancers, canEditMusic, canEditProfessors } =
+    getChoreographyEditPermissions({ choreography, loaderData });
   const isResolving = resolutionFetcher.state !== "idle";
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formData?.get("intent") === updateChoreographyIntent;
-  const hasResolvedRosterChange =
-    hasRosterChanged &&
-    dancerSelectionKey === resolvedSelectionKey &&
-    resolution?.ok === true;
+  const isSubmitting = isSubmittingChoreographyUpdate(navigation);
+  const hasResolvedRosterChange = hasResolvedRosterSelectionChange({
+    dancerSelectionKey,
+    hasRosterChanged,
+    resolution,
+    resolvedSelectionKey,
+  });
   const resolutionData = resolutionFetcher.data;
-  const scheduleResolution = resolution?.ok
-    ? resolution.resolution.schedule
-    : null;
-  const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
-  const experienceLevelOptions = derivedResolution.experienceLevelOptions.map(
-    (option) => ({
-      value: option.id,
-      label: option.name,
-    }),
-  );
-  const scheduleSelectOptions = scheduleOptions.map((option) => ({
-    value: option.id,
-    label: formatScheduleOptionDateTime(option),
-  }));
-  const readonlyExperienceLevelName = hasResolvedRosterChange
-    ? ""
-    : (choreography.experienceLevelName ?? "");
-  let readonlyScheduleLabel = choreography.scheduleLabel;
-
-  if (hasResolvedRosterChange && scheduleResolution?.status === "auto") {
-    readonlyScheduleLabel = formatScheduleOptionDateTime(
-      scheduleResolution.options[0],
-    );
-  }
-
-  const dancerOptions = useMemo(
-    () =>
-      loaderData.availableDancers.map((dancer) => ({
-        value: dancer.id,
-        label: formatPersonName(dancer),
-      })),
-    [loaderData.availableDancers],
-  );
-  const professorOptions = useMemo(
-    () =>
-      loaderData.availableProfessors.map((professor) => ({
-        value: professor.id,
-        label: formatPersonName(professor),
-      })),
-    [loaderData.availableProfessors],
-  );
+  const scheduleResolution = getScheduleResolution(resolution);
+  const {
+    dancerOptions,
+    experienceLevelOptions,
+    professorOptions,
+    scheduleSelectOptions,
+  } = useChoreographyRosterEditorOptions({
+    derivedResolution,
+    loaderData,
+    scheduleResolution,
+  });
+  const { readonlyExperienceLevelName, readonlyScheduleLabel } =
+    getReadonlyChoreographyLabels({
+      choreography,
+      hasResolvedRosterChange,
+      scheduleResolution,
+    });
   const canSubmit = canSubmitChoreographyEdit({
     canEditDancers,
     canEditMusic,
@@ -183,66 +152,22 @@ export function useChoreographyRosterEditorForm({
     watchedScheduleCapacityId,
   });
 
-  useEffect(() => {
-    form.reset(
-      buildChoreographyEditDefaultValues({
-        actionData,
-        choreography,
-        selectedDancerIds,
-        selectedProfessorIds,
-      }),
-    );
-    setDerivedResolution(persistedResolution);
-    setResolution(null);
-    setResolvedSelectionKey(persistedSelectionKey);
-    submittedSelectionKeyRef.current = null;
-  }, [
-    actionData?.selectedExperienceLevelId,
-    actionData?.selectedMusicStorageKey,
-    actionData?.selectedScheduleCapacityId,
-    choreography.experienceLevelId,
-    choreography.musicStorageKey,
-    choreography.scheduleCapacityId,
+  useResetChoreographyEditForm({
+    actionData,
+    choreography,
     form,
     persistedResolution,
     persistedSelectionKey,
     selectedDancerIds,
     selectedProfessorIds,
-  ]);
-
-  useEffect(() => {
-    if (!hasRosterChanged) {
-      setDerivedResolution(persistedResolution);
-      setResolution(null);
-      setResolvedSelectionKey(persistedSelectionKey);
-      form.setValue(
-        "scheduleCapacityId",
-        choreography.scheduleCapacityId ?? "",
-        {
-          shouldDirty: false,
-        },
-      );
-      submittedSelectionKeyRef.current = null;
-      return;
-    }
-
-    if (
-      !canEditDancers ||
-      watchedDancerIds.length === 0 ||
-      dancerSelectionKey === resolvedSelectionKey ||
-      dancerSelectionKey === submittedSelectionKeyRef.current
-    ) {
-      return;
-    }
-
-    resolutionFetcher.submit(
-      buildResolveChoreographyDancersFormData(watchedDancerIds),
-      { method: "post" },
-    );
-    submittedSelectionKeyRef.current = dancerSelectionKey;
-  }, [
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
+  });
+  useResolveRosterSelection({
     canEditDancers,
-    choreography.scheduleCapacityId,
+    choreography,
     dancerSelectionKey,
     form,
     hasRosterChanged,
@@ -250,88 +175,24 @@ export function useChoreographyRosterEditorForm({
     persistedSelectionKey,
     resolutionFetcher,
     resolvedSelectionKey,
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
     watchedDancerIds,
-  ]);
-
-  useEffect(() => {
-    if (
-      resolutionFetcher.state !== "idle" ||
-      resolutionData?.intent !== resolveChoreographyDancersIntent
-    ) {
-      return;
-    }
-
-    const submittedSelectionKey =
-      submittedSelectionKeyRef.current ?? dancerSelectionKey;
-    submittedSelectionKeyRef.current = null;
-    setResolvedSelectionKey(submittedSelectionKey);
-    setResolution(resolutionData.result);
-
-    if (!resolutionData.result.ok) {
-      toast.error(resolutionData.result.message, {
-        id: choreographyResolutionErrorToastId,
-      });
-      form.setError("dancerIds", {
-        message: resolutionData.result.message,
-        type: "manual",
-      });
-      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
-      return;
-    }
-
-    form.clearErrors("dancerIds");
-    const nextResolution = mapResolvedDancerResolutionState(
-      resolutionData.result,
-    );
-    const categoryChanged =
-      derivedResolution.categoryId !== nextResolution.categoryId;
-
-    if (!nextResolution.experienceLevelRequired || categoryChanged) {
-      form.setValue("experienceLevelId", "", { shouldDirty: true });
-    }
-
-    const nextSchedule = resolutionData.result.resolution.schedule;
-
-    if (
-      nextSchedule.status === "keep-current" ||
-      nextSchedule.status === "auto"
-    ) {
-      form.setValue(
-        "scheduleCapacityId",
-        nextSchedule.selectedScheduleCapacityId,
-        {
-          shouldDirty: true,
-        },
-      );
-      form.clearErrors("scheduleCapacityId");
-    } else if (nextSchedule.status === "multiple") {
-      if (
-        !nextSchedule.options.some(
-          (option) => option.id === watchedScheduleCapacityId,
-        )
-      ) {
-        form.setValue("scheduleCapacityId", "", { shouldDirty: true });
-      }
-    } else {
-      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
-      toast.error(nextSchedule.error, {
-        id: choreographyResolutionErrorToastId,
-      });
-      form.setError("dancerIds", {
-        message: nextSchedule.error,
-        type: "manual",
-      });
-    }
-
-    setDerivedResolution(nextResolution);
-  }, [
+  });
+  useApplyRosterResolutionResult({
     dancerSelectionKey,
-    derivedResolution.categoryId,
+    derivedResolution,
     form,
     resolutionData,
-    resolutionFetcher.state,
+    resolutionFetcherState: resolutionFetcher.state,
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
     watchedScheduleCapacityId,
-  ]);
+  });
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     if (!canSubmit) {
@@ -398,113 +259,475 @@ export function useChoreographyRosterEditorForm({
   };
 }
 
-function buildChoreographyEditDefaultValues({
-  actionData,
+function getChoreographyEditPermissions({
   choreography,
-  selectedDancerIds,
-  selectedProfessorIds,
+  loaderData,
 }: {
-  actionData: ChoreographyRosterEditorActionData;
   choreography: ChoreographySummary;
-  selectedDancerIds: string[];
-  selectedProfessorIds: string[];
-}): ChoreographyEditValues {
+  loaderData: ChoreographyRosterEditorLoaderData;
+}) {
+  const canEditPresentationDetails =
+    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
+
   return {
-    dancerIds: selectedDancerIds,
-    professorIds: selectedProfessorIds,
-    experienceLevelId:
-      actionData?.selectedExperienceLevelId ??
-      choreography.experienceLevelId ??
-      "",
-    musicStorageKey:
-      actionData?.selectedMusicStorageKey ?? choreography.musicStorageKey ?? "",
-    scheduleCapacityId:
-      actionData?.selectedScheduleCapacityId ??
-      choreography.scheduleCapacityId ??
-      "",
+    canEditDancers: loaderData.dancerEditingEligibility.canEdit,
+    canEditMusic: canEditPresentationDetails,
+    canEditProfessors: canEditPresentationDetails,
   };
 }
 
-function canSubmitChoreographyEdit({
-  canEditDancers,
-  canEditMusic,
-  canEditProfessors,
+function isSubmittingChoreographyUpdate(
+  navigation: ChoreographyEditNavigation,
+) {
+  return (
+    navigation.state !== "idle" &&
+    navigation.formData?.get("intent") === updateChoreographyIntent
+  );
+}
+
+function hasResolvedRosterSelectionChange({
   dancerSelectionKey,
-  derivedResolution,
-  hasProfessorsChanged,
-  hasMusicChanged,
   hasRosterChanged,
-  isResolving,
-  isSubmitting,
-  musicHasValidationError,
   resolution,
   resolvedSelectionKey,
-  scheduleResolution,
-  watchedDancerIds,
-  watchedExperienceLevelId,
-  watchedScheduleCapacityId,
 }: {
-  canEditDancers: boolean;
-  canEditMusic: boolean;
-  canEditProfessors: boolean;
   dancerSelectionKey: string;
-  derivedResolution: DancerResolutionState;
-  hasProfessorsChanged: boolean;
-  hasMusicChanged: boolean;
   hasRosterChanged: boolean;
-  isResolving: boolean;
-  isSubmitting: boolean;
-  musicHasValidationError: boolean;
   resolution: ResolveChoreographyDancersResult | null;
   resolvedSelectionKey: string;
+}) {
+  return (
+    hasRosterChanged &&
+    dancerSelectionKey === resolvedSelectionKey &&
+    resolution?.ok === true
+  );
+}
+
+function getScheduleResolution(
+  resolution: ResolveChoreographyDancersResult | null,
+): ScheduleResolution {
+  if (!resolution?.ok) {
+    return null;
+  }
+
+  return resolution.resolution.schedule;
+}
+
+function useChoreographyRosterInitialState({
+  actionData,
+  choreography,
+}: {
+  actionData: ChoreographyRosterEditorActionData;
+  choreography: ChoreographySummary;
+}) {
+  const initialDancerIds = useMemo(
+    () => choreography.dancers.map((dancer) => dancer.id),
+    [choreography.dancers],
+  );
+  const initialProfessorIds = useMemo(
+    () => choreography.professors.map((professor) => professor.id),
+    [choreography.professors],
+  );
+  const persistedSelectionKey = useMemo(
+    () => getSelectionKey(initialDancerIds),
+    [initialDancerIds],
+  );
+  const persistedProfessorSelectionKey = useMemo(
+    () => getSelectionKey(initialProfessorIds),
+    [initialProfessorIds],
+  );
+  const persistedResolution = useMemo(
+    () => getPersistedDancerResolutionState(choreography),
+    [choreography],
+  );
+
+  return {
+    persistedProfessorSelectionKey,
+    persistedResolution,
+    persistedSelectionKey,
+    selectedDancerIds: actionData?.selectedDancerIds ?? initialDancerIds,
+    selectedProfessorIds:
+      actionData?.selectedProfessorIds ?? initialProfessorIds,
+  };
+}
+
+function useWatchedChoreographyEditValues({
+  form,
+  persistedProfessorSelectionKey,
+  persistedSelectionKey,
+}: {
+  form: ChoreographyEditForm;
+  persistedProfessorSelectionKey: string;
+  persistedSelectionKey: string;
+}) {
+  const watchedDancerIds = form.watch("dancerIds");
+  const watchedProfessorIds = form.watch("professorIds");
+  const watchedExperienceLevelId = form.watch("experienceLevelId") ?? "";
+  const watchedScheduleCapacityId = form.watch("scheduleCapacityId") ?? "";
+  const dancerSelectionKey = useMemo(
+    () => getSelectionKey(watchedDancerIds),
+    [watchedDancerIds],
+  );
+  const professorSelectionKey = useMemo(
+    () => getSelectionKey(watchedProfessorIds),
+    [watchedProfessorIds],
+  );
+
+  return {
+    dancerSelectionKey,
+    hasProfessorsChanged:
+      professorSelectionKey !== persistedProfessorSelectionKey,
+    hasRosterChanged: dancerSelectionKey !== persistedSelectionKey,
+    watchedDancerIds,
+    watchedExperienceLevelId,
+    watchedScheduleCapacityId,
+  };
+}
+
+function useChoreographyRosterEditorOptions({
+  derivedResolution,
+  loaderData,
+  scheduleResolution,
+}: {
+  derivedResolution: DancerResolutionState;
+  loaderData: ChoreographyRosterEditorLoaderData;
   scheduleResolution: ScheduleResolution;
+}) {
+  const scheduleOptions = getSelectableScheduleOptions(scheduleResolution);
+  const dancerOptions = useMemo(
+    () =>
+      loaderData.availableDancers.map((dancer) => ({
+        value: dancer.id,
+        label: formatPersonName(dancer),
+      })),
+    [loaderData.availableDancers],
+  );
+  const professorOptions = useMemo(
+    () =>
+      loaderData.availableProfessors.map((professor) => ({
+        value: professor.id,
+        label: formatPersonName(professor),
+      })),
+    [loaderData.availableProfessors],
+  );
+
+  return {
+    dancerOptions,
+    experienceLevelOptions: derivedResolution.experienceLevelOptions.map(
+      (option) => ({
+        value: option.id,
+        label: option.name,
+      }),
+    ),
+    professorOptions,
+    scheduleSelectOptions: scheduleOptions.map((option) => ({
+      value: option.id,
+      label: formatScheduleOptionDateTime(option),
+    })),
+  };
+}
+
+function getReadonlyChoreographyLabels({
+  choreography,
+  hasResolvedRosterChange,
+  scheduleResolution,
+}: {
+  choreography: ChoreographySummary;
+  hasResolvedRosterChange: boolean;
+  scheduleResolution: ScheduleResolution;
+}) {
+  return {
+    readonlyExperienceLevelName: hasResolvedRosterChange
+      ? ""
+      : (choreography.experienceLevelName ?? ""),
+    readonlyScheduleLabel: getReadonlyScheduleLabel({
+      choreography,
+      hasResolvedRosterChange,
+      scheduleResolution,
+    }),
+  };
+}
+
+function getReadonlyScheduleLabel({
+  choreography,
+  hasResolvedRosterChange,
+  scheduleResolution,
+}: {
+  choreography: ChoreographySummary;
+  hasResolvedRosterChange: boolean;
+  scheduleResolution: ScheduleResolution;
+}) {
+  if (hasResolvedRosterChange && scheduleResolution?.status === "auto") {
+    return formatScheduleOptionDateTime(scheduleResolution.options[0]);
+  }
+
+  return choreography.scheduleLabel;
+}
+
+function useResetChoreographyEditForm({
+  actionData,
+  choreography,
+  form,
+  persistedResolution,
+  persistedSelectionKey,
+  selectedDancerIds,
+  selectedProfessorIds,
+  setDerivedResolution,
+  setResolution,
+  setResolvedSelectionKey,
+  submittedSelectionKeyRef,
+}: {
+  actionData: ChoreographyRosterEditorActionData;
+  choreography: ChoreographySummary;
+  form: ChoreographyEditForm;
+  persistedResolution: DancerResolutionState;
+  persistedSelectionKey: string;
+  selectedDancerIds: string[];
+  selectedProfessorIds: string[];
+  setDerivedResolution: Dispatch<SetStateAction<DancerResolutionState>>;
+  setResolution: Dispatch<
+    SetStateAction<ResolveChoreographyDancersResult | null>
+  >;
+  setResolvedSelectionKey: Dispatch<SetStateAction<string>>;
+  submittedSelectionKeyRef: { current: string | null };
+}) {
+  useEffect(() => {
+    form.reset(
+      buildChoreographyEditDefaultValues({
+        actionData,
+        choreography,
+        selectedDancerIds,
+        selectedProfessorIds,
+      }),
+    );
+    setDerivedResolution(persistedResolution);
+    setResolution(null);
+    setResolvedSelectionKey(persistedSelectionKey);
+    submittedSelectionKeyRef.current = null;
+  }, [
+    actionData?.selectedExperienceLevelId,
+    actionData?.selectedMusicStorageKey,
+    actionData?.selectedScheduleCapacityId,
+    choreography.experienceLevelId,
+    choreography.musicStorageKey,
+    choreography.scheduleCapacityId,
+    form,
+    persistedResolution,
+    persistedSelectionKey,
+    selectedDancerIds,
+    selectedProfessorIds,
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
+  ]);
+}
+
+function useResolveRosterSelection({
+  canEditDancers,
+  choreography,
+  dancerSelectionKey,
+  form,
+  hasRosterChanged,
+  persistedResolution,
+  persistedSelectionKey,
+  resolutionFetcher,
+  resolvedSelectionKey,
+  setDerivedResolution,
+  setResolution,
+  setResolvedSelectionKey,
+  submittedSelectionKeyRef,
+  watchedDancerIds,
+}: {
+  canEditDancers: boolean;
+  choreography: ChoreographySummary;
+  dancerSelectionKey: string;
+  form: ChoreographyEditForm;
+  hasRosterChanged: boolean;
+  persistedResolution: DancerResolutionState;
+  persistedSelectionKey: string;
+  resolutionFetcher: RosterResolutionFetcher;
+  resolvedSelectionKey: string;
+  setDerivedResolution: Dispatch<SetStateAction<DancerResolutionState>>;
+  setResolution: Dispatch<
+    SetStateAction<ResolveChoreographyDancersResult | null>
+  >;
+  setResolvedSelectionKey: Dispatch<SetStateAction<string>>;
+  submittedSelectionKeyRef: { current: string | null };
   watchedDancerIds: string[];
-  watchedExperienceLevelId: string;
+}) {
+  useEffect(() => {
+    if (!hasRosterChanged) {
+      setDerivedResolution(persistedResolution);
+      setResolution(null);
+      setResolvedSelectionKey(persistedSelectionKey);
+      form.setValue(
+        "scheduleCapacityId",
+        choreography.scheduleCapacityId ?? "",
+        {
+          shouldDirty: false,
+        },
+      );
+      submittedSelectionKeyRef.current = null;
+      return;
+    }
+
+    if (
+      !canEditDancers ||
+      watchedDancerIds.length === 0 ||
+      dancerSelectionKey === resolvedSelectionKey ||
+      dancerSelectionKey === submittedSelectionKeyRef.current
+    ) {
+      return;
+    }
+
+    resolutionFetcher.submit(
+      buildResolveChoreographyDancersFormData(watchedDancerIds),
+      { method: "post" },
+    );
+    submittedSelectionKeyRef.current = dancerSelectionKey;
+  }, [
+    canEditDancers,
+    choreography.scheduleCapacityId,
+    dancerSelectionKey,
+    form,
+    hasRosterChanged,
+    persistedResolution,
+    persistedSelectionKey,
+    resolutionFetcher,
+    resolvedSelectionKey,
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
+    watchedDancerIds,
+  ]);
+}
+
+function useApplyRosterResolutionResult({
+  dancerSelectionKey,
+  derivedResolution,
+  form,
+  resolutionData,
+  resolutionFetcherState,
+  setDerivedResolution,
+  setResolution,
+  setResolvedSelectionKey,
+  submittedSelectionKeyRef,
+  watchedScheduleCapacityId,
+}: {
+  dancerSelectionKey: string;
+  derivedResolution: DancerResolutionState;
+  form: ChoreographyEditForm;
+  resolutionData: ChoreographyRosterEditorResolutionActionData | undefined;
+  resolutionFetcherState: RosterResolutionFetcher["state"];
+  setDerivedResolution: Dispatch<SetStateAction<DancerResolutionState>>;
+  setResolution: Dispatch<
+    SetStateAction<ResolveChoreographyDancersResult | null>
+  >;
+  setResolvedSelectionKey: Dispatch<SetStateAction<string>>;
+  submittedSelectionKeyRef: { current: string | null };
   watchedScheduleCapacityId: string;
 }) {
-  if (!hasRosterChanged && !hasProfessorsChanged && !hasMusicChanged) {
-    return false;
-  }
+  useEffect(() => {
+    if (
+      resolutionFetcherState !== "idle" ||
+      resolutionData?.intent !== resolveChoreographyDancersIntent
+    ) {
+      return;
+    }
 
-  if (isResolving || isSubmitting) {
-    return false;
-  }
+    const submittedSelectionKey =
+      submittedSelectionKeyRef.current ?? dancerSelectionKey;
+    submittedSelectionKeyRef.current = null;
+    setResolvedSelectionKey(submittedSelectionKey);
+    setResolution(resolutionData.result);
 
-  if (hasProfessorsChanged && !canEditProfessors) {
-    return false;
-  }
+    if (!resolutionData.result.ok) {
+      toast.error(resolutionData.result.message, {
+        id: choreographyResolutionErrorToastId,
+      });
+      form.setError("dancerIds", {
+        message: resolutionData.result.message,
+        type: "manual",
+      });
+      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
+      return;
+    }
 
-  if (hasMusicChanged && (!canEditMusic || musicHasValidationError)) {
-    return false;
-  }
+    form.clearErrors("dancerIds");
+    const nextResolution = mapResolvedDancerResolutionState(
+      resolutionData.result,
+    );
+    const categoryChanged =
+      derivedResolution.categoryId !== nextResolution.categoryId;
 
-  if (!hasRosterChanged && !hasProfessorsChanged) {
-    return true;
-  }
+    if (!nextResolution.experienceLevelRequired || categoryChanged) {
+      form.setValue("experienceLevelId", "", { shouldDirty: true });
+    }
 
-  if (!hasRosterChanged) {
-    return true;
-  }
+    applyScheduleResolution({
+      form,
+      nextSchedule: resolutionData.result.resolution.schedule,
+      watchedScheduleCapacityId,
+    });
 
+    setDerivedResolution(nextResolution);
+  }, [
+    dancerSelectionKey,
+    derivedResolution.categoryId,
+    form,
+    resolutionData,
+    resolutionFetcherState,
+    setDerivedResolution,
+    setResolution,
+    setResolvedSelectionKey,
+    submittedSelectionKeyRef,
+    watchedScheduleCapacityId,
+  ]);
+}
+
+function applyScheduleResolution({
+  form,
+  nextSchedule,
+  watchedScheduleCapacityId,
+}: {
+  form: ChoreographyEditForm;
+  nextSchedule: NonNullable<ScheduleResolution>;
+  watchedScheduleCapacityId: string;
+}) {
   if (
-    !canEditDancers ||
-    watchedDancerIds.length === 0 ||
-    dancerSelectionKey !== resolvedSelectionKey ||
-    resolution?.ok !== true ||
-    scheduleResolution?.status === "none"
+    nextSchedule.status === "keep-current" ||
+    nextSchedule.status === "auto"
   ) {
-    return false;
+    form.setValue(
+      "scheduleCapacityId",
+      nextSchedule.selectedScheduleCapacityId,
+      {
+        shouldDirty: true,
+      },
+    );
+    form.clearErrors("scheduleCapacityId");
+    return;
   }
 
-  if (
-    scheduleResolution?.status === "multiple" &&
-    watchedScheduleCapacityId.length === 0
-  ) {
-    return false;
+  if (nextSchedule.status === "multiple") {
+    if (
+      !nextSchedule.options.some(
+        (option) => option.id === watchedScheduleCapacityId,
+      )
+    ) {
+      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
+    }
+    return;
   }
 
-  return (
-    !derivedResolution.experienceLevelRequired ||
-    watchedExperienceLevelId.length > 0
-  );
+  form.setValue("scheduleCapacityId", "", { shouldDirty: true });
+  toast.error(nextSchedule.error, {
+    id: choreographyResolutionErrorToastId,
+  });
+  form.setError("dancerIds", {
+    message: nextSchedule.error,
+    type: "manual",
+  });
 }

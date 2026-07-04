@@ -1,38 +1,46 @@
 import { redirect } from "react-router";
 
-import { readEventBasesActionInput } from "@/lib/admin/events/bases-action/input.server";
+import { readEventBasesActionBaseInput } from "@/lib/admin/events/bases-action/input.server";
 import {
   actionError,
   type ActionData,
-  type EventBasesActionInput,
+  type EventBasesActionBaseInput,
   type EventBasesActionResult,
 } from "@/lib/admin/events/bases-action/shared.server";
 import { markEventRegistrationReadinessDirty } from "@/lib/events/registration-readiness.server";
 
-type EventBasesActionHandler = {
-  buildErrorScope: (input: EventBasesActionInput) => ActionData["scope"];
+type EventBasesActionHandler<
+  TInput extends EventBasesActionBaseInput = EventBasesActionBaseInput,
+> = {
+  readInput: (
+    baseInput: EventBasesActionBaseInput,
+    formData: FormData,
+  ) => TInput;
+  buildErrorScope: (input: TInput) => ActionData["scope"];
   buildRedirectUrl: (
     requestUrl: string,
-    input: EventBasesActionInput,
+    input: TInput,
     result: EventBasesActionResult,
   ) => string;
   getConfirmationError: (
     requestUrl: string,
-    input: EventBasesActionInput,
+    input: TInput,
   ) => { message: string; fieldErrors: Record<string, string> } | null;
   getRequiredFieldErrors?: (
-    input: EventBasesActionInput,
+    input: TInput,
     formData: FormData,
   ) => { message: string; fieldErrors: Record<string, string> } | null;
   readSubmittedValues: (
-    input: EventBasesActionInput,
+    input: TInput,
     formData: FormData,
   ) => ActionData["values"];
-  run: (input: EventBasesActionInput) => Promise<EventBasesActionResult>;
+  run: (input: TInput) => Promise<EventBasesActionResult>;
   invalidateRegistrationReadiness?: boolean;
 };
 
-async function runEventBasesActionWithHandler({
+async function runEventBasesActionWithHandler<
+  TInput extends EventBasesActionBaseInput,
+>({
   allowedIntents,
   eventId,
   handler,
@@ -41,48 +49,27 @@ async function runEventBasesActionWithHandler({
 }: {
   allowedIntents?: string[];
   eventId: string;
-  handler: EventBasesActionHandler;
+  handler: EventBasesActionHandler<TInput>;
   recordId?: string;
   request: Request;
 }) {
   const formData = await request.formData();
-  const submittedInput = readEventBasesActionInput(eventId, formData);
-  const input =
-    recordId !== undefined
-      ? { ...submittedInput, id: recordId }
-      : submittedInput;
+  const input = readSubmittedEventBasesActionInput({
+    eventId,
+    formData,
+    handler,
+    recordId,
+  });
+  const preflightError = getEventBasesActionPreflightError({
+    allowedIntents,
+    formData,
+    handler,
+    input,
+    requestUrl: request.url,
+  });
 
-  if (
-    allowedIntents &&
-    !allowedIntents.some((allowedIntent) => allowedIntent === input.intent)
-  ) {
-    return actionError(
-      "No se pudo interpretar la acción de registro de configuración.",
-      {},
-      handler.buildErrorScope(input),
-      handler.readSubmittedValues(input, formData),
-    );
-  }
-
-  const confirmationError = handler.getConfirmationError(request.url, input);
-
-  if (confirmationError) {
-    return actionError(
-      confirmationError.message,
-      confirmationError.fieldErrors,
-      handler.buildErrorScope(input),
-    );
-  }
-
-  const requiredFieldErrors = handler.getRequiredFieldErrors?.(input, formData);
-
-  if (requiredFieldErrors) {
-    return actionError(
-      requiredFieldErrors.message,
-      requiredFieldErrors.fieldErrors,
-      handler.buildErrorScope(input),
-      handler.readSubmittedValues(input, formData),
-    );
+  if (preflightError) {
+    return preflightError;
   }
 
   const result = await runEventBasesIntentWithReadinessInvalidation(
@@ -102,10 +89,83 @@ async function runEventBasesActionWithHandler({
   throw redirect(handler.buildRedirectUrl(request.url, input, result));
 }
 
-async function runEventBasesIntentWithReadinessInvalidation(
-  input: EventBasesActionInput,
-  handler: EventBasesActionHandler,
-) {
+function readSubmittedEventBasesActionInput<
+  TInput extends EventBasesActionBaseInput,
+>({
+  eventId,
+  formData,
+  handler,
+  recordId,
+}: {
+  eventId: string;
+  formData: FormData;
+  handler: EventBasesActionHandler<TInput>;
+  recordId?: string;
+}): TInput {
+  const baseInput = readEventBasesActionBaseInput(eventId, formData);
+  const submittedInput = handler.readInput(baseInput, formData);
+
+  if (recordId === undefined) {
+    return submittedInput;
+  }
+
+  return { ...submittedInput, id: recordId };
+}
+
+function getEventBasesActionPreflightError<
+  TInput extends EventBasesActionBaseInput,
+>({
+  allowedIntents,
+  formData,
+  handler,
+  input,
+  requestUrl,
+}: {
+  allowedIntents?: string[];
+  formData: FormData;
+  handler: EventBasesActionHandler<TInput>;
+  input: TInput;
+  requestUrl: string;
+}): ActionData | null {
+  if (
+    allowedIntents &&
+    !allowedIntents.some((allowedIntent) => allowedIntent === input.intent)
+  ) {
+    return actionError(
+      "No se pudo interpretar la acción de registro de configuración.",
+      {},
+      handler.buildErrorScope(input),
+      handler.readSubmittedValues(input, formData),
+    );
+  }
+
+  const confirmationError = handler.getConfirmationError(requestUrl, input);
+
+  if (confirmationError) {
+    return actionError(
+      confirmationError.message,
+      confirmationError.fieldErrors,
+      handler.buildErrorScope(input),
+    );
+  }
+
+  const requiredFieldErrors = handler.getRequiredFieldErrors?.(input, formData);
+
+  if (!requiredFieldErrors) {
+    return null;
+  }
+
+  return actionError(
+    requiredFieldErrors.message,
+    requiredFieldErrors.fieldErrors,
+    handler.buildErrorScope(input),
+    handler.readSubmittedValues(input, formData),
+  );
+}
+
+async function runEventBasesIntentWithReadinessInvalidation<
+  TInput extends EventBasesActionBaseInput,
+>(input: TInput, handler: EventBasesActionHandler<TInput>) {
   const result = await handler.run(input);
 
   if (result.ok) {
@@ -119,5 +179,4 @@ async function runEventBasesIntentWithReadinessInvalidation(
   return result;
 }
 
-export { runEventBasesActionWithHandler };
-export type { EventBasesActionHandler };
+export { runEventBasesActionWithHandler, type EventBasesActionHandler };

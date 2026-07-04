@@ -3,22 +3,13 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  categories,
-  categoryModalities,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
   dancers,
   events,
-  modalities,
-  prices,
   professors,
-  scheduleModalities,
-  schedules,
-  scheduleCapacities,
-  submodalities,
 } from "@/db/schema";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createCategory } from "@/lib/categories/repository.server";
 import {
   createModality,
@@ -29,13 +20,17 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
+import {
+  expectCreated,
+  fixedExperienceLevel,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { loadCreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
 import {
   handlePortalChoreographiesListAction,
   loadPortalChoreographiesList,
 } from "@/features/portal/choreographies/list/server";
+import { createEventCatalog } from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademySession,
   createPortalPostRequest,
@@ -627,100 +622,6 @@ async function createEventRecord(
   return event;
 }
 
-async function createEventCatalog(eventId: string) {
-  const [modality] = await db
-    .insert(modalities)
-    .values({
-      eventId,
-      name: `Jazz ${eventId}`,
-    })
-    .returning();
-  const [submodality] = await db
-    .insert(submodalities)
-    .values({
-      eventId,
-      modalityId: modality.id,
-      name: `Lyrical ${eventId}`,
-    })
-    .returning();
-  const level = { id: "amateur", name: experienceLevelLabels.amateur } as const;
-  const [categoryWithLevel] = await db
-    .insert(categories)
-    .values({
-      eventId,
-      name: `Juvenil ${eventId}`,
-      minAge: 13,
-      maxAge: 17,
-      groupTypes: ["solo"],
-      groupTypeKey: "solo",
-      experienceLevels: [level.id],
-      experienceLevelKey: level.id,
-    })
-    .returning();
-  const [categoryWithoutLevel] = await db
-    .insert(categories)
-    .values({
-      eventId,
-      name: `Adultos ${eventId}`,
-      minAge: 18,
-      maxAge: 99,
-      groupTypes: ["solo"],
-      groupTypeKey: "solo",
-      experienceLevels: [],
-      experienceLevelKey: "",
-    })
-    .returning();
-  await db.insert(categoryModalities).values([
-    {
-      categoryId: categoryWithLevel.id,
-      modalityId: modality.id,
-    },
-    {
-      categoryId: categoryWithoutLevel.id,
-      modalityId: modality.id,
-    },
-  ]);
-  const [schedule] = await db
-    .insert(schedules)
-    .values({
-      eventId,
-      name: `Bloque ${eventId}`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-    })
-    .returning();
-  await db.insert(scheduleModalities).values({
-    scheduleId: schedule.id,
-    modalityId: modality.id,
-  });
-  await db.insert(prices).values({
-    eventId,
-    name: "Precio Solo",
-    groupType: "solo",
-    amount: 10000,
-    paymentDeadline: "2026-05-31",
-    scheduleId: null,
-  });
-  const [scheduleCapacity] = await db
-    .insert(scheduleCapacities)
-    .values({
-      scheduleId: schedule.id,
-      groupType: "solo",
-      capacity: 5,
-    })
-    .returning();
-
-  return {
-    categoryWithLevel,
-    categoryWithoutLevel,
-    level,
-    modality,
-    scheduleCapacity,
-    submodality,
-  };
-}
-
 async function createDancer(
   academyId: string,
   overrides: Partial<typeof dancers.$inferInsert> = {},
@@ -794,19 +695,4 @@ async function createChoreographyRecord(
 
 function date(value: string) {
   return new Date(value);
-}
-
-async function expectCreated(
-  resultPromise: Promise<{
-    ok: boolean;
-    record?: { id: string };
-  }>,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok || !result.record) {
-    throw new Error("Expected Bases del evento creation to succeed.");
-  }
-
-  return result.record;
 }

@@ -1,9 +1,8 @@
-import { eq } from "drizzle-orm";
 import { expect } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAcademyUser as createAcademyTestUser } from "@/lib/test-support/academies";
 
 export async function createAcademySession({
   academyName,
@@ -14,34 +13,17 @@ export async function createAcademySession({
   email: string;
   phone?: string;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const academyUser = await createAcademyTestUser({
+    academyName,
+    contactName: "Contacto",
     email,
-    name: email,
-    password: "password-segura",
+    phone,
   });
 
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone,
-    })
-    .returning();
-
   return {
-    academyId: academy.id,
-    cookie: createRequestCookie(signUpResult.headers),
-    userId: signUpResult.response.user.id,
+    academyId: academyUser.academyId,
+    cookie: academyUser.cookie,
+    userId: academyUser.userId,
   };
 }
 

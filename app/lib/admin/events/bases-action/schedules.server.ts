@@ -1,10 +1,7 @@
-import {
-  readScheduleCapacityActionValues,
-  readScheduleCapacityActionValuesList,
-} from "@/lib/admin/events/bases-action/input.server";
+import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
 import type {
   ActionErrorScope,
-  EventBasesActionInput,
+  EventBasesActionBaseInput,
   EventBasesActionResult,
   EventBasesActionValues,
   RequiredFieldErrorResult,
@@ -46,17 +43,78 @@ const scheduleCapacitySavedNotification = "cupo-cronograma-guardado";
 const scheduleCapacityDeletedNotification = "cupo-cronograma-eliminado";
 const scheduleDeleteConfirmationMessage =
   "Confirmá el borrado del cronograma antes de continuar.";
+const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;
 
-export const scheduleActionHandler: EventBasesActionHandler = {
-  buildErrorScope: buildScheduleActionErrorScope,
-  buildRedirectUrl: buildScheduleRedirectUrl,
-  getConfirmationError: getScheduleConfirmationError,
-  getRequiredFieldErrors: getScheduleRequiredFieldErrors,
-  readSubmittedValues: readScheduleSubmittedValues,
-  run: runScheduleIntent,
+type ScheduleActionInput = EventBasesActionBaseInput & {
+  capacity: number;
+  groupType: string;
+  modalityIds: string[];
+  name: string;
+  scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
+  scheduleId: string;
+  scheduledDate: string;
+  startTime: string;
+  totalCapacity: number;
 };
 
-export function handlesScheduleIntent(intent: string) {
+export const scheduleActionHandler: EventBasesActionHandler<ScheduleActionInput> =
+  {
+    readInput: readScheduleActionInput,
+    buildErrorScope: buildScheduleActionErrorScope,
+    buildRedirectUrl: buildScheduleRedirectUrl,
+    getConfirmationError: getScheduleConfirmationError,
+    getRequiredFieldErrors: getScheduleRequiredFieldErrors,
+    readSubmittedValues: readScheduleSubmittedValues,
+    run: runScheduleIntent,
+  };
+
+function readScheduleActionInput(
+  baseInput: EventBasesActionBaseInput,
+  formData: FormData,
+): ScheduleActionInput {
+  return {
+    ...baseInput,
+    capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
+    groupType: String(formData.get("groupType") ?? ""),
+    modalityIds: formData.getAll("modalityIds").map(String),
+    name: String(formData.get("name") ?? ""),
+    scheduleCapacities: readScheduleCapacityInputList(formData),
+    scheduleId: String(formData.get("scheduleId") ?? ""),
+    scheduledDate: String(formData.get("scheduledDate") ?? ""),
+    startTime: String(formData.get("startTime") ?? ""),
+    totalCapacity: Number.parseInt(
+      String(formData.get("totalCapacity") ?? ""),
+      10,
+    ),
+  };
+}
+
+function readScheduleCapacityInputList(formData: FormData) {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "scheduleCapacities",
+    fieldNames: scheduleCapacityFieldNames,
+    createEntry: (): ScheduleCapacityInput & { id?: string } => ({
+      groupType: "",
+      capacity: Number.NaN,
+    }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
+
+      if (fieldName === "groupType") {
+        entry.groupType = value;
+      }
+
+      if (fieldName === "capacity") {
+        entry.capacity = Number.parseInt(value, 10);
+      }
+    },
+  });
+}
+
+function handlesScheduleIntent(intent: string) {
   return (
     intent === "create-schedule" ||
     intent === "update-schedule" ||
@@ -67,9 +125,9 @@ export function handlesScheduleIntent(intent: string) {
   );
 }
 
-export function getScheduleConfirmationError(
+function getScheduleConfirmationError(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: ScheduleActionInput,
 ) {
   if (
     input.intent === "delete-schedule" &&
@@ -87,8 +145,8 @@ export function getScheduleConfirmationError(
   return null;
 }
 
-export function getScheduleRequiredFieldErrors(
-  input: EventBasesActionInput,
+function getScheduleRequiredFieldErrors(
+  input: ScheduleActionInput,
   formData: FormData,
 ): RequiredFieldErrorResult | null {
   switch (input.intent) {
@@ -103,8 +161,8 @@ export function getScheduleRequiredFieldErrors(
   }
 }
 
-export function buildScheduleActionErrorScope(
-  input: EventBasesActionInput,
+function buildScheduleActionErrorScope(
+  input: ScheduleActionInput,
 ): ActionErrorScope | null {
   if (!handlesScheduleIntent(input.intent)) {
     return buildDefaultActionErrorScope(input);
@@ -117,8 +175,8 @@ export function buildScheduleActionErrorScope(
   return buildRecordActionScope(input.intent, input.id);
 }
 
-export function readScheduleSubmittedValues(
-  input: EventBasesActionInput,
+function readScheduleSubmittedValues(
+  input: ScheduleActionInput,
   formData: FormData,
 ): EventBasesActionValues | undefined {
   if (
@@ -138,8 +196,8 @@ export function readScheduleSubmittedValues(
   return undefined;
 }
 
-export async function runScheduleIntent(
-  input: EventBasesActionInput,
+async function runScheduleIntent(
+  input: ScheduleActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
     case "create-schedule":
@@ -168,59 +226,79 @@ export async function runScheduleIntent(
   }
 }
 
-export function buildScheduleRedirectUrl(
+function buildScheduleRedirectUrl(
   requestUrl: string,
-  input: EventBasesActionInput,
+  input: ScheduleActionInput,
   result: EventBasesActionResult,
 ) {
   const currentUrl = new URL(requestUrl);
+  const currentPath = currentUrl.pathname;
 
-  if (input.intent === "delete-schedule") {
-    return withEventBasesNotification(
-      buildListPath(scheduleBasePath, null),
-      scheduleDeletedNotification,
-    );
+  switch (input.intent) {
+    case "delete-schedule":
+      return withEventBasesNotification(
+        buildListPath(scheduleBasePath, null),
+        scheduleDeletedNotification,
+      );
+    case "delete-schedule-capacity":
+      return withEventBasesNotification(
+        currentPath,
+        scheduleCapacityDeletedNotification,
+      );
+    case "create-schedule":
+      if (result.ok && hasEventBaseRecord(result)) {
+        return withEventBasesNotification(
+          buildDetailPath(scheduleBasePath, result.record.id, null),
+          scheduleSavedNotification,
+        );
+      }
+
+      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+    case "update-schedule":
+      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+    case "create-schedule-capacity":
+    case "update-schedule-capacity":
+      return withEventBasesNotification(
+        currentPath,
+        scheduleCapacitySavedNotification,
+      );
+    default:
+      return currentPath;
   }
+}
 
-  if (input.intent === "delete-schedule-capacity") {
-    return withEventBasesNotification(
-      currentUrl.pathname,
-      scheduleCapacityDeletedNotification,
-    );
-  }
+function readScheduleCapacityActionValues(
+  formData: FormData,
+): ScheduleActionValues["scheduleCapacities"][number] {
+  return {
+    groupType: String(formData.get("groupType") ?? ""),
+    capacity: String(formData.get("capacity") ?? ""),
+  };
+}
 
-  if (
-    input.intent === "create-schedule" &&
-    result.ok &&
-    hasEventBaseRecord(result)
-  ) {
-    return withEventBasesNotification(
-      buildDetailPath(scheduleBasePath, result.record.id, null),
-      scheduleSavedNotification,
-    );
-  }
+function readScheduleCapacityActionValuesList(formData: FormData) {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "scheduleCapacities",
+    fieldNames: scheduleCapacityFieldNames,
+    createEntry: (): ScheduleActionValues["scheduleCapacities"][number] => ({
+      groupType: "",
+      capacity: "",
+    }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "id" && value.trim().length > 0) {
+        entry.id = value;
+      }
 
-  if (
-    input.intent === "create-schedule" ||
-    input.intent === "update-schedule"
-  ) {
-    return withEventBasesNotification(
-      currentUrl.pathname,
-      scheduleSavedNotification,
-    );
-  }
+      if (fieldName === "groupType") {
+        entry.groupType = value;
+      }
 
-  if (
-    input.intent === "create-schedule-capacity" ||
-    input.intent === "update-schedule-capacity"
-  ) {
-    return withEventBasesNotification(
-      currentUrl.pathname,
-      scheduleCapacitySavedNotification,
-    );
-  }
-
-  return currentUrl.pathname;
+      if (fieldName === "capacity") {
+        entry.capacity = value;
+      }
+    },
+  });
 }
 
 function readScheduleActionValues(formData: FormData): ScheduleActionValues {
@@ -310,7 +388,7 @@ function getScheduleCapacityRequiredFieldErrors(
   );
 }
 
-function getScheduleInput(input: EventBasesActionInput): ScheduleInput {
+function getScheduleInput(input: ScheduleActionInput): ScheduleInput {
   return {
     name: input.name,
     scheduledDate: input.scheduledDate,
@@ -321,7 +399,7 @@ function getScheduleInput(input: EventBasesActionInput): ScheduleInput {
 }
 
 function getScheduleWithEntriesInput(
-  input: EventBasesActionInput,
+  input: ScheduleActionInput,
 ): ScheduleWithEntriesInput {
   return {
     ...getScheduleInput(input),
@@ -330,7 +408,7 @@ function getScheduleWithEntriesInput(
 }
 
 function getScheduleCapacityInput(
-  input: EventBasesActionInput,
+  input: ScheduleActionInput,
 ): ScheduleCapacityInput {
   return {
     groupType: input.groupType,

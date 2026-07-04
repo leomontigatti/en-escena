@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -6,13 +5,15 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  academies,
   choreographies,
   choreographyProfessors,
   professors,
-  user,
 } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import {
+  createSignedInAdminRequest as createSignedInRequest,
+  expectThrownResponse,
+} from "@/lib/admin/test-support/db";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { createCategory } from "@/lib/categories/repository.server";
 import {
   createModality,
@@ -22,9 +23,12 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
+import {
+  createEventFixtureDates,
+  createSavedEvent as createSavedEventFixture,
+  fixedExperienceLevel,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { AdministracionRouteView } from "@/routes/administracion";
 import {
   AdministracionCoreografiasRouteView,
@@ -470,34 +474,6 @@ describe("administracion/coreografias route", () => {
   });
 });
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
 async function loadRouteData(input: { email: string; requestUrl: string }) {
   const { request } = await createSignedInRequest({
     email: input.email,
@@ -533,16 +509,6 @@ async function createChoreographyPageRecords(input: {
       submodalityId: input.catalog.submodality.id,
     });
   }
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
 }
 
 function routeArgs(request: Request) {
@@ -593,39 +559,6 @@ function renderRoute(input: {
   );
 }
 
-async function createAcademyUser(input: {
-  academyName: string;
-  email: string;
-  suspended?: boolean;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-      suspended: input.suspended ?? false,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: input.academyName,
-      contactName: input.academyName,
-      phone: "1111-1111",
-    })
-    .returning();
-
-  return { academy };
-}
-
 async function createProfessor(academyId: string) {
   const [professor] = await db
     .insert(professors)
@@ -641,37 +574,16 @@ async function createProfessor(academyId: string) {
 }
 
 async function createSavedEvent() {
-  const result = await createEvent({
-    name: "Regional 2026",
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture("Regional 2026", {
+    activate: true,
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
 }
 
 async function createInactiveEvent(name: string) {
-  const result = await createEvent({
-    name,
-    registrationStartsAt: new Date("2025-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2025-04-30T12:00:00Z"),
-    startsAt: new Date("2025-05-01T12:00:00Z"),
-    endsAt: new Date("2025-05-03T12:00:00Z"),
+  return createSavedEventFixture(name, {
+    dates: createEventFixtureDates(2025),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
 }
 
 async function createEventCatalog(eventId: string, modalityName: string) {
@@ -774,23 +686,4 @@ async function expectCreated<T extends { id: string }>(
   }
 
   return result.record;
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  expectedStatus: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-
-    const response = error as Response;
-
-    expect(response.status).toBe(expectedStatus);
-
-    return response;
-  }
-
-  throw new Error(`Expected a thrown response with status ${expectedStatus}.`);
 }

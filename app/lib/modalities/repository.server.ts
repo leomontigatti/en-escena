@@ -16,10 +16,6 @@ export {
   updateModalityWithSubmodalities,
   updateSubmodality,
 } from "@/lib/events/bases-repository/modalities.server";
-export type {
-  EventBasesDeleteResult,
-  EventBasesMutationResult,
-} from "@/lib/events/bases-repository/shared.server";
 
 export async function listModalities(eventId: string) {
   return db.query.modalities.findMany({

@@ -15,13 +15,6 @@ const scheduleDateFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: "UTC",
 });
 
-export const timePickerHourOptions = Array.from({ length: 24 }, (_, hour) =>
-  String(hour).padStart(2, "0"),
-);
-export const timePickerMinuteOptions = Array.from({ length: 60 }, (_, minute) =>
-  String(minute).padStart(2, "0"),
-);
-
 const scheduleCapacityFormSchema = z.object({
   groupType: z.string().trim().min(1, requiredFieldMessage),
   capacity: z
@@ -83,16 +76,6 @@ export type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 export const emptySelection: string[] = [];
 export const emptyScheduleCapacities: ScheduleListItem["scheduleCapacities"] =
   [];
-
-export function parseTimeValue(value: string) {
-  const [hour, minute] = value.split(":");
-
-  return {
-    hour: hour && timePickerHourOptions.includes(hour) ? hour : undefined,
-    minute:
-      minute && timePickerMinuteOptions.includes(minute) ? minute : undefined,
-  };
-}
 
 export function buildScheduleFacetedFilters(schedules: ScheduleListItem[]) {
   return [

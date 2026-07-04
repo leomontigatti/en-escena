@@ -1,13 +1,10 @@
-import { Link } from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldError,
@@ -28,15 +25,13 @@ import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { cn } from "@/lib/shared/utils";
 import {
   createValidatedRouteSubmitHandler,
-  isRouteFormPending,
   type RouteFormPendingScope,
   useOptionalFormAction,
-  useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { buildListPath } from "@/lib/shared/navigation";
 import { SelectField } from "@/components/shared/select-field";
 
+import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
@@ -195,16 +190,12 @@ export function PriceFormActions({
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, pendingScope);
-
   return (
-    <div className="flex justify-end gap-2">
-      <Button asChild variant="outline">
-        <Link to={buildListPath(basePath, null)}>Volver</Link>
-      </Button>
-      <SubmitButton form={formId} isPending={isPending} />
-    </div>
+    <EventBasesFormActions
+      basePath={basePath}
+      formId={formId}
+      pendingScope={pendingScope}
+    />
   );
 }
 

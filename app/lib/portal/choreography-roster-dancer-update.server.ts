@@ -16,6 +16,10 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import {
+  assertPortalChoreographyFound,
+  portalOwnedChoreographyWhere,
+} from "@/lib/portal/choreography-access.server";
+import {
   choreographyNotFoundMessage,
   compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
@@ -234,27 +238,21 @@ async function resolveChoreographyDancerUpdateContext(input: {
   dancerIds: string[];
   isRegistrationOpen: boolean;
 }): Promise<ResolvedChoreographyDancerUpdateContext> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: {
-      id: true,
-      modalityId: true,
-      submodalityId: true,
-      categoryId: true,
-      experienceLevelId: true,
-      scheduleId: true,
-      scheduleCapacityId: true,
-      hasPresentation: true,
-    },
-    where: and(
-      eq(choreographies.id, input.choreographyId),
-      eq(choreographies.academyId, input.academyId),
-      eq(choreographies.eventId, input.eventId),
-    ),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
+  const choreography = assertPortalChoreographyFound(
+    await db.query.choreographies.findFirst({
+      columns: {
+        id: true,
+        modalityId: true,
+        submodalityId: true,
+        categoryId: true,
+        experienceLevelId: true,
+        scheduleId: true,
+        scheduleCapacityId: true,
+        hasPresentation: true,
+      },
+      where: portalOwnedChoreographyWhere(input),
+    }),
+  );
 
   const eligibility = getDancerEditingEligibility({
     hasActiveFinancialLink: await hasActiveInvoiceForChoreography(

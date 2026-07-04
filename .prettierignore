@@ -5,4 +5,5 @@ build
 .sandcastle
 supabase/.temp
 package-lock.json
+pnpm-lock.yaml
 docs/agents/vendor

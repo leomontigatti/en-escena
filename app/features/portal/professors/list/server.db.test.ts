@@ -10,6 +10,7 @@ import {
   createAcademySession,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -183,19 +184,4 @@ function formData(values: Record<string, string>) {
   }
 
   return data;
-}
-
-async function expectCreated(
-  resultPromise: Promise<{
-    ok: boolean;
-    record?: { id: string };
-  }>,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok || !result.record) {
-    throw new Error("Expected Bases del evento creation to succeed.");
-  }
-
-  return result.record;
 }

@@ -13,12 +13,9 @@ import {
 
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/shared/utils";
 
@@ -54,7 +51,7 @@ type IntegerInputFieldProps<
   label: ReactNode;
   labelClassName?: string;
   name: TName;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
 };
 
 function getIntegerInputValue(value: string) {
@@ -98,36 +95,26 @@ function IntegerInputField<
 }: IntegerInputFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
-
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => {
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-        const describedBy = [descriptionId, isInvalid ? errorId : undefined]
-          .filter(Boolean)
-          .join(" ");
-
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-disabled={disabled ? true : undefined}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            disabled={disabled}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
             orientation={orientation}
           >
-            <FieldLabel htmlFor={id} className={labelClassName}>
-              {label}
-            </FieldLabel>
-            <FieldContent className={contentClassName}>
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
+            {({ describedBy, isInvalid }) => (
               <div className="relative">
                 <IntegerInput
                   {...inputProps}
@@ -140,11 +127,8 @@ function IntegerInputField<
                 />
                 {disabled ? <FieldControlLockIcon /> : null}
               </div>
-              <FieldError id={errorId} className={errorClassName}>
-                {errorMessage}
-              </FieldError>
-            </FieldContent>
-          </Field>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

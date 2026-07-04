@@ -5,14 +5,9 @@ import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
-  academyEventPayments,
   prices,
 } from "@/db/schema";
-import {
-  createChoreographyRecord,
-  createEventCatalog,
-  date as choreographyDate,
-} from "@/features/portal/choreographies/test-support/db";
+import { createEventCatalog } from "@/features/portal/choreographies/test-support/db";
 import {
   action as accountCurrentAction,
   loader as accountCurrentLoader,
@@ -22,15 +17,11 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   accountCurrentUrl,
   buildBalanceInvoiceIssueRequest,
-  buildDepositInvoiceRequest,
   buildPaymentImputationRequest,
-  buildPaymentRequest,
-  createAcademyUser,
+  createAccountCurrentInvoicePaymentFixture,
   createSavedEvent,
   detailActionArgs,
   detailRouteArgs,
-  issueDepositInvoiceForTest,
-  registerPaymentForTest,
   renderAccountCurrentRoute,
 } from "./account-current-route.test-support";
 
@@ -43,66 +34,14 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const academy = await createAcademyUser({
-        email: "academia.imputaciones.finanzas@example.com",
-        academyName: "Academia Imputaciones",
-      });
-      const catalog = await createEventCatalog(event.id);
-      const choreography = await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Imputable",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-
-      const { request: paymentRequest } = await buildPaymentRequest({
-        amount: "5000",
-        paymentDate: "2026-03-15",
-        paymentMethod: "transferencia",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
-      });
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(paymentRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
-      });
-
-      const { request: invoiceRequest } = await buildDepositInvoiceRequest({
-        choreographyIds: [choreography.id],
-        issueDate: "2026-03-20",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
-      });
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(invoiceRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
-      });
-
-      const [payment] = await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
-      });
-      const [invoice] =
-        await db.query.academyEventChoreographyInvoices.findMany({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
+      const { academy, invoice, payment } =
+        await createAccountCurrentInvoicePaymentFixture({
+          event,
+          email: "academia.imputaciones.finanzas@example.com",
+          academyName: "Academia Imputaciones",
+          choreographyName: "Imputable",
+          paymentAmount: "5000",
         });
-
-      if (!payment || !invoice) {
-        throw new Error("Expected payment and invoice to exist.");
-      }
 
       const { request: partialImputationRequest } =
         await buildPaymentImputationRequest({
@@ -125,11 +64,7 @@ describe.sequential(
         detailRouteArgs(
           new Request(accountCurrentUrl(academy.academy.id, event.id), {
             headers: {
-              cookie:
-                partialImputationRequest.headers.get("cookie") ??
-                invoiceRequest.headers.get("cookie") ??
-                paymentRequest.headers.get("cookie") ??
-                "",
+              cookie: partialImputationRequest.headers.get("cookie") ?? "",
             },
           }),
           academy.academy.id,
@@ -244,88 +179,23 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const academy = await createAcademyUser({
-        email: "academia.imputaciones.validacion@example.com",
-        academyName: "Academia Imputaciones Validacion",
-      });
-      const otherAcademy = await createAcademyUser({
-        email: "academia.imputaciones.otra@example.com",
-        academyName: "Academia Imputaciones Otra",
-      });
       const catalog = await createEventCatalog(event.id);
-      const choreography = await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Validable",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-      const otherChoreography = await createChoreographyRecord({
-        academyId: otherAcademy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Ajena",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-
-      await registerPaymentForTest({
-        academyId: academy.academy.id,
-        amount: "3000",
-        eventId: event.id,
-        paymentDate: "2026-03-15",
-      });
-      await issueDepositInvoiceForTest({
-        academyId: academy.academy.id,
-        choreographyIds: [choreography.id],
-        eventId: event.id,
-        issueDate: "2026-03-20",
-      });
-
-      await registerPaymentForTest({
-        academyId: otherAcademy.academy.id,
-        amount: "3000",
-        eventId: event.id,
-        paymentDate: "2026-03-15",
-      });
-      await issueDepositInvoiceForTest({
-        academyId: otherAcademy.academy.id,
-        choreographyIds: [otherChoreography.id],
-        eventId: event.id,
-        issueDate: "2026-03-20",
-      });
-
-      const [payment] = await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
-      });
-      const [invoice] =
-        await db.query.academyEventChoreographyInvoices.findMany({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
+      const { academy, invoice, payment } =
+        await createAccountCurrentInvoicePaymentFixture({
+          event,
+          catalog,
+          email: "academia.imputaciones.validacion@example.com",
+          academyName: "Academia Imputaciones Validacion",
+          choreographyName: "Validable",
         });
-      const [otherPayment] = await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, otherAcademy.academy.id),
-      });
-      const [otherInvoice] =
-        await db.query.academyEventChoreographyInvoices.findMany({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            otherChoreography.id,
-          ),
+      const { invoice: otherInvoice, payment: otherPayment } =
+        await createAccountCurrentInvoicePaymentFixture({
+          event,
+          catalog,
+          email: "academia.imputaciones.otra@example.com",
+          academyName: "Academia Imputaciones Otra",
+          choreographyName: "Ajena",
         });
-
-      if (!payment || !invoice || !otherPayment || !otherInvoice) {
-        throw new Error("Expected payment and invoice fixtures to exist.");
-      }
 
       const { request: invalidDateRequest } =
         await buildPaymentImputationRequest({
@@ -424,50 +294,14 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const academy = await createAcademyUser({
-        email: "academia.imputaciones.desactualizada@example.com",
-        academyName: "Academia Imputaciones Desactualizada",
-      });
-      const catalog = await createEventCatalog(event.id);
-      const choreography = await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Desactualizada",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-
-      await registerPaymentForTest({
-        academyId: academy.academy.id,
-        amount: "5000",
-        eventId: event.id,
-        paymentDate: "2026-03-15",
-      });
-      await issueDepositInvoiceForTest({
-        academyId: academy.academy.id,
-        choreographyIds: [choreography.id],
-        eventId: event.id,
-        issueDate: "2026-03-20",
-      });
-
-      const [payment] = await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
-      });
-      const [invoice] =
-        await db.query.academyEventChoreographyInvoices.findMany({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
+      const { academy, catalog, invoice, payment } =
+        await createAccountCurrentInvoicePaymentFixture({
+          event,
+          email: "academia.imputaciones.desactualizada@example.com",
+          academyName: "Academia Imputaciones Desactualizada",
+          choreographyName: "Desactualizada",
+          paymentAmount: "5000",
         });
-
-      if (!payment || !invoice) {
-        throw new Error("Expected payment and invoice fixtures to exist.");
-      }
 
       const { request: partialImputationRequest } =
         await buildPaymentImputationRequest({
@@ -535,50 +369,18 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const academy = await createAcademyUser({
+      const {
+        academy,
+        choreography,
+        invoice: depositInvoice,
+        payment,
+      } = await createAccountCurrentInvoicePaymentFixture({
+        event,
         email: "academia.imputaciones.saldo@example.com",
         academyName: "Academia Imputaciones Saldo",
+        choreographyName: "Pagada completa",
+        paymentAmount: "10000",
       });
-      const catalog = await createEventCatalog(event.id);
-      const choreography = await createChoreographyRecord({
-        academyId: academy.academy.id,
-        categoryId: catalog.categoryWithLevel.id,
-        createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-        eventId: event.id,
-        experienceLevelId: catalog.level.id,
-        modalityId: catalog.modality.id,
-        name: "Pagada completa",
-        scheduleCapacityId: catalog.scheduleCapacity.id,
-        submodalityId: catalog.submodality.id,
-      });
-
-      await registerPaymentForTest({
-        academyId: academy.academy.id,
-        amount: "10000",
-        eventId: event.id,
-        paymentDate: "2026-03-15",
-      });
-      await issueDepositInvoiceForTest({
-        academyId: academy.academy.id,
-        choreographyIds: [choreography.id],
-        eventId: event.id,
-        issueDate: "2026-03-20",
-      });
-
-      const payment = await db.query.academyEventPayments.findFirst({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
-      });
-      const depositInvoice =
-        await db.query.academyEventChoreographyInvoices.findFirst({
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
-        });
-
-      if (!payment || !depositInvoice) {
-        throw new Error("Expected deposit fixtures to exist.");
-      }
 
       const { request: depositImputationRequest } =
         await buildPaymentImputationRequest({

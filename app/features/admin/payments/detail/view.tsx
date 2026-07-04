@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 
@@ -8,6 +7,10 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import {
+  ReadOnlyField,
+  ReadOnlyTextareaField,
+} from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { TextareaField } from "@/components/shared/textarea-field";
 import {
@@ -22,14 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { FieldGroup } from "@/components/ui/field";
 import {
   formatAmount,
   formatDate,
@@ -220,66 +216,6 @@ function AnnulPaymentDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-function ReadOnlyField({
-  className,
-  label,
-  value,
-}: {
-  className?: string;
-  label: string;
-  value: string;
-}) {
-  const id = useId();
-
-  return (
-    <Field className={className} data-disabled>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <FieldContent>
-        <div className="relative">
-          <Input id={id} value={value} disabled readOnly className="pr-9" />
-          <Lock
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
-          />
-        </div>
-      </FieldContent>
-    </Field>
-  );
-}
-
-function ReadOnlyTextareaField({
-  className,
-  label,
-  value,
-}: {
-  className?: string;
-  label: string;
-  value: string;
-}) {
-  const id = useId();
-
-  return (
-    <Field className={className} data-disabled>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <FieldContent>
-        <div className="relative">
-          <Textarea
-            id={id}
-            value={value}
-            disabled
-            readOnly
-            className="min-h-24 resize-none pr-9"
-          />
-          <Lock
-            aria-hidden="true"
-            className="pointer-events-none absolute top-3 right-3 size-3 text-muted-foreground"
-          />
-        </div>
-      </FieldContent>
-    </Field>
   );
 }
 

@@ -16,10 +16,6 @@ export const emptyProfessorValues: CreateProfessorFormValues = {
   lastName: "",
 };
 
-export const emptyProfessorFieldErrors: Partial<
-  Record<keyof CreateProfessorFormValues, string>
-> = {};
-
 export type CreateProfessorActionData =
   | {
       status: "error";

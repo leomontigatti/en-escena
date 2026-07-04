@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
 import { type Control, useForm } from "react-hook-form";
 import { Link, useSubmit } from "react-router";
 
@@ -21,6 +20,7 @@ import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
   useOptionalNavigation,
+  useResetFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -64,12 +64,7 @@ export function AdministracionPagosNuevoRouteView({
     resolver: zodResolver(createPaymentSchema),
   });
   const submit = useSubmit();
-  const { reset } = form;
-  const resetKey = JSON.stringify(values);
-
-  useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
+  useResetFormValues(form.reset, values);
 
   useServerActionToast(actionData);
 

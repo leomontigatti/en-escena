@@ -7,12 +7,9 @@ import {
 } from "react-hook-form";
 
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
 import {
   Select,
   SelectContent,
@@ -46,7 +43,7 @@ type DocumentTypeSelectFieldProps<
   label?: ReactNode;
   labelClassName?: string;
   name: TName;
-  orientation?: ComponentProps<typeof Field>["orientation"];
+  orientation?: SharedFieldOrientation;
   placeholder?: string;
 };
 
@@ -70,9 +67,6 @@ function DocumentTypeSelectField<
 }: DocumentTypeSelectFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
-  const descriptionId = description ? `${id}-description` : undefined;
-  const errorId = `${id}-error`;
-
   return (
     <Controller
       control={control}
@@ -81,63 +75,56 @@ function DocumentTypeSelectField<
         const fieldValue = typeof field.value === "string" ? field.value : "";
         const selectValue = fieldValue || noDocumentTypeSelectValue;
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
-        const describedBy = [descriptionId, isInvalid ? errorId : undefined]
-          .filter(Boolean)
-          .join(" ");
 
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
             orientation={orientation}
           >
-            <FieldLabel htmlFor={id} className={labelClassName}>
-              {label}
-            </FieldLabel>
-            <FieldContent className={contentClassName}>
-              {description ? (
-                <FieldDescription id={descriptionId}>
-                  {description}
-                </FieldDescription>
-              ) : null}
-              <input type="hidden" name={field.name} value={fieldValue} />
-              <Select
-                value={selectValue}
-                onValueChange={(value) => {
-                  field.onChange(
-                    value === noDocumentTypeSelectValue ? "" : value,
-                  );
-                }}
-              >
-                <SelectTrigger
-                  id={id}
-                  aria-describedby={describedBy || undefined}
-                  aria-invalid={isInvalid ? true : undefined}
-                  className={inputClassName}
-                  onBlur={field.onBlur}
+            {({ describedBy, isInvalid }) => (
+              <>
+                <input type="hidden" name={field.name} value={fieldValue} />
+                <Select
+                  value={selectValue}
+                  onValueChange={(value) => {
+                    field.onChange(
+                      value === noDocumentTypeSelectValue ? "" : value,
+                    );
+                  }}
                 >
-                  <SelectValue placeholder={placeholder} />
-                </SelectTrigger>
-                <SelectContent {...contentProps}>
-                  <SelectGroup>
-                    {documentTypeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldError id={errorId} className={errorClassName}>
-                {errorMessage}
-              </FieldError>
-            </FieldContent>
-          </Field>
+                  <SelectTrigger
+                    id={id}
+                    aria-describedby={describedBy || undefined}
+                    aria-invalid={isInvalid ? true : undefined}
+                    className={inputClassName}
+                    onBlur={field.onBlur}
+                  >
+                    <SelectValue placeholder={placeholder} />
+                  </SelectTrigger>
+                  <SelectContent {...contentProps}>
+                    <SelectGroup>
+                      {documentTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />
   );
 }
 
-export { DocumentTypeSelectField, noDocumentTypeSelectValue };
+export { DocumentTypeSelectField };

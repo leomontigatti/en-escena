@@ -6,14 +6,12 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  academies,
   administrativeAuditEntries,
   categories,
   categoryModalities,
   choreographyDancers,
   choreographies,
   dancers,
-  user,
 } from "@/db/schema";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createPrice } from "@/lib/prices/repository.server";
@@ -30,8 +28,17 @@ import {
   toAdminDancerParticipationSearchValue,
   toAdminDancerStatusSearchValue,
 } from "@/lib/admin/dancers/dancers.shared";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  createSignedInAdminRequest as createSignedInRequest,
+  expectThrownResponse,
+} from "@/lib/admin/test-support/db";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import {
+  createEventChoreographyFixture,
+  createEventFixtureDates,
+  createSavedEvent as createSavedEventFixture,
+  expectCreated,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import {
   AdministracionBailarinesRouteView,
   handle as bailarinesHandle,
@@ -471,7 +478,9 @@ describe.sequential("administracion/bailarines route", () => {
 
   test("scopes inscription loader data to the Evento activo and resolves estimated values", async () => {
     const activeEvent = await createSavedEvent();
-    const historicalEvent = await createSavedEvent();
+    const historicalEvent = await createInactiveEvent({
+      name: "Regional histórico 2026",
+    });
     const academy = await createAcademyUser({
       email: "inscripciones.detalle.academia@example.com",
       academyName: "Academia Inscripciones",
@@ -1716,38 +1725,6 @@ function buildListInitialEntry(
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
 }
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-function createRequestCookie(headers: Headers) {
-  return headers.get("set-cookie") ?? "";
-}
-
 function routeArgs(request: Request) {
   return {
     request,
@@ -1775,42 +1752,6 @@ function detailActionArgs(request: Request, dancerId: string) {
     context: {},
     url: new URL(request.url),
     pattern: "/administracion/bailarines/:dancerId",
-  };
-}
-
-async function createAcademyUser(input: {
-  email: string;
-  academyName: string;
-  contactName: string;
-  phone: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: input.academyName,
-      contactName: input.contactName,
-      phone: input.phone,
-    })
-    .returning();
-
-  return {
-    academy,
-    userId: signUpResult.response.user.id,
   };
 }
 
@@ -1850,37 +1791,16 @@ async function createDancer(input: {
 }
 
 async function createSavedEvent() {
-  const result = await createEvent({
-    name: "Regional 2026",
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture("Regional 2026", {
+    activate: true,
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
 }
 
 async function createInactiveEvent(input: { name: string }) {
-  const result = await createEvent({
-    name: input.name,
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture(input.name, {
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
 }
 
 async function linkDancerToEventChoreography(input: {
@@ -1890,47 +1810,13 @@ async function linkDancerToEventChoreography(input: {
   choreographyName: string;
   groupType?: "solo" | "duo" | "trio" | "grupal";
 }) {
-  const groupType = input.groupType ?? "solo";
-  const modality = await expectCreated(
-    createModality(input.eventId, {
-      name: `${input.choreographyName} Mod`,
-    }),
-  );
-  const block = await expectCreated(
-    createSchedule(input.eventId, {
-      name: `${input.choreographyName} Bloque`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-      modalityIds: [modality.id],
-    }),
-  );
-  const entry = await expectCreated(
-    createScheduleCapacity(block.id, {
-      groupType,
-      capacity: 10,
-    }),
-  );
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      eventId: input.eventId,
-      academyId: input.academyId,
-      name: input.choreographyName,
-      modalityId: modality.id,
-      groupType,
-      categoryCalculationMode: "oldest",
-      scheduleCapacityId: entry.id,
-    })
-    .returning();
-
-  await db.insert(choreographyDancers).values({
-    choreographyId: choreography.id,
-    dancerId: input.dancerId,
-    ageAtEventStart: 14,
+  return createEventChoreographyFixture({
+    eventId: input.eventId,
+    academyId: input.academyId,
+    name: input.choreographyName,
+    groupType: input.groupType,
+    dancerIds: [input.dancerId],
   });
-
-  return choreography;
 }
 
 async function createAdministrativeCorrectionCatalog(
@@ -2044,38 +1930,6 @@ async function createAdministrativeLinkedChoreography(input: {
     .returning();
 
   return choreography;
-}
-
-async function expectCreated<T extends { id: string }>(
-  resultPromise: Promise<
-    { ok: true; record: T } | { ok: false; error?: string }
-  >,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok) {
-    throw new Error(result.error ?? "Expected helper result to be ok.");
-  }
-
-  return result.record;
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  expectedStatus: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-
-    const response = error as Response;
-
-    expect(response.status).toBe(expectedStatus);
-    return response;
-  }
-
-  throw new Error("Expected a Response to be thrown.");
 }
 
 function createPostRequest(

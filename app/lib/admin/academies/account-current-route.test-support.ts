@@ -1,13 +1,22 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { expect } from "vitest";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
+import {
+  academies,
+  academyEventChoreographyInvoices,
+  academyEventPayments,
+  user,
+} from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  createChoreographyRecord,
+  createEventCatalog,
+} from "@/features/portal/choreographies/test-support/db";
 import {
   AdministracionAcademiasRouteView,
   loader as academiesLoader,
@@ -23,11 +32,6 @@ import {
   AdministracionPagosRouteView,
   loader as financePaymentsLoader,
 } from "@/routes/administracion.pagos";
-import {
-  AdministracionPagosNuevoRouteView,
-  action as paymentCreateAction,
-  loader as paymentCreateLoader,
-} from "@/routes/administracion.pagos_.nuevo";
 import {
   AdministracionFinanzasRouteView,
   loader as financeAccountsLoader,
@@ -465,6 +469,60 @@ export async function issueDepositInvoiceForTest(input: {
   });
 }
 
+export async function createAccountCurrentInvoicePaymentFixture(input: {
+  academyName: string;
+  choreographyName: string;
+  email: string;
+  event: Awaited<ReturnType<typeof createSavedEvent>>;
+  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
+  invoiceIssueDate?: string;
+  paymentAmount?: string;
+  paymentDate?: string;
+}) {
+  const academy = await createAcademyUser({
+    email: input.email,
+    academyName: input.academyName,
+  });
+  const catalog = input.catalog ?? (await createEventCatalog(input.event.id));
+  const choreography = await createChoreographyRecord({
+    academyId: academy.academy.id,
+    categoryId: catalog.categoryWithLevel.id,
+    createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+    eventId: input.event.id,
+    experienceLevelId: catalog.level.id,
+    modalityId: catalog.modality.id,
+    name: input.choreographyName,
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+
+  await registerPaymentForTest({
+    academyId: academy.academy.id,
+    amount: input.paymentAmount ?? "3000",
+    eventId: input.event.id,
+    paymentDate: input.paymentDate ?? "2026-03-15",
+  });
+  await issueDepositInvoiceForTest({
+    academyId: academy.academy.id,
+    choreographyIds: [choreography.id],
+    eventId: input.event.id,
+    issueDate: input.invoiceIssueDate ?? "2026-03-20",
+  });
+
+  const payment = await db.query.academyEventPayments.findFirst({
+    where: eq(academyEventPayments.academyId, academy.academy.id),
+  });
+  const invoice = await db.query.academyEventChoreographyInvoices.findFirst({
+    where: eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
+  });
+
+  if (!payment || !invoice) {
+    throw new Error("Expected payment and invoice fixtures to exist.");
+  }
+
+  return { academy, catalog, choreography, invoice, payment };
+}
+
 export function renderAcademiesRoute(input: {
   loaderData: Awaited<ReturnType<typeof academiesLoader>>;
 }) {
@@ -484,18 +542,25 @@ export function renderAcademiesRoute(input: {
 export function renderAccountCurrentRoute(input: {
   loaderData: Awaited<ReturnType<typeof accountCurrentLoader>>;
 }) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
+  const routePath = `/administracion/academias/${input.loaderData.academy.id}`;
+  const router = createMemoryRouter(
+    [
       {
-        initialEntries: [
-          `/administracion/academias/${input.loaderData.academy.id}`,
-        ],
+        path: "/administracion/academias/:academyId",
+        element: createElement(AdministracionAcademiaCuentaCorrienteRouteView, {
+          loaderData: input.loaderData,
+        }),
       },
-      createElement(AdministracionAcademiaCuentaCorrienteRouteView, {
-        loaderData: input.loaderData,
-      }),
-    ),
+    ],
+    {
+      initialEntries: [routePath],
+    },
+  );
+
+  return renderToStaticMarkup(
+    createElement(RouterProvider, {
+      router,
+    }),
   );
 }
 
@@ -525,24 +590,6 @@ export function renderFinancePaymentsRoute(input: {
         initialEntries: ["/administracion/pagos"],
       },
       createElement(AdministracionPagosRouteView, {
-        loaderData: input.loaderData,
-      }),
-    ),
-  );
-}
-
-export function renderPaymentCreateRoute(input: {
-  actionData?: Awaited<ReturnType<typeof paymentCreateAction>>;
-  loaderData: Awaited<ReturnType<typeof paymentCreateLoader>>;
-}) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: ["/administracion/pagos/nuevo"],
-      },
-      createElement(AdministracionPagosNuevoRouteView, {
-        actionData: input.actionData,
         loaderData: input.loaderData,
       }),
     ),

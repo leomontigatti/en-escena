@@ -1,7 +1,6 @@
 import type {
   EventBasesDeleteResult,
   EventBasesMutationResult,
-  ScheduleCapacityInput,
 } from "@/lib/schedules/repository.server";
 
 export type ActionData = {
@@ -71,32 +70,12 @@ export type EventBasesActionValues =
   | ScheduleActionValues
   | ScheduleCapacityActionValues;
 
-export type EventBasesActionInput = {
+export type EventBasesActionBaseInput = {
   eventId: string;
   confirmDelete: boolean;
   confirmDeletion: string;
   id: string;
   intent: string;
-  capacity: number;
-  scheduleId: string;
-  priceScheduleId: string | null;
-  paymentDeadline: string;
-  minAge: number;
-  maxAge: number;
-  groupTypes: string[];
-  groupType: string;
-  isSpecialPrice: boolean;
-  modalityIds: string[];
-  modalityId: string;
-  name: string;
-  experienceLevels: string[];
-  scheduledDate: string;
-  startTime: string;
-  totalCapacity: number;
-  amount: number;
-  scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
-  submodalities: NameActionValuesWithId[];
-  submodalitiesMode: string;
 };
 
 export type EventBasesActionResult =
@@ -157,7 +136,7 @@ export function buildParentRecordActionScope(
 }
 
 export function buildDefaultActionErrorScope(
-  input: EventBasesActionInput,
+  input: EventBasesActionBaseInput,
 ): ActionErrorScope | null {
   if (!input.intent) {
     return null;

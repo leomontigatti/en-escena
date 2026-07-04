@@ -74,7 +74,3 @@ export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
   searchParamName?: string;
   sortParamName?: string;
 };
-
-export type DataTableProps<TData> =
-  | (ClientDataTableProps<TData> & { mode: "client" })
-  | (ServerDataTableProps<TData> & { mode: "server" });

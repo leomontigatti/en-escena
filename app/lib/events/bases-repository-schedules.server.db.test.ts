@@ -10,7 +10,9 @@ import {
   updateScheduleWithEntries,
 } from "@/lib/schedules/repository.server";
 import {
+  createEventModalitiesFixture,
   createSavedEvent,
+  createSavedSchedule,
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
@@ -72,23 +74,12 @@ describe("Bases del evento repository", () => {
   });
 
   test("lists cronogramas with normalized names and allows duplicates inside one evento", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const urbanas = await expectCreated(
-      createModality(event.id, { name: "Danzas urbanas" }),
-    );
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
 
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: " sábado mañana ",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 20,
-        modalityIds: [jazz.id, urbanas.id],
-      }),
-    );
+    const block = await createSavedSchedule(event.id, {
+      name: " sábado mañana ",
+      modalityIds: [jazz.id, urbanas.id],
+    });
     if (!("name" in block)) {
       throw new Error("Expected created schedule to include a name.");
     }
@@ -116,22 +107,10 @@ describe("Bases del evento repository", () => {
   });
 
   test("updates cronogramas names while blocking structural edits with dependencies", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const urbanas = await expectCreated(
-      createModality(event.id, { name: "Danzas urbanas" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 20,
-        modalityIds: [jazz.id, urbanas.id],
-      }),
-    );
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id, urbanas.id],
+    });
 
     await expect(
       updateSchedule(
@@ -175,13 +154,7 @@ describe("Bases del evento repository", () => {
   });
 
   test("manages cronogramas together with cupos inline through the shared Bases del evento listing", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const urbanas = await expectCreated(
-      createModality(event.id, { name: "Danzas urbanas" }),
-    );
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
 
     const schedule = await expectCreated(
       createScheduleWithEntries(event.id, {

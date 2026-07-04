@@ -215,16 +215,39 @@ async function validatePriceInput(
   input: PriceInput,
   options: { exceptId?: string } = {},
 ): Promise<{ ok: true; input: ValidPriceInput } | EventBaseFailure> {
+  const parsedInput = parsePriceInput(input);
+
+  if (!parsedInput.ok) {
+    return invalidPriceInput(parsedInput.fieldErrors);
+  }
+
+  const scheduleError = await validatePriceSchedule(
+    eventId,
+    parsedInput.input.scheduleId,
+  );
+
+  if (scheduleError) {
+    return invalidPriceInput({ scheduleId: scheduleError });
+  }
+
+  if (await findDuplicatePrice(eventId, parsedInput.input, options.exceptId)) {
+    return duplicatePriceInput(parsedInput.input.scheduleId);
+  }
+
+  return { ok: true, input: parsedInput.input };
+}
+
+function parsePriceInput(input: PriceInput):
+  | { ok: true; input: ValidPriceInput }
+  | {
+      ok: false;
+      fieldErrors: Record<string, string>;
+    } {
   const fieldErrors: Record<string, string> = {};
   const name = normalizeNullableName(input.name ?? "");
   const paymentDeadline = input.paymentDeadline.trim();
   const scheduleId = input.scheduleId?.trim() || null;
-
-  if (input.groupType.trim().length === 0) {
-    fieldErrors.groupType = "Este campo es obligatorio.";
-  } else if (!isGroupType(input.groupType)) {
-    fieldErrors.groupType = "Elegí un tipo de grupo.";
-  }
+  const groupType = readPriceGroupType(input.groupType, fieldErrors);
 
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
     fieldErrors.amount = "Ingresá un monto mayor a cero.";
@@ -234,56 +257,82 @@ async function validatePriceInput(
     fieldErrors.paymentDeadline = "Este campo es obligatorio.";
   }
 
-  if (scheduleId) {
-    const schedule = await db.query.schedules.findFirst({
-      columns: { id: true },
-      where: and(eq(schedules.id, scheduleId), eq(schedules.eventId, eventId)),
-    });
-
-    if (!schedule) {
-      fieldErrors.scheduleId = "Elegí un cronograma del evento activo.";
-    }
+  if (Object.keys(fieldErrors).length > 0 || !groupType) {
+    return { ok: false, fieldErrors };
   }
 
-  const fieldErrorKeys = Object.keys(fieldErrors);
-
-  if (fieldErrorKeys.length > 0 || !isGroupType(input.groupType)) {
-    const onlyScheduleError =
-      fieldErrorKeys.length === 1 && fieldErrorKeys[0] === "scheduleId";
-
-    return {
-      ok: false,
-      code: "invalid-event-bases",
-      error: onlyScheduleError
-        ? "Elegí un cronograma del evento activo."
-        : "Revisá los datos del precio.",
-      fieldErrors,
-    };
-  }
-
-  const groupType = input.groupType;
-  const validInput = {
-    name: name ?? priceDefaultNames[groupType],
-    groupType,
-    amount: input.amount,
-    paymentDeadline,
-    scheduleId,
+  return {
+    ok: true,
+    input: {
+      name: name ?? priceDefaultNames[groupType],
+      groupType,
+      amount: input.amount,
+      paymentDeadline,
+      scheduleId,
+    },
   };
+}
 
-  if (await findDuplicatePrice(eventId, validInput, options.exceptId)) {
-    return {
-      ok: false,
-      code: "duplicate-name",
-      error: scheduleId
-        ? "Ya existe un precio para ese tipo de grupo y cronograma."
-        : "Ya existe un precio general para ese tipo de grupo.",
-      fieldErrors: {
-        groupType: "Revisá el tipo de grupo del precio.",
-      },
-    };
+function readPriceGroupType(
+  groupType: string,
+  fieldErrors: Record<string, string>,
+) {
+  if (groupType.trim().length === 0) {
+    fieldErrors.groupType = "Este campo es obligatorio.";
+    return null;
   }
 
-  return { ok: true, input: validInput };
+  if (!isGroupType(groupType)) {
+    fieldErrors.groupType = "Elegí un tipo de grupo.";
+    return null;
+  }
+
+  return groupType;
+}
+
+async function validatePriceSchedule(
+  eventId: string,
+  scheduleId: string | null,
+) {
+  if (!scheduleId) {
+    return null;
+  }
+
+  const schedule = await db.query.schedules.findFirst({
+    columns: { id: true },
+    where: and(eq(schedules.id, scheduleId), eq(schedules.eventId, eventId)),
+  });
+
+  return schedule ? null : "Elegí un cronograma del evento activo.";
+}
+
+function invalidPriceInput(
+  fieldErrors: Record<string, string>,
+): EventBaseFailure {
+  const onlyScheduleError =
+    Object.keys(fieldErrors).length === 1 && fieldErrors.scheduleId;
+
+  return {
+    ok: false,
+    code: "invalid-event-bases",
+    error: onlyScheduleError
+      ? "Elegí un cronograma del evento activo."
+      : "Revisá los datos del precio.",
+    fieldErrors,
+  };
+}
+
+function duplicatePriceInput(scheduleId: string | null): EventBaseFailure {
+  return {
+    ok: false,
+    code: "duplicate-name",
+    error: scheduleId
+      ? "Ya existe un precio para ese tipo de grupo y cronograma."
+      : "Ya existe un precio general para ese tipo de grupo.",
+    fieldErrors: {
+      groupType: "Revisá el tipo de grupo del precio.",
+    },
+  };
 }
 
 async function findDuplicatePrice(

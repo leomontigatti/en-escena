@@ -43,8 +43,6 @@ export async function action({ request, params }: Route.ActionArgs) {
   return await handleAdminPaymentDetailAction(request, params.paymentId ?? "");
 }
 
-export { AdministracionPagoDetalleRouteView };
-
 export default function AdministracionPagoDetalleRoute({
   loaderData,
 }: AdministracionPagoDetalleRouteProps) {

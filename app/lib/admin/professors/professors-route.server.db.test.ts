@@ -6,24 +6,24 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  academies,
   administrativeAuditEntries,
   choreographyProfessors,
-  choreographies,
   professors,
-  user,
 } from "@/db/schema";
-import { createModality } from "@/lib/modalities/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
 import {
   toAdminProfessorParticipationSearchValue,
   toAdminProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import {
+  createSignedInAdminRequest as createSignedInRequest,
+  expectThrownResponse,
+} from "@/lib/admin/test-support/db";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import {
+  createEventChoreographyFixture,
+  createEventFixtureDates,
+  createSavedEvent as createSavedEventFixture,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import {
   AdministracionProfesoresRouteView,
   handle as profesoresHandle,
@@ -1141,38 +1141,6 @@ function getProfessorFilterValues(
   return values;
 }
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-function createRequestCookie(headers: Headers) {
-  return headers.get("set-cookie") ?? "";
-}
-
 function createPostRequest(
   requestUrl: string,
   cookie: string,
@@ -1221,42 +1189,6 @@ function detailActionArgs(request: Request, professorId: string) {
   };
 }
 
-async function createAcademyUser(input: {
-  email: string;
-  academyName: string;
-  contactName: string;
-  phone: string;
-}) {
-  const signUpResult = await createLocalAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: input.academyName,
-      contactName: input.contactName,
-      phone: input.phone,
-    })
-    .returning();
-
-  return {
-    academy,
-    userId: signUpResult.response.user.id,
-  };
-}
-
 async function createProfessor(input: {
   academyId: string;
   firstName: string;
@@ -1285,37 +1217,16 @@ async function createProfessor(input: {
 }
 
 async function createSavedEvent() {
-  const result = await createEvent({
-    name: "Regional 2026",
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture("Regional 2026", {
+    activate: true,
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
 }
 
 async function createInactiveEvent(input: { name: string }) {
-  const result = await createEvent({
-    name: input.name,
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
+  return createSavedEventFixture(input.name, {
+    dates: createEventFixtureDates(2026),
   });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
 }
 
 async function linkProfessorToEventChoreography(input: {
@@ -1324,76 +1235,10 @@ async function linkProfessorToEventChoreography(input: {
   professorId: string;
   choreographyName: string;
 }) {
-  const modality = await expectCreated(
-    createModality(input.eventId, {
-      name: `${input.choreographyName} Mod`,
-    }),
-  );
-  const block = await expectCreated(
-    createSchedule(input.eventId, {
-      name: `${input.choreographyName} Bloque`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-      modalityIds: [modality.id],
-    }),
-  );
-  const entry = await expectCreated(
-    createScheduleCapacity(block.id, {
-      groupType: "solo",
-      capacity: 10,
-    }),
-  );
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      eventId: input.eventId,
-      academyId: input.academyId,
-      name: input.choreographyName,
-      modalityId: modality.id,
-      groupType: "solo",
-      categoryCalculationMode: "oldest",
-      scheduleCapacityId: entry.id,
-    })
-    .returning();
-
-  await db.insert(choreographyProfessors).values({
-    choreographyId: choreography.id,
-    professorId: input.professorId,
+  return createEventChoreographyFixture({
+    eventId: input.eventId,
+    academyId: input.academyId,
+    name: input.choreographyName,
+    professorIds: [input.professorId],
   });
-
-  return choreography;
-}
-
-async function expectCreated<T extends { id: string }>(
-  resultPromise: Promise<
-    { ok: true; record: T } | { ok: false; error?: string }
-  >,
-) {
-  const result = await resultPromise;
-
-  if (!result.ok) {
-    throw new Error(result.error ?? "Expected helper result to be ok.");
-  }
-
-  return result.record;
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  expectedStatus: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-
-    const response = error as Response;
-
-    expect(response.status).toBe(expectedStatus);
-
-    return response;
-  }
-
-  throw new Error(`Expected a thrown response with status ${expectedStatus}.`);
 }

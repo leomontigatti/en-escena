@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   categories,
   categoryModalities,
   dancers,
@@ -13,10 +12,9 @@ import {
   schedules,
   scheduleCapacities,
   submodalities,
-  user,
 } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 export const OPEN_REGISTRATION_ENDS_AT = date("2099-04-30T12:00:00Z");
 
@@ -27,32 +25,15 @@ export async function createAcademySession({
   academyName: string;
   email: string;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const academyUser = await createAcademyUser({
+    academyName,
+    contactName: "Contacto",
     email,
-    name: email,
-    password: "password-segura",
+    phone: "11 1234-5678",
   });
 
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: academyName,
-      contactName: "Contacto",
-      phone: "11 1234-5678",
-    })
-    .returning();
-
   return {
-    academyId: academy.id,
+    academyId: academyUser.academyId,
   };
 }
 

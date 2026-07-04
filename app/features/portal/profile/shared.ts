@@ -31,5 +31,3 @@ export type PortalProfileActionData =
       fieldErrors: AcademyProfileFieldErrors;
       values: AcademyProfileFormValues;
     };
-
-export const emptyAcademyProfileFieldErrors: AcademyProfileFieldErrors = {};

@@ -11,7 +11,11 @@ import {
   accessSession,
   user,
 } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import {
+  createLocalAccessRequestCookie,
+  createLocalAccessUser,
+} from "@/lib/auth/access-test-auth.server";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   loader as listLoader,
   AdministracionUsuariosRouteView,
@@ -786,7 +790,7 @@ async function createSignedInRequest(input: {
     userId: signUpResult.response.user.id,
     request: new Request(input.requestUrl, {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createLocalAccessRequestCookie(signUpResult.headers),
       },
     }),
   };
@@ -830,7 +834,7 @@ async function createAcademyUser(input: {
     academy,
     request: new Request("http://localhost/portal", {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createLocalAccessRequestCookie(signUpResult.headers),
       },
     }),
     userId: signUpResult.response.user.id,
@@ -900,29 +904,4 @@ function submitSignInAction(identifier: string, password: string) {
     params: {},
     context: {},
   });
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }

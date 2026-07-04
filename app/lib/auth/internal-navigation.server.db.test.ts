@@ -12,6 +12,7 @@ import {
   requireJudgePanelUser,
 } from "@/lib/auth/internal-navigation.server";
 import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   action as signInAction,
   loader as signInLoader,
@@ -462,19 +463,4 @@ function createRequestCookie(headers: Headers) {
   }
 
   return `sb-access-token=${sessionCookie[1]}`;
-}
-
-async function expectThrownResponse(
-  resultPromise: Promise<unknown>,
-  status: number,
-) {
-  try {
-    await resultPromise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(Response);
-    expect((error as Response).status).toBe(status);
-    return error as Response;
-  }
-
-  throw new Error("Expected a response to be thrown.");
 }
