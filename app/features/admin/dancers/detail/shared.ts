@@ -67,6 +67,16 @@ export type DancerStatusAction = {
   label: string;
 };
 
+export type DancerDetailViewState = {
+  birthDateMayNeedRecalculation: boolean;
+  canVerifyIdentity: boolean;
+  identificationAlert: string | null;
+  identificationAlertVariant: "info" | "warning";
+  isEditing: boolean;
+  shouldConfirmSave: boolean;
+  statusAction: DancerStatusAction;
+};
+
 export type DancerEditFormValues = AdministrativeDancerUpdateInput;
 
 export function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
@@ -269,7 +279,7 @@ export function getDancerStatusValues(
   };
 }
 
-export function getDancerStatusAction(active: boolean): DancerStatusAction {
+function getDancerStatusAction(active: boolean): DancerStatusAction {
   return active
     ? {
         description:
@@ -349,7 +359,7 @@ export function formatDancerDocumentType(
   }
 }
 
-export function hasDancerVerificationMinimumData(
+function hasDancerVerificationMinimumData(
   dancer: DancerDetailLoaderData["dancer"],
 ) {
   return Boolean(
@@ -361,7 +371,48 @@ export function hasDancerVerificationMinimumData(
   );
 }
 
-export function getIdentificationAlert(
+export function buildDancerDetailViewState({
+  actionData,
+  canEdit,
+  dancer,
+  requestedEditMode,
+  watchedBirthDate,
+}: {
+  actionData: DancerActionError | undefined;
+  canEdit: boolean;
+  dancer: DancerDetailLoaderData["dancer"];
+  requestedEditMode: boolean;
+  watchedBirthDate: string;
+}): DancerDetailViewState {
+  const isEditing = canEdit && (requestedEditMode || Boolean(actionData));
+  const statusAction = getDancerStatusAction(dancer.active);
+  const canVerifyIdentity =
+    canEdit &&
+    hasDancerVerificationMinimumData(dancer) &&
+    dancer.identificationStatus !== "verified";
+  const identificationAlert = getIdentificationAlert(
+    dancer.identificationStatus,
+  );
+  const identificationAlertVariant =
+    dancer.identificationStatus === "unverified" ? "info" : "warning";
+  const birthDateMayNeedRecalculation =
+    isEditing &&
+    dancer.participatedInAnyEvent &&
+    watchedBirthDate !== dancer.birthDate;
+
+  return {
+    birthDateMayNeedRecalculation,
+    canVerifyIdentity,
+    identificationAlert,
+    identificationAlertVariant,
+    isEditing,
+    shouldConfirmSave:
+      dancer.correctionReasonRequired || birthDateMayNeedRecalculation,
+    statusAction,
+  };
+}
+
+function getIdentificationAlert(
   identificationStatus: DancerDetailLoaderData["dancer"]["identificationStatus"],
 ) {
   switch (identificationStatus) {
