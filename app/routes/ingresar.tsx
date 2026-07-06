@@ -27,14 +27,13 @@ import {
   authToastIds,
   loginNotices,
   logoutSuccessNotice,
-  readFormValue,
   recoverySuccessNotice,
   requiredTextField,
   type LoginNotice,
 } from "@/lib/auth/access-form.shared";
 import {
-  buildPublicAccessFormError,
-  loadPublicAccessRoute,
+  isPublicAccessFormSubmitting,
+  parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
 import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
 import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
@@ -65,51 +64,42 @@ export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
 ];
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return await loadPublicAccessRoute(request);
-}
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
-  const values = {
-    identifier: readFormValue(formData.get("identifier")),
-    password: "",
-  } satisfies SignInValues;
-  const parsed = signInSchema.safeParse({
-    identifier: formData.get("identifier"),
-    password: formData.get("password"),
+  const formResult = await parsePublicAccessForm({
+    request,
+    schema: signInSchema,
+    fieldNames: signInFields,
+    preservedValueFields: ["identifier"],
   });
 
-  if (!parsed.success) {
-    return buildPublicAccessFormError({
-      error: parsed.error,
-      fieldNames: signInFields,
-      values,
-    });
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   try {
     const credentialUser = await findCredentialUserForIdentifier(
-      parsed.data.identifier,
+      formResult.data.identifier,
     );
     const accessEmail =
-      credentialUser?.email ?? getEmailIdentifier(parsed.data.identifier);
+      credentialUser?.email ?? getEmailIdentifier(formResult.data.identifier);
 
     if (!accessEmail) {
-      return genericLoginError(values);
+      return genericLoginError(formResult.values);
     }
 
     if (credentialUser?.match === "email" && !credentialUser.emailVerified) {
-      return genericLoginError(values);
+      return genericLoginError(formResult.values);
     }
 
     if (credentialUser?.suspended) {
-      return genericLoginError(values);
+      return genericLoginError(formResult.values);
     }
 
     const result = await accessAuthProvider.signInCredentialUser({
       email: accessEmail,
-      password: parsed.data.password,
+      password: formResult.data.password,
       request,
     });
 
@@ -129,7 +119,7 @@ export async function action({ request }: Route.ActionArgs) {
       status: "error" as const,
       message: "No pudimos ingresar con esos datos.",
       fieldErrors: getEmptyFieldErrors<SignInField>(),
-      values,
+      values: formResult.values,
     };
   }
 }
@@ -165,9 +155,7 @@ export default function IngresarRoute() {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const loginNotice = getLoginNotice(searchParams);
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formMethod?.toLowerCase() === "post";
+  const isSubmitting = isPublicAccessFormSubmitting(navigation);
   const form = useAccessForm({
     schema: signInSchema,
     values: actionData?.values ?? emptySignInValues,

@@ -16,13 +16,13 @@ import {
   emailField,
   passwordField,
   passwordMismatchMessage,
-  readFormValue,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
 import {
-  buildPublicAccessFormError,
   buildPublicAccessFormSuccess,
-  loadPublicAccessRoute,
+  getPublicAccessResultToastId,
+  isPublicAccessFormSubmitting,
+  parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -56,41 +56,30 @@ export const meta: Route.MetaFunction = () => [
   { title: "Registro de academia | En Escena" },
 ];
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return await loadPublicAccessRoute(request);
-}
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
-  const values = {
-    email: readFormValue(formData.get("email")),
-    password: "",
-    confirmPassword: "",
-  } satisfies RegistrationValues;
-  const parsed = requestRegistrationSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
+  const formResult = await parsePublicAccessForm({
+    request,
+    schema: requestRegistrationSchema,
+    fieldNames: registrationFields,
+    preservedValueFields: ["email"],
   });
 
-  if (!parsed.success) {
-    return buildPublicAccessFormError({
-      error: parsed.error,
-      fieldNames: registrationFields,
-      values,
-    });
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   const result = await startAcademyRegistration({
-    email: parsed.data.email,
-    password: parsed.data.password,
+    email: formResult.data.email,
+    password: formResult.data.password,
     request,
     requestUrl: request.url,
   });
 
   return buildPublicAccessFormSuccess<RegistrationField, RegistrationValues>({
     message: result.message,
-    values,
+    values: formResult.values,
     headers: result.headers,
   });
 }
@@ -98,16 +87,18 @@ export async function action({ request }: Route.ActionArgs) {
 export default function RegistroRoute() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formMethod?.toLowerCase() === "post";
+  const isSubmitting = isPublicAccessFormSubmitting(navigation);
   const form = useAccessForm({
     schema: requestRegistrationSchema,
     values: actionData?.values ?? emptyRegistrationValues,
   });
 
   useServerActionToast(actionData, {
-    toastId: getRegistrationToastId(actionData?.status),
+    toastId: getPublicAccessResultToastId({
+      status: actionData?.status,
+      successToastId: authToastIds.registrationResult,
+      errorToastId: authToastIds.registrationError,
+    }),
   });
 
   return (
@@ -170,12 +161,4 @@ export default function RegistroRoute() {
       </p>
     </AccessPage>
   );
-}
-
-function getRegistrationToastId(status: "success" | "error" | undefined) {
-  if (status === "success") {
-    return authToastIds.registrationResult;
-  }
-
-  return authToastIds.registrationError;
 }

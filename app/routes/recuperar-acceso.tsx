@@ -11,15 +11,12 @@ import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
+import { authToastIds, emailField } from "@/lib/auth/access-form.shared";
 import {
-  authToastIds,
-  emailField,
-  readFormValue,
-} from "@/lib/auth/access-form.shared";
-import {
-  buildPublicAccessFormError,
   buildPublicAccessFormSuccess,
-  loadPublicAccessRoute,
+  getPublicAccessResultToastId,
+  isPublicAccessFormSubmitting,
+  parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -42,36 +39,28 @@ export const meta: Route.MetaFunction = () => [
   { title: "Recuperar acceso | En Escena" },
 ];
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return await loadPublicAccessRoute(request);
-}
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
-  const values = {
-    email: readFormValue(formData.get("email")),
-  } satisfies RecoveryValues;
-  const parsed = requestRecoverySchema.safeParse({
-    email: formData.get("email"),
+  const formResult = await parsePublicAccessForm({
+    request,
+    schema: requestRecoverySchema,
+    fieldNames: recoveryFields,
   });
 
-  if (!parsed.success) {
-    return buildPublicAccessFormError({
-      error: parsed.error,
-      fieldNames: recoveryFields,
-      values,
-    });
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   const result = await requestAccessRecoveryEmail({
-    email: parsed.data.email,
+    email: formResult.data.email,
     requestUrl: request.url,
     request,
   });
 
   return buildPublicAccessFormSuccess<RecoveryField, RecoveryValues>({
     message: result.message,
-    values,
+    values: formResult.values,
     headers: result.headers,
   });
 }
@@ -79,16 +68,18 @@ export async function action({ request }: Route.ActionArgs) {
 export default function RecuperarAccesoRoute() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formMethod?.toLowerCase() === "post";
+  const isSubmitting = isPublicAccessFormSubmitting(navigation);
   const form = useAccessForm({
     schema: requestRecoverySchema,
     values: actionData?.values ?? emptyRecoveryValues,
   });
 
   useServerActionToast(actionData, {
-    toastId: getRecoveryToastId(actionData?.status),
+    toastId: getPublicAccessResultToastId({
+      status: actionData?.status,
+      successToastId: authToastIds.recoveryResult,
+      errorToastId: authToastIds.recoveryError,
+    }),
   });
 
   return (
@@ -135,12 +126,4 @@ export default function RecuperarAccesoRoute() {
       </p>
     </AccessPage>
   );
-}
-
-function getRecoveryToastId(status: "success" | "error" | undefined) {
-  if (status === "success") {
-    return authToastIds.recoveryResult;
-  }
-
-  return authToastIds.recoveryError;
 }
