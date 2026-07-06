@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, redirect } from "react-router";
+import { expect } from "vitest";
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
 import { CategoryCreateView } from "@/features/admin/categories/create/view";
@@ -22,7 +23,7 @@ import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedule
 import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
-import { events } from "@/db/schema";
+import { events, schedules, scheduleCapacities } from "@/db/schema";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -30,6 +31,7 @@ import {
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { createModality } from "@/lib/modalities/repository.server";
 import {
   getEventBases,
   type PriceListItem,
@@ -62,6 +64,7 @@ type CategoryRow = Omit<typeof categories.$inferSelect, "experienceLevels"> & {
   modalityIds: string[];
   experienceLevels: string[];
 };
+type ScheduleCapacityRow = typeof scheduleCapacities.$inferSelect;
 
 export type EventBasesLoaderData = {
   selectedEventId: string | null;
@@ -450,6 +453,190 @@ export function renderScheduleDetailErrorRoute(
 export { expectCreated };
 export { fixedExperienceLevel };
 
+type ScheduleCapacityDraft = {
+  id?: string;
+  groupType: string;
+  capacity: string;
+};
+
+type ScheduleDraft = {
+  name: string;
+  scheduledDate: string;
+  startTime: string;
+  totalCapacity: string;
+  modalityIds: string[];
+  scheduleCapacities?: ScheduleCapacityDraft[];
+};
+
+type SignedInAdminRequestInput = Parameters<typeof createSignedInRequest>[0];
+
+export async function createEventScheduleAdminFixture(
+  modalityNames: string[] = ["Jazz", "Danzas urbanas"],
+) {
+  const event = await createSavedEvent("Regional 2026");
+  const createdModalities: ModalityRow[] = await Promise.all(
+    modalityNames.map(async (name) => {
+      const result = await createModality(event.id, { name });
+
+      if (!result.ok || !result.record || !("eventId" in result.record)) {
+        throw new Error("Expected schedule modality fixture to be created.");
+      }
+
+      return result.record;
+    }),
+  );
+
+  return {
+    event,
+    modalities: createdModalities,
+    modalityIds: createdModalities.map((modality) => modality.id),
+  };
+}
+
+export function buildScheduleDraft(
+  overrides: Partial<ScheduleDraft> = {},
+): ScheduleDraft {
+  return {
+    name: "Sábado mañana",
+    scheduledDate: "2026-05-02",
+    startTime: "09:00",
+    totalCapacity: "24",
+    modalityIds: [],
+    scheduleCapacities: [],
+    ...overrides,
+  };
+}
+
+export function buildScheduleCapacityDraft(
+  overrides: Partial<ScheduleCapacityDraft> = {},
+): ScheduleCapacityDraft {
+  return {
+    groupType: "solo",
+    capacity: "8",
+    ...overrides,
+  };
+}
+
+export function formDataWithSchedule(
+  intent: string,
+  schedule: ScheduleDraft,
+): FormData {
+  return formData({
+    intent,
+    name: schedule.name,
+    scheduledDate: schedule.scheduledDate,
+    startTime: schedule.startTime,
+    totalCapacity: schedule.totalCapacity,
+    modalityIds: schedule.modalityIds,
+    ...serializeScheduleCapacities(schedule.scheduleCapacities ?? []),
+  });
+}
+
+export function formDataWithScheduleCapacity(
+  intent: string,
+  scheduleId: string,
+  capacity: ScheduleCapacityDraft,
+): FormData {
+  return formData({
+    intent,
+    scheduleId,
+    id: capacity.id ?? "",
+    groupType: capacity.groupType,
+    capacity: capacity.capacity,
+  });
+}
+
+export async function createScheduleAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & {
+    intent: "create-schedule" | "update-schedule";
+    schedule: ScheduleDraft;
+    scheduleId?: string;
+  },
+) {
+  const body =
+    input.intent === "update-schedule"
+      ? appendScheduleId(
+          formDataWithSchedule(input.intent, input.schedule),
+          input.scheduleId ?? "",
+        )
+      : formDataWithSchedule(input.intent, input.schedule);
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function createScheduleCapacityAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & {
+    intent:
+      | "create-schedule-capacity"
+      | "update-schedule-capacity"
+      | "delete-schedule-capacity";
+    scheduleId: string;
+    scheduleCapacity?: ScheduleCapacityDraft;
+    scheduleCapacityId?: string;
+  },
+) {
+  const body =
+    input.intent === "delete-schedule-capacity"
+      ? formData({
+          intent: input.intent,
+          id: input.scheduleCapacityId ?? "",
+        })
+      : formDataWithScheduleCapacity(
+          input.intent,
+          input.scheduleId,
+          input.scheduleCapacity ?? buildScheduleCapacityDraft(),
+        );
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function createDeleteScheduleAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & { scheduleId: string },
+) {
+  return createSignedInRequest({
+    ...input,
+    body: formData({
+      intent: "delete-schedule",
+      id: input.scheduleId,
+    }),
+  });
+}
+
+export async function findSavedScheduleByName(name: string) {
+  return db.query.schedules.findFirst({
+    where: eq(schedules.name, name),
+  });
+}
+
+export async function findSavedScheduleById(scheduleId: string) {
+  return db.query.schedules.findFirst({
+    where: eq(schedules.id, scheduleId),
+  });
+}
+
+export async function listSavedScheduleCapacities(scheduleId: string) {
+  return db.query.scheduleCapacities.findMany({
+    where: eq(scheduleCapacities.scheduleId, scheduleId),
+  });
+}
+
+export function expectScheduleCapacityBreakdown(
+  entries: ScheduleCapacityRow[],
+  expected: Array<Pick<ScheduleCapacityRow, "groupType" | "capacity">>,
+) {
+  expect(entries).toEqual(
+    expect.arrayContaining(
+      expected.map((entry) => expect.objectContaining(entry)),
+    ),
+  );
+}
+
 async function readIntent(request: Request) {
   const formData = await request.clone().formData();
 
@@ -466,4 +653,26 @@ function isModalityIntent(intent: string) {
 
 function isScheduleIntent(intent: string) {
   return intent.endsWith("-schedule") || intent.endsWith("-schedule-capacity");
+}
+
+function serializeScheduleCapacities(
+  capacities: ScheduleCapacityDraft[],
+): Record<string, string> {
+  return Object.fromEntries(
+    capacities.flatMap((capacity, index) => {
+      const prefix = `scheduleCapacities.${index}`;
+
+      return [
+        ...(capacity.id ? [[`${prefix}.id`, capacity.id] as const] : []),
+        [`${prefix}.groupType`, capacity.groupType] as const,
+        [`${prefix}.capacity`, capacity.capacity] as const,
+      ];
+    }),
+  );
+}
+
+function appendScheduleId(form: FormData, scheduleId: string) {
+  form.set("id", scheduleId);
+
+  return form;
 }
