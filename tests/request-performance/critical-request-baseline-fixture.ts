@@ -4,7 +4,6 @@ import { db } from "@/db";
 import {
   categories,
   categoryModalities,
-  choreographies,
   choreographyDancers,
   choreographyProfessors,
   dancers,
@@ -21,6 +20,7 @@ import {
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createEvent, activateEvent } from "@/lib/events/management.server";
+import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 let nextIdentity = 0;
@@ -89,6 +89,7 @@ export async function seedBaselineFixture() {
     categoryId: catalog.categoryWithLevel.id,
     experienceLevelId: catalog.level.id,
     scheduleCapacityId: catalog.scheduleCapacity.id,
+    musicStorageKey: "music/base.mp3",
   });
   await db.insert(choreographyDancers).values({
     choreographyId: choreography.id,
@@ -386,38 +387,6 @@ async function createProfessor(
     .returning();
 
   return professor;
-}
-
-async function createChoreographyRecord(
-  overrides: Partial<typeof choreographies.$inferInsert> & {
-    academyId: string;
-    eventId: string;
-    name: string;
-    modalityId: string;
-    scheduleCapacityId: string;
-  },
-) {
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      academyId: overrides.academyId,
-      eventId: overrides.eventId,
-      name: overrides.name,
-      modalityId: overrides.modalityId,
-      submodalityId: overrides.submodalityId ?? null,
-      groupType: overrides.groupType ?? "solo",
-      categoryId: overrides.categoryId ?? null,
-      categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
-      categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
-      experienceLevelId: overrides.experienceLevelId ?? null,
-      scheduleCapacityId: overrides.scheduleCapacityId,
-      musicStorageKey: overrides.musicStorageKey ?? "music/base.mp3",
-      hasPresentation: overrides.hasPresentation ?? false,
-      hasActiveFinancialLink: overrides.hasActiveFinancialLink ?? false,
-    })
-    .returning();
-
-  return choreography;
 }
 
 function createRequestCookie(headers: Headers) {

@@ -30,7 +30,10 @@ import {
   handlePortalChoreographiesListAction,
   loadPortalChoreographiesList,
 } from "@/features/portal/choreographies/list/server";
-import { createEventCatalog } from "@/features/portal/choreographies/test-support/db";
+import {
+  createChoreographyRecord,
+  createEventCatalog,
+} from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademySession,
   createPortalPostRequest,
@@ -657,40 +660,6 @@ async function createProfessor(
     .returning();
 
   return professor;
-}
-
-async function createChoreographyRecord(
-  overrides: Partial<typeof choreographies.$inferInsert> & {
-    academyId: string;
-    eventId: string;
-    modalityId: string;
-    scheduleCapacityId: string;
-    name: string;
-  },
-) {
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      academyId: overrides.academyId,
-      eventId: overrides.eventId,
-      name: overrides.name,
-      modalityId: overrides.modalityId,
-      submodalityId: overrides.submodalityId ?? null,
-      groupType: overrides.groupType ?? "solo",
-      categoryId: overrides.categoryId ?? null,
-      categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
-      categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
-      experienceLevelId: overrides.experienceLevelId ?? null,
-      scheduleCapacityId: overrides.scheduleCapacityId,
-      musicStorageKey: overrides.musicStorageKey ?? null,
-      hasPresentation: overrides.hasPresentation ?? false,
-      hasActiveFinancialLink: overrides.hasActiveFinancialLink ?? false,
-      createdAt: overrides.createdAt,
-      updatedAt: overrides.updatedAt,
-    })
-    .returning();
-
-  return choreography;
 }
 
 function date(value: string) {
