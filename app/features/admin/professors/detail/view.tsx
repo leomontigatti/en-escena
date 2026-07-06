@@ -1,29 +1,16 @@
-import { Check, Pencil, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 
-import {
-  AdminResourceFormCard,
-  AdminResourceLayout,
-} from "@/components/admin/resource-layout";
-import { AlertStack } from "@/components/shared/alert-stack";
-import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { FieldGroup } from "@/components/ui/field";
+import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ProfessorConfirmationDialog } from "./confirmation-dialog";
+import { useProfessorEditForm, useProfessorReasonForm } from "./form";
 import {
-  ProfessorActionsMenu,
-  ProfessorDocumentTypeField,
-  ProfessorTextField,
-  ReadOnlyField,
-  useProfessorEditForm,
-  useProfessorReasonForm,
-} from "./form";
+  ProfessorDetailAlerts,
+  ProfessorDetailCard,
+  ProfessorDetailHeaderActions,
+} from "./sections";
 import {
-  formatProfessorDocumentType,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
   getProfessorEditValues,
@@ -128,117 +115,32 @@ export function AdministracionProfesorDetalleRouteView({
       title="Detalle profesor"
       description="Revisá la información administrativa de este profesor."
       headerAction={
-        loaderData.canEdit ? (
-          <ProfessorActionsMenu
-            active={professor.active}
-            onSelect={openStatusDialog}
-          />
-        ) : null
+        <ProfessorDetailHeaderActions
+          active={professor.active}
+          canEdit={loaderData.canEdit}
+          onSelectIntent={openStatusDialog}
+        />
       }
     >
       <section className="flex flex-col gap-6">
-        <AlertStack>
-          {!professor.active ? (
-            <ArchivedPersonAlert
-              personLabel="profesor"
-              onReactivate={
-                loaderData.canEdit
-                  ? () => {
-                      openStatusDialog("reactivate-professor");
-                    }
-                  : undefined
-              }
-            />
-          ) : null}
-          {professor.isIncomplete ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                Faltan datos de identificación.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </AlertStack>
+        <ProfessorDetailAlerts
+          active={professor.active}
+          canEdit={loaderData.canEdit}
+          isIncomplete={professor.isIncomplete}
+          onSelectIntent={openStatusDialog}
+        />
 
-        <AdminResourceFormCard
-          footer={
-            <>
-              {isEditing ? (
-                <Button asChild variant="outline">
-                  <Link to={loaderData.cancelHref}>Cancelar</Link>
-                </Button>
-              ) : (
-                <Button asChild variant="outline">
-                  <Link to={loaderData.backToList}>Volver</Link>
-                </Button>
-              )}
-              {loaderData.canEdit ? (
-                isEditing ? (
-                  <Button type="submit" form="administracion-profesor-form">
-                    <Check aria-hidden="true" data-icon="inline-start" />
-                    Guardar
-                  </Button>
-                ) : (
-                  <Button asChild>
-                    <Link to={loaderData.editHref}>
-                      <Pencil aria-hidden="true" data-icon="inline-start" />
-                      Editar
-                    </Link>
-                  </Button>
-                )
-              ) : null}
-            </>
-          }
-        >
-          <form
-            id="administracion-profesor-form"
-            method="post"
-            noValidate
-            onSubmit={handleEditSubmit}
-          >
-            <input type="hidden" name="intent" value="update-professor" />
-            <FieldGroup className="grid gap-5 md:grid-cols-2">
-              <ReadOnlyField
-                className="md:col-span-2"
-                label="Academia"
-                value={professor.academy.name}
-              />
-              {isEditing ? (
-                <>
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Nombre"
-                    name="firstName"
-                  />
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Apellido"
-                    name="lastName"
-                  />
-                  <ProfessorDocumentTypeField form={editForm.form} />
-                  <ProfessorTextField
-                    form={editForm.form}
-                    label="Número de documento"
-                    name="documentNumber"
-                  />
-                </>
-              ) : (
-                <>
-                  <ReadOnlyField label="Nombre" value={professor.firstName} />
-                  <ReadOnlyField label="Apellido" value={professor.lastName} />
-                  <ReadOnlyField
-                    label="Tipo de documento"
-                    value={formatProfessorDocumentType(professor.documentType)}
-                  />
-                  <ReadOnlyField
-                    label="Número de documento"
-                    value={professor.documentNumber ?? ""}
-                  />
-                </>
-              )}
-            </FieldGroup>
-          </form>
-        </AdminResourceFormCard>
+        <ProfessorDetailCard
+          backToList={loaderData.backToList}
+          cancelHref={loaderData.cancelHref}
+          canEdit={loaderData.canEdit}
+          editForm={editForm}
+          editFormId="administracion-profesor-form"
+          editHref={loaderData.editHref}
+          isEditing={isEditing}
+          onSubmit={handleEditSubmit}
+          professor={professor}
+        />
       </section>
 
       <ProfessorConfirmationDialog
