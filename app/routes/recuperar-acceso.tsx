@@ -39,28 +39,28 @@ export const meta: Route.MetaFunction = () => [
   { title: "Recuperar acceso | En Escena" },
 ];
 
-export { loadPublicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const parsed = await parsePublicAccessForm({
+  const formResult = await parsePublicAccessForm({
     request,
     schema: requestRecoverySchema,
     fieldNames: recoveryFields,
   });
 
-  if (!parsed.ok) {
-    return parsed.response;
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   const result = await requestAccessRecoveryEmail({
-    email: parsed.data.email,
+    email: formResult.data.email,
     requestUrl: request.url,
     request,
   });
 
   return buildPublicAccessFormSuccess<RecoveryField, RecoveryValues>({
     message: result.message,
-    values: parsed.values,
+    values: formResult.values,
     headers: result.headers,
   });
 }

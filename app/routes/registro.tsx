@@ -56,30 +56,30 @@ export const meta: Route.MetaFunction = () => [
   { title: "Registro de academia | En Escena" },
 ];
 
-export { loadPublicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const parsed = await parsePublicAccessForm({
+  const formResult = await parsePublicAccessForm({
     request,
     schema: requestRegistrationSchema,
     fieldNames: registrationFields,
     preservedValueFields: ["email"],
   });
 
-  if (!parsed.ok) {
-    return parsed.response;
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   const result = await startAcademyRegistration({
-    email: parsed.data.email,
-    password: parsed.data.password,
+    email: formResult.data.email,
+    password: formResult.data.password,
     request,
     requestUrl: request.url,
   });
 
   return buildPublicAccessFormSuccess<RegistrationField, RegistrationValues>({
     message: result.message,
-    values: parsed.values,
+    values: formResult.values,
     headers: result.headers,
   });
 }

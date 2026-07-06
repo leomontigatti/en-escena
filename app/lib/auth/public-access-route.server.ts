@@ -8,7 +8,7 @@ export async function loadPublicAccessRoute(request: Request) {
   return data(null, publicRouteInit ?? undefined);
 }
 
-export async function loadPublicAccessRouteLoader({
+export async function publicAccessRouteLoader({
   request,
 }: {
   request: Request;

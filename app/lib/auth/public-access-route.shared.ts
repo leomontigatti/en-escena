@@ -34,6 +34,11 @@ type ParsePublicAccessFormResult<
       response: PublicAccessFormResult<FieldName, Record<FieldName, string>>;
     };
 
+type PublicAccessFormValues<FieldName extends string> = Record<
+  FieldName,
+  string
+>;
+
 export async function parsePublicAccessForm<
   Schema extends z.ZodTypeAny,
   FieldName extends string,
@@ -49,19 +54,13 @@ export async function parsePublicAccessForm<
   preservedValueFields?: readonly FieldName[];
 }): Promise<ParsePublicAccessFormResult<Schema, FieldName>> {
   const formData = await request.formData();
-  const preservedFieldNameSet = new Set<FieldName>(preservedValueFields);
-  const values = Object.fromEntries(
-    fieldNames.map((fieldName) => [
-      fieldName,
-      preservedFieldNameSet.has(fieldName)
-        ? readFormValue(formData.get(fieldName))
-        : "",
-    ]),
-  ) as Record<FieldName, string>;
+  const values = getPublicAccessFormValues({
+    formData,
+    fieldNames,
+    preservedValueFields,
+  });
   const parsed = schema.safeParse(
-    Object.fromEntries(
-      fieldNames.map((fieldName) => [fieldName, formData.get(fieldName)]),
-    ),
+    getPublicAccessFormInput(formData, fieldNames),
   );
 
   if (!parsed.success) {
@@ -80,6 +79,36 @@ export async function parsePublicAccessForm<
     data: parsed.data,
     values,
   };
+}
+
+function getPublicAccessFormValues<FieldName extends string>({
+  formData,
+  fieldNames,
+  preservedValueFields,
+}: {
+  formData: FormData;
+  fieldNames: readonly FieldName[];
+  preservedValueFields: readonly FieldName[];
+}): PublicAccessFormValues<FieldName> {
+  const preservedFieldNameSet = new Set<FieldName>(preservedValueFields);
+
+  return Object.fromEntries(
+    fieldNames.map((fieldName) => [
+      fieldName,
+      preservedFieldNameSet.has(fieldName)
+        ? readFormValue(formData.get(fieldName))
+        : "",
+    ]),
+  ) as PublicAccessFormValues<FieldName>;
+}
+
+function getPublicAccessFormInput<FieldName extends string>(
+  formData: FormData,
+  fieldNames: readonly FieldName[],
+) {
+  return Object.fromEntries(
+    fieldNames.map((fieldName) => [fieldName, formData.get(fieldName)]),
+  );
 }
 
 export function buildPublicAccessFormError<

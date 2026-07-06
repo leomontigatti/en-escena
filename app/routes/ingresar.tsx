@@ -64,42 +64,42 @@ export const meta: Route.MetaFunction = () => [
   { title: "Ingresar | En Escena" },
 ];
 
-export { loadPublicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
+export { publicAccessRouteLoader as loader } from "@/lib/auth/public-access-route.server";
 
 export async function action({ request }: Route.ActionArgs) {
-  const parsed = await parsePublicAccessForm({
+  const formResult = await parsePublicAccessForm({
     request,
     schema: signInSchema,
     fieldNames: signInFields,
     preservedValueFields: ["identifier"],
   });
 
-  if (!parsed.ok) {
-    return parsed.response;
+  if (!formResult.ok) {
+    return formResult.response;
   }
 
   try {
     const credentialUser = await findCredentialUserForIdentifier(
-      parsed.data.identifier,
+      formResult.data.identifier,
     );
     const accessEmail =
-      credentialUser?.email ?? getEmailIdentifier(parsed.data.identifier);
+      credentialUser?.email ?? getEmailIdentifier(formResult.data.identifier);
 
     if (!accessEmail) {
-      return genericLoginError(parsed.values);
+      return genericLoginError(formResult.values);
     }
 
     if (credentialUser?.match === "email" && !credentialUser.emailVerified) {
-      return genericLoginError(parsed.values);
+      return genericLoginError(formResult.values);
     }
 
     if (credentialUser?.suspended) {
-      return genericLoginError(parsed.values);
+      return genericLoginError(formResult.values);
     }
 
     const result = await accessAuthProvider.signInCredentialUser({
       email: accessEmail,
-      password: parsed.data.password,
+      password: formResult.data.password,
       request,
     });
 
@@ -119,7 +119,7 @@ export async function action({ request }: Route.ActionArgs) {
       status: "error" as const,
       message: "No pudimos ingresar con esos datos.",
       fieldErrors: getEmptyFieldErrors<SignInField>(),
-      values: parsed.values,
+      values: formResult.values,
     };
   }
 }
