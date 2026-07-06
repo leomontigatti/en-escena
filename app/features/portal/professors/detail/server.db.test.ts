@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -13,6 +12,10 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import {
+  expectPersistedProfessor,
+  expectPersonDetailRedirect,
+} from "@/lib/test-support/person-detail-db-assertions";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -50,14 +53,11 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      response,
       `/portal/profesores/${professor.id}?notificacion=profesor-guardado`,
     );
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedProfessor(professor.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
       documentType: "dni",
@@ -117,11 +117,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         documentNumber: "",
       },
     });
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedProfessor(professor.id, {
       documentType: null,
       documentNumber: null,
     });
@@ -213,11 +209,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       302,
     );
 
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedProfessor(professor.id, {
       documentType: "passport",
       documentNumber: "AR 123",
     });
@@ -262,11 +254,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       302,
     );
 
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedProfessor(professor.id, {
       documentType: "other",
       documentNumber: "AB 123",
     });
@@ -355,14 +343,11 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       302,
     );
 
-    expect(archiveResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      archiveResponse,
       `/portal/profesores/${activeProfessor.id}?notificacion=profesor-archivado`,
     );
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, activeProfessor.id),
-      }),
-    ).resolves.toMatchObject({ active: false });
+    await expectPersistedProfessor(activeProfessor.id, { active: false });
 
     const baseListData = await loadPortalProfessorsList(
       new Request("http://localhost/portal/profesores", {
@@ -400,14 +385,11 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       302,
     );
 
-    expect(reactivateResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      reactivateResponse,
       `/portal/profesores/${activeProfessor.id}?notificacion=profesor-reactivado`,
     );
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, activeProfessor.id),
-      }),
-    ).resolves.toMatchObject({ active: true });
+    await expectPersistedProfessor(activeProfessor.id, { active: true });
   });
 });
 

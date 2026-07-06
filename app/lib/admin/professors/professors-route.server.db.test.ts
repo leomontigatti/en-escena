@@ -18,6 +18,10 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import {
+  expectPersistedProfessor,
+  expectPersonDetailRedirect,
+} from "@/lib/test-support/person-detail-db-assertions";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -634,14 +638,11 @@ describe("administracion/profesores route", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      response,
       `/administracion/profesores/${professor.id}?notificacion=profesor-guardado`,
     );
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedProfessor(professor.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
       documentType: "dni",
@@ -901,14 +902,11 @@ describe("administracion/profesores route", () => {
       302,
     );
 
-    expect(archiveResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      archiveResponse,
       `/administracion/profesores/${professor.id}?notificacion=profesor-archivado`,
     );
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({ active: false });
+    await expectPersistedProfessor(professor.id, { active: false });
 
     const archivedDetail = await detailLoader(
       detailRouteArgs(request, professor.id),
@@ -943,11 +941,7 @@ describe("administracion/profesores route", () => {
       302,
     );
 
-    await expect(
-      db.query.professors.findFirst({
-        where: eq(professors.id, professor.id),
-      }),
-    ).resolves.toMatchObject({ active: true });
+    await expectPersistedProfessor(professor.id, { active: true });
     await expect(
       db
         .select()

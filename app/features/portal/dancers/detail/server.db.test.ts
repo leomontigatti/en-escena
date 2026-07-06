@@ -15,6 +15,10 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import {
+  expectPersistedDancer,
+  expectPersonDetailRedirect,
+} from "@/lib/test-support/person-detail-db-assertions";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -97,14 +101,11 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      response,
       `/portal/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
     );
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(dancer.id, {
       firstName: "Ana María",
       lastName: "De la Cruz",
       birthDate: "2014-05-06",
@@ -612,11 +613,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       302,
     );
 
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, dancer.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(dancer.id, {
       documentType: null,
       documentNumber: null,
       documentFrontImageStorageKey: "dancers/mora-front.jpg",
@@ -728,11 +725,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
           "Ya existe un Bailarín con ese documento en tu academia.",
       },
     });
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, ownerEditable.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(ownerEditable.id, {
       documentType: null,
       documentNumber: null,
     });
@@ -755,14 +748,11 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       302,
     );
 
-    expect(crossAcademyResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      crossAcademyResponse,
       `/portal/bailarines/${otherEditable.id}?notificacion=bailarin-guardado`,
     );
-    await expect(
-      db.query.dancers.findFirst({
-        where: eq(dancers.id, otherEditable.id),
-      }),
-    ).resolves.toMatchObject({
+    await expectPersistedDancer(otherEditable.id, {
       documentType: "passport",
       documentNumber: "AB 123",
     });
@@ -856,12 +846,11 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       302,
     );
 
-    expect(archiveResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      archiveResponse,
       `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-archivado`,
     );
-    await expect(
-      db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
-    ).resolves.toMatchObject({ active: false });
+    await expectPersistedDancer(activeDancer.id, { active: false });
 
     const listData = await loadPortalDancersList(
       new Request("http://localhost/portal/bailarines", {
@@ -899,12 +888,11 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       302,
     );
 
-    expect(reactivateResponse.headers.get("location")).toBe(
+    expectPersonDetailRedirect(
+      reactivateResponse,
       `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-reactivado`,
     );
-    await expect(
-      db.query.dancers.findFirst({ where: eq(dancers.id, activeDancer.id) }),
-    ).resolves.toMatchObject({ active: true });
+    await expectPersistedDancer(activeDancer.id, { active: true });
   });
 });
 

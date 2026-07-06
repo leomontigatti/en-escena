@@ -398,14 +398,16 @@ function parseUpdateChoreographyActionInput(
     return parsedError;
   }
 
+  const parsedData = parsed.data!;
+
   return {
     ok: true as const,
     parsed,
     parsedSelection: {
       ...selection,
-      dancerIds: parsed.data.dancerIds,
-      musicStorageKey: parsed.data.musicStorageKey ?? "",
-      scheduleCapacityId: parsed.data.scheduleCapacityId ?? null,
+      dancerIds: parsedData.dancerIds,
+      musicStorageKey: parsedData.musicStorageKey ?? "",
+      scheduleCapacityId: parsedData.scheduleCapacityId ?? null,
     } satisfies UpdateActionSelection,
   };
 }
@@ -466,15 +468,17 @@ async function persistChoreographyUpdate(
     { ok: true }
   >,
 ) {
+  const parsedData = parsedUpdate.parsed.data!;
+
   const result = await updateChoreography({
     academyId: input.academyId,
     choreographyId: input.choreographyId,
-    dancerIds: parsedUpdate.parsed.data.dancerIds,
+    dancerIds: parsedData.dancerIds,
     eventId: input.eventId,
     experienceLevelId: input.experienceLevelId,
     isRegistrationOpen: input.isRegistrationOpen,
     professorIds: input.professorIds,
-    scheduleCapacityId: parsedUpdate.parsed.data.scheduleCapacityId,
+    scheduleCapacityId: parsedData.scheduleCapacityId,
   });
 
   if (result.ok) {
@@ -503,13 +507,15 @@ async function updateChoreographyActionMusic(
     return null;
   }
 
+  const parsedData = parsedUpdate.parsed.data!;
+
   try {
     const musicResult = await updateChoreographyMusic({
       academyId: input.academyId,
       choreographyId: input.choreographyId,
       eventId: input.eventId,
       file: input.musicFile,
-      submittedStorageKey: parsedUpdate.parsed.data.musicStorageKey ?? "",
+      submittedStorageKey: parsedData.musicStorageKey ?? "",
     });
 
     if (musicResult.ok) {
