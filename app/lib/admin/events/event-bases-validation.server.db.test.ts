@@ -7,11 +7,9 @@ import { createSchedule } from "@/lib/schedules/repository.server";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
-  buildPriceDraft,
   buildScheduleCapacityDraft,
   buildScheduleDraft,
   createEventScheduleAdminFixture,
-  createPriceAdminRequest,
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
   createSavedEvent,
@@ -24,6 +22,7 @@ import {
   renderNuevaModalidadRoute,
   routeArgs,
 } from "./event-bases.test-helpers";
+import { createPriceAdminRequest } from "./event-bases-price.test-helpers";
 
 installDatabaseTestHooks();
 
@@ -154,10 +153,10 @@ describe.sequential("administracion Bases del evento routes", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
       intent: "create-price",
-      price: buildPriceDraft({
+      price: {
         name: "Precio duplicado",
         amount: "13000",
-      }),
+      },
     });
 
     await expect(
@@ -186,12 +185,12 @@ describe.sequential("administracion Bases del evento routes", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
       intent: "create-price",
-      price: buildPriceDraft({
+      price: {
         name: "",
         groupType: "",
         amount: "",
         paymentDeadline: "",
-      }),
+      },
     });
 
     await expect(

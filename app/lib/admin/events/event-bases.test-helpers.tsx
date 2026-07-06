@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub, redirect } from "react-router";
@@ -23,7 +23,7 @@ import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedule
 import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
-import { events, prices, schedules, scheduleCapacities } from "@/db/schema";
+import { events, schedules, scheduleCapacities } from "@/db/schema";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -31,7 +31,6 @@ import {
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
-import type { GroupType } from "@/lib/events/group-types";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
   getEventBases,
@@ -460,15 +459,6 @@ type ScheduleCapacityDraft = {
   capacity: string;
 };
 
-type PriceDraft = {
-  amount: string;
-  groupType: string;
-  isSpecialPrice?: string;
-  name: string;
-  paymentDeadline: string;
-  scheduleId: string;
-};
-
 type ScheduleDraft = {
   name: string;
   scheduledDate: string;
@@ -503,29 +493,6 @@ export async function createEventScheduleAdminFixture(
   };
 }
 
-export async function createEventPriceAdminFixture() {
-  const { event, modalities } = await createEventScheduleAdminFixture(["Jazz"]);
-  const scheduleRequest = await createScheduleAdminRequest({
-    email: "admin.precio.cronograma.fixture@example.com",
-    role: "admin",
-    requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-    intent: "create-schedule",
-    schedule: buildScheduleDraft({
-      modalityIds: [modalities[0].id],
-    }),
-  });
-
-  await expectThrownResponse(action(routeArgs(scheduleRequest.request)), 302);
-
-  const schedule = await findSavedScheduleByName("Sábado Mañana");
-
-  if (!schedule) {
-    throw new Error("Expected price schedule fixture to be created.");
-  }
-
-  return { event, modality: modalities[0], schedule };
-}
-
 export function buildScheduleDraft(
   overrides: Partial<ScheduleDraft> = {},
 ): ScheduleDraft {
@@ -546,20 +513,6 @@ export function buildScheduleCapacityDraft(
   return {
     groupType: "solo",
     capacity: "8",
-    ...overrides,
-  };
-}
-
-export function buildPriceDraft(
-  overrides: Partial<PriceDraft> = {},
-): PriceDraft {
-  return {
-    name: "Precio base",
-    isSpecialPrice: "",
-    groupType: "solo",
-    amount: "12000",
-    paymentDeadline: "2026-05-31",
-    scheduleId: "",
     ...overrides,
   };
 }
@@ -607,62 +560,6 @@ export async function createScheduleAdminRequest(
           input.scheduleId ?? "",
         )
       : formDataWithSchedule(input.intent, input.schedule);
-
-  return createSignedInRequest({
-    ...input,
-    body,
-  });
-}
-
-function formDataWithPrice(
-  intent: "create-price" | "update-price",
-  price: PriceDraft,
-): FormData {
-  return formData({
-    intent,
-    name: price.name,
-    isSpecialPrice: price.isSpecialPrice ?? "",
-    groupType: price.groupType,
-    amount: price.amount,
-    paymentDeadline: price.paymentDeadline,
-    scheduleId: price.scheduleId,
-  });
-}
-
-export async function createPriceAdminRequest(
-  input: Omit<SignedInAdminRequestInput, "body"> & {
-    intent: "create-price" | "update-price";
-    price?: Partial<PriceDraft>;
-    priceId?: string;
-  },
-) {
-  const price = buildPriceDraft(input.price);
-  const body = formDataWithPrice(input.intent, price);
-
-  if (input.intent === "update-price") {
-    body.set("id", input.priceId ?? "");
-  }
-
-  return createSignedInRequest({
-    ...input,
-    body,
-  });
-}
-
-export async function createDeletePriceAdminRequest(
-  input: Omit<SignedInAdminRequestInput, "body"> & {
-    confirmDeletion?: string;
-    priceId: string;
-  },
-) {
-  const body = formData({
-    intent: "delete-price",
-    id: input.priceId,
-  });
-
-  if (input.confirmDeletion) {
-    body.set("confirmDeletion", input.confirmDeletion);
-  }
 
   return createSignedInRequest({
     ...input,
@@ -723,28 +620,6 @@ export async function findSavedScheduleById(scheduleId: string) {
   });
 }
 
-export async function findSavedPriceById(priceId: string) {
-  return db.query.prices.findFirst({
-    where: eq(prices.id, priceId),
-  });
-}
-
-export async function findSavedPriceByScope(input: {
-  groupType: GroupType;
-  paymentDeadline: string;
-  scheduleId: string | null;
-}) {
-  return db.query.prices.findFirst({
-    where: and(
-      eq(prices.groupType, input.groupType),
-      eq(prices.paymentDeadline, input.paymentDeadline),
-      input.scheduleId === null
-        ? isNull(prices.scheduleId)
-        : eq(prices.scheduleId, input.scheduleId),
-    ),
-  });
-}
-
 export async function listSavedScheduleCapacities(scheduleId: string) {
   return db.query.scheduleCapacities.findMany({
     where: eq(scheduleCapacities.scheduleId, scheduleId),
@@ -759,18 +634,6 @@ export function expectScheduleCapacityBreakdown(
     expect.arrayContaining(
       expected.map((entry) => expect.objectContaining(entry)),
     ),
-  );
-}
-
-export function expectPriceSavedRedirect(response: Response) {
-  expect(response.headers.get("location")).toMatch(
-    /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
-  );
-}
-
-export function expectPriceDeletedRedirect(response: Response) {
-  expect(response.headers.get("location")).toBe(
-    "/administracion/precios?notificacion=precio-eliminado",
   );
 }
 

@@ -2,18 +2,19 @@ import { describe, expect, test } from "vitest";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  action,
-  buildPriceDraft,
   createDeletePriceAdminRequest,
   createEventPriceAdminFixture,
   createPriceAdminRequest,
-  createSavedEvent,
-  createSignedInRequest,
   expectPriceDeletedRedirect,
   expectPriceSavedRedirect,
-  expectThrownResponse,
   findSavedPriceById,
   findSavedPriceByScope,
+} from "./event-bases-price.test-helpers";
+import {
+  action,
+  createSavedEvent,
+  createSignedInRequest,
+  expectThrownResponse,
   loader,
   renderPrecioDetalleRoute,
   renderPrecioNuevoRoute,
@@ -53,11 +54,11 @@ describe.sequential("administracion Bases del evento routes", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
       intent: "create-price",
-      price: buildPriceDraft({
+      price: {
         name: "Precio bloque",
         amount: "15000",
         scheduleId: schedule.id,
-      }),
+      },
     });
 
     await expectThrownResponse(
