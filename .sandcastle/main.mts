@@ -296,7 +296,9 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   // uses to know which branches to merge and which issues to close.
   // -------------------------------------------------------------------------
   await sandcastle.run({
-    branchStrategy: { type: "branch", branch: TARGET_BRANCH },
+    // Docker sandboxes cannot check out TARGET_BRANCH in a second worktree
+    // while the main checkout is already on that branch.
+    branchStrategy: { type: "merge-to-head" },
     hooks,
     sandbox: createDockerSandbox({ databaseNameSuffix: "merger" }),
     name: "merger",
