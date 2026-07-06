@@ -387,7 +387,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 6000,
-      owedAmount: 13300,
+      owedAmount: { status: "complete", amount: 24300 },
+      owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
     expect(loaderData.payments).toHaveLength(1);
@@ -425,6 +426,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
     );
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
+    expect(markup).toContain("Seña adeudada");
+    expect(markup).not.toContain("Monto total pagado");
     expect(markup).toContain("Pagos activos");
     expect(markup).toContain("Facturas de seña activas");
     expect(markup).toContain("Facturas de saldo activas");

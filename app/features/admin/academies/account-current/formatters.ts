@@ -1,3 +1,5 @@
+import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
+
 export function formatInvoiceState(status: "parcial" | "pagada" | "pendiente") {
   switch (status) {
     case "pendiente":
@@ -37,6 +39,14 @@ const paymentDateFormatter = new Intl.DateTimeFormat("es-AR", {
 
 export function formatAmount(amount: number) {
   return moneyFormatter.format(amount).replace(/\u00a0/g, " ");
+}
+
+export function formatOperationalAmount(amount: OperationalFinanceAmount) {
+  if (amount.status === "incomplete") {
+    return "Pendiente";
+  }
+
+  return formatAmount(amount.amount);
 }
 
 export function formatDate(value: string) {

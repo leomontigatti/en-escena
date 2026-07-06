@@ -170,7 +170,8 @@ describe.sequential(
 
       expect(loaderAfterAnnulment.summary).toEqual({
         availableBalanceAmount: 3000,
-        owedAmount: 3000,
+        owedAmount: { status: "complete", amount: 7000 },
+        owedDepositAmount: { status: "complete", amount: 3000 },
         totalPaidAmount: 3000,
       });
       expect(loaderAfterAnnulment.imputations).toEqual([]);
@@ -297,7 +298,8 @@ describe.sequential(
 
       expect(finalLoaderData.summary).toEqual({
         availableBalanceAmount: 0,
-        owedAmount: 0,
+        owedAmount: { status: "complete", amount: 10000 },
+        owedDepositAmount: { status: "complete", amount: 3000 },
         totalPaidAmount: 0,
       });
       expect(finalLoaderData.activeDepositInvoices).toEqual([]);

@@ -53,39 +53,53 @@ Rules for financial states, invoices, payments, account balance and pricing.
 - Imputation date cannot be earlier than the issue date of the invoice it covers.
 - A balance invoice can be issued even when the academy has enough `Saldo disponible`; issuing it fixes debt, not payment application.
 - The Portal de academias financial view is read-only in V1; academies do not initiate payments or upload payment proof from the portal.
-- The Portal de academias financial view shows `Saldo disponible` and `Saldo adeudado` for the academy in the active event.
+- The Portal de academias financial view shows `Seña adeudada`, `Saldo disponible` and `Saldo adeudado` for the academy in the active event.
+- The Portal de academias and Panel de administración use the same operational `Saldo adeudado` calculation so academies and administration see the same amount to pay or collect.
 - The Portal de academias financial view shows active payment details: internal payment number, date, method, amount, imputed amount and available amount.
 - Internal administrative payment notes are not shown in the Portal de academias.
 - The Portal de academias main financial view shows active records only; canceled invoices and annulled payments or imputations are admin-auditable but hidden from the portal main view.
 - Balance invoice is issued only after down-payment invoice has enough imputation.
 - Active invoice blocks structural edits and deletion, but does not by itself make coreografía eligible to compete.
+- There is no archived or canceled choreography state in V1 finances; a registered choreography contributes to `Seña adeudada` and `Saldo adeudado` unless it is deleted or fully paid.
 - `Pago` can be unlinked, linked to one or many invoices, or left as available balance.
 - `Cuenta corriente de academia` is built from payments, imputations, invoices, cancellations and credit notes.
 - In V1, `Cuenta corriente de academia` is scoped to the Evento activo. Payments, invoices and imputations do not carry balance across events.
 - Payments and imputations cannot cross academies. A payment registered for the wrong academy must be annulled and re-registered.
 - `Monto total pagado` is the sum of active payments registered for an academy in the active event.
+- `Monto total pagado` is a payment detail and audit amount, not a primary operational summary amount.
 - `Saldo disponible` is active payments minus active imputations.
-- `Saldo adeudado` is the unpaid amount of active invoices.
-- `Total estimado` is a pre-invoice operational amount for an academy in the active event: the sum of each choreography's applicable base price multiplied by its dancer inscription count, without discounts, payments, imputations or invoices.
-- `Seña estimada` is the event down-payment percentage applied to `Total estimado`, rounded to whole pesos with the same commercial rounding rule used for percentage-derived amounts.
-- `Total estimado` and `Seña estimada` help administration and academies know how much to collect or pay when one or more down-payments are registered before invoice issuance.
-- `Total estimado` and `Seña estimada` are not account-current debt and do not change `Saldo adeudado` until administration issues active invoices.
+- `Saldo adeudado` is the net operational amount still pending to collect or pay for an academy in the active event.
+- Active down-payment or balance invoice pending amounts are used first, after active imputations, so `Saldo adeudado` does not double-count already invoiced or imputed amounts.
+- Estimates complete the amount that is not fixed by active invoices: unsigned choreographies contribute their remaining estimated total, signed choreographies contribute their estimated balance with estimable individual discounts, fully paid choreographies are excluded, and `Saldo disponible` is discounted.
+- If an applicable price is missing for any choreography that contributes to `Seña adeudada` or `Saldo adeudado`, the affected amount is pending or incomplete, not zero.
+- `Saldo disponible` discounts `Saldo adeudado` globally; payments do not reserve an intended destination until administration imputes them.
+- `Saldo adeudado` is never negative; when `Saldo disponible` exceeds the pending operational amount, the excess remains visible as `Saldo disponible`.
+- `Seña adeudada` applies only to choreographies that are not yet signed or paid.
+- If an active down-payment invoice exists, `Seña adeudada` uses that invoice pending amount after active imputations.
+- If no active down-payment invoice exists, `Seña adeudada` uses the event down-payment percentage, rounded to whole pesos with the same commercial rounding rule used for percentage-derived amounts.
+- `Seña adeudada` does not discount `Saldo disponible`; it answers how much remains to sign before applying unallocated payments.
+- `Saldo adeudado` and `Seña adeudada` help administration and academies know how much to collect or pay when one or more down-payments are registered before invoice issuance.
+- The operational part of `Saldo adeudado` can exist before invoice issuance; invoices and imputations still determine when a choreography becomes señada or pagada.
+- `Saldo adeudado` does not include estimated administrative discounts before balance invoice issuance; administrative discounts exist only when administration issues a balance invoice.
 - Account-current reporting shows both `Saldo disponible` and `Saldo adeudado`; it does not collapse them into one ambiguous balance column.
 - V1 account-current reporting starts as an on-screen view; XLS export is deferred.
 - An imputation cannot exceed the unpaid amount of its invoice; any excess payment remains as `Saldo disponible`.
 - The Panel de administración financial workflow is organized by `Cuenta corriente de academia`; coreografías are invoice and imputation targets inside that account.
+- The Panel de administración account-current view shows `Seña adeudada`, `Saldo disponible` and `Saldo adeudado` for the selected academy.
+- The primary financial summary amounts are `Seña adeudada`, `Saldo disponible` and `Saldo adeudado`.
+- Academy financial summaries identify the academy by `Nombre` and show `Seña adeudada`, `Saldo disponible` and `Saldo adeudado` as the primary amounts.
 - The Panel de administración account-current view includes an auditable movement history for payments, invoices, imputations, cancellations and annulments.
 - V1 account-current movements are derived from financial records; there is no separate persisted ledger table.
 - `Precio de coreografía` is estimated while unpaid or signed, final when paid.
 - Each `Precio de coreografía` has a payment deadline. The down-payment date selects the earliest applicable deadline for that group type and optional cronograma.
-- `Seña de coreografía` uses the event down-payment percentage, which defaults to 30%.
+- `Factura de seña` uses the event down-payment percentage, which defaults to 30%.
 - In V1, the down-payment percentage is an event-level Bases del evento setting.
 - Changing the event down-payment percentage is not retroactive for issued invoices.
 - Down-payment invoices store the percentage used when they are issued.
 - Down-payment invoices store calculation snapshots: estimated base price at issue time, selected payment deadline, down-payment percentage and down-payment amount.
 - Down-payment invoice issue date selects the initial estimated base price.
 - Once fully covered, down-payment invoices store the completion date that freezes the base price.
-- `Seña de coreografía` is calculated from the base price selected by group type, payment deadline and down-payment date.
+- `Factura de seña` amount is calculated from the base price selected by group type, payment deadline and down-payment date.
 - Down payment fixes applicable price date only when the down-payment invoice becomes fully covered.
 - Partial down-payment imputation does not freeze the price date.
 - If multiple imputations cover the down-payment invoice, the imputation date that completes the invoice freezes the price date.
@@ -106,5 +120,6 @@ Rules for financial states, invoices, payments, account balance and pricing.
 - Administration previews the balance calculation before issuing the balance invoice, including base price, down-payment, dancer discounts, administrative discount, final total and balance invoice amount.
 - Issuing the balance invoice fixes the balance amount; later discount or correction changes require cancellation, credit note or a new administrative correction instead of silently changing the invoice.
 - Dancer discounts use signed or paid coreografías of same dancer, academy and event.
+- Estimated individual discounts for `Saldo adeudado` use the same signed-or-paid base; unpaid coreografías do not create estimated individual discounts.
 - No discounts cross academies.
 - If a coreografía stops being signed due to cancellation/accreditation, it stops counting toward discounts.

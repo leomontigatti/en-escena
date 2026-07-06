@@ -3,6 +3,7 @@ export {
   deletePrice,
   listPrices,
   resolveApplicablePrice,
+  selectApplicablePriceFromCandidates,
   updatePrice,
 } from "@/lib/events/bases-repository/prices.server";
 export type {

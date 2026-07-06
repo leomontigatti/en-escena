@@ -9,7 +9,10 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { formatAmount } from "@/features/admin/academies/account-current/formatters";
+import {
+  formatAmount,
+  formatOperationalAmount,
+} from "@/features/admin/academies/account-current/formatters";
 
 import type {
   FinanceAccountRow,
@@ -30,7 +33,7 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     header: "Nombre",
     className: "min-w-56 font-medium",
     cell: (row) => (
-      <DataTableLink to={`/administracion/academias/${row.academyId}`}>
+      <DataTableLink to={`/administracion/finanzas/${row.academyId}`}>
         {row.academyName}
       </DataTableLink>
     ),
@@ -38,11 +41,11 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     sortValue: (row) => row.academyName,
   },
   {
-    id: "totalPaidAmount",
-    header: "Total pagado",
+    id: "owedDepositAmount",
+    header: "Seña adeudada",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.totalPaidAmount),
+    cell: (row) => formatOperationalAmount(row.owedDepositAmount),
   },
   {
     id: "availableBalanceAmount",
@@ -56,7 +59,7 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.owedAmount),
+    cell: (row) => formatOperationalAmount(row.owedAmount),
   },
 ];
 
@@ -67,7 +70,7 @@ export function AdministracionFinanzasRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Resumen"
-      description="Revisá saldos, deuda y pagos sin imputar por academia dentro del evento activo."
+      description="Revisá la Cuenta corriente de academia con seña adeudada, saldo disponible y saldo adeudado dentro del evento activo."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:

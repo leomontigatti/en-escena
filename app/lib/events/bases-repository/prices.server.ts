@@ -176,7 +176,7 @@ export async function resolveApplicablePrice(input: {
         eq(prices.scheduleId, input.scheduleId),
       ),
     });
-    const specificPrice = selectApplicablePrice(
+    const specificPrice = selectApplicablePriceFromCandidates(
       specificPrices,
       input.paymentDate,
     );
@@ -193,7 +193,10 @@ export async function resolveApplicablePrice(input: {
       isNull(prices.scheduleId),
     ),
   });
-  const generalPrice = selectApplicablePrice(generalPrices, input.paymentDate);
+  const generalPrice = selectApplicablePriceFromCandidates(
+    generalPrices,
+    input.paymentDate,
+  );
 
   if (generalPrice) {
     return { ok: true, price: generalPrice };
@@ -405,7 +408,7 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
   return first.amount - second.amount;
 }
 
-function selectApplicablePrice(
+export function selectApplicablePriceFromCandidates(
   candidates: Array<typeof prices.$inferSelect>,
   paymentDate: Date | string | null | undefined,
 ) {

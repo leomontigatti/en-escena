@@ -76,7 +76,8 @@ describe.sequential(
 
       expect(partialLoaderData.summary).toEqual({
         availableBalanceAmount: 4000,
-        owedAmount: 2000,
+        owedAmount: { status: "complete", amount: 5000 },
+        owedDepositAmount: { status: "complete", amount: 2000 },
         totalPaidAmount: 5000,
       });
       expect(partialLoaderData.activeDepositInvoices).toMatchObject([
@@ -152,7 +153,8 @@ describe.sequential(
       });
       expect(paidLoaderData.summary).toEqual({
         availableBalanceAmount: 2000,
-        owedAmount: 0,
+        owedAmount: { status: "complete", amount: 5000 },
+        owedDepositAmount: { status: "complete", amount: 0 },
         totalPaidAmount: 5000,
       });
       expect(paidLoaderData.activeDepositInvoices).toMatchObject([
@@ -473,7 +475,8 @@ describe.sequential(
       ]);
       expect(loaderData.summary).toEqual({
         availableBalanceAmount: 0,
-        owedAmount: 0,
+        owedAmount: { status: "complete", amount: 0 },
+        owedDepositAmount: { status: "complete", amount: 0 },
         totalPaidAmount: 10000,
       });
     });

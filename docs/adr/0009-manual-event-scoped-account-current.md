@@ -13,6 +13,10 @@ confirmed, but that would remove the academy's unpaid correction window and
 would create many invoices for coreografias or academies that may never
 participate.
 
+Administration and academies also need to know what should be paid or collected
+before every invoice exists, because payments can be registered before
+administration issues the matching choreography invoices.
+
 ## Decision
 
 Use an event-scoped `Cuenta corriente de academia` for V1 finances. Payments,
@@ -39,6 +43,22 @@ administracion financial workflow is organized by `Cuenta corriente de
 academia`, with coreografias as invoice and imputation targets inside that
 account.
 
+Use operational finance terms in the Portal de academias and Panel de
+administracion summaries. `Saldo adeudado` means the net operational amount
+still pending to collect or pay for the active event, not only unpaid issued
+invoices. Active invoice pending amounts are used first, estimates complete the
+amount that is not fixed by invoices, and `Saldo disponible` discounts the
+result globally. `Saldo adeudado` never becomes negative.
+
+Show `Seña adeudada` separately as the gross down-payment amount still needed
+for choreographies that are not signed or paid. It uses active down-payment
+invoice pending amounts when those invoices exist, otherwise it uses the event
+down-payment percentage. `Seña adeudada` does not discount `Saldo disponible`.
+
+Keep `Monto total pagado` as a payment detail and audit amount, not as a
+primary operational summary amount. The primary summary amounts are `Seña
+adeudada`, `Saldo disponible` and `Saldo adeudado`.
+
 ## Considered Options
 
 - Automatic invoice on choreography confirmation: simpler to derive debt, but
@@ -49,6 +69,8 @@ account.
 - Manual event-scoped account current: matches the operational flow where
   administration receives money, creates invoices and imputes payments, while
   staying aligned with the Evento activo V1 constraint.
+- Invoice-only debt language: simpler accounting vocabulary, but it hides the
+  amount administration and academies need before invoices are issued.
 
 ## Consequences
 
@@ -60,8 +82,16 @@ account.
   when its down-payment invoice is fully covered.
 - V1 needs traceable correction mechanics for invoices, payments and
   imputations through cancellation or annulment with an administrative reason.
-- Account-current reporting must distinguish `Saldo disponible` from `Saldo
+- Account-current reporting must distinguish `Seña adeudada`, `Saldo
+disponible` and `Saldo adeudado`.
+- Future code must not use `Saldo adeudado` as a synonym for unpaid issued
+  invoices. If a screen needs invoice-only pending amounts, calculate that as a
+  local invoice detail rather than changing the domain meaning of `Saldo
 adeudado`.
+- Existing persistence currently names the invoice amount column
+  `deposit_amount`; application code should alias that value as `invoiceAmount`
+  where it represents the amount of any choreography invoice. A database column
+  migration can be evaluated separately.
 - Internal invoice and payment numbers should be generated from event-scoped
   sequence rows inside the same transaction that creates the financial record,
   not by querying `max(number) + 1`.

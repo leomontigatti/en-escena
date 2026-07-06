@@ -24,8 +24,9 @@ import {
 } from "@/lib/finances/payment-imputations.server";
 import {
   readActiveAcademyEventInvoices,
-  readAcademyEventPaymentSummary,
+  readAcademyEventOperationalFinanceSummary,
 } from "@/lib/finances/academy-account-current.server";
+import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -112,8 +113,8 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
 
   const summary =
     eventContext.selectedEventId === null
-      ? { totalPaidAmount: 0, availableBalanceAmount: 0, owedAmount: 0 }
-      : await readAcademyEventPaymentSummary({
+      ? emptyOperationalFinanceSummary()
+      : await readAcademyEventOperationalFinanceSummary({
           academyId: academy.id,
           eventId: eventContext.selectedEventId,
         });

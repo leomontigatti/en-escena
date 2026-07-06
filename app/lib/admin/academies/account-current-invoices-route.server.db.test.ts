@@ -172,7 +172,8 @@ describe.sequential(
       ]);
       expect(loaderData.summary).toEqual({
         availableBalanceAmount: 12000,
-        owedAmount: 7000,
+        owedAmount: { status: "complete", amount: 8000 },
+        owedDepositAmount: { status: "complete", amount: 7000 },
         totalPaidAmount: 12000,
       });
       expect(markup).toContain("Facturas de seña activas");
@@ -439,7 +440,8 @@ describe.sequential(
 
       expect(loaderData.summary).toEqual({
         availableBalanceAmount: 7000,
-        owedAmount: 5800,
+        owedAmount: { status: "complete", amount: 0 },
+        owedDepositAmount: { status: "complete", amount: 0 },
         totalPaidAmount: 10000,
       });
       expect(markup).toContain("Facturas de saldo activas");

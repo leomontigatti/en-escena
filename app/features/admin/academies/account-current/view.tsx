@@ -4,7 +4,7 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { formatAmount } from "./formatters";
+import { formatAmount, formatOperationalAmount } from "./formatters";
 import {
   BalanceInvoiceForm,
   CorrectionActionsForm,
@@ -47,8 +47,8 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Cuenta corriente"
-      description={`Registrá pagos y revisá el saldo operativo de ${loaderData.academy.name} dentro del evento activo.`}
+      title="Cuenta corriente de academia"
+      description={`Registrá pagos y revisá la Cuenta corriente de academia de ${loaderData.academy.name} dentro del evento activo.`}
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar pagos",
         description:
@@ -58,9 +58,11 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 md:grid-cols-3">
           <SummaryCard
-            title="Monto total pagado"
+            title="Seña adeudada"
             icon={Receipt}
-            value={formatAmount(loaderData.summary.totalPaidAmount)}
+            value={formatOperationalAmount(
+              loaderData.summary.owedDepositAmount,
+            )}
           />
           <SummaryCard
             title="Saldo disponible"
@@ -70,7 +72,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           <SummaryCard
             title="Saldo adeudado"
             icon={Landmark}
-            value={formatAmount(loaderData.summary.owedAmount)}
+            value={formatOperationalAmount(loaderData.summary.owedAmount)}
           />
         </section>
 

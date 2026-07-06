@@ -14,6 +14,7 @@ import {
   formatAmount,
   formatDate,
   formatInvoiceState,
+  formatOperationalAmount,
 } from "@/features/admin/academies/account-current/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
@@ -47,13 +48,13 @@ export function PortalAcademyFinancesRouteView({
     <PortalListPage
       titleId="finanzas-title"
       title="Finanzas"
-      description={`Consultá el estado financiero de ${loaderData.activeEvent.name} con saldo disponible, saldo adeudado, pagos activos y facturas activas.`}
+      description={`Consultá la Cuenta corriente de academia de ${loaderData.activeEvent.name} con seña adeudada, saldo disponible, saldo adeudado, pagos activos y facturas activas.`}
     >
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard
-          title="Monto total pagado"
+          title="Seña adeudada"
           icon={Receipt}
-          value={formatAmount(loaderData.summary.totalPaidAmount)}
+          value={formatOperationalAmount(loaderData.summary.owedDepositAmount)}
         />
         <SummaryCard
           title="Saldo disponible"
@@ -63,7 +64,7 @@ export function PortalAcademyFinancesRouteView({
         <SummaryCard
           title="Saldo adeudado"
           icon={Landmark}
-          value={formatAmount(loaderData.summary.owedAmount)}
+          value={formatOperationalAmount(loaderData.summary.owedAmount)}
         />
       </section>
 

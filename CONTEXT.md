@@ -252,33 +252,25 @@ _Evitar_: Factura, imputación, estado financiero de coreografía
 Documento financiero que vincula una coreografía con un importe a cobrar.
 _Evitar_: Pago, inscripción
 
-**Seña de coreografía**:
-Parte inicial del Precio de coreografía, calculada con el porcentaje de seña del evento sobre el precio base congelado por la fecha de pago de la seña.
-_Evitar_: Pago, descuento, saldo
-
 **Imputación**:
 Aplicación de saldo de un pago a una factura.
 _Evitar_: Pago, factura
 
 **Cuenta corriente de academia**:
 Saldo financiero de una academia compuesto por pagos, imputaciones, facturas, cancelaciones y notas de crédito.
-_Evitar_: Estado financiero de coreografía, pago
+_Evitar_: Estado financiero de coreografía, pago, saldo operativo
 
 **Saldo disponible**:
 Monto de pagos activos de una academia que todavía no fue imputado a facturas activas.
 _Evitar_: Saldo adeudado, total pagado
 
 **Saldo adeudado**:
-Monto pendiente de cubrir de las facturas activas de una academia.
-_Evitar_: Saldo disponible, total pagado
+Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con pendientes reales de facturas activas, estimaciones de coreografías impagas o señadas, y descuento del Saldo disponible. Nunca es menor que cero.
+_Evitar_: Saldo disponible, total pagado, total estimado
 
-**Total estimado**:
-Monto operativo previo a facturación para una academia en el Evento activo, calculado como la suma del precio base aplicable por la cantidad de bailarines inscriptos en sus coreografías, sin aplicar descuentos, pagos, imputaciones ni facturas.
-_Evitar_: Saldo adeudado, total pagado
-
-**Seña estimada**:
-Parte del Total estimado calculada con el porcentaje de seña del evento, usada para orientar el pago o cobro de una o varias señas antes de emitir facturas.
-_Evitar_: Factura de coreografía, saldo adeudado
+**Seña adeudada**:
+Monto operativo bruto de seña pendiente para coreografías que todavía no están señadas ni pagadas, usado para orientar el pago o cobro de una o varias señas. Usa el pendiente real de facturas de seña activas cuando existen; para coreografías sin factura de seña, calcula el porcentaje de seña del evento. No descuenta el Saldo disponible.
+_Evitar_: Factura de coreografía, saldo disponible
 
 **Precio de coreografía**:
 Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago, fecha de seña y descuentos individuales.

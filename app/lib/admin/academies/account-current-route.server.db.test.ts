@@ -150,7 +150,9 @@ describe.sequential("administracion academias cuenta corriente", () => {
     });
 
     expect(loaderData.canRegisterPayments).toBe(false);
-    expect(markup).toContain("Monto total pagado");
+    expect(markup).toContain("Cuenta corriente de academia");
+    expect(markup).toContain("Seña adeudada");
+    expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
 
     await expect(
@@ -249,15 +251,18 @@ describe.sequential("administracion academias cuenta corriente", () => {
     ).toEqual([25000, 8000]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 33000,
-      owedAmount: 0,
+      owedAmount: { status: "complete", amount: 0 },
+      owedDepositAmount: { status: "complete", amount: 0 },
       totalPaidAmount: 33000,
     });
     expect(loaderData.payments.map((payment) => payment.paymentNumber)).toEqual(
       [2, 1],
     );
-    expect(markup).toContain("Monto total pagado");
+    expect(markup).not.toContain("Monto total pagado");
     expect(markup).toContain("$ 33.000");
+    expect(markup).toContain("Seña adeudada");
     expect(markup).toContain("Saldo disponible");
+    expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Transferencia");
     expect(markup).toContain("Mercado Pago");
     expect(markup).toContain("TRX-001");

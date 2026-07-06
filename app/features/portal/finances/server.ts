@@ -5,19 +5,14 @@ import { academyEventPayments } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   readActiveAcademyEventInvoices,
-  readAcademyEventPaymentSummary,
+  readAcademyEventOperationalFinanceSummary,
 } from "@/lib/finances/academy-account-current.server";
+import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import {
   getInvoiceState,
   listActiveImputationTotalsByIds,
 } from "@/lib/finances/payment-imputations.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
-
-const emptySummary = {
-  totalPaidAmount: 0,
-  availableBalanceAmount: 0,
-  owedAmount: 0,
-};
 
 export async function loadPortalAcademyFinances(request: Request) {
   const [{ academy }, eventContext] = await Promise.all([
@@ -31,13 +26,13 @@ export async function loadPortalAcademyFinances(request: Request) {
       activeBalanceInvoices: [],
       activeDepositInvoices: [],
       payments: [],
-      summary: emptySummary,
+      summary: emptyOperationalFinanceSummary(),
     };
   }
 
   const eventId = eventContext.activeEvent.id;
   const [summary, payments, activeInvoices] = await Promise.all([
-    readAcademyEventPaymentSummary({
+    readAcademyEventOperationalFinanceSummary({
       academyId: academy.id,
       eventId,
     }),
