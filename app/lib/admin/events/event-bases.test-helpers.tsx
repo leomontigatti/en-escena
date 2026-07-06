@@ -517,7 +517,7 @@ export function buildScheduleCapacityDraft(
   };
 }
 
-export function formDataWithSchedule(
+function formDataWithSchedule(
   intent: string,
   schedule: ScheduleDraft,
 ): FormData {
@@ -532,7 +532,7 @@ export function formDataWithSchedule(
   });
 }
 
-export function formDataWithScheduleCapacity(
+function formDataWithScheduleCapacity(
   intent: string,
   scheduleId: string,
   capacity: ScheduleCapacityDraft,

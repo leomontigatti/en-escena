@@ -8,12 +8,12 @@ import {
   resolveApplicablePrice,
   updatePrice,
 } from "@/lib/prices/repository.server";
+import { deleteSchedule } from "@/lib/schedules/repository.server";
 import {
-  createSchedule,
-  deleteSchedule,
-} from "@/lib/schedules/repository.server";
-import {
+  createEventPriceFixture,
   createSavedEvent,
+  createSavedPrice,
+  createSavedSchedule,
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
@@ -31,41 +31,22 @@ describe("Bases del evento repository", () => {
     const otherEventModality = await expectCreated(
       createModality(secondEvent.id, { name: "Jazz" }),
     );
-    const block = await expectCreated(
-      createSchedule(firstEvent.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 20,
-        modalityIds: [jazz.id],
-      }),
-    );
-    const otherEventBlock = await expectCreated(
-      createSchedule(secondEvent.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-06-02",
-        startTime: "11:00",
-        totalCapacity: 10,
-        modalityIds: [otherEventModality.id],
-      }),
-    );
+    const block = await createSavedSchedule(firstEvent.id, {
+      modalityIds: [jazz.id],
+    });
+    const otherEventBlock = await createSavedSchedule(secondEvent.id, {
+      modalityIds: [otherEventModality.id],
+      scheduledDate: "2026-06-02",
+      startTime: "11:00",
+      totalCapacity: 10,
+    });
 
-    await expectCreated(
-      createPrice(firstEvent.id, {
-        groupType: "solo",
-        amount: 12000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: null,
-      }),
-    );
-    await expectCreated(
-      createPrice(firstEvent.id, {
-        groupType: "solo",
-        amount: 15000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: block.id,
-      }),
-    );
+    await createSavedPrice(firstEvent.id);
+    await createSavedPrice(firstEvent.id, {
+      amount: 15000,
+      name: "Precio bloque",
+      scheduleId: block.id,
+    });
     await expect(deleteSchedule(block.id)).resolves.toMatchObject({
       ok: false,
       error: "No se puede borrar el cronograma porque tiene dependencias.",
@@ -107,35 +88,13 @@ describe("Bases del evento repository", () => {
   });
 
   test("resolves the applicable precio by cronograma specificity and payment deadline", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 20,
-        modalityIds: [jazz.id],
-      }),
-    );
-    const general = await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 12000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: null,
-      }),
-    );
-    const specific = await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 15000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: block.id,
-      }),
-    );
+    const { event, schedule: block } = await createEventPriceFixture();
+    const general = await createSavedPrice(event.id);
+    const specific = await createSavedPrice(event.id, {
+      amount: 15000,
+      name: "Precio bloque",
+      scheduleId: block.id,
+    });
     await expect(
       resolveApplicablePrice({
         eventId: event.id,
@@ -146,14 +105,11 @@ describe("Bases del evento repository", () => {
       ok: true,
       price: { id: specific.id, amount: 15000 },
     });
-    const laterGeneral = await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 17000,
-        paymentDeadline: "2026-06-30",
-        scheduleId: null,
-      }),
-    );
+    const laterGeneral = await createSavedPrice(event.id, {
+      amount: 17000,
+      name: "Precio segunda fecha",
+      paymentDeadline: "2026-06-30",
+    });
     await expect(
       resolveApplicablePrice({
         eventId: event.id,
@@ -190,43 +146,18 @@ describe("Bases del evento repository", () => {
   });
 
   test("lists precios with cronograma scope and blocks dependent updates and deletes", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const jazz = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-    const block = await expectCreated(
-      createSchedule(event.id, {
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: 20,
-        modalityIds: [jazz.id],
-      }),
-    );
-    const general = await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 12000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: null,
-      }),
-    );
-    await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 15000,
-        paymentDeadline: "2026-05-31",
-        scheduleId: block.id,
-      }),
-    );
-    await expectCreated(
-      createPrice(event.id, {
-        groupType: "solo",
-        amount: 17000,
-        paymentDeadline: "2026-06-30",
-        scheduleId: null,
-      }),
-    );
+    const { event, schedule: block } = await createEventPriceFixture();
+    const general = await createSavedPrice(event.id);
+    await createSavedPrice(event.id, {
+      amount: 15000,
+      name: "Precio bloque",
+      scheduleId: block.id,
+    });
+    await createSavedPrice(event.id, {
+      amount: 17000,
+      name: "Precio segunda fecha",
+      paymentDeadline: "2026-06-30",
+    });
 
     await expect(listPrices(event.id)).resolves.toMatchObject([
       {

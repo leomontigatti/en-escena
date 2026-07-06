@@ -11,6 +11,7 @@ import {
 } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 import { createModality } from "@/lib/modalities/repository.server";
+import { createPrice } from "@/lib/prices/repository.server";
 import {
   createSchedule,
   createScheduleCapacity,
@@ -43,6 +44,14 @@ type SavedScheduleFixtureInput = {
   scheduledDate?: string;
   startTime?: string;
   totalCapacity?: number;
+};
+
+type SavedPriceFixtureInput = {
+  amount?: number;
+  groupType?: GroupType;
+  name?: string;
+  paymentDeadline?: string;
+  scheduleId?: string | null;
 };
 
 let createdEventOffset = 0;
@@ -111,6 +120,39 @@ export async function createSavedSchedule(
       modalityIds,
     }),
   );
+}
+
+export async function createSavedPrice(
+  eventId: string,
+  {
+    amount = 12000,
+    groupType = "solo",
+    name = "Precio base",
+    paymentDeadline = "2026-05-31",
+    scheduleId = null,
+  }: SavedPriceFixtureInput = {},
+) {
+  return await expectCreated(
+    createPrice(eventId, {
+      name,
+      groupType,
+      amount,
+      paymentDeadline,
+      scheduleId,
+    }),
+  );
+}
+
+export async function createEventPriceFixture(name = "Regional 2026") {
+  const event = await createSavedEvent(name);
+  const modality = await expectCreated(
+    createModality(event.id, { name: "Jazz" }),
+  );
+  const schedule = await createSavedSchedule(event.id, {
+    modalityIds: [modality.id],
+  });
+
+  return { event, modality, schedule };
 }
 
 export async function createEventChoreographyFixture({
