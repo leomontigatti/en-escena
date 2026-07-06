@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { LoaderCircle } from "lucide-react";
 import {
   Form,
-  data,
   redirect,
   useActionData,
   useLocation,
@@ -33,15 +32,13 @@ import {
   requiredTextField,
   type LoginNotice,
 } from "@/lib/auth/access-form.shared";
+import {
+  buildPublicAccessFormError,
+  loadPublicAccessRoute,
+} from "@/lib/auth/public-access-route.shared";
 import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
-import {
-  getPostLoginPathForUserId,
-  redirectSignedInUserFromPublicRoute,
-} from "@/lib/auth/internal-navigation.server";
-import {
-  getEmptyFieldErrors,
-  getFieldErrors,
-} from "@/lib/shared/form-validation";
+import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
+import { getEmptyFieldErrors } from "@/lib/shared/form-validation";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import { showToastMessage, useServerActionToast } from "@/lib/shared/toasts";
 
@@ -69,9 +66,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const publicRouteInit = await redirectSignedInUserFromPublicRoute(request);
-
-  return data(null, publicRouteInit ?? undefined);
+  return await loadPublicAccessRoute(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -86,12 +81,11 @@ export async function action({ request }: Route.ActionArgs) {
   });
 
   if (!parsed.success) {
-    return {
-      status: "error" as const,
-      message: "Revisá los campos marcados.",
-      fieldErrors: getFieldErrors(parsed.error, signInFields),
+    return buildPublicAccessFormError({
+      error: parsed.error,
+      fieldNames: signInFields,
       values,
-    };
+    });
   }
 
   try {

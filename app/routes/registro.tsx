@@ -1,5 +1,5 @@
 import { LoaderCircle } from "lucide-react";
-import { data, Form, useActionData, useNavigation } from "react-router";
+import { Form, useActionData, useNavigation } from "react-router";
 import { z } from "zod";
 
 import {
@@ -19,11 +19,11 @@ import {
   readFormValue,
   requiredTextField,
 } from "@/lib/auth/access-form.shared";
-import { redirectSignedInUserFromPublicRoute } from "@/lib/auth/internal-navigation.server";
 import {
-  getEmptyFieldErrors,
-  getFieldErrors,
-} from "@/lib/shared/form-validation";
+  buildPublicAccessFormError,
+  buildPublicAccessFormSuccess,
+  loadPublicAccessRoute,
+} from "@/lib/auth/public-access-route.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro";
@@ -57,9 +57,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const publicRouteInit = await redirectSignedInUserFromPublicRoute(request);
-
-  return data(null, publicRouteInit ?? undefined);
+  return await loadPublicAccessRoute(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -76,12 +74,11 @@ export async function action({ request }: Route.ActionArgs) {
   });
 
   if (!parsed.success) {
-    return {
-      status: "error" as const,
-      message: "Revisá los campos marcados.",
-      fieldErrors: getFieldErrors(parsed.error, registrationFields),
+    return buildPublicAccessFormError({
+      error: parsed.error,
+      fieldNames: registrationFields,
       values,
-    };
+    });
   }
 
   const result = await startAcademyRegistration({
@@ -91,17 +88,11 @@ export async function action({ request }: Route.ActionArgs) {
     requestUrl: request.url,
   });
 
-  return data(
-    {
-      status: "success" as const,
-      message: result.message,
-      fieldErrors: getEmptyFieldErrors<RegistrationField>(),
-      values,
-    },
-    {
-      headers: result.headers,
-    },
-  );
+  return buildPublicAccessFormSuccess<RegistrationField, RegistrationValues>({
+    message: result.message,
+    values,
+    headers: result.headers,
+  });
 }
 
 export default function RegistroRoute() {
