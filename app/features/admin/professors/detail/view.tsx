@@ -78,6 +78,7 @@ export function AdministracionProfesorDetalleRouteView({
     active: professor.active,
     intent: dialogIntent,
   });
+  const editFormId = "administracion-profesor-form";
 
   function handleEditSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,7 +136,7 @@ export function AdministracionProfesorDetalleRouteView({
           cancelHref={loaderData.cancelHref}
           canEdit={loaderData.canEdit}
           editForm={editForm}
-          editFormId="administracion-profesor-form"
+          editFormId={editFormId}
           editHref={loaderData.editHref}
           isEditing={isEditing}
           onSubmit={handleEditSubmit}

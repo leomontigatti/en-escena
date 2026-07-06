@@ -29,11 +29,15 @@ type ProfessorReasonFormReturn = UseFormReturn<
   ProfessorReasonFormValues
 >;
 
+export type ProfessorEditFormController = {
+  form: ProfessorEditFormReturn;
+};
+
 export function useProfessorEditForm({
   values,
 }: {
   values: ProfessorEditFormValues;
-}) {
+}): ProfessorEditFormController {
   const form = useForm<
     ProfessorEditFormValues,
     unknown,

@@ -14,14 +14,15 @@ import {
   ProfessorDocumentTypeField,
   ProfessorTextField,
   ReadOnlyField,
-  type useProfessorEditForm,
+  type ProfessorEditFormController,
 } from "./form";
 import {
   formatProfessorDocumentType,
   type ProfessorDetailLoaderData,
+  type ProfessorDialogIntent,
 } from "./shared";
 
-type ProfessorEditFormController = ReturnType<typeof useProfessorEditForm>;
+type ProfessorStatusIntent = Exclude<ProfessorDialogIntent, "update-professor">;
 
 export function ProfessorDetailHeaderActions({
   active,
@@ -30,22 +31,13 @@ export function ProfessorDetailHeaderActions({
 }: {
   active: boolean;
   canEdit: boolean;
-  onSelectIntent: (
-    intent: "archive-professor" | "reactivate-professor",
-  ) => void;
+  onSelectIntent: (intent: ProfessorStatusIntent) => void;
 }) {
   if (!canEdit) {
     return null;
   }
 
-  return (
-    <ProfessorActionsMenu
-      active={active}
-      onSelect={(intent) => {
-        onSelectIntent(intent);
-      }}
-    />
-  );
+  return <ProfessorActionsMenu active={active} onSelect={onSelectIntent} />;
 }
 
 export function ProfessorDetailAlerts({
@@ -57,9 +49,7 @@ export function ProfessorDetailAlerts({
   active: boolean;
   canEdit: boolean;
   isIncomplete: boolean;
-  onSelectIntent: (
-    intent: "archive-professor" | "reactivate-professor",
-  ) => void;
+  onSelectIntent: (intent: ProfessorStatusIntent) => void;
 }) {
   return (
     <AlertStack>
@@ -67,11 +57,7 @@ export function ProfessorDetailAlerts({
         <ArchivedPersonAlert
           personLabel="profesor"
           onReactivate={
-            canEdit
-              ? () => {
-                  onSelectIntent("reactivate-professor");
-                }
-              : undefined
+            canEdit ? () => onSelectIntent("reactivate-professor") : undefined
           }
         />
       ) : null}
