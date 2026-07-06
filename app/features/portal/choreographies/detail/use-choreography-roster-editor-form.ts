@@ -594,7 +594,7 @@ function useApplyRosterResolutionResult({
 
     form.clearErrors("dancerIds");
     const nextFieldState = getResolvedRosterFieldState({
-      derivedResolution,
+      currentCategoryId: derivedResolution.categoryId,
       result: resolutionData.result,
       watchedScheduleCapacityId,
     });

@@ -49,7 +49,7 @@ describe("roster editor form state", () => {
   test("maps auto-assigned schedule and category changes into form resets", () => {
     expect(
       getResolvedRosterFieldState({
-        derivedResolution: baseDerivedResolution(),
+        currentCategoryId: baseDerivedResolution().categoryId,
         result: {
           ok: true,
           resolution: {
@@ -92,7 +92,7 @@ describe("roster editor form state", () => {
   test("clears an incompatible selected cupo when multiple options remain", () => {
     expect(
       getResolvedRosterFieldState({
-        derivedResolution: baseDerivedResolution(),
+        currentCategoryId: baseDerivedResolution().categoryId,
         result: {
           ok: true,
           resolution: {

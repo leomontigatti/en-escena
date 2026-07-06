@@ -306,17 +306,17 @@ function mapResolvedDancerResolutionState(
 }
 
 export function getResolvedRosterFieldState({
-  derivedResolution,
+  currentCategoryId,
   result,
   watchedScheduleCapacityId,
 }: {
-  derivedResolution: DancerResolutionState;
+  currentCategoryId: ChoreographySummary["categoryId"];
   result: Extract<ResolveChoreographyDancersResult, { ok: true }>;
   watchedScheduleCapacityId: string;
 }): ResolvedRosterFieldState {
   const nextDerivedResolution = mapResolvedDancerResolutionState(result);
   const categoryChanged =
-    derivedResolution.categoryId !== nextDerivedResolution.categoryId;
+    currentCategoryId !== nextDerivedResolution.categoryId;
   const nextSchedule = result.resolution.schedule;
 
   return {
