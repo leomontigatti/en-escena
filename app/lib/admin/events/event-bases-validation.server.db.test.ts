@@ -283,16 +283,16 @@ describe.sequential("administracion Bases del evento routes", () => {
 
     const requiredScheduleCapacityRequest =
       await createScheduleCapacityAdminRequest({
-      email: "admin.cupo-cronograma.requerido@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}?evento=${event.id}`,
-      intent: "create-schedule-capacity",
-      scheduleId: createdBlock.id,
-      scheduleCapacity: buildScheduleCapacityDraft({
-        groupType: "",
-        capacity: "",
-      }),
-    });
+        email: "admin.cupo-cronograma.requerido@example.com",
+        role: "admin",
+        requestUrl: `http://localhost/administracion/cronogramas/${createdBlock.id}?evento=${event.id}`,
+        intent: "create-schedule-capacity",
+        scheduleId: createdBlock.id,
+        scheduleCapacity: buildScheduleCapacityDraft({
+          groupType: "",
+          capacity: "",
+        }),
+      });
 
     await expect(
       action(routeArgs(requiredScheduleCapacityRequest.request)),
