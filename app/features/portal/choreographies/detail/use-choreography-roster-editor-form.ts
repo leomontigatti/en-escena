@@ -15,18 +15,22 @@ import { toast } from "sonner";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
-  buildResolveChoreographyDancersFormData,
   formatPersonName,
   formatScheduleOptionDateTime,
-  getPersistedDancerResolutionState,
   getSelectableScheduleOptions,
   getSelectionKey,
-  mapResolvedDancerResolutionState,
-} from "@/features/portal/choreographies/detail/roster-editor-fields";
+} from "@/features/portal/choreographies/detail/roster-editor-options";
 import {
   buildChoreographyEditDefaultValues,
   canSubmitChoreographyEdit,
+  getChoreographyEditPermissions,
+  getPersistedDancerResolutionState,
+  getReadonlyChoreographyLabels,
+  getResolvedRosterFieldState,
+  getScheduleResolution,
+  hasResolvedRosterSelectionChange,
   type ScheduleResolution,
+  shouldResolveRosterSelection,
 } from "@/features/portal/choreographies/detail/roster-editor-form-state";
 import {
   choreographyEditSchema,
@@ -47,6 +51,17 @@ type RosterResolutionFetcher = ReturnType<
   typeof useFetcher<ChoreographyRosterEditorResolutionActionData>
 >;
 type ChoreographyEditNavigation = ReturnType<typeof useNavigation>;
+
+function buildResolveChoreographyDancersFormData(dancerIds: string[]) {
+  const formData = new FormData();
+  formData.set("intent", resolveChoreographyDancersIntent);
+
+  for (const dancerId of dancerIds) {
+    formData.append("dancerIds", dancerId);
+  }
+
+  return formData;
+}
 
 export function useChoreographyRosterEditorForm({
   actionData,
@@ -259,23 +274,6 @@ export function useChoreographyRosterEditorForm({
   };
 }
 
-function getChoreographyEditPermissions({
-  choreography,
-  loaderData,
-}: {
-  choreography: ChoreographySummary;
-  loaderData: ChoreographyRosterEditorLoaderData;
-}) {
-  const canEditPresentationDetails =
-    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
-
-  return {
-    canEditDancers: loaderData.dancerEditingEligibility.canEdit,
-    canEditMusic: canEditPresentationDetails,
-    canEditProfessors: canEditPresentationDetails,
-  };
-}
-
 function isSubmittingChoreographyUpdate(
   navigation: ChoreographyEditNavigation,
 ) {
@@ -283,34 +281,6 @@ function isSubmittingChoreographyUpdate(
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateChoreographyIntent
   );
-}
-
-function hasResolvedRosterSelectionChange({
-  dancerSelectionKey,
-  hasRosterChanged,
-  resolution,
-  resolvedSelectionKey,
-}: {
-  dancerSelectionKey: string;
-  hasRosterChanged: boolean;
-  resolution: ResolveChoreographyDancersResult | null;
-  resolvedSelectionKey: string;
-}) {
-  return (
-    hasRosterChanged &&
-    dancerSelectionKey === resolvedSelectionKey &&
-    resolution?.ok === true
-  );
-}
-
-function getScheduleResolution(
-  resolution: ResolveChoreographyDancersResult | null,
-): ScheduleResolution {
-  if (!resolution?.ok) {
-    return null;
-  }
-
-  return resolution.resolution.schedule;
 }
 
 function useChoreographyRosterInitialState({
@@ -427,43 +397,6 @@ function useChoreographyRosterEditorOptions({
   };
 }
 
-function getReadonlyChoreographyLabels({
-  choreography,
-  hasResolvedRosterChange,
-  scheduleResolution,
-}: {
-  choreography: ChoreographySummary;
-  hasResolvedRosterChange: boolean;
-  scheduleResolution: ScheduleResolution;
-}) {
-  return {
-    readonlyExperienceLevelName: hasResolvedRosterChange
-      ? ""
-      : (choreography.experienceLevelName ?? ""),
-    readonlyScheduleLabel: getReadonlyScheduleLabel({
-      choreography,
-      hasResolvedRosterChange,
-      scheduleResolution,
-    }),
-  };
-}
-
-function getReadonlyScheduleLabel({
-  choreography,
-  hasResolvedRosterChange,
-  scheduleResolution,
-}: {
-  choreography: ChoreographySummary;
-  hasResolvedRosterChange: boolean;
-  scheduleResolution: ScheduleResolution;
-}) {
-  if (hasResolvedRosterChange && scheduleResolution?.status === "auto") {
-    return formatScheduleOptionDateTime(scheduleResolution.options[0]);
-  }
-
-  return choreography.scheduleLabel;
-}
-
 function useResetChoreographyEditForm({
   actionData,
   choreography,
@@ -573,10 +506,14 @@ function useResolveRosterSelection({
     }
 
     if (
-      !canEditDancers ||
-      watchedDancerIds.length === 0 ||
-      dancerSelectionKey === resolvedSelectionKey ||
-      dancerSelectionKey === submittedSelectionKeyRef.current
+      !shouldResolveRosterSelection({
+        canEditDancers,
+        dancerSelectionKey,
+        hasRosterChanged,
+        resolvedSelectionKey,
+        submittedSelectionKey: submittedSelectionKeyRef.current,
+        watchedDancerIds,
+      })
     ) {
       return;
     }
@@ -656,23 +593,35 @@ function useApplyRosterResolutionResult({
     }
 
     form.clearErrors("dancerIds");
-    const nextResolution = mapResolvedDancerResolutionState(
-      resolutionData.result,
-    );
-    const categoryChanged =
-      derivedResolution.categoryId !== nextResolution.categoryId;
-
-    if (!nextResolution.experienceLevelRequired || categoryChanged) {
-      form.setValue("experienceLevelId", "", { shouldDirty: true });
-    }
-
-    applyScheduleResolution({
-      form,
-      nextSchedule: resolutionData.result.resolution.schedule,
+    const nextFieldState = getResolvedRosterFieldState({
+      derivedResolution,
+      result: resolutionData.result,
       watchedScheduleCapacityId,
     });
 
-    setDerivedResolution(nextResolution);
+    if (nextFieldState.shouldResetExperienceLevel) {
+      form.setValue("experienceLevelId", "", { shouldDirty: true });
+    }
+
+    form.setValue("scheduleCapacityId", nextFieldState.nextScheduleCapacityId, {
+      shouldDirty: true,
+    });
+
+    if (nextFieldState.shouldClearScheduleError) {
+      form.clearErrors("scheduleCapacityId");
+    }
+
+    if (nextFieldState.scheduleError) {
+      toast.error(nextFieldState.scheduleError, {
+        id: choreographyResolutionErrorToastId,
+      });
+      form.setError("dancerIds", {
+        message: nextFieldState.scheduleError,
+        type: "manual",
+      });
+    }
+
+    setDerivedResolution(nextFieldState.nextDerivedResolution);
   }, [
     dancerSelectionKey,
     derivedResolution.categoryId,
@@ -685,49 +634,4 @@ function useApplyRosterResolutionResult({
     submittedSelectionKeyRef,
     watchedScheduleCapacityId,
   ]);
-}
-
-function applyScheduleResolution({
-  form,
-  nextSchedule,
-  watchedScheduleCapacityId,
-}: {
-  form: ChoreographyEditForm;
-  nextSchedule: NonNullable<ScheduleResolution>;
-  watchedScheduleCapacityId: string;
-}) {
-  if (
-    nextSchedule.status === "keep-current" ||
-    nextSchedule.status === "auto"
-  ) {
-    form.setValue(
-      "scheduleCapacityId",
-      nextSchedule.selectedScheduleCapacityId,
-      {
-        shouldDirty: true,
-      },
-    );
-    form.clearErrors("scheduleCapacityId");
-    return;
-  }
-
-  if (nextSchedule.status === "multiple") {
-    if (
-      !nextSchedule.options.some(
-        (option) => option.id === watchedScheduleCapacityId,
-      )
-    ) {
-      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
-    }
-    return;
-  }
-
-  form.setValue("scheduleCapacityId", "", { shouldDirty: true });
-  toast.error(nextSchedule.error, {
-    id: choreographyResolutionErrorToastId,
-  });
-  form.setError("dancerIds", {
-    message: nextSchedule.error,
-    type: "manual",
-  });
 }
