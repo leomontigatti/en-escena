@@ -1,18 +1,19 @@
-import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
-
-import { db } from "@/db";
-import { modalities, prices, schedules } from "@/db/schema";
-import { createModality } from "@/lib/modalities/repository.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
+  buildPriceDraft,
+  createDeletePriceAdminRequest,
+  createEventPriceAdminFixture,
+  createPriceAdminRequest,
   createSavedEvent,
   createSignedInRequest,
-  expectCreated,
+  expectPriceDeletedRedirect,
+  expectPriceSavedRedirect,
   expectThrownResponse,
-  formData,
+  findSavedPriceById,
+  findSavedPriceByScope,
   loader,
   renderPrecioDetalleRoute,
   renderPrecioNuevoRoute,
@@ -40,73 +41,31 @@ describe.sequential("administracion Bases del evento routes", () => {
   });
 
   test("renders the precios list with alcance and dedicated route actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const modality = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-
-    const blockRequest = await createSignedInRequest({
-      email: "admin.precio.bloque.lista@example.com",
+    const { event, schedule } = await createEventPriceAdminFixture();
+    const createBasePriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.base.lista@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-      body: formData({
-        intent: "create-schedule",
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: "24",
-        modalityIds: [modality.id],
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+    });
+    const createSchedulePriceRequest = await createPriceAdminRequest({
+      email: "admin.crea.precio.bloque.lista@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: buildPriceDraft({
+        name: "Precio bloque",
+        amount: "15000",
+        scheduleId: schedule.id,
       }),
     });
-    await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
-
-    const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado Mañana"),
-    });
 
     await expectThrownResponse(
-      action(
-        routeArgs(
-          (
-            await createSignedInRequest({
-              email: "admin.precio.base.lista@example.com",
-              role: "admin",
-              requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
-              body: formData({
-                intent: "create-price",
-                name: "Precio base",
-                groupType: "solo",
-                amount: "12000",
-                paymentDeadline: "2026-05-31",
-                scheduleId: "",
-              }),
-            })
-          ).request,
-        ),
-      ),
+      action(routeArgs(createBasePriceRequest.request)),
       302,
     );
-
     await expectThrownResponse(
-      action(
-        routeArgs(
-          (
-            await createSignedInRequest({
-              email: "admin.crea.precio.bloque.lista@example.com",
-              role: "admin",
-              requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
-              body: formData({
-                intent: "create-price",
-                name: "Precio bloque",
-                groupType: "solo",
-                amount: "15000",
-                paymentDeadline: "2026-05-31",
-                scheduleId: schedule?.id ?? "",
-              }),
-            })
-          ).request,
-        ),
-      ),
+      action(routeArgs(createSchedulePriceRequest.request)),
       302,
     );
 
@@ -126,41 +85,17 @@ describe.sequential("administracion Bases del evento routes", () => {
   });
 
   test("creates, edits and deletes precios through dedicated create and detail routes", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const modality = await expectCreated(
-      createModality(event.id, { name: "Jazz" }),
-    );
-
-    const blockRequest = await createSignedInRequest({
-      email: "admin.precio.bloque@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-      body: formData({
-        intent: "create-schedule",
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: "24",
-        modalityIds: [modality.id],
-      }),
-    });
-    await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
-
-    const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado Mañana"),
-    });
-    const createPriceRequest = await createSignedInRequest({
+    const { event, schedule } = await createEventPriceAdminFixture();
+    const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
-      body: formData({
-        intent: "create-price",
+      intent: "create-price",
+      price: {
         name: "Precio bloque",
-        groupType: "solo",
         amount: "15000",
-        paymentDeadline: "2026-05-31",
-        scheduleId: schedule?.id ?? "",
-      }),
+        scheduleId: schedule.id,
+      },
     });
 
     const createResponse = await expectThrownResponse(
@@ -168,16 +103,12 @@ describe.sequential("administracion Bases del evento routes", () => {
       302,
     );
 
-    const price = await db.query.prices.findFirst({
-      where: and(
-        eq(prices.groupType, "solo"),
-        eq(prices.paymentDeadline, "2026-05-31"),
-        eq(prices.scheduleId, schedule?.id ?? ""),
-      ),
+    const price = await findSavedPriceByScope({
+      groupType: "solo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: schedule.id,
     });
-    expect(createResponse.headers.get("location")).toMatch(
-      /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
-    );
+    expectPriceSavedRedirect(createResponse);
 
     const createData = await loader(
       routeArgs(
@@ -210,44 +141,36 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(detailMarkup).toContain("31 de mayo de 2026");
     expect(detailMarkup).toContain('aria-label="Acciones"');
 
-    const editPriceRequest = await createSignedInRequest({
+    const editPriceRequest = await createPriceAdminRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
-      body: formData({
-        intent: "update-price",
-        id: price?.id ?? "",
+      intent: "update-price",
+      priceId: price?.id ?? "",
+      price: {
         name: "Precio actualizado",
-        groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
         scheduleId: "",
-      }),
+      },
     });
 
     await expectThrownResponse(
       action(routeArgs(editPriceRequest.request)),
       302,
     );
-    await expect(
-      db.query.prices.findFirst({
-        where: eq(prices.id, price?.id ?? ""),
-      }),
-    ).resolves.toMatchObject({
+    await expect(findSavedPriceById(price?.id ?? "")).resolves.toMatchObject({
       name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
       scheduleId: null,
     });
 
-    const blockedDeleteRequest = await createSignedInRequest({
+    const blockedDeleteRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio.bloqueado@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
-      body: formData({
-        intent: "delete-price",
-        id: price?.id ?? "",
-      }),
+      priceId: price?.id ?? "",
     });
 
     await expect(
@@ -262,78 +185,45 @@ describe.sequential("administracion Bases del evento routes", () => {
       },
     });
 
-    const deletePriceRequest = await createSignedInRequest({
+    const deletePriceRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/${price?.id}?evento=${event.id}`,
-      body: formData({
-        intent: "delete-price",
-        id: price?.id ?? "",
-        confirmDeletion: price?.id ?? "",
-      }),
+      priceId: price?.id ?? "",
+      confirmDeletion: price?.id ?? "",
     });
 
     const deleteResponse = await expectThrownResponse(
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expect(deleteResponse.headers.get("location")).toBe(
-      "/administracion/precios?notificacion=precio-eliminado",
-    );
+    expectPriceDeletedRedirect(deleteResponse);
   });
 
   test("creates, edits and deletes precios through the admin action", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    await createModality(event.id, { name: "Jazz" });
-    const modality = await db.query.modalities.findFirst({
-      where: eq(modalities.eventId, event.id),
-    });
-    const blockRequest = await createSignedInRequest({
-      email: "admin.precio.bloque@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
-      body: formData({
-        intent: "create-schedule",
-        name: "Sábado mañana",
-        scheduledDate: "2026-05-02",
-        startTime: "09:00",
-        totalCapacity: "24",
-        modalityIds: [modality?.id ?? ""],
-      }),
-    });
-    await expectThrownResponse(action(routeArgs(blockRequest.request)), 302);
-
-    const schedule = await db.query.schedules.findFirst({
-      where: eq(schedules.name, "Sábado Mañana"),
-    });
-    const createPriceRequest = await createSignedInRequest({
+    const { event, schedule } = await createEventPriceAdminFixture();
+    const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
-      body: formData({
-        intent: "create-price",
+      intent: "create-price",
+      price: {
         name: "Precio bloque",
-        groupType: "solo",
         amount: "15000",
-        paymentDeadline: "2026-05-31",
-        scheduleId: schedule?.id ?? "",
-      }),
+        scheduleId: schedule.id,
+      },
     });
 
     const createPriceResponse = await expectThrownResponse(
       action(routeArgs(createPriceRequest.request)),
       302,
     );
-    expect(createPriceResponse.headers.get("location")).toMatch(
-      /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
-    );
+    expectPriceSavedRedirect(createPriceResponse);
 
-    const price = await db.query.prices.findFirst({
-      where: and(
-        eq(prices.groupType, "solo"),
-        eq(prices.paymentDeadline, "2026-05-31"),
-        eq(prices.scheduleId, schedule?.id ?? ""),
-      ),
+    const price = await findSavedPriceByScope({
+      groupType: "solo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: schedule.id,
     });
     expect(price).toMatchObject({
       eventId: event.id,
@@ -341,7 +231,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       groupType: "solo",
       amount: 15000,
       paymentDeadline: "2026-05-31",
-      scheduleId: schedule?.id,
+      scheduleId: schedule.id,
     });
 
     const data = await loader(
@@ -361,19 +251,18 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("Solo");
     expect(markup).toContain("$ 15.000");
 
-    const editPriceRequest = await createSignedInRequest({
+    const editPriceRequest = await createPriceAdminRequest({
       email: "admin.edita.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
-      body: formData({
-        intent: "update-price",
-        id: price?.id ?? "",
+      intent: "update-price",
+      priceId: price?.id ?? "",
+      price: {
         name: "Precio actualizado",
-        groupType: "solo",
         amount: "12000",
         paymentDeadline: "2026-06-30",
         scheduleId: "",
-      }),
+      },
     });
 
     const updatePriceResponse = await expectThrownResponse(
@@ -383,38 +272,25 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(updatePriceResponse.headers.get("location")).toContain(
       "notificacion=precio-guardado",
     );
-    await expect(
-      db.query.prices.findFirst({
-        where: eq(prices.id, price?.id ?? ""),
-      }),
-    ).resolves.toMatchObject({
+    await expect(findSavedPriceById(price?.id ?? "")).resolves.toMatchObject({
       name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
       scheduleId: null,
     });
 
-    const deletePriceRequest = await createSignedInRequest({
+    const deletePriceRequest = await createDeletePriceAdminRequest({
       email: "admin.borra.precio@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
-      body: formData({
-        intent: "delete-price",
-        id: price?.id ?? "",
-      }),
+      priceId: price?.id ?? "",
     });
 
     const deletePriceResponse = await expectThrownResponse(
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expect(deletePriceResponse.headers.get("location")).toBe(
-      "/administracion/precios?notificacion=precio-eliminado",
-    );
-    await expect(
-      db.query.prices.findFirst({
-        where: eq(prices.id, price?.id ?? ""),
-      }),
-    ).resolves.toBeUndefined();
+    expectPriceDeletedRedirect(deletePriceResponse);
+    await expect(findSavedPriceById(price?.id ?? "")).resolves.toBeUndefined();
   });
 });

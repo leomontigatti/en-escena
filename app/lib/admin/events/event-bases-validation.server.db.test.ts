@@ -7,9 +7,11 @@ import { createSchedule } from "@/lib/schedules/repository.server";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
+  buildPriceDraft,
   buildScheduleCapacityDraft,
   buildScheduleDraft,
   createEventScheduleAdminFixture,
+  createPriceAdminRequest,
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
   createSavedEvent,
@@ -135,18 +137,11 @@ describe.sequential("administracion Bases del evento routes", () => {
 
   test("returns precio validation errors from Bases del evento actions", async () => {
     const event = await createSavedEvent("Regional 2026");
-    const createPriceRequest = await createSignedInRequest({
+    const createPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
-      body: formData({
-        intent: "create-price",
-        name: "Precio base",
-        groupType: "solo",
-        amount: "12000",
-        paymentDeadline: "2026-05-31",
-        scheduleId: "",
-      }),
+      intent: "create-price",
     });
 
     await expectThrownResponse(
@@ -154,17 +149,14 @@ describe.sequential("administracion Bases del evento routes", () => {
       302,
     );
 
-    const duplicatePriceRequest = await createSignedInRequest({
+    const duplicatePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.duplicado@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios?evento=${event.id}`,
-      body: formData({
-        intent: "create-price",
+      intent: "create-price",
+      price: buildPriceDraft({
         name: "Precio duplicado",
-        groupType: "solo",
         amount: "13000",
-        paymentDeadline: "2026-05-31",
-        scheduleId: "",
       }),
     });
 
@@ -189,17 +181,16 @@ describe.sequential("administracion Bases del evento routes", () => {
       },
     });
 
-    const requiredPriceRequest = await createSignedInRequest({
+    const requiredPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.requerido@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
-      body: formData({
-        intent: "create-price",
+      intent: "create-price",
+      price: buildPriceDraft({
         name: "",
         groupType: "",
         amount: "",
         paymentDeadline: "",
-        scheduleId: "",
       }),
     });
 
