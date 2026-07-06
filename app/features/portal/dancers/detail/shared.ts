@@ -4,6 +4,10 @@ import type {
   findDancerForAcademy,
   UpdateDancerField,
 } from "@/lib/portal/dancers.server";
+import type {
+  DancerIdentificationPendingItem,
+  DancerVerificationStatus,
+} from "@/lib/dancers/verification";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
@@ -66,6 +70,25 @@ export type PortalDancerDocumentImageUrls = {
   front: string | null;
 };
 export type PortalDancerStatusIntent = "archive-dancer" | "reactivate-dancer";
+export type PortalDancerDetailViewModel = {
+  detailHref: string;
+  identificationPendingItems: DancerIdentificationPendingItem[];
+  identityFieldValues: Pick<
+    PortalDancerFormValues,
+    | "birthDate"
+    | "documentBackImageStorageKey"
+    | "documentFrontImageStorageKey"
+    | "documentNumber"
+    | "documentType"
+  >;
+  isIdentityVerified: boolean;
+  showsIdentificationAlert: boolean;
+  showsPendingVerificationAlert: boolean;
+  showsVerifiedIdentityAlert: boolean;
+  statusAction: PortalDancerStatusAction;
+  title: string;
+  verificationStatus: DancerVerificationStatus;
+};
 type PortalDancerStatusAction = {
   intent: PortalDancerStatusIntent;
   label: string;
@@ -186,6 +209,45 @@ export function getPortalDancerStatusAction(isActive: boolean) {
   }
 
   return portalDancerStatusActions["reactivate-dancer"];
+}
+
+export function buildPortalDancerDetailViewModel(input: {
+  dancer: PortalDancerDetailLoaderData["dancer"];
+  formValues: PortalDancerFormValues;
+  identificationPendingItems: PortalDancerDetailViewModel["identificationPendingItems"];
+  verificationStatus: PortalDancerDetailViewModel["verificationStatus"];
+}): PortalDancerDetailViewModel {
+  const { dancer, formValues, identificationPendingItems, verificationStatus } =
+    input;
+  const isIdentityVerified = verificationStatus === "verified";
+
+  return {
+    detailHref: `/portal/bailarines/${dancer.id}`,
+    identificationPendingItems,
+    identityFieldValues: isIdentityVerified
+      ? {
+          birthDate: dancer.birthDate,
+          documentType: dancer.documentType ?? "",
+          documentNumber: dancer.documentNumber ?? "",
+          documentFrontImageStorageKey:
+            dancer.documentFrontImageStorageKey ?? "",
+          documentBackImageStorageKey: dancer.documentBackImageStorageKey ?? "",
+        }
+      : {
+          birthDate: formValues.birthDate,
+          documentType: formValues.documentType,
+          documentNumber: formValues.documentNumber,
+          documentFrontImageStorageKey: formValues.documentFrontImageStorageKey,
+          documentBackImageStorageKey: formValues.documentBackImageStorageKey,
+        },
+    isIdentityVerified,
+    showsIdentificationAlert: verificationStatus === "incomplete",
+    showsPendingVerificationAlert: verificationStatus === "unverified",
+    showsVerifiedIdentityAlert: verificationStatus === "verified",
+    statusAction: getPortalDancerStatusAction(dancer.active),
+    title: `${dancer.firstName} ${dancer.lastName}`,
+    verificationStatus,
+  };
 }
 
 export function getPortalDancerStatusFormId(

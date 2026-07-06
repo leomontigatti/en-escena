@@ -48,6 +48,8 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain("Guardar");
     expect(markup).toContain('form="portal-bailarin-form"');
     expect(markup).toContain('href="/portal/bailarines"');
+    expect(markup).toContain('aria-labelledby="bailarin-detail-alerts-title"');
+    expect(markup).toContain('aria-labelledby="bailarin-detail-form-title"');
     expect(markup).not.toContain("Archivado");
     expect(markup).not.toContain("Activo");
   });
