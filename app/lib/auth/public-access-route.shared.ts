@@ -1,7 +1,7 @@
-import { data } from "react-router";
+import { data, type Navigation } from "react-router";
 import type { z } from "zod";
 
-import { redirectSignedInUserFromPublicRoute } from "@/lib/auth/internal-navigation.server";
+import { readFormValue } from "@/lib/auth/access-form.shared";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
@@ -20,10 +20,66 @@ export type PublicAccessFormResult<
 
 const invalidFormMessage = "Revisá los campos marcados.";
 
-export async function loadPublicAccessRoute(request: Request) {
-  const publicRouteInit = await redirectSignedInUserFromPublicRoute(request);
+type ParsePublicAccessFormResult<
+  Schema extends z.ZodTypeAny,
+  FieldName extends string,
+> =
+  | {
+      ok: true;
+      data: z.output<Schema>;
+      values: Record<FieldName, string>;
+    }
+  | {
+      ok: false;
+      response: PublicAccessFormResult<FieldName, Record<FieldName, string>>;
+    };
 
-  return data(null, publicRouteInit ?? undefined);
+export async function parsePublicAccessForm<
+  Schema extends z.ZodTypeAny,
+  FieldName extends string,
+>({
+  request,
+  schema,
+  fieldNames,
+  preservedValueFields = fieldNames,
+}: {
+  request: Request;
+  schema: Schema;
+  fieldNames: readonly FieldName[];
+  preservedValueFields?: readonly FieldName[];
+}): Promise<ParsePublicAccessFormResult<Schema, FieldName>> {
+  const formData = await request.formData();
+  const preservedFieldNameSet = new Set<FieldName>(preservedValueFields);
+  const values = Object.fromEntries(
+    fieldNames.map((fieldName) => [
+      fieldName,
+      preservedFieldNameSet.has(fieldName)
+        ? readFormValue(formData.get(fieldName))
+        : "",
+    ]),
+  ) as Record<FieldName, string>;
+  const parsed = schema.safeParse(
+    Object.fromEntries(
+      fieldNames.map((fieldName) => [fieldName, formData.get(fieldName)]),
+    ),
+  );
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      response: buildPublicAccessFormError({
+        error: parsed.error,
+        fieldNames,
+        values,
+      }),
+    };
+  }
+
+  return {
+    ok: true,
+    data: parsed.data,
+    values,
+  };
 }
 
 export function buildPublicAccessFormError<
@@ -66,5 +122,26 @@ export function buildPublicAccessFormSuccess<
       values,
     } satisfies PublicAccessFormResult<FieldName, Values>,
     headers ? { headers } : undefined,
+  );
+}
+
+export function getPublicAccessResultToastId({
+  status,
+  successToastId,
+  errorToastId,
+}: {
+  status: "success" | "error" | undefined;
+  successToastId: string;
+  errorToastId: string;
+}) {
+  return status === "success" ? successToastId : errorToastId;
+}
+
+export function isPublicAccessFormSubmitting(
+  navigation: Pick<Navigation, "state" | "formMethod">,
+) {
+  return (
+    navigation.state !== "idle" &&
+    navigation.formMethod?.toLowerCase() === "post"
   );
 }
