@@ -5,7 +5,17 @@ import { Link, useNavigation, useSubmit } from "react-router";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import {
+  ReadOnlyDateField,
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -32,15 +42,11 @@ import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-tra
 import {
   PortalDancerBirthDateField,
   PortalDancerDocumentImageFields,
-  PortalDancerDocumentTypeField,
   PortalDancerTextField,
-  ReadonlyLockedFormField,
   usePortalDancerForm,
 } from "./form";
 import {
   buildPortalDancerDetailViewModel,
-  formatDateOnlyLabel,
-  formatDocumentTypeLabel,
   getDocumentImageStateLabel,
   getGeneralActionError,
   getPortalDancerFormValues,
@@ -164,32 +170,35 @@ export function PortalDancerDetailRouteView({
                   name="lastName"
                 />
                 {viewModel.isIdentityVerified ? (
-                  <ReadonlyLockedFormField
+                  <ReadOnlyDateField
                     label="Fecha de nacimiento"
                     name="birthDate"
                     value={viewModel.identityFieldValues.birthDate}
-                    displayValue={formatDateOnlyLabel(
-                      viewModel.identityFieldValues.birthDate,
-                    )}
                   />
                 ) : (
                   <PortalDancerBirthDateField form={form.form} />
                 )}
                 <div className="hidden md:block" aria-hidden="true" />
                 {viewModel.isIdentityVerified ? (
-                  <ReadonlyLockedFormField
+                  <ReadOnlySelectField
                     label="Tipo de documento"
                     name="documentType"
+                    options={documentTypeOptions}
                     value={viewModel.identityFieldValues.documentType}
-                    displayValue={formatDocumentTypeLabel(
-                      viewModel.identityFieldValues.documentType,
-                    )}
                   />
                 ) : (
-                  <PortalDancerDocumentTypeField form={form.form} />
+                  <SelectField
+                    allowEmpty
+                    control={form.form.control}
+                    emptyLabel={documentTypeEmptyLabel}
+                    label="Tipo de documento"
+                    name="documentType"
+                    options={documentTypeOptions}
+                    placeholder={documentTypeEmptyLabel}
+                  />
                 )}
                 {viewModel.isIdentityVerified ? (
-                  <ReadonlyLockedFormField
+                  <ReadOnlyField
                     label="Número de documento"
                     name="documentNumber"
                     value={viewModel.identityFieldValues.documentNumber}
@@ -203,7 +212,7 @@ export function PortalDancerDetailRouteView({
                 )}
                 {viewModel.isIdentityVerified ? (
                   <>
-                    <ReadonlyLockedFormField
+                    <ReadOnlyField
                       label="Frente del documento"
                       name="documentFrontImageStorageKey"
                       value={
@@ -215,7 +224,7 @@ export function PortalDancerDetailRouteView({
                           .documentFrontImageStorageKey,
                       )}
                     />
-                    <ReadonlyLockedFormField
+                    <ReadOnlyField
                       label="Dorso del documento"
                       name="documentBackImageStorageKey"
                       value={

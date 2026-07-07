@@ -5,19 +5,25 @@ import { Link } from "react-router";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import {
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
+import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 
 import {
   ProfessorActionsMenu,
-  ProfessorDocumentTypeField,
   ProfessorTextField,
-  ReadOnlyField,
   type ProfessorEditFormController,
 } from "./form";
 import {
-  formatProfessorDocumentType,
   type ProfessorDetailLoaderData,
   type ProfessorDialogIntent,
 } from "./shared";
@@ -151,7 +157,20 @@ function ProfessorAdministrativeDataSection({
             label="Apellido"
             name="lastName"
           />
-          <ProfessorDocumentTypeField form={editForm.form} />
+          <SelectField
+            allowEmpty
+            contentProps={{
+              align: "start",
+              position: "popper",
+              side: "bottom",
+            }}
+            control={editForm.form.control}
+            emptyLabel={documentTypeEmptyLabel}
+            label="Tipo de documento"
+            name="documentType"
+            options={documentTypeOptions}
+            placeholder={documentTypeEmptyLabel}
+          />
           <ProfessorTextField
             form={editForm.form}
             label="Número de documento"
@@ -162,9 +181,11 @@ function ProfessorAdministrativeDataSection({
         <>
           <ReadOnlyField label="Nombre" value={professor.firstName} />
           <ReadOnlyField label="Apellido" value={professor.lastName} />
-          <ReadOnlyField
+          <ReadOnlySelectField
+            emptyLabel={documentTypeEmptyLabel}
             label="Tipo de documento"
-            value={formatProfessorDocumentType(professor.documentType)}
+            options={documentTypeOptions}
+            value={professor.documentType}
           />
           <ReadOnlyField
             label="Número de documento"

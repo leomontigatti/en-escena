@@ -192,8 +192,8 @@ Reglas:
   cuando el contexto lo requiera.
 - En formularios React Hook Form, usar los campos compartidos antes de definir
   campos locales con `Controller`: `TextInputField`, `IntegerInputField`,
-  `TextareaField`, `SelectField`, `DocumentTypeSelectField`, `ComboboxField`,
-  `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` y `FileUploadField`.
+  `TextareaField`, `SelectField`, `ComboboxField`, `MultiComboboxField`,
+  `DateOnlyField`, `TimeOnlyField` y `FileUploadField`.
   Crear un campo local sólo cuando el patrón todavía no exista como componente
   compartido o cuando el formulario necesite una composición específica, por
   ejemplo arrays dinámicos, grupos de checkboxes, switches con lógica de UI
@@ -246,8 +246,8 @@ Reglas:
   persiste.
 - Usar los componentes compartidos de formulario cuando cubran el caso:
   `TextInputField`, `IntegerInputField`, `TextareaField`, `SelectField`,
-  `DocumentTypeSelectField`, `ComboboxField`, `MultiComboboxField`,
-  `DateOnlyField`, `TimeOnlyField` y `FileUploadField`. Estos componentes son
+  `ComboboxField`, `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` y
+  `FileUploadField`. Estos componentes son
   dueños de su `Controller`; las pantallas les pasan `control`, `name`, copy y
   opciones.
 - Usar `Controller` localmente sólo para componentes controlados que todavía no

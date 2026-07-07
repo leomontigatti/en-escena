@@ -4,8 +4,6 @@ import { useEffect, useId } from "react";
 import { type FieldPath, useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TextareaField } from "@/components/shared/textarea-field";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
@@ -15,7 +13,6 @@ import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 import {
   buildDancerStatusSchema,
   buildDancerUpdateSchema,
-  formatDateOnlyLabel,
   type DancerEditFormValues,
 } from "./shared";
 
@@ -123,20 +120,6 @@ export function DancerBirthDateField({
   );
 }
 
-export function DancerDocumentTypeField({
-  form,
-}: {
-  form: DancerEditFormReturn;
-}) {
-  return (
-    <DocumentTypeSelectField
-      control={form.control}
-      name="documentType"
-      contentProps={{ align: "start", position: "popper", side: "bottom" }}
-    />
-  );
-}
-
 export function DancerCorrectionReasonField<
   TFieldValues extends AdministrativeDancerStatusInput,
 >({
@@ -159,25 +142,6 @@ export function DancerCorrectionReasonField<
           : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."
       }
       form={formId}
-    />
-  );
-}
-
-export { ReadOnlyField };
-
-export function ReadOnlyDateField({
-  className,
-  value,
-}: {
-  className?: string;
-  value: string;
-}) {
-  return (
-    <ReadOnlyField
-      className={className}
-      label="Fecha de nacimiento"
-      value={value}
-      displayValue={formatDateOnlyLabel(value)}
     />
   );
 }

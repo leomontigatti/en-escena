@@ -77,6 +77,23 @@ export type UserDetailLoaderData = {
   user: DetailUser;
 };
 
+export const detailUserRoleOptions = [
+  { value: "admin", label: "Administrador" },
+  { value: "auditor", label: "Auditor" },
+  { value: "judge", label: "Juez" },
+  { value: "academy", label: "Academia" },
+] as const satisfies ReadonlyArray<{ value: DetailUserRole; label: string }>;
+
+export const internalUserRoleOptions = detailUserRoleOptions.filter(
+  (option) => option.value !== "academy",
+);
+
+export const detailUserStateOptions = [
+  { value: "active", label: "Activo" },
+  { value: "mandatory-password-change", label: "Cambio obligatorio" },
+  { value: "suspended", label: "Suspendido" },
+] as const satisfies ReadonlyArray<{ value: DetailUserState; label: string }>;
+
 export type DetailActionData = {
   form: "edit" | "reset-password" | "status";
   status: "error";
@@ -291,27 +308,16 @@ export function getUpdateInternalUserServerFieldErrors(error: string) {
 }
 
 export function getRoleLabel(role: DetailUser["mainRole"]) {
-  switch (role) {
-    case "admin":
-      return "Administrador";
-    case "auditor":
-      return "Auditor";
-    case "judge":
-      return "Juez";
-    case "academy":
-      return "Academia";
-  }
+  return (
+    detailUserRoleOptions.find((option) => option.value === role)?.label ?? role
+  );
 }
 
 export function getStateLabel(state: DetailUser["state"]) {
-  switch (state) {
-    case "active":
-      return "Activo";
-    case "mandatory-password-change":
-      return "Cambio obligatorio";
-    case "suspended":
-      return "Suspendido";
-  }
+  return (
+    detailUserStateOptions.find((option) => option.value === state)?.label ??
+    state
+  );
 }
 
 export function getUpdateInternalUserFieldErrors(error: z.ZodError) {

@@ -5,6 +5,16 @@ export { formatChoreographyOperationalStatusLabel as formatOperationalStatusLabe
 
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
+export const choreographyGroupTypeOptions = [
+  { value: "solo", label: "Solo" },
+  { value: "duo", label: "Dúo" },
+  { value: "trio", label: "Trío" },
+  { value: "grupal", label: "Grupal" },
+] as const satisfies ReadonlyArray<{
+  value: ChoreographyGroupType;
+  label: string;
+}>;
+
 export type ChoreographyListItem = {
   id: string;
   name: string;
@@ -18,14 +28,8 @@ export type ChoreographyListItem = {
 };
 
 export function formatGroupTypeLabel(groupType: ChoreographyGroupType) {
-  switch (groupType) {
-    case "solo":
-      return "Solo";
-    case "duo":
-      return "Dúo";
-    case "trio":
-      return "Trío";
-    case "grupal":
-      return "Grupal";
-  }
+  return (
+    choreographyGroupTypeOptions.find((option) => option.value === groupType)
+      ?.label ?? groupType
+  );
 }

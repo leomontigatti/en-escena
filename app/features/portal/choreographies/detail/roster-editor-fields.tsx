@@ -1,10 +1,7 @@
 import { type Control } from "react-hook-form";
 
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import type { ChoreographyEditValues } from "@/features/portal/choreographies/detail/roster-editor.shared";
-
-export { ReadOnlyField as ReadonlyDetailField };
 
 export function ChoreographySelectPreviewField({
   control,

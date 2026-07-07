@@ -22,12 +22,14 @@ export type MultiComboboxOption = {
 };
 
 type MultiComboboxProps<TOption extends MultiComboboxOption> = {
+  ariaDescribedBy?: string;
   allSelectedMessage?: string;
   className?: string;
   disabled?: boolean;
   emptyMessage?: string;
   error?: boolean;
   hideSelectedOptions?: boolean;
+  id?: string;
   name?: string;
   onBlur?: () => void;
   onValueChange: (value: string[]) => void;
@@ -41,12 +43,14 @@ type MultiComboboxProps<TOption extends MultiComboboxOption> = {
 };
 
 type MultiComboboxConfig<TOption extends MultiComboboxOption> = {
+  ariaDescribedBy?: string;
   allSelectedMessage: string;
   className?: string;
   disabled: boolean;
   emptyMessage: string;
   error: boolean;
   hideSelectedOptions: boolean;
+  id?: string;
   name?: string;
   onBlur?: () => void;
   onValueChange: (value: string[]) => void;
@@ -102,12 +106,14 @@ function getMultiComboboxConfig<TOption extends MultiComboboxOption>(
   props: MultiComboboxProps<TOption>,
 ): MultiComboboxConfig<TOption> {
   return {
+    ariaDescribedBy: props.ariaDescribedBy,
     allSelectedMessage: props.allSelectedMessage ?? defaultAllSelectedMessage,
     className: props.className,
     disabled: props.disabled ?? false,
     emptyMessage: props.emptyMessage ?? defaultEmptyMessage,
     error: props.error ?? false,
     hideSelectedOptions: props.hideSelectedOptions ?? true,
+    id: props.id,
     name: props.name,
     onBlur: props.onBlur,
     onValueChange: props.onValueChange,
@@ -278,6 +284,9 @@ function MultiComboboxTrigger<TOption extends MultiComboboxOption>({
 }) {
   return (
     <ComboboxTrigger
+      id={config.id}
+      aria-describedby={config.ariaDescribedBy}
+      aria-invalid={config.error ? true : undefined}
       disabled={config.disabled}
       className={cn(
         "flex min-w-16 flex-1 items-center justify-between gap-2 text-left text-muted-foreground outline-none",

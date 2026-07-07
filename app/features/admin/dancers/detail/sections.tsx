@@ -8,7 +8,17 @@ import {
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import {
+  ReadOnlyDateField,
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -26,15 +36,11 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import {
   DancerBirthDateField,
-  DancerDocumentTypeField,
   DancerTextField,
-  ReadOnlyDateField,
   ReadOnlyDocumentImageField,
-  ReadOnlyField,
   type DancerEditFormController,
 } from "./form";
 import {
-  formatDancerDocumentType,
   type DancerDetailLoaderData,
   type DancerDialogIntent,
   type DancerStatusAction,
@@ -301,7 +307,20 @@ function DancerIdentificationSection({
         <>
           <DancerBirthDateField form={editForm.form} />
           <div aria-hidden="true" className="hidden md:block" />
-          <DancerDocumentTypeField form={editForm.form} />
+          <SelectField
+            allowEmpty
+            contentProps={{
+              align: "start",
+              position: "popper",
+              side: "bottom",
+            }}
+            control={editForm.form.control}
+            emptyLabel={documentTypeEmptyLabel}
+            label="Tipo de documento"
+            name="documentType"
+            options={documentTypeOptions}
+            placeholder={documentTypeEmptyLabel}
+          />
           <DancerTextField
             form={editForm.form}
             label="Número de documento"
@@ -322,11 +341,16 @@ function DancerIdentificationSection({
         </>
       ) : (
         <>
-          <ReadOnlyDateField value={dancer.birthDate} />
+          <ReadOnlyDateField
+            label="Fecha de nacimiento"
+            value={dancer.birthDate}
+          />
           <div aria-hidden="true" className="hidden md:block" />
-          <ReadOnlyField
+          <ReadOnlySelectField
+            emptyLabel={documentTypeEmptyLabel}
             label="Tipo de documento"
-            value={formatDancerDocumentType(dancer.documentType)}
+            options={documentTypeOptions}
+            value={dancer.documentType}
           />
           <ReadOnlyField
             label="Número de documento"

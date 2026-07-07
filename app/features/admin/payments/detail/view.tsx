@@ -8,7 +8,9 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
+  ReadOnlyDateField,
   ReadOnlyField,
+  ReadOnlySelectField,
   ReadOnlyTextareaField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -26,12 +28,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  formatAmount,
-  formatDate,
-} from "@/features/admin/academies/account-current/formatters";
+import { formatAmount } from "@/features/admin/academies/account-current/formatters";
 import { annulPaymentSchema } from "@/features/admin/academies/account-current/shared";
-import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
+import { paymentMethodOptions } from "@/lib/finances/payment-methods";
 import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -108,15 +107,16 @@ export function AdministracionPagoDetalleRouteView({
               label="Academia"
               value={payment.academyName}
             />
-            <ReadOnlyField
+            <ReadOnlyDateField
               label="Fecha de pago"
-              value={formatDate(payment.paymentDate)}
+              value={payment.paymentDate}
             />
             <ReadOnlyField label="Referencia" value={payment.reference ?? ""} />
             <ReadOnlyField label="Monto" value={formatAmount(payment.amount)} />
-            <ReadOnlyField
+            <ReadOnlySelectField
               label="Medio de pago"
-              value={formatPaymentMethodLabel(payment.paymentMethod)}
+              options={paymentMethodOptions}
+              value={payment.paymentMethod}
             />
             <ReadOnlyTextareaField
               className="md:col-span-2"
@@ -125,11 +125,9 @@ export function AdministracionPagoDetalleRouteView({
             />
             {payment.annulledAt ? (
               <>
-                <ReadOnlyField
+                <ReadOnlyDateField
                   label="Fecha de anulación"
-                  value={formatDate(
-                    payment.annulledAt.toISOString().slice(0, 10),
-                  )}
+                  value={payment.annulledAt.toISOString().slice(0, 10)}
                 />
                 <ReadOnlyTextareaField
                   className="md:col-span-2"

@@ -5,14 +5,15 @@ import { toast } from "sonner";
 
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import {
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldDescription, FieldGroup } from "@/components/ui/field";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import {
-  ChoreographySelectPreviewField,
-  ReadonlyDetailField,
-} from "@/features/portal/choreographies/detail/roster-editor-fields";
+import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import { ChoreographySelectPreviewField } from "@/features/portal/choreographies/detail/roster-editor-fields";
 import {
   choreographyMusicAccept,
   choreographyMusicAllowedMimeTypes,
@@ -124,26 +125,27 @@ export function ChoreographyRosterEditorForm({
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
 
           <FieldGroup className="grid gap-5 md:grid-cols-2">
-            <ReadonlyDetailField
+            <ReadOnlyField
               className="md:col-span-2"
               label="Nombre"
               value={choreography.name}
             />
-            <ReadonlyDetailField
+            <ReadOnlyField
               label="Modalidad"
               value={choreography.modalityName}
             />
-            <ReadonlyDetailField
+            <ReadOnlyField
               label="Submodalidad"
               value={choreography.submodalityName ?? ""}
             />
-            <ReadonlyDetailField
+            <ReadOnlyField
               label="Categoría"
               value={derivedResolution.categoryName ?? "Sin asignar"}
             />
-            <ReadonlyDetailField
+            <ReadOnlySelectField
               label="Tipo de grupo"
-              value={formatGroupTypeLabel(derivedResolution.groupType)}
+              options={choreographyGroupTypeOptions}
+              value={derivedResolution.groupType}
             />
             {hasResolvedRosterChange &&
             derivedResolution.experienceLevelRequired ? (
@@ -155,7 +157,7 @@ export function ChoreographyRosterEditorForm({
                 options={experienceLevelOptions}
               />
             ) : (
-              <ReadonlyDetailField
+              <ReadOnlyField
                 label="Nivel de experiencia"
                 value={readonlyExperienceLevelName}
               />
@@ -170,7 +172,7 @@ export function ChoreographyRosterEditorForm({
                 options={scheduleSelectOptions}
               />
             ) : (
-              <ReadonlyDetailField
+              <ReadOnlyField
                 label="Cupo de cronograma"
                 value={readonlyScheduleLabel}
               />

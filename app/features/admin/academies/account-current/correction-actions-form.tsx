@@ -1,11 +1,12 @@
 import { useId } from "react";
 
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -113,32 +114,42 @@ function CorrectionForm({
   return (
     <form method="post" className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="intent" value={intent} />
-      <Field orientation="vertical">
-        <FieldLabel htmlFor={selectId}>{optionLabel}</FieldLabel>
-        <FieldContent>
+      <SharedFieldLayout id={selectId} label={optionLabel}>
+        {({ describedBy, isInvalid }) => (
           <Select name={selectName} defaultValue={selectedValue}>
-            <SelectTrigger id={selectId}>
+            <SelectTrigger
+              id={selectId}
+              aria-describedby={describedBy || undefined}
+              aria-invalid={isInvalid ? true : undefined}
+            >
               <SelectValue
                 placeholder={`Seleccioná ${optionLabel.toLowerCase()}`}
               />
             </SelectTrigger>
             <SelectContent>
-              {options.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {options.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
-        </FieldContent>
-      </Field>
+        )}
+      </SharedFieldLayout>
 
-      <Field orientation="vertical">
-        <FieldLabel htmlFor={reasonId}>Motivo</FieldLabel>
-        <FieldContent>
-          <Textarea id={reasonId} name="reason" defaultValue={reasonValue} />
-        </FieldContent>
-      </Field>
+      <SharedFieldLayout id={reasonId} label="Motivo">
+        {({ describedBy, isInvalid }) => (
+          <Textarea
+            id={reasonId}
+            name="reason"
+            aria-describedby={describedBy || undefined}
+            aria-invalid={isInvalid ? true : undefined}
+            defaultValue={reasonValue}
+          />
+        )}
+      </SharedFieldLayout>
 
       <div className="flex justify-end">
         <Button type="submit" variant="outline">

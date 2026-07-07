@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Info, KeyRound, Lock } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Check, Info, KeyRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -21,13 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
 import {
   academyProfileSchema,
@@ -120,13 +115,18 @@ export function PortalProfileRouteView({
               value={updateAcademyProfileIntent}
             />
             <FieldGroup className="grid gap-5 md:grid-cols-2">
-              <ReadOnlyTextField
+              <ReadOnlyField
                 autoComplete="organization"
                 label="Nombre de la academia"
                 name="name"
                 value={values.name}
               />
-              <ReadOnlyEmailField email={loaderData.email} />
+              <ReadOnlyField
+                autoComplete="email"
+                label="Email de acceso"
+                type="email"
+                value={loaderData.email}
+              />
               <AcademyProfileTextField
                 autoComplete="name"
                 form={form.form}
@@ -217,70 +217,6 @@ function AcademyProfileTextField({
       placeholder={placeholder}
       type={type}
     />
-  );
-}
-
-function ReadOnlyTextField({
-  autoComplete,
-  label,
-  name,
-  value,
-}: {
-  autoComplete: string;
-  label: string;
-  name?: string;
-  value: string;
-}) {
-  const id = useId();
-
-  return (
-    <Field data-disabled>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <FieldContent>
-        {name ? <input type="hidden" name={name} value={value} /> : null}
-        <div className="relative">
-          <Input
-            id={id}
-            autoComplete={autoComplete}
-            disabled
-            readOnly
-            value={value}
-            className="pr-9"
-          />
-          <Lock
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
-          />
-        </div>
-      </FieldContent>
-    </Field>
-  );
-}
-
-function ReadOnlyEmailField({ email }: { email: string }) {
-  const id = useId();
-
-  return (
-    <Field data-disabled>
-      <FieldLabel htmlFor={id}>Email de acceso</FieldLabel>
-      <FieldContent>
-        <div className="relative">
-          <Input
-            id={id}
-            autoComplete="email"
-            disabled
-            readOnly
-            type="email"
-            value={email}
-            className="pr-9"
-          />
-          <Lock
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground"
-          />
-        </div>
-      </FieldContent>
-    </Field>
   );
 }
 

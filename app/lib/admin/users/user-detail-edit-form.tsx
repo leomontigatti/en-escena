@@ -4,12 +4,10 @@ import { useEffect, type FormEvent } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import { Link } from "react-router";
 
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
-import {
-  LockedUserField,
-  UserFormCard,
-} from "@/lib/admin/users/user-detail-cards";
+import { UserFormCard } from "@/lib/admin/users/user-detail-cards";
 import { InternalUserEditRoleField } from "@/lib/admin/users/user-detail-role-field";
 import {
   buildUpdateInternalUserFormValues,
@@ -78,7 +76,7 @@ export function InternalUserEditCard({
           label="Nombre"
           name="name"
         />
-        <LockedUserField
+        <ReadOnlyField
           label="Nombre de usuario interno"
           value={user.identifier}
         />

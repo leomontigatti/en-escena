@@ -7,8 +7,12 @@ import { Link, useNavigation, useSubmit } from "react-router";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -196,7 +200,15 @@ export function PortalProfessorDetailRouteView({
                   label="Apellido"
                   name="lastName"
                 />
-                <ProfessorDocumentTypeField form={form.form} />
+                <SelectField
+                  allowEmpty
+                  control={form.form.control}
+                  emptyLabel={documentTypeEmptyLabel}
+                  label="Tipo de documento"
+                  name="documentType"
+                  options={documentTypeOptions}
+                  placeholder={documentTypeEmptyLabel}
+                />
                 <ProfessorTextField
                   form={form.form}
                   label="Número de documento"
@@ -282,10 +294,6 @@ function ProfessorTextField({
       name={name}
     />
   );
-}
-
-function ProfessorDocumentTypeField({ form }: { form: ProfessorFormReturn }) {
-  return <DocumentTypeSelectField control={form.control} name="documentType" />;
 }
 
 function ProfessorStatusDialog({

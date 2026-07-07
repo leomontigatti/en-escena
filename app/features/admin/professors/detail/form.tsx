@@ -2,8 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
-import { DocumentTypeSelectField } from "@/components/shared/document-type-select-field";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TextareaField } from "@/components/shared/textarea-field";
@@ -126,20 +124,6 @@ export function ProfessorTextField({
   );
 }
 
-export function ProfessorDocumentTypeField({
-  form,
-}: {
-  form: ProfessorEditFormReturn;
-}) {
-  return (
-    <DocumentTypeSelectField
-      control={form.control}
-      name="documentType"
-      contentProps={{ align: "start", position: "popper", side: "bottom" }}
-    />
-  );
-}
-
 export function ProfessorCorrectionReasonField({
   form,
   required,
@@ -167,5 +151,3 @@ export function ProfessorCorrectionReasonField({
     </>
   );
 }
-
-export { ReadOnlyField };

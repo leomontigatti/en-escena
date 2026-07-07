@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -8,15 +8,13 @@ import {
 
 import { FieldLockIcon } from "@/components/shared/field-lock-icon";
 import {
+  SharedFieldLayout,
+  type SharedFieldOrientation,
+} from "@/components/shared/field-layout";
+import {
   MultiCombobox,
   type MultiComboboxOption,
 } from "@/components/shared/multi-combobox";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
 
 type MultiComboboxFieldProps<
   TFieldValues extends FieldValues,
@@ -25,14 +23,20 @@ type MultiComboboxFieldProps<
 > = {
   allSelectedMessage?: string;
   className?: string;
+  contentClassName?: string;
   control: Control<TFieldValues>;
+  description?: ReactNode;
   disabled?: boolean;
   emptyMessage?: string;
+  errorClassName?: string;
+  id?: string;
   inputName?: string;
-  label: string;
+  label: ReactNode;
+  labelClassName?: string;
   name: TName;
   onValueChange?: () => void;
   options: TOption[];
+  orientation?: SharedFieldOrientation;
   placeholder: string;
   searchable?: boolean;
   trailingIcon?: ReactNode;
@@ -45,18 +49,27 @@ function MultiComboboxField<
 >({
   allSelectedMessage,
   className,
+  contentClassName,
   control,
+  description,
   disabled = false,
   emptyMessage,
+  errorClassName,
+  id: providedId,
   inputName,
   label,
+  labelClassName,
   name,
   onValueChange,
   options,
+  orientation,
   placeholder,
   searchable,
   trailingIcon,
 }: MultiComboboxFieldProps<TFieldValues, TName, TOption>) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
+
   return (
     <Controller
       control={control}
@@ -64,17 +77,24 @@ function MultiComboboxField<
       render={({ field, fieldState }) => {
         const currentValue = Array.isArray(field.value) ? field.value : [];
         const errorMessage = fieldState.error?.message;
-        const isInvalid = Boolean(errorMessage);
 
         return (
-          <Field
+          <SharedFieldLayout
             className={className}
-            data-disabled={disabled ? true : undefined}
-            data-invalid={isInvalid ? true : undefined}
+            contentClassName={contentClassName}
+            description={description}
+            disabled={disabled}
+            error={errorMessage}
+            errorClassName={errorClassName}
+            id={id}
+            label={label}
+            labelClassName={labelClassName}
+            orientation={orientation}
           >
-            <FieldLabel>{label}</FieldLabel>
-            <FieldContent>
+            {({ describedBy, isInvalid }) => (
               <MultiCombobox
+                id={id}
+                ariaDescribedBy={describedBy || undefined}
                 allSelectedMessage={allSelectedMessage}
                 disabled={disabled}
                 emptyMessage={emptyMessage}
@@ -93,9 +113,8 @@ function MultiComboboxField<
                 }
                 value={currentValue}
               />
-              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-            </FieldContent>
-          </Field>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

@@ -17,13 +17,8 @@ import {
 } from "react-hook-form";
 
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
 import { cn } from "@/lib/shared/utils";
 
 type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
@@ -152,18 +147,19 @@ export function FileUploadField<
           typeof field.value === "string" ? field.value : "";
         const errorMessage =
           fieldState.error?.message ?? validationErrorMessage;
-        const isInvalid = Boolean(errorMessage);
 
         return (
-          <Field
-            data-disabled={controlProps.disabled ? true : undefined}
-            data-invalid={isInvalid ? true : undefined}
+          <SharedFieldLayout
+            disabled={controlProps.disabled}
+            error={errorMessage}
+            id={id}
+            label={fieldLabel}
           >
-            <FieldLabel htmlFor={id}>{fieldLabel}</FieldLabel>
-            <FieldContent>
+            {({ describedBy, isInvalid }) => (
               <FileUploadControl
                 {...controlProps}
                 id={id}
+                aria-describedby={describedBy || undefined}
                 name={fileInputName}
                 error={isInvalid}
                 storageKeyInputName={storageKeyInputName ?? field.name}
@@ -176,9 +172,8 @@ export function FileUploadField<
                 onValidationErrorChange={onValidationErrorChange}
                 onValidationErrorMessageChange={setValidationErrorMessage}
               />
-              <FieldError>{errorMessage}</FieldError>
-            </FieldContent>
-          </Field>
+            )}
+          </SharedFieldLayout>
         );
       }}
     />

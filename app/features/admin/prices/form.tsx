@@ -4,13 +4,9 @@ import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -205,33 +201,32 @@ export function PriceFormPanel({ children }: { children: ReactNode }) {
 
 function NameField({ form }: { form: PriceFormController }) {
   const id = useId();
-  const errorId = `${id}-error`;
   const error = form.formState.errors.name?.message;
 
   return (
-    <Field data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>Nombre</FieldLabel>
-      <Controller
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <div className="relative">
-            <Input
-              id={id}
-              aria-describedby={error ? errorId : undefined}
-              aria-invalid={error ? true : undefined}
-              autoComplete="off"
-              className="pr-14"
-              {...field}
-            />
-            <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center">
-              <SpecialPriceSwitch form={form} />
+    <SharedFieldLayout error={error} id={id} label="Nombre">
+      {({ describedBy, isInvalid }) => (
+        <Controller
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <div className="relative">
+              <Input
+                id={id}
+                aria-describedby={describedBy || undefined}
+                aria-invalid={isInvalid ? true : undefined}
+                autoComplete="off"
+                className="pr-14"
+                {...field}
+              />
+              <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center">
+                <SpecialPriceSwitch form={form} />
+              </div>
             </div>
-          </div>
-        )}
-      />
-      <FieldError id={errorId}>{error}</FieldError>
-    </Field>
+          )}
+        />
+      )}
+    </SharedFieldLayout>
   );
 }
 

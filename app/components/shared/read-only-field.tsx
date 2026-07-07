@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ComponentProps, type ReactNode } from "react";
 
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/shared/utils";
 
 type ReadOnlyFieldProps = {
+  autoComplete?: ComponentProps<typeof Input>["autoComplete"];
   className?: string;
   contentClassName?: string;
   displayValue?: string;
@@ -20,6 +21,7 @@ type ReadOnlyFieldProps = {
   labelClassName?: string;
   name?: string;
   orientation?: SharedFieldOrientation;
+  type?: ComponentProps<typeof Input>["type"];
   value: string;
 };
 
@@ -30,7 +32,25 @@ type ReadOnlyTextareaFieldProps = Omit<
   textareaClassName?: string;
 };
 
+type ReadOnlyDateFieldProps = Omit<
+  ReadOnlyFieldProps,
+  "displayValue" | "hiddenValue" | "type" | "value"
+> & {
+  emptyLabel?: string;
+  value: string | null | undefined;
+};
+
+type ReadOnlySelectFieldProps = Omit<
+  ReadOnlyFieldProps,
+  "displayValue" | "hiddenValue" | "type" | "value"
+> & {
+  emptyLabel?: string;
+  options: readonly { value: string; label: string }[];
+  value: string | null | undefined;
+};
+
 function ReadOnlyField({
+  autoComplete,
   className,
   contentClassName,
   displayValue,
@@ -41,6 +61,7 @@ function ReadOnlyField({
   labelClassName,
   name,
   orientation,
+  type,
   value,
 }: ReadOnlyFieldProps) {
   const generatedId = useId();
@@ -63,9 +84,11 @@ function ReadOnlyField({
             <Input
               id={id}
               aria-describedby={describedBy}
+              autoComplete={autoComplete}
               value={displayValue ?? value}
               disabled
               readOnly
+              type={type}
               className={cn("pr-9", inputClassName)}
             />
             <FieldControlLockIcon />
@@ -73,6 +96,38 @@ function ReadOnlyField({
         </>
       )}
     </SharedFieldLayout>
+  );
+}
+
+function ReadOnlyDateField({
+  emptyLabel = "",
+  value,
+  ...props
+}: ReadOnlyDateFieldProps) {
+  const fieldValue = value ?? "";
+
+  return (
+    <ReadOnlyField
+      {...props}
+      value={fieldValue}
+      displayValue={fieldValue ? formatDateOnlyValue(fieldValue) : emptyLabel}
+    />
+  );
+}
+
+function ReadOnlySelectField({
+  emptyLabel = "",
+  options,
+  value,
+  ...props
+}: ReadOnlySelectFieldProps) {
+  const fieldValue = value ?? "";
+  const selectedLabel =
+    options.find((option) => option.value === fieldValue)?.label ??
+    (fieldValue ? fieldValue : emptyLabel);
+
+  return (
+    <ReadOnlyField {...props} value={fieldValue} displayValue={selectedLabel} />
   );
 }
 
@@ -135,4 +190,34 @@ function HiddenReadOnlyValue({
   return <input type="hidden" name={name} value={value} />;
 }
 
-export { ReadOnlyField, ReadOnlyTextareaField };
+function formatDateOnlyValue(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  const monthNames = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+
+  return `${day} de ${monthNames[month - 1]} de ${year}`;
+}
+
+export {
+  ReadOnlyDateField,
+  ReadOnlyField,
+  ReadOnlySelectField,
+  ReadOnlyTextareaField,
+};
