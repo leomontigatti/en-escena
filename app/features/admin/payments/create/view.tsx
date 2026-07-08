@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Control, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link, useSubmit } from "react-router";
 
 import {
@@ -7,15 +7,12 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
-import { ComboboxField } from "@/components/shared/combobox-field";
-import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { SelectField } from "@/components/shared/select-field";
-import { TextInputField } from "@/components/shared/text-input-field";
-import { TextareaField } from "@/components/shared/textarea-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { paymentMethodOptions } from "@/features/admin/academies/account-current/shared";
+import {
+  PaymentAcademyField,
+  PaymentFields,
+} from "@/features/admin/payments/form-fields";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -34,11 +31,6 @@ import {
 import type { loadAdminPaymentCreate } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentCreate>>;
-type CreatePaymentControl = Control<
-  CreatePaymentFormValues,
-  unknown,
-  CreatePaymentSubmissionValues
->;
 
 type AdministracionPagosNuevoRouteViewProps = {
   actionData?: CreatePaymentActionData;
@@ -98,7 +90,7 @@ export function AdministracionPagosNuevoRouteView({
           }
         >
           <FieldGroup className="grid gap-5 md:grid-cols-2">
-            <AcademyField
+            <PaymentAcademyField
               academies={loaderData.academies}
               control={form.control}
             />
@@ -107,78 +99,6 @@ export function AdministracionPagosNuevoRouteView({
         </AdminResourceFormCard>
       </form>
     </AdminResourceLayout>
-  );
-}
-
-function AcademyField({
-  academies,
-  control,
-}: {
-  academies: LoaderData["academies"];
-  control: CreatePaymentControl;
-}) {
-  return (
-    <ComboboxField
-      className="md:col-span-2"
-      control={control}
-      id="academy-id"
-      label="Academia"
-      name="academyId"
-      options={academies.map((academy) => ({
-        value: academy.id,
-        label: academy.name,
-      }))}
-    />
-  );
-}
-
-function PaymentFields({ control }: { control: CreatePaymentControl }) {
-  return (
-    <>
-      <DateOnlyField
-        control={control}
-        name="paymentDate"
-        className="md:col-start-1"
-        id="payment-date"
-        label="Fecha de pago"
-      />
-
-      <TextInputField
-        className="md:col-start-2"
-        control={control}
-        id="payment-reference"
-        label="Referencia"
-        name="reference"
-      />
-
-      <IntegerInputField
-        className="md:col-start-1"
-        control={control}
-        id="payment-amount"
-        label="Monto"
-        min="1"
-        name="amount"
-        step="1"
-      />
-
-      <SelectField
-        className="md:col-start-2"
-        control={control}
-        id="payment-method"
-        label="Medio de pago"
-        name="paymentMethod"
-        options={paymentMethodOptions}
-        placeholder="Seleccioná un medio de pago"
-      />
-
-      <TextareaField
-        className="md:col-span-2"
-        control={control}
-        id="payment-internalNote"
-        label="Nota interna"
-        name="internalNote"
-      />
-    </>
   );
 }
 

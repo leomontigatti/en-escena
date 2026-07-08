@@ -4,7 +4,6 @@ import {
   desc,
   eq,
   ilike,
-  isNotNull,
   isNull,
   or,
   sql,
@@ -28,7 +27,6 @@ type AdminPaymentsListFilters = {
   order: AdminPaymentsListOrder;
   page: number;
   query: string;
-  status: "active" | "annulled";
 };
 
 export type AdminPaymentRow = {
@@ -145,18 +143,11 @@ function readAdminPaymentsListFilters(
     order: readAdminPaymentsOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readAdminPaymentStatus(searchParams.get("estado")),
   };
 }
 
 function readAdminPaymentMethod(value: string | null) {
   return adminPaymentMethods.find((method) => method === value) ?? null;
-}
-
-function readAdminPaymentStatus(
-  value: string | null,
-): AdminPaymentsListFilters["status"] {
-  return value === "anulados" ? "annulled" : "active";
 }
 
 function readAdminPaymentsOrder(value: string | null): AdminPaymentsListOrder {
@@ -194,11 +185,7 @@ function buildAdminPaymentsWhere(
     conditions.push(eq(academyEventPayments.paymentMethod, filters.method));
   }
 
-  conditions.push(
-    filters.status === "annulled"
-      ? isNotNull(academyEventPayments.annulledAt)
-      : isNull(academyEventPayments.annulledAt),
-  );
+  conditions.push(isNull(academyEventPayments.annulledAt));
 
   return and(...conditions);
 }
@@ -234,11 +221,7 @@ function buildCanonicalAdminPaymentsSearch(input: {
     searchParams.delete("medio");
   }
 
-  if (input.filters.status === "annulled") {
-    searchParams.set("estado", "anulados");
-  } else {
-    searchParams.delete("estado");
-  }
+  searchParams.delete("estado");
 
   if (input.filters.order.direction === defaultAdminPaymentsOrder.direction) {
     searchParams.delete("orden");

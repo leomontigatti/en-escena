@@ -80,11 +80,6 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
       { label: "Otro", value: "otro" },
     ],
   },
-  {
-    id: "estado",
-    label: "Estado",
-    options: [{ label: "Anulado", value: "anulados" }],
-  },
 ];
 
 export function AdministracionPagosRouteView({
@@ -95,7 +90,6 @@ export function AdministracionPagosRouteView({
     loaderData.hasAnyPayment ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.method !== null ||
-    loaderData.filters.status === "annulled" ||
     loaderData.filters.page > 1 ||
     loaderData.filters.order.direction !== "desc";
 
@@ -154,10 +148,6 @@ function buildInitialFacetedFilterValues(
   loaderData: PaymentsLoaderData,
 ): Record<string, DataTableFacetedFilterValue> {
   const filters: DataTableFacetedFilterValue = {};
-
-  if (loaderData.filters.status === "annulled") {
-    filters.estado = "anulados";
-  }
 
   if (loaderData.filters.method !== null) {
     filters.medio = loaderData.filters.method;

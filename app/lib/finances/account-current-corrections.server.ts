@@ -201,6 +201,37 @@ export async function annulPayment(input: {
     return missingReasonResult();
   }
 
+  return await markPaymentAnnulled({
+    academyId: input.academyId,
+    annulledByUserId: input.annulledByUserId,
+    eventId: input.eventId,
+    paymentId: input.paymentId,
+    reason,
+  });
+}
+
+export async function deletePaymentWithoutReason(input: {
+  academyId: string;
+  deletedByUserId: string;
+  eventId: string;
+  paymentId: string;
+}): Promise<CorrectionResult> {
+  return await markPaymentAnnulled({
+    academyId: input.academyId,
+    annulledByUserId: input.deletedByUserId,
+    eventId: input.eventId,
+    paymentId: input.paymentId,
+    reason: null,
+  });
+}
+
+async function markPaymentAnnulled(input: {
+  academyId: string;
+  annulledByUserId: string;
+  eventId: string;
+  paymentId: string;
+  reason: string | null;
+}): Promise<CorrectionResult> {
   const payment = await db.query.academyEventPayments.findFirst({
     columns: {
       academyId: true,
@@ -248,7 +279,7 @@ export async function annulPayment(input: {
     .set({
       annulledAt: now,
       annulledByUserId: input.annulledByUserId,
-      annulledReason: reason,
+      annulledReason: input.reason,
       updatedAt: now,
     })
     .where(eq(academyEventPayments.id, payment.id));

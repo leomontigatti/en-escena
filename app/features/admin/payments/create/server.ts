@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -8,6 +8,7 @@ import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
+import { listAdminPaymentAcademyOptions } from "../academy-options.server";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -21,7 +22,7 @@ export async function loadAdminPaymentCreate(request: Request) {
   const eventContext = await loadAdminEventContext(request);
 
   return {
-    academies: await listAcademyOptions(),
+    academies: await listAdminPaymentAcademyOptions(),
     selectedEventId: eventContext.selectedEventId,
     values: defaultCreatePaymentValues(),
   };
@@ -85,15 +86,4 @@ export async function handleAdminPaymentCreateAction(
   throw redirect(
     `/administracion/pagos?evento=${eventContext.selectedEventId}`,
   );
-}
-
-async function listAcademyOptions() {
-  return await db.query.academies.findMany({
-    columns: {
-      contactName: true,
-      id: true,
-      name: true,
-    },
-    orderBy: [asc(academies.name)],
-  });
 }

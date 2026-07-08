@@ -640,32 +640,8 @@ describe.sequential("administracion finanzas", () => {
     expect(paymentsMarkup).toContain("/administracion/pagos/nuevo");
     expect(paymentsMarkup).toContain("Transferencia");
     expect(paymentsMarkup).toContain("$ 5.000");
+    expect(paymentsMarkup).not.toContain("Anulado");
     expect(paymentsMarkup).not.toContain("$ 7.000");
-
-    const { request: annulledPaymentsRequest } = await createSignedInRequest({
-      email: "admin.finanzas.pagos.anulados@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/pagos?evento=${event.id}&estado=anulados`,
-    });
-    const annulledPaymentsData = await financePaymentsLoader(
-      reportRouteArgs(annulledPaymentsRequest),
-    );
-    const annulledPaymentsMarkup = renderFinancePaymentsRoute({
-      loaderData: annulledPaymentsData,
-    });
-
-    expect(annulledPaymentsData.rows).toEqual([
-      expect.objectContaining({
-        academyName: "Academia Listas",
-        amount: 7000,
-        paymentDate: "2026-03-16",
-        paymentMethod: "transferencia",
-        paymentNumber: 2,
-      }),
-    ]);
-    expect(annulledPaymentsMarkup).toContain("Anulado");
-    expect(annulledPaymentsMarkup).toContain("$ 7.000");
-    expect(annulledPaymentsMarkup).not.toContain("$ 5.000");
 
     const { request: invoicesRequest } = await createSignedInRequest({
       email: "admin.finanzas.facturas@example.com",
