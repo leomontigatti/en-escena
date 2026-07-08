@@ -273,7 +273,7 @@ Monto operativo bruto de seña pendiente para coreografías que todavía no est�
 _Evitar_: Factura de coreografía, saldo disponible
 
 **Precio de coreografía**:
-Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago y una fecha de referencia financiera. La fecha de referencia es la fecha de emisión de la factura de seña activa, o la fecha calendario de negocio en Córdoba cuando todavía no hay factura de seña activa.
+Importe total calculado para una coreografía a partir del precio base aplicable por inscripción, la cantidad de inscripciones, tipo de grupo, fecha límite de pago y una fecha de referencia financiera. La fecha de referencia es la fecha de emisión de la factura de seña activa, o la fecha calendario de negocio en Córdoba cuando todavía no hay factura de seña activa.
 _Evitar_: Pago, estado financiero
 
 **Fecha de referencia financiera**:

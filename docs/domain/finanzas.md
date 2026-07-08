@@ -96,6 +96,7 @@ Rules for financial states, invoices, payments, account balance and pricing.
 - The Panel de administración account-current view includes an auditable movement history for payments, invoices, imputations, cancellations and annulments.
 - V1 account-current movements are derived from financial records; there is no separate persisted ledger table.
 - `Precio de coreografía` is estimated while unpaid or signed, final when paid.
+- `Precio de coreografía` is the total expected choreography amount: applicable base price per inscription multiplied by the count of `Inscripción` records for that choreography.
 - Each `Precio de coreografía` has a payment deadline. The financial reference date selects the earliest applicable deadline for that group type and optional cronograma.
 - For choreographies with an active down-payment invoice, the financial reference date is the invoice issue date. For choreographies without an active down-payment invoice, it is the business calendar date in Córdoba.
 - A price without payment deadline is the fallback for its scope: dated applicable prices are preferred first, and the no-deadline price is used only when no dated price applies.

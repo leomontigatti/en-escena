@@ -11,10 +11,7 @@ type AdministracionCoreografiaFinancieraDetalleRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  {
-    title:
-      "Detalle financiero de coreografía | Panel de administración | En Escena",
-  },
+  { title: "Detalle financiero | Panel de administración | En Escena" },
 ];
 
 export const handle = {

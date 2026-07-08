@@ -5,6 +5,7 @@ import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
   academyEventPayments,
+  choreographyDancers,
   choreographies,
   scheduleCapacities,
 } from "@/db/schema";
@@ -388,6 +389,8 @@ async function validatePaymentImputationInput(input: {
     db
       .select({
         groupType: choreographies.groupType,
+        registrationCount:
+          sql<number>`count(${choreographyDancers.dancerId})`.mapWith(Number),
         scheduleId: scheduleCapacities.scheduleId,
       })
       .from(choreographies)
@@ -395,7 +398,16 @@ async function validatePaymentImputationInput(input: {
         scheduleCapacities,
         eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
       )
+      .leftJoin(
+        choreographyDancers,
+        eq(choreographyDancers.choreographyId, choreographies.id),
+      )
       .where(eq(choreographies.id, invoice.choreographyId))
+      .groupBy(
+        choreographies.groupType,
+        choreographies.id,
+        scheduleCapacities.scheduleId,
+      )
       .then((rows) => rows[0]),
   ]);
 
@@ -458,9 +470,14 @@ async function validatePaymentImputationInput(input: {
       scheduleId: choreography.scheduleId,
     });
 
+    const currentBasePriceAmount = applicablePrice.ok
+      ? applicablePrice.price.amount *
+        Math.max(1, choreography.registrationCount)
+      : null;
+
     if (
-      applicablePrice.ok &&
-      applicablePrice.price.amount !== invoice.basePriceAmount
+      currentBasePriceAmount !== null &&
+      currentBasePriceAmount !== invoice.basePriceAmount
     ) {
       return {
         ok: false,

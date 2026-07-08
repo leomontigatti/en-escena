@@ -173,6 +173,7 @@ function choreographyFinanceRowFixture(
     owedAmount: { amount: 10000, status: "complete" },
     owedDepositAmount: { amount: 3000, status: "complete" },
     paidAmount: 0,
+    registrationCount: 1,
     ...overrides,
   };
 }

@@ -28,6 +28,7 @@ export type FinanceChoreographyRow = {
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
+  registrationCount: number;
   scheduleCapacityScheduleId: string | null;
 };
 
@@ -54,6 +55,7 @@ export type ChoreographyOperationalFinanceRow = {
   owedAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
   paidAmount: number;
+  registrationCount: number;
 };
 
 export function buildOperationalFinanceSummary(input: {
@@ -245,6 +247,7 @@ function buildChoreographyOperationalFinanceRow(input: {
       owedAmount: completeOperationalFinanceAmount(0),
       owedDepositAmount: completeOperationalFinanceAmount(0),
       paidAmount,
+      registrationCount: getRegistrationCount(input.choreography),
     };
   }
 
@@ -319,6 +322,7 @@ function buildChoreographyOperationalFinanceRow(input: {
       missingPriceCount: owedDepositMissingPriceCount,
     }),
     paidAmount,
+    registrationCount: getRegistrationCount(input.choreography),
   };
 }
 
@@ -438,7 +442,9 @@ function resolveBasePriceAmount(input: {
     });
   }
 
-  return completeOperationalFinanceAmount(estimatedBasePriceAmount.amount);
+  return completeOperationalFinanceAmount(
+    estimatedBasePriceAmount.amount * getRegistrationCount(input.choreography),
+  );
 }
 
 function resolveDepositAmount(input: {
@@ -524,4 +530,8 @@ function resolveEstimatedBasePriceAmount(input: {
     amount: generalPrice.amount,
     status: "complete",
   };
+}
+
+function getRegistrationCount(choreography: FinanceChoreographyRow) {
+  return Math.max(1, choreography.registrationCount);
 }

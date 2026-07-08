@@ -12,7 +12,7 @@ import {
 } from "@/components/shared/read-only-field";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import {
   Table,
@@ -43,23 +43,11 @@ export function AdministracionCoreografiaFinancieraDetalleView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={
-        choreography
-          ? "Detalle financiero de coreografía"
-          : "Coreografía no encontrada"
-      }
+      title={choreography ? "Detalle financiero" : "Coreografía no encontrada"}
       description={
         choreography
           ? "Revisá los importes, datos y participaciones vinculadas a esta coreografía."
           : "No encontramos esa coreografía dentro de la cuenta corriente de la academia."
-      }
-      headerAction={
-        <Button asChild variant="outline">
-          <Link to={`/administracion/finanzas/${loaderData.academy.id}`}>
-            <ArrowLeft aria-hidden="true" data-icon />
-            Volver a cuenta corriente
-          </Link>
-        </Button>
       }
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar la coreografía",
@@ -87,10 +75,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
             />
           </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Datos de coreografía</CardTitle>
-            </CardHeader>
+          <Card aria-label="Información financiera">
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <ReadOnlyField
@@ -117,7 +102,10 @@ export function AdministracionCoreografiaFinancieraDetalleView({
             </CardContent>
           </Card>
 
-          <ParticipationsTable participations={loaderData.participations} />
+          <InscriptionsTable
+            backHref={`/administracion/finanzas/${loaderData.academy.id}`}
+            participations={loaderData.participations}
+          />
         </div>
       ) : (
         <AdminEmptyState
@@ -129,16 +117,15 @@ export function AdministracionCoreografiaFinancieraDetalleView({
   );
 }
 
-function ParticipationsTable({
+function InscriptionsTable({
+  backHref,
   participations,
 }: {
+  backHref: string;
   participations: ChoreographyFinanceDetailLoaderData["participations"];
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Participaciones</CardTitle>
-      </CardHeader>
+    <Card aria-label="Inscripciones">
       <CardContent>
         <Table>
           <TableHeader>
@@ -180,6 +167,14 @@ function ParticipationsTable({
           </TableBody>
         </Table>
       </CardContent>
+      <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
+        <Button asChild variant="outline">
+          <Link to={backHref}>
+            <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+            Volver
+          </Link>
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

@@ -26,6 +26,7 @@ describe("operational finance price resolution", () => {
         groupType: "solo" as const,
         id: "choreography_1",
         name: "Aire",
+        registrationCount: 1,
         scheduleCapacityScheduleId: "schedule_1",
       },
     ];
@@ -81,6 +82,65 @@ describe("operational finance price resolution", () => {
     });
   });
 
+  test("multiplies the unit base price by the choreography registration count", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-01T12:00:00.000Z"));
+
+    const academyId = "academy_1";
+    const choreographyRows = [
+      {
+        academyId,
+        choreographyScheduleId: null,
+        groupType: "duo" as const,
+        id: "choreography_1",
+        name: "Duo",
+        registrationCount: 2,
+        scheduleCapacityScheduleId: null,
+      },
+    ];
+    const priceRows = [
+      createPriceRow({
+        amount: 36000,
+        groupType: "duo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ];
+
+    const choreographyFinanceRows = buildChoreographyOperationalFinanceRows({
+      academyId,
+      choreographyRows,
+      financialStates: new Map([["choreography_1", "impaga"]]),
+      invoiceImputedAmounts: new Map(),
+      invoiceRows: [],
+      priceRows,
+      requiredDepositPercentage: 30,
+    });
+    const summary = buildOperationalFinanceSummary({
+      academyId,
+      choreographyRows,
+      financialStates: new Map([["choreography_1", "impaga"]]),
+      imputationAmountsByAcademy: new Map(),
+      invoiceImputedAmounts: new Map(),
+      invoiceRows: [],
+      paymentAmountsByAcademy: new Map(),
+      priceRows,
+      requiredDepositPercentage: 30,
+    });
+
+    expect(choreographyFinanceRows).toMatchObject([
+      {
+        basePriceAmount: { amount: 72000, status: "complete" },
+        owedAmount: { amount: 72000, status: "complete" },
+        owedDepositAmount: { amount: 21600, status: "complete" },
+      },
+    ]);
+    expect(summary).toMatchObject({
+      owedAmount: { amount: 72000, status: "complete" },
+      owedDepositAmount: { amount: 21600, status: "complete" },
+    });
+  });
+
   test("uses the schedule fallback price before a general dated price", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T12:00:00.000Z"));
@@ -95,6 +155,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "choreography_1",
           name: "Aire",
+          registrationCount: 1,
           scheduleCapacityScheduleId: "schedule_1",
         },
       ],
@@ -144,6 +205,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "choreography_1",
           name: "Aire",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
       ],
@@ -195,6 +257,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "choreography_1",
           name: "Aire",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
       ],
@@ -266,6 +329,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "pending",
           name: "Pendiente",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
         {
@@ -274,6 +338,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "paid",
           name: "Pagada",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
       ],
@@ -295,6 +360,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "pending",
           name: "Pendiente",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
         {
@@ -303,6 +369,7 @@ describe("operational finance price resolution", () => {
           groupType: "solo",
           id: "paid",
           name: "Pagada",
+          registrationCount: 1,
           scheduleCapacityScheduleId: null,
         },
       ],
@@ -344,6 +411,7 @@ describe("operational finance price resolution", () => {
 
 function createPriceRow(input: {
   amount: number;
+  groupType?: "solo" | "duo" | "trio" | "grupal";
   paymentDeadline: string | null;
   scheduleId: string | null;
 }): FinancePriceRow {
@@ -351,7 +419,7 @@ function createPriceRow(input: {
     amount: input.amount,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     eventId: "event_1",
-    groupType: "solo",
+    groupType: input.groupType ?? "solo",
     id: `price_${input.scheduleId ?? "general"}_${input.paymentDeadline ?? "fallback"}_${input.amount}`,
     name: "Precio",
     paymentDeadline: input.paymentDeadline,

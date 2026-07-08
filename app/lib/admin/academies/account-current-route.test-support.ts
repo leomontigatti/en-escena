@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
@@ -10,6 +10,7 @@ import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
   academyEventPayments,
+  choreographyDancers,
   choreographies,
   events,
   eventFinancialSequences,
@@ -450,6 +451,8 @@ export async function issueDepositInvoiceForTest(input: {
     const choreography = await db
       .select({
         groupType: choreographies.groupType,
+        registrationCount:
+          sql<number>`count(${choreographyDancers.dancerId})`.mapWith(Number),
         scheduleId: scheduleCapacities.scheduleId,
       })
       .from(choreographies)
@@ -457,7 +460,16 @@ export async function issueDepositInvoiceForTest(input: {
         scheduleCapacities,
         eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
       )
+      .leftJoin(
+        choreographyDancers,
+        eq(choreographyDancers.choreographyId, choreographies.id),
+      )
       .where(eq(choreographies.id, choreographyId))
+      .groupBy(
+        choreographies.groupType,
+        choreographies.id,
+        scheduleCapacities.scheduleId,
+      )
       .then((rows) => rows[0]);
 
     if (!choreography) {
@@ -475,13 +487,16 @@ export async function issueDepositInvoiceForTest(input: {
       throw new Error("Expected applicable price fixture.");
     }
 
+    const basePriceAmount =
+      priceResult.price.amount * Math.max(1, choreography.registrationCount);
+
     await createDepositInvoiceRecord({
       academyId: input.academyId,
-      basePriceAmount: priceResult.price.amount,
+      basePriceAmount,
       choreographyId,
       createdByUserId: academy.userId,
       depositAmount: calculateDepositAmount({
-        amount: priceResult.price.amount,
+        amount: basePriceAmount,
         percentage: event.requiredDepositPercentage,
       }),
       eventId: input.eventId,

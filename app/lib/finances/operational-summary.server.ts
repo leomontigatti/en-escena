@@ -1,10 +1,11 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
   academyEventPayments,
+  choreographyDancers,
   choreographies,
   events,
   prices,
@@ -100,6 +101,8 @@ export async function readAcademyEventOperationalFinanceSummaries(input: {
         groupType: choreographies.groupType,
         id: choreographies.id,
         name: choreographies.name,
+        registrationCount:
+          sql<number>`count(${choreographyDancers.dancerId})`.mapWith(Number),
         scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
       })
       .from(choreographies)
@@ -107,11 +110,23 @@ export async function readAcademyEventOperationalFinanceSummaries(input: {
         scheduleCapacities,
         eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
       )
+      .leftJoin(
+        choreographyDancers,
+        eq(choreographyDancers.choreographyId, choreographies.id),
+      )
       .where(
         and(
           eq(choreographies.eventId, input.eventId),
           inArray(choreographies.academyId, academyIds),
         ),
+      )
+      .groupBy(
+        choreographies.academyId,
+        choreographies.scheduleId,
+        choreographies.groupType,
+        choreographies.id,
+        choreographies.name,
+        scheduleCapacities.scheduleId,
       ),
     db
       .select({
@@ -229,6 +244,8 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
         groupType: choreographies.groupType,
         id: choreographies.id,
         name: choreographies.name,
+        registrationCount:
+          sql<number>`count(${choreographyDancers.dancerId})`.mapWith(Number),
         scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
       })
       .from(choreographies)
@@ -236,11 +253,24 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
         scheduleCapacities,
         eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
       )
+      .leftJoin(
+        choreographyDancers,
+        eq(choreographyDancers.choreographyId, choreographies.id),
+      )
       .where(
         and(
           eq(choreographies.academyId, input.academyId),
           eq(choreographies.eventId, input.eventId),
         ),
+      )
+      .groupBy(
+        choreographies.academyId,
+        choreographies.scheduleId,
+        choreographies.groupType,
+        choreographies.id,
+        choreographies.name,
+        choreographies.createdAt,
+        scheduleCapacities.scheduleId,
       )
       .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
     db

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
+  choreographies,
   choreographyDancers,
+  prices,
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -169,6 +171,99 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         finalPriceAmount: null,
         firstName: "Mora",
         lastName: "Pérez",
+      },
+    ]);
+  });
+
+  test("calculates choreography balance from base price times inscription count", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-03-27",
+    );
+
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Duo",
+        email: "academia.duo.detalle@example.com",
+        choreographyName: "Detalle duo",
+        event,
+      });
+    const firstDancer = await createDancer(academy.academy.id, {
+      firstName: "Ana",
+      lastName: "López",
+    });
+    const secondDancer = await createDancer(academy.academy.id, {
+      firstName: "Bruno",
+      lastName: "Ríos",
+    });
+
+    await db
+      .update(choreographies)
+      .set({ groupType: "duo" })
+      .where(eq(choreographies.id, choreography.id));
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: firstDancer.id,
+      },
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: secondDancer.id,
+      },
+    ]);
+    await db.insert(prices).values({
+      amount: 36000,
+      eventId: event.id,
+      groupType: "duo",
+      name: "Precio Duo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+    });
+
+    const { request } = await createSignedInRequest({
+      email: "admin.duo.detalle@example.com",
+      role: "admin",
+      requestUrl: choreographyFinanceDetailUrl({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        eventId: event.id,
+      }),
+    });
+
+    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
+      detailRouteArgs({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        request,
+      }),
+    );
+
+    expect(loaderData.choreography).toMatchObject({
+      depositAmount: { amount: 21600, status: "complete" },
+      groupType: "duo",
+      owedAmount: { amount: 72000, status: "complete" },
+      paidAmount: 0,
+    });
+    expect(loaderData.participations).toEqual([
+      {
+        basePriceAmount: 36000,
+        dancerId: firstDancer.id,
+        discountAmount: 0,
+        finalPriceAmount: 36000,
+        firstName: "Ana",
+        lastName: "López",
+      },
+      {
+        basePriceAmount: 36000,
+        dancerId: secondDancer.id,
+        discountAmount: 0,
+        finalPriceAmount: 36000,
+        firstName: "Bruno",
+        lastName: "Ríos",
       },
     ]);
   });

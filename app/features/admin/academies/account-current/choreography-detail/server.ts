@@ -43,9 +43,12 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
   const participationRows = await listChoreographyParticipationRows({
     choreographyId,
   });
-  const basePriceAmount =
+  const participationBasePriceAmount =
     choreographyFinanceRow.basePriceAmount.status === "complete"
-      ? choreographyFinanceRow.basePriceAmount.amount
+      ? Math.round(
+          choreographyFinanceRow.basePriceAmount.amount /
+            choreographyFinanceRow.registrationCount,
+        )
       : null;
 
   return {
@@ -61,9 +64,9 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     },
     participations: participationRows.map((participation) => ({
       ...participation,
-      basePriceAmount,
+      basePriceAmount: participationBasePriceAmount,
       discountAmount: 0,
-      finalPriceAmount: basePriceAmount,
+      finalPriceAmount: participationBasePriceAmount,
     })),
     selectedEventId: eventContext.selectedEventId,
   };

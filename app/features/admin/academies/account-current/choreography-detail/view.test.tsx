@@ -43,7 +43,10 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain("Detalle financiero de coreografía");
+    expect(markup).toContain("Detalle financiero");
+    expect(markup).not.toContain("Detalle financiero de coreografía");
+    expect(markup).not.toContain("Datos de coreografía");
+    expect(markup).not.toContain("Participaciones");
     expect(markup).toContain("Seña");
     expect(markup).toContain("Pagado");
     expect(markup).toContain("Saldo");
@@ -56,5 +59,6 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Descuento");
     expect(markup).toContain("Precio final");
     expect(markup).toContain("Ana López");
+    expect(markup).toContain("Volver");
   });
 });
