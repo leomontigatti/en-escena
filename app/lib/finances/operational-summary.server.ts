@@ -121,6 +121,8 @@ export async function readAcademyEventOperationalFinanceSummaries(input: {
         depositCompletedOn: academyEventChoreographyInvoices.depositCompletedOn,
         id: academyEventChoreographyInvoices.id,
         invoiceAmount: academyEventChoreographyInvoices.depositAmount,
+        invoiceNumber: academyEventChoreographyInvoices.invoiceNumber,
+        issueDate: academyEventChoreographyInvoices.issueDate,
         invoiceType: academyEventChoreographyInvoices.invoiceType,
       })
       .from(academyEventChoreographyInvoices)
@@ -249,6 +251,8 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
         depositCompletedOn: academyEventChoreographyInvoices.depositCompletedOn,
         id: academyEventChoreographyInvoices.id,
         invoiceAmount: academyEventChoreographyInvoices.depositAmount,
+        invoiceNumber: academyEventChoreographyInvoices.invoiceNumber,
+        issueDate: academyEventChoreographyInvoices.issueDate,
         invoiceType: academyEventChoreographyInvoices.invoiceType,
       })
       .from(academyEventChoreographyInvoices)

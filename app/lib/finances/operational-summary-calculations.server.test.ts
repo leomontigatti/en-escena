@@ -180,6 +180,166 @@ describe("operational finance price resolution", () => {
       },
     ]);
   });
+
+  test("keeps the latest active seña snapshot authoritative while pending", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T12:00:00.000Z"));
+
+    const academyId = "academy_1";
+    const choreographyFinanceRows = buildChoreographyOperationalFinanceRows({
+      academyId,
+      choreographyRows: [
+        {
+          academyId,
+          choreographyScheduleId: null,
+          groupType: "solo",
+          id: "choreography_1",
+          name: "Aire",
+          scheduleCapacityScheduleId: null,
+        },
+      ],
+      financialStates: new Map([["choreography_1", "impaga"]]),
+      invoiceImputedAmounts: new Map(),
+      invoiceRows: [
+        createInvoiceRow({
+          basePriceAmount: 10000,
+          choreographyId: "choreography_1",
+          id: "invoice_old",
+          invoiceAmount: 3000,
+          invoiceNumber: 1,
+          issueDate: "2026-03-20",
+        }),
+        createInvoiceRow({
+          basePriceAmount: 12000,
+          choreographyId: "choreography_1",
+          id: "invoice_new",
+          invoiceAmount: 3600,
+          invoiceNumber: 2,
+          issueDate: "2026-04-05",
+        }),
+      ],
+      priceRows: [],
+      requiredDepositPercentage: 30,
+    });
+
+    expect(choreographyFinanceRows).toMatchObject([
+      {
+        basePriceAmount: { amount: 12000, status: "complete" },
+        financialState: "impaga",
+        owedAmount: { amount: 12000, status: "complete" },
+        owedDepositAmount: { amount: 3600, status: "complete" },
+      },
+    ]);
+  });
+
+  test("uses the active seña snapshot for pending and paid states", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T12:00:00.000Z"));
+
+    const academyId = "academy_1";
+    const invoiceRows = [
+      createInvoiceRow({
+        basePriceAmount: 12000,
+        choreographyId: "pending",
+        id: "invoice_pending",
+        invoiceAmount: 3600,
+        invoiceNumber: 1,
+        issueDate: "2026-04-05",
+      }),
+      createInvoiceRow({
+        basePriceAmount: 12000,
+        choreographyId: "paid",
+        depositCompletedOn: "2026-04-10",
+        id: "invoice_paid",
+        invoiceAmount: 3600,
+        invoiceNumber: 2,
+        issueDate: "2026-04-05",
+      }),
+    ];
+    const invoiceImputedAmounts = new Map([["invoice_paid", 3600]]);
+    const choreographyFinanceRows = buildChoreographyOperationalFinanceRows({
+      academyId,
+      choreographyRows: [
+        {
+          academyId,
+          choreographyScheduleId: null,
+          groupType: "solo",
+          id: "pending",
+          name: "Pendiente",
+          scheduleCapacityScheduleId: null,
+        },
+        {
+          academyId,
+          choreographyScheduleId: null,
+          groupType: "solo",
+          id: "paid",
+          name: "Pagada",
+          scheduleCapacityScheduleId: null,
+        },
+      ],
+      financialStates: new Map([
+        ["pending", "impaga"],
+        ["paid", "señada"],
+      ]),
+      invoiceImputedAmounts,
+      invoiceRows,
+      priceRows: [],
+      requiredDepositPercentage: 50,
+    });
+    const summary = buildOperationalFinanceSummary({
+      academyId,
+      choreographyRows: [
+        {
+          academyId,
+          choreographyScheduleId: null,
+          groupType: "solo",
+          id: "pending",
+          name: "Pendiente",
+          scheduleCapacityScheduleId: null,
+        },
+        {
+          academyId,
+          choreographyScheduleId: null,
+          groupType: "solo",
+          id: "paid",
+          name: "Pagada",
+          scheduleCapacityScheduleId: null,
+        },
+      ],
+      financialStates: new Map([
+        ["pending", "impaga"],
+        ["paid", "señada"],
+      ]),
+      imputationAmountsByAcademy: new Map(),
+      invoiceImputedAmounts,
+      invoiceRows,
+      paymentAmountsByAcademy: new Map(),
+      priceRows: [],
+      requiredDepositPercentage: 50,
+    });
+
+    expect(choreographyFinanceRows).toMatchObject([
+      {
+        basePriceAmount: { amount: 12000, status: "complete" },
+        depositAmount: { amount: 3600, status: "complete" },
+        financialState: "impaga",
+        owedAmount: { amount: 12000, status: "complete" },
+        owedDepositAmount: { amount: 3600, status: "complete" },
+      },
+      {
+        basePriceAmount: { amount: 12000, status: "complete" },
+        depositAmount: { amount: 3600, status: "complete" },
+        depositCompletedOn: "2026-04-10",
+        financialState: "señada",
+        owedAmount: { amount: 8400, status: "complete" },
+        owedDepositAmount: { amount: 0, status: "complete" },
+      },
+    ]);
+    expect(summary).toMatchObject({
+      owedAmount: { amount: 20400, status: "complete" },
+      owedDepositAmount: { amount: 3600, status: "complete" },
+    });
+  });
 });
 
 function createPriceRow(input: {
@@ -196,5 +356,27 @@ function createPriceRow(input: {
     name: "Precio",
     paymentDeadline: input.paymentDeadline,
     scheduleId: input.scheduleId,
+  };
+}
+
+function createInvoiceRow(input: {
+  basePriceAmount: number;
+  choreographyId: string;
+  depositCompletedOn?: string | null;
+  id: string;
+  invoiceAmount: number;
+  invoiceNumber: number;
+  issueDate: string;
+}) {
+  return {
+    academyId: "academy_1",
+    basePriceAmount: input.basePriceAmount,
+    choreographyId: input.choreographyId,
+    depositCompletedOn: input.depositCompletedOn ?? null,
+    id: input.id,
+    invoiceAmount: input.invoiceAmount,
+    invoiceNumber: input.invoiceNumber,
+    issueDate: input.issueDate,
+    invoiceType: "sena" as const,
   };
 }

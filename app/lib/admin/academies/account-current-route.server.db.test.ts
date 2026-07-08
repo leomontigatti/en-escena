@@ -1,12 +1,17 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academyEventPayments, prices } from "@/db/schema";
+import {
+  academyEventChoreographyInvoices,
+  academyEventPayments,
+  prices,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
 import {
   action as accountCurrentAction,
@@ -18,17 +23,23 @@ import {
   accountCurrentUrl,
   buildPaymentRequest,
   createAcademyUser,
+  createAccountCurrentChoreographyFixture,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
   detailActionArgs,
   detailRouteArgs,
+  issueDepositInvoiceForTest,
   renderAcademiesRoute,
   renderAccountCurrentRoute,
   routeArgs,
 } from "./account-current-route.test-support";
 
 installDatabaseTestHooks();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe.sequential("administracion academias cuenta corriente", () => {
   test("renders academies participation without account-current links", async () => {
@@ -128,6 +139,72 @@ describe.sequential("administracion academias cuenta corriente", () => {
 
     expect(loaderData.selectedEventId).toBeNull();
     expect(markup).toContain("Elegí un evento activo para revisar pagos");
+  });
+
+  test("uses the active seña snapshot in operational amounts while the choreography is still impaga", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
+
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Snapshot",
+        choreographyName: "Coreografía Snapshot",
+        email: "academia.snapshot.cuenta.corriente@example.com",
+        event,
+      });
+
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        basePriceAmount: 12000,
+        depositAmount: 3600,
+      })
+      .where(
+        eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
+      );
+
+    const { request } = await createSignedInRequest({
+      email: "admin.snapshot.cuenta.corriente@example.com",
+      role: "admin",
+      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+    });
+
+    const loaderData = await accountCurrentLoader(
+      detailRouteArgs(request, academy.academy.id),
+    );
+    const markup = renderAccountCurrentRoute({ loaderData });
+
+    expect(loaderData.choreographyFinanceRows).toMatchObject([
+      {
+        id: choreography.id,
+        basePriceAmount: { amount: 12000, status: "complete" },
+        depositAmount: { amount: 3600, status: "complete" },
+        financialState: "impaga",
+        owedAmount: { amount: 12000, status: "complete" },
+        owedDepositAmount: { amount: 3600, status: "complete" },
+      },
+    ]);
+    expect(loaderData.summary).toEqual({
+      availableBalanceAmount: 0,
+      owedAmount: { amount: 12000, status: "complete" },
+      owedDepositAmount: { amount: 3600, status: "complete" },
+      totalPaidAmount: 0,
+    });
+    expect(markup).toContain("$ 3.600");
+    expect(markup).toContain("$ 12.000");
+    expect(markup).toContain("Impaga");
+    expect(markup).not.toContain("Señada");
   });
 
   test("allows auditor read-only access and blocks non-admin payment registration", async () => {

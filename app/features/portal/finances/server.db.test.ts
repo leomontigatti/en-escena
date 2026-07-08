@@ -5,7 +5,10 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academyEventPayments } from "@/db/schema";
+import {
+  academyEventChoreographyInvoices,
+  academyEventPayments,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -20,6 +23,7 @@ import { PortalAcademyFinancesRouteView } from "@/features/portal/finances/view"
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { activateEvent } from "@/lib/events/management.server";
 import { action as accountCurrentAction } from "@/routes/administracion.academias_.$academyId";
+import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
 import { loader as portalFinanzasLoader } from "@/routes/portal.finanzas";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -30,8 +34,11 @@ import {
   buildBalanceInvoiceIssueRequest,
   buildCancelInvoiceRequest,
   buildPaymentImputationRequest,
+  completeDepositInvoiceForTest,
   createSavedEvent,
+  createSignedInRequest,
   detailActionArgs,
+  detailRouteArgs,
   issueDepositInvoiceForTest,
   registerPaymentForTest,
 } from "../../../lib/admin/academies/account-current-route.test-support";
@@ -497,6 +504,95 @@ describe.sequential("loadPortalAcademyFinances", () => {
       },
     });
     expect(markup.match(/Pendiente/g)).toHaveLength(2);
+  });
+
+  test("matches admin operational summaries for a paid seña snapshot", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
+
+    const owner = await createAcademySession({
+      email: "portal.finanzas.snapshot@example.com",
+      academyName: "Academia Portal Snapshot",
+    });
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    await activateEvent(event.id);
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Solo Snapshot",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await registerPaymentForTest({
+      academyId: owner.academyId,
+      amount: "3600",
+      eventId: event.id,
+      paymentDate: "2026-03-21",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: owner.academyId,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        basePriceAmount: 12000,
+        depositAmount: 3600,
+      })
+      .where(
+        eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
+      );
+    await completeDepositInvoiceForTest({
+      academyId: owner.academyId,
+      choreographyId: choreography.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+      imputationDate: "2026-03-21",
+    });
+
+    const portalLoaderData = await loadPortalAcademyFinances(
+      new Request("http://localhost/portal/finanzas", {
+        headers: { cookie: owner.cookie },
+      }),
+    );
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.portal.snapshot@example.com",
+      role: "admin",
+      requestUrl: accountCurrentUrl(owner.academyId, event.id),
+    });
+    const adminLoaderData = await accountCurrentLoader(
+      detailRouteArgs(adminRequest, owner.academyId),
+    );
+
+    expect(portalLoaderData.summary).toEqual({
+      availableBalanceAmount: 0,
+      owedAmount: { amount: 8400, status: "complete" },
+      owedDepositAmount: { amount: 0, status: "complete" },
+      totalPaidAmount: 3600,
+    });
+    expect(adminLoaderData.summary).toEqual(portalLoaderData.summary);
+    expect(adminLoaderData.choreographyFinanceRows).toMatchObject([
+      {
+        id: choreography.id,
+        basePriceAmount: { amount: 12000, status: "complete" },
+        depositAmount: { amount: 3600, status: "complete" },
+        depositCompletedOn: "2026-03-21",
+        financialState: "señada",
+        owedAmount: { amount: 8400, status: "complete" },
+        owedDepositAmount: { amount: 0, status: "complete" },
+      },
+    ]);
   });
 
   test("shows the blocked empty state when there is no active event", async () => {

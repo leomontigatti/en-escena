@@ -38,6 +38,8 @@ export type FinanceInvoiceRow = {
   depositCompletedOn: string | null;
   id: string;
   invoiceAmount: number;
+  invoiceNumber: number;
+  issueDate: string;
   invoiceType: "saldo" | "sena";
 };
 
@@ -381,11 +383,21 @@ function findInvoice(
     invoiceType: FinanceInvoiceRow["invoiceType"];
   },
 ) {
-  return invoiceRows.find(
+  const matchingInvoices = invoiceRows.filter(
     (invoice) =>
       invoice.choreographyId === input.choreographyId &&
       invoice.invoiceType === input.invoiceType,
   );
+
+  return matchingInvoices.sort(compareInvoiceSnapshots)[0];
+}
+
+function compareInvoiceSnapshots(a: FinanceInvoiceRow, b: FinanceInvoiceRow) {
+  if (a.issueDate !== b.issueDate) {
+    return b.issueDate.localeCompare(a.issueDate);
+  }
+
+  return b.invoiceNumber - a.invoiceNumber;
 }
 
 function resolveBasePriceAmount(input: {

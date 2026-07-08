@@ -1,7 +1,11 @@
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers } from "@/db/schema";
+import {
+  academyEventChoreographyInvoices,
+  choreographyDancers,
+} from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
@@ -165,6 +169,82 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         finalPriceAmount: null,
         firstName: "Mora",
         lastName: "Pérez",
+      },
+    ]);
+  });
+
+  test("uses the active pending seña snapshot for detail prices and owed amounts", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
+
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Snapshot Detalle",
+        email: "academia.snapshot.detalle@example.com",
+        choreographyName: "Detalle snapshot",
+        event,
+      });
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Luna",
+      lastName: "García",
+    });
+
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        basePriceAmount: 12000,
+        depositAmount: 3600,
+      })
+      .where(
+        eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
+      );
+
+    const { request } = await createSignedInRequest({
+      email: "admin.snapshot.detalle@example.com",
+      role: "admin",
+      requestUrl: choreographyFinanceDetailUrl({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        eventId: event.id,
+      }),
+    });
+
+    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
+      detailRouteArgs({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        request,
+      }),
+    );
+
+    expect(loaderData.choreography).toMatchObject({
+      depositAmount: { amount: 3600, status: "complete" },
+      depositCompletedOn: null,
+      owedAmount: { amount: 12000, status: "complete" },
+    });
+    expect(loaderData.participations).toEqual([
+      {
+        basePriceAmount: 12000,
+        dancerId: dancer.id,
+        discountAmount: 0,
+        finalPriceAmount: 12000,
+        firstName: "Luna",
+        lastName: "García",
       },
     ]);
   });
