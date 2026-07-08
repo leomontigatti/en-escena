@@ -230,7 +230,7 @@ describe.sequential(
     });
 
     test("creates cupos de cronograma through the admin action", async () => {
-      const { event, schedule } = await createScheduleCapacityAdminFixture();
+      const { event, schedule } = await createScheduleForCapacityAdminFixture();
       const createScheduleCapacityRequest =
         await createScheduleCapacityAdminRequest({
           email: "admin.crea.cupo-cronograma@example.com",
@@ -257,8 +257,8 @@ describe.sequential(
     });
 
     test("renders cupos de cronograma fields in the cronograma detail route", async () => {
-      const { event, schedule } = await createScheduleCapacityAdminFixture();
-      await createScheduleCapacityForFixture(event.id, schedule.id);
+      const { event, schedule } = await createScheduleForCapacityAdminFixture();
+      await createPersistedScheduleCapacity(event.id, schedule.id);
 
       const data = await loader(
         routeArgs(
@@ -279,8 +279,8 @@ describe.sequential(
     });
 
     test("updates cupos de cronograma through the admin action", async () => {
-      const { event, schedule } = await createScheduleCapacityAdminFixture();
-      const scheduleCapacity = await createScheduleCapacityForFixture(
+      const { event, schedule } = await createScheduleForCapacityAdminFixture();
+      const scheduleCapacity = await createPersistedScheduleCapacity(
         event.id,
         schedule.id,
       );
@@ -317,8 +317,8 @@ describe.sequential(
     });
 
     test("deletes cupos de cronograma through the admin action", async () => {
-      const { event, schedule } = await createScheduleCapacityAdminFixture();
-      const scheduleCapacity = await createScheduleCapacityForFixture(
+      const { event, schedule } = await createScheduleForCapacityAdminFixture();
+      const scheduleCapacity = await createPersistedScheduleCapacity(
         event.id,
         schedule.id,
       );
@@ -565,7 +565,7 @@ describe.sequential(
   },
 );
 
-async function createScheduleCapacityAdminFixture() {
+async function createScheduleForCapacityAdminFixture() {
   const { event, modalities } = await createEventScheduleAdminFixture(["Jazz"]);
   const scheduleRequest = await createScheduleAdminRequest({
     email: "admin.crea.bloque.cupo-cronograma@example.com",
@@ -582,15 +582,17 @@ async function createScheduleCapacityAdminFixture() {
 
   const schedule = await findSavedScheduleByName("Sábado Mañana");
 
-  expect(schedule).toBeDefined();
+  if (!schedule) {
+    throw new Error("Expected schedule capacity fixture to create a schedule.");
+  }
 
   return {
     event,
-    schedule: schedule!,
+    schedule,
   };
 }
 
-async function createScheduleCapacityForFixture(
+async function createPersistedScheduleCapacity(
   eventId: string,
   scheduleId: string,
 ) {
@@ -611,7 +613,9 @@ async function createScheduleCapacityForFixture(
 
   const [scheduleCapacity] = await listSavedScheduleCapacities(scheduleId);
 
-  expect(scheduleCapacity).toBeDefined();
+  if (!scheduleCapacity) {
+    throw new Error("Expected fixture to create a schedule capacity.");
+  }
 
-  return scheduleCapacity!;
+  return scheduleCapacity;
 }
