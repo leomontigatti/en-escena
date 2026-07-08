@@ -209,11 +209,11 @@ function buildChoreographyOperationalFinanceRow(input: {
   let grossOwedAmount = 0;
   let owedMissingPriceCount = 0;
 
-  const depositInvoice = findInvoice(input.invoiceRows, {
+  const depositInvoice = findLatestInvoiceSnapshot(input.invoiceRows, {
     choreographyId: input.choreography.id,
     invoiceType: "sena",
   });
-  const balanceInvoice = findInvoice(input.invoiceRows, {
+  const balanceInvoice = findLatestInvoiceSnapshot(input.invoiceRows, {
     choreographyId: input.choreography.id,
     invoiceType: "saldo",
   });
@@ -376,23 +376,38 @@ function getInvoicePendingAmount(input: {
   );
 }
 
-function findInvoice(
+function findLatestInvoiceSnapshot(
   invoiceRows: FinanceInvoiceRow[],
   input: {
     choreographyId: string;
     invoiceType: FinanceInvoiceRow["invoiceType"];
   },
 ) {
-  const matchingInvoices = invoiceRows.filter(
-    (invoice) =>
-      invoice.choreographyId === input.choreographyId &&
-      invoice.invoiceType === input.invoiceType,
-  );
+  let latestInvoice: FinanceInvoiceRow | undefined;
 
-  return matchingInvoices.sort(compareInvoiceSnapshots)[0];
+  for (const invoice of invoiceRows) {
+    if (
+      invoice.choreographyId !== input.choreographyId ||
+      invoice.invoiceType !== input.invoiceType
+    ) {
+      continue;
+    }
+
+    if (
+      !latestInvoice ||
+      compareLatestInvoiceSnapshotFirst(invoice, latestInvoice) < 0
+    ) {
+      latestInvoice = invoice;
+    }
+  }
+
+  return latestInvoice;
 }
 
-function compareInvoiceSnapshots(a: FinanceInvoiceRow, b: FinanceInvoiceRow) {
+function compareLatestInvoiceSnapshotFirst(
+  a: FinanceInvoiceRow,
+  b: FinanceInvoiceRow,
+) {
   if (a.issueDate !== b.issueDate) {
     return b.issueDate.localeCompare(a.issueDate);
   }
