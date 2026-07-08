@@ -27,6 +27,7 @@ export function balanceInvoiceInsertValues(input: {
   invoiceNumber: number;
   preview: BalanceInvoiceInsertPreview;
   requiredDepositPercentageSnapshot: number;
+  selectedPriceId: string | null;
   selectedPaymentDeadline: string | null;
 }) {
   return {
@@ -49,6 +50,7 @@ export function balanceInvoiceInsertValues(input: {
     invoiceType: "saldo" as const,
     issueDate: input.preview.issueDate,
     requiredDepositPercentageSnapshot: input.requiredDepositPercentageSnapshot,
+    selectedPriceId: input.selectedPriceId,
     selectedPaymentDeadline: input.selectedPaymentDeadline,
     totalDiscountAmount: input.preview.totalDiscountAmount,
   };

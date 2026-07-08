@@ -16,7 +16,7 @@ import {
   createTable,
   financePaymentMethod,
 } from "./core";
-import { events } from "./events";
+import { events, prices } from "./events";
 
 export const eventFinancialSequences = createTable(
   "event_financial_sequence",
@@ -121,6 +121,9 @@ export const academyEventChoreographyInvoices = createTable(
     invoiceType: choreographyInvoiceType("invoice_type").notNull(),
     issueDate: text("issue_date").notNull(),
     basePriceAmount: integer("base_price_amount").notNull(),
+    selectedPriceId: varchar("selected_price_id", { length: 255 }).references(
+      () => prices.id,
+    ),
     selectedPaymentDeadline: text("selected_payment_deadline"),
     requiredDepositPercentageSnapshot: integer(
       "required_deposit_percentage_snapshot",
@@ -178,6 +181,9 @@ export const academyEventChoreographyInvoices = createTable(
     index("academy_event_choreography_invoice_choreography_idx").on(
       table.choreographyId,
       table.createdAt,
+    ),
+    index("academy_event_choreography_invoice_selected_price_idx").on(
+      table.selectedPriceId,
     ),
   ],
 ).enableRLS();
