@@ -10,16 +10,21 @@ import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
   academyEventPayments,
+  choreographies,
+  events,
   eventFinancialSequences,
+  scheduleCapacities,
   user,
 } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { calculateDepositAmount } from "@/lib/finances/choreography-invoices.server";
 import {
   createDepositInvoiceRecord,
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import {
   AdministracionAcademiasRouteView,
   loader as academiesLoader,
@@ -412,7 +417,7 @@ export async function issueDepositInvoiceForTest(input: {
     })
     .onConflictDoNothing();
 
-  const [academy, sequence] = await Promise.all([
+  const [academy, sequence, event] = await Promise.all([
     db.query.academies.findFirst({
       columns: {
         userId: true,
@@ -425,22 +430,66 @@ export async function issueDepositInvoiceForTest(input: {
       },
       where: eq(eventFinancialSequences.eventId, input.eventId),
     }),
+    db.query.events.findFirst({
+      columns: {
+        requiredDepositPercentage: true,
+      },
+      where: eq(events.id, input.eventId),
+    }),
   ]);
 
-  if (!academy || !sequence) {
-    throw new Error("Expected academy and financial sequence fixtures.");
+  if (!academy || !sequence || !event) {
+    throw new Error(
+      "Expected academy, event, and financial sequence fixtures.",
+    );
   }
 
   let invoiceNumber = sequence.nextInvoiceNumber;
 
   for (const choreographyId of input.choreographyIds) {
+    const choreography = await db
+      .select({
+        groupType: choreographies.groupType,
+        scheduleId: scheduleCapacities.scheduleId,
+      })
+      .from(choreographies)
+      .leftJoin(
+        scheduleCapacities,
+        eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+      )
+      .where(eq(choreographies.id, choreographyId))
+      .then((rows) => rows[0]);
+
+    if (!choreography) {
+      throw new Error("Expected choreography fixture.");
+    }
+
+    const priceResult = await resolveApplicablePrice({
+      eventId: input.eventId,
+      groupType: choreography.groupType,
+      paymentDate: input.issueDate,
+      scheduleId: choreography.scheduleId,
+    });
+
+    if (!priceResult.ok) {
+      throw new Error("Expected applicable price fixture.");
+    }
+
     await createDepositInvoiceRecord({
       academyId: input.academyId,
+      basePriceAmount: priceResult.price.amount,
       choreographyId,
       createdByUserId: academy.userId,
+      depositAmount: calculateDepositAmount({
+        amount: priceResult.price.amount,
+        percentage: event.requiredDepositPercentage,
+      }),
       eventId: input.eventId,
       invoiceNumber: invoiceNumber++,
       issueDate: input.issueDate,
+      requiredDepositPercentageSnapshot: event.requiredDepositPercentage,
+      selectedPaymentDeadline: priceResult.price.paymentDeadline,
+      selectedPriceId: priceResult.price.id,
     });
   }
 

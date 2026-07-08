@@ -6,9 +6,10 @@ import {
   academyEventInvoiceImputations,
   choreographies,
   eventFinancialSequences,
+  prices,
   scheduleCapacities,
 } from "@/db/schema";
-import { resolveApplicablePrice } from "@/lib/prices/repository.server";
+import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 import { balanceInvoiceInsertValues } from "./choreography-invoice-values.server";
 import { validateInvoiceIssueDate } from "./choreography-invoice-validation.server";
 
@@ -39,6 +40,7 @@ type BalanceInvoiceValidationResult =
       ok: true;
       preview: BalanceInvoicePreview;
       requiredDepositPercentageSnapshot: number;
+      selectedPriceId: string | null;
       selectedPaymentDeadline: string | null;
     }
   | ({
@@ -92,6 +94,7 @@ export async function issueBalanceInvoice(input: {
         preview: validated.preview,
         requiredDepositPercentageSnapshot:
           validated.requiredDepositPercentageSnapshot,
+        selectedPriceId: validated.selectedPriceId,
         selectedPaymentDeadline: validated.selectedPaymentDeadline,
       }),
     );
@@ -269,29 +272,21 @@ async function validateBalanceInvoiceInput(input: {
     };
   }
 
-  const [depositImputedTotal, priceResult] = await Promise.all([
-    db
-      .select({
-        amount:
-          sql<number>`coalesce(sum(${academyEventInvoiceImputations.amount}), 0)`.mapWith(
-            Number,
-          ),
-      })
-      .from(academyEventInvoiceImputations)
-      .where(
-        and(
-          eq(academyEventInvoiceImputations.invoiceId, depositInvoice.id),
-          isNull(academyEventInvoiceImputations.annulledAt),
+  const depositImputedTotal = await db
+    .select({
+      amount:
+        sql<number>`coalesce(sum(${academyEventInvoiceImputations.amount}), 0)`.mapWith(
+          Number,
         ),
-      )
-      .then((rows) => Number(rows[0]?.amount ?? 0)),
-    resolveApplicablePrice({
-      eventId: input.eventId,
-      groupType: choreography.groupType,
-      paymentDate: depositInvoice.depositCompletedOn ?? input.issueDate,
-      scheduleId: choreography.scheduleId,
-    }),
-  ]);
+    })
+    .from(academyEventInvoiceImputations)
+    .where(
+      and(
+        eq(academyEventInvoiceImputations.invoiceId, depositInvoice.id),
+        isNull(academyEventInvoiceImputations.annulledAt),
+      ),
+    )
+    .then((rows) => Number(rows[0]?.amount ?? 0));
 
   if (
     depositInvoice.depositCompletedOn === null ||
@@ -299,12 +294,15 @@ async function validateBalanceInvoiceInput(input: {
   ) {
     return balanceRequiresPaidDeposit();
   }
-
-  if (!priceResult.ok) {
-    throw new Error(
-      `No applicable price found for choreography ${input.choreographyId}.`,
-    );
-  }
+  const selectedPriceId = await resolveStoredInvoiceSelectedPriceId({
+    basePriceAmount: depositInvoice.basePriceAmount,
+    eventId: input.eventId,
+    fallbackIssueDate: depositInvoice.issueDate,
+    groupType: choreography.groupType,
+    scheduleId: choreography.scheduleId,
+    selectedPaymentDeadline: depositInvoice.selectedPaymentDeadline,
+    selectedPriceId: depositInvoice.selectedPriceId,
+  });
 
   const dancerDiscountAmount = 0;
   const totalDiscountAmount =
@@ -344,8 +342,73 @@ async function validateBalanceInvoiceInput(input: {
     },
     requiredDepositPercentageSnapshot:
       depositInvoice.requiredDepositPercentageSnapshot,
-    selectedPaymentDeadline: priceResult.price.paymentDeadline,
+    selectedPriceId,
+    selectedPaymentDeadline: depositInvoice.selectedPaymentDeadline,
   };
+}
+
+async function resolveStoredInvoiceSelectedPriceId(input: {
+  basePriceAmount: number;
+  eventId: string;
+  fallbackIssueDate: string;
+  groupType: (typeof prices.$inferSelect)["groupType"];
+  scheduleId: string | null;
+  selectedPaymentDeadline: string | null;
+  selectedPriceId: string | null;
+}) {
+  if (input.selectedPriceId) {
+    return input.selectedPriceId;
+  }
+
+  const exactScopePrice = await resolveStoredInvoicePriceInScope({
+    ...input,
+    scheduleId: input.scheduleId,
+  });
+
+  if (exactScopePrice) {
+    return exactScopePrice.id;
+  }
+
+  if (input.scheduleId === null) {
+    return null;
+  }
+
+  return (
+    (
+      await resolveStoredInvoicePriceInScope({
+        ...input,
+        scheduleId: null,
+      })
+    )?.id ?? null
+  );
+}
+
+async function resolveStoredInvoicePriceInScope(input: {
+  basePriceAmount: number;
+  eventId: string;
+  fallbackIssueDate: string;
+  groupType: (typeof prices.$inferSelect)["groupType"];
+  scheduleId: string | null;
+  selectedPaymentDeadline: string | null;
+}) {
+  const candidates = await db.query.prices.findMany({
+    where: and(
+      eq(prices.eventId, input.eventId),
+      eq(prices.groupType, input.groupType),
+      eq(prices.amount, input.basePriceAmount),
+      input.selectedPaymentDeadline === null
+        ? isNull(prices.paymentDeadline)
+        : eq(prices.paymentDeadline, input.selectedPaymentDeadline),
+      input.scheduleId === null
+        ? isNull(prices.scheduleId)
+        : eq(prices.scheduleId, input.scheduleId),
+    ),
+  });
+
+  return selectApplicablePriceFromCandidates(
+    candidates,
+    input.fallbackIssueDate,
+  );
 }
 
 function invalidBalanceChoreography(): BalanceInvoiceValidationResult {

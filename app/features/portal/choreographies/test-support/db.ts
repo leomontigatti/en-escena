@@ -240,6 +240,7 @@ export async function createDepositInvoiceRecord(input: {
   basePriceAmount?: number;
   depositAmount?: number;
   requiredDepositPercentageSnapshot?: number;
+  selectedPriceId?: string | null;
   selectedPaymentDeadline?: string | null;
 }) {
   const [invoice] = await db
@@ -256,6 +257,7 @@ export async function createDepositInvoiceRecord(input: {
       issueDate: input.issueDate ?? "2026-03-20",
       requiredDepositPercentageSnapshot:
         input.requiredDepositPercentageSnapshot ?? 30,
+      selectedPriceId: input.selectedPriceId ?? null,
       selectedPaymentDeadline: input.selectedPaymentDeadline ?? "2026-05-31",
     })
     .returning();

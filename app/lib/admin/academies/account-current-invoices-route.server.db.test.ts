@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   academyEventChoreographyInvoices,
   academyEventPayments,
+  prices,
 } from "@/db/schema";
 import {
   action as accountCurrentAction,
@@ -58,12 +59,27 @@ describe.sequential(
         eventId: event.id,
         issueDate: "2026-03-20",
       });
+      const selectedPrice = await db.query.prices.findFirst({
+        where: eq(prices.eventId, event.id),
+      });
+
+      if (!selectedPrice) {
+        throw new Error("Expected choreography price fixture.");
+      }
+
       await completeDepositInvoiceForTest({
         academyId: academy.academy.id,
         choreographyId: choreography.id,
         createdByUserId: academy.user.id,
         eventId: event.id,
       });
+      await db
+        .update(prices)
+        .set({
+          amount: 12500,
+          paymentDeadline: "2026-06-15",
+        })
+        .where(eq(prices.id, selectedPrice.id));
 
       const { request: previewRequest } =
         await buildBalanceInvoicePreviewRequest({
@@ -97,39 +113,25 @@ describe.sequential(
         },
       });
 
-      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+      const issueRequest = await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
         administrativeDiscountAmount: "1200",
         administrativeDiscountInternalReason: "Excepción cierre académico",
         administrativeDiscountPublicLabel: "Beca academia",
         choreographyId: choreography.id,
+        eventId: event.id,
         issueDate: "2026-03-25",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
       });
 
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(issueRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
-      });
-
-      const invoices = await db.query.academyEventChoreographyInvoices.findMany(
-        {
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
-          orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
-        },
-      );
+      const invoices = await listChoreographyInvoices(choreography.id);
 
       expect(invoices).toMatchObject([
         {
           invoiceNumber: 1,
           invoiceType: "sena",
           depositAmount: 3000,
+          selectedPaymentDeadline: "2026-05-31",
+          selectedPriceId: selectedPrice.id,
         },
         {
           invoiceNumber: 2,
@@ -143,6 +145,8 @@ describe.sequential(
           administrativeDiscountAmount: 1200,
           administrativeDiscountInternalReason: "Excepción cierre académico",
           administrativeDiscountPublicLabel: "Beca academia",
+          selectedPaymentDeadline: "2026-05-31",
+          selectedPriceId: selectedPrice.id,
           totalDiscountAmount: 1200,
           finalTotalAmount: 8800,
         },
@@ -173,6 +177,112 @@ describe.sequential(
       expect(markup).toContain("Beca academia");
       expect(markup).toContain("$ 5.800");
       expect(markup).toContain("$ 1.200");
+    });
+
+    test("keeps legacy invoice snapshots authoritative when selected price ids are missing", async () => {
+      const event = await createSavedEvent({
+        requiredDepositPercentage: 30,
+      });
+      const { academy, choreography } =
+        await createAccountCurrentChoreographyFixture({
+          email: "academia.facturas.legacy@example.com",
+          academyName: "Academia Facturas Legacy",
+          choreographyName: "Saldo legacy",
+          event,
+        });
+
+      await registerPaymentForTest({
+        academyId: academy.academy.id,
+        amount: "10000",
+        eventId: event.id,
+        paymentDate: "2026-03-15",
+      });
+      await issueDepositInvoiceForTest({
+        academyId: academy.academy.id,
+        choreographyIds: [choreography.id],
+        eventId: event.id,
+        issueDate: "2026-03-20",
+      });
+      const [depositInvoice] =
+        await db.query.academyEventChoreographyInvoices.findMany({
+          where: eq(
+            academyEventChoreographyInvoices.choreographyId,
+            choreography.id,
+          ),
+        });
+
+      if (!depositInvoice) {
+        throw new Error("Expected legacy deposit invoice fixture.");
+      }
+
+      await db
+        .update(academyEventChoreographyInvoices)
+        .set({
+          selectedPriceId: null,
+        })
+        .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+      await completeDepositInvoiceForTest({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        createdByUserId: academy.user.id,
+        eventId: event.id,
+      });
+      await db
+        .update(prices)
+        .set({
+          amount: 14000,
+          paymentDeadline: "2026-06-20",
+        })
+        .where(eq(prices.eventId, event.id));
+
+      const { request: previewRequest } =
+        await buildBalanceInvoicePreviewRequest({
+          choreographyId: choreography.id,
+          issueDate: "2026-03-25",
+          requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+          role: "admin",
+        });
+
+      const previewResult = await accountCurrentAction(
+        detailActionArgs(previewRequest, academy.academy.id),
+      );
+
+      expect(previewResult).toMatchObject({
+        status: "preview",
+        preview: {
+          basePriceAmount: 10000,
+          appliedDepositAmount: 3000,
+          balanceAmount: 7000,
+          finalTotalAmount: 10000,
+        },
+      });
+
+      await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        issueDate: "2026-03-25",
+      });
+
+      const invoices = await listChoreographyInvoices(choreography.id);
+
+      expect(invoices).toMatchObject([
+        {
+          invoiceNumber: 1,
+          invoiceType: "sena",
+          basePriceAmount: 10000,
+          selectedPaymentDeadline: "2026-05-31",
+          selectedPriceId: null,
+        },
+        {
+          invoiceNumber: 2,
+          invoiceType: "saldo",
+          basePriceAmount: 10000,
+          depositAmount: 7000,
+          selectedPaymentDeadline: "2026-05-31",
+          selectedPriceId: null,
+        },
+      ]);
     });
 
     test("blocks invalid balance issuance and keeps auditors read-only", async () => {
@@ -271,21 +381,13 @@ describe.sequential(
         },
       });
 
-      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+      await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
         administrativeDiscountAmount: "500",
         administrativeDiscountInternalReason: "Excepción",
         choreographyId: choreography.id,
+        eventId: event.id,
         issueDate: "2026-03-25",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
-      });
-
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(issueRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
       });
 
       const { request: duplicateIssueRequest } =
@@ -357,3 +459,39 @@ describe.sequential(
     });
   },
 );
+
+async function issueBalanceInvoiceForChoreography(input: {
+  academyId: string;
+  administrativeDiscountAmount?: string;
+  administrativeDiscountInternalReason?: string;
+  administrativeDiscountPublicLabel?: string;
+  choreographyId: string;
+  eventId: string;
+  issueDate: string;
+}) {
+  const { request } = await buildBalanceInvoiceIssueRequest({
+    administrativeDiscountAmount: input.administrativeDiscountAmount,
+    administrativeDiscountInternalReason:
+      input.administrativeDiscountInternalReason,
+    administrativeDiscountPublicLabel: input.administrativeDiscountPublicLabel,
+    choreographyId: input.choreographyId,
+    issueDate: input.issueDate,
+    requestUrl: accountCurrentUrl(input.academyId, input.eventId),
+    role: "admin",
+  });
+
+  await expect(
+    accountCurrentAction(detailActionArgs(request, input.academyId)),
+  ).rejects.toMatchObject({
+    status: 302,
+  });
+
+  return request;
+}
+
+async function listChoreographyInvoices(choreographyId: string) {
+  return await db.query.academyEventChoreographyInvoices.findMany({
+    where: eq(academyEventChoreographyInvoices.choreographyId, choreographyId),
+    orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
+  });
+}
