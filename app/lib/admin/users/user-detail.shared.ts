@@ -307,19 +307,6 @@ export function getUpdateInternalUserServerFieldErrors(error: string) {
   return getEmptyFieldErrors<UpdateInternalUserField>();
 }
 
-export function getRoleLabel(role: DetailUser["mainRole"]) {
-  return (
-    detailUserRoleOptions.find((option) => option.value === role)?.label ?? role
-  );
-}
-
-export function getStateLabel(state: DetailUser["state"]) {
-  return (
-    detailUserStateOptions.find((option) => option.value === state)?.label ??
-    state
-  );
-}
-
 export function getUpdateInternalUserFieldErrors(error: z.ZodError) {
   return getFieldErrors(error, updateInternalUserFieldNames);
 }

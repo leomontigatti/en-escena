@@ -10,7 +10,10 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
-import { createEvent } from "@/lib/events/management.server";
+import {
+  createAdminSavedEvent as createSavedEvent,
+  testEventDate as date,
+} from "@/lib/events/saved-event-test-support.server";
 import {
   AdministracionRouteView,
   loader as adminLoader,
@@ -280,48 +283,6 @@ describe("administracion/eventos route", () => {
   });
 });
 
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> & {
-    active?: boolean;
-    programVisible?: boolean;
-    resultsVisible?: boolean;
-  },
-) {
-  const result = await createEvent({
-    name: "Evento 2026",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  const updates = {
-    active: overrides.active,
-    programVisible: overrides.programVisible,
-    resultsVisible: overrides.resultsVisible,
-  };
-  const definedUpdates = Object.fromEntries(
-    Object.entries(updates).filter(([, value]) => value !== undefined),
-  );
-
-  if (Object.keys(definedUpdates).length === 0) {
-    return result.event;
-  }
-
-  const [event] = await db
-    .update(events)
-    .set(definedUpdates)
-    .where(eq(events.id, result.event.id))
-    .returning();
-
-  return event ?? result.event;
-}
-
 function renderRoute(
   loaderData: Partial<
     Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
@@ -434,8 +395,4 @@ function expectShellDataNotReturned(loaderData: object) {
   expect(loaderData).not.toHaveProperty("email");
   expect(loaderData).not.toHaveProperty("eventOptions");
   expect(loaderData).not.toHaveProperty("selectedEventId");
-}
-
-function date(value: string) {
-  return new Date(value);
 }

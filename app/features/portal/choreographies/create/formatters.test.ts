@@ -2,10 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import {
   formatRosterSummary,
-  formatScheduleDateTime,
   formatScheduleSummary,
 } from "@/features/portal/choreographies/create/formatters";
 import type { RegistrationResolution } from "@/features/portal/choreographies/create/flow";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
 describe("choreography create dialog formatters", () => {
   test("formats schedule and roster summaries for the confirmation step", () => {

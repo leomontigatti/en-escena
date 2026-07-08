@@ -13,55 +13,74 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 function DeleteDialog({
+  blockedDescription,
+  blockedTitle = "No se puede eliminar",
   confirmFieldName = "confirmDeletion",
   confirmFieldValue,
   description,
   intentValue,
+  isBlocked = false,
   open,
   onOpenChange,
   recordId,
   title = "Confirmar eliminación",
 }: {
+  blockedDescription?: ReactNode;
+  blockedTitle?: string;
   confirmFieldName?: string;
   confirmFieldValue?: string;
   description: ReactNode;
   intentValue: string;
+  isBlocked?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recordId: string;
   title?: string;
 }) {
+  const navigation = useOptionalNavigation();
   const resolvedConfirmFieldValue = confirmFieldValue ?? recordId;
+  const isPending = isRouteFormPending(navigation, {
+    intent: intentValue,
+    fields: { id: recordId },
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <Alert variant="destructive">
+        <DialogHeader className="gap-3">
+          <DialogTitle>{isBlocked ? blockedTitle : title}</DialogTitle>
+          <Alert variant={isBlocked ? "warning" : "destructive"}>
             <AlertCircleIcon aria-hidden="true" />
-            <AlertDescription>Esta acción es irreversible.</AlertDescription>
+            <AlertDescription>
+              {isBlocked
+                ? (blockedDescription ??
+                  "Esta acción no está disponible para este registro.")
+                : "Esta acción es irreversible."}
+            </AlertDescription>
           </Alert>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancelar
+            <Button type="button" variant="outline" disabled={isPending}>
+              {isBlocked ? "Cerrar" : "Cancelar"}
             </Button>
           </DialogClose>
-          <form method="post">
-            <input type="hidden" name="intent" value={intentValue} />
-            <input type="hidden" name="id" value={recordId} />
-            <input
-              type="hidden"
-              name={confirmFieldName}
-              value={resolvedConfirmFieldValue}
-            />
-            <DestroyButton />
-          </form>
+          {isBlocked ? null : (
+            <form method="post">
+              <input type="hidden" name="intent" value={intentValue} />
+              <input type="hidden" name="id" value={recordId} />
+              <input
+                type="hidden"
+                name={confirmFieldName}
+                value={resolvedConfirmFieldValue}
+              />
+              <DestroyButton isPending={isPending} />
+            </form>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

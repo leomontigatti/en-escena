@@ -2,8 +2,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
+  ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
@@ -104,10 +104,13 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
   ];
 
   return (
-    <AdminResourceDataTable
+    <ServerDataTable
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
+      pageParamName="pagina"
+      searchParamName="busqueda"
+      sortParamName="orden"
       searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}

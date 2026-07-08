@@ -5,6 +5,7 @@ import {
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_PATH,
 } from "@/lib/auth/access-paths.shared";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
 const confirmEmailOtp = vi.hoisted(() => vi.fn());
 
@@ -108,14 +109,4 @@ async function expectRedirect(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a redirect response.");
-}
-
-function getSetCookieValues(headers: Headers) {
-  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
-
-  const setCookie = headers.get("set-cookie");
-
-  return setCookie ? [setCookie] : [];
 }

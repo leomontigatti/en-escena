@@ -12,14 +12,17 @@ import {
   prices,
   professors,
   scheduleCapacities,
-  scheduleModalities,
-  schedules,
   submodalities,
   user,
 } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
-import { createEvent, activateEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import {
+  createPortalSavedEvent as createSavedEvent,
+  testEventDate as date,
+} from "@/lib/events/saved-event-test-support.server";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
@@ -262,25 +265,6 @@ async function createAcademySession() {
   };
 }
 
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "Evento",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
 async function createEventCatalog(eventId: string) {
   const [modality] = await db
     .insert(modalities)
@@ -312,18 +296,8 @@ async function createEventCatalog(eventId: string) {
     categoryId: categoryWithLevel.id,
     modalityId: modality.id,
   });
-  const [schedule] = await db
-    .insert(schedules)
-    .values({
-      eventId,
-      name: `Bloque ${eventId}`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-    })
-    .returning();
-  await db.insert(scheduleModalities).values({
-    scheduleId: schedule.id,
+  const schedule = await createScheduleForModalityFixture({
+    eventId,
     modalityId: modality.id,
   });
   const [scheduleCapacity] = await db
@@ -416,8 +390,4 @@ function toUrl(path: string) {
 function nextEmailSlug() {
   nextIdentity += 1;
   return `baseline-${nextIdentity}`;
-}
-
-function date(value: string) {
-  return new Date(value);
 }

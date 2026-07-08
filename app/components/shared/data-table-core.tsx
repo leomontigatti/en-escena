@@ -9,6 +9,7 @@ import { LoaderCircle, Search, X } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   DataTableFacetedFilterControl,
@@ -54,7 +55,6 @@ export const emptyFacetedFilterValues: Record<
 
 type DataTableShellProps<TData> = {
   table: TanStackTable<TData>;
-  columns: DataTableColumn<TData>[];
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   searchPlaceholder: string;
   searchQuery: string;
@@ -81,6 +81,7 @@ type DataTableShellProps<TData> = {
 
 export function createDataTableColumns<TData>(
   columns: DataTableColumn<TData>[],
+  options: { selectableRows?: boolean } = {},
 ) {
   const tableColumns = columns.map<ColumnDef<TData>>((column) => ({
     id: column.id,
@@ -132,8 +133,12 @@ export function createDataTableColumns<TData>(
     },
   }));
 
+  const visibleTableColumns = options.selectableRows
+    ? [createSelectionColumn<TData>(), ...tableColumns]
+    : tableColumns;
+
   if (columns.some((column) => column.id === dataTableFacetedFilterColumnId)) {
-    return tableColumns;
+    return visibleTableColumns;
   }
 
   const facetedColumn: ColumnDef<TData> = {
@@ -164,7 +169,7 @@ export function createDataTableColumns<TData>(
     },
   };
 
-  return [...tableColumns, facetedColumn];
+  return [...visibleTableColumns, facetedColumn];
 }
 
 export function createColumnVisibility<TData>(
@@ -210,9 +215,53 @@ export function createGlobalFilterFn<TData>(columns: DataTableColumn<TData>[]) {
     });
 }
 
+function createSelectionColumn<TData>(): ColumnDef<TData> {
+  return {
+    id: "select",
+    header: ({ table }) => {
+      const selectableRows = table.getFilteredRowModel().rows;
+      const hasRows = selectableRows.length > 0;
+      const selectedRowCount = selectableRows.filter((row) =>
+        row.getIsSelected(),
+      ).length;
+      const areAllRowsSelected =
+        hasRows && selectedRowCount === selectableRows.length;
+      const areSomeRowsSelected = selectedRowCount > 0 && !areAllRowsSelected;
+
+      return (
+        <Checkbox
+          aria-label="Seleccionar todas las filas"
+          checked={
+            areAllRowsSelected ||
+            (areSomeRowsSelected ? "indeterminate" : false)
+          }
+          disabled={!hasRows}
+          onCheckedChange={(checked) => {
+            for (const row of selectableRows) {
+              row.toggleSelected(checked === true);
+            }
+          }}
+        />
+      );
+    },
+    cell: ({ row }) => (
+      <Checkbox
+        aria-label="Seleccionar fila"
+        checked={row.getIsSelected()}
+        onCheckedChange={(checked) => row.toggleSelected(checked === true)}
+      />
+    ),
+    enableHiding: false,
+    enableSorting: false,
+    meta: {
+      className: "w-10",
+      headerClassName: "w-10",
+    },
+  };
+}
+
 export function DataTableShell<TData>({
   table,
-  columns,
   getRowProps,
   searchPlaceholder,
   searchQuery,
@@ -376,7 +425,7 @@ export function DataTableShell<TData>({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={table.getVisibleLeafColumns().length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {emptyMessage}

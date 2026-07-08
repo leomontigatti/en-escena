@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
 import type * as React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -8,6 +7,11 @@ import {
   createReactDomTestRenderer,
   getButton,
 } from "@/lib/test-support/react-dom";
+import {
+  expectReactRouterSubmit,
+  requestSubmitWithButton,
+  spyOnNativeFormSubmit,
+} from "@/lib/test-support/form-submit";
 
 const reactRouterMocks = vi.hoisted(() => ({
   useFormAction: vi.fn(),
@@ -54,9 +58,7 @@ describe("Evento RHF + React Router form submission", () => {
   });
 
   test("submits the new Evento form through React Router instead of form.submit()", async () => {
-    const nativeSubmitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => {});
+    const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
     reactRouterMocks.useFormAction.mockReturnValue(
@@ -81,26 +83,18 @@ describe("Evento RHF + React Router form submission", () => {
 
     expect(form).toBeInstanceOf(HTMLFormElement);
 
-    await act(async () => {
-      (form as HTMLFormElement).requestSubmit(submitButton);
-      await Promise.resolve();
-    });
+    await requestSubmitWithButton(form as HTMLFormElement, submitButton);
 
-    expect(nativeSubmitSpy).not.toHaveBeenCalled();
-    expect(submitSpy).toHaveBeenCalledTimes(1);
-    expect(submitSpy).toHaveBeenCalledWith(
+    expectReactRouterSubmit({
+      action: "/administracion/eventos/nuevo",
+      nativeSubmitSpy,
       submitButton,
-      expect.objectContaining({
-        action: "/administracion/eventos/nuevo",
-        method: "post",
-      }),
-    );
+      submitSpy,
+    });
   });
 
   test("blocks invalid client data and keeps validation errors visible", async () => {
-    const nativeSubmitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => {});
+    const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
     reactRouterMocks.useFormAction.mockReturnValue(
@@ -115,10 +109,10 @@ describe("Evento RHF + React Router form submission", () => {
 
     expect(form).toBeInstanceOf(HTMLFormElement);
 
-    await act(async () => {
-      (form as HTMLFormElement).requestSubmit(getButton("Guardar"));
-      await Promise.resolve();
-    });
+    await requestSubmitWithButton(
+      form as HTMLFormElement,
+      getButton("Guardar"),
+    );
 
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
     expect(nativeSubmitSpy).not.toHaveBeenCalled();

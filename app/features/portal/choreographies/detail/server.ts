@@ -14,7 +14,6 @@ import {
 } from "@/features/portal/choreographies/detail/roster-editor";
 import { deleteChoreographyIntent } from "@/features/portal/choreographies/detail/shared";
 import {
-  deleteChoreography,
   findChoreographyForAcademyEvent,
   getChoreographyDeletionAvailability,
 } from "@/lib/portal/choreographies.server";
@@ -32,10 +31,11 @@ import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context
 
 const routeNotificationSearchParam = "notificacion";
 const choreographySavedNotification = "coreografia-guardada";
-const choreographyDeletedNotification = "coreografia-eliminada";
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 const readOnlyEventMessage = "Este Evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
+const academyDeletionRemovedMessage =
+  "Las academias no pueden eliminar coreografías desde el portal.";
 
 type DancerResolutionActionData = {
   intent: typeof resolveChoreographyDancersIntent;
@@ -79,13 +79,7 @@ type ParsedPortalChoreographyDetailAction =
       musicFile: File | null;
       musicWasSubmitted: boolean;
       musicValidationError: string;
-    } & UpdateActionSelection)
-  | {
-      intent: typeof deleteChoreographyIntent;
-      academyId: string;
-      choreographyId: string;
-      eventId: string;
-    };
+    } & UpdateActionSelection);
 
 type PortalChoreographyDetailActionResult =
   | {
@@ -103,9 +97,6 @@ type PortalChoreographyDetailActionResult =
   | {
       kind: "saved";
       choreographyId: string;
-    }
-  | {
-      kind: "deleted";
     };
 
 type ChoreographyRosterSummary = {
@@ -271,14 +262,7 @@ function parsePortalChoreographyDetailAction(input: {
   }
 
   if (intent === deleteChoreographyIntent) {
-    assertDeleteConfirmationMatches(input.formData, input.choreographyId);
-
-    return {
-      intent,
-      academyId: input.academyId,
-      choreographyId: input.choreographyId,
-      eventId: input.eventId,
-    };
+    throw new Response(academyDeletionRemovedMessage, { status: 403 });
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
@@ -304,13 +288,7 @@ async function executePortalChoreographyDetailAction(
     return await executeUpdateChoreographyAction(action);
   }
 
-  await deleteChoreography({
-    academyId: action.academyId,
-    choreographyId: action.choreographyId,
-    eventId: action.eventId,
-  });
-
-  return { kind: "deleted" };
+  throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
 function readFormString(formData: FormData, key: string) {
@@ -623,19 +601,6 @@ function adaptPortalChoreographyDetailActionResult(
     return redirect(
       `/portal/coreografias/${result.choreographyId}?${routeNotificationSearchParam}=${choreographySavedNotification}`,
     );
-  }
-
-  return redirect(
-    `/portal/coreografias?${routeNotificationSearchParam}=${choreographyDeletedNotification}`,
-  );
-}
-
-function assertDeleteConfirmationMatches(
-  formData: FormData,
-  choreographyId: string,
-) {
-  if (formData.get("confirmDeletion") !== choreographyId) {
-    throw new Response(unsupportedActionMessage, { status: 400 });
   }
 }
 

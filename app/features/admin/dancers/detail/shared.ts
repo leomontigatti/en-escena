@@ -319,46 +319,6 @@ export function getInitialDialogIntent({
   return null;
 }
 
-export function formatDateOnlyLabel(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  const monthNames = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
-  ];
-
-  return `${day} de ${monthNames[month - 1]} de ${year}`;
-}
-
-export function formatDancerDocumentType(
-  documentType: "dni" | "other" | "passport" | null,
-) {
-  switch (documentType) {
-    case "dni":
-      return "DNI";
-    case "passport":
-      return "Pasaporte";
-    case "other":
-      return "Otro";
-    default:
-      return "Sin documento";
-  }
-}
-
 function hasDancerVerificationMinimumData(
   dancer: DancerDetailLoaderData["dancer"],
 ) {

@@ -20,23 +20,14 @@ installDatabaseTestHooks();
 
 describe.sequential("portal choreography music", () => {
   test("uploads new music, stores the key, and removes the previous object", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Música",
-      email: "music.update@example.com",
-    });
-    const event = await createEventRecord({ active: true });
-    const catalog = await createEventCatalog(event.id);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "academies/old/choreographies/old/music.mp3",
-      name: "Con música",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Música",
+        email: "music.update@example.com",
+        musicStorageKey: "academies/old/choreographies/old/music.mp3",
+        name: "Con música",
+      },
+    );
     const calls: Array<unknown> = [];
     const storage = {
       createMusicSignedUrl: async (storageKey: string) =>
@@ -98,23 +89,14 @@ describe.sequential("portal choreography music", () => {
   });
 
   test("removes music and marks the choreography as pending music again", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Borra Música",
-      email: "music.clear@example.com",
-    });
-    const event = await createEventRecord({ active: true });
-    const catalog = await createEventCatalog(event.id);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "academies/music/current.mp3",
-      name: "Sin música",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Borra Música",
+        email: "music.clear@example.com",
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Sin música",
+      },
+    );
     const removedKeys: string[] = [];
     const storage = {
       createMusicSignedUrl: async (storageKey: string) =>
@@ -148,24 +130,15 @@ describe.sequential("portal choreography music", () => {
   });
 
   test("blocks music changes once the choreography has a presentation", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Presentada",
-      email: "music.presentation@example.com",
-    });
-    const event = await createEventRecord({ active: true });
-    const catalog = await createEventCatalog(event.id);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      hasPresentation: true,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "academies/music/current.mp3",
-      name: "Presentada",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Presentada",
+        email: "music.presentation@example.com",
+        hasPresentation: true,
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Presentada",
+      },
+    );
     const storage = {
       createMusicSignedUrl: async (storageKey: string) =>
         `signed:${storageKey}`,
@@ -199,3 +172,32 @@ describe.sequential("portal choreography music", () => {
     ).resolves.toEqual({ musicStorageKey: "academies/music/current.mp3" });
   });
 });
+
+async function createMusicChoreographyFixture(input: {
+  academyName: string;
+  email: string;
+  hasPresentation?: boolean;
+  musicStorageKey: string;
+  name: string;
+}) {
+  const owner = await createAcademySession({
+    academyName: input.academyName,
+    email: input.email,
+  });
+  const event = await createEventRecord({ active: true });
+  const catalog = await createEventCatalog(event.id);
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: catalog.level.id,
+    hasPresentation: input.hasPresentation,
+    modalityId: catalog.modality.id,
+    musicStorageKey: input.musicStorageKey,
+    name: input.name,
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+
+  return { choreography, event, owner };
+}

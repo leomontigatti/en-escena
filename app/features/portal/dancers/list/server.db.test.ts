@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   handlePortalDancersListAction,
   loadPortalDancersList,
@@ -208,25 +209,6 @@ describe.sequential("loadPortalDancersList", () => {
   });
 });
 
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "Evento",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
 function dancerFormData(input: {
   firstName: string;
   lastName: string;
@@ -239,8 +221,4 @@ function dancerFormData(input: {
   formData.set("birthDate", input.birthDate);
 
   return formData;
-}
-
-function date(value: string) {
-  return new Date(value);
 }

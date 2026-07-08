@@ -1,4 +1,4 @@
-import { CloudUpload, Download, Trash2 } from "lucide-react";
+import { CloudUpload, Download, ExternalLink, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -16,7 +16,10 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
-import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
+import {
+  FieldControlLockIcon,
+  FieldLockIcon,
+} from "@/components/shared/field-lock-icon";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
@@ -41,6 +44,7 @@ type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   storageKeyInputName?: string;
   storageKeyValue?: string;
   uploadedLabel?: string;
+  variant?: "dropzone" | "compact";
 };
 
 type FileUploadInputProps = Omit<
@@ -74,6 +78,7 @@ type FileUploadControlConfig = {
   storageKeyValue: string;
   uploadedLabel: string;
   validationErrorInputName: string;
+  variant: "dropzone" | "compact";
 };
 
 type FileUploadControlState = {
@@ -82,8 +87,8 @@ type FileUploadControlState = {
   displayedPreviewUrl: string | null;
   downloadHref: string | null;
   errorMessage: string | null;
-  handleDragOver: (event: DragEvent<HTMLLabelElement>) => void;
-  handleDrop: (event: DragEvent<HTMLLabelElement>) => void;
+  handleDragOver: (event: DragEvent<HTMLElement>) => void;
+  handleDrop: (event: DragEvent<HTMLElement>) => void;
   handleFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   inputRef: RefObject<HTMLInputElement | null>;
   previewAlt: string;
@@ -188,10 +193,14 @@ function FileUploadControl(props: FileUploadControlProps) {
   return (
     <div className="flex flex-col gap-2">
       <FileUploadHiddenInputs config={config} state={state} />
-      <div className="relative">
-        <FileUploadDropzone config={config} state={state} />
-        <FileUploadActions config={config} state={state} />
-      </div>
+      {config.variant === "compact" ? (
+        <FileUploadCompactControl config={config} state={state} />
+      ) : (
+        <div className="relative">
+          <FileUploadDropzone config={config} state={state} />
+          <FileUploadActions config={config} state={state} />
+        </div>
+      )}
     </div>
   );
 }
@@ -221,6 +230,7 @@ function getFileUploadControlConfig(
     storageKeyInputName,
     storageKeyValue = "",
     uploadedLabel = "Imagen cargada",
+    variant = "dropzone",
     ...inputProps
   }: FileUploadControlProps,
   generatedId: string,
@@ -253,6 +263,7 @@ function getFileUploadControlConfig(
     storageKeyValue,
     uploadedLabel,
     validationErrorInputName: `${inputProps.name ?? id}ValidationError`,
+    variant,
   };
 }
 
@@ -307,11 +318,11 @@ function useFileUploadControlState(
     ...derivedState,
   };
 
-  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+  function handleDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
   }
 
-  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+  function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
 
     if (config.disabled) {
@@ -550,6 +561,129 @@ function FileUploadHiddenInputs({
         value={state.errorMessage ?? ""}
       />
     </>
+  );
+}
+
+function FileUploadCompactControl({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  const showDownloadLink =
+    state.downloadHref &&
+    state.selectedFileName === null &&
+    !state.errorMessage;
+
+  return (
+    <div
+      className="relative"
+      onDragOver={state.handleDragOver}
+      onDrop={state.handleDrop}
+    >
+      <input
+        {...config.inputProps}
+        ref={state.inputRef}
+        id={config.id}
+        type="file"
+        aria-invalid={config.error || state.errorMessage ? true : undefined}
+        className="sr-only"
+        disabled={config.disabled}
+        onChange={state.handleFileInputChange}
+      />
+      {showDownloadLink ? (
+        <a
+          href={state.downloadHref ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className={getFileUploadCompactClassName(config, state)}
+        >
+          <ExternalLink aria-hidden="true" className="size-3.5" />
+          <span className="truncate">{config.downloadLabel}</span>
+        </a>
+      ) : (
+        <label
+          htmlFor={config.id}
+          className={getFileUploadCompactClassName(config, state)}
+        >
+          <span className="truncate">
+            {getCompactFieldLabel(config, state)}
+          </span>
+        </label>
+      )}
+      {config.disabled ? (
+        <FileUploadCompactLockIcon />
+      ) : (
+        <FileUploadCompactActions
+          state={state}
+          removeLabel={config.removeLabel}
+        />
+      )}
+    </div>
+  );
+}
+
+function FileUploadCompactLockIcon() {
+  return (
+    <span className="pointer-events-none absolute top-1/2 right-3 flex size-4 -translate-y-1/2 items-center justify-center">
+      <FieldLockIcon className="size-3" />
+    </span>
+  );
+}
+
+function FileUploadCompactActions({
+  removeLabel,
+  state,
+}: {
+  removeLabel: string;
+  state: FileUploadControlState;
+}) {
+  if (!state.showsFileActions) {
+    return null;
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="destructive"
+      size="icon-sm"
+      className="absolute top-1/2 right-1 -translate-y-1/2"
+      onClick={state.clearFile}
+    >
+      <Trash2 aria-hidden="true" data-icon />
+      <span className="sr-only">{removeLabel}</span>
+    </Button>
+  );
+}
+
+function getCompactFieldLabel(
+  config: FileUploadControlConfig,
+  state: FileUploadControlState,
+) {
+  if (state.selectedFileName) {
+    return state.selectedFileName;
+  }
+
+  if (state.currentStorageKey) {
+    return config.uploadedLabel;
+  }
+
+  return "";
+}
+
+function getFileUploadCompactClassName(
+  config: FileUploadControlConfig,
+  state: FileUploadControlState,
+) {
+  return cn(
+    "flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-9 text-base transition-colors outline-none md:text-sm",
+    !config.disabled &&
+      "cursor-pointer hover:bg-muted/50 focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/50",
+    config.disabled && "bg-input/50 opacity-50",
+    (config.error || state.errorMessage) &&
+      "border-destructive ring-3 ring-destructive/20",
+    config.className,
   );
 }
 

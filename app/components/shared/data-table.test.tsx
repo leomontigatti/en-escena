@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
@@ -237,6 +238,58 @@ describe("DataTable", () => {
     expect(markup).toContain('aria-label="Filtros"');
     expect(markup).not.toContain('aria-label="Filtros:');
   });
+
+  test("selects and deselects visible client-side rows from the header checkbox", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/finanzas/academy_1"]}>
+        <ClientDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+            {
+              id: "choreography_2",
+              academy: "Academia Norte",
+              name: "Tango",
+              status: "active",
+            },
+          ]}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          textFilterColumnId="name"
+        />
+      </MemoryRouter>,
+    );
+
+    const checkboxes = getRenderedCheckboxes();
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes.map((checkbox) => checkbox.ariaChecked)).toEqual([
+      "false",
+      "false",
+      "false",
+    ]);
+
+    await clickCheckbox(checkboxes[0]);
+
+    expect(checkboxes.map((checkbox) => checkbox.ariaChecked)).toEqual([
+      "true",
+      "true",
+      "true",
+    ]);
+
+    await clickCheckbox(checkboxes[0]);
+
+    expect(checkboxes.map((checkbox) => checkbox.ariaChecked)).toEqual([
+      "false",
+      "false",
+      "false",
+    ]);
+  });
 });
 
 describe("DataTable server-side href helpers", () => {
@@ -306,3 +359,27 @@ describe("DataTable server-side href helpers", () => {
     );
   });
 });
+
+function getRenderedCheckboxes() {
+  return Array.from(document.querySelectorAll('[role="checkbox"]')).map(
+    (element) => {
+      if (!(element instanceof HTMLElement)) {
+        throw new Error("Expected checkbox to be an HTMLElement.");
+      }
+
+      return element;
+    },
+  );
+}
+
+async function clickCheckbox(checkbox: HTMLElement) {
+  await act(async () => {
+    checkbox.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await Promise.resolve();
+  });
+}

@@ -5,6 +5,7 @@ import {
   createSupabaseServerCookieBridge,
   withSupabaseSsrHeaders,
 } from "@/lib/auth/supabase-auth-ssr.server";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
 describe("supabase auth ssr helpers", () => {
   test("reads request cookies and applies set-cookie plus no-cache headers to React Router responses", () => {
@@ -99,13 +100,3 @@ describe("supabase auth ssr helpers", () => {
     ]);
   });
 });
-
-function getSetCookieValues(headers: Headers) {
-  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
-
-  const setCookie = headers.get("set-cookie");
-
-  return setCookie ? [setCookie] : [];
-}

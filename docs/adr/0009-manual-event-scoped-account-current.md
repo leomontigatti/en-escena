@@ -30,13 +30,30 @@ disponible` until administration imputes it to one or more invoices.
 Do not issue choreography invoices automatically when a coreografia is
 confirmed. Do not allow arbitrary-amount choreography invoices. Each
 coreografia can only be invoiced through the required sequence of down-payment
-invoice first and balance invoice after the down-payment invoice is fully
-covered.
+invoice first and balance invoice after the down-payment invoice is paid in
+full.
 
 The down-payment amount uses the event down-payment percentage over the base
-price frozen by the down-payment date. Individual dancer discounts apply only
-to the balance. The balance remains estimated until administration issues the
-balance invoice; issuing it fixes the amount.
+price fixed by the down-payment invoice issue date. Administration can choose
+that issue date intentionally to fix the price for a choreography before
+payment is imputed. Paying the down-payment invoice in full makes the
+coreografia `señada`; individual dancer discounts apply only to the balance.
+The balance remains estimated until administration issues the balance invoice;
+issuing it fixes the amount.
+
+Choreography invoices store the selected price identifier alongside amount and
+deadline snapshots so future price edits can distinguish historical dependencies
+from unsigned choreography estimates. Older invoices without that identifier are
+treated conservatively by inferring the historical price from their stored
+snapshot values.
+
+Invoice snapshots remain authoritative for active pending invoices even when
+the source price changes later. Repricing a pending invoice requires canceling
+and reissuing it rather than silently changing the document.
+
+Only paid choreography invoices create historical price dependencies. Pending
+invoices can be canceled and reissued when prices move, and canceled invoices
+remain audit records rather than blockers for future pricing.
 
 The Portal de academias financial screen is read-only in V1. The Panel de
 administracion financial workflow is organized by `Cuenta corriente de
@@ -46,14 +63,17 @@ account.
 Use operational finance terms in the Portal de academias and Panel de
 administracion summaries. `Saldo adeudado` means the net operational amount
 still pending to collect or pay for the active event, not only unpaid issued
-invoices. Active invoice pending amounts are used first, estimates complete the
-amount that is not fixed by invoices, and `Saldo disponible` discounts the
-result globally. `Saldo adeudado` never becomes negative.
+invoices. An active down-payment invoice fixes the price used by an unsigned
+choreography from its issue date, while choreographies without an active
+down-payment invoice use the current expected price. Pending invoices remain
+visible as documents, and `Saldo disponible` discounts the result globally.
+`Saldo adeudado` never becomes negative.
 
 Show `Seña adeudada` separately as the gross down-payment amount still needed
-for choreographies that are not signed or paid. It uses active down-payment
-invoice pending amounts when those invoices exist, otherwise it uses the event
-down-payment percentage. `Seña adeudada` does not discount `Saldo disponible`.
+for choreographies that are not signed or paid. It uses the event down-payment
+percentage over the price fixed by an active down-payment invoice when one
+exists; otherwise it uses the current expected price. `Seña adeudada` does not
+discount `Saldo disponible`.
 
 Keep `Monto total pagado` as a payment detail and audit amount, not as a
 primary operational summary amount. The primary summary amounts are `Seña
@@ -78,8 +98,9 @@ adeudada`, `Saldo disponible` and `Saldo adeudado`.
   from choreography confirmation alone.
 - Active financial blocking is derived from active invoices, not from a
   separate flag stored on the choreography record.
-- Partial imputations are allowed, but a coreografia becomes `señada` only
-  when its down-payment invoice is fully covered.
+- Imputations are all-or-nothing for each invoice: a choreography invoice is
+  either `pendiente` or `pagada`, never partial. A coreografia becomes `señada`
+  only when its down-payment invoice is paid in full.
 - V1 needs traceable correction mechanics for invoices, payments and
   imputations through cancellation or annulment with an administrative reason.
 - Account-current reporting must distinguish `Seña adeudada`, `Saldo

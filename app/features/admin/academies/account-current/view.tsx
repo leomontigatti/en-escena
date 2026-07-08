@@ -1,19 +1,37 @@
+import { useState } from "react";
+
 import { CircleDollarSign, Landmark, Receipt } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ClientDataTable,
+  type DataTableColumn,
+  type DataTableFacetedFilter,
+} from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
+import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { formatAmount, formatOperationalAmount } from "./formatters";
 import {
-  BalanceInvoiceForm,
+  formatAmount,
+  formatChoreographyFinancialState,
+  formatOperationalAmount,
+} from "./formatters";
+import {
   CorrectionActionsForm,
-  DepositInvoiceForm,
   PaymentForm,
   PaymentImputationForm,
 } from "./forms";
 import {
   defaultAccountCurrentActionValues,
+  paymentFieldNames,
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
 import {
@@ -25,6 +43,21 @@ import {
 } from "./tables";
 import type { AccountCurrentLoaderData } from "./types";
 
+type ChoreographyFinanceRow =
+  AccountCurrentLoaderData["choreographyFinanceRows"][number];
+
+const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [
+      { label: "Impaga", value: "impaga" },
+      { label: "Señada", value: "señada" },
+      { label: "Pagada", value: "pagada" },
+    ],
+  },
+];
+
 type AdministracionAcademiaCuentaCorrienteRouteViewProps = {
   actionData?: AdministrativeAcademyAccountCurrentActionData;
   loaderData: AccountCurrentLoaderData;
@@ -35,20 +68,29 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
   const values = actionData?.values ?? defaultAccountCurrentActionValues();
-  const preview =
-    actionData?.status === "preview" ? actionData.preview : undefined;
+  const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const pendingInvoices = [
     ...loaderData.activeDepositInvoices,
     ...loaderData.activeBalanceInvoices,
   ].filter((invoice) => invoice.pendingAmount > 0);
+  const shouldShowPaymentForm =
+    loaderData.canRegisterPayments &&
+    (isPaymentFormOpen || hasPaymentActionErrors(actionData));
 
   useServerActionToast(actionData?.status === "error" ? actionData : null);
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Cuenta corriente de academia"
-      description={`Registrá pagos y revisá la Cuenta corriente de academia de ${loaderData.academy.name} dentro del evento activo.`}
+      title="Cuenta corriente"
+      description="Revisá la cuenta corriente, emití facturas y registrá pagos para una academia."
+      headerAction={
+        loaderData.canRegisterPayments ? (
+          <AccountCurrentActionsMenu
+            onRegisterPayment={() => setIsPaymentFormOpen(true)}
+          />
+        ) : null
+      }
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar pagos",
         description:
@@ -57,39 +99,39 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
     >
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 md:grid-cols-3">
-          <SummaryCard
+          <MetricCard
             title="Seña adeudada"
             icon={Receipt}
             value={formatOperationalAmount(
               loaderData.summary.owedDepositAmount,
             )}
           />
-          <SummaryCard
+          <MetricCard
             title="Saldo disponible"
             icon={CircleDollarSign}
             value={formatAmount(loaderData.summary.availableBalanceAmount)}
           />
-          <SummaryCard
+          <MetricCard
             title="Saldo adeudado"
             icon={Landmark}
             value={formatOperationalAmount(loaderData.summary.owedAmount)}
           />
         </section>
 
-        {loaderData.canIssueInvoices ? (
-          <DepositInvoiceForm
-            candidates={loaderData.depositInvoiceCandidates}
-            values={values.invoice}
-          />
-        ) : null}
-
-        {loaderData.canIssueInvoices ? (
-          <BalanceInvoiceForm
-            candidates={loaderData.balanceInvoiceCandidates}
-            preview={preview}
-            values={values.balanceInvoice}
-          />
-        ) : null}
+        <ClientDataTable
+          rows={loaderData.choreographyFinanceRows}
+          columns={buildChoreographyFinanceColumns(loaderData.academy.id)}
+          facetedFilters={choreographyFinanceFacetedFilters}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          textFilterColumnId="name"
+          initialSort={{
+            columnId: "name",
+            direction: "asc",
+          }}
+          emptyMessage="No hay coreografías para mostrar."
+        />
 
         <ActiveDepositInvoicesTable
           invoices={loaderData.activeDepositInvoices}
@@ -123,9 +165,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           />
         ) : null}
 
-        {loaderData.canRegisterPayments ? (
-          <PaymentForm values={values.payment} />
-        ) : null}
+        {shouldShowPaymentForm ? <PaymentForm values={values.payment} /> : null}
 
         <ActivePaymentsTable payments={loaderData.payments} />
 
@@ -137,26 +177,93 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
   );
 }
 
-function SummaryCard({
-  icon: Icon,
-  title,
-  value,
+function buildChoreographyFinanceColumns(
+  academyId: string,
+): DataTableColumn<ChoreographyFinanceRow>[] {
+  return [
+    {
+      id: "name",
+      header: "Nombre",
+      className: "min-w-56 font-medium",
+      cell: (row) => (
+        <DataTableLink
+          to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
+        >
+          {row.name}
+        </DataTableLink>
+      ),
+      filterValue: (row) => row.name,
+      sortValue: (row) => row.name,
+    },
+    {
+      id: "groupType",
+      header: "Tipo de grupo",
+      cell: (row) => (
+        <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
+      ),
+    },
+    {
+      id: "depositAmount",
+      header: "Seña",
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatOperationalAmount(row.depositAmount),
+    },
+    {
+      id: "owedAmount",
+      header: "Saldo",
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatOperationalAmount(row.owedAmount),
+      sortValue: (row) => row.owedAmount.amount,
+    },
+    {
+      id: "financialState",
+      header: "Estado",
+      cell: (row) => (
+        <Badge variant={getFinancialStateBadgeVariant(row.financialState)}>
+          {formatChoreographyFinancialState(row.financialState)}
+        </Badge>
+      ),
+      filterValue: (row) => row.financialState,
+    },
+  ];
+}
+
+function getFinancialStateBadgeVariant(
+  status: ChoreographyFinanceRow["financialState"],
+) {
+  switch (status) {
+    case "impaga":
+      return "warning";
+    case "señada":
+      return "info";
+    case "pagada":
+      return "success";
+  }
+}
+
+function AccountCurrentActionsMenu({
+  onRegisterPayment,
 }: {
-  icon: typeof Receipt;
-  title: string;
-  value: string;
+  onRegisterPayment: () => void;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold tracking-tight">{value}</p>
-      </CardContent>
-    </Card>
+    <ResourceActionsMenu contentClassName="w-60">
+      <DropdownMenuGroup>
+        <DropdownMenuItem onSelect={onRegisterPayment}>
+          Registrar pago
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </ResourceActionsMenu>
+  );
+}
+
+function hasPaymentActionErrors(
+  actionData?: AdministrativeAcademyAccountCurrentActionData,
+) {
+  return (
+    actionData?.status === "error" &&
+    paymentFieldNames.some((fieldName) => fieldName in actionData.fieldErrors)
   );
 }

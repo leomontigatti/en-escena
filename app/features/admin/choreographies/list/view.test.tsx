@@ -30,7 +30,7 @@ describe("AdministracionCoreografiasRouteView", () => {
     );
   });
 
-  test("renders plain-text names with the approved columns and shared status badges", () => {
+  test("renders choreography names as detail links with the approved columns and shared status badges", () => {
     const markup = renderRoute({
       choreographies: [
         {
@@ -74,7 +74,8 @@ describe("AdministracionCoreografiasRouteView", () => {
 
     expect(markup).toContain("Pieza Visible");
     expect(markup).toContain("Borrador");
-    expect(markup).not.toContain('href="/administracion/coreografias/');
+    expect(markup).toContain('href="/administracion/coreografias/choreo_1"');
+    expect(markup).toContain('href="/administracion/coreografias/choreo_2"');
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Contemporáneo");
     expect(markup).toContain("Juvenil · Dúo");

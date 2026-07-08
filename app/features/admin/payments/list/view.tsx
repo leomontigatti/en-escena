@@ -4,8 +4,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
+  ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
@@ -114,9 +114,12 @@ export function AdministracionPagosRouteView({
       }}
     >
       {shouldShowTable ? (
-        <AdminResourceDataTable
+        <ServerDataTable
           rows={loaderData.rows}
           columns={paymentColumns}
+          pageParamName="pagina"
+          searchParamName="busqueda"
+          sortParamName="orden"
           facetedFilters={paymentFacetedFilters}
           initialFacetedFilterValues={buildInitialFacetedFilterValues(
             loaderData,

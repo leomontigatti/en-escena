@@ -1,14 +1,7 @@
 import { Info } from "lucide-react";
-import { useState } from "react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
-import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  DropdownMenuGroup,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { DeleteChoreographyDialog } from "@/features/portal/choreographies/detail/delete-dialog";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
 import {
   ChoreographyRosterEditorForm,
@@ -32,22 +25,16 @@ export type PortalChoreographyDetailRouteViewProps = {
   loaderData: PortalChoreographyDetailLoaderData;
   actionData?: ChoreographyRosterEditorActionData;
   initialDancerResolution?: ResolveChoreographyDancersResult;
-  initialDeleteDialogOpen?: boolean;
 };
 
 export function PortalChoreographyDetailRouteView({
   loaderData,
   actionData,
-  initialDeleteDialogOpen = false,
 }: PortalChoreographyDetailRouteViewProps) {
-  const canDeleteChoreography = loaderData.deletionAvailability.canDelete;
   const hasActiveFinancialLink =
     loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
   const hasOperationalStatusAlert =
     loaderData.choreography.operationalStatus.pendingItems.length > 0;
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
-    initialDeleteDialogOpen,
-  );
 
   return (
     <section
@@ -63,21 +50,6 @@ export function PortalChoreographyDetailRouteView({
             Actualizá bailarines, profesores y música de esta coreografía.
           </p>
         </div>
-        {canDeleteChoreography ? (
-          <ResourceActionsMenu contentClassName="w-48">
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsDeleteDialogOpen(true);
-                }}
-              >
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </ResourceActionsMenu>
-        ) : null}
       </div>
 
       <AlertStack>
@@ -101,15 +73,6 @@ export function PortalChoreographyDetailRouteView({
         actionData={actionData}
         loaderData={loaderData}
       />
-
-      {canDeleteChoreography ? (
-        <DeleteChoreographyDialog
-          choreographyId={loaderData.choreography.id}
-          isOpen={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          warningMessage={loaderData.deletionAvailability.warningMessage}
-        />
-      ) : null}
     </section>
   );
 }

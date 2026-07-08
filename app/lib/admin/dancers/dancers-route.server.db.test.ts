@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, MemoryRouter } from "react-router";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -32,6 +32,7 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
   expectPersistedDancer,
   expectPersonDetailRedirect,
@@ -54,7 +55,6 @@ import {
   handle as bailarinDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.bailarines_.$dancerId";
-import { AdministracionRouteView } from "@/routes/administracion";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -1636,33 +1636,15 @@ function renderRouteInAdminLayout({
     selectedEventId: string | null;
   };
 }) {
-  const RoutesStub = createRoutesStub([
-    {
-      id: "admin",
-      path: "/administracion",
-      Component: AdministracionRouteView,
-      children: [
-        {
-          id: childId,
-          path: childPath,
-          Component: childComponent,
-          handle: childHandle,
-        },
-      ],
-    },
-  ]);
-
-  return renderToStaticMarkup(
-    createElement(RoutesStub, {
-      initialEntries: [initialEntry],
-      hydrationData: {
-        loaderData: {
-          admin: parentLoaderData,
-          [childId]: childLoaderData,
-        },
-      },
-    }),
-  );
+  return renderAdminChildRoute({
+    childComponent,
+    childHandle,
+    childId,
+    childLoaderData,
+    childPath,
+    initialEntry,
+    parentLoaderData,
+  });
 }
 
 function buildListInitialEntry(

@@ -70,7 +70,7 @@ export function AdministracionFinanzasRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Resumen"
-      description="Revisá la Cuenta corriente de academia con seña adeudada, saldo disponible y saldo adeudado dentro del evento activo."
+      description="Cuenta corriente por academia con seña adeudada, saldo disponible y saldo adeudado."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:

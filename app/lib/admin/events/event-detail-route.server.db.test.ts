@@ -10,7 +10,8 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   action,
   AdministracionEventoDetalleRouteView,
@@ -275,25 +276,6 @@ describe("administracion/eventos/:eventId route", () => {
   });
 });
 
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]>,
-) {
-  const result = await createEvent({
-    name: "Evento 2026",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
 function renderRoute(
   loaderData: Parameters<
     typeof AdministracionEventoDetalleRouteView
@@ -335,8 +317,4 @@ function routeArgs(request: Request, eventId: string) {
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };
-}
-
-function date(value: string) {
-  return new Date(value);
 }

@@ -11,7 +11,6 @@ import {
   type CorrectionResult,
 } from "@/lib/finances/account-current-corrections.server";
 import {
-  issueDepositInvoices,
   issueBalanceInvoice,
   previewBalanceInvoice,
 } from "@/lib/finances/choreography-invoices.server";
@@ -22,20 +21,14 @@ import {
   listActiveImputationTotalsByIds,
   listActiveImputationsForAcademyEvent,
 } from "@/lib/finances/payment-imputations.server";
-import {
-  readActiveAcademyEventInvoices,
-  readAcademyEventOperationalFinanceSummary,
-} from "@/lib/finances/academy-account-current.server";
+import { readActiveAcademyEventInvoices } from "@/lib/finances/academy-account-current.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
+import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
-import {
-  readBalanceInvoiceCandidates,
-  readDepositInvoiceCandidates,
-} from "./invoice-candidates.server";
 import { registerAcademyEventPayment } from "./payments.server";
 
 import {
@@ -48,13 +41,10 @@ import {
   correctionFieldNames,
   defaultAccountCurrentActionValues,
   imputationFieldNames,
-  invoiceFieldNames,
-  issueDepositInvoicesSchema,
   paymentFieldNames,
   paymentImputationSchema,
   readAccountCurrentCorrectionValues,
   readBalanceInvoiceValues,
-  readIssueDepositInvoicesValues,
   readPaymentImputationValues,
   readRegisterPaymentValues,
   registerPaymentSchema,
@@ -98,7 +88,6 @@ const accountCurrentActionHandlers: Partial<
   "cancel-invoice": handleCancelInvoiceAction,
   "impute-payment": handleImputePaymentAction,
   "issue-balance-invoice": handleIssueBalanceInvoiceAction,
-  "issue-deposit-invoices": handleIssueDepositInvoicesAction,
   "preview-balance-invoice": handlePreviewBalanceInvoiceAction,
   "register-payment": handleRegisterPaymentAction,
 };
@@ -111,24 +100,23 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
   const eventContext = await loadAdminEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
-  const summary =
+  const [financeDetail, payments, activeInvoices, imputations, movements] =
     eventContext.selectedEventId === null
-      ? emptyOperationalFinanceSummary()
-      : await readAcademyEventOperationalFinanceSummary({
-          academyId: academy.id,
-          eventId: eventContext.selectedEventId,
-        });
-  const [
-    payments,
-    activeInvoices,
-    depositInvoiceCandidates,
-    balanceInvoiceCandidates,
-    imputations,
-    movements,
-  ] =
-    eventContext.selectedEventId === null
-      ? [[], [], [], [], [], []]
+      ? [
+          {
+            choreographyFinanceRows: [],
+            summary: emptyOperationalFinanceSummary(),
+          },
+          [],
+          [],
+          [],
+          [],
+        ]
       : await Promise.all([
+          readAcademyEventOperationalFinanceDetail({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
           db.query.academyEventPayments.findMany({
             columns: {
               id: true,
@@ -151,14 +139,6 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
             ],
           }),
           readActiveAcademyEventInvoices({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
-          readDepositInvoiceCandidates({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
-          readBalanceInvoiceCandidates({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -204,26 +184,26 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
       }),
     };
   });
+  const hydratedDepositInvoices = hydratedInvoices.filter(
+    (invoice) => invoice.invoiceType === "sena",
+  );
+  const hydratedBalanceInvoices = hydratedInvoices.filter(
+    (invoice) => invoice.invoiceType === "saldo",
+  );
 
   return {
     academy,
     canCorrectRecords: user.role === "admin",
-    canIssueInvoices: user.role === "admin",
     canImputePayments: user.role === "admin",
     canRegisterPayments: user.role === "admin",
-    activeBalanceInvoices: hydratedInvoices.filter(
-      (invoice) => invoice.invoiceType === "saldo",
-    ),
-    activeDepositInvoices: hydratedInvoices.filter(
-      (invoice) => invoice.invoiceType === "sena",
-    ),
-    balanceInvoiceCandidates,
-    depositInvoiceCandidates,
+    activeBalanceInvoices: hydratedBalanceInvoices,
+    activeDepositInvoices: hydratedDepositInvoices,
+    choreographyFinanceRows: financeDetail.choreographyFinanceRows,
     imputations,
     movements,
     payments: hydratedPayments,
     selectedEventId: eventContext.selectedEventId,
-    summary,
+    summary: financeDetail.summary,
   };
 }
 
@@ -288,39 +268,6 @@ async function handleRegisterPaymentAction(
     paymentMethod: parsed.data.paymentMethod,
     reference: parsed.data.reference || null,
   });
-
-  throw redirect(context.requestUrl);
-}
-
-async function handleIssueDepositInvoicesAction(
-  context: AccountCurrentActionContext,
-) {
-  const values = readIssueDepositInvoicesValues(context.formData);
-  const parsed = issueDepositInvoicesSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return accountCurrentActionError({
-      fieldErrors: getFieldErrors(parsed.error, invoiceFieldNames),
-      message: "Revisá los datos de la factura.",
-      values: { invoice: values },
-    });
-  }
-
-  const result = await issueDepositInvoices({
-    academyId: context.academyId,
-    choreographyIds: parsed.data.choreographyIds,
-    createdByUserId: context.adminUserId,
-    eventId: context.eventId,
-    issueDate: parsed.data.issueDate,
-  });
-
-  if (!result.ok) {
-    return accountCurrentActionError({
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      values: { invoice: values },
-    });
-  }
 
   throw redirect(context.requestUrl);
 }

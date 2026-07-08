@@ -2,14 +2,6 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academyEventChoreographyInvoices, choreographies } from "@/db/schema";
-import { readAcademyEventOperationalFinanceSummary as readOperationalFinanceSummary } from "@/lib/finances/operational-summary.server";
-
-export async function readAcademyEventOperationalFinanceSummary(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  return await readOperationalFinanceSummary(input);
-}
 
 export async function readActiveAcademyEventInvoices(input: {
   academyId: string;

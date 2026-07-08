@@ -10,9 +10,9 @@ import {
 } from "@/db/schema";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
+import type { ChoreographyFinancialState } from "@/lib/finances/operational-summary";
 
 type InvoiceState = "pendiente" | "parcial" | "pagada";
-export type ChoreographyFinancialState = "impaga" | "señada" | "pagada";
 
 type CreatePaymentImputationResult =
   | { ok: true }

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
+
 const getAccessSession = vi.hoisted(() => vi.fn());
 const getVerifiedAccessIdentity = vi.hoisted(() => vi.fn());
 const findUser = vi.hoisted(() => vi.fn());
@@ -101,14 +103,4 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a redirect response.");
-}
-
-function getSetCookieValues(headers: Headers) {
-  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
-
-  const setCookie = headers.get("set-cookie");
-
-  return setCookie ? [setCookie] : [];
 }

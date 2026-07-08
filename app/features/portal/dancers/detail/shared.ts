@@ -203,7 +203,7 @@ export function getGeneralActionError(
   };
 }
 
-export function getPortalDancerStatusAction(isActive: boolean) {
+function getPortalDancerStatusAction(isActive: boolean) {
   if (isActive) {
     return portalDancerStatusActions["archive-dancer"];
   }
@@ -285,42 +285,4 @@ export function getPortalDancerFieldAutoComplete(
 
 export function getDocumentImageStateLabel(storageKey: string) {
   return storageKey ? "Imagen cargada" : "Sin imagen";
-}
-
-export function formatDateOnlyLabel(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  const monthNames = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
-  ];
-
-  return `${day} de ${monthNames[month - 1]} de ${year}`;
-}
-
-export function formatDocumentTypeLabel(value: string) {
-  switch (value) {
-    case "dni":
-      return "DNI";
-    case "passport":
-      return "Pasaporte";
-    case "other":
-      return "Otro";
-    default:
-      return "";
-  }
 }

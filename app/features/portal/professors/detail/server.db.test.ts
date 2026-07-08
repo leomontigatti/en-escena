@@ -16,6 +16,7 @@ import {
   expectPersistedProfessor,
   expectPersonDetailRedirect,
 } from "@/lib/test-support/person-detail-db-assertions";
+import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -41,7 +42,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${professor.id}`,
           owner.cookie,
-          formData({
+          createFormData({
             firstName: "  maría del carmen ",
             lastName: " de la cruz ",
             documentType: "dni",
@@ -95,7 +96,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/profesores/${professor.id}`,
         owner.cookie,
-        formData({
+        createFormData({
           firstName: "Ana",
           lastName: "Perez",
           documentType: "dni",
@@ -148,7 +149,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       request: createPortalPostRequest(
         `http://localhost/portal/profesores/${professor.id}`,
         owner.cookie,
-        formData({
+        createFormData({
           firstName: "Bea",
           lastName: "Lopez",
           documentType: "dni",
@@ -197,7 +198,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${professor.id}`,
           owner.cookie,
-          formData({
+          createFormData({
             firstName: "Propia",
             lastName: "Profesora",
             documentType: "passport",
@@ -242,7 +243,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${professor.id}`,
           owner.cookie,
-          formData({
+          createFormData({
             firstName: "Profesora",
             lastName: "Dual",
             documentType: "other",
@@ -296,7 +297,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${professor.id}`,
           other.cookie,
-          formData({
+          createFormData({
             firstName: "Otra",
             lastName: "Persona",
             documentType: "",
@@ -336,7 +337,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${activeProfessor.id}`,
           owner.cookie,
-          formData({ intent: "archive-professor" }),
+          createFormData({ intent: "archive-professor" }),
         ),
         params: { professorId: activeProfessor.id },
       }),
@@ -378,7 +379,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/profesores/${activeProfessor.id}`,
           owner.cookie,
-          formData({ intent: "reactivate-professor" }),
+          createFormData({ intent: "reactivate-professor" }),
         ),
         params: { professorId: activeProfessor.id },
       }),
@@ -392,13 +393,3 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
     await expectPersistedProfessor(activeProfessor.id, { active: true });
   });
 });
-
-function formData(values: Record<string, string>) {
-  const data = new FormData();
-
-  for (const [key, value] of Object.entries(values)) {
-    data.set(key, value);
-  }
-
-  return data;
-}

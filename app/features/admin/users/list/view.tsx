@@ -4,8 +4,10 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
-import { type DataTableColumn } from "@/components/shared/data-table";
+import {
+  ServerDataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,10 +147,13 @@ function UsersTable({
   ];
 
   return (
-    <AdminResourceDataTable
+    <ServerDataTable
       rows={users}
       columns={columns}
       getRowKey={(savedUser) => savedUser.id}
+      pageParamName="pagina"
+      searchParamName="busqueda"
+      sortParamName="orden"
       searchPlaceholder="Buscar usuario por nombre o email"
       initialSearchValue={filters.query}
       facetedFilters={[

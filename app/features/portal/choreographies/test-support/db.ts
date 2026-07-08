@@ -10,11 +10,10 @@ import {
   prices,
   professors,
   scheduleCapacities,
-  scheduleModalities,
-  schedules,
   submodalities,
 } from "@/db/schema";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   createAcademyRecord as createPortalAcademyRecord,
   createAcademySession as createPortalAcademySession,
@@ -127,19 +126,8 @@ export async function createEventCatalog(eventId: string) {
     },
   ]);
 
-  const [schedule] = await db
-    .insert(schedules)
-    .values({
-      eventId,
-      name: `Bloque ${eventId}`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-    })
-    .returning();
-
-  await db.insert(scheduleModalities).values({
-    scheduleId: schedule.id,
+  const schedule = await createScheduleForModalityFixture({
+    eventId,
     modalityId: modality.id,
   });
   await db.insert(prices).values({

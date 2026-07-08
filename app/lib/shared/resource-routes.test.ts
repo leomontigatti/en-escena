@@ -7,35 +7,29 @@ describe("resource fallback routes", () => {
   test("returns a controlled 404 for contactus crawler traffic", () => {
     const response = contactusLoader();
 
-    expect(response.status).toBe(404);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/plain; charset=utf-8",
-    );
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex");
+    expectControlledNotFound(response);
   });
 
   test("returns a controlled 404 for unmatched URL loaders", async () => {
     const response = catchAllLoader();
 
-    expect(response.status).toBe(404);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/plain; charset=utf-8",
-    );
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex");
+    expectControlledNotFound(response);
     expect(await response.text()).toBe("Página no encontrada");
   });
 
   test("returns a controlled 404 for unmatched URL actions", async () => {
     const response = catchAllAction();
 
-    expect(response.status).toBe(404);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/plain; charset=utf-8",
-    );
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex");
+    expectControlledNotFound(response);
     expect(await response.text()).toBe("Página no encontrada");
   });
 });
+
+function expectControlledNotFound(response: Response) {
+  expect(response.status).toBe(404);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(response.headers.get("Content-Type")).toBe(
+    "text/plain; charset=utf-8",
+  );
+  expect(response.headers.get("X-Robots-Tag")).toBe("noindex");
+}

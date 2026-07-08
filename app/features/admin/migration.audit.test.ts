@@ -138,7 +138,6 @@ const migratedAdminRouteAudits = [
 
 const expectedAdminComponentFiles = [
   "events/form.tsx",
-  "resource-data-table.tsx",
   "resource-layout.test.tsx",
   "resource-layout.tsx",
   "shell.test.tsx",

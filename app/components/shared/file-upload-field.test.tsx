@@ -14,14 +14,22 @@ type TestFormValues = {
 
 function TestFileUploadField({
   defaultStorageKey = "",
+  disabled = false,
+  downloadLabel,
+  downloadUrl,
   existingPreviewUrl,
   onStorageKeyChange,
   onValidationErrorChange,
+  variant,
 }: {
   defaultStorageKey?: string;
+  disabled?: boolean;
+  downloadLabel?: string;
+  downloadUrl?: string;
   existingPreviewUrl?: string;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
+  variant?: "dropzone" | "compact";
 }) {
   const form = useForm<TestFormValues>({
     defaultValues: {
@@ -35,6 +43,9 @@ function TestFileUploadField({
       name="documentFrontImageStorageKey"
       fileInputName="documentFrontImage"
       fieldLabel="Frente del documento"
+      disabled={disabled}
+      downloadLabel={downloadLabel}
+      downloadUrl={downloadUrl}
       label="Arrastrá o hacé click"
       accept="image/jpeg,image/png,image/webp"
       allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
@@ -42,6 +53,7 @@ function TestFileUploadField({
       helperText="JPG, PNG o WEBP - max 10 MB"
       onStorageKeyChange={onStorageKeyChange}
       onValidationErrorChange={onValidationErrorChange}
+      variant={variant}
     />
   );
 }
@@ -63,6 +75,37 @@ describe("FileUploadField", () => {
     expect(markup).toContain("text-white");
     expect(markup).not.toContain("bg-slate");
     expect(markup).not.toContain("text-blue");
+  });
+
+  test("renders a compact empty field without placeholder copy", () => {
+    const markup = renderToStaticMarkup(
+      <TestFileUploadField variant="compact" />,
+    );
+
+    expect(markup).toContain('type="file"');
+    expect(markup).toContain("Frente del documento");
+    expect(markup).toContain("border-input");
+    expect(markup).not.toContain("Arrastrá o hacé click");
+    expect(markup).not.toContain("JPG, PNG o WEBP - max 10 MB");
+    expect(markup).not.toContain("lucide-cloud-upload");
+  });
+
+  test("renders a compact download link when a file is available", () => {
+    const markup = renderToStaticMarkup(
+      <TestFileUploadField
+        defaultStorageKey="dancers/document-front.jpg"
+        disabled
+        downloadLabel="Abrir imagen"
+        downloadUrl="https://storage.example/document-front.jpg"
+        variant="compact"
+      />,
+    );
+
+    expect(markup).toContain("https://storage.example/document-front.jpg");
+    expect(markup).toContain("Abrir imagen");
+    expect(markup).toContain("lucide-external-link");
+    expect(markup).toContain("lucide-lock");
+    expect(markup).not.toContain("Arrastrá o hacé click");
   });
 
   test("renders an existing image preview without placeholder copy", () => {

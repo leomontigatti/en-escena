@@ -4,6 +4,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   type ColumnFiltersState,
+  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -42,6 +43,7 @@ export function ClientDataTable<TData>({
   baseFacetedFilterValues = emptyFacetedFilterValues,
   initialFacetedFilterValues = emptyFacetedFilterValues,
   textFilterColumnId,
+  selectableRows = false,
   initialSort,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
@@ -50,8 +52,8 @@ export function ClientDataTable<TData>({
     [columns],
   );
   const tableColumns = useMemo(
-    () => createDataTableColumns(columns),
-    [columns],
+    () => createDataTableColumns(columns, { selectableRows }),
+    [columns, selectableRows],
   );
   const [searchQuery, setSearchQuery] = useState(initialSearchValue);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -71,6 +73,7 @@ export function ClientDataTable<TData>({
       ? [{ id: initialSort.columnId, desc: initialSort.direction === "desc" }]
       : [],
   );
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const tableGlobalFilter = textFilterColumnId ? "" : searchQuery;
 
   useEffect(() => {
@@ -109,12 +112,15 @@ export function ClientDataTable<TData>({
       columnVisibility,
       globalFilter: tableGlobalFilter,
       pagination,
+      rowSelection,
       sorting,
     },
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setSearchQuery,
     onPaginationChange: setPagination,
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
+    enableRowSelection: selectableRows,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -161,7 +167,6 @@ export function ClientDataTable<TData>({
   return (
     <DataTableShell
       table={table}
-      columns={columns}
       getRowProps={getRowProps}
       searchPlaceholder={searchPlaceholder}
       searchQuery={searchQuery}

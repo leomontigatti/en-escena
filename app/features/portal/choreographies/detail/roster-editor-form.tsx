@@ -11,7 +11,7 @@ import {
 } from "@/components/shared/read-only-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { FieldDescription, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { ChoreographySelectPreviewField } from "@/features/portal/choreographies/detail/roster-editor-fields";
 import {
@@ -20,7 +20,6 @@ import {
   choreographyMusicInvalidTypeMessage,
   choreographyMusicMaxFileSizeBytes,
   choreographyMusicMaxFileSizeMessage,
-  choreographyMusicPresentationBlockedMessage,
   choreographyMusicUploadErrorToastId,
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
@@ -168,14 +167,11 @@ export function ChoreographyRosterEditorForm({
                 control={form.control}
                 fieldName="scheduleCapacityId"
                 id={scheduleFieldId}
-                label="Cupo de cronograma"
+                label="Cronograma"
                 options={scheduleSelectOptions}
               />
             ) : (
-              <ReadOnlyField
-                label="Cupo de cronograma"
-                value={readonlyScheduleLabel}
-              />
+              <ReadOnlyField label="Cronograma" value={readonlyScheduleLabel} />
             )}
           </FieldGroup>
 
@@ -196,11 +192,6 @@ export function ChoreographyRosterEditorForm({
                 ) : null
               }
             />
-            {!canEditDancers && !hasActiveFinancialLink ? (
-              <FieldDescription>
-                {loaderData.dancerEditingEligibility.reasonText}
-              </FieldDescription>
-            ) : null}
 
             <MultiComboboxField
               control={form.control}
@@ -213,12 +204,6 @@ export function ChoreographyRosterEditorForm({
               placeholder="Buscar profesores"
               searchable={true}
             />
-            {!canEditProfessors ? (
-              <FieldDescription>
-                No podés editar profesores porque la coreografía ya tiene una
-                presentación asociada.
-              </FieldDescription>
-            ) : null}
             <FileUploadField
               control={form.control}
               name="musicStorageKey"
@@ -240,12 +225,8 @@ export function ChoreographyRosterEditorForm({
               onSelectedFileChange={handleSelectedMusicFileChange}
               onStorageKeyChange={handleMusicStorageKeyChange}
               onValidationErrorChange={handleMusicValidationErrorChange}
+              variant="compact"
             />
-            {!canEditMusic ? (
-              <FieldDescription>
-                {choreographyMusicPresentationBlockedMessage}
-              </FieldDescription>
-            ) : null}
           </FieldGroup>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">

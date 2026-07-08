@@ -42,7 +42,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 }
 
-export function AdministracionFinanzasCuentaCorrienteRouteView({
+function AdministracionFinanzasCuentaCorrienteRouteView({
   actionData: actionDataOverride,
   loaderData,
 }: AdministracionFinanzasCuentaCorrienteRouteProps) {

@@ -6,7 +6,10 @@ import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
-import { createEvent } from "@/lib/events/management.server";
+import {
+  createPortalSavedEvent as createSavedEvent,
+  testEventDate as date,
+} from "@/lib/events/saved-event-test-support.server";
 import { handlePortalDancerDetailAction } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancerDetail } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
@@ -19,6 +22,7 @@ import {
   expectPersistedDancer,
   expectPersonDetailRedirect,
 } from "@/lib/test-support/person-detail-db-assertions";
+import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -839,7 +843,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/bailarines/${activeDancer.id}`,
           session.cookie,
-          formData({ intent: "archive-dancer" }),
+          createFormData({ intent: "archive-dancer" }),
         ),
         params: { dancerId: activeDancer.id },
       }),
@@ -881,7 +885,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/bailarines/${activeDancer.id}`,
           session.cookie,
-          formData({ intent: "reactivate-dancer" }),
+          createFormData({ intent: "reactivate-dancer" }),
         ),
         params: { dancerId: activeDancer.id },
       }),
@@ -895,16 +899,6 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     await expectPersistedDancer(activeDancer.id, { active: true });
   });
 });
-
-function formData(values: Record<string, string>) {
-  const data = new FormData();
-
-  for (const [key, value] of Object.entries(values)) {
-    data.set(key, value);
-  }
-
-  return data;
-}
 
 function dancerEditFormData(input: {
   firstName: string;
@@ -932,29 +926,6 @@ function dancerEditFormData(input: {
   );
 
   return formData;
-}
-
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "Evento",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
-function date(value: string) {
-  return new Date(value);
 }
 
 async function expectCreated<TRecord extends { id: string }>(

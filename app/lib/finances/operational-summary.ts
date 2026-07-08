@@ -1,3 +1,5 @@
+export type ChoreographyFinancialState = "impaga" | "pagada" | "señada";
+
 export type OperationalFinanceAmount =
   | {
       amount: number;

@@ -7,7 +7,7 @@ import {
   CreateChoreographySelectField,
   CreateChoreographyTextField,
 } from "@/features/portal/choreographies/create/fields";
-import { formatScheduleDateTime } from "@/features/portal/choreographies/create/formatters";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { ChoreographyCreationSummary } from "@/features/portal/choreographies/create/summary";
 import type {
   ActiveDancer,

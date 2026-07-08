@@ -1,6 +1,11 @@
 import { CircleDollarSign, Landmark, Receipt, WalletCards } from "lucide-react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
+import { MetricCard } from "@/components/shared/metric-card";
+import {
+  ReadOnlyTableCard,
+  type ReadOnlyTableColumn,
+} from "@/components/shared/read-only-table-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -22,6 +27,109 @@ import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
 type PortalAcademyFinancesLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyFinances>
 >;
+type PortalDepositInvoice =
+  PortalAcademyFinancesLoaderData["activeDepositInvoices"][number];
+type PortalBalanceInvoice =
+  PortalAcademyFinancesLoaderData["activeBalanceInvoices"][number];
+
+const portalDepositInvoiceColumns: ReadOnlyTableColumn<PortalDepositInvoice>[] =
+  [
+    {
+      id: "invoiceNumber",
+      header: "Factura",
+      cellClassName: "font-medium",
+      render: (invoice) => `N° ${invoice.invoiceNumber}`,
+    },
+    {
+      id: "choreographyName",
+      header: "Coreografía",
+      render: (invoice) => invoice.choreographyName,
+    },
+    {
+      id: "status",
+      header: "Estado",
+      render: (invoice) => formatInvoiceState(invoice.status),
+    },
+    {
+      id: "issueDate",
+      header: "Fecha",
+      render: (invoice) => formatDate(invoice.issueDate),
+    },
+    {
+      id: "imputedAmount",
+      header: "Imputado",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.imputedAmount),
+    },
+    {
+      id: "pendingAmount",
+      header: "Pendiente",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.pendingAmount),
+    },
+    {
+      id: "amount",
+      header: "Importe",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.amount),
+    },
+  ];
+
+const portalBalanceInvoiceColumns: ReadOnlyTableColumn<PortalBalanceInvoice>[] =
+  [
+    {
+      id: "invoiceNumber",
+      header: "Factura",
+      cellClassName: "font-medium",
+      render: (invoice) => `N° ${invoice.invoiceNumber}`,
+    },
+    {
+      id: "choreographyName",
+      header: "Coreografía",
+      render: (invoice) => invoice.choreographyName,
+    },
+    {
+      id: "status",
+      header: "Estado",
+      render: (invoice) => formatInvoiceState(invoice.status),
+    },
+    {
+      id: "issueDate",
+      header: "Fecha",
+      render: (invoice) => formatDate(invoice.issueDate),
+    },
+    {
+      id: "discountLabel",
+      header: "Descuento",
+      render: (invoice) =>
+        invoice.administrativeDiscountPublicLabel ?? "Descuento administrativo",
+    },
+    {
+      id: "administrativeDiscountAmount",
+      header: "Monto descuento",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) =>
+        formatAmount(invoice.administrativeDiscountAmount ?? 0),
+    },
+    {
+      id: "pendingAmount",
+      header: "Pendiente",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.pendingAmount),
+    },
+    {
+      id: "amount",
+      header: "Importe",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.amount),
+    },
+  ];
 
 export function PortalAcademyFinancesRouteView({
   loaderData,
@@ -32,8 +140,8 @@ export function PortalAcademyFinancesRouteView({
     return (
       <PortalListPage
         titleId="finanzas-title"
-        title="Finanzas"
-        description="Consultá el estado financiero de tu academia dentro del Evento activo."
+        title="Resumen"
+        description="Consultá el estado de tu cuenta corriente dentro del evento."
       >
         <PortalEmptyState
           title="Todavía no hay un evento activo"
@@ -47,21 +155,21 @@ export function PortalAcademyFinancesRouteView({
   return (
     <PortalListPage
       titleId="finanzas-title"
-      title="Finanzas"
-      description={`Consultá la Cuenta corriente de academia de ${loaderData.activeEvent.name} con seña adeudada, saldo disponible, saldo adeudado, pagos activos y facturas activas.`}
+      title="Resumen"
+      description={`Consultá el estado de tu cuenta corriente dentro del evento.`}
     >
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard
+        <MetricCard
           title="Seña adeudada"
           icon={Receipt}
           value={formatOperationalAmount(loaderData.summary.owedDepositAmount)}
         />
-        <SummaryCard
+        <MetricCard
           title="Saldo disponible"
           icon={CircleDollarSign}
           value={formatAmount(loaderData.summary.availableBalanceAmount)}
         />
-        <SummaryCard
+        <MetricCard
           title="Saldo adeudado"
           icon={Landmark}
           value={formatOperationalAmount(loaderData.summary.owedAmount)}
@@ -72,30 +180,6 @@ export function PortalAcademyFinancesRouteView({
       <DepositInvoicesTable invoices={loaderData.activeDepositInvoices} />
       <BalanceInvoicesTable invoices={loaderData.activeBalanceInvoices} />
     </PortalListPage>
-  );
-}
-
-function SummaryCard({
-  icon: Icon,
-  title,
-  value,
-}: {
-  icon: typeof Receipt;
-  title: string;
-  value: string;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold tracking-tight">{value}</p>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -166,52 +250,13 @@ function DepositInvoicesTable({
 }: {
   invoices: PortalAcademyFinancesLoaderData["activeDepositInvoices"];
 }) {
-  if (invoices.length === 0) {
-    return null;
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Facturas de seña activas</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Factura</TableHead>
-              <TableHead>Coreografía</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="text-right">Imputado</TableHead>
-              <TableHead className="text-right">Pendiente</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">
-                  {`N° ${invoice.invoiceNumber}`}
-                </TableCell>
-                <TableCell>{invoice.choreographyName}</TableCell>
-                <TableCell>{formatInvoiceState(invoice.status)}</TableCell>
-                <TableCell>{formatDate(invoice.issueDate)}</TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.imputedAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.pendingAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.amount)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <ReadOnlyTableCard
+      columns={portalDepositInvoiceColumns}
+      getRowKey={(invoice) => invoice.id}
+      rows={invoices}
+      title="Facturas de seña activas"
+    />
   );
 }
 
@@ -220,56 +265,12 @@ function BalanceInvoicesTable({
 }: {
   invoices: PortalAcademyFinancesLoaderData["activeBalanceInvoices"];
 }) {
-  if (invoices.length === 0) {
-    return null;
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Facturas de saldo activas</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Factura</TableHead>
-              <TableHead>Coreografía</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Descuento</TableHead>
-              <TableHead className="text-right">Monto descuento</TableHead>
-              <TableHead className="text-right">Pendiente</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">
-                  {`N° ${invoice.invoiceNumber}`}
-                </TableCell>
-                <TableCell>{invoice.choreographyName}</TableCell>
-                <TableCell>{formatInvoiceState(invoice.status)}</TableCell>
-                <TableCell>{formatDate(invoice.issueDate)}</TableCell>
-                <TableCell>
-                  {invoice.administrativeDiscountPublicLabel ??
-                    "Descuento administrativo"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.administrativeDiscountAmount ?? 0)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.pendingAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.amount)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <ReadOnlyTableCard
+      columns={portalBalanceInvoiceColumns}
+      getRowKey={(invoice) => invoice.id}
+      rows={invoices}
+      title="Facturas de saldo activas"
+    />
   );
 }

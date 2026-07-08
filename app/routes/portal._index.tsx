@@ -1,4 +1,4 @@
-import { CircleDollarSign, GraduationCap, Music2, Users } from "lucide-react";
+import { ClipboardList, GraduationCap, Music2, Users } from "lucide-react";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import {
@@ -49,9 +49,9 @@ function PortalIndexRouteView() {
 
 const portalHomeCards = [
   {
-    title: "Finanzas",
-    description: "Consultá el estado financiero del evento activo.",
-    icon: CircleDollarSign,
+    title: "Resumen",
+    description: "Consultá el estado de tu cuenta corriente dentro del evento.",
+    icon: ClipboardList,
     to: "/portal/finanzas",
   },
   {

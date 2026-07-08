@@ -107,7 +107,6 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   return (
     <DataTableShell
       table={table}
-      columns={props.columns}
       getRowProps={props.getRowProps}
       searchPlaceholder={props.searchPlaceholder}
       searchQuery={searchQuery}

@@ -14,6 +14,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
@@ -52,8 +53,6 @@ export type ChoreographyDeletionAvailability = {
 };
 
 const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
-const closedRegistrationDeletionWarningMessage =
-  "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.";
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -221,28 +220,6 @@ export async function findChoreographyForAcademyEvent(
   };
 }
 
-function formatScheduleDateTime(input: {
-  name: string;
-  scheduledDate: string;
-  startTime: string;
-}) {
-  const [year, month, day] = input.scheduledDate.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return input.name;
-  }
-
-  const date = new Date(year, month - 1, day);
-  const formattedDate = new Intl.DateTimeFormat("es-AR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-  const formattedTime = input.startTime.slice(0, 5);
-
-  return `${formattedDate} - ${formattedTime} hs.`;
-}
-
 function getGlobalScheduleCapacityOptionId(scheduleId: string) {
   return `schedule:${scheduleId}:global`;
 }
@@ -305,22 +282,13 @@ export async function deleteChoreography(input: {
     .where(eq(choreographies.id, input.choreographyId));
 }
 
-export function getChoreographyDeletionAvailability(input: {
+export function getChoreographyDeletionAvailability(_input: {
   isReadOnly: boolean;
   isRegistrationOpen: boolean;
 }): ChoreographyDeletionAvailability {
-  if (input.isReadOnly) {
-    return {
-      canDelete: false,
-      warningMessage: null,
-    };
-  }
-
   return {
-    canDelete: true,
-    warningMessage: input.isRegistrationOpen
-      ? null
-      : closedRegistrationDeletionWarningMessage,
+    canDelete: false,
+    warningMessage: null,
   };
 }
 

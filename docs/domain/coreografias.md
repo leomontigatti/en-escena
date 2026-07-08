@@ -29,9 +29,12 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - It is registered with modalidad, dancers, calculated tipo de grupo, category, optional nivel de experiencia and cupo de cronograma.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
 - It can be confirmed without category when no category rule applies; then it is operationally incomplete.
-- Academy can delete it while unpaid, without active financial documents, and without presentation.
+- Academia cannot delete a Coreografía after registration; removal is an administrative action.
+- Administrador can delete a Coreografía only when it has no facturas, no presentación and no puntajes.
+- A canceled factura still blocks Coreografía deletion while the factura record exists; a future corrective factura deletion flow could make the Coreografía deletable after removing the financial record.
+- Administrador can rename a Coreografía at any time, including when it has facturas, presentación or puntajes.
+- Administrative renaming changes only the Coreografía name; it does not recalculate price, capacity, category, schedule or competitive state.
 - Deleting a coreografía releases cupo de cronograma capacity and leaves no visible domain entity.
-- Outside inscription period, deleting an unpaid coreografía can make re-registration impossible unless admin changes event dates.
 - Once signed, academy cannot edit blocked data or dancers until admin removes the active financial link.
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
@@ -41,8 +44,28 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 
 - La lista operativa de coreografías del Panel de administración revisa
   completitud y consistencia de datos para el evento activo.
-- La primera versión de la lista operativa es de solo lectura para usuarios
-  `admin` y `auditor`.
+- La lista operativa permite acciones administrativas para usuarios `admin` y
+  es de solo lectura para usuarios `auditor`.
+- La lista operativa enlaza a una vista de instancia administrativa de la
+  coreografía; la eliminación es una `Acción de instancia`, no una acción de
+  lista.
+- La vista de instancia administrativa vive en `/administracion/coreografias/:id`
+  y resuelve únicamente coreografías del Evento activo.
+- En la vista de instancia administrativa, solo el nombre y la eliminación son
+  mutables en este alcance; bailarines, profesores y Archivo de música se
+  muestran como lectura.
+- El Archivo de música en la vista de instancia administrativa usa el mismo
+  campo visual de carga que el Portal de academias, pero deshabilitado; si hay
+  archivo existente, permite descargarlo.
+- Después de renombrar una coreografía desde administración, el usuario queda
+  en la vista de instancia y recibe confirmación de guardado.
+- Después de eliminar una coreografía desde administración, el usuario vuelve a
+  la lista operativa con confirmación de eliminación.
+- La acción administrativa para eliminar una coreografía se muestra en la vista
+  de instancia; si la coreografía no es eliminable, el diálogo informa el motivo
+  de bloqueo en vez de ocultar la acción.
+- El diálogo de eliminación bloqueada lista los bloqueos concretos de la
+  coreografía: facturas, presentación y/o puntajes.
 - La lista operativa muestra únicamente coreografías del evento activo y no
   actúa como archivo histórico de otros eventos.
 - Si no hay evento activo, la pantalla debe mostrar un estado vacío específico
@@ -81,6 +104,7 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 
 - `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category, level and cupo de cronograma.
 - For unpaid choreographies without financial docs or presentation, expected correction path is delete and register again.
+- Administrative renaming is not a structural correction and is allowed even when structural data is otherwise blocked.
 - Admin structural correction is exceptional, instance-level, requires reason, and is allowed only without presentation or active financial docs.
 - Structural correction that changes modalidad, submodalidad or dancers recalculates group type, category, level and schedule.
 - If recalculation needs a level, admin must choose it in same correction.

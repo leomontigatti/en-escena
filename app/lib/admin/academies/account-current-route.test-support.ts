@@ -8,12 +8,15 @@ import { db } from "@/db";
 import {
   academies,
   academyEventChoreographyInvoices,
+  academyEventInvoiceImputations,
   academyEventPayments,
+  eventFinancialSequences,
   user,
 } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
+  createDepositInvoiceRecord,
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
@@ -137,6 +140,33 @@ export async function createAcademyUser(input: {
   };
 }
 
+export async function createAccountCurrentChoreographyFixture(input: {
+  academyName: string;
+  choreographyName: string;
+  email: string;
+  event: Awaited<ReturnType<typeof createSavedEvent>>;
+  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
+}) {
+  const academy = await createAcademyUser({
+    email: input.email,
+    academyName: input.academyName,
+  });
+  const catalog = input.catalog ?? (await createEventCatalog(input.event.id));
+  const choreography = await createChoreographyRecord({
+    academyId: academy.academy.id,
+    categoryId: catalog.categoryWithLevel.id,
+    createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+    eventId: input.event.id,
+    experienceLevelId: catalog.level.id,
+    modalityId: catalog.modality.id,
+    name: input.choreographyName,
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+
+  return { academy, catalog, choreography };
+}
+
 export async function buildPaymentRequest(input: {
   amount: string;
   internalNote?: string;
@@ -146,28 +176,16 @@ export async function buildPaymentRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
+  const result = await buildSignedFormPostRequest(input, (formData) => {
+    formData.set("intent", "register-payment");
+    formData.set("amount", input.amount);
+    formData.set("paymentDate", input.paymentDate);
+    formData.set("paymentMethod", input.paymentMethod);
+    formData.set("reference", input.reference ?? "");
+    formData.set("internalNote", input.internalNote ?? "");
   });
-  const formData = new FormData();
-  formData.set("intent", "register-payment");
-  formData.set("amount", input.amount);
-  formData.set("paymentDate", input.paymentDate);
-  formData.set("paymentMethod", input.paymentMethod);
-  formData.set("reference", input.reference ?? "");
-  formData.set("internalNote", input.internalNote ?? "");
 
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
+  return { request: result.request };
 }
 
 export async function buildGlobalPaymentRequest(input: {
@@ -180,59 +198,17 @@ export async function buildGlobalPaymentRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
+  const result = await buildSignedFormPostRequest(input, (formData) => {
+    formData.set("intent", "create-payment");
+    formData.set("academyId", input.academyId);
+    formData.set("amount", input.amount);
+    formData.set("paymentDate", input.paymentDate);
+    formData.set("paymentMethod", input.paymentMethod);
+    formData.set("reference", input.reference ?? "");
+    formData.set("internalNote", input.internalNote ?? "");
   });
-  const formData = new FormData();
-  formData.set("intent", "create-payment");
-  formData.set("academyId", input.academyId);
-  formData.set("amount", input.amount);
-  formData.set("paymentDate", input.paymentDate);
-  formData.set("paymentMethod", input.paymentMethod);
-  formData.set("reference", input.reference ?? "");
-  formData.set("internalNote", input.internalNote ?? "");
 
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
-}
-
-export async function buildDepositInvoiceRequest(input: {
-  choreographyIds: string[];
-  issueDate: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
-  });
-  const formData = new FormData();
-  formData.set("intent", "issue-deposit-invoices");
-  formData.set("issueDate", input.issueDate);
-
-  for (const choreographyId of input.choreographyIds) {
-    formData.append("choreographyIds", choreographyId);
-  }
-
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
+  return { request: result.request };
 }
 
 export async function buildBalanceInvoicePreviewRequest(input: {
@@ -244,37 +220,11 @@ export async function buildBalanceInvoicePreviewRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
-  });
-  const formData = new FormData();
-  formData.set("intent", "preview-balance-invoice");
-  formData.set("choreographyId", input.choreographyId);
-  formData.set("issueDate", input.issueDate);
-  formData.set(
-    "administrativeDiscountAmount",
-    input.administrativeDiscountAmount ?? "0",
-  );
-  formData.set(
-    "administrativeDiscountInternalReason",
-    input.administrativeDiscountInternalReason ?? "",
-  );
-  formData.set(
-    "administrativeDiscountPublicLabel",
-    input.administrativeDiscountPublicLabel ?? "",
+  const result = await buildSignedFormPostRequest(input, (formData) =>
+    populateBalanceInvoiceFormData(formData, input, "preview-balance-invoice"),
   );
 
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
+  return { request: result.request };
 }
 
 export async function buildBalanceInvoiceIssueRequest(input: {
@@ -286,37 +236,11 @@ export async function buildBalanceInvoiceIssueRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
-  });
-  const formData = new FormData();
-  formData.set("intent", "issue-balance-invoice");
-  formData.set("choreographyId", input.choreographyId);
-  formData.set("issueDate", input.issueDate);
-  formData.set(
-    "administrativeDiscountAmount",
-    input.administrativeDiscountAmount ?? "0",
-  );
-  formData.set(
-    "administrativeDiscountInternalReason",
-    input.administrativeDiscountInternalReason ?? "",
-  );
-  formData.set(
-    "administrativeDiscountPublicLabel",
-    input.administrativeDiscountPublicLabel ?? "",
+  const result = await buildSignedFormPostRequest(input, (formData) =>
+    populateBalanceInvoiceFormData(formData, input, "issue-balance-invoice"),
   );
 
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
+  return { request: result.request };
 }
 
 export async function buildPaymentImputationRequest(input: {
@@ -327,27 +251,15 @@ export async function buildPaymentImputationRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
-  const signedIn = await createSignedInRequest({
-    email: `${crypto.randomUUID()}@example.com`,
-    role: input.role,
-    requestUrl: input.requestUrl,
+  const result = await buildSignedFormPostRequest(input, (formData) => {
+    formData.set("intent", "impute-payment");
+    formData.set("amount", input.amount);
+    formData.set("imputationDate", input.imputationDate);
+    formData.set("invoiceId", input.invoiceId);
+    formData.set("paymentId", input.paymentId);
   });
-  const formData = new FormData();
-  formData.set("intent", "impute-payment");
-  formData.set("amount", input.amount);
-  formData.set("imputationDate", input.imputationDate);
-  formData.set("invoiceId", input.invoiceId);
-  formData.set("paymentId", input.paymentId);
 
-  return {
-    request: new Request(input.requestUrl, {
-      method: "POST",
-      body: formData,
-      headers: {
-        cookie: signedIn.request.headers.get("cookie") ?? "",
-      },
-    }),
-  };
+  return { request: result.request };
 }
 
 export async function buildAnnulImputationRequest(input: {
@@ -406,15 +318,27 @@ async function buildCorrectionRequest(input: {
   requestUrl: string;
   role: "admin" | "auditor";
 }) {
+  return await buildSignedFormPostRequest(input, (formData) => {
+    formData.set("intent", input.intent);
+    formData.set(input.fieldName, input.fieldValue);
+    formData.set("reason", input.reason);
+  });
+}
+
+async function buildSignedFormPostRequest(
+  input: {
+    requestUrl: string;
+    role: "admin" | "auditor";
+  },
+  populateFormData: (formData: FormData) => void,
+) {
   const signedIn = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     role: input.role,
     requestUrl: input.requestUrl,
   });
   const formData = new FormData();
-  formData.set("intent", input.intent);
-  formData.set(input.fieldName, input.fieldValue);
-  formData.set("reason", input.reason);
+  populateFormData(formData);
 
   return {
     userId: signedIn.userId,
@@ -426,6 +350,34 @@ async function buildCorrectionRequest(input: {
       },
     }),
   };
+}
+
+function populateBalanceInvoiceFormData(
+  formData: FormData,
+  input: {
+    administrativeDiscountAmount?: string;
+    administrativeDiscountInternalReason?: string;
+    administrativeDiscountPublicLabel?: string;
+    choreographyId: string;
+    issueDate: string;
+  },
+  intent: "issue-balance-invoice" | "preview-balance-invoice",
+) {
+  formData.set("intent", intent);
+  formData.set("choreographyId", input.choreographyId);
+  formData.set("issueDate", input.issueDate);
+  formData.set(
+    "administrativeDiscountAmount",
+    input.administrativeDiscountAmount ?? "0",
+  );
+  formData.set(
+    "administrativeDiscountInternalReason",
+    input.administrativeDiscountInternalReason ?? "",
+  );
+  formData.set(
+    "administrativeDiscountPublicLabel",
+    input.administrativeDiscountPublicLabel ?? "",
+  );
 }
 
 export async function registerPaymentForTest(input: {
@@ -455,18 +407,96 @@ export async function issueDepositInvoiceForTest(input: {
   eventId: string;
   issueDate: string;
 }) {
-  const { request } = await buildDepositInvoiceRequest({
-    choreographyIds: input.choreographyIds,
-    issueDate: input.issueDate,
-    requestUrl: accountCurrentUrl(input.academyId, input.eventId),
-    role: "admin",
-  });
+  await db
+    .insert(eventFinancialSequences)
+    .values({
+      eventId: input.eventId,
+    })
+    .onConflictDoNothing();
 
-  await expect(
-    accountCurrentAction(detailActionArgs(request, input.academyId)),
-  ).rejects.toMatchObject({
-    status: 302,
+  const [academy, sequence] = await Promise.all([
+    db.query.academies.findFirst({
+      columns: {
+        userId: true,
+      },
+      where: eq(academies.id, input.academyId),
+    }),
+    db.query.eventFinancialSequences.findFirst({
+      columns: {
+        nextInvoiceNumber: true,
+      },
+      where: eq(eventFinancialSequences.eventId, input.eventId),
+    }),
+  ]);
+
+  if (!academy || !sequence) {
+    throw new Error("Expected academy and financial sequence fixtures.");
+  }
+
+  let invoiceNumber = sequence.nextInvoiceNumber;
+
+  for (const choreographyId of input.choreographyIds) {
+    await createDepositInvoiceRecord({
+      academyId: input.academyId,
+      choreographyId,
+      createdByUserId: academy.userId,
+      eventId: input.eventId,
+      invoiceNumber: invoiceNumber++,
+      issueDate: input.issueDate,
+    });
+  }
+
+  await db
+    .update(eventFinancialSequences)
+    .set({
+      nextInvoiceNumber: invoiceNumber,
+      updatedAt: new Date(),
+    })
+    .where(eq(eventFinancialSequences.eventId, input.eventId));
+}
+
+export async function completeDepositInvoiceForTest(input: {
+  academyId: string;
+  choreographyId: string;
+  createdByUserId: string;
+  eventId: string;
+  imputationDate?: string;
+}) {
+  const [payment, depositInvoice] = await Promise.all([
+    db.query.academyEventPayments.findFirst({
+      where: eq(academyEventPayments.academyId, input.academyId),
+    }),
+    db.query.academyEventChoreographyInvoices.findFirst({
+      where: eq(
+        academyEventChoreographyInvoices.choreographyId,
+        input.choreographyId,
+      ),
+    }),
+  ]);
+
+  if (!payment || !depositInvoice) {
+    throw new Error("Expected payment and deposit invoice fixtures.");
+  }
+
+  const imputationDate = input.imputationDate ?? "2026-03-21";
+
+  await db.insert(academyEventInvoiceImputations).values({
+    academyId: input.academyId,
+    amount: depositInvoice.depositAmount,
+    createdByUserId: input.createdByUserId,
+    eventId: input.eventId,
+    imputationDate,
+    invoiceId: depositInvoice.id,
+    paymentId: payment.id,
   });
+  await db
+    .update(academyEventChoreographyInvoices)
+    .set({
+      depositCompletedOn: imputationDate,
+    })
+    .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+  return { depositInvoice, payment };
 }
 
 export async function createAccountCurrentInvoicePaymentFixture(input: {
@@ -479,22 +509,14 @@ export async function createAccountCurrentInvoicePaymentFixture(input: {
   paymentAmount?: string;
   paymentDate?: string;
 }) {
-  const academy = await createAcademyUser({
-    email: input.email,
-    academyName: input.academyName,
-  });
-  const catalog = input.catalog ?? (await createEventCatalog(input.event.id));
-  const choreography = await createChoreographyRecord({
-    academyId: academy.academy.id,
-    categoryId: catalog.categoryWithLevel.id,
-    createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-    eventId: input.event.id,
-    experienceLevelId: catalog.level.id,
-    modalityId: catalog.modality.id,
-    name: input.choreographyName,
-    scheduleCapacityId: catalog.scheduleCapacity.id,
-    submodalityId: catalog.submodality.id,
-  });
+  const { academy, catalog, choreography } =
+    await createAccountCurrentChoreographyFixture({
+      academyName: input.academyName,
+      catalog: input.catalog,
+      choreographyName: input.choreographyName,
+      email: input.email,
+      event: input.event,
+    });
 
   await registerPaymentForTest({
     academyId: academy.academy.id,

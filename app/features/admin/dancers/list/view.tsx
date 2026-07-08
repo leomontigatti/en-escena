@@ -2,8 +2,8 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
+  ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
@@ -110,10 +110,13 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
   ];
 
   return (
-    <AdminResourceDataTable
+    <ServerDataTable
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
+      pageParamName="pagina"
+      searchParamName="busqueda"
+      sortParamName="orden"
       searchPlaceholder="Buscar bailarín por nombre, número de documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}

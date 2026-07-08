@@ -150,7 +150,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     });
 
     expect(loaderData.canRegisterPayments).toBe(false);
-    expect(markup).toContain("Cuenta corriente de academia");
+    expect(markup).toContain("Cuenta corriente");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
@@ -173,6 +173,81 @@ describe.sequential("administracion academias cuenta corriente", () => {
     ).rejects.toMatchObject({
       status: 403,
     });
+  });
+
+  test("shows searchable choreography finance rows after the summary cards", async () => {
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const academy = await createAcademyUser({
+      email: "academia.coreografias.finanzas@example.com",
+      academyName: "Academia Coreografias",
+    });
+    const catalog = await createEventCatalog(event.id);
+    await createChoreographyRecord({
+      academyId: academy.academy.id,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Aire",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId: academy.academy.id,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Tango",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.finanzas@example.com",
+      role: "admin",
+      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+    });
+
+    const loaderData = await accountCurrentLoader(
+      detailRouteArgs(request, academy.academy.id),
+    );
+    const markup = renderAccountCurrentRoute({
+      loaderData,
+    });
+
+    expect(loaderData.choreographyFinanceRows).toMatchObject([
+      {
+        name: "Aire",
+        owedAmount: { status: "complete", amount: 10000 },
+        owedDepositAmount: { status: "complete", amount: 3000 },
+      },
+      {
+        name: "Tango",
+        owedAmount: { status: "complete", amount: 10000 },
+        owedDepositAmount: { status: "complete", amount: 3000 },
+      },
+    ]);
+    expect(markup).toContain("Cuenta corriente");
+    expect(markup).toContain(
+      "Revisá la cuenta corriente, emití facturas y registrá pagos para una academia.",
+    );
+    expect(markup).toContain("Buscar coreografía por nombre");
+    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
+    expect(markup).toContain("Nombre");
+    expect(markup).toContain("Tipo de grupo");
+    expect(markup).toMatch(
+      /data-slot="badge"[^>]*data-variant="secondary"[^>]*>Solo/,
+    );
+    expect(markup).toContain("Seña");
+    expect(markup).not.toContain("Pagado");
+    expect(markup).toContain("Saldo");
+    expect(markup).toContain("Estado");
+    expect(markup).toContain("Aire");
+    expect(markup).toContain("Tango");
+    expect(markup).toContain("$ 3.000");
+    expect(markup).toContain("$ 10.000");
   });
 
   test("registers event-scoped payment numbers, persists payments, and updates totals without invoices", async () => {

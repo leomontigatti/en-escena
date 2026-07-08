@@ -4,7 +4,8 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   AdministracionIndexRouteView,
   loader,
@@ -56,25 +57,6 @@ describe("administracion index route", () => {
   });
 });
 
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]>,
-) {
-  const result = await createEvent({
-    name: "Evento 2026",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
 function renderRoute(
   loaderData: Parameters<typeof AdministracionIndexRouteView>[0]["loaderData"],
 ) {
@@ -99,8 +81,4 @@ function routeArgs(request: Request) {
     url: new URL(request.url),
     pattern: "/administracion",
   };
-}
-
-function date(value: string) {
-  return new Date(value);
 }

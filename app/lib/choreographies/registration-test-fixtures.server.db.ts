@@ -135,18 +135,8 @@ export async function createEventCatalog(eventId: string) {
       modalityId: modality.id,
     },
   ]);
-  const [schedule] = await db
-    .insert(schedules)
-    .values({
-      eventId,
-      name: `Bloque ${eventId}`,
-      scheduledDate: "2026-05-01",
-      startTime: "10:00",
-      totalCapacity: 10,
-    })
-    .returning();
-  await db.insert(scheduleModalities).values({
-    scheduleId: schedule.id,
+  const schedule = await createScheduleForModalityFixture({
+    eventId,
     modalityId: modality.id,
   });
   await db.insert(prices).values([
@@ -226,6 +216,29 @@ export async function createEventCatalog(eventId: string) {
     trioScheduleCapacity,
     grupalScheduleCapacity,
   };
+}
+
+export async function createScheduleForModalityFixture(input: {
+  eventId: string;
+  modalityId: string;
+}) {
+  const [schedule] = await db
+    .insert(schedules)
+    .values({
+      eventId: input.eventId,
+      name: `Bloque ${input.eventId}`,
+      scheduledDate: "2026-05-01",
+      startTime: "10:00",
+      totalCapacity: 10,
+    })
+    .returning();
+
+  await db.insert(scheduleModalities).values({
+    scheduleId: schedule.id,
+    modalityId: input.modalityId,
+  });
+
+  return schedule;
 }
 
 export async function createDancer(

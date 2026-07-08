@@ -10,7 +10,11 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import {
+  createPortalSavedEvent as createSavedEvent,
+  testEventDate as date,
+} from "@/lib/events/saved-event-test-support.server";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
 import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
@@ -202,27 +206,4 @@ async function createInternalRequest(requestUrl: string) {
       cookie: createRequestCookie(signUpResult.headers),
     },
   });
-}
-
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "Evento",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
-function date(value: string) {
-  return new Date(value);
 }

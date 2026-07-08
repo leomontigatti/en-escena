@@ -2,11 +2,12 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AdminResourceDataTable } from "@/components/admin/resource-data-table";
 import {
+  ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   formatChoreographyOperationalStatusLabel,
@@ -41,7 +42,11 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "Nombre",
     className: "w-[22%] font-medium",
     headerClassName: "w-[22%]",
-    cell: (choreography) => choreography.name,
+    cell: (choreography) => (
+      <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
+        {choreography.name}
+      </DataTableLink>
+    ),
     filterValue: (choreography) => choreography.name,
     sortValue: (choreography) => choreography.name,
   },
@@ -123,10 +128,13 @@ export function AdministracionCoreografiasRouteView({
 
 function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
   return (
-    <AdminResourceDataTable
+    <ServerDataTable
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
+      pageParamName="pagina"
+      searchParamName="busqueda"
+      sortParamName="orden"
       searchPlaceholder="Buscar coreografía por nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildAdministrativeChoreographyFacetedFilters(loaderData)}

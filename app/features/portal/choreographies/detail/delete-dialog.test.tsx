@@ -4,31 +4,25 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
-import {
-  clickReactDomButton,
-  createReactDomTestRenderer,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type PortalChoreographyDetailRouteViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView
 >[0];
 
-describe("PortalChoreographyDetailRouteView delete dialog", () => {
+describe("PortalChoreographyDetailRouteView removed delete dialog", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
 
-  test("unmounts the delete confirmation dialog after canceling it", async () => {
+  test("does not mount the delete confirmation dialog from the portal detail", async () => {
     const router = createMemoryRouter(
       [
         {
           path: "/portal/coreografias/choreo_1",
           action: async () => null,
           element: (
-            <PortalChoreographyDetailRouteView
-              initialDeleteDialogOpen
-              loaderData={buildLoaderData()}
-            />
+            <PortalChoreographyDetailRouteView loaderData={buildLoaderData()} />
           ),
         },
       ],
@@ -37,14 +31,8 @@ describe("PortalChoreographyDetailRouteView delete dialog", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    expect(document.body.textContent).toContain("¿Eliminar Coreografía?");
-    expect(document.body.textContent).toContain(
-      "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
-    );
-
-    await clickReactDomButton("Cancelar", { exact: true });
-
-    expect(document.body.textContent).not.toContain("¿Eliminar Coreografía?");
+    expect(document.body.textContent).not.toContain("¿Eliminar coreografía?");
+    expect(document.body.textContent).not.toContain("Eliminar coreografía");
   });
 });
 
@@ -126,7 +114,7 @@ function buildLoaderData(
     deletionAvailability: {
       canDelete: true,
       warningMessage:
-        "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+        "Si eliminás esta coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
     },
     eventContext: {
       selectedEvent: eventSummary,

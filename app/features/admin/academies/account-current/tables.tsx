@@ -1,4 +1,8 @@
 import { AdminEmptyState } from "@/components/admin/resource-layout";
+import {
+  ReadOnlyTableCard,
+  type ReadOnlyTableColumn,
+} from "@/components/shared/read-only-table-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -19,69 +23,148 @@ import {
 } from "./formatters";
 import type { AccountCurrentLoaderData } from "./types";
 
+type ActiveDepositInvoice =
+  AccountCurrentLoaderData["activeDepositInvoices"][number];
+type ActiveBalanceInvoice =
+  AccountCurrentLoaderData["activeBalanceInvoices"][number];
+
+const activeDepositInvoiceColumns: ReadOnlyTableColumn<ActiveDepositInvoice>[] =
+  [
+    {
+      id: "invoiceNumber",
+      header: "Factura",
+      cellClassName: "font-medium",
+      render: (invoice) => `N° ${invoice.invoiceNumber}`,
+    },
+    {
+      id: "choreographyName",
+      header: "Coreografía",
+      render: (invoice) => invoice.choreographyName,
+    },
+    {
+      id: "choreographyFinancialState",
+      header: "Estado financiero",
+      render: (invoice) =>
+        formatChoreographyFinancialState(invoice.choreographyFinancialState),
+    },
+    {
+      id: "status",
+      header: "Estado factura",
+      render: (invoice) => formatInvoiceState(invoice.status),
+    },
+    {
+      id: "issueDate",
+      header: "Fecha",
+      render: (invoice) => formatDate(invoice.issueDate),
+    },
+    {
+      id: "selectedPaymentDeadline",
+      header: "Vence",
+      render: (invoice) =>
+        invoice.selectedPaymentDeadline
+          ? formatDate(invoice.selectedPaymentDeadline)
+          : "Sin vencimiento",
+    },
+    {
+      id: "imputedAmount",
+      header: "Imputado",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.imputedAmount),
+    },
+    {
+      id: "pendingAmount",
+      header: "Pendiente",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.pendingAmount),
+    },
+    {
+      id: "amount",
+      header: "Importe",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.amount),
+    },
+  ];
+
+const activeBalanceInvoiceColumns: ReadOnlyTableColumn<ActiveBalanceInvoice>[] =
+  [
+    {
+      id: "invoiceNumber",
+      header: "Factura",
+      cellClassName: "font-medium",
+      render: (invoice) => `N° ${invoice.invoiceNumber}`,
+    },
+    {
+      id: "choreographyName",
+      header: "Coreografía",
+      render: (invoice) => invoice.choreographyName,
+    },
+    {
+      id: "choreographyFinancialState",
+      header: "Estado financiero",
+      render: (invoice) =>
+        formatChoreographyFinancialState(invoice.choreographyFinancialState),
+    },
+    {
+      id: "status",
+      header: "Estado factura",
+      render: (invoice) => formatInvoiceState(invoice.status),
+    },
+    {
+      id: "issueDate",
+      header: "Fecha",
+      render: (invoice) => formatDate(invoice.issueDate),
+    },
+    {
+      id: "discountLabel",
+      header: "Detalle",
+      render: (invoice) =>
+        invoice.administrativeDiscountPublicLabel ?? "Descuento administrativo",
+    },
+    {
+      id: "totalDiscountAmount",
+      header: "Descuento",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.totalDiscountAmount ?? 0),
+    },
+    {
+      id: "finalTotalAmount",
+      header: "Total final",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.finalTotalAmount ?? 0),
+    },
+    {
+      id: "pendingAmount",
+      header: "Pendiente",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.pendingAmount),
+    },
+    {
+      id: "amount",
+      header: "Importe",
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+      render: (invoice) => formatAmount(invoice.amount),
+    },
+  ];
+
 export function ActiveDepositInvoicesTable({
   invoices,
 }: {
   invoices: AccountCurrentLoaderData["activeDepositInvoices"];
 }) {
-  if (invoices.length === 0) {
-    return null;
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Facturas de seña activas</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Factura</TableHead>
-              <TableHead>Coreografía</TableHead>
-              <TableHead>Estado financiero</TableHead>
-              <TableHead>Estado factura</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Vence</TableHead>
-              <TableHead className="text-right">Imputado</TableHead>
-              <TableHead className="text-right">Pendiente</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">
-                  {`N° ${invoice.invoiceNumber}`}
-                </TableCell>
-                <TableCell>{invoice.choreographyName}</TableCell>
-                <TableCell>
-                  {formatChoreographyFinancialState(
-                    invoice.choreographyFinancialState,
-                  )}
-                </TableCell>
-                <TableCell>{formatInvoiceState(invoice.status)}</TableCell>
-                <TableCell>{formatDate(invoice.issueDate)}</TableCell>
-                <TableCell>
-                  {invoice.selectedPaymentDeadline
-                    ? formatDate(invoice.selectedPaymentDeadline)
-                    : "Sin vencimiento"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.imputedAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.pendingAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.amount)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <ReadOnlyTableCard
+      columns={activeDepositInvoiceColumns}
+      getRowKey={(invoice) => invoice.id}
+      rows={invoices}
+      title="Facturas de seña activas"
+    />
   );
 }
 
@@ -90,67 +173,13 @@ export function ActiveBalanceInvoicesTable({
 }: {
   invoices: AccountCurrentLoaderData["activeBalanceInvoices"];
 }) {
-  if (invoices.length === 0) {
-    return null;
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Facturas de saldo activas</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Factura</TableHead>
-              <TableHead>Coreografía</TableHead>
-              <TableHead>Estado financiero</TableHead>
-              <TableHead>Estado factura</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Detalle</TableHead>
-              <TableHead className="text-right">Descuento</TableHead>
-              <TableHead className="text-right">Total final</TableHead>
-              <TableHead className="text-right">Pendiente</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">
-                  {`N° ${invoice.invoiceNumber}`}
-                </TableCell>
-                <TableCell>{invoice.choreographyName}</TableCell>
-                <TableCell>
-                  {formatChoreographyFinancialState(
-                    invoice.choreographyFinancialState,
-                  )}
-                </TableCell>
-                <TableCell>{formatInvoiceState(invoice.status)}</TableCell>
-                <TableCell>{formatDate(invoice.issueDate)}</TableCell>
-                <TableCell>
-                  {invoice.administrativeDiscountPublicLabel ??
-                    "Descuento administrativo"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.totalDiscountAmount ?? 0)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.finalTotalAmount ?? 0)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.pendingAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(invoice.amount)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <ReadOnlyTableCard
+      columns={activeBalanceInvoiceColumns}
+      getRowKey={(invoice) => invoice.id}
+      rows={invoices}
+      title="Facturas de saldo activas"
+    />
   );
 }
 

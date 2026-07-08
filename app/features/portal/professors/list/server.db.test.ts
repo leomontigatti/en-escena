@@ -12,7 +12,9 @@ import {
 } from "@/features/portal/test-support/db";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { activateEvent } from "@/lib/events/management.server";
+import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createFormData } from "@/lib/test-support/form-data";
 import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
@@ -55,7 +57,7 @@ describe.sequential("loadPortalProfessorsList", () => {
         new Request("http://localhost/portal/profesores", {
           method: "POST",
           headers: { cookie: owner.cookie },
-          body: formData({
+          body: createFormData({
             intent: "create-professor",
             firstName: "  jOSÉ  luis ",
             lastName: " de la CRUZ ",
@@ -152,36 +154,3 @@ describe.sequential("loadPortalProfessorsList", () => {
     ]);
   });
 });
-
-async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "Evento",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
-function date(value: string) {
-  return new Date(value);
-}
-
-function formData(values: Record<string, string>) {
-  const data = new FormData();
-
-  for (const [key, value] of Object.entries(values)) {
-    data.set(key, value);
-  }
-
-  return data;
-}

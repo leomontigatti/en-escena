@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Link } from "react-router";
 import {
-  Building2,
-  GraduationCap,
+  ClipboardList,
   Music2,
   ShieldUser,
   TriangleAlert,
@@ -77,7 +76,7 @@ export function AdministracionIndexRouteView({
           Panel de administración
         </h1>
         <p className="text-sm text-muted-foreground">
-          Este panel concentra la operación del Evento, sus excepciones y la
+          Este panel concentra la operación del evento, sus excepciones y la
           configuración principal.
         </p>
       </section>
@@ -123,17 +122,10 @@ export default function AdministracionIndexRoute({
 
 const adminHomeCards = [
   {
-    title: "Academias",
-    description:
-      "Abrí la cuenta corriente de cada academia y registrá pagos del evento activo.",
-    icon: Building2,
-    to: "/administracion/academias",
-  },
-  {
-    title: "Profesores",
-    description: "Consultá la ficha administrativa de cada Profesor.",
-    icon: GraduationCap,
-    to: "/administracion/profesores",
+    title: "Resumen",
+    description: "Revisá la cuenta corriente de cada academia.",
+    icon: ClipboardList,
+    to: "/administracion/finanzas",
   },
   {
     title: "Bailarines",

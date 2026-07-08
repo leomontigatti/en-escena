@@ -265,16 +265,20 @@ Monto de pagos activos de una academia que todavía no fue imputado a facturas a
 _Evitar_: Saldo adeudado, total pagado
 
 **Saldo adeudado**:
-Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con pendientes reales de facturas activas, estimaciones de coreografías impagas o señadas, y descuento del Saldo disponible. Nunca es menor que cero.
+Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con importes esperados de coreografías y descuento del Saldo disponible. No es un total documental de facturas activas y nunca es menor que cero.
 _Evitar_: Saldo disponible, total pagado, total estimado
 
 **Seña adeudada**:
-Monto operativo bruto de seña pendiente para coreografías que todavía no están señadas ni pagadas, usado para orientar el pago o cobro de una o varias señas. Usa el pendiente real de facturas de seña activas cuando existen; para coreografías sin factura de seña, calcula el porcentaje de seña del evento. No descuenta el Saldo disponible.
+Monto operativo bruto de seña pendiente para coreografías que todavía no están señadas ni pagadas, usado para orientar el pago o cobro de una o varias señas. Una factura de seña activa fija este monto desde su fecha de emisión; no descuenta el Saldo disponible.
 _Evitar_: Factura de coreografía, saldo disponible
 
 **Precio de coreografía**:
-Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago, fecha de seña y descuentos individuales.
+Importe calculado para una coreografía a partir de tipo de grupo, fecha límite de pago y una fecha de referencia financiera. La fecha de referencia es la fecha de emisión de la factura de seña activa, o la fecha calendario de negocio en Córdoba cuando todavía no hay factura de seña activa.
 _Evitar_: Pago, estado financiero
+
+**Fecha de referencia financiera**:
+Fecha usada para seleccionar la ventana de precio aplicable a una coreografía: fecha de emisión de la factura de seña activa o, si no existe, fecha calendario del negocio en Córdoba.
+_Evitar_: Fecha UTC
 
 **Fecha límite de pago**:
 Fecha hasta la que un Precio de coreografía puede aplicarse cuando una academia paga la seña.

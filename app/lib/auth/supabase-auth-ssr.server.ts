@@ -5,6 +5,8 @@ import {
 } from "@supabase/ssr";
 import { parse, serialize } from "cookie";
 
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
+
 type SupabaseCookiesToSet = Parameters<SetAllCookies>[0];
 type SupabaseResponseHeaderMap = Parameters<SetAllCookies>[1];
 
@@ -149,14 +151,4 @@ export function getRequiredSupabaseEnv(
   }
 
   return value;
-}
-
-function getSetCookieValues(headers: Headers) {
-  if ("getSetCookie" in headers && typeof headers.getSetCookie === "function") {
-    return headers.getSetCookie();
-  }
-
-  const setCookie = headers.get("set-cookie");
-
-  return setCookie ? [setCookie] : [];
 }

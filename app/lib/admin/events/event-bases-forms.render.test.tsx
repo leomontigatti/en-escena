@@ -41,6 +41,11 @@ import { AdministrativeEventModalityDetailView } from "@/features/admin/modaliti
 import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
 import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
+import {
+  expectReactRouterSubmit,
+  requestSubmitWithButton,
+  spyOnNativeFormSubmit,
+} from "@/lib/test-support/form-submit";
 import type { EventBasesLoaderData } from "./event-bases.test-helpers";
 
 let container: HTMLDivElement | null = null;
@@ -143,9 +148,7 @@ describe("Evento bases migrated forms", () => {
   }
 
   test("submits the modalidad form through React Router instead of form.submit()", async () => {
-    const nativeSubmitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => {});
+    const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
     reactRouterMocks.useFormAction.mockReturnValue(
@@ -169,28 +172,21 @@ describe("Evento bases migrated forms", () => {
     expect(form).toBeInstanceOf(HTMLFormElement);
     expect(submitButton).toBeInstanceOf(HTMLButtonElement);
 
-    await act(async () => {
-      (form as HTMLFormElement).requestSubmit(
-        submitButton as HTMLButtonElement,
-      );
-      await Promise.resolve();
-    });
-
-    expect(nativeSubmitSpy).not.toHaveBeenCalled();
-    expect(submitSpy).toHaveBeenCalledTimes(1);
-    expect(submitSpy).toHaveBeenCalledWith(
-      submitButton,
-      expect.objectContaining({
-        action: "/administracion/modalidades/modality_1",
-        method: "post",
-      }),
+    await requestSubmitWithButton(
+      form as HTMLFormElement,
+      submitButton as HTMLButtonElement,
     );
+
+    expectReactRouterSubmit({
+      action: "/administracion/modalidades/modality_1",
+      nativeSubmitSpy,
+      submitButton: submitButton as HTMLButtonElement,
+      submitSpy,
+    });
   });
 
   test("submits the cronograma detail form through React Router instead of form.submit()", async () => {
-    const nativeSubmitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => {});
+    const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
     reactRouterMocks.useFormAction.mockReturnValue(
@@ -214,28 +210,21 @@ describe("Evento bases migrated forms", () => {
     expect(form).toBeInstanceOf(HTMLFormElement);
     expect(submitButton).toBeInstanceOf(HTMLButtonElement);
 
-    await act(async () => {
-      (form as HTMLFormElement).requestSubmit(
-        submitButton as HTMLButtonElement,
-      );
-      await Promise.resolve();
-    });
-
-    expect(nativeSubmitSpy).not.toHaveBeenCalled();
-    expect(submitSpy).toHaveBeenCalledTimes(1);
-    expect(submitSpy).toHaveBeenCalledWith(
-      submitButton,
-      expect.objectContaining({
-        action: "/administracion/cronogramas/schedule_1",
-        method: "post",
-      }),
+    await requestSubmitWithButton(
+      form as HTMLFormElement,
+      submitButton as HTMLButtonElement,
     );
+
+    expectReactRouterSubmit({
+      action: "/administracion/cronogramas/schedule_1",
+      nativeSubmitSpy,
+      submitButton: submitButton as HTMLButtonElement,
+      submitSpy,
+    });
   });
 
   test("keeps client validation errors visible and blocks route submission", async () => {
-    const nativeSubmitSpy = vi
-      .spyOn(HTMLFormElement.prototype, "submit")
-      .mockImplementation(() => {});
+    const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
     reactRouterMocks.useFormAction.mockReturnValue(
@@ -258,12 +247,10 @@ describe("Evento bases migrated forms", () => {
 
     expect(form).toBeInstanceOf(HTMLFormElement);
 
-    await act(async () => {
-      (form as HTMLFormElement).requestSubmit(
-        submitButton as HTMLButtonElement,
-      );
-      await Promise.resolve();
-    });
+    await requestSubmitWithButton(
+      form as HTMLFormElement,
+      submitButton as HTMLButtonElement,
+    );
 
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
     expect(nativeSubmitSpy).not.toHaveBeenCalled();

@@ -1,6 +1,3 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -26,7 +23,7 @@ import {
   fixedExperienceLevel,
 } from "@/lib/events/bases-test-fixtures.server.db";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
-import { AdministracionRouteView } from "@/routes/administracion";
+import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
   AdministracionCoreografiasRouteView,
   handle,
@@ -237,33 +234,15 @@ function renderRoute(input: {
     selectedEventId: string | null;
   };
 }) {
-  const RoutesStub = createRoutesStub([
-    {
-      id: "admin",
-      path: "/administracion",
-      Component: AdministracionRouteView,
-      children: [
-        {
-          id: "coreografias",
-          path: "coreografias",
-          Component: AdministracionCoreografiasRouteView,
-          handle,
-        },
-      ],
-    },
-  ]);
-
-  return renderToStaticMarkup(
-    createElement(RoutesStub, {
-      initialEntries: [input.initialEntry],
-      hydrationData: {
-        loaderData: {
-          admin: input.parentLoaderData,
-          coreografias: input.childLoaderData,
-        },
-      },
-    }),
-  );
+  return renderAdminChildRoute({
+    childComponent: AdministracionCoreografiasRouteView,
+    childHandle: handle,
+    childId: "coreografias",
+    childLoaderData: input.childLoaderData,
+    childPath: "coreografias",
+    initialEntry: input.initialEntry,
+    parentLoaderData: input.parentLoaderData,
+  });
 }
 
 async function createProfessor(academyId: string) {

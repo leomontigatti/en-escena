@@ -3,6 +3,7 @@ import {
   formatGroupTypeLabel,
   type RegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
 type SummaryPerson = {
   firstName: string;
@@ -71,26 +72,6 @@ export function formatScheduleSummary(
   }
 
   return formatScheduleDateTime(selectedOption.schedule);
-}
-
-export function formatScheduleDateTime(input: {
-  name: string;
-  scheduledDate: string;
-  startTime: string;
-}) {
-  const [year, month, day] = input.scheduledDate.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return input.name;
-  }
-
-  const date = new Date(year, month - 1, day);
-  const monthName = new Intl.DateTimeFormat("es-AR", {
-    month: "long",
-  }).format(date);
-  const formattedTime = input.startTime.slice(0, 5);
-
-  return `${day} de ${monthName} de ${year} - ${formattedTime} hs.`;
 }
 
 export function formatRosterSummary(

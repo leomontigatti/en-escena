@@ -53,9 +53,7 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").value).toBe("Juvenil");
     expect(getInputByLabel("Tipo de grupo").value).toBe("Solo");
     expect(getInputByLabel("Nivel de experiencia").value).toBe("Inicial");
-    expect(getInputByLabel("Cupo de cronograma").value).toBe(
-      "2026-05-01 · 10:00",
-    );
+    expect(getInputByLabel("Cronograma").value).toBe("2026-05-01 · 10:00");
 
     expect(getInputByLabel("Nombre").disabled).toBe(true);
     expect(getInputByLabel("Modalidad").disabled).toBe(true);
@@ -63,7 +61,7 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").disabled).toBe(true);
     expect(getInputByLabel("Tipo de grupo").disabled).toBe(true);
     expect(getInputByLabel("Nivel de experiencia").disabled).toBe(true);
-    expect(getInputByLabel("Cupo de cronograma").disabled).toBe(true);
+    expect(getInputByLabel("Cronograma").disabled).toBe(true);
   });
 
   test("renders roster comboboxes without separate dancer/professor cards", async () => {
@@ -119,7 +117,7 @@ describe("coreografía detail readonly form", () => {
     expect(getInputByLabel("Categoría").value).toBe("Sin asignar");
   });
 
-  test("keeps professors read-only when the choreography already has a presentation", async () => {
+  test("keeps professor helper text hidden when the choreography already has a presentation", async () => {
     await renderRoute(
       buildLoaderData({
         choreography: {
@@ -129,7 +127,7 @@ describe("coreografía detail readonly form", () => {
       }),
     );
 
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent).not.toContain(
       "No podés editar profesores porque la coreografía ya tiene una presentación asociada.",
     );
   });

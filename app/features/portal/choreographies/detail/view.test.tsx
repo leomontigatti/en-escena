@@ -66,7 +66,7 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).toContain("Faltan cargar categoría y profesores.");
     expect(markup).toContain("Ana Paz");
     expect(markup).not.toContain("Volver a Coreografías");
-    expect(markup).not.toContain("Eliminar Coreografía");
+    expect(markup).not.toContain("Eliminar coreografía");
   });
 
   test("shows linked profesores and keeps archived options visible", () => {
@@ -113,9 +113,9 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).toContain("Mora Archivada");
     expect(markup).not.toContain("Falta cargar");
     expect(markup).not.toContain('class="flex flex-col gap-3"></div>');
-    expect(markup).toContain("Acciones");
+    expect(markup).not.toContain("Acciones");
     expect(markup).not.toContain(
-      "Confirmo que quiero eliminar esta Coreografía.",
+      "Confirmo que quiero eliminar esta coreografía.",
     );
   });
 
@@ -296,7 +296,7 @@ describe("PortalChoreographyDetailRouteView", () => {
         }),
       });
 
-      expect(markup).toContain("Cupo de cronograma");
+      expect(markup).toContain("Cronograma");
       expect(markup).not.toContain(hiddenMessage);
       expect(markup).not.toContain('id="choreography-dancer-schedule"');
     },
@@ -319,40 +319,30 @@ describe("PortalChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Bailarines");
     expect(markup).not.toContain("Buscar bailarines");
-    expect(markup).toContain(
+    expect(markup).not.toContain(
       "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
     );
   });
 
-  test("shows the delete warning on editable detail when registration is closed", () => {
+  test("does not expose academy deletion from the portal detail", () => {
     const markup = renderChoreographyDetail({
-      initialDeleteDialogOpen: true,
       loaderData: choreographyDetailLoaderData({
         deletionAvailability: {
-          canDelete: true,
-          warningMessage:
-            "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
+          canDelete: false,
+          warningMessage: null,
         },
         eventContext: editableEventContext({ isRegistrationOpen: false }),
       }),
     });
 
-    expect(markup).toContain("Eliminar Coreografía");
-    expect(markup).toContain(
-      "Si eliminás esta Coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
-    );
-    expect(markup).toContain("¿Eliminar Coreografía?");
-    expect(markup).toContain('value="delete-choreography"');
-    expect(markup).not.toContain(
-      "Confirmo que quiero eliminar esta Coreografía.",
-    );
+    expect(markup).not.toContain("Eliminar coreografía");
+    expect(markup).not.toContain("¿Eliminar coreografía?");
+    expect(markup).not.toContain('value="delete-choreography"');
   });
 });
 
 function renderChoreographyDetail(
-  input: Partial<ChoreographyDetailViewProps> & {
-    initialDeleteDialogOpen?: boolean;
-  } = {},
+  input: Partial<ChoreographyDetailViewProps> = {},
 ) {
   const loaderData = input.loaderData ?? choreographyDetailLoaderData();
   const router = createMemoryRouter(
@@ -364,7 +354,6 @@ function renderChoreographyDetail(
           <PortalChoreographyDetailRouteView
             actionData={input.actionData}
             initialDancerResolution={input.initialDancerResolution}
-            initialDeleteDialogOpen={input.initialDeleteDialogOpen}
             loaderData={loaderData}
           />
         ),

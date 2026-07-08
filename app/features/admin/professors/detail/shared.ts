@@ -67,21 +67,6 @@ export type ProfessorConfirmationAction = {
   variant: "default" | "destructive";
 };
 
-export function formatProfessorDocumentType(
-  documentType: "dni" | "other" | "passport" | null,
-) {
-  switch (documentType) {
-    case "dni":
-      return "DNI";
-    case "passport":
-      return "Pasaporte";
-    case "other":
-      return "Otro";
-    case null:
-      return "";
-  }
-}
-
 export function getProfessorConfirmationAction({
   active,
   intent,
