@@ -6,6 +6,7 @@ import {
   academyEventChoreographyInvoices,
   academyEventInvoiceImputations,
   academyEventPayments,
+  prices,
 } from "@/db/schema";
 import {
   action as accountCurrentAction,
@@ -36,13 +37,21 @@ describe.sequential(
       const event = await createSavedEvent({
         requiredDepositPercentage: 30,
       });
-      const { academy, invoice, payment } =
+      const { academy, catalog, invoice, payment } =
         await createAccountCurrentInvoicePaymentFixture({
           event,
           email: "academia.correcciones.finanzas@example.com",
           academyName: "Academia Correcciones",
           choreographyName: "Corregible",
         });
+      await db.insert(prices).values({
+        amount: 10000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio Solo vigente",
+        paymentDeadline: "2026-12-31",
+        scheduleId: catalog.schedule.id,
+      });
 
       const { request: imputationRequest } =
         await buildPaymentImputationRequest({

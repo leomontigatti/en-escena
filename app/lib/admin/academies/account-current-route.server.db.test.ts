@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academyEventPayments } from "@/db/schema";
+import { academyEventPayments, prices } from "@/db/schema";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -184,6 +184,14 @@ describe.sequential("administracion academias cuenta corriente", () => {
       academyName: "Academia Coreografias",
     });
     const catalog = await createEventCatalog(event.id);
+    await db.insert(prices).values({
+      amount: 10000,
+      eventId: event.id,
+      groupType: "solo",
+      name: "Precio Solo vigente",
+      paymentDeadline: "2026-12-31",
+      scheduleId: catalog.schedule.id,
+    });
     await createChoreographyRecord({
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,
