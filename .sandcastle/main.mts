@@ -125,6 +125,7 @@ assertCodexChatGptAuthWorks();
 assertGitHubTokenWorks();
 
 const TARGET_BRANCH = getCurrentBranch();
+assertTargetWorktreeReady(TARGET_BRANCH, "startup");
 const requestedIssueId = parseIssueArg(process.argv.slice(2));
 const maxIterations = requestedIssueId ? 1 : MAX_ITERATIONS;
 
@@ -182,6 +183,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
   const issuesToImplement = issues.filter(
     (issue) => !issuesReadyToMerge.some((ready) => ready.id === issue.id),
   );
+  const targetHeadBeforeImplementation = getBranchHead(TARGET_BRANCH);
 
   if (issuesReadyToMerge.length > 0) {
     console.log("\nIssue branch(es) already have unmerged commits:");
@@ -243,6 +245,11 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
       }
     },
   );
+  assertTargetBranchUnchanged(
+    TARGET_BRANCH,
+    targetHeadBeforeImplementation,
+    "issue implementation/review",
+  );
 
   // Log any agents that threw (network error, sandbox crash, etc.).
   for (const [i, outcome] of settled.entries()) {
@@ -285,6 +292,8 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
     console.log("No commits produced. Nothing to merge.");
     continue;
   }
+
+  assertTargetWorktreeReady(TARGET_BRANCH, "merge preparation");
 
   // -------------------------------------------------------------------------
   // Phase 3: Merge
@@ -465,6 +474,62 @@ function branchHasUnmergedCommits(branch: string, baseBranch: string): boolean {
   throw new Error(
     `Could not compare branch ${branch} against ${baseBranch} for unmerged commits.`,
   );
+}
+
+function getBranchHead(branch: string): string {
+  return execFileSync("git", ["rev-parse", "--verify", branch], {
+    encoding: "utf8",
+  }).trim();
+}
+
+function assertTargetBranchUnchanged(
+  branch: string,
+  expectedHead: string,
+  phase: string,
+): void {
+  const actualHead = getBranchHead(branch);
+
+  if (actualHead === expectedHead) return;
+
+  throw new Error(
+    [
+      `Sandcastle safety check failed after ${phase}: ${branch} moved unexpectedly.`,
+      `Expected ${branch} at ${expectedHead}, but it is now at ${actualHead}.`,
+      "Issue implementers and reviewers must commit only to their issue branches.",
+      "Do not continue with merge; inspect the relevant issue log for direct commits to the target branch or git --git-dir/--work-tree usage.",
+    ].join("\n"),
+  );
+}
+
+function assertTargetWorktreeReady(branch: string, phase: string): void {
+  const currentBranch = getCurrentBranch();
+  if (currentBranch !== branch) {
+    throw new Error(
+      `Sandcastle safety check failed during ${phase}: expected current branch ${branch}, got ${currentBranch}.`,
+    );
+  }
+
+  const mergeHead = spawnSync("git", ["rev-parse", "-q", "--verify", "MERGE_HEAD"], {
+    stdio: "ignore",
+  });
+  if (mergeHead.status === 0) {
+    throw new Error(
+      `Sandcastle safety check failed during ${phase}: a merge is already in progress on ${branch}.`,
+    );
+  }
+
+  const status = execFileSync("git", ["status", "--porcelain"], {
+    encoding: "utf8",
+  }).trim();
+  if (status.length > 0) {
+    throw new Error(
+      [
+        `Sandcastle safety check failed during ${phase}: ${branch} has local changes.`,
+        "Commit, stash, or discard the host worktree changes before running Sandcastle.",
+        status,
+      ].join("\n"),
+    );
+  }
 }
 
 function branchExists(branch: string): boolean {

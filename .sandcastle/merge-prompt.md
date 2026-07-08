@@ -4,6 +4,28 @@ Merge the following branches into the current branch:
 
 {{BRANCHES}}
 
+# GIT / WORKTREE SAFETY
+
+Before the first merge and before the final merge-summary commit, verify the
+current branch and physical worktree:
+
+```bash
+git branch --show-current
+git rev-parse --show-toplevel
+git status --short --branch
+```
+
+`git status` must work normally and the worktree must not contain unrelated
+local changes. If Git reports missing worktree metadata, a broken `.git`
+indirection, or any other repository-state error, stop and report the blocker.
+Do not try to work around it with `git --git-dir`, `git --work-tree`, `GIT_DIR`,
+or `GIT_WORK_TREE`.
+
+If a merge is blocked because local files would be overwritten, do not commit or
+stash those local files as part of the merge unless they were produced by this
+merge run. Stop with a clear list of blocking paths so the host checkout can be
+repaired before retrying.
+
 For each branch:
 
 1. Run `git merge <branch> --no-edit`

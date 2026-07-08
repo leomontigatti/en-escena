@@ -4,6 +4,27 @@ Review the code changes on branch `{{BRANCH}}` against project coding standards
 and improve code clarity, consistency, and maintainability while preserving exact
 functionality.
 
+# GIT / WORKTREE SAFETY
+
+Before reviewing or committing review fixes, verify the sandbox is on the
+expected issue branch and that Git can read the worktree normally:
+
+```bash
+git branch --show-current
+git rev-parse --show-toplevel
+git status --short --branch
+```
+
+The current branch must be `{{BRANCH}}`. If Git reports missing worktree
+metadata, a broken `.git` indirection, or any other repository-state error, stop
+and report the blocker. Do not try to repair or bypass it with `git --git-dir`,
+`git --work-tree`, `GIT_DIR`, or `GIT_WORK_TREE`.
+
+Never commit review fixes to `{{BASE_BRANCH}}` or any branch other than
+`{{BRANCH}}`. Do not output `<promise>COMPLETE</promise>` after making review
+changes unless those changes are committed on `{{BRANCH}}` and the worktree is
+clean.
+
 # CONTEXT
 
 ## Branch diff

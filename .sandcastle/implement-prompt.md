@@ -18,6 +18,37 @@ Only work on the issue specified.
 
 Work on branch {{BRANCH}}. Make commits and run tests.
 
+# GIT / WORKTREE SAFETY
+
+Before making changes and again before committing, verify that Git is operating
+on the expected branch and worktree:
+
+```bash
+git branch --show-current
+git rev-parse --show-toplevel
+git status --short --branch
+```
+
+The current branch must be `{{BRANCH}}`, and `git status` must work normally. If
+Git reports missing worktree metadata, a broken `.git` indirection, or any other
+repository-state error, stop the task and report the blocker. Do not try to work
+around it by using `git --git-dir`, `git --work-tree`, `GIT_DIR`, or
+`GIT_WORK_TREE`.
+
+Never commit to `master` or another target branch from an issue implementer. If
+you cannot commit on `{{BRANCH}}`, leave the issue uncompleted instead of
+creating a commit through an alternate Git directory/worktree.
+
+After committing, confirm the issue branch really contains the new work:
+
+```bash
+git log --oneline --decorate -3
+git status --short --branch
+```
+
+Do not output `<promise>COMPLETE</promise>` unless the completed work is
+committed on `{{BRANCH}}` and the physical worktree is clean.
+
 # CONTEXT
 
 Here are the last 10 commits:
