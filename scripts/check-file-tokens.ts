@@ -27,17 +27,54 @@ export type FileTokenViolation = {
 type CheckFileTokensOptions = {
   cwd?: string;
   files?: string[];
+  git?: GitFileTokenSource;
 };
 
-type FileContentSource = "staged" | "working-tree";
+type FileContentSource =
+  | {
+      git: GitFileTokenSource;
+      kind: "staged";
+    }
+  | {
+      kind: "working-tree";
+    };
+
+type GitFileTokenSource = {
+  getStagedFiles(cwd: string): string[];
+  readStagedFile(cwd: string, filePath: string): Buffer;
+};
+
+const defaultGitFileTokenSource: GitFileTokenSource = {
+  getStagedFiles(cwd) {
+    return readNullSeparatedGitOutput(
+      cwd,
+      "diff",
+      "--cached",
+      "--name-only",
+      "-z",
+      "--diff-filter=ACMR",
+      "--",
+    );
+  },
+  readStagedFile(cwd, filePath) {
+    return execFileSync("git", ["show", `:${filePath}`], {
+      cwd,
+      encoding: "buffer",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  },
+};
 
 export async function checkFileTokens(
   options: CheckFileTokensOptions = {},
 ): Promise<FileTokenViolation[]> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
-  const files = options.files ?? getStagedFiles(cwd);
+  const git = options.git ?? defaultGitFileTokenSource;
+  const files = options.files ?? git.getStagedFiles(cwd);
   const fileContentSource: FileContentSource =
-    options.files === undefined ? "staged" : "working-tree";
+    options.files === undefined
+      ? { git, kind: "staged" }
+      : { kind: "working-tree" };
 
   return files
     .map((filePath) => path.normalize(filePath))
@@ -86,18 +123,6 @@ export async function runFileTokenCheck(
   throw new Error(lines.join("\n"));
 }
 
-function getStagedFiles(cwd: string) {
-  return readNullSeparatedGitOutput(
-    cwd,
-    "diff",
-    "--cached",
-    "--name-only",
-    "-z",
-    "--diff-filter=ACMR",
-    "--",
-  );
-}
-
 function readNullSeparatedGitOutput(cwd: string, ...args: string[]) {
   const output = execFileSync("git", args, {
     cwd,
@@ -113,9 +138,9 @@ function readFileByteLength(
   filePath: string,
   fileContentSource: FileContentSource,
 ) {
-  switch (fileContentSource) {
+  switch (fileContentSource.kind) {
     case "staged":
-      return readGitBlob(cwd, `:${filePath}`).byteLength;
+      return fileContentSource.git.readStagedFile(cwd, filePath).byteLength;
     case "working-tree":
       return readFileSync(path.resolve(cwd, filePath)).byteLength;
   }
@@ -155,14 +180,6 @@ function isGeneratedPath(filePath: string) {
     filePath.endsWith(".gen.ts") ||
     filePath.endsWith(".gen.tsx")
   );
-}
-
-function readGitBlob(cwd: string, objectName: string) {
-  return execFileSync("git", ["show", objectName], {
-    cwd,
-    encoding: "buffer",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
