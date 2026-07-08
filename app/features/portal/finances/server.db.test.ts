@@ -125,7 +125,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await registerPaymentForTest({
       academyId: owner.academyId,
-      amount: "3000",
+      amount: "6500",
       eventId: event.id,
       paymentDate: "2026-03-16",
     });
@@ -212,7 +212,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
         detailActionArgs(
           (
             await buildPaymentImputationRequest({
-              amount: "3000",
               imputationDate: "2026-03-22",
               invoiceId: depositInvoice.id,
               paymentId: activePayment.id,
@@ -230,7 +229,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
         detailActionArgs(
           (
             await buildPaymentImputationRequest({
-              amount: "3000",
               imputationDate: "2026-03-23",
               invoiceId: balanceSeedInvoice.id,
               paymentId: activePayment.id,
@@ -248,7 +246,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
         detailActionArgs(
           (
             await buildPaymentImputationRequest({
-              amount: "3000",
               imputationDate: "2026-03-24",
               invoiceId: genericDiscountSeedInvoice.id,
               paymentId: activePayment.id,
@@ -299,7 +296,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
         detailActionArgs(
           (
             await buildPaymentImputationRequest({
-              amount: "3000",
               imputationDate: "2026-03-27",
               invoiceId: balanceInvoice.id,
               paymentId: annulledPayment.id,

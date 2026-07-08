@@ -368,7 +368,6 @@ async function handleImputePaymentAction(context: AccountCurrentActionContext) {
 
   const result = await createPaymentImputation({
     academyId: context.academyId,
-    amount: Number(parsed.data.amount),
     createdByUserId: context.adminUserId,
     eventId: context.eventId,
     imputationDate: parsed.data.imputationDate,

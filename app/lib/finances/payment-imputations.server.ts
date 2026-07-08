@@ -12,14 +12,13 @@ import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import type { ChoreographyFinancialState } from "@/lib/finances/operational-summary";
 
-type InvoiceState = "pendiente" | "parcial" | "pagada";
+type InvoiceState = "pendiente" | "pagada";
 
 type CreatePaymentImputationResult =
   | { ok: true }
   | {
       ok: false;
       fieldErrors: {
-        amount?: string;
         imputationDate?: string;
         invoiceId?: string;
         paymentId?: string;
@@ -48,7 +47,6 @@ type ActiveImputationTotalsById = {
 
 export async function createPaymentImputation(input: {
   academyId: string;
-  amount: number;
   createdByUserId: string;
   eventId: string;
   imputationDate: string;
@@ -64,7 +62,7 @@ export async function createPaymentImputation(input: {
   await db.transaction(async (tx) => {
     await tx.insert(academyEventInvoiceImputations).values({
       academyId: input.academyId,
-      amount: input.amount,
+      amount: validated.invoice.invoiceAmount,
       createdByUserId: input.createdByUserId,
       eventId: input.eventId,
       imputationDate: input.imputationDate,
@@ -74,7 +72,8 @@ export async function createPaymentImputation(input: {
 
     const nextInvoiceState = getInvoiceState({
       amount: validated.invoice.invoiceAmount,
-      imputedAmount: validated.invoiceImputedAmount + input.amount,
+      imputedAmount:
+        validated.invoiceImputedAmount + validated.invoice.invoiceAmount,
     });
 
     await tx
@@ -251,21 +250,16 @@ export function getInvoiceState(input: {
   amount: number;
   imputedAmount: number;
 }): InvoiceState {
-  if (input.imputedAmount <= 0) {
-    return "pendiente";
-  }
-
   if (input.imputedAmount >= input.amount) {
     return "pagada";
   }
 
-  return "parcial";
+  return "pendiente";
 }
 
 // fallow-ignore-next-line complexity
 async function validatePaymentImputationInput(input: {
   academyId: string;
-  amount: number;
   eventId: string;
   imputationDate: string;
   invoiceId: string;
@@ -428,20 +422,26 @@ async function validatePaymentImputationInput(input: {
   }
 
   const paymentAvailableAmount = payment.amount - paymentTotals;
-  const invoicePendingAmount = invoice.depositAmount - invoiceTotals;
+  const invoiceAmount = invoice.depositAmount;
 
-  if (
-    !Number.isInteger(input.amount) ||
-    input.amount <= 0 ||
-    input.amount > paymentAvailableAmount ||
-    input.amount > invoicePendingAmount
-  ) {
+  if (invoiceTotals > 0) {
     return {
       ok: false,
       message: "Revisá los datos de la imputación.",
       fieldErrors: {
-        amount:
-          "La imputación no puede superar el saldo disponible del Pago ni el pendiente de la factura.",
+        invoiceId:
+          "La factura ya tiene una imputación activa. Anulala antes de volver a imputarla.",
+      },
+    };
+  }
+
+  if (invoiceAmount > paymentAvailableAmount) {
+    return {
+      ok: false,
+      message: "Revisá los datos de la imputación.",
+      fieldErrors: {
+        paymentId:
+          "El saldo disponible del Pago no alcanza para cubrir la factura completa.",
       },
     };
   }
@@ -449,7 +449,7 @@ async function validatePaymentImputationInput(input: {
   if (
     invoice.invoiceType === "sena" &&
     choreography &&
-    invoiceTotals + input.amount >= invoice.depositAmount
+    invoiceTotals + invoiceAmount >= invoice.depositAmount
   ) {
     const applicablePrice = await resolveApplicablePrice({
       eventId: input.eventId,

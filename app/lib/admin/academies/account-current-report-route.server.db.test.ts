@@ -155,7 +155,7 @@ describe.sequential("administracion finanzas", () => {
     });
     await registerPaymentForTest({
       academyId: academySouth.academy.id,
-      amount: "2000",
+      amount: "3000",
       eventId: event.id,
       paymentDate: "2026-03-16",
     });
@@ -217,7 +217,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "3000",
         imputationDate: "2026-03-21",
         invoiceId: northInvoice.id,
         paymentId: northPayment.id,
@@ -234,7 +233,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northPaidDepositImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "3000",
         imputationDate: "2026-03-21",
         invoiceId: northPaidDepositInvoice.id,
         paymentId: northPayment.id,
@@ -299,7 +297,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northPaidBalanceImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "7000",
         imputationDate: "2026-03-23",
         invoiceId: northPaidBalanceInvoice.id,
         paymentId: northPayment.id,
@@ -319,7 +316,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: southImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "2000",
         imputationDate: "2026-03-21",
         invoiceId: southInvoice.id,
         paymentId: southPayment.id,
@@ -582,7 +578,6 @@ describe.sequential("administracion finanzas", () => {
     }
 
     const { request: imputationRequest } = await buildPaymentImputationRequest({
-      amount: "1000",
       imputationDate: "2026-03-21",
       invoiceId: invoice.id,
       paymentId: payment.id,
@@ -698,15 +693,15 @@ describe.sequential("administracion finanzas", () => {
         academyName: "Academia Listas",
         amount: 3000,
         choreographyName: "Coreografía Facturada",
-        imputedAmount: 1000,
+        imputedAmount: 3000,
         invoiceType: "sena",
-        pendingAmount: 2000,
-        status: "parcial",
+        pendingAmount: 0,
+        status: "pagada",
       }),
     ]);
     expect(invoicesMarkup).toContain("Facturas");
     expect(invoicesMarkup).toContain("Coreografía Facturada");
-    expect(invoicesMarkup).toContain("Parcial");
+    expect(invoicesMarkup).toContain("Pagada");
   });
 
   test("lets admin create a payment from the payments form", async () => {

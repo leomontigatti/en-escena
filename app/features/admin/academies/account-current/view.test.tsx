@@ -45,6 +45,77 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
     expect(document.body.textContent).toContain("Registrar pago");
     expect(document.body.textContent).toContain("Fecha de pago");
   });
+
+  test("renders the imputation form without a manual amount field", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/academias/:academyId",
+          element: (
+            <AdministracionAcademiaCuentaCorrienteRouteView
+              loaderData={accountCurrentLoaderDataFixture({
+                canImputePayments: true,
+                activeDepositInvoices: [
+                  {
+                    id: "invoice_1",
+                    amount: 3000,
+                    appliedDepositAmount: 0,
+                    choreographyFinancialState: "impaga",
+                    choreographyId: "choreography_1",
+                    choreographyName: "Aire",
+                    administrativeDiscountAmount: null,
+                    administrativeDiscountPublicLabel: null,
+                    dancerDiscountAmount: null,
+                    depositCompletedOn: null,
+                    finalTotalAmount: null,
+                    imputedAmount: 0,
+                    invoiceNumber: 1,
+                    invoiceType: "sena",
+                    issueDate: "2026-03-20",
+                    pendingAmount: 3000,
+                    selectedPaymentDeadline: "2026-03-31",
+                    status: "pendiente",
+                    totalDiscountAmount: null,
+                  },
+                ],
+                payments: [
+                  {
+                    id: "payment_1",
+                    amount: 5000,
+                    availableAmount: 5000,
+                    imputedAmount: 0,
+                    internalNote: null,
+                    paymentDate: "2026-03-20",
+                    paymentMethod: "transferencia",
+                    paymentNumber: 1,
+                    reference: null,
+                  },
+                ],
+              })}
+            />
+          ),
+        },
+      ],
+      {
+        initialEntries: ["/administracion/academias/academy_1"],
+      },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const imputationForm = document
+      .querySelector('input[name="intent"][value="impute-payment"]')
+      ?.closest("form");
+
+    if (!imputationForm) {
+      throw new Error("Expected the imputation form to be rendered.");
+    }
+
+    expect(document.body.textContent).toContain("Imputar pago");
+    expect(document.body.textContent).toContain("Fecha de imputación");
+    expect(document.querySelector("#payment-imputation-amount")).toBeNull();
+    expect(imputationForm.querySelector('input[name="amount"]')).toBeNull();
+  });
 });
 
 function accountCurrentLoaderDataFixture(
