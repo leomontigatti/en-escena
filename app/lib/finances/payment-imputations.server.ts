@@ -250,10 +250,6 @@ export function getInvoiceState(input: {
   amount: number;
   imputedAmount: number;
 }): InvoiceState {
-  if (input.imputedAmount <= 0) {
-    return "pendiente";
-  }
-
   if (input.imputedAmount >= input.amount) {
     return "pagada";
   }

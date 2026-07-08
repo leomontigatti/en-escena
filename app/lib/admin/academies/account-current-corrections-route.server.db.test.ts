@@ -46,7 +46,6 @@ describe.sequential(
 
       const { request: imputationRequest } =
         await buildPaymentImputationRequest({
-          amount: "3000",
           imputationDate: "2026-03-21",
           invoiceId: invoice.id,
           paymentId: payment.id,
@@ -210,7 +209,6 @@ describe.sequential(
 
       const { request: cancelledInvoiceImputationRequest } =
         await buildPaymentImputationRequest({
-          amount: "3000",
           imputationDate: "2026-03-22",
           invoiceId: invoice.id,
           paymentId: payment.id,

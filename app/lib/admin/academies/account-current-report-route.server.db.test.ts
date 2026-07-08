@@ -208,7 +208,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "3000",
         imputationDate: "2026-03-21",
         invoiceId: northInvoice.id,
         paymentId: northPayment.id,
@@ -225,7 +224,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northPaidDepositImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "3000",
         imputationDate: "2026-03-21",
         invoiceId: northPaidDepositInvoice.id,
         paymentId: northPayment.id,
@@ -290,7 +288,6 @@ describe.sequential("administracion finanzas", () => {
 
     const { request: northPaidBalanceImputationRequest } =
       await buildPaymentImputationRequest({
-        amount: "7000",
         imputationDate: "2026-03-23",
         invoiceId: northPaidBalanceInvoice.id,
         paymentId: northPayment.id,
