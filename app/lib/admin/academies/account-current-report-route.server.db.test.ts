@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -12,6 +12,7 @@ import {
   createEventCatalog,
   date as choreographyDate,
 } from "@/features/portal/choreographies/test-support/db";
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
 import { loader as financeInvoicesLoader } from "@/routes/administracion.facturas";
@@ -52,8 +53,16 @@ import { action as accountCurrentAction } from "@/routes/administracion.academia
 
 installDatabaseTestHooks();
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe.sequential("administracion finanzas", () => {
   test("lets admin open finance accounts from academies and renders event-scoped balances", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-03-27",
+    );
+
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });

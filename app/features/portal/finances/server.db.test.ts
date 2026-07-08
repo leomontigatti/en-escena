@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { academyEventPayments } from "@/db/schema";
@@ -15,6 +15,7 @@ import {
   createAcademyRecord,
   createAcademySession,
 } from "@/features/portal/test-support/db";
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { PortalAcademyFinancesRouteView } from "@/features/portal/finances/view";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { activateEvent } from "@/lib/events/management.server";
@@ -37,8 +38,16 @@ import {
 
 installDatabaseTestHooks();
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe.sequential("loadPortalAcademyFinances", () => {
   test("shows only the authenticated academy active-event financial records", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-03-27",
+    );
+
     const owner = await createAcademySession({
       email: "portal.finanzas.owner@example.com",
       academyName: "Academia Portal",
@@ -438,6 +447,60 @@ describe.sequential("loadPortalAcademyFinances", () => {
     expect(markup).not.toContain("Pago duplicado.");
     expect(markup).not.toContain("Cancelada");
     expect(markup).not.toContain("Ajena");
+  });
+
+  test("marks portal summary amounts as pending when every current price is expired", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
+
+    const owner = await createAcademySession({
+      email: "portal.finanzas.sin.precio@example.com",
+      academyName: "Academia Portal Sin Precio",
+    });
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    await activateEvent(event.id);
+    const catalog = await createEventCatalog(event.id);
+    await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      createdAt: choreographyDate("2026-03-10T12:00:00Z"),
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Solo vencido",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    const loaderData = await loadPortalAcademyFinances(
+      new Request("http://localhost/portal/finanzas", {
+        headers: { cookie: owner.cookie },
+      }),
+    );
+    const markup = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(PortalAcademyFinancesRouteView, { loaderData }),
+      ),
+    );
+
+    expect(loaderData.summary).toMatchObject({
+      owedAmount: {
+        amount: 0,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
+      owedDepositAmount: {
+        amount: 0,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
+    });
+    expect(markup.match(/Pendiente/g)).toHaveLength(2);
   });
 
   test("shows the blocked empty state when there is no active event", async () => {

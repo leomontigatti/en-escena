@@ -8,6 +8,7 @@ import {
 } from "@/lib/finances/operational-summary";
 import { calculateDepositAmount } from "@/lib/finances/choreography-invoices.server";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 type FinancePriceRow = typeof prices.$inferSelect;
 type FinanceAmountResolution =
@@ -455,6 +456,7 @@ function resolveEstimatedBasePriceAmount(input: {
   choreography: FinanceChoreographyRow;
   priceRows: FinancePriceRow[];
 }): FinanceAmountResolution {
+  const financialReferenceDate = getBusinessDateOnly();
   const scheduleId =
     input.choreography.scheduleCapacityScheduleId ??
     input.choreography.choreographyScheduleId;
@@ -465,7 +467,7 @@ function resolveEstimatedBasePriceAmount(input: {
             price.groupType === input.choreography.groupType &&
             price.scheduleId === scheduleId,
         ),
-        null,
+        financialReferenceDate,
       )
     : null;
 
@@ -482,7 +484,7 @@ function resolveEstimatedBasePriceAmount(input: {
         price.groupType === input.choreography.groupType &&
         price.scheduleId === null,
     ),
-    null,
+    financialReferenceDate,
   );
 
   if (!generalPrice) {
