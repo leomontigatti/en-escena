@@ -229,34 +229,15 @@ describe.sequential(
       ).resolves.toBeUndefined();
     });
 
-    test("creates, edits and deletes cupos de cronograma inside cronogramas through the admin action", async () => {
-      const { event, modalities } = await createEventScheduleAdminFixture([
-        "Jazz",
-      ]);
-      const scheduleRequest = await createScheduleAdminRequest({
-        email: "admin.crea.bloque.cupo-cronograma@example.com",
-        role: "admin",
-        requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
-        intent: "create-schedule",
-        schedule: buildScheduleDraft({
-          totalCapacity: "12",
-          modalityIds: [modalities[0].id],
-        }),
-      });
-
-      await expectThrownResponse(
-        action(routeArgs(scheduleRequest.request)),
-        302,
-      );
-
-      const schedule = await findSavedScheduleByName("Sábado Mañana");
+    test("creates cupos de cronograma through the admin action", async () => {
+      const { event, schedule } = await createScheduleCapacityAdminFixture();
       const createScheduleCapacityRequest =
         await createScheduleCapacityAdminRequest({
           email: "admin.crea.cupo-cronograma@example.com",
           role: "admin",
-          requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+          requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
           intent: "create-schedule-capacity",
-          scheduleId: schedule?.id ?? "",
+          scheduleId: schedule.id,
           scheduleCapacity: buildScheduleCapacityDraft(),
         });
 
@@ -268,13 +249,16 @@ describe.sequential(
         "notificacion=cupo-cronograma-guardado",
       );
 
-      const [scheduleCapacity] = await listSavedScheduleCapacities(
-        schedule?.id ?? "",
-      );
+      const [scheduleCapacity] = await listSavedScheduleCapacities(schedule.id);
       expect(scheduleCapacity).toMatchObject({
         groupType: "solo",
         capacity: 8,
       });
+    });
+
+    test("renders cupos de cronograma fields in the cronograma detail route", async () => {
+      const { event, schedule } = await createScheduleCapacityAdminFixture();
+      await createScheduleCapacityForFixture(event.id, schedule.id);
 
       const data = await loader(
         routeArgs(
@@ -282,26 +266,34 @@ describe.sequential(
             await createSignedInRequest({
               email: "admin.lista.cupos-cronograma@example.com",
               role: "admin",
-              requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+              requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
             })
           ).request,
         ),
       );
-      const markup = renderBloqueHorarioDetailRoute(data, schedule?.id ?? "");
+      const markup = renderBloqueHorarioDetailRoute(data, schedule.id);
 
       expect(markup).not.toContain("Cupos de cronograma");
       expect(markup).toContain('name="scheduleCapacities.0.groupType"');
       expect(markup).toContain('name="scheduleCapacities.0.capacity"');
+    });
+
+    test("updates cupos de cronograma through the admin action", async () => {
+      const { event, schedule } = await createScheduleCapacityAdminFixture();
+      const scheduleCapacity = await createScheduleCapacityForFixture(
+        event.id,
+        schedule.id,
+      );
 
       const editScheduleCapacityRequest =
         await createScheduleCapacityAdminRequest({
           email: "admin.edita.cupo-cronograma@example.com",
           role: "admin",
-          requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+          requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
           intent: "update-schedule-capacity",
-          scheduleId: schedule?.id ?? "",
+          scheduleId: schedule.id,
           scheduleCapacity: buildScheduleCapacityDraft({
-            id: scheduleCapacity?.id ?? "",
+            id: scheduleCapacity.id,
             groupType: "trio",
             capacity: "4",
           }),
@@ -316,21 +308,28 @@ describe.sequential(
       );
       await expect(
         db.query.scheduleCapacities.findFirst({
-          where: eq(scheduleCapacities.id, scheduleCapacity?.id ?? ""),
+          where: eq(scheduleCapacities.id, scheduleCapacity.id),
         }),
       ).resolves.toMatchObject({
         groupType: "trio",
         capacity: 4,
       });
+    });
 
+    test("deletes cupos de cronograma through the admin action", async () => {
+      const { event, schedule } = await createScheduleCapacityAdminFixture();
+      const scheduleCapacity = await createScheduleCapacityForFixture(
+        event.id,
+        schedule.id,
+      );
       const deleteScheduleCapacityRequest =
         await createScheduleCapacityAdminRequest({
           email: "admin.borra.cupo-cronograma@example.com",
           role: "admin",
-          requestUrl: `http://localhost/administracion/cronogramas/${schedule?.id}?evento=${event.id}`,
+          requestUrl: `http://localhost/administracion/cronogramas/${schedule.id}?evento=${event.id}`,
           intent: "delete-schedule-capacity",
-          scheduleId: schedule?.id ?? "",
-          scheduleCapacityId: scheduleCapacity?.id ?? "",
+          scheduleId: schedule.id,
+          scheduleCapacityId: scheduleCapacity.id,
         });
 
       const deleteScheduleCapacityResponse = await expectThrownResponse(
@@ -340,9 +339,9 @@ describe.sequential(
       expect(deleteScheduleCapacityResponse.headers.get("location")).toContain(
         "notificacion=cupo-cronograma-eliminado",
       );
-      await expect(
-        listSavedScheduleCapacities(schedule?.id ?? ""),
-      ).resolves.toEqual([]);
+      await expect(listSavedScheduleCapacities(schedule.id)).resolves.toEqual(
+        [],
+      );
     });
 
     test("saves inline cupos de cronograma through the cronograma form", async () => {
@@ -565,3 +564,54 @@ describe.sequential(
     });
   },
 );
+
+async function createScheduleCapacityAdminFixture() {
+  const { event, modalities } = await createEventScheduleAdminFixture(["Jazz"]);
+  const scheduleRequest = await createScheduleAdminRequest({
+    email: "admin.crea.bloque.cupo-cronograma@example.com",
+    role: "admin",
+    requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+    intent: "create-schedule",
+    schedule: buildScheduleDraft({
+      totalCapacity: "12",
+      modalityIds: [modalities[0].id],
+    }),
+  });
+
+  await expectThrownResponse(action(routeArgs(scheduleRequest.request)), 302);
+
+  const schedule = await findSavedScheduleByName("Sábado Mañana");
+
+  expect(schedule).toBeDefined();
+
+  return {
+    event,
+    schedule: schedule!,
+  };
+}
+
+async function createScheduleCapacityForFixture(
+  eventId: string,
+  scheduleId: string,
+) {
+  const createScheduleCapacityRequest =
+    await createScheduleCapacityAdminRequest({
+      email: "admin.crea.cupo-cronograma.fixture@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/cronogramas/${scheduleId}?evento=${eventId}`,
+      intent: "create-schedule-capacity",
+      scheduleId,
+      scheduleCapacity: buildScheduleCapacityDraft(),
+    });
+
+  await expectThrownResponse(
+    action(routeArgs(createScheduleCapacityRequest.request)),
+    302,
+  );
+
+  const [scheduleCapacity] = await listSavedScheduleCapacities(scheduleId);
+
+  expect(scheduleCapacity).toBeDefined();
+
+  return scheduleCapacity!;
+}
