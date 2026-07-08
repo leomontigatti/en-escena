@@ -30,6 +30,16 @@ import type {
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
 
+const paidInvoicePriceUpdateError =
+  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.";
+const paidInvoicePriceDeleteError =
+  "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.";
+
+type HistoricalPriceReference = Pick<
+  typeof prices.$inferSelect,
+  "amount" | "groupType" | "id" | "paymentDeadline" | "scheduleId"
+>;
+
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
     where: eq(prices.eventId, eventId),
@@ -118,8 +128,7 @@ export async function updatePrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error:
-        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
+      error: paidInvoicePriceUpdateError,
     };
   }
 
@@ -151,8 +160,7 @@ export async function deletePrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error:
-        "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.",
+      error: paidInvoicePriceDeleteError,
     };
   }
 
@@ -275,32 +283,38 @@ async function priceHasOperationalDependencies(priceId: string) {
   return Boolean(dependency);
 }
 
-function buildHistoricalPriceReferenceFilter(price: {
-  amount: number;
-  groupType: (typeof prices.$inferSelect)["groupType"];
-  id: string;
-  paymentDeadline: string | null;
-  scheduleId: string | null;
-}) {
+function buildHistoricalPriceReferenceFilter(price: HistoricalPriceReference) {
   const legacyReferenceFilter = and(
     isNull(academyEventChoreographyInvoices.selectedPriceId),
     eq(choreographies.groupType, price.groupType),
     eq(academyEventChoreographyInvoices.basePriceAmount, price.amount),
-    price.paymentDeadline === null
-      ? isNull(academyEventChoreographyInvoices.selectedPaymentDeadline)
-      : eq(
-          academyEventChoreographyInvoices.selectedPaymentDeadline,
-          price.paymentDeadline,
-        ),
-    price.scheduleId === null
-      ? undefined
-      : eq(scheduleCapacities.scheduleId, price.scheduleId),
+    buildLegacyPaymentDeadlineFilter(price),
+    buildLegacyScheduleFilter(price),
   );
 
   return or(
     eq(academyEventChoreographyInvoices.selectedPriceId, price.id),
     legacyReferenceFilter,
   );
+}
+
+function buildLegacyPaymentDeadlineFilter(price: HistoricalPriceReference) {
+  if (price.paymentDeadline === null) {
+    return isNull(academyEventChoreographyInvoices.selectedPaymentDeadline);
+  }
+
+  return eq(
+    academyEventChoreographyInvoices.selectedPaymentDeadline,
+    price.paymentDeadline,
+  );
+}
+
+function buildLegacyScheduleFilter(price: HistoricalPriceReference) {
+  if (price.scheduleId === null) {
+    return undefined;
+  }
+
+  return eq(scheduleCapacities.scheduleId, price.scheduleId);
 }
 
 async function validatePriceInput(
