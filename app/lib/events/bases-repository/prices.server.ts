@@ -1,5 +1,11 @@
-import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
+import {
+  academyEventChoreographyInvoices,
+  academyEventInvoiceImputations,
+  choreographies,
+  scheduleCapacities,
+} from "@/db/schema";
 import {
   created,
   db,
@@ -113,7 +119,7 @@ export async function updatePrice(
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se pueden editar monto, tipo de grupo ni cronograma porque el precio tiene dependencias.",
+        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
     };
   }
 
@@ -145,7 +151,8 @@ export async function deletePrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error: "No se puede borrar el precio porque tiene dependencias.",
+      error:
+        "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.",
     };
   }
 
@@ -209,8 +216,91 @@ export async function resolveApplicablePrice(input: {
   };
 }
 
-async function priceHasOperationalDependencies(_priceId: string) {
-  return false;
+async function priceHasOperationalDependencies(priceId: string) {
+  const price = await db.query.prices.findFirst({
+    columns: {
+      amount: true,
+      eventId: true,
+      groupType: true,
+      id: true,
+      paymentDeadline: true,
+      scheduleId: true,
+    },
+    where: eq(prices.id, priceId),
+  });
+
+  if (!price) {
+    return false;
+  }
+
+  const [dependency] = await db
+    .select({
+      id: academyEventChoreographyInvoices.id,
+    })
+    .from(academyEventChoreographyInvoices)
+    .innerJoin(
+      choreographies,
+      eq(academyEventChoreographyInvoices.choreographyId, choreographies.id),
+    )
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .leftJoin(
+      academyEventInvoiceImputations,
+      and(
+        eq(
+          academyEventInvoiceImputations.invoiceId,
+          academyEventChoreographyInvoices.id,
+        ),
+        isNull(academyEventInvoiceImputations.annulledAt),
+      ),
+    )
+    .where(
+      and(
+        eq(academyEventChoreographyInvoices.eventId, price.eventId),
+        isNull(academyEventChoreographyInvoices.cancelledAt),
+        buildHistoricalPriceReferenceFilter(price),
+      ),
+    )
+    .groupBy(
+      academyEventChoreographyInvoices.id,
+      academyEventChoreographyInvoices.depositAmount,
+    )
+    .having(
+      sql`coalesce(sum(${academyEventInvoiceImputations.amount}), 0) >= ${academyEventChoreographyInvoices.depositAmount}`,
+    )
+    .limit(1);
+
+  return Boolean(dependency);
+}
+
+function buildHistoricalPriceReferenceFilter(price: {
+  amount: number;
+  groupType: (typeof prices.$inferSelect)["groupType"];
+  id: string;
+  paymentDeadline: string | null;
+  scheduleId: string | null;
+}) {
+  const legacyReferenceFilter = and(
+    isNull(academyEventChoreographyInvoices.selectedPriceId),
+    eq(choreographies.groupType, price.groupType),
+    eq(academyEventChoreographyInvoices.basePriceAmount, price.amount),
+    price.paymentDeadline === null
+      ? isNull(academyEventChoreographyInvoices.selectedPaymentDeadline)
+      : eq(
+          academyEventChoreographyInvoices.selectedPaymentDeadline,
+          price.paymentDeadline,
+        ),
+    price.scheduleId === null
+      ? undefined
+      : eq(scheduleCapacities.scheduleId, price.scheduleId),
+  );
+
+  return or(
+    eq(academyEventChoreographyInvoices.selectedPriceId, price.id),
+    legacyReferenceFilter,
+  );
 }
 
 async function validatePriceInput(

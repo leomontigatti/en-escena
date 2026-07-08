@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest";
 
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { academyEventChoreographyInvoices } from "@/db/schema";
+import {
+  completeDepositInvoiceForTest,
+  createAccountCurrentChoreographyFixture,
+  issueDepositInvoiceForTest,
+  registerPaymentForTest,
+} from "@/lib/admin/academies/account-current-route.test-support";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createDeletePriceAdminRequest,
@@ -199,6 +208,107 @@ describe.sequential("administracion Bases del evento routes", () => {
       302,
     );
     expectPriceDeletedRedirect(deleteResponse);
+  });
+
+  test("shows a historical paid invoice validation when structural changes or deletion are blocked", async () => {
+    const event = await createSavedEvent("Regional 2032");
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Historial",
+        choreographyName: "Coreografía Historial",
+        email: "admin.precio.historial@example.com",
+        event,
+      });
+
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "3000",
+      eventId: event.id,
+      paymentDate: "2026-03-15",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    const { depositInvoice } = await completeDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      createdByUserId: academy.user.id,
+      eventId: event.id,
+    });
+
+    const price = await findSavedPriceById(
+      depositInvoice.selectedPriceId ?? "",
+    );
+
+    if (!price) {
+      throw new Error(
+        "Expected paid invoice fixture to keep its selected price.",
+      );
+    }
+
+    const updatePriceRequest = await createPriceAdminRequest({
+      email: "admin.bloqueo.precio@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/${price.id}?evento=${event.id}`,
+      intent: "update-price",
+      priceId: price.id,
+      price: {
+        amount: "12000",
+        paymentDeadline: "2026-05-31",
+      },
+    });
+
+    await expect(
+      action(routeArgs(updatePriceRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message:
+        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
+      fieldErrors: {},
+      scope: {
+        intent: "update-price",
+        recordId: price.id,
+      },
+      values: {
+        amount: "12000",
+        groupType: "solo",
+        isSpecialPrice: "",
+        name: "Precio base",
+        paymentDeadline: "2026-05-31",
+        scheduleId: "",
+      },
+    });
+
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        selectedPriceId: null,
+      })
+      .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+    const deletePriceRequest = await createDeletePriceAdminRequest({
+      email: "admin.borra.precio.historial@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/${price.id}?evento=${event.id}`,
+      priceId: price.id,
+      confirmDeletion: price.id,
+    });
+
+    await expect(
+      action(routeArgs(deletePriceRequest.request)),
+    ).resolves.toEqual({
+      status: "error",
+      message:
+        "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.",
+      fieldErrors: {},
+      scope: {
+        intent: "delete-price",
+        recordId: price.id,
+      },
+    });
   });
 
   test("creates, edits and deletes precios through the admin action", async () => {

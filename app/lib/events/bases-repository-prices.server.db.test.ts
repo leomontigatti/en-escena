@@ -1,6 +1,15 @@
 import { describe, expect, test } from "vitest";
 
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { academyEventChoreographyInvoices, prices } from "@/db/schema";
 import { createModality } from "@/lib/modalities/repository.server";
+import {
+  completeDepositInvoiceForTest,
+  createAccountCurrentChoreographyFixture,
+  issueDepositInvoiceForTest,
+  registerPaymentForTest,
+} from "@/lib/admin/academies/account-current-route.test-support";
 import {
   createPrice,
   deletePrice,
@@ -206,13 +215,204 @@ describe("Bases del evento repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar monto, tipo de grupo ni cronograma porque el precio tiene dependencias.",
+        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
     });
     await expect(
       deletePrice(general.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el precio porque tiene dependencias.",
+      error:
+        "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.",
+    });
+  });
+
+  test("blocks structural price changes and deletion when a paid choreography invoice depends on the price", async () => {
+    const event = await createSavedEvent("Regional 2026", { activate: true });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Pagado",
+        choreographyName: "Coreografía Pagada",
+        email: "academia.precio.pagado@example.com",
+        event,
+      });
+    const price = await db.query.prices.findFirst({
+      where: eq(prices.eventId, event.id),
+    });
+
+    if (!price) {
+      throw new Error("Expected seeded price fixture.");
+    }
+
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "3000",
+      eventId: event.id,
+      paymentDate: "2026-03-15",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    await completeDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      createdByUserId: academy.user.id,
+      eventId: event.id,
+    });
+
+    await expect(
+      updatePrice(price.id, {
+        amount: 12000,
+        groupType: "solo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
+    });
+    await expect(deletePrice(price.id)).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.",
+    });
+  });
+
+  test("ignores pending and canceled choreography invoices when changing a price", async () => {
+    const event = await createSavedEvent("Regional 2027", { activate: true });
+    const { academy, choreography, catalog } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Pendiente",
+        choreographyName: "Coreografía Pendiente",
+        email: "academia.precio.pendiente@example.com",
+        event,
+      });
+    const price = await db.query.prices.findFirst({
+      where: eq(prices.eventId, event.id),
+    });
+
+    if (!price) {
+      throw new Error("Expected seeded price fixture.");
+    }
+
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+
+    await expect(
+      updatePrice(price.id, {
+        amount: 12000,
+        groupType: "solo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { amount: 12000 },
+    });
+
+    const { academy: cancelledAcademy, choreography: cancelledChoreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Cancelado",
+        catalog,
+        choreographyName: "Coreografía Cancelada",
+        email: "academia.precio.cancelado@example.com",
+        event,
+      });
+    const cancelledPrice = await createSavedPrice(event.id, {
+      amount: 11000,
+      paymentDeadline: "2026-06-30",
+    });
+
+    await registerPaymentForTest({
+      academyId: cancelledAcademy.academy.id,
+      amount: "3300",
+      eventId: event.id,
+      paymentDate: "2026-03-15",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: cancelledAcademy.academy.id,
+      choreographyIds: [cancelledChoreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    const { depositInvoice } = await completeDepositInvoiceForTest({
+      academyId: cancelledAcademy.academy.id,
+      choreographyId: cancelledChoreography.id,
+      createdByUserId: cancelledAcademy.user.id,
+      eventId: event.id,
+    });
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        cancelledAt: new Date("2026-03-25T12:00:00Z"),
+      })
+      .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+    await expect(deletePrice(cancelledPrice.id)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
+  test("conservatively blocks legacy paid invoices without selected price ids", async () => {
+    const event = await createSavedEvent("Regional 2028", { activate: true });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Legacy",
+        choreographyName: "Coreografía Legacy",
+        email: "academia.precio.legacy@example.com",
+        event,
+      });
+    const price = await db.query.prices.findFirst({
+      where: eq(prices.eventId, event.id),
+    });
+
+    if (!price) {
+      throw new Error("Expected seeded price fixture.");
+    }
+
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "3000",
+      eventId: event.id,
+      paymentDate: "2026-03-15",
+    });
+    await issueDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyIds: [choreography.id],
+      eventId: event.id,
+      issueDate: "2026-03-20",
+    });
+    const { depositInvoice } = await completeDepositInvoiceForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      createdByUserId: academy.user.id,
+      eventId: event.id,
+    });
+    await db
+      .update(academyEventChoreographyInvoices)
+      .set({
+        selectedPriceId: null,
+      })
+      .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
+
+    await expect(
+      updatePrice(price.id, {
+        amount: 10500,
+        groupType: "solo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.",
     });
   });
 });
