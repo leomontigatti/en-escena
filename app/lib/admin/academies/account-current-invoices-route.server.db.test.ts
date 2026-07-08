@@ -113,33 +113,17 @@ describe.sequential(
         },
       });
 
-      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+      const issueRequest = await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
         administrativeDiscountAmount: "1200",
         administrativeDiscountInternalReason: "Excepción cierre académico",
         administrativeDiscountPublicLabel: "Beca academia",
         choreographyId: choreography.id,
+        eventId: event.id,
         issueDate: "2026-03-25",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
       });
 
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(issueRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
-      });
-
-      const invoices = await db.query.academyEventChoreographyInvoices.findMany(
-        {
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
-          orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
-        },
-      );
+      const invoices = await listChoreographyInvoices(choreography.id);
 
       expect(invoices).toMatchObject([
         {
@@ -273,30 +257,14 @@ describe.sequential(
         },
       });
 
-      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+      await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
         choreographyId: choreography.id,
+        eventId: event.id,
         issueDate: "2026-03-25",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
       });
 
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(issueRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
-      });
-
-      const invoices = await db.query.academyEventChoreographyInvoices.findMany(
-        {
-          where: eq(
-            academyEventChoreographyInvoices.choreographyId,
-            choreography.id,
-          ),
-          orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
-        },
-      );
+      const invoices = await listChoreographyInvoices(choreography.id);
 
       expect(invoices).toMatchObject([
         {
@@ -413,21 +381,13 @@ describe.sequential(
         },
       });
 
-      const { request: issueRequest } = await buildBalanceInvoiceIssueRequest({
+      await issueBalanceInvoiceForChoreography({
+        academyId: academy.academy.id,
         administrativeDiscountAmount: "500",
         administrativeDiscountInternalReason: "Excepción",
         choreographyId: choreography.id,
+        eventId: event.id,
         issueDate: "2026-03-25",
-        requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-        role: "admin",
-      });
-
-      await expect(
-        accountCurrentAction(
-          detailActionArgs(issueRequest, academy.academy.id),
-        ),
-      ).rejects.toMatchObject({
-        status: 302,
       });
 
       const { request: duplicateIssueRequest } =
@@ -499,3 +459,39 @@ describe.sequential(
     });
   },
 );
+
+async function issueBalanceInvoiceForChoreography(input: {
+  academyId: string;
+  administrativeDiscountAmount?: string;
+  administrativeDiscountInternalReason?: string;
+  administrativeDiscountPublicLabel?: string;
+  choreographyId: string;
+  eventId: string;
+  issueDate: string;
+}) {
+  const { request } = await buildBalanceInvoiceIssueRequest({
+    administrativeDiscountAmount: input.administrativeDiscountAmount,
+    administrativeDiscountInternalReason:
+      input.administrativeDiscountInternalReason,
+    administrativeDiscountPublicLabel: input.administrativeDiscountPublicLabel,
+    choreographyId: input.choreographyId,
+    issueDate: input.issueDate,
+    requestUrl: accountCurrentUrl(input.academyId, input.eventId),
+    role: "admin",
+  });
+
+  await expect(
+    accountCurrentAction(detailActionArgs(request, input.academyId)),
+  ).rejects.toMatchObject({
+    status: 302,
+  });
+
+  return request;
+}
+
+async function listChoreographyInvoices(choreographyId: string) {
+  return await db.query.academyEventChoreographyInvoices.findMany({
+    where: eq(academyEventChoreographyInvoices.choreographyId, choreographyId),
+    orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
+  });
+}

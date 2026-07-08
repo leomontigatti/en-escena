@@ -360,7 +360,38 @@ async function resolveStoredInvoiceSelectedPriceId(input: {
     return input.selectedPriceId;
   }
 
-  const exactScopeCandidates = await db.query.prices.findMany({
+  const exactScopePrice = await resolveStoredInvoicePriceInScope({
+    ...input,
+    scheduleId: input.scheduleId,
+  });
+
+  if (exactScopePrice) {
+    return exactScopePrice.id;
+  }
+
+  if (input.scheduleId === null) {
+    return null;
+  }
+
+  return (
+    (
+      await resolveStoredInvoicePriceInScope({
+        ...input,
+        scheduleId: null,
+      })
+    )?.id ?? null
+  );
+}
+
+async function resolveStoredInvoicePriceInScope(input: {
+  basePriceAmount: number;
+  eventId: string;
+  fallbackIssueDate: string;
+  groupType: (typeof prices.$inferSelect)["groupType"];
+  scheduleId: string | null;
+  selectedPaymentDeadline: string | null;
+}) {
+  const candidates = await db.query.prices.findMany({
     where: and(
       eq(prices.eventId, input.eventId),
       eq(prices.groupType, input.groupType),
@@ -373,34 +404,10 @@ async function resolveStoredInvoiceSelectedPriceId(input: {
         : eq(prices.scheduleId, input.scheduleId),
     ),
   });
-  const exactScopePrice = selectApplicablePriceFromCandidates(
-    exactScopeCandidates,
+
+  return selectApplicablePriceFromCandidates(
+    candidates,
     input.fallbackIssueDate,
-  );
-
-  if (exactScopePrice) {
-    return exactScopePrice.id;
-  }
-
-  if (input.scheduleId === null) {
-    return null;
-  }
-
-  return (
-    selectApplicablePriceFromCandidates(
-      await db.query.prices.findMany({
-        where: and(
-          eq(prices.eventId, input.eventId),
-          eq(prices.groupType, input.groupType),
-          eq(prices.amount, input.basePriceAmount),
-          input.selectedPaymentDeadline === null
-            ? isNull(prices.paymentDeadline)
-            : eq(prices.paymentDeadline, input.selectedPaymentDeadline),
-          isNull(prices.scheduleId),
-        ),
-      }),
-      input.fallbackIssueDate,
-    )?.id ?? null
   );
 }
 
