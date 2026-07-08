@@ -22,7 +22,7 @@ export type AdminInvoiceRow = {
   invoiceType: "saldo" | "sena";
   issueDate: string;
   pendingAmount: number;
-  status: "cancelada" | "pagada" | "parcial" | "pendiente";
+  status: "cancelada" | "pagada" | "pendiente";
 };
 
 export async function loadAdminInvoicesList(request: Request) {

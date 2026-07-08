@@ -27,7 +27,6 @@ export const imputationFieldNames = [
   "paymentId",
   "invoiceId",
   "imputationDate",
-  "amount",
 ] as const;
 export const correctionFieldNames = [
   "paymentId",
@@ -42,7 +41,6 @@ export type ImputationFieldName = (typeof imputationFieldNames)[number];
 export type CorrectionFieldName = (typeof correctionFieldNames)[number];
 
 export type PaymentImputationFormValues = {
-  amount: string;
   imputationDate: string;
   invoiceId: string;
   paymentId: string;
@@ -150,15 +148,6 @@ export const paymentImputationSchema = z.object({
           message: "La fecha de imputación no puede ser futura.",
         });
       }
-    }),
-  amount: z
-    .string()
-    .trim()
-    .refine((value) => /^\d+$/.test(value), {
-      message: "Ingresá un monto entero en pesos, sin centavos.",
-    })
-    .refine((value) => Number(value) > 0, {
-      message: "Ingresá un monto mayor a cero.",
     }),
 });
 
@@ -286,7 +275,6 @@ export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
 
 export function defaultPaymentImputationValues(): PaymentImputationFormValues {
   return {
-    amount: "",
     imputationDate: todayDateOnly(),
     invoiceId: "",
     paymentId: "",
@@ -337,7 +325,6 @@ export function readPaymentImputationValues(
   formData: FormData,
 ): PaymentImputationFormValues {
   return {
-    amount: String(formData.get("amount") ?? "").trim(),
     imputationDate: String(formData.get("imputationDate") ?? "").trim(),
     invoiceId: String(formData.get("invoiceId") ?? "").trim(),
     paymentId: String(formData.get("paymentId") ?? "").trim(),

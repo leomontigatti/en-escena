@@ -244,7 +244,7 @@ export async function buildBalanceInvoiceIssueRequest(input: {
 }
 
 export async function buildPaymentImputationRequest(input: {
-  amount: string;
+  amount?: string;
   imputationDate: string;
   invoiceId: string;
   paymentId: string;
@@ -253,7 +253,9 @@ export async function buildPaymentImputationRequest(input: {
 }) {
   const result = await buildSignedFormPostRequest(input, (formData) => {
     formData.set("intent", "impute-payment");
-    formData.set("amount", input.amount);
+    if (input.amount !== undefined) {
+      formData.set("amount", input.amount);
+    }
     formData.set("imputationDate", input.imputationDate);
     formData.set("invoiceId", input.invoiceId);
     formData.set("paymentId", input.paymentId);

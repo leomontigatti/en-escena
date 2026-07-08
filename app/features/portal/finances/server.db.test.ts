@@ -116,7 +116,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await registerPaymentForTest({
       academyId: owner.academyId,
-      amount: "3000",
+      amount: "6500",
       eventId: event.id,
       paymentDate: "2026-03-16",
     });

@@ -1,11 +1,9 @@
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 
-export function formatInvoiceState(status: "parcial" | "pagada" | "pendiente") {
+export function formatInvoiceState(status: "pagada" | "pendiente") {
   switch (status) {
     case "pendiente":
       return "Pendiente";
-    case "parcial":
-      return "Parcial";
     case "pagada":
       return "Pagada";
   }

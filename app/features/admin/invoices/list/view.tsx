@@ -106,7 +106,6 @@ const invoiceFacetedFilters: DataTableFacetedFilter[] = [
     label: "Estado",
     options: [
       { label: "Pendiente", value: "pendiente" },
-      { label: "Parcial", value: "parcial" },
       { label: "Pagada", value: "pagada" },
       { label: "Cancelada", value: "cancelada" },
     ],
@@ -171,8 +170,7 @@ function InvoiceStatusBadge({ status }: { status: AdminInvoiceRow["status"] }) {
     return <Badge variant="secondary">Cancelada</Badge>;
   }
 
-  const variant =
-    status === "pagada" ? "success" : status === "parcial" ? "info" : "warning";
+  const variant = status === "pagada" ? "success" : "warning";
 
   return <Badge variant={variant}>{formatInvoiceState(status)}</Badge>;
 }

@@ -171,15 +171,6 @@ export function PaymentImputationForm({
               label="Fecha de imputación"
               name="imputationDate"
             />
-
-            <IntegerInputField
-              control={form.control}
-              id="payment-imputation-amount"
-              label="Monto"
-              min="1"
-              name="amount"
-              step="1"
-            />
           </FieldGroup>
 
           <div className="flex justify-end">
