@@ -25,9 +25,9 @@ En Escena separa tests regulares y tests DB con dos rutas:
   Postgres real para comparar o depurar el harness rapido.
 
 La corrida final confiable usa un Postgres local en `localhost:5433`,
-configurado por `TEST_DATABASE_URL`. En sesiones Codex con sandbox
-administrado, ese acceso TCP local requiere aprobacion elevada aunque no salga
-de la maquina. Por eso `docs/agents/workflows.md` documenta los prefijos
+configurado por `TEST_DATABASE_URL`. En agentes con sandbox administrado, ese
+acceso TCP local puede requerir aprobacion elevada aunque no salga de la
+maquina. Por eso `docs/agents/workflows.md` documenta los prefijos
 persistentes:
 
 - `pnpm test:db:final`

@@ -26,7 +26,6 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -81,9 +80,9 @@ const parentIssueContextSchema = z.object({
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
 const MAX_PARALLEL = 4;
-const CODEX_MODEL = "gpt-5.4";
-const REVIEWER_CODEX_MODEL = "gpt-5.5";
-const CODEX_EFFORT = "medium";
+const AGENT_MODEL = "claude-opus-4-8";
+const REVIEWER_AGENT_MODEL = "claude-opus-4-8";
+const AGENT_EFFORT = "medium";
 const READY_FOR_AGENT_LABEL = "ready-for-agent";
 const DEFAULT_SANDBOX_DOCKER_NETWORK = "en-escena_default";
 const DEFAULT_SANDBOX_TEST_DATABASE_URL =
@@ -99,7 +98,13 @@ type GitHubTokenSource = {
   readonly token: string;
 };
 
+type ClaudeAuthSource = {
+  readonly source: string;
+  readonly env: Record<string, string>;
+};
+
 let cachedGitHubTokenSource: GitHubTokenSource | undefined;
+let cachedClaudeAuthSource: ClaudeAuthSource | undefined;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
 // pnpm install ensures the sandbox always has fresh dependencies.
@@ -121,7 +126,7 @@ const hooks = {
 const copyToWorktree = ["node_modules"];
 
 assertGitHeadExists();
-assertCodexChatGptAuthWorks();
+assertClaudeAuthConfigured();
 assertGitHubTokenWorks();
 
 const TARGET_BRANCH = getCurrentBranch();
@@ -208,7 +213,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
         const implement = await sandbox.run({
           name: "implementer",
           maxIterations: 100,
-          agent: createCodexAgent(),
+          agent: createAgent(),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
             TASK_ID: issue.id,
@@ -223,7 +228,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
           const review = await sandbox.run({
             name: "reviewer",
             maxIterations: 1,
-            agent: createCodexAgent(REVIEWER_CODEX_MODEL),
+            agent: createAgent(REVIEWER_AGENT_MODEL),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
               BASE_BRANCH: TARGET_BRANCH,
@@ -312,7 +317,7 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
     sandbox: createDockerSandbox({ databaseNameSuffix: "merger" }),
     name: "merger",
     maxIterations: 1,
-    agent: createCodexAgent(),
+    agent: createAgent(),
     promptFile: "./.sandcastle/merge-prompt.md",
     promptArgs: {
       // A markdown list of branch names, one per line.
@@ -327,24 +332,8 @@ for (let iteration = 1; iteration <= maxIterations; iteration++) {
 
 console.log("\nAll done.");
 
-function createCodexAgent(model = CODEX_MODEL): ReturnType<typeof sandcastle.codex> {
-  const provider = sandcastle.codex(model, { effort: CODEX_EFFORT });
-
-  return {
-    ...provider,
-    buildPrintCommand(options) {
-      const printCommand = provider.buildPrintCommand(options);
-
-      if (printCommand.stdin === undefined || printCommand.command.endsWith(" -")) {
-        return printCommand;
-      }
-
-      return {
-        ...printCommand,
-        command: `${printCommand.command} -`,
-      };
-    },
-  };
+function createAgent(model = AGENT_MODEL): ReturnType<typeof sandcastle.claudeCode> {
+  return sandcastle.claudeCode(model, { effort: AGENT_EFFORT });
 }
 
 async function runWithConcurrency<T, R>(
@@ -383,7 +372,7 @@ function createDockerSandbox(
 ): ReturnType<typeof docker> {
   const env = readSandcastleEnv();
   const ghToken = getGitHubToken();
-  const codexAuthJsonPath = getCodexAuthJsonPath();
+  const claudeAuthEnv = getClaudeAuthSource().env;
   const network = getSandboxDockerNetwork(env);
   const testDatabaseUrl = getSandboxTestDatabaseUrl(
     env,
@@ -392,14 +381,8 @@ function createDockerSandbox(
 
   return docker({
     ...(network ? { network } : {}),
-    mounts: [
-      {
-        hostPath: codexAuthJsonPath,
-        sandboxPath: "/home/agent/.codex/auth.json",
-        readonly: true,
-      },
-    ],
     env: {
+      ...claudeAuthEnv,
       DATABASE_URL: testDatabaseUrl,
       GH_TOKEN: ghToken,
       TEST_DATABASE_URL: testDatabaseUrl,
@@ -415,8 +398,8 @@ async function planNextIssues(): Promise<readonly PlannedIssue[]> {
     // One iteration is enough: the planner just needs to read and reason,
     // not write code. (Structured output requires maxIterations: 1.)
     maxIterations: 1,
-    // Use the default Codex model for planning.
-    agent: createCodexAgent(),
+    // Use the default agent model for planning.
+    agent: createAgent(),
     promptFile: "./.sandcastle/plan-prompt.md",
     // Extract and validate the <plan> JSON into a typed object. Retry output
     // extraction failures so a malformed JSON block does not abort the run.
@@ -832,44 +815,51 @@ function getProcessEnvWithoutGitHubTokens(): NodeJS.ProcessEnv {
   return env;
 }
 
-function assertCodexChatGptAuthWorks(): void {
-  const authJsonPath = getCodexAuthJsonPath();
-  if (!existsSync(authJsonPath)) {
-    throw new Error(
-      [
-        `Codex ChatGPT auth file was not found at ${authJsonPath}.`,
-        "Run `codex login` on the host with your ChatGPT account, then rerun Sandcastle.",
-      ].join("\n"),
-    );
-  }
-
-  const status = spawnSync("codex", ["login", "status"], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  const output = [status.stdout, status.stderr].join("\n");
-
-  if (status.status !== 0 || !/Logged in using ChatGPT/i.test(output)) {
-    throw new Error(
-      [
-        "Host Codex CLI is not logged in with ChatGPT subscription auth.",
-        "Run `codex login` on the host with your ChatGPT account, then rerun Sandcastle.",
-      ].join("\n"),
-    );
-  }
+function assertClaudeAuthConfigured(): void {
+  const authSource = getClaudeAuthSource();
+  console.log(`Claude auth OK (${authSource.source}).`);
 }
 
-function getCodexAuthJsonPath(): string {
+// Claude Code authenticates inside each sandbox from an env var: a subscription
+// OAuth token (CLAUDE_CODE_OAUTH_TOKEN, from `claude setup-token`)
+// or an Anthropic Platform API key (ANTHROPIC_API_KEY). We inject whichever is
+// configured into the Docker sandbox env instead of mounting a host auth file.
+function getClaudeAuthSource(): ClaudeAuthSource {
+  if (cachedClaudeAuthSource) return cachedClaudeAuthSource;
+
   const env = readSandcastleEnv();
-  return (
-    env.CODEX_AUTH_JSON ||
-    process.env.CODEX_AUTH_JSON ||
-    defaultCodexAuthJsonPath()
-  );
-}
 
-function defaultCodexAuthJsonPath(): string {
-  return join(homedir(), ".codex", "auth.json");
+  const oauthToken =
+    process.env.CLAUDE_CODE_OAUTH_TOKEN || env.CLAUDE_CODE_OAUTH_TOKEN;
+  if (oauthToken) {
+    cachedClaudeAuthSource = {
+      source:
+        process.env.CLAUDE_CODE_OAUTH_TOKEN
+          ? "CLAUDE_CODE_OAUTH_TOKEN from process environment"
+          : "CLAUDE_CODE_OAUTH_TOKEN from .sandcastle/.env",
+      env: { CLAUDE_CODE_OAUTH_TOKEN: oauthToken },
+    };
+    return cachedClaudeAuthSource;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY;
+  if (apiKey) {
+    cachedClaudeAuthSource = {
+      source: process.env.ANTHROPIC_API_KEY
+        ? "ANTHROPIC_API_KEY from process environment"
+        : "ANTHROPIC_API_KEY from .sandcastle/.env",
+      env: { ANTHROPIC_API_KEY: apiKey },
+    };
+    return cachedClaudeAuthSource;
+  }
+
+  throw new Error(
+    [
+      "Sandcastle could not find Claude Code credentials for the sandboxes.",
+      "Set CLAUDE_CODE_OAUTH_TOKEN (run `claude setup-token` on the host) or ANTHROPIC_API_KEY,",
+      "in .sandcastle/.env or the process environment, then rerun Sandcastle.",
+    ].join("\n"),
+  );
 }
 
 function getSandboxDockerNetwork(env: Record<string, string>): string | undefined {

@@ -10,8 +10,8 @@ Create `.sandcastle/.env` from `.sandcastle/.env.example` and set:
   Issues read/write and Metadata read access. If this is empty, Sandcastle falls
   back to the host `gh auth token` login and passes that token to Docker
   sandboxes.
-- `CODEX_AUTH_JSON` only if your Codex auth file is not at
-  `~/.codex/auth.json`.
+- `CLAUDE_CODE_OAUTH_TOKEN` (recommended) or `ANTHROPIC_API_KEY` — the Claude
+  Code credentials injected into each sandbox. See the auth section below.
 - `SANDCASTLE_DOCKER_NETWORK` only if your Docker Compose network is not
   `en-escena_default`.
 - `SANDCASTLE_TEST_DATABASE_URL` only if Sandcastle should use a different base
@@ -28,18 +28,20 @@ After changing `.sandcastle/Dockerfile`, rebuild the sandbox image:
 pnpm exec sandcastle docker build-image
 ```
 
-Sandcastle uses the host Codex CLI ChatGPT login, not an OpenAI Platform API
-key. Run this on the host before starting Sandcastle:
+Sandcastle drives the Claude Code CLI inside each sandbox. Authentication uses a
+subscription OAuth token (recommended, does not consume API credits). Generate
+one on the host and put it in `.sandcastle/.env`:
 
 ```bash
-codex login
-codex login status
+claude setup-token
 ```
 
-The runner verifies that `codex login status` reports ChatGPT auth, then mounts
-only the host Codex auth file into each Docker sandbox at
-`/home/agent/.codex/auth.json`. The mount is read-only; each sandbox writes its
-own Codex sessions and logs locally inside the container.
+Copy the printed token into `CLAUDE_CODE_OAUTH_TOKEN`. To use an Anthropic
+Platform API key instead, set `ANTHROPIC_API_KEY` and leave the OAuth token
+empty. The runner verifies that one of the two is configured, then injects it as
+an environment variable into each Docker sandbox — no host auth file is mounted.
+Each sandbox writes its own Claude sessions and logs locally inside the
+container.
 
 For database tests, start PostgreSQL before running Sandcastle:
 
