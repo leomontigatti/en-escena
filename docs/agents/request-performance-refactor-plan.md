@@ -4,13 +4,13 @@ Revalidation baseline for PRD #130 before child implementation starts.
 
 Permanent implementation rules now live in:
 
-- `docs/agents/codex-workflows.md` for measurement workflow and validation entrypoints
+- `docs/agents/workflows.md` for measurement workflow and validation entrypoints
 - `docs/agents/style-guide.md` for pending/loading/View Transition guidance
 - `docs/agents/coding-standards.md` for maintainable file-boundary guidance
 
 ## Current Validation Workflow
 
-Confirmed against `docs/agents/codex-workflows.md`, `package.json`, and
+Confirmed against `docs/agents/workflows.md`, `package.json`, and
 `docs/local-auth.md`.
 
 Final validation order for this refactor:
@@ -226,7 +226,7 @@ Changed or stale versus PRD #130:
 - The repo has a stronger DB validation split than the PRD text implied:
   focused iteration uses `pnpm test:db:file <path-to-db-test>`, while
   final database-backed validation uses `pnpm test:db`.
-- `docs/agents/codex-workflows.md` now standardizes the regular test command as
+- `docs/agents/workflows.md` now standardizes the regular test command as
   `pnpm test` for consistency with the repo task contract and the rest of
   the documented `pnpm ...` workflow.
 

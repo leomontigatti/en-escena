@@ -112,5 +112,5 @@ prefer tightening naming, removing dead branches, and clarifying sections before
 creating a forced abstraction.
 
 When validating work around a file-size refactor, use the current repo commands
-and order from `docs/agents/codex-workflows.md`, including
+and order from `docs/agents/workflows.md`, including
 `pnpm check:file-tokens`, `pnpm typecheck`, and `pnpm test`.

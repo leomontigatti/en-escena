@@ -49,7 +49,7 @@ La migracion debe preservar estas reglas del repo:
 2. Confirmar si `corepack` esta disponible en los entornos de desarrollo y CI.
 3. Revisar archivos que mencionan comandos del gestor anterior:
    - `AGENTS.md`
-   - `docs/agents/codex-workflows.md`
+   - `docs/agents/workflows.md`
    - `docs/local-auth.md`
    - `package.json`
    - cualquier workflow de CI/deploy si se agrega en el futuro.
@@ -107,7 +107,7 @@ Mantener la advertencia de TypeScript:
 - Correcto: `pnpm typecheck`
 - Incorrecto: `pnpm exec tsc`
 
-Actualizar `docs/agents/codex-workflows.md` para que el orden de validacion use
+Actualizar `docs/agents/workflows.md` para que el orden de validacion use
 `pnpm`.
 
 Actualizar `docs/local-auth.md` para el flujo de instalacion local.

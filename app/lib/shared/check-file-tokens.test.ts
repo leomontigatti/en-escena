@@ -66,7 +66,7 @@ describe("file-token check", () => {
     ] = await Promise.all([
       readFile("package.json", "utf8"),
       readFile(".husky/pre-commit", "utf8"),
-      readFile("docs/agents/codex-workflows.md", "utf8"),
+      readFile("docs/agents/workflows.md", "utf8"),
       readFile("docs/agents/coding-standards.md", "utf8"),
       readFile("docs/agents/codebase-map.md", "utf8"),
     ]);

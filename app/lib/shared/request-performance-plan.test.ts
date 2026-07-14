@@ -38,7 +38,7 @@ const requiredViewTransitionDecisions = [
 
 const permanentRuleDocuments = [
   {
-    path: "docs/agents/codex-workflows.md",
+    path: "docs/agents/workflows.md",
     requiredText: [
       "## Request Performance and Loading",
       "Measure before diagnosing latency.",
@@ -86,7 +86,7 @@ const permanentRuleDocuments = [
       "presentational view",
       "table column definitions",
       "test fixtures or factory data",
-      "`docs/agents/codex-workflows.md`",
+      "`docs/agents/workflows.md`",
       "`pnpm typecheck`",
       "`pnpm test`",
     ],

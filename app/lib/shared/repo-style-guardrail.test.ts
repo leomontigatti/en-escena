@@ -61,7 +61,7 @@ describe("repo style check", () => {
   test("ships the repo-style command contract in package scripts and agent docs", async () => {
     const [packageJson, workflowDoc, codebaseMap] = await Promise.all([
       readFile("package.json", "utf8"),
-      readFile("docs/agents/codex-workflows.md", "utf8"),
+      readFile("docs/agents/workflows.md", "utf8"),
       readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
 

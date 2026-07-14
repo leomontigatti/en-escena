@@ -27,7 +27,7 @@ En Escena separa tests regulares y tests DB con dos rutas:
 La corrida final confiable usa un Postgres local en `localhost:5433`,
 configurado por `TEST_DATABASE_URL`. En sesiones Codex con sandbox
 administrado, ese acceso TCP local requiere aprobacion elevada aunque no salga
-de la maquina. Por eso `docs/agents/codex-workflows.md` documenta los prefijos
+de la maquina. Por eso `docs/agents/workflows.md` documenta los prefijos
 persistentes:
 
 - `pnpm test:db:final`
@@ -416,7 +416,7 @@ Cuando la estrategia este probada:
    - mantener comandos enfocados;
    - agregar comandos rapidos si corresponde, por ejemplo `test:db:fast`;
    - mantener un comando final confiable.
-2. Actualizar `docs/agents/codex-workflows.md`:
+2. Actualizar `docs/agents/workflows.md`:
    - que comando usar durante TDD;
    - que comando usar antes de cerrar;
    - que aprobaciones sandbox siguen siendo necesarias.

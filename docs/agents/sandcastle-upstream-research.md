@@ -126,8 +126,8 @@ Candidate use:
 
 Repo rule: if TypeScript validation is used, the command must be
 `pnpm typecheck`, not `pnpm exec tsc`.
-Sources: [AGENTS.md](../../AGENTS.md) and
-[`docs/agents/codex-workflows.md`](codex-workflows.md).
+Sources: [CLAUDE.md](../../CLAUDE.md) and
+[`docs/agents/workflows.md`](workflows.md).
 
 ### 4. Improve diagnostics with logging and completion timeouts
 

@@ -1,8 +1,8 @@
-# Codex Workflows
+# Workflows
 
-Project-local workflows for Codex agents working on En Escena.
+Project-local workflows for agents working on En Escena.
 
-These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are not Claude hooks or Claude skills; they are repo instructions for Codex and other agents that read `AGENTS.md`.
+These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code and other agents that read `CLAUDE.md`.
 
 ## Command Guardrail
 

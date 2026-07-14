@@ -100,10 +100,7 @@ describe("DB test workflow", () => {
   });
 
   test("documents the fast-vs-final DB validation workflow", async () => {
-    const workflowDoc = await readFile(
-      "docs/agents/codex-workflows.md",
-      "utf8",
-    );
+    const workflowDoc = await readFile("docs/agents/workflows.md", "utf8");
 
     for (const requiredText of dbWorkflowScopeGuardrails) {
       expect(workflowDoc).toContain(requiredText);
