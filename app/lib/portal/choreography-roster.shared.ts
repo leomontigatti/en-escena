@@ -18,10 +18,7 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason =
-  | "presentation"
-  | "active-financial-link"
-  | "registration-closed";
+export type DancerEditingBlockReason = "presentation" | "registration-closed";
 
 export type DancerEditingEligibility =
   | {
@@ -169,7 +166,6 @@ type ResolvedChoreographyCategory = {
 };
 
 export function getDancerEditingEligibility(input: {
-  hasActiveFinancialLink: boolean;
   hasPresentation: boolean;
   isRegistrationOpen: boolean;
 }): DancerEditingEligibility {
@@ -179,15 +175,6 @@ export function getDancerEditingEligibility(input: {
       reasonCode: "presentation",
       reasonText:
         "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
-    };
-  }
-
-  if (input.hasActiveFinancialLink) {
-    return {
-      canEdit: false,
-      reasonCode: "active-financial-link",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
     };
   }
 

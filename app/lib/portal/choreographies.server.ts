@@ -162,9 +162,6 @@ export async function findChoreographyForAcademyEvent(
     return null;
   }
 
-  const hasActiveInvoice =
-    await hasActiveInvoiceForChoreography(choreographyId);
-
   const [base] = await hydrateChoreographyRows([row]);
   const [dancerRows, professorRows] = await Promise.all([
     db
@@ -199,7 +196,6 @@ export async function findChoreographyForAcademyEvent(
     ...base,
     categoryId: row.categoryId,
     dancerEditingEligibility: getDancerEditingEligibility({
-      hasActiveFinancialLink: hasActiveInvoice,
       hasPresentation: row.hasPresentation,
       isRegistrationOpen: options.isRegistrationOpen,
     }),

@@ -1,7 +1,4 @@
-import { Info } from "lucide-react";
-
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
 import {
   ChoreographyRosterEditorForm,
@@ -31,8 +28,6 @@ export function PortalChoreographyDetailRouteView({
   loaderData,
   actionData,
 }: PortalChoreographyDetailRouteViewProps) {
-  const hasActiveFinancialLink =
-    loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
   const hasOperationalStatusAlert =
     loaderData.choreography.operationalStatus.pendingItems.length > 0;
 
@@ -53,15 +48,6 @@ export function PortalChoreographyDetailRouteView({
       </div>
 
       <AlertStack>
-        {hasActiveFinancialLink ? (
-          <Alert variant="info">
-            <Info aria-hidden="true" />
-            <AlertDescription>
-              La lista de bailarines no puede modificarse porque la coreografía
-              tiene una factura o un pago relacionados.
-            </AlertDescription>
-          </Alert>
-        ) : null}
         {hasOperationalStatusAlert ? (
           <OperationalStatusSummary
             operationalStatus={loaderData.choreography.operationalStatus}

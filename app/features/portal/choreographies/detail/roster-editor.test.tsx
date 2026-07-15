@@ -132,62 +132,6 @@ describe("coreografía detail readonly form", () => {
     );
   });
 
-  test("locks dancers without financial helper copy when there is an active financial link", async () => {
-    await renderRoute(
-      buildLoaderData({
-        dancerEditingEligibility: {
-          canEdit: false,
-          reasonCode: "active-financial-link",
-          reasonText:
-            "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
-        },
-        choreography: {
-          ...buildLoaderData().choreography,
-          dancerEditingEligibility: {
-            canEdit: false,
-            reasonCode: "active-financial-link",
-            reasonText:
-              "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
-          },
-          operationalStatus: {
-            code: "incomplete",
-            pendingItems: ["music"],
-          },
-        },
-      }),
-    );
-
-    const text = document.body.textContent ?? "";
-
-    expect(document.body.textContent).toContain("Bailarines");
-    expect(text).not.toContain(
-      "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
-    );
-    expect(text).toContain(
-      "La lista de bailarines no puede modificarse porque la coreografía tiene una factura o un pago relacionados.",
-    );
-    expect(text).toContain("Falta cargar archivo de música.");
-    expect(
-      text.indexOf(
-        "La lista de bailarines no puede modificarse porque la coreografía tiene una factura o un pago relacionados.",
-      ),
-    ).toBeLessThan(text.indexOf("Falta cargar archivo de música."));
-    expect(text).not.toContain("Luz Rios");
-    const dancerTrigger = document.querySelectorAll(
-      '[data-slot="combobox-trigger"]',
-    )[0];
-    const dancerCombobox = dancerTrigger.closest(
-      '[data-slot="combobox-chips"]',
-    );
-
-    expect(
-      dancerCombobox?.querySelector(
-        'svg[aria-label="Bailarines bloqueados por vínculo financiero activo"]',
-      ),
-    ).not.toBeNull();
-    expect(dancerTrigger.querySelector(".lucide-chevron-down")).toBeNull();
-  });
-
   test("shows generic music upload failures as toast instead of field error", async () => {
     await renderRoute(buildLoaderData(), {
       status: "update-error",

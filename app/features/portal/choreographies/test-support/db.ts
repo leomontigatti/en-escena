@@ -221,7 +221,6 @@ export async function createChoreographyRecord(
       scheduleCapacityId: overrides.scheduleCapacityId,
       musicStorageKey: overrides.musicStorageKey ?? null,
       hasPresentation: overrides.hasPresentation ?? false,
-      hasActiveFinancialLink: overrides.hasActiveFinancialLink ?? false,
       createdAt: overrides.createdAt,
       updatedAt: overrides.updatedAt,
     })

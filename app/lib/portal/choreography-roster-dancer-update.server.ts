@@ -14,7 +14,6 @@ import {
   type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
@@ -255,9 +254,6 @@ async function resolveChoreographyDancerUpdateContext(input: {
   );
 
   const eligibility = getDancerEditingEligibility({
-    hasActiveFinancialLink: await hasActiveInvoiceForChoreography(
-      input.choreographyId,
-    ),
     hasPresentation: choreography.hasPresentation,
     isRegistrationOpen: input.isRegistrationOpen,
   });

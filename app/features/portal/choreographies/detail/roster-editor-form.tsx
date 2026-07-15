@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, Lock } from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Form, Link } from "react-router";
 import { toast } from "sonner";
@@ -44,8 +44,6 @@ export function ChoreographyRosterEditorForm({
   const [musicStorageKey, setMusicStorageKey] = useState(
     selectedMusicStorageKey,
   );
-  const hasActiveFinancialLink =
-    loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
   useEffect(() => {
     setMusicStorageKey(selectedMusicStorageKey);
     setSelectedMusicFileName(null);
@@ -186,11 +184,6 @@ export function ChoreographyRosterEditorForm({
               options={dancerOptions}
               placeholder="Buscar bailarines"
               searchable={true}
-              trailingIcon={
-                hasActiveFinancialLink ? (
-                  <Lock aria-label="Bailarines bloqueados por vínculo financiero activo" />
-                ) : null
-              }
             />
 
             <MultiComboboxField

@@ -134,7 +134,7 @@ describe.sequential("portal choreographies reads", () => {
     });
   });
 
-  test("derives dancer editing eligibility from active invoices, not from the legacy flag, with priority: presentación, vínculo financiero activo, inscripción cerrada", async () => {
+  test("no longer blocks dancer editing on active invoices while registration is open, but keeps presentación blocking", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "coreografias.detail.dancer-eligibility@example.com",
@@ -142,6 +142,108 @@ describe.sequential("portal choreographies reads", () => {
     const event = await createEventRecord({
       active: true,
       name: "Regional 2026",
+      registrationEndsAt: date("2100-04-30T12:00:00Z"),
+    });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2011-04-05",
+    });
+
+    const activeInvoiceChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-financial.mp3",
+      name: "Con factura activa",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const presentationBlockedChoreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasPresentation: true,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/detail-presentation.mp3",
+      name: "Presentada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: activeInvoiceChoreography.id,
+        dancerId: dancer.id,
+        ageAtEventStart: 15,
+      },
+      {
+        choreographyId: presentationBlockedChoreography.id,
+        dancerId: dancer.id,
+        ageAtEventStart: 15,
+      },
+    ]);
+    await createDepositInvoiceRecord({
+      academyId: owner.academyId,
+      choreographyId: activeInvoiceChoreography.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+      invoiceNumber: 1,
+    });
+    await createDepositInvoiceRecord({
+      academyId: owner.academyId,
+      choreographyId: presentationBlockedChoreography.id,
+      createdByUserId: owner.userId,
+      eventId: event.id,
+      invoiceNumber: 2,
+    });
+
+    const activeInvoiceDetail = await choreographyDetailLoader({
+      params: { choreographyId: activeInvoiceChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${activeInvoiceChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+    const presentationBlockedDetail = await choreographyDetailLoader({
+      params: { choreographyId: presentationBlockedChoreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${presentationBlockedChoreography.id}?evento=${event.id}`,
+        {
+          headers: { cookie: owner.cookie },
+        },
+      ),
+    });
+
+    // Una factura activa ya no bloquea la edición del roster: la restricción
+    // pasa a ser por rol (#280).
+    expect(activeInvoiceDetail.dancerEditingEligibility).toEqual({
+      canEdit: true,
+      reasonCode: null,
+      reasonText: null,
+    });
+    expect(presentationBlockedDetail.dancerEditingEligibility).toEqual({
+      canEdit: false,
+      reasonCode: "presentation",
+      reasonText:
+        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+    });
+  });
+
+  test("blocks dancer editing when registration is closed, even with an active invoice", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "coreografias.detail.dancer-eligibility-closed@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2025",
       registrationEndsAt: date("2000-04-30T12:00:00Z"),
     });
     const catalog = await createEventCatalog(event.id);
@@ -162,60 +264,17 @@ describe.sequential("portal choreographies reads", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    const financialBlockedChoreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "music/detail-financial.mp3",
-      name: "Financiera",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
+    await db.insert(choreographyDancers).values({
+      choreographyId: registrationClosedChoreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 15,
     });
-    const presentationBlockedChoreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      hasPresentation: true,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "music/detail-presentation.mp3",
-      name: "Presentada",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: registrationClosedChoreography.id,
-        dancerId: dancer.id,
-        ageAtEventStart: 15,
-      },
-      {
-        choreographyId: financialBlockedChoreography.id,
-        dancerId: dancer.id,
-        ageAtEventStart: 15,
-      },
-      {
-        choreographyId: presentationBlockedChoreography.id,
-        dancerId: dancer.id,
-        ageAtEventStart: 15,
-      },
-    ]);
     await createDepositInvoiceRecord({
       academyId: owner.academyId,
-      choreographyId: financialBlockedChoreography.id,
+      choreographyId: registrationClosedChoreography.id,
       createdByUserId: owner.userId,
       eventId: event.id,
       invoiceNumber: 1,
-    });
-    await createDepositInvoiceRecord({
-      academyId: owner.academyId,
-      choreographyId: presentationBlockedChoreography.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-      invoiceNumber: 2,
     });
 
     const registrationClosedDetail = await choreographyDetailLoader({
@@ -227,73 +286,8 @@ describe.sequential("portal choreographies reads", () => {
         },
       ),
     });
-    const financialBlockedDetail = await choreographyDetailLoader({
-      params: { choreographyId: financialBlockedChoreography.id },
-      request: new Request(
-        `http://localhost/portal/coreografias/${financialBlockedChoreography.id}?evento=${event.id}`,
-        {
-          headers: { cookie: owner.cookie },
-        },
-      ),
-    });
-    const presentationBlockedDetail = await choreographyDetailLoader({
-      params: { choreographyId: presentationBlockedChoreography.id },
-      request: new Request(
-        `http://localhost/portal/coreografias/${presentationBlockedChoreography.id}?evento=${event.id}`,
-        {
-          headers: { cookie: owner.cookie },
-        },
-      ),
-    });
 
     expect(registrationClosedDetail.dancerEditingEligibility).toEqual({
-      canEdit: false,
-      reasonCode: "registration-closed",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
-    });
-    expect(financialBlockedDetail.dancerEditingEligibility).toEqual({
-      canEdit: false,
-      reasonCode: "active-financial-link",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
-    });
-    expect(presentationBlockedDetail.dancerEditingEligibility).toEqual({
-      canEdit: false,
-      reasonCode: "presentation",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
-    });
-
-    const legacyFlagOnlyChoreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      hasActiveFinancialLink: true,
-      modalityId: catalog.modality.id,
-      musicStorageKey: "music/detail-legacy-flag.mp3",
-      name: "Legacy",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values({
-      choreographyId: legacyFlagOnlyChoreography.id,
-      dancerId: dancer.id,
-      ageAtEventStart: 15,
-    });
-
-    const legacyFlagOnlyDetail = await choreographyDetailLoader({
-      params: { choreographyId: legacyFlagOnlyChoreography.id },
-      request: new Request(
-        `http://localhost/portal/coreografias/${legacyFlagOnlyChoreography.id}?evento=${event.id}`,
-        {
-          headers: { cookie: owner.cookie },
-        },
-      ),
-    });
-
-    expect(legacyFlagOnlyDetail.dancerEditingEligibility).toEqual({
       canEdit: false,
       reasonCode: "registration-closed",
       reasonText:
