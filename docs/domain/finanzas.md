@@ -2,6 +2,10 @@
 
 Rules for financial states, invoices, payments, account balance and pricing.
 
+> Redesign note: this file describes the legacy invoice/imputation model. The
+> current domain redesign for inscription-based payment assignments is captured
+> in [pagos-inscripciones.md](./pagos-inscripciones.md).
+
 - In V1, `Administrador` can mutate financial records and `Auditor` can read financial records.
 - Persisted monetary amounts are whole Argentine pesos app-wide; the UI does not show cents.
 - Percentage calculations can use decimals internally, but invoice, payment and imputation amounts are rounded to whole pesos before persistence.

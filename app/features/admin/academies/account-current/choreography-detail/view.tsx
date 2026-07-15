@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleDollarSign, Landmark, Receipt } from "lucide-react";
+import { ChevronLeft, CircleDollarSign, Landmark, Receipt } from "lucide-react";
 import { Link } from "react-router";
 
 import {
@@ -170,7 +170,7 @@ function InscriptionsTable({
       <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
         <Button asChild variant="outline">
           <Link to={backHref}>
-            <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+            <ChevronLeft aria-hidden="true" data-icon="inline-start" />
             Volver
           </Link>
         </Button>

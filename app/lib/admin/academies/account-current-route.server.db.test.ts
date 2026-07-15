@@ -138,7 +138,9 @@ describe.sequential("administracion academias cuenta corriente", () => {
     });
 
     expect(loaderData.selectedEventId).toBeNull();
-    expect(markup).toContain("Elegí un evento activo para revisar pagos");
+    expect(markup).toContain(
+      "Elegí un evento activo para revisar la cuenta corriente",
+    );
   });
 
   test("uses the active seña snapshot in operational amounts while the choreography is still impaga", async () => {
@@ -316,7 +318,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     ]);
     expect(markup).toContain("Cuenta corriente");
     expect(markup).toContain(
-      "Revisá la cuenta corriente, emití facturas y registrá pagos para una academia.",
+      "Revisá la cuenta corriente y las facturas de una academia.",
     );
     expect(markup).toContain("Buscar coreografía por nombre");
     expect(markup).toContain('aria-label="Seleccionar todas las filas"');
@@ -421,12 +423,13 @@ describe.sequential("administracion academias cuenta corriente", () => {
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).toContain("$ 33.000");
     expect(markup).toContain("Seña adeudada");
-    expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
-    expect(markup).toContain("Transferencia");
-    expect(markup).toContain("Mercado Pago");
-    expect(markup).toContain("TRX-001");
-    expect(markup).toContain("Primer pago");
+    expect(markup).toContain("Saldo disponible");
+    expect(markup).not.toContain("Pagos activos");
+    expect(markup).not.toContain("Transferencia");
+    expect(markup).not.toContain("Mercado Pago");
+    expect(markup).not.toContain("TRX-001");
+    expect(markup).not.toContain("Primer pago");
   });
 
   test("validates positive whole-peso amounts, required method, and non-future payment dates", async () => {

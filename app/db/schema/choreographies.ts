@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   integer,
+  pgEnum,
   text,
   timestamp,
   uniqueIndex,
@@ -11,12 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
-import {
-  choreographyCategoryCalculationMode,
-  createTable,
-  experienceLevel,
-  groupType,
-} from "./core";
+import { createTable, experienceLevel, groupType } from "./core";
 import {
   categories,
   events,
@@ -26,6 +22,11 @@ import {
   submodalities,
 } from "./events";
 import { dancers, professors } from "./roster";
+
+export const categoryCalculationMode = pgEnum(
+  "en_escena_choreography_category_calculation_mode",
+  ["oldest", "group_tolerance", "group_average"],
+);
 
 export const choreographies = createTable(
   "choreography",
@@ -50,7 +51,7 @@ export const choreographies = createTable(
       () => categories.id,
     ),
     categoryAgeBasis: integer("category_age_basis"),
-    categoryCalculationMode: choreographyCategoryCalculationMode(
+    categoryCalculationMode: categoryCalculationMode(
       "category_calculation_mode",
     ).notNull(),
     experienceLevelId: experienceLevel("experience_level"),

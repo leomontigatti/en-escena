@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, LoaderCircle, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigation, useSubmit } from "react-router";
 import { useForm } from "react-hook-form";
@@ -296,11 +296,14 @@ function FormActions({
 }) {
   return (
     <>
-      <Button asChild variant="outline" size="lg">
-        <Link to={backToList}>Volver</Link>
+      <Button asChild variant="outline">
+        <Link to={backToList}>
+          <ChevronLeft aria-hidden="true" data-icon="inline-start" />
+          Volver
+        </Link>
       </Button>
       {canEdit ? (
-        <Button type="submit" size="lg" disabled={isSaving}>
+        <Button type="submit" disabled={isSaving}>
           {isSaving ? (
             <LoaderCircle
               aria-hidden="true"

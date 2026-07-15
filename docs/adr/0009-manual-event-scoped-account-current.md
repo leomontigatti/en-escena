@@ -1,8 +1,14 @@
 # Use manual event-scoped account currents for V1 finances
 
-**Status**: proposed
+**Status**: superseded
 
 **Date**: 2026-06-27
+
+**Superseded by**:
+[docs/domain/pagos-inscripciones.md](../domain/pagos-inscripciones.md) captures
+the later inscription-based payment assignment model. This ADR remains as
+history for the invoice/imputation approach that the redesign no longer uses as
+the operational source of truth.
 
 ## Context
 

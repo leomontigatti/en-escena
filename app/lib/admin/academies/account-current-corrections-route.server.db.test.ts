@@ -311,17 +311,30 @@ describe.sequential(
       });
       expect(finalLoaderData.activeDepositInvoices).toEqual([]);
       expect(finalLoaderData.payments).toEqual([]);
-      expect(finalMarkup).toContain("Movimientos");
-      expect(finalMarkup).toContain("Pago N° 1 registrado");
-      expect(finalMarkup).toContain("Factura de seña N° 1 emitida");
-      expect(finalMarkup).toContain("Imputación anulada");
-      expect(finalMarkup).toContain("Factura de seña N° 1 cancelada");
-      expect(finalMarkup).toContain("Pago N° 1 anulado");
-      expect(finalMarkup).toContain("Carga duplicada en conciliación.");
-      expect(finalMarkup).toContain(
+      expect(
+        finalLoaderData.movements.map((movement) => movement.label),
+      ).toEqual(
+        expect.arrayContaining([
+          "Pago N° 1 registrado",
+          "Factura de seña N° 1 emitida",
+          "Imputación anulada",
+          "Factura de seña N° 1 cancelada",
+          "Pago N° 1 anulado",
+        ]),
+      );
+      expect(finalMarkup).not.toContain("Movimientos");
+      expect(finalMarkup).not.toContain("Pago N° 1 registrado");
+      expect(finalMarkup).not.toContain("Factura de seña N° 1 emitida");
+      expect(finalMarkup).not.toContain("Imputación anulada");
+      expect(finalMarkup).not.toContain("Factura de seña N° 1 cancelada");
+      expect(finalMarkup).not.toContain("Pago N° 1 anulado");
+      expect(finalMarkup).not.toContain("Carga duplicada en conciliación.");
+      expect(finalMarkup).not.toContain(
         "Factura emitida sobre una coreografía equivocada.",
       );
-      expect(finalMarkup).toContain("Pago cargado en la academia equivocada.");
+      expect(finalMarkup).not.toContain(
+        "Pago cargado en la academia equivocada.",
+      );
       expect(finalMarkup).not.toContain("Anular imputación");
       expect(finalMarkup).not.toContain("Cancelar factura");
       expect(finalMarkup).not.toContain("Anular pago");

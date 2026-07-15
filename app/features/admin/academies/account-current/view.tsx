@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { CircleDollarSign, Landmark, Receipt } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -10,14 +8,8 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
-import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenuGroup,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   formatAmount,
@@ -25,21 +17,8 @@ import {
   formatOperationalAmount,
 } from "./formatters";
 import {
-  CorrectionActionsForm,
-  PaymentForm,
-  PaymentImputationForm,
-} from "./forms";
-import {
-  defaultAccountCurrentActionValues,
-  paymentFieldNames,
-  type AdministrativeAcademyAccountCurrentActionData,
-} from "./shared";
-import {
   ActiveBalanceInvoicesTable,
   ActiveDepositInvoicesTable,
-  ActiveImputationsTable,
-  ActivePaymentsTable,
-  MovementsTable,
 } from "./tables";
 import type { AccountCurrentLoaderData } from "./types";
 
@@ -59,42 +38,23 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
 ];
 
 type AdministracionAcademiaCuentaCorrienteRouteViewProps = {
-  actionData?: AdministrativeAcademyAccountCurrentActionData;
   loaderData: AccountCurrentLoaderData;
+  selectableChoreographyRows?: boolean;
 };
 
 export function AdministracionAcademiaCuentaCorrienteRouteView({
-  actionData,
   loaderData,
+  selectableChoreographyRows = true,
 }: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
-  const values = actionData?.values ?? defaultAccountCurrentActionValues();
-  const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
-  const pendingInvoices = [
-    ...loaderData.activeDepositInvoices,
-    ...loaderData.activeBalanceInvoices,
-  ].filter((invoice) => invoice.pendingAmount > 0);
-  const shouldShowPaymentForm =
-    loaderData.canRegisterPayments &&
-    (isPaymentFormOpen || hasPaymentActionErrors(actionData));
-
-  useServerActionToast(actionData?.status === "error" ? actionData : null);
-
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Cuenta corriente"
-      description="Revisá la cuenta corriente, emití facturas y registrá pagos para una academia."
-      headerAction={
-        loaderData.canRegisterPayments ? (
-          <AccountCurrentActionsMenu
-            onRegisterPayment={() => setIsPaymentFormOpen(true)}
-          />
-        ) : null
-      }
+      description="Revisá la cuenta corriente y las facturas de una academia."
       eventRequiredEmptyState={{
-        title: "Elegí un evento activo para revisar pagos",
+        title: "Elegí un evento activo para revisar la cuenta corriente",
         description:
-          "Activá un evento para registrar pagos y consultar la cuenta corriente de la academia.",
+          "Activá un evento para consultar la cuenta corriente de la academia.",
       }}
     >
       <div className="flex flex-col gap-6">
@@ -124,7 +84,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por nombre"
-          selectableRows
+          selectableRows={selectableChoreographyRows}
           textFilterColumnId="name"
           initialSort={{
             columnId: "name",
@@ -139,39 +99,6 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
         <ActiveBalanceInvoicesTable
           invoices={loaderData.activeBalanceInvoices}
         />
-
-        {loaderData.canCorrectRecords ? (
-          <CorrectionActionsForm
-            invoices={loaderData.activeDepositInvoices.filter(
-              (invoice) => invoice.imputedAmount === 0,
-            )}
-            imputations={loaderData.imputations}
-            payments={loaderData.payments.filter(
-              (payment) => payment.imputedAmount === 0,
-            )}
-            values={values.correction}
-          />
-        ) : null}
-
-        {loaderData.canImputePayments &&
-        loaderData.payments.some((payment) => payment.availableAmount > 0) &&
-        pendingInvoices.length > 0 ? (
-          <PaymentImputationForm
-            invoices={pendingInvoices}
-            payments={loaderData.payments.filter(
-              (payment) => payment.availableAmount > 0,
-            )}
-            values={values.imputation}
-          />
-        ) : null}
-
-        {shouldShowPaymentForm ? <PaymentForm values={values.payment} /> : null}
-
-        <ActivePaymentsTable payments={loaderData.payments} />
-
-        <ActiveImputationsTable imputations={loaderData.imputations} />
-
-        <MovementsTable movements={loaderData.movements} />
       </div>
     </AdminResourceLayout>
   );
@@ -241,29 +168,4 @@ function getFinancialStateBadgeVariant(
     case "pagada":
       return "success";
   }
-}
-
-function AccountCurrentActionsMenu({
-  onRegisterPayment,
-}: {
-  onRegisterPayment: () => void;
-}) {
-  return (
-    <ResourceActionsMenu contentClassName="w-60">
-      <DropdownMenuGroup>
-        <DropdownMenuItem onSelect={onRegisterPayment}>
-          Registrar pago
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-    </ResourceActionsMenu>
-  );
-}
-
-function hasPaymentActionErrors(
-  actionData?: AdministrativeAcademyAccountCurrentActionData,
-) {
-  return (
-    actionData?.status === "error" &&
-    paymentFieldNames.some((fieldName) => fieldName in actionData.fieldErrors)
-  );
 }

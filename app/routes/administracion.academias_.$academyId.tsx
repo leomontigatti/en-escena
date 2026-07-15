@@ -1,5 +1,3 @@
-import { useActionData } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeAcademyAccountCurrentAction,
@@ -10,10 +8,8 @@ import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView }
 import type { Route } from "./+types/administracion.academias_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
-type ActionData = Awaited<ReturnType<typeof action>>;
 
 type AdministracionAcademiaCuentaCorrienteRouteProps = {
-  actionData?: ActionData;
   loaderData: LoaderData;
 };
 
@@ -43,26 +39,15 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export function AdministracionAcademiaCuentaCorrienteRouteView({
-  actionData: actionDataOverride,
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteProps) {
-  return (
-    <CuentaCorrienteView
-      actionData={actionDataOverride}
-      loaderData={loaderData}
-    />
-  );
+  return <CuentaCorrienteView loaderData={loaderData} />;
 }
 
 export default function AdministracionAcademiaCuentaCorrienteRoute({
   loaderData,
 }: AdministracionAcademiaCuentaCorrienteRouteProps) {
-  const actionData = useActionData<typeof action>();
-
   return (
-    <AdministracionAcademiaCuentaCorrienteRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <AdministracionAcademiaCuentaCorrienteRouteView loaderData={loaderData} />
   );
 }

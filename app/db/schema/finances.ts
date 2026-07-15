@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  pgEnum,
   text,
   timestamp,
   uniqueIndex,
@@ -11,12 +12,20 @@ import {
 import { academies } from "./academies";
 import { user } from "./access";
 import { choreographies } from "./choreographies";
-import {
-  choreographyInvoiceType,
-  createTable,
-  financePaymentMethod,
-} from "./core";
+import { createTable } from "./core";
 import { events, prices } from "./events";
+
+export const invoiceType = pgEnum("en_escena_choreography_invoice_type", [
+  "sena",
+  "saldo",
+]);
+
+export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
+  "transferencia",
+  "efectivo",
+  "mercado_pago",
+  "otro",
+]);
 
 export const eventFinancialSequences = createTable(
   "event_financial_sequence",
@@ -61,7 +70,7 @@ export const academyEventPayments = createTable(
     paymentNumber: integer("payment_number").notNull(),
     paymentDate: text("payment_date").notNull(),
     amount: integer("amount").notNull(),
-    paymentMethod: financePaymentMethod("payment_method").notNull(),
+    paymentMethod: paymentMethod("payment_method").notNull(),
     reference: text("reference"),
     internalNote: text("internal_note"),
     annulledAt: timestamp("annulled_at", {
@@ -118,7 +127,7 @@ export const academyEventChoreographyInvoices = createTable(
       .notNull()
       .references(() => choreographies.id),
     invoiceNumber: integer("invoice_number").notNull(),
-    invoiceType: choreographyInvoiceType("invoice_type").notNull(),
+    invoiceType: invoiceType("invoice_type").notNull(),
     issueDate: text("issue_date").notNull(),
     basePriceAmount: integer("base_price_amount").notNull(),
     selectedPriceId: varchar("selected_price_id", { length: 255 }).references(
