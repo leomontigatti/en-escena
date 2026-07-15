@@ -11,13 +11,18 @@ import {
 
 import { academies } from "./academies";
 import { user } from "./access";
-import { choreographies } from "./choreographies";
+import { choreographies, choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
 import { events, prices } from "./events";
 
 export const invoiceType = pgEnum("en_escena_choreography_invoice_type", [
   "sena",
   "saldo",
+]);
+
+export const allocationType = pgEnum("en_escena_payment_allocation_type", [
+  "deposit",
+  "balance",
 ]);
 
 export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
@@ -254,6 +259,62 @@ export const academyEventInvoiceImputations = createTable(
     ),
     index("academy_event_invoice_imputation_invoice_idx").on(
       table.invoiceId,
+      table.createdAt,
+    ),
+  ],
+).enableRLS();
+
+export const paymentAllocations = createTable(
+  "payment_allocation",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    paymentId: varchar("payment_id", { length: 255 })
+      .notNull()
+      .references(() => academyEventPayments.id),
+    inscriptionId: varchar("inscription_id", { length: 255 })
+      .notNull()
+      .references(() => choreographyDancers.id, { onDelete: "cascade" }),
+    academyId: varchar("academy_id", { length: 255 })
+      .notNull()
+      .references(() => academies.id, { onDelete: "cascade" }),
+    eventId: varchar("event_id", { length: 255 })
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    allocationType: allocationType("allocation_type").notNull(),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("payment_allocation_payment_inscription_type_unique").on(
+      table.paymentId,
+      table.inscriptionId,
+      table.allocationType,
+    ),
+    index("payment_allocation_inscription_idx").on(
+      table.inscriptionId,
+      table.createdAt,
+    ),
+    index("payment_allocation_payment_idx").on(
+      table.paymentId,
+      table.createdAt,
+    ),
+    index("payment_allocation_event_academy_idx").on(
+      table.eventId,
+      table.academyId,
       table.createdAt,
     ),
   ],
