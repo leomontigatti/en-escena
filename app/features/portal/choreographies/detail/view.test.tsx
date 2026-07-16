@@ -4,8 +4,8 @@ import { describe, expect, test } from "vitest";
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import type { PortalEventContext } from "@/lib/portal/event-context";
-import type { ChoreographyDancerScheduleResolution } from "@/lib/portal/choreography-roster.shared";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
+import type { ChoreographyDancerScheduleResolution } from "@/lib/choreographies/choreography-roster.shared";
+import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
 type ChoreographyDetailViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView

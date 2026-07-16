@@ -1,7 +1,7 @@
 import { type Control } from "react-hook-form";
 
 import { SelectField } from "@/components/shared/select-field";
-import type { ChoreographyEditValues } from "@/features/portal/choreographies/detail/roster-editor.shared";
+import type { ChoreographyEditValues } from "@/lib/choreographies/roster-editor.shared";
 
 export function ChoreographySelectPreviewField({
   control,

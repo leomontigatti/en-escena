@@ -42,8 +42,8 @@ import {
   type ChoreographyRosterEditorResolutionActionData,
   type DancerResolutionState,
   updateChoreographyIntent,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/roster-editor.shared";
+import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
 type ChoreographySummary = ChoreographyRosterEditorLoaderData["choreography"];
 type ChoreographyEditForm = UseFormReturn<ChoreographyEditValues>;

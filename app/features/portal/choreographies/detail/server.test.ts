@@ -26,7 +26,7 @@ vi.mock("@/lib/portal/choreography-music.server", () => ({
   updateChoreographyMusic,
 }));
 
-vi.mock("@/lib/portal/choreography-roster.server", () => ({
+vi.mock("@/lib/choreographies/choreography-roster.server", () => ({
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
   resolveChoreographyDancers,

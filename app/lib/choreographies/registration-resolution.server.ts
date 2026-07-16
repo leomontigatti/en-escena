@@ -367,7 +367,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
   };
 }
 
-function deriveGroupType(dancerCount: number): GroupType {
+export function deriveGroupType(dancerCount: number): GroupType {
   if (dancerCount === 1) {
     return "solo";
   }

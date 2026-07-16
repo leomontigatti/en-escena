@@ -20,7 +20,7 @@ import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
   getDancerEditingEligibility,
   type DancerEditingEligibility,
-} from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/choreography-roster.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type ChoreographyDetail = ChoreographyListItem & {
@@ -227,7 +227,7 @@ export {
   updateChoreography,
   updateChoreographyDancers,
   updateChoreographyProfessors,
-} from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/choreography-roster.server";
 export type {
   ChoreographyCategoryCalculationMode,
   ChoreographyDancerOption,
@@ -239,7 +239,7 @@ export type {
   UpdateChoreographyDancersResult,
   UpdateChoreographyProfessorsResult,
   UpdateChoreographyResult,
-} from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/choreography-roster.server";
 
 export async function deleteChoreography(input: {
   academyId: string;

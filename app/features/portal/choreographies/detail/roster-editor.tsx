@@ -10,4 +10,4 @@ export {
   updateChoreographyIntent,
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
+} from "@/lib/choreographies/roster-editor.shared";

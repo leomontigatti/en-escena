@@ -24,7 +24,7 @@ import {
   type ChoreographyRosterEditorActionData,
   type ChoreographyRosterEditorLoaderData,
   updateChoreographyIntent,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
+} from "@/lib/choreographies/roster-editor.shared";
 import { useChoreographyRosterEditorForm } from "@/features/portal/choreographies/detail/use-choreography-roster-editor-form";
 
 export function ChoreographyRosterEditorForm({

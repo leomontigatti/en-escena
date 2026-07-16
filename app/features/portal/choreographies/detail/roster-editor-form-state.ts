@@ -3,9 +3,9 @@ import type {
   ChoreographyRosterEditorActionData,
   ChoreographyRosterEditorLoaderData,
   DancerResolutionState,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
+} from "@/lib/choreographies/roster-editor.shared";
 import { formatScheduleOptionDateTime } from "@/features/portal/choreographies/detail/roster-editor-options";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
 type ChoreographySummary = ChoreographyRosterEditorLoaderData["choreography"];
 

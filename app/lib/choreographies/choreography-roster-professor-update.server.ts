@@ -5,11 +5,11 @@ import { choreographyProfessors, professors } from "@/db/schema";
 import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
-} from "@/lib/portal/choreography-access.server";
+} from "@/lib/choreographies/choreography-access.server";
 import {
   invalidProfessorSelectionMessage,
   type UpdateChoreographyProfessorsResult,
-} from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster.shared";
 
 export async function updateChoreographyProfessors(input: {
   academyId: string;

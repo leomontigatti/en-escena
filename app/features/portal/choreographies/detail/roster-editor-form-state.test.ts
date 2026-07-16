@@ -6,7 +6,7 @@ import {
   getResolvedRosterFieldState,
   shouldResolveRosterSelection,
 } from "@/features/portal/choreographies/detail/roster-editor-form-state";
-import type { DancerResolutionState } from "@/features/portal/choreographies/detail/roster-editor.shared";
+import type { DancerResolutionState } from "@/lib/choreographies/roster-editor.shared";
 
 describe("roster editor form state", () => {
   test("allows professor-only changes without requiring roster resolution", () => {

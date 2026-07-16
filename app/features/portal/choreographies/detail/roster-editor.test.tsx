@@ -17,7 +17,7 @@ import { PortalChoreographyDetailRouteView } from "@/features/portal/choreograph
 import {
   choreographyMusicUploadErrorMessage,
   choreographyMusicUploadErrorToastId,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
+} from "@/lib/choreographies/roster-editor.shared";
 
 type PortalChoreographyDetailRouteViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView

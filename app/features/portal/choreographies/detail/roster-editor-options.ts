@@ -1,4 +1,4 @@
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
 export function getSelectableScheduleOptions(
   scheduleResolution:
