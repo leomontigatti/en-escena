@@ -213,3 +213,13 @@ export function getResolvedChoreographyCategory(
 export function getGlobalScheduleCapacityOptionId(scheduleId: string) {
   return `schedule:${scheduleId}:global`;
 }
+
+export function haveSameIds(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftSet = new Set(left);
+
+  return right.every((id) => leftSet.has(id));
+}

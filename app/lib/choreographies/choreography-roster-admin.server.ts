@@ -14,6 +14,7 @@ import {
 import {
   getDancerEditingEligibility,
   getResolvedChoreographyCategory,
+  haveSameIds,
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
@@ -240,14 +241,4 @@ async function readRosterHardLock(
   });
 
   return eligibility.canEdit ? null : eligibility.reasonText;
-}
-
-function haveSameIds(left: string[], right: string[]) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  const leftSet = new Set(left);
-
-  return right.every((id) => leftSet.has(id));
 }
