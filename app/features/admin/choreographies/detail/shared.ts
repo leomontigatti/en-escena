@@ -2,6 +2,8 @@ import type { FieldErrors } from "@/lib/shared/form-validation";
 
 export const renameAdministrativeChoreographyIntent = "rename-choreography";
 export const deleteAdministrativeChoreographyIntent = "delete-choreography";
+export const resolveAdministrativeChoreographyRosterIntent = "resolve-roster";
+export const updateAdministrativeChoreographyRosterIntent = "update-roster";
 
 export const administrativeChoreographyNotFoundMessage =
   "No encontramos esa coreografía.";
@@ -18,6 +20,16 @@ export type AdministrativeChoreographyActionData = {
   values: {
     name: string;
   };
+};
+
+export type AdministrativeChoreographyRosterErrorData = {
+  fieldErrors?: {
+    experienceLevelId?: string;
+    scheduleCapacityId?: string;
+  };
+  message: string;
+  section: "dancers" | "professors";
+  status: "roster-error";
 };
 
 export type AdministrativeChoreographyDeleteBlockerCode =
