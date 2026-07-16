@@ -86,16 +86,18 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     expect(loaderData.choreography).toMatchObject({
       depositAmount: { amount: 3000, status: "complete" },
+      // El saldo tentativo se muestra desde impaga: no es 0, es lo que va a
+      // quedar por pagar después de la seña.
+      balanceAmount: { amount: 7000, status: "complete" },
       depositCompletedOn: null,
       financialState: "impaga",
       needsAttention: false,
-      owedAmount: { amount: 3000, status: "complete" },
       paidAmount: 0,
     });
     expect(loaderData.inscriptions).toEqual([
       {
         basePriceAmount: 10000,
-        balanceAmount: 0,
+        balanceAmount: 7000,
         dancerId: dancer.id,
         depositAmount: 3000,
         discountAmount: 0,
@@ -168,10 +170,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     expect(loaderData.choreography).toMatchObject({
       depositAmount: { amount: 3000, status: "complete" },
+      balanceAmount: { amount: 7000, status: "complete" },
       depositCompletedOn: "2026-03-21",
       financialState: "señada",
       needsAttention: false,
-      owedAmount: { amount: 7000, status: "complete" },
       paidAmount: 3000,
     });
     expect(loaderData.inscriptions).toEqual([
@@ -189,7 +191,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     ]);
   });
 
-  test("derives pagada state and zero saldo from a balance snapshot", async () => {
+  test("derives pagada state and a frozen saldo from a balance snapshot", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
       await createAccountCurrentChoreographyFixture({
@@ -266,7 +268,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     expect(loaderData.choreography).toMatchObject({
       financialState: "pagada",
-      owedAmount: { amount: 0, status: "complete" },
+      // El saldo congelado se sigue mostrando aunque ya esté pagado.
+      balanceAmount: { amount: 7000, status: "complete" },
       paidAmount: 10000,
     });
   });
@@ -319,7 +322,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         missingPriceCount: 1,
         status: "incomplete",
       },
-      owedAmount: {
+      balanceAmount: {
         amount: 0,
         missingPriceCount: 1,
         status: "incomplete",
@@ -328,7 +331,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     expect(loaderData.inscriptions).toEqual([
       {
         basePriceAmount: null,
-        balanceAmount: 0,
+        balanceAmount: null,
         dancerId: dancer.id,
         depositAmount: null,
         discountAmount: 0,

@@ -34,20 +34,24 @@ export type InscriptionSnapshot = {
 };
 
 /**
- * A fully resolved inscription: prices are already resolved by the reader
- * (frozen for `señada`/`pagada`, precio tentativo vigente for `impaga`).
+ * Una inscripción con sus importes ya resueltos por el reader. Los tres se
+ * fijan de forma escalonada: precio base y seña al pagar la seña; saldo recién
+ * al pagar el saldo, porque el `Descuento por bailarín` depende del roster
+ * hasta ese momento. Antes de fijarse son tentativos, no ausentes: se calculan
+ * y se muestran igual.
  */
 export type ResolvedInscription = {
   id: string;
   choreographyId: string;
   dancerId: string;
   state: InscriptionFinancialState;
-  // Precio base de la inscripción. `null` sólo para `impaga` sin precio vigente.
+  // Precio base. Tentativo para `impaga`; `null` sólo si no hay precio vigente.
   basePriceAmount: number | null;
-  // Seña de la inscripción. `null` sólo para `impaga` sin precio vigente.
+  // Seña. Tentativa para `impaga`; `null` sólo si no hay precio vigente.
   depositAmount: number | null;
-  // Saldo pendiente estimado de una inscripción `señada` (0 para el resto).
-  balancePendingAmount: number;
+  // Saldo (`precio base − seña − descuento`). Tentativo para `impaga` y
+  // `señada`; `null` sólo si no hay precio vigente.
+  balanceAmount: number | null;
   // `Descuento por bailarín` (estimado para `señada`, congelado para `pagada`).
   dancerDiscountAmount: number;
   // Precio final de la inscripción. `null` sólo para `impaga` sin precio.
@@ -67,15 +71,19 @@ export type FinanceChoreographyRow = {
 };
 
 export type ChoreographyOperationalFinanceRow = {
+  // Sumatorias sobre todas las inscripciones, tentativas o fijas.
   basePriceAmount: OperationalFinanceAmount;
   depositAmount: OperationalFinanceAmount;
+  balanceAmount: OperationalFinanceAmount;
   depositCompletedOn: string | null;
   financialState: ChoreographyFinancialState;
   needsAttention: boolean;
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
-  owedAmount: OperationalFinanceAmount;
+  // Deuda por etapa, disjunta: una `impaga` adeuda seña, una `señada` adeuda
+  // saldo, una `pagada` no adeuda nada. Cada inscripción cuenta una sola vez.
+  owedBalanceAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
   paidAmount: number;
   registrationCount: number;
@@ -214,9 +222,11 @@ export function buildChoreographyOperationalFinanceRow(input: {
   let baseMissingPriceCount = 0;
   let totalDeposit = 0;
   let depositMissingPriceCount = 0;
+  let totalBalance = 0;
+  let balanceMissingPriceCount = 0;
   let paidAmount = 0;
-  let grossOwedAmount = 0;
-  let owedMissingPriceCount = 0;
+  let owedBalanceAmount = 0;
+  let owedBalanceMissingPriceCount = 0;
   let owedDepositAmount = 0;
   let owedDepositMissingPriceCount = 0;
   let depositCompletedOn: string | null = null;
@@ -236,6 +246,12 @@ export function buildChoreographyOperationalFinanceRow(input: {
       totalDeposit += inscription.depositAmount;
     }
 
+    if (inscription.balanceAmount === null) {
+      balanceMissingPriceCount++;
+    } else {
+      totalBalance += inscription.balanceAmount;
+    }
+
     if (inscription.state !== "impaga" && inscription.depositReferenceDate) {
       depositCompletedOn = laterDate(
         depositCompletedOn,
@@ -245,14 +261,16 @@ export function buildChoreographyOperationalFinanceRow(input: {
 
     if (inscription.state === "impaga") {
       if (inscription.depositAmount === null) {
-        owedMissingPriceCount++;
         owedDepositMissingPriceCount++;
       } else {
-        grossOwedAmount += inscription.depositAmount;
         owedDepositAmount += inscription.depositAmount;
       }
     } else if (inscription.state === "señada") {
-      grossOwedAmount += inscription.balancePendingAmount;
+      if (inscription.balanceAmount === null) {
+        owedBalanceMissingPriceCount++;
+      } else {
+        owedBalanceAmount += inscription.balanceAmount;
+      }
     }
   }
 
@@ -265,15 +283,19 @@ export function buildChoreographyOperationalFinanceRow(input: {
       amount: totalDeposit,
       missingPriceCount: depositMissingPriceCount,
     }),
+    balanceAmount: buildOperationalFinanceAmount({
+      amount: totalBalance,
+      missingPriceCount: balanceMissingPriceCount,
+    }),
     depositCompletedOn,
     financialState: deriveChoreographyFinancialState(states),
     needsAttention: deriveChoreographyNeedsAttention(states),
     groupType: input.choreography.groupType,
     id: input.choreography.id,
     name: input.choreography.name,
-    owedAmount: buildOperationalFinanceAmount({
-      amount: grossOwedAmount,
-      missingPriceCount: owedMissingPriceCount,
+    owedBalanceAmount: buildOperationalFinanceAmount({
+      amount: owedBalanceAmount,
+      missingPriceCount: owedBalanceMissingPriceCount,
     }),
     owedDepositAmount: buildOperationalFinanceAmount({
       amount: owedDepositAmount,
@@ -284,6 +306,10 @@ export function buildChoreographyOperationalFinanceRow(input: {
   };
 }
 
+/**
+ * `Seña adeudada` y `Saldo adeudado` de una academia. Ambas son brutas: no
+ * descuentan `Saldo disponible`, que se muestra al lado como su propia métrica.
+ */
 export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   availableBalanceAmount: number;
   choreographyFinanceRows: ChoreographyOperationalFinanceRow[];
@@ -292,23 +318,14 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   const owedDepositAmount = sumOperationalFinanceAmounts(
     input.choreographyFinanceRows.map((row) => row.owedDepositAmount),
   );
-  const grossOwedAmount = sumOperationalFinanceAmounts(
-    input.choreographyFinanceRows.map((row) => row.owedAmount),
+  const owedBalanceAmount = sumOperationalFinanceAmounts(
+    input.choreographyFinanceRows.map((row) => row.owedBalanceAmount),
   );
 
   return {
     availableBalanceAmount: input.availableBalanceAmount,
-    owedAmount: buildOperationalFinanceAmount({
-      amount: Math.max(
-        0,
-        grossOwedAmount.amount - input.availableBalanceAmount,
-      ),
-      missingPriceCount: grossOwedAmount.missingPriceCount,
-    }),
-    owedDepositAmount: buildOperationalFinanceAmount({
-      amount: owedDepositAmount.amount,
-      missingPriceCount: owedDepositAmount.missingPriceCount,
-    }),
+    owedBalanceAmount: buildOperationalFinanceAmount(owedBalanceAmount),
+    owedDepositAmount: buildOperationalFinanceAmount(owedDepositAmount),
     totalPaidAmount: input.totalPaidAmount,
   };
 }
@@ -372,6 +389,21 @@ export function calculateDepositAmount(input: {
   percentage: number;
 }) {
   return Math.round((input.amount * input.percentage) / 100);
+}
+
+/**
+ * `saldo = precio base − seña − descuentos`. Los insumos cambian con el estado
+ * (tentativos para `impaga`, congelados para `pagada`); la fórmula no.
+ */
+export function calculateBalanceAmount(input: {
+  baseAmount: number;
+  depositAmount: number;
+  discountAmount: number;
+}) {
+  return Math.max(
+    0,
+    input.baseAmount - input.depositAmount - input.discountAmount,
+  );
 }
 
 function buildOperationalFinanceAmount(input: {

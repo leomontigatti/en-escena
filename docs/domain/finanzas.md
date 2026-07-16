@@ -248,9 +248,36 @@ rol**.
   evento y por defecto es 30%. Cambiarlo no es retroactivo: cada inscripción
   congela el porcentaje vigente al asignar la seña.
 - El saldo se calcula por inscripción. Fórmula base:
-  `saldo de inscripción = precio congelado - seña asignada - descuentos
-aplicables a esa inscripción`. El saldo total de una coreografía es la suma de
-  los saldos de sus inscripciones activas.
+  `saldo de inscripción = precio base - seña - descuentos aplicables a esa
+inscripción`. El saldo total de una coreografía es la suma de los saldos de sus
+  inscripciones activas.
+
+### Importes tentativos y fijos
+
+Los tres importes de una inscripción — precio base, seña y saldo — **siempre
+tienen valor y siempre se muestran**. Lo que cambia con el estado es si ese
+valor todavía puede moverse. Un importe tentativo no es un importe ausente:
+sirve de referencia para administración y para la academia desde el primer día.
+
+Se fijan de forma **escalonada**, no todos juntos:
+
+| Estado   | Precio base | Seña      | Saldo     |
+| -------- | ----------- | --------- | --------- |
+| `impaga` | tentativo   | tentativo | tentativo |
+| `señada` | fijo        | fijo      | tentativo |
+| `pagada` | fijo        | fijo      | fijo      |
+
+- Mientras la inscripción está `impaga`, los tres siguen el precio tentativo
+  vigente: si cambia la fila de precio aplicable, cambian los tres.
+- Pagar la seña congela precio base y seña (ver "Snapshots").
+- El saldo de una inscripción `señada` **sigue siendo tentativo**: el `Descuento
+por bailarín` recién se congela al asignar el saldo, así que hasta ese momento
+  un cambio de roster puede moverlo (ver "Descuentos"). Este es el único estado
+  donde los importes de una misma inscripción están mezclados.
+- Una inscripción `impaga` no computa para el `Descuento por bailarín`, así que
+  su saldo tentativo es la resta simple `precio base − seña`.
+- La UI muestra los importes tentativos en texto atenuado, **por celda y no por
+  fila**, justamente porque `señada` los mezcla.
 
 ## Descuentos
 
@@ -282,19 +309,51 @@ bailarín`, que se calcula automáticamente y vive por inscripción.
 
 ## Importes agregados
 
+### Por coreografía
+
+Las tres métricas de una coreografía son **sumatorias directas de sus
+inscripciones activas**, tentativas o fijas:
+
+- `Seña` es la suma de las señas de sus inscripciones.
+- `Saldo` es la suma de los saldos de sus inscripciones.
+- `Pagado` es la suma de las asignaciones de pago de sus inscripciones.
+
+`Pagado` **no tiene por qué coincidir** con `Seña` ni con `Saldo`: coincide con
+`Seña` cuando la coreografía está señada y el roster no cambió desde entonces, y
+diverge apenas se agrega o se quita una inscripción después de pagar una etapa.
+Esa divergencia es información, no un error de cálculo.
+
+### Por academia
+
 - `Saldo disponible` es el total de pagos activos menos el total de asignaciones
   de pago activas.
-- `Seña adeudada` es la suma de señas pendientes de inscripciones activas
-  `impagas`, usando precio tentativo vigente. No descuenta `Saldo disponible`.
-- `Saldo adeudado` suma señas pendientes de inscripciones activas `impagas` y
-  saldos pendientes de inscripciones activas `señadas`, descuenta `Saldo
-disponible` y nunca baja de cero.
-- Las inscripciones `pagadas` no aportan a `Saldo adeudado`.
-- El Portal de academias y el Panel de administración usan el mismo cálculo de
-  `Saldo adeudado`, y los importes primarios son `Seña adeudada`, `Saldo
-disponible` y `Saldo adeudado`.
-- El Portal de academias es de solo lectura en V1: las academias no inician
-  pagos ni suben comprobantes.
+- `Seña adeudada` es la suma de las señas de las inscripciones activas
+  `impagas`, a precio tentativo vigente.
+- `Saldo adeudado` es la suma de los saldos de las inscripciones activas
+  `señadas`.
+
+Dos reglas gobiernan ambas:
+
+- **Se agregan por inscripción, nunca por coreografía.** El estado de una
+  coreografía es una marca de agua derivada (ver "Estado financiero de
+  coreografía"): agregar sobre él perdería las inscripciones `impagas` que viven
+  dentro de una coreografía ya `señada` por un cambio de roster.
+- **Son brutas**: ninguna descuenta `Saldo disponible`, que se muestra al lado
+  como su propia métrica.
+
+La partición es disjunta y exhaustiva — cada inscripción activa aporta a
+**exactamente una** de las dos, o a ninguna:
+
+| Estado   | Aporta a         |
+| -------- | ---------------- |
+| `impaga` | `Seña adeudada`  |
+| `señada` | `Saldo adeudado` |
+| `pagada` | ninguna          |
+
+El Portal de academias y el Panel de administración usan el mismo cálculo, y los
+importes primarios de ambos son `Seña adeudada`, `Saldo disponible` y `Saldo
+adeudado`. El Portal de academias es de solo lectura en V1: las academias no
+inician pagos ni suben comprobantes.
 
 ## Snapshots
 

@@ -53,6 +53,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import { cn } from "@/lib/shared/utils";
 
 import {
   formatAmount,
@@ -81,6 +82,22 @@ const stageBadge: Record<
   impaga: { label: "Impaga", variant: "secondary" },
   señada: { label: "Señada", variant: "info" },
   pagada: { label: "Pagada", variant: "success" },
+};
+
+type InscriptionAmountColumn = "basePrice" | "deposit" | "balance";
+
+/**
+ * Importes todavía sujetos a cambio, por estado. El precio base y la seña se
+ * fijan al pagar la seña; el saldo recién al pagar el saldo, porque hasta ese
+ * momento el `Descuento por bailarín` sigue el roster.
+ */
+const tentativeColumnsByState: Record<
+  InscriptionRow["state"],
+  ReadonlySet<InscriptionAmountColumn>
+> = {
+  impaga: new Set<InscriptionAmountColumn>(["basePrice", "deposit", "balance"]),
+  señada: new Set<InscriptionAmountColumn>(["balance"]),
+  pagada: new Set<InscriptionAmountColumn>(),
 };
 
 export function AdministracionCoreografiaFinancieraDetalleView({
@@ -124,7 +141,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
             <MetricCard
               icon={Landmark}
               title="Saldo"
-              value={formatOperationalAmount(choreography.owedAmount)}
+              value={formatOperationalAmount(choreography.balanceAmount)}
             />
           </section>
 
@@ -357,6 +374,7 @@ function InscriptionsTable({
             {inscriptions.length > 0 ? (
               inscriptions.map((inscription) => {
                 const badge = stageBadge[inscription.state];
+                const tentative = tentativeColumnsByState[inscription.state];
 
                 return (
                   <TableRow key={inscription.dancerId}>
@@ -366,14 +384,22 @@ function InscriptionsTable({
                     <TableCell>
                       <Badge variant={badge.variant}>{badge.label}</Badge>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className={amountCellClassName(
+                        tentative.has("basePrice"),
+                      )}
+                    >
                       {formatInscriptionAmount(inscription.basePriceAmount)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell
+                      className={amountCellClassName(tentative.has("deposit"))}
+                    >
                       {formatInscriptionAmount(inscription.depositAmount)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatAmount(inscription.balanceAmount)}
+                    <TableCell
+                      className={amountCellClassName(tentative.has("balance"))}
+                    >
+                      {formatInscriptionAmount(inscription.balanceAmount)}
                     </TableCell>
                   </TableRow>
                 );
@@ -438,6 +464,10 @@ function eligiblePayments(payments: PaymentRow[], total: number) {
 
 function formatDancerName(input: { firstName: string; lastName: string }) {
   return `${input.firstName} ${input.lastName}`;
+}
+
+function amountCellClassName(isTentative: boolean) {
+  return cn("text-right tabular-nums", isTentative && "text-muted-foreground");
 }
 
 function formatInscriptionAmount(amount: number | null) {

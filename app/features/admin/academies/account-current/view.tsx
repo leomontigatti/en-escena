@@ -70,7 +70,9 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           <MetricCard
             title="Saldo adeudado"
             icon={Landmark}
-            value={formatOperationalAmount(loaderData.summary.owedAmount)}
+            value={formatOperationalAmount(
+              loaderData.summary.owedBalanceAmount,
+            )}
           />
         </section>
 
@@ -126,12 +128,12 @@ function buildChoreographyFinanceColumns(
       cell: (row) => formatOperationalAmount(row.depositAmount),
     },
     {
-      id: "owedAmount",
+      id: "balanceAmount",
       header: "Saldo",
       className: "text-right tabular-nums",
       headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.owedAmount),
-      sortValue: (row) => row.owedAmount.amount,
+      cell: (row) => formatOperationalAmount(row.balanceAmount),
+      sortValue: (row) => row.balanceAmount.amount,
     },
     {
       id: "financialState",

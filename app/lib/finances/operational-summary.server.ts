@@ -17,6 +17,7 @@ import {
 import {
   buildChoreographyOperationalFinanceRow,
   buildOperationalFinanceSummaryFromChoreographyRows,
+  calculateBalanceAmount,
   calculateDepositAmount,
   type ChoreographyGroupType,
   type ChoreographyOperationalFinanceRow,
@@ -408,20 +409,28 @@ function resolveInscription(input: {
         ...base,
         basePriceAmount: null,
         depositAmount: null,
-        balancePendingAmount: 0,
+        balanceAmount: null,
         dancerDiscountAmount: 0,
         finalPriceAmount: null,
       };
     }
 
+    // Una inscripción `impaga` no computa para el `Descuento por bailarín`, así
+    // que su saldo tentativo es la resta simple contra el precio vigente.
+    const depositAmount = calculateDepositAmount({
+      amount: estimated.amount,
+      percentage: input.requiredDepositPercentage,
+    });
+
     return {
       ...base,
       basePriceAmount: estimated.amount,
-      depositAmount: calculateDepositAmount({
-        amount: estimated.amount,
-        percentage: input.requiredDepositPercentage,
+      depositAmount,
+      balanceAmount: calculateBalanceAmount({
+        baseAmount: estimated.amount,
+        depositAmount,
+        discountAmount: 0,
       }),
-      balancePendingAmount: 0,
       dancerDiscountAmount: 0,
       finalPriceAmount: estimated.amount,
     };
@@ -438,25 +447,34 @@ function resolveInscription(input: {
       ...base,
       basePriceAmount: frozenBasePriceAmount,
       depositAmount,
-      balancePendingAmount: Math.max(
-        0,
-        frozenBasePriceAmount - depositAmount - discount,
-      ),
+      balanceAmount: calculateBalanceAmount({
+        baseAmount: frozenBasePriceAmount,
+        depositAmount,
+        discountAmount: discount,
+      }),
       dancerDiscountAmount: discount,
       finalPriceAmount: frozenBasePriceAmount - discount,
     };
   }
 
   const frozenDiscount = input.inscription.appliedDancerDiscountAmount ?? 0;
+  const finalTotalAmount =
+    input.inscription.finalTotalAmount ??
+    frozenBasePriceAmount - frozenDiscount;
 
   return {
     ...base,
     basePriceAmount: frozenBasePriceAmount,
     depositAmount,
-    balancePendingAmount: 0,
+    // El descuento ya está descontado dentro de `finalTotalAmount`.
+    balanceAmount:
+      input.inscription.balanceAmount ??
+      calculateBalanceAmount({
+        baseAmount: finalTotalAmount,
+        depositAmount,
+        discountAmount: 0,
+      }),
     dancerDiscountAmount: frozenDiscount,
-    finalPriceAmount:
-      input.inscription.finalTotalAmount ??
-      frozenBasePriceAmount - frozenDiscount,
+    finalPriceAmount: finalTotalAmount,
   };
 }

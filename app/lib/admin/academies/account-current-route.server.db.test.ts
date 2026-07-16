@@ -189,14 +189,15 @@ describe.sequential("administracion academias cuenta corriente", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
+        balanceAmount: { amount: 8400, status: "complete" },
         financialState: "señada",
-        owedAmount: { amount: 8400, status: "complete" },
+        owedBalanceAmount: { amount: 8400, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },
       },
     ]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 0,
-      owedAmount: { amount: 8400, status: "complete" },
+      owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 0,
     });
@@ -312,16 +313,19 @@ describe.sequential("administracion academias cuenta corriente", () => {
       loaderData,
     });
 
-    // Each impaga inscription owes only its pending seña (30% of $10.000).
+    // Each impaga inscription owes only its pending seña (30% of $10.000), and
+    // shows the tentative saldo it will owe afterwards.
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
         name: "Aire",
-        owedAmount: { status: "complete", amount: 3000 },
+        balanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 0 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         name: "Tango",
-        owedAmount: { status: "complete", amount: 3000 },
+        balanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 0 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
@@ -417,7 +421,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     ).toEqual([25000, 8000]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 33000,
-      owedAmount: { status: "complete", amount: 0 },
+      owedBalanceAmount: { status: "complete", amount: 0 },
       owedDepositAmount: { status: "complete", amount: 0 },
       totalPaidAmount: 33000,
     });

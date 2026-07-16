@@ -182,12 +182,8 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 pagos - 15600 asignaciones = 1000 disponible.
         availableBalanceAmount: 1000,
-        // 3000 seña impaga + 8400 saldo señada - 1000 disponible = 10400.
-        owedAmount: {
-          amount: 10400,
-          missingPriceCount: 1,
-          status: "incomplete",
-        },
+        // 8400 saldo de la única señada, bruto: no descuenta el disponible.
+        owedBalanceAmount: { amount: 8400, status: "complete" },
         // 3000 seña impaga (currentPrice); missing price adds 1.
         owedDepositAmount: {
           amount: 3000,
@@ -201,11 +197,12 @@ describe.sequential(
         {
           id: missingPriceChoreography.id,
           financialState: "impaga",
-          owedAmount: {
+          balanceAmount: {
             amount: 0,
             missingPriceCount: 1,
             status: "incomplete",
           },
+          owedBalanceAmount: { amount: 0, status: "complete" },
           owedDepositAmount: {
             amount: 0,
             missingPriceCount: 1,
@@ -216,21 +213,25 @@ describe.sequential(
           id: currentPriceChoreography.id,
           basePriceAmount: { amount: 10000, status: "complete" },
           financialState: "impaga",
-          owedAmount: { amount: 3000, status: "complete" },
+          // Saldo tentativo: 10000 - 3000.
+          balanceAmount: { amount: 7000, status: "complete" },
+          owedBalanceAmount: { amount: 0, status: "complete" },
           owedDepositAmount: { amount: 3000, status: "complete" },
         },
         {
           id: paidSnapshotChoreography.id,
           basePriceAmount: { amount: 12000, status: "complete" },
           financialState: "pagada",
-          owedAmount: { amount: 0, status: "complete" },
+          balanceAmount: { amount: 8400, status: "complete" },
+          owedBalanceAmount: { amount: 0, status: "complete" },
           owedDepositAmount: { amount: 0, status: "complete" },
         },
         {
           id: pendingSnapshotChoreography.id,
           basePriceAmount: { amount: 12000, status: "complete" },
           financialState: "señada",
-          owedAmount: { amount: 8400, status: "complete" },
+          balanceAmount: { amount: 8400, status: "complete" },
+          owedBalanceAmount: { amount: 8400, status: "complete" },
           owedDepositAmount: { amount: 0, status: "complete" },
         },
       ]);
@@ -262,7 +263,7 @@ describe.sequential(
 
       expect(currentPriceDetail.choreography).toMatchObject({
         depositAmount: { amount: 3000, status: "complete" },
-        owedAmount: { amount: 3000, status: "complete" },
+        balanceAmount: { amount: 7000, status: "complete" },
         paidAmount: 0,
       });
       expect(currentPriceDetail.inscriptions).toEqual([
@@ -273,8 +274,8 @@ describe.sequential(
       ]);
       expect(pendingSnapshotDetail.choreography).toMatchObject({
         depositAmount: { amount: 3600, status: "complete" },
+        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-20",
-        owedAmount: { amount: 8400, status: "complete" },
         paidAmount: 3600,
       });
       expect(pendingSnapshotDetail.inscriptions).toEqual([
@@ -285,8 +286,8 @@ describe.sequential(
       ]);
       expect(paidSnapshotDetail.choreography).toMatchObject({
         depositAmount: { amount: 3600, status: "complete" },
+        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-20",
-        owedAmount: { amount: 0, status: "complete" },
         paidAmount: 12000,
       });
       expect(paidSnapshotDetail.inscriptions).toEqual([
@@ -301,7 +302,7 @@ describe.sequential(
           missingPriceCount: 1,
           status: "incomplete",
         },
-        owedAmount: {
+        balanceAmount: {
           amount: 0,
           missingPriceCount: 1,
           status: "incomplete",

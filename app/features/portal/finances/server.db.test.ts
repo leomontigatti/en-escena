@@ -204,7 +204,9 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
-      owedAmount: { status: "complete", amount: 0 },
+      // 7000 de saldo de la señada, bruto: los 12000 disponibles no se
+      // descuentan acá, se muestran en su propia métrica.
+      owedBalanceAmount: { status: "complete", amount: 7000 },
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
@@ -271,11 +273,9 @@ describe.sequential("loadPortalAcademyFinances", () => {
     );
 
     expect(loaderData.summary).toMatchObject({
-      owedAmount: {
-        amount: 0,
-        missingPriceCount: 1,
-        status: "incomplete",
-      },
+      // La inscripción sin precio es impaga: aporta a Seña adeudada, no a
+      // Saldo adeudado.
+      owedBalanceAmount: { amount: 0, status: "complete" },
       owedDepositAmount: {
         amount: 0,
         missingPriceCount: 1,
@@ -350,7 +350,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(portalLoaderData.summary).toEqual({
       availableBalanceAmount: 0,
-      owedAmount: { amount: 8400, status: "complete" },
+      owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 3600,
     });
@@ -360,9 +360,10 @@ describe.sequential("loadPortalAcademyFinances", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
+        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-21",
         financialState: "señada",
-        owedAmount: { amount: 8400, status: "complete" },
+        owedBalanceAmount: { amount: 8400, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },
       },
     ]);

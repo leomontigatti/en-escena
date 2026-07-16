@@ -300,23 +300,22 @@ describe.sequential("administracion finanzas", () => {
 
     expect(loaderData.selectedEventId).toBe(event.id);
     // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
-    // 3000 (impaga); saldo adeudado (7000 saldo señada + 3000 seña impaga) -
-    // 7000 disponible = 3000.
+    // 3000 (la impaga); saldo adeudado 7000 (la señada), bruto.
     // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
-    // saldo adeudado max(0, 3000 - 3000) = 0.
+    // saldo adeudado 0 porque no tiene inscripciones señadas.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
-        owedAmount: { status: "complete", amount: 3000 },
+        owedBalanceAmount: { status: "complete", amount: 7000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 3000,
-        owedAmount: { status: "complete", amount: 0 },
+        owedBalanceAmount: { status: "complete", amount: 0 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
@@ -382,11 +381,8 @@ describe.sequential("administracion finanzas", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        owedAmount: {
-          status: "incomplete",
-          amount: 0,
-          missingPriceCount: 1,
-        },
+        // La inscripción sin precio es impaga: sólo afecta Seña adeudada.
+        owedBalanceAmount: { status: "complete", amount: 0 },
         owedDepositAmount: {
           status: "incomplete",
           amount: 0,
@@ -394,7 +390,7 @@ describe.sequential("administracion finanzas", () => {
         },
       },
     ]);
-    expect(markup.match(/Pendiente/g)).toHaveLength(2);
+    expect(markup.match(/Pendiente/g)).toHaveLength(1);
   });
 
   test("lets admin create a payment from the payments form", async () => {

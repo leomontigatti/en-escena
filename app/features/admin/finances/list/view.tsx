@@ -55,11 +55,11 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     cell: (row) => formatAmount(row.availableBalanceAmount),
   },
   {
-    id: "owedAmount",
+    id: "owedBalanceAmount",
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedAmount),
+    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
   },
 ];
 

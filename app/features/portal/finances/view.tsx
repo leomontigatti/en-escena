@@ -67,7 +67,7 @@ export function PortalAcademyFinancesRouteView({
         <MetricCard
           title="Saldo adeudado"
           icon={Landmark}
-          value={formatOperationalAmount(loaderData.summary.owedAmount)}
+          value={formatOperationalAmount(loaderData.summary.owedBalanceAmount)}
         />
       </section>
 
@@ -183,7 +183,7 @@ function ChoreographyFinanceTable({
                   {formatOperationalAmount(row.depositAmount)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatOperationalAmount(row.owedAmount)}
+                  {formatOperationalAmount(row.balanceAmount)}
                 </TableCell>
                 <TableCell>
                   {formatChoreographyFinancialState(row.financialState)}

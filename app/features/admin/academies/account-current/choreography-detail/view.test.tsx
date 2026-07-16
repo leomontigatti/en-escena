@@ -5,53 +5,20 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
+import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+
+// El loader devuelve una unión: sin evento activo no hay coreografía. Las
+// fixtures modelan siempre la rama con evento.
+type ChoreographyFinanceDetailLoaderData = Extract<
+  Awaited<ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>>,
+  { selectedEventId: string }
+>;
+type InscriptionRow =
+  ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 
 describe("AdministracionCoreografiaFinancieraDetalleView", () => {
   test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <AdministracionCoreografiaFinancieraDetalleView
-          loaderData={{
-            academy: {
-              contactName: "Academia Centro",
-              id: "academy_1",
-              name: "Academia Centro",
-              phone: "11-5555-5555",
-            },
-            choreography: {
-              depositAmount: { amount: 3000, status: "complete" },
-              depositCompletedOn: "2026-03-21",
-              financialState: "señada",
-              groupType: "duo",
-              id: "choreography_1",
-              name: "Aire",
-              needsAttention: false,
-              owedAmount: { amount: 7000, status: "complete" },
-              paidAmount: 3000,
-            },
-            inscriptions: [
-              {
-                basePriceAmount: 10000,
-                balanceAmount: 7000,
-                dancerId: "dancer_1",
-                depositAmount: 3000,
-                discountAmount: 0,
-                finalPriceAmount: 10000,
-                firstName: "Ana",
-                lastName: "López",
-                state: "señada",
-              },
-            ],
-            payments: [],
-            canPayDeposit: false,
-            canPayBalance: false,
-            depositTotal: 3000,
-            balanceTotal: 7000,
-            selectedEventId: "event_1",
-          }}
-        />
-      </MemoryRouter>,
-    );
+    const markup = renderDetail();
 
     expect(markup).toContain("Detalle financiero");
     expect(markup).toContain("Estado");
@@ -67,4 +34,139 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Ana López");
     expect(markup).toContain("Volver");
   });
+
+  test("shows the saldo of an impaga inscription instead of zero", () => {
+    const markup = renderDetail({
+      inscriptions: [
+        inscriptionFixture({ state: "impaga", balanceAmount: 17500 }),
+      ],
+    });
+
+    expect(markup).toContain("$ 17.500");
+  });
+
+  test("marks every amount of an impaga inscription as tentative", () => {
+    const markup = renderDetail({
+      inscriptions: [inscriptionFixture({ state: "impaga" })],
+    });
+
+    expect(tentativeAmounts(markup)).toEqual({
+      "Precio base": true,
+      Seña: true,
+      Saldo: true,
+    });
+  });
+
+  test("marks only the saldo of a señada inscription as tentative", () => {
+    const markup = renderDetail({
+      inscriptions: [inscriptionFixture({ state: "señada" })],
+    });
+
+    // Precio base y seña quedan fijos al pagar la seña; el saldo sigue
+    // moviéndose hasta que se congela el descuento por bailarín.
+    expect(tentativeAmounts(markup)).toEqual({
+      "Precio base": false,
+      Seña: false,
+      Saldo: true,
+    });
+  });
+
+  test("marks no amount of a pagada inscription as tentative", () => {
+    const markup = renderDetail({
+      inscriptions: [inscriptionFixture({ state: "pagada" })],
+    });
+
+    expect(tentativeAmounts(markup)).toEqual({
+      "Precio base": false,
+      Seña: false,
+      Saldo: false,
+    });
+  });
 });
+
+/**
+ * Mapea cada columna de importe de la fila de inscripción a si se muestra como
+ * tentativa. Se ancla en el encabezado de la columna, no en su posición, para
+ * que el test hable de "Saldo" y no de "la celda 5".
+ */
+function tentativeAmounts(markup: string) {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const table = document.querySelector('[aria-label="Inscripciones"] table');
+  const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
+    (header) => header.textContent?.trim() ?? "",
+  );
+  const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
+
+  return Object.fromEntries(
+    ["Precio base", "Seña", "Saldo"].map((column) => {
+      const cell = cells[headers.indexOf(column)];
+
+      if (!cell) {
+        throw new Error(`No se encontró la columna "${column}".`);
+      }
+
+      return [column, cell.classList.contains("text-muted-foreground")];
+    }),
+  );
+}
+
+function renderDetail(
+  overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
+) {
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <AdministracionCoreografiaFinancieraDetalleView
+        loaderData={loaderDataFixture(overrides)}
+      />
+    </MemoryRouter>,
+  );
+}
+
+function loaderDataFixture(
+  overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
+): ChoreographyFinanceDetailLoaderData {
+  return {
+    academy: {
+      contactName: "Academia Centro",
+      id: "academy_1",
+      name: "Academia Centro",
+      phone: "11-5555-5555",
+    },
+    choreography: {
+      balanceAmount: { amount: 7000, status: "complete" },
+      depositAmount: { amount: 3000, status: "complete" },
+      depositCompletedOn: "2026-03-21",
+      financialState: "señada",
+      groupType: "duo",
+      id: "choreography_1",
+      name: "Aire",
+      needsAttention: false,
+      paidAmount: 3000,
+    },
+    inscriptions: [inscriptionFixture({ state: "señada" })],
+    payments: [],
+    canPayDeposit: false,
+    canPayBalance: false,
+    depositTotal: 3000,
+    balanceTotal: 7000,
+    selectedEventId: "event_1",
+    ...overrides,
+  };
+}
+
+function inscriptionFixture(
+  overrides: Partial<InscriptionRow> = {},
+): InscriptionRow {
+  return {
+    basePriceAmount: 10000,
+    balanceAmount: 7000,
+    dancerId: "dancer_1",
+    depositAmount: 3000,
+    discountAmount: 0,
+    finalPriceAmount: 10000,
+    firstName: "Ana",
+    lastName: "López",
+    state: "señada",
+    ...overrides,
+  };
+}

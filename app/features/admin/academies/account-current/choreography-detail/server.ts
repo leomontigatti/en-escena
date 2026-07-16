@@ -91,7 +91,7 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       state: inscription?.state ?? "impaga",
       basePriceAmount: inscription?.basePriceAmount ?? null,
       depositAmount: inscription?.depositAmount ?? null,
-      balanceAmount: inscription?.balancePendingAmount ?? 0,
+      balanceAmount: inscription?.balanceAmount ?? null,
       discountAmount: inscription?.dancerDiscountAmount ?? 0,
       finalPriceAmount: inscription?.finalPriceAmount ?? null,
     };
@@ -104,20 +104,17 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     states.length > 0 && states.every((state) => state === "impaga");
   const canPayBalance =
     states.length > 0 && states.every((state) => state === "señada");
-  const depositTotal = choreographyInscriptions.reduce(
-    (sum, inscription) => sum + (inscription.depositAmount ?? 0),
-    0,
-  );
-  const balanceTotal = choreographyInscriptions.reduce(
-    (sum, inscription) => sum + inscription.balancePendingAmount,
-    0,
-  );
+  // Totales de la etapa a cobrar. Se derivan de la fila de coreografía, que ya
+  // sumó los importes de las inscripciones, en vez de volver a sumarlos acá.
+  const depositTotal = choreographyFinanceRow.depositAmount.amount;
+  const balanceTotal = choreographyFinanceRow.balanceAmount.amount;
 
   const payments = await listAvailablePayments({ academyId, eventId });
 
   return {
     academy,
     choreography: {
+      balanceAmount: choreographyFinanceRow.balanceAmount,
       depositAmount: choreographyFinanceRow.depositAmount,
       depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
       financialState: choreographyFinanceRow.financialState,
@@ -125,7 +122,6 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       id: choreographyFinanceRow.id,
       name: choreographyFinanceRow.name,
       needsAttention: choreographyFinanceRow.needsAttention,
-      owedAmount: choreographyFinanceRow.owedAmount,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
     inscriptions,

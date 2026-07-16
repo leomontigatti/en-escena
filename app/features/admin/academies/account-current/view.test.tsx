@@ -24,7 +24,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
                 canRegisterPayments: true,
                 summary: {
                   availableBalanceAmount: 5000,
-                  owedAmount: { amount: 10000, status: "complete" },
+                  owedBalanceAmount: { amount: 10000, status: "complete" },
                   owedDepositAmount: { amount: 3000, status: "complete" },
                   totalPaidAmount: 5000,
                 },
@@ -115,7 +115,7 @@ function accountCurrentLoaderDataFixture(
     selectedEventId: "event_1",
     summary: {
       availableBalanceAmount: 0,
-      owedAmount: { amount: 20000, status: "complete" },
+      owedBalanceAmount: { amount: 20000, status: "complete" },
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,
     },
@@ -131,13 +131,14 @@ function choreographyFinanceRowFixture(
   return {
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },
+    balanceAmount: { amount: 7000, status: "complete" },
     depositCompletedOn: null,
     financialState: "impaga",
     needsAttention: false,
     groupType: "solo",
     id: "choreography",
     name: "Coreografía",
-    owedAmount: { amount: 10000, status: "complete" },
+    owedBalanceAmount: { amount: 0, status: "complete" },
     owedDepositAmount: { amount: 3000, status: "complete" },
     paidAmount: 0,
     registrationCount: 1,
