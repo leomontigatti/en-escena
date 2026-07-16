@@ -1,12 +1,10 @@
 export {
-  getDancerEditingEligibility,
   type ChoreographyCategoryCalculationMode,
   type ChoreographyDancerOption,
   type ChoreographyDancerScheduleOption,
   type ChoreographyDancerScheduleResolution,
   type ChoreographyProfessorOption,
   type DancerEditingBlockReason,
-  type DancerEditingEligibility,
   type ResolveChoreographyDancersResult,
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyProfessorsResult,
@@ -17,4 +15,3 @@ export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
-export { updateChoreographyProfessors } from "@/lib/choreographies/choreography-roster-professor-update.server";
