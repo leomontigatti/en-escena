@@ -172,7 +172,6 @@ export function ChoreographyMusicEditorForm({
               onSelectedFileChange={handleSelectedMusicFileChange}
               onStorageKeyChange={handleMusicStorageKeyChange}
               onValidationErrorChange={handleMusicValidationErrorChange}
-              variant="compact"
             />
           </FieldGroup>
         </CardContent>
