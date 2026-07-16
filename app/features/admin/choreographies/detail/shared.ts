@@ -8,6 +8,25 @@ export const updateAdministrativeChoreographyRosterIntent = "update-roster";
 export const administrativeChoreographyNotFoundMessage =
   "No encontramos esa coreografía.";
 
+/**
+ * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
+ * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y
+ * reinicia el formulario con el roster guardado, pisando la edición en curso.
+ */
+export function shouldRevalidateAdministrativeChoreographyDetail(input: {
+  defaultShouldRevalidate: boolean;
+  formData?: FormData;
+}) {
+  if (
+    input.formData?.get("intent") ===
+    resolveAdministrativeChoreographyRosterIntent
+  ) {
+    return false;
+  }
+
+  return input.defaultShouldRevalidate;
+}
+
 export const administrativeChoreographyFieldNames = ["name"] as const;
 
 export type AdministrativeChoreographyFieldName =

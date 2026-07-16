@@ -175,12 +175,6 @@ function choreographyDetailRow(
     },
     musicStorageKey: "music/choreo_1.mp3",
     musicDownloadUrl: null,
-    dancerEditingEligibility: {
-      canEdit: false,
-      reasonCode: "registration-closed",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
-    },
     scheduleCapacityId: "schedule_1",
     scheduleName: "Bloque mañana",
     scheduleLabel: "2026-05-01 · 10:00",

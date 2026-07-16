@@ -86,11 +86,6 @@ function buildLoaderData(
           active: true,
         },
       ],
-      dancerEditingEligibility: {
-        canEdit: true,
-        reasonCode: null,
-        reasonText: null,
-      },
       hasPresentation: false,
     },
     eventContext: {

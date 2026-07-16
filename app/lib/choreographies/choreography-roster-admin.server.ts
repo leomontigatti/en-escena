@@ -29,6 +29,11 @@ import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro
  * mantienen no se tocan (marca de agua: una `señada` no vuelve a `impaga`). Alta
  * de bailarín → nueva inscripción `impaga` a precio tentativo; baja → borrado
  * físico + devolución de todo lo asignado al `Saldo disponible`.
+ *
+ * `name` es opcional y viaja acá para que el detalle admin pueda guardar nombre y
+ * roster en un solo submit. Cuando cambian los bailarines se persiste dentro de la
+ * misma transacción que el roster. Un rename aislado no pasa por acá: usa
+ * `rename-choreography`, que no tiene el hard lock por presentación.
  */
 export async function updateAdministrativeChoreographyRoster(input: {
   academyId: string;
@@ -37,6 +42,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
   dancerIds: string[];
   professorIds: string[];
   experienceLevelId: string | null;
+  name?: string;
   scheduleCapacityId?: string | null;
 }): Promise<UpdateChoreographyResult> {
   const hardLock = await readRosterHardLock(input.choreographyId);
@@ -69,6 +75,8 @@ export async function updateAdministrativeChoreographyRoster(input: {
   );
 
   if (!dancerIdsChanged && !professorIdsChanged) {
+    await renameChoreographyIfNeeded(input);
+
     return { ok: true };
   }
 
@@ -118,7 +126,25 @@ export async function updateAdministrativeChoreographyRoster(input: {
     }
   }
 
+  if (!dancerIdsChanged) {
+    await renameChoreographyIfNeeded(input);
+  }
+
   return { ok: true };
+}
+
+async function renameChoreographyIfNeeded(input: {
+  choreographyId: string;
+  name?: string;
+}) {
+  if (input.name === undefined) {
+    return;
+  }
+
+  await db
+    .update(choreographies)
+    .set({ name: input.name, updatedAt: new Date() })
+    .where(eq(choreographies.id, input.choreographyId));
 }
 
 async function updateAdministrativeChoreographyDancers(input: {
@@ -127,6 +153,7 @@ async function updateAdministrativeChoreographyDancers(input: {
   choreographyId: string;
   dancerIds: string[];
   experienceLevelId: string | null;
+  name?: string;
   scheduleCapacityId?: string | null;
 }): Promise<UpdateChoreographyDancersResult> {
   const resolvedUpdate = await resolveChoreographyDancerUpdateContext({
@@ -220,6 +247,8 @@ async function updateAdministrativeChoreographyDancers(input: {
         experienceLevelId: resolvedExperienceLevelId.value,
         scheduleId: selectedSchedule.scheduleId,
         scheduleCapacityId: selectedSchedule.scheduleCapacityId,
+        ...(input.name === undefined ? {} : { name: input.name }),
+        updatedAt: new Date(),
       })
       .where(eq(choreographies.id, input.choreographyId));
   });

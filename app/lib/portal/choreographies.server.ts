@@ -16,16 +16,11 @@ import {
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
-import {
-  getDancerEditingEligibility,
-  type DancerEditingEligibility,
-} from "@/lib/choreographies/choreography-roster.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
-  dancerEditingEligibility: DancerEditingEligibility;
   hasPresentation?: boolean;
   musicStorageKey: string | null;
   scheduleCapacityId: string;
@@ -104,9 +99,6 @@ export async function findChoreographyForAcademyEvent(
   academyId: string,
   eventId: string,
   choreographyId: string,
-  options: {
-    isRegistrationOpen: boolean;
-  },
 ): Promise<ChoreographyDetail | null> {
   const rows: ChoreographyDetailRow[] = await db
     .select({
@@ -188,10 +180,6 @@ export async function findChoreographyForAcademyEvent(
   return {
     ...base,
     categoryId: row.categoryId,
-    dancerEditingEligibility: getDancerEditingEligibility({
-      hasPresentation: row.hasPresentation,
-      isRegistrationOpen: options.isRegistrationOpen,
-    }),
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
     musicStorageKey: row.musicStorageKey,
@@ -217,9 +205,6 @@ export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
   resolveChoreographyDancers,
-  updateChoreography,
-  updateChoreographyDancers,
-  updateChoreographyProfessors,
 } from "@/lib/choreographies/choreography-roster.server";
 export type {
   ChoreographyCategoryCalculationMode,

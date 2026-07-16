@@ -55,9 +55,6 @@ export async function loadPortalChoreographyDetail({
     academy.id,
     selectedEventId,
     choreographyId,
-    {
-      isRegistrationOpen: eventContext.isRegistrationOpen,
-    },
   );
 
   if (!choreography) {

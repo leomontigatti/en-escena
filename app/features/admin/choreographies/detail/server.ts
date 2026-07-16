@@ -22,7 +22,15 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
+import {
+  listDancerOptionsForChoreography,
+  listProfessorOptionsForChoreography,
+} from "@/lib/choreographies/choreography-roster-options.server";
 import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
+import type {
+  ChoreographyDancerOption,
+  ChoreographyProfessorOption,
+} from "@/lib/choreographies/choreography-roster.shared";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
@@ -65,6 +73,8 @@ type AdministrativeChoreographyDetailRow = {
 };
 
 export type AdministrativeChoreographyDetailLoaderData = {
+  availableDancers: ChoreographyDancerOption[];
+  availableProfessors: ChoreographyProfessorOption[];
   backToList: string;
   canEdit: boolean;
   choreography: AdministrativeChoreographyDetail;
@@ -78,6 +88,7 @@ export type AdministrativeChoreographyDetailLoaderData = {
 export type AdministrativeChoreographyDetail = {
   academyId: string;
   academyName: string;
+  categoryId: string | null;
   categoryName: string | null;
   dancers: Array<{
     active: boolean;
@@ -86,6 +97,7 @@ export type AdministrativeChoreographyDetail = {
     id: string;
     lastName: string;
   }>;
+  experienceLevelId: string | null;
   experienceLevelName: string | null;
   groupType: ChoreographyGroupType;
   hasPresentation: boolean;
@@ -138,10 +150,21 @@ export async function loadAdministrativeChoreographyDetailRouteData(input: {
     });
   }
 
-  const blockers =
-    await getAdministrativeChoreographyDeleteBlockers(choreography);
+  const [blockers, availableDancers, availableProfessors] = await Promise.all([
+    getAdministrativeChoreographyDeleteBlockers(choreography),
+    listDancerOptionsForChoreography(
+      choreography.academyId,
+      choreography.dancers.map((dancer) => dancer.id),
+    ),
+    listProfessorOptionsForChoreography(
+      choreography.academyId,
+      choreography.professors.map((professor) => professor.id),
+    ),
+  ]);
 
   return {
+    availableDancers,
+    availableProfessors,
     backToList: "/administracion/coreografias",
     canEdit: user.role === "admin",
     choreography,
@@ -299,8 +322,10 @@ async function findAdministrativeChoreographyDetail(input: {
   return {
     academyId: row.academyId,
     academyName: row.academyName,
+    categoryId: row.categoryId,
     categoryName: row.categoryName,
     dancers: dancerRows,
+    experienceLevelId: row.experienceLevelId,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     groupType: row.groupType,
     hasPresentation: row.hasPresentation,
@@ -409,7 +434,35 @@ async function updateAdministrativeChoreographyRosterAction(input: {
   eventId: string;
   formData: FormData;
   requestUrl: string;
-}): Promise<AdministrativeChoreographyRosterErrorData | Response> {
+}): Promise<
+  | AdministrativeChoreographyActionData
+  | AdministrativeChoreographyRosterErrorData
+  | Response
+> {
+  // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
+  // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
+  let name: string | undefined;
+
+  if (input.formData.has("name")) {
+    const parsedName = renameChoreographySchema.safeParse({
+      name: readFormString(input.formData, "name"),
+    });
+
+    if (!parsedName.success) {
+      return {
+        fieldErrors: getFieldErrors(
+          parsedName.error,
+          administrativeChoreographyFieldNames,
+        ),
+        message: "Revisá los campos marcados.",
+        status: "error",
+        values: { name: readFormString(input.formData, "name") },
+      } satisfies AdministrativeChoreographyActionData;
+    }
+
+    name = parsedName.data.name;
+  }
+
   const result = await updateAdministrativeChoreographyRoster({
     academyId: input.choreography.academyId,
     choreographyId: input.choreography.id,
@@ -419,6 +472,7 @@ async function updateAdministrativeChoreographyRosterAction(input: {
       input.formData,
       "experienceLevelId",
     ),
+    name,
     professorIds: readFormStringArray(input.formData, "professorIds"),
     scheduleCapacityId: readOptionalFormString(
       input.formData,

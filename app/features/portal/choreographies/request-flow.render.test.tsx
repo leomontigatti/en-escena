@@ -207,21 +207,11 @@ function buildDetailLoaderData() {
           active: true,
         },
       ],
-      dancerEditingEligibility: {
-        canEdit: true,
-        reasonCode: null,
-        reasonText: null,
-      },
       operationalStatus: {
         code: "complete",
         pendingItems: [],
       },
       hasPresentation: false,
-    },
-    dancerEditingEligibility: {
-      canEdit: true,
-      reasonCode: null,
-      reasonText: null,
     },
     availableDancers: [
       {

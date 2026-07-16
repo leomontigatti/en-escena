@@ -1,4 +1,4 @@
-import { useActionData } from "react-router";
+import { useActionData, type ShouldRevalidateFunction } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
@@ -7,6 +7,7 @@ import {
   type AdministrativeChoreographyDetailActionData,
   type AdministrativeChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
+import { shouldRevalidateAdministrativeChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
 import { AdministracionCoreografiaDetalleRouteView as CoreografiaDetalleView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
@@ -54,6 +55,12 @@ export async function action({
     params,
   });
 }
+
+export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>
+  shouldRevalidateAdministrativeChoreographyDetail({
+    defaultShouldRevalidate: arg.defaultShouldRevalidate,
+    formData: arg.formData,
+  });
 
 function AdministracionCoreografiaDetalleRouteView({
   actionData: actionDataOverride,

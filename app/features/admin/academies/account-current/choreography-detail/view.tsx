@@ -71,6 +71,8 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
+type EligiblePayment = PaymentRow & { stageTotalAmount: number };
+type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
 
 type AdministracionCoreografiaFinancieraDetalleViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
@@ -78,9 +80,9 @@ type AdministracionCoreografiaFinancieraDetalleViewProps = {
 
 const stageBadge: Record<
   InscriptionRow["state"],
-  { label: string; variant: "secondary" | "info" | "success" }
+  { label: string; variant: "warning" | "info" | "success" }
 > = {
-  impaga: { label: "Impaga", variant: "secondary" },
+  impaga: { label: "Impaga", variant: "warning" },
   señada: { label: "Señada", variant: "info" },
   pagada: { label: "Pagada", variant: "success" },
 };
@@ -191,9 +193,8 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 function ChoreographyAlerts({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleViewProps) {
-  const stage = resolveStage(loaderData);
-  const stageTotal = stageTotalFor(loaderData, stage);
-  const eligible = eligiblePayments(loaderData.payments, stageTotal);
+  const stage = loaderData.stage;
+  const eligible = eligiblePayments(loaderData.payments);
   const needsAttention = loaderData.choreography?.needsAttention ?? false;
   const noEligiblePayments = stage !== null && eligible.length === 0;
 
@@ -227,9 +228,8 @@ function ChoreographyAlerts({
 function CobroActions({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleViewProps) {
-  const stage = resolveStage(loaderData);
-  const stageTotal = stageTotalFor(loaderData, stage);
-  const eligible = eligiblePayments(loaderData.payments, stageTotal);
+  const stage = loaderData.stage;
+  const eligible = eligiblePayments(loaderData.payments);
   const [open, setOpen] = useState(false);
 
   if (stage === null || eligible.length === 0) {
@@ -264,16 +264,19 @@ function CobroDialog({
   onOpenChange,
   stage,
 }: {
-  eligiblePayments: PaymentRow[];
+  eligiblePayments: EligiblePayment[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  stage: "deposit" | "balance";
+  stage: CobroStage;
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
     null,
   );
   const isSaving = fetcher.state !== "idle";
+  const selectedPayment =
+    eligiblePayments.find((payment) => payment.id === selectedPaymentId) ??
+    null;
 
   return (
     <Dialog
@@ -319,6 +322,10 @@ function CobroDialog({
             </Select>
           </div>
 
+          {selectedPayment ? (
+            <StageTotalSummary payment={selectedPayment} stage={stage} />
+          ) : null}
+
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
               <AlertTriangle aria-hidden="true" />
@@ -348,6 +355,37 @@ function CobroDialog({
         </fetcher.Form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Lo que se va a cobrar con el pago elegido. La seña se aclara contra la fecha
+ * del pago, que es la que fija el precio: sin eso, el importe parece no
+ * coincidir con el que muestra la coreografía cuando el precio ya cambió.
+ */
+function StageTotalSummary({
+  payment,
+  stage,
+}: {
+  payment: EligiblePayment;
+  stage: CobroStage;
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {stage === "deposit" ? "Seña a cobrar" : "Saldo a cobrar"}
+        </span>
+        <span className="text-sm font-medium tabular-nums">
+          {formatAmount(payment.stageTotalAmount)}
+        </span>
+      </div>
+      {stage === "deposit" ? (
+        <span className="text-xs text-muted-foreground">
+          Al precio vigente al {formatDate(payment.paymentDate)}.
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -430,37 +468,17 @@ function InscriptionsTable({
   );
 }
 
-function resolveStage(
-  loaderData: ChoreographyFinanceDetailLoaderData,
-): "deposit" | "balance" | null {
-  if (loaderData.canPayDeposit) {
-    return "deposit";
-  }
-
-  if (loaderData.canPayBalance) {
-    return "balance";
-  }
-
-  return null;
-}
-
-function stageTotalFor(
-  loaderData: ChoreographyFinanceDetailLoaderData,
-  stage: "deposit" | "balance" | null,
-) {
-  if (stage === "deposit") {
-    return loaderData.depositTotal;
-  }
-
-  if (stage === "balance") {
-    return loaderData.balanceTotal;
-  }
-
-  return 0;
-}
-
-function eligiblePayments(payments: PaymentRow[], total: number) {
-  return payments.filter((payment) => payment.availableAmount >= total);
+/**
+ * Pagos que cubren la etapa completa. Cada uno trae el total que el cobro le va
+ * a exigir según su propia fecha, así que la comparación es contra ese total y
+ * no contra uno único calculado a hoy.
+ */
+function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
+  return payments.filter(
+    (payment): payment is EligiblePayment =>
+      payment.stageTotalAmount !== null &&
+      payment.availableAmount >= payment.stageTotalAmount,
+  );
 }
 
 function formatDancerName(input: { firstName: string; lastName: string }) {

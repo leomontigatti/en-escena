@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
@@ -15,6 +15,7 @@ type ChoreographyFinanceDetailLoaderData = Extract<
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
+type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 
 describe("AdministracionCoreografiaFinancieraDetalleView", () => {
   test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
@@ -82,6 +83,39 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       Saldo: false,
     });
   });
+
+  test("does not warn when a payment covers the stage total of its own date", () => {
+    // El total viene cotizado a la fecha del pago, así que un pago fechado antes
+    // de un aumento alcanza aunque el precio que se muestra hoy sea mayor.
+    const markup = renderDetail({
+      stage: "deposit",
+      payments: [
+        paymentFixture({ availableAmount: 2400, stageTotalAmount: 2400 }),
+      ],
+    });
+
+    expect(markup).not.toContain("No existen pagos con saldo suficiente");
+  });
+
+  test("warns when no payment covers the stage total of its own date", () => {
+    const markup = renderDetail({
+      stage: "deposit",
+      payments: [
+        paymentFixture({ availableAmount: 2400, stageTotalAmount: 3000 }),
+      ],
+    });
+
+    expect(markup).toContain("No existen pagos con saldo suficiente");
+  });
+
+  test("warns when the stage total is unknown because that date has no price", () => {
+    const markup = renderDetail({
+      stage: "deposit",
+      payments: [paymentFixture({ stageTotalAmount: null })],
+    });
+
+    expect(markup).toContain("No existen pagos con saldo suficiente");
+  });
 });
 
 /**
@@ -110,16 +144,28 @@ function tentativeAmounts(markup: string) {
   );
 }
 
+/**
+ * Renderiza con un data router porque el diálogo de cobro usa `useFetcher`, que
+ * no funciona con un router de memoria a secas.
+ */
 function renderDetail(
   overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
 ) {
-  return renderToStaticMarkup(
-    <MemoryRouter>
-      <AdministracionCoreografiaFinancieraDetalleView
-        loaderData={loaderDataFixture(overrides)}
-      />
-    </MemoryRouter>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/",
+        element: (
+          <AdministracionCoreografiaFinancieraDetalleView
+            loaderData={loaderDataFixture(overrides)}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/"] },
   );
+
+  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 function loaderDataFixture(
@@ -145,11 +191,20 @@ function loaderDataFixture(
     },
     inscriptions: [inscriptionFixture({ state: "señada" })],
     payments: [],
-    canPayDeposit: false,
-    canPayBalance: false,
-    depositTotal: 3000,
-    balanceTotal: 7000,
+    stage: null,
     selectedEventId: "event_1",
+    ...overrides,
+  };
+}
+
+function paymentFixture(overrides: Partial<PaymentRow> = {}): PaymentRow {
+  return {
+    availableAmount: 3000,
+    id: "payment_1",
+    paymentDate: "2026-03-21",
+    paymentMethod: "transferencia",
+    paymentNumber: 1,
+    stageTotalAmount: 3000,
     ...overrides,
   };
 }

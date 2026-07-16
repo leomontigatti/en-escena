@@ -19,6 +19,8 @@ import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.ser
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+type FinancePriceRow = typeof prices.$inferSelect;
+
 /**
  * Resultado de una operación de cobro. Cuando `ok` es `false`, `message` es un
  * texto listo para mostrar en la UI administrativa.
@@ -113,6 +115,86 @@ export async function payChoreographyDeposit(input: {
 
     return { ok: true };
   });
+}
+
+/**
+ * Cotiza cuánto costaría la seña completa de una coreografía por cada fecha
+ * candidata, resolviendo el precio igual que `payChoreographyDeposit`: contra la
+ * fecha del pago, no contra hoy. Mientras la coreografía sigue `impaga` su
+ * precio no está congelado, así que un pago fechado antes de un aumento paga el
+ * precio de su fecha. Cotizar con la misma regla que cobra evita ofrecer pagos
+ * que el cobro rechazaría, y esconder los que sí acepta.
+ *
+ * Devuelve el total por fecha; omite las fechas sin precio aplicable.
+ */
+export async function quoteChoreographyDepositTotals(input: {
+  choreographyId: string;
+  eventId: string;
+  referenceDates: string[];
+}): Promise<Map<string, number>> {
+  const totals = new Map<string, number>();
+  const uniqueDates = [...new Set(input.referenceDates)];
+
+  if (uniqueDates.length === 0) {
+    return totals;
+  }
+
+  const [choreographyRow] = await db
+    .select({
+      groupType: choreographies.groupType,
+      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+    })
+    .from(choreographies)
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .where(eq(choreographies.id, input.choreographyId));
+
+  if (!choreographyRow) {
+    return totals;
+  }
+
+  const [event, inscriptionRows, priceRows] = await Promise.all([
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, input.eventId),
+    }),
+    db
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
+    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
+  ]);
+
+  if (!event || inscriptionRows.length === 0) {
+    return totals;
+  }
+
+  const candidatePriceRows = priceRows.filter(
+    (price) => price.groupType === choreographyRow.groupType,
+  );
+
+  for (const referenceDate of uniqueDates) {
+    const price = selectApplicablePriceRow({
+      priceRows: candidatePriceRows,
+      referenceDate,
+      scheduleId: choreographyRow.scheduleCapacityScheduleId,
+    });
+
+    if (!price) {
+      continue;
+    }
+
+    const depositAmount = calculateDepositAmount({
+      amount: price.amount,
+      percentage: event.requiredDepositPercentage,
+    });
+
+    totals.set(referenceDate, depositAmount * inscriptionRows.length);
+  }
+
+  return totals;
 }
 
 /**
@@ -399,10 +481,27 @@ async function resolveApplicablePriceRow(
     })
   ).filter((price) => price.groupType === input.groupType);
 
+  return selectApplicablePriceRow({
+    priceRows,
+    referenceDate: input.paymentDate,
+    scheduleId: input.scheduleId,
+  });
+}
+
+/**
+ * Elige entre filas ya cargadas y filtradas por tipo de grupo, priorizando el
+ * precio específico del cronograma sobre el general. Es la regla que comparten
+ * el cobro y su cotización previa, para que ambos lleguen al mismo precio.
+ */
+function selectApplicablePriceRow(input: {
+  priceRows: FinancePriceRow[];
+  referenceDate: string;
+  scheduleId: string | null;
+}) {
   if (input.scheduleId) {
     const specificPrice = selectApplicablePriceFromCandidates(
-      priceRows.filter((price) => price.scheduleId === input.scheduleId),
-      input.paymentDate,
+      input.priceRows.filter((price) => price.scheduleId === input.scheduleId),
+      input.referenceDate,
     );
 
     if (specificPrice) {
@@ -411,8 +510,8 @@ async function resolveApplicablePriceRow(
   }
 
   return selectApplicablePriceFromCandidates(
-    priceRows.filter((price) => price.scheduleId === null),
-    input.paymentDate,
+    input.priceRows.filter((price) => price.scheduleId === null),
+    input.referenceDate,
   );
 }
 

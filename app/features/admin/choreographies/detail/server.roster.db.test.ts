@@ -269,17 +269,149 @@ describe("administrative choreography roster editing", () => {
     });
     expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
   });
+
+  test("saves the name and the roster in a single submit", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Nombre",
+      email: "roster.nombre.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Nombre viejo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancerA.id,
+    });
+
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id, dancerB.id],
+      name: "Nombre nuevo",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    expect(response).toBeInstanceOf(Response);
+
+    const saved = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+
+    expect(saved?.name).toBe("Nombre nuevo");
+    expect(saved?.groupType).toBe("duo");
+  });
+
+  test("keeps the current name when the submit does not carry one", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Sin Nombre",
+      email: "roster.sinnombre.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Nombre intacto",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancerA.id,
+    });
+
+    await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id, dancerB.id],
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    const saved = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+
+    expect(saved?.name).toBe("Nombre intacto");
+  });
+
+  test("rejects an empty name without touching the roster", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Nombre Vacío",
+      email: "roster.vacio.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Nombre intacto",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancerA.id,
+    });
+
+    const result = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id, dancerB.id],
+      name: "   ",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const inscriptions = await db
+      .select({ dancerId: choreographyDancers.dancerId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, choreography.id));
+
+    expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
+  });
 });
 
 async function submitRoster(input: {
   choreographyId: string;
   dancerIds: string[];
+  name?: string;
   professorIds?: string[];
   experienceLevelId?: string;
   scheduleCapacityId?: string;
 }) {
   const body = new FormData();
   body.set("intent", updateAdministrativeChoreographyRosterIntent);
+  if (input.name !== undefined) {
+    body.set("name", input.name);
+  }
   for (const dancerId of input.dancerIds) {
     body.append("dancerIds", dancerId);
   }

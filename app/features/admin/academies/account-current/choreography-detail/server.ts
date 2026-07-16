@@ -18,7 +18,10 @@ import {
   deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
+  quoteChoreographyDepositTotals,
 } from "@/lib/finances/choreography-cobro.server";
+import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
+import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -27,6 +30,12 @@ import {
   payDepositIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
+
+type CobroStage = "deposit" | "balance";
+type AvailablePayment = Awaited<
+  ReturnType<typeof listAvailablePayments>
+>[number];
+type StagePayment = AvailablePayment & { stageTotalAmount: number | null };
 
 export async function loadAdministrativeChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
@@ -46,11 +55,8 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       academy,
       choreography: null,
       inscriptions: [],
-      payments: [],
-      canPayDeposit: false,
-      canPayBalance: false,
-      depositTotal: 0,
-      balanceTotal: 0,
+      payments: [] as StagePayment[],
+      stage: null,
       selectedEventId: null,
     };
   }
@@ -97,19 +103,16 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     };
   });
 
-  const states = choreographyInscriptions.map(
-    (inscription) => inscription.state,
+  const stage = resolveCobroStage(
+    choreographyInscriptions.map((inscription) => inscription.state),
   );
-  const canPayDeposit =
-    states.length > 0 && states.every((state) => state === "impaga");
-  const canPayBalance =
-    states.length > 0 && states.every((state) => state === "señada");
-  // Totales de la etapa a cobrar. Se derivan de la fila de coreografía, que ya
-  // sumó los importes de las inscripciones, en vez de volver a sumarlos acá.
-  const depositTotal = choreographyFinanceRow.depositAmount.amount;
-  const balanceTotal = choreographyFinanceRow.balanceAmount.amount;
-
-  const payments = await listAvailablePayments({ academyId, eventId });
+  const payments = await attachStageTotals({
+    balanceTotal: choreographyFinanceRow.balanceAmount,
+    choreographyId,
+    eventId,
+    payments: await listAvailablePayments({ academyId, eventId }),
+    stage,
+  });
 
   return {
     academy,
@@ -126,12 +129,77 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     },
     inscriptions,
     payments,
-    canPayDeposit,
-    canPayBalance,
-    depositTotal,
-    balanceTotal,
+    stage,
     selectedEventId: eventId,
   };
+}
+
+/**
+ * Etapa que se puede cobrar de una coreografía entera. `null` cuando no hay
+ * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
+ */
+function resolveCobroStage(
+  states: InscriptionFinancialState[],
+): CobroStage | null {
+  if (states.length === 0) {
+    return null;
+  }
+
+  if (states.every((state) => state === "impaga")) {
+    return "deposit";
+  }
+
+  if (states.every((state) => state === "señada")) {
+    return "balance";
+  }
+
+  return null;
+}
+
+/**
+ * Agrega a cada pago el total que tendría que cubrir para saldar la etapa. La
+ * seña se cotiza contra la fecha de cada pago, que es la que el cobro usa para
+ * elegir la fila de precio: un pago fechado antes de un aumento paga el precio
+ * de esa fecha, no el vigente hoy. El saldo no depende de la fecha porque sus
+ * insumos ya están congelados. `null` cuando no hay etapa cobrable, cuando falta
+ * el precio de esa fecha o cuando alguna inscripción no tiene precio vigente.
+ */
+async function attachStageTotals(input: {
+  balanceTotal: OperationalFinanceAmount;
+  choreographyId: string;
+  eventId: string;
+  payments: AvailablePayment[];
+  stage: CobroStage | null;
+}): Promise<StagePayment[]> {
+  if (input.stage === null) {
+    return input.payments.map((payment) => ({
+      ...payment,
+      stageTotalAmount: null,
+    }));
+  }
+
+  if (input.stage === "balance") {
+    const stageTotalAmount =
+      input.balanceTotal.status === "complete"
+        ? input.balanceTotal.amount
+        : null;
+
+    return input.payments.map((payment) => ({
+      ...payment,
+      stageTotalAmount,
+    }));
+  }
+
+  const depositTotals = await quoteChoreographyDepositTotals({
+    choreographyId: input.choreographyId,
+    eventId: input.eventId,
+    referenceDates: input.payments.map((payment) => payment.paymentDate),
+  });
+
+  return input.payments.map((payment) => ({
+    ...payment,
+    stageTotalAmount: depositTotals.get(payment.paymentDate) ?? null,
+  }));
 }
 
 export async function handleAdministrativeChoreographyFinanceAction(input: {

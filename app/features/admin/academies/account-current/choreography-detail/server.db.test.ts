@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
+import {
+  payments,
+  choreographyDancers,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
@@ -24,6 +29,7 @@ async function seedPayment(input: {
   academyId: string;
   amount: number;
   eventId: string;
+  paymentDate?: string;
   paymentNumber: number;
 }) {
   const [payment] = await db
@@ -32,13 +38,56 @@ async function seedPayment(input: {
       academyId: input.academyId,
       amount: input.amount,
       eventId: input.eventId,
-      paymentDate: "2026-03-21",
+      paymentDate: input.paymentDate ?? "2026-03-21",
       paymentMethod: "transferencia",
       paymentNumber: input.paymentNumber,
     })
     .returning();
 
   return payment;
+}
+
+/**
+ * Precio anterior al que trae el catálogo (10000, vence el 31/05), para modelar
+ * un aumento: hasta el 31/03 rige éste y desde el 01/04 el del catálogo.
+ */
+async function seedEarlierPrice(input: { amount: number; eventId: string }) {
+  await db.insert(prices).values({
+    eventId: input.eventId,
+    name: "Precio Solo anterior",
+    groupType: "solo",
+    amount: input.amount,
+    paymentDeadline: "2026-03-31",
+    scheduleId: null,
+  });
+}
+
+/**
+ * Entra al detalle como admin y devuelve lo que ve el loader.
+ */
+async function loadDetailAsAdmin(input: {
+  academyId: string;
+  choreographyId: string;
+  email: string;
+  eventId: string;
+}) {
+  const { request } = await createSignedInRequest({
+    email: input.email,
+    role: "admin",
+    requestUrl: choreographyFinanceDetailUrl({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      eventId: input.eventId,
+    }),
+  });
+
+  return await loadAdministrativeChoreographyFinanceDetail(
+    detailRouteArgs({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      request,
+    }),
+  );
 }
 
 describe.sequential("administracion finanzas coreografia detalle", () => {
@@ -66,23 +115,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       dancerId: dancer.id,
     });
 
-    const { request } = await createSignedInRequest({
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
       email: "admin.impaga.detalle@example.com",
-      role: "admin",
-      requestUrl: choreographyFinanceDetailUrl({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        eventId: event.id,
-      }),
+      eventId: event.id,
     });
-
-    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
-      detailRouteArgs({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        request,
-      }),
-    );
 
     expect(loaderData.choreography).toMatchObject({
       depositAmount: { amount: 3000, status: "complete" },
@@ -150,23 +188,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       paymentId: payment.id,
     });
 
-    const { request } = await createSignedInRequest({
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
       email: "admin.senada.detalle@example.com",
-      role: "admin",
-      requestUrl: choreographyFinanceDetailUrl({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        eventId: event.id,
-      }),
+      eventId: event.id,
     });
-
-    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
-      detailRouteArgs({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        request,
-      }),
-    );
 
     expect(loaderData.choreography).toMatchObject({
       depositAmount: { amount: 3000, status: "complete" },
@@ -248,23 +275,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       },
     ]);
 
-    const { request } = await createSignedInRequest({
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
       email: "admin.pagada.detalle@example.com",
-      role: "admin",
-      requestUrl: choreographyFinanceDetailUrl({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        eventId: event.id,
-      }),
+      eventId: event.id,
     });
-
-    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
-      detailRouteArgs({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        request,
-      }),
-    );
 
     expect(loaderData.choreography).toMatchObject({
       financialState: "pagada",
@@ -272,6 +288,107 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       balanceAmount: { amount: 7000, status: "complete" },
       paidAmount: 10000,
     });
+  });
+
+  test("quotes the deposit against the payment date, not against today", async () => {
+    // El precio ya aumentó: hoy la seña sale 3000, pero al 21/03 salía 2400.
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-04-15",
+    );
+
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Histórico",
+        email: "academia.precio.historico@example.com",
+        choreographyName: "Detalle precio histórico",
+        event,
+      });
+    await seedEarlierPrice({ amount: 8000, eventId: event.id });
+
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Sol",
+      lastName: "Ramos",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+
+    // Registrado hoy con fecha anterior, por el precio que se le mantuvo a la
+    // academia. Cubre la seña del 21/03 (2400) pero no la de hoy (3000).
+    const payment = await seedPayment({
+      academyId: academy.academy.id,
+      amount: 2400,
+      eventId: event.id,
+      paymentDate: "2026-03-21",
+      paymentNumber: 1,
+    });
+
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      email: "admin.precio.historico@example.com",
+      eventId: event.id,
+    });
+
+    expect(loaderData.stage).toBe("deposit");
+    // La coreografía sigue mostrando el precio vigente hoy...
+    expect(loaderData.choreography).toMatchObject({
+      depositAmount: { amount: 3000, status: "complete" },
+    });
+    // ...pero el pago se cotiza contra su propia fecha, así que alcanza.
+    expect(loaderData.payments).toEqual([
+      expect.objectContaining({ id: payment.id, stageTotalAmount: 2400 }),
+    ]);
+  });
+
+  test("quotes the deposit above today's when the payment date resolves to a dearer price", async () => {
+    // Espejo del caso anterior: al 21/03 la seña salía 3600 y hoy sale 3000. El
+    // pago no alcanza, y ofrecerlo terminaría en un rechazo del cobro.
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-04-15",
+    );
+
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAccountCurrentChoreographyFixture({
+        academyName: "Academia Precio Bajado",
+        email: "academia.precio.bajado@example.com",
+        choreographyName: "Detalle precio bajado",
+        event,
+      });
+    await seedEarlierPrice({ amount: 12000, eventId: event.id });
+
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Nina",
+      lastName: "Soto",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+
+    const payment = await seedPayment({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      paymentDate: "2026-03-21",
+      paymentNumber: 1,
+    });
+
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      email: "admin.precio.bajado@example.com",
+      eventId: event.id,
+    });
+
+    expect(loaderData.payments).toEqual([
+      expect.objectContaining({ id: payment.id, stageTotalAmount: 3600 }),
+    ]);
   });
 
   test("shows incomplete amounts and Sin precio when no applicable price exists", async () => {
@@ -298,23 +415,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       dancerId: dancer.id,
     });
 
-    const { request } = await createSignedInRequest({
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
       email: "admin.sin.precio.detalle@example.com",
-      role: "admin",
-      requestUrl: choreographyFinanceDetailUrl({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        eventId: event.id,
-      }),
+      eventId: event.id,
     });
-
-    const loaderData = await loadAdministrativeChoreographyFinanceDetail(
-      detailRouteArgs({
-        academyId: academy.academy.id,
-        choreographyId: choreography.id,
-        request,
-      }),
-    );
 
     expect(loaderData.choreography).toMatchObject({
       depositAmount: {

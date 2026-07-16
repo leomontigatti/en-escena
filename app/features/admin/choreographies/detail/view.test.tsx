@@ -18,7 +18,7 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("renders an editable portal-like detail form for admins with read-only roster and music fields", () => {
+  test("renders an editable roster and a read-only music field for admins", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: true,
@@ -58,6 +58,30 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
     expect(markup).not.toContain(
       "La música se gestiona desde el Portal de academias mientras no haya presentación.",
     );
+  });
+
+  test("leaves the roster comboboxes interactive for admins", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).not.toContain('aria-disabled="true"');
+  });
+
+  test("hard-locks the roster when the choreography already has a presentation", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ hasPresentation: true }),
+      }),
+    });
+
+    expect(markup).toContain("El roster está bloqueado");
+    expect(markup).toContain("Esta coreografía ya tiene una presentación");
+    expect(markup).toContain('aria-disabled="true"');
+  });
+
+  test("does not announce the roster hard lock when there is no presentation", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).not.toContain("El roster está bloqueado");
   });
 
   test("renders name and actions as read-only for auditors", () => {
@@ -177,6 +201,12 @@ function buildLoaderData(
   overrides: Partial<AdministrativeChoreographyDetailLoaderData> = {},
 ): AdministrativeChoreographyDetailLoaderData {
   return {
+    availableDancers: [
+      { active: true, firstName: "Ana", id: "dancer_1", lastName: "Paz" },
+    ],
+    availableProfessors: [
+      { active: true, firstName: "Luz", id: "professor_1", lastName: "Suárez" },
+    ],
     backToList: "/administracion/coreografias",
     canEdit: true,
     choreography: buildChoreography(),
@@ -197,6 +227,7 @@ function buildChoreography(
   return {
     academyId: "academy_1",
     academyName: "Academia Norte",
+    categoryId: "category_1",
     categoryName: "Juvenil",
     dancers: [
       {
@@ -207,6 +238,7 @@ function buildChoreography(
         lastName: "Paz",
       },
     ],
+    experienceLevelId: "amateur",
     experienceLevelName: "Amateur",
     groupType: "solo",
     hasPresentation: false,
