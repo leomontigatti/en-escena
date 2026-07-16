@@ -21,6 +21,7 @@ import {
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
+import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 type PortalAcademyFinancesLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyFinances>
@@ -113,8 +114,8 @@ function PaymentsTable({
           <TableBody>
             {payments.map((payment) => (
               <TableRow key={payment.id}>
-                <TableCell className="font-medium">
-                  {payment.paymentNumber}
+                <TableCell className="font-medium tabular-nums">
+                  {formatPaymentNumber(payment.paymentNumber)}
                 </TableCell>
                 <TableCell>{formatDate(payment.paymentDate)}</TableCell>
                 <TableCell>

@@ -52,6 +52,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { cn } from "@/lib/shared/utils";
 
@@ -472,8 +473,4 @@ function amountCellClassName(isTentative: boolean) {
 
 function formatInscriptionAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);
-}
-
-function formatPaymentNumber(paymentNumber: number) {
-  return `PAG-${String(paymentNumber).padStart(4, "0")}`;
 }

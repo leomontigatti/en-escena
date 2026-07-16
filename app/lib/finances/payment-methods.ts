@@ -17,6 +17,17 @@ export const paymentMethodOptions = [
   value: PaymentMethod;
 }>;
 
+export const paymentMethodBadgeVariants = {
+  transferencia: "info",
+  efectivo: "success",
+  mercado_pago: "warning",
+  otro: "outline",
+} as const satisfies Record<PaymentMethod, string>;
+
+export function getPaymentMethodBadgeVariant(value: PaymentMethod) {
+  return paymentMethodBadgeVariants[value] ?? "secondary";
+}
+
 export function formatPaymentMethodLabel(value: PaymentMethod) {
   return (
     paymentMethodOptions.find((option) => option.value === value)?.label ??

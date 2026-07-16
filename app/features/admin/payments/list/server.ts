@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { paymentMethodValues } from "@/lib/finances/payment-methods";
+import { paymentNumberDigits } from "@/lib/finances/payment-number";
 
 type AdminPaymentMethod = AdminPaymentRow["paymentMethod"];
 type AdminPaymentsListOrder = {
@@ -43,12 +45,6 @@ const defaultAdminPaymentsOrder: AdminPaymentsListOrder = {
   columnId: "paymentDate",
   direction: "desc",
 };
-const adminPaymentMethods = [
-  "efectivo",
-  "mercado_pago",
-  "otro",
-  "transferencia",
-] as const satisfies AdminPaymentMethod[];
 
 export async function loadAdminPaymentsList(
   request: Request,
@@ -137,7 +133,7 @@ function readAdminPaymentsListFilters(
 }
 
 function readAdminPaymentMethod(value: string | null) {
-  return adminPaymentMethods.find((method) => method === value) ?? null;
+  return paymentMethodValues.find((method) => method === value) ?? null;
 }
 
 function readAdminPaymentsOrder(value: string | null): AdminPaymentsListOrder {
@@ -163,7 +159,10 @@ function buildAdminPaymentsWhere(
     conditions.push(
       or(
         ilike(academies.name, `%${query}%`),
-        ilike(sql`cast(${payments.paymentNumber} as text)`, `%${query}%`),
+        ilike(
+          sql`lpad(cast(${payments.paymentNumber} as text), ${paymentNumberDigits}, '0')`,
+          `%${query}%`,
+        ),
       )!,
     );
   }

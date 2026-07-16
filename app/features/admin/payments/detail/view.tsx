@@ -31,6 +31,7 @@ import {
   PaymentFields,
 } from "@/features/admin/payments/form-fields";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
+import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -116,7 +117,7 @@ export function AdministracionPagoDetalleRouteView({
 export function getAdminPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
-  return payment ? `# ${payment.paymentNumber}` : "Pago";
+  return payment ? `# ${formatPaymentNumber(payment.paymentNumber)}` : "Pago";
 }
 
 function PaymentDetailForm({
