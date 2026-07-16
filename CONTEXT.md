@@ -129,20 +129,12 @@ Persona asociada a una academia y cargada por esa academia como parte de sus dat
 _Evitar_: Usuario, administrador
 
 **Inscripción**:
-Vínculo con identidad económica entre una coreografía y un bailarín dentro de un evento concreto. Puede estar impaga, señada, pagada o inactiva.
-_Evitar_: Participación de academia, cuenta, pago, factura
+Vínculo con identidad económica e identidad estable (`id` propio) entre una coreografía y un bailarín dentro de un evento concreto. Puede estar impaga, señada o pagada. Quitar una inscripción es un borrado físico; no existe estado inactiva.
+_Evitar_: Participación de academia, cuenta, pago, factura, inscripción inactiva
 
 **Inscripción activa**:
 Inscripción que participa en los cálculos vigentes de una coreografía, sus importes pendientes y los descuentos automáticos.
 _Evitar_: Inscripción pagada, participación competitiva
-
-**Inscripción inactiva**:
-Inscripción que dejó de participar en el cálculo activo de una coreografía, pero se conserva porque tuvo impacto financiero.
-_Evitar_: Inscripción eliminada, baja, anulación
-
-**Inactivación de inscripción pagada**:
-Caso excepcional pendiente de definición para una inscripción pagada que deja de participar en una coreografía.
-_Evitar_: Devolución, anulación, inscripción eliminada
 
 **Coreografía**:
 Coreografía registrada por una academia para un evento concreto.
@@ -199,10 +191,6 @@ _Evitar_: Estado financiero, estado del evento
 **Estado financiero de coreografía**:
 Situación financiera derivada de los estados económicos de las inscripciones activas de una coreografía.
 _Evitar_: Estado operativo, estado del evento
-
-**Estado de factura**:
-Situación financiera propia de una factura según sus imputaciones y cancelación.
-_Evitar_: Estado financiero de coreografía
 
 **Presentación**:
 Instancia ordenada de una coreografía para el día del evento.
