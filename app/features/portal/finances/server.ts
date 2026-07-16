@@ -1,15 +1,10 @@
-import { desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academyEventPayments } from "@/db/schema";
+import { academyEventPayments, paymentAllocations } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { readActiveAcademyEventInvoices } from "@/lib/finances/academy-account-current.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
-import { readAcademyEventOperationalFinanceSummary } from "@/lib/finances/operational-summary.server";
-import {
-  getInvoiceState,
-  listActiveImputationTotalsByIds,
-} from "@/lib/finances/payment-imputations.server";
+import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 
 export async function loadPortalAcademyFinances(request: Request) {
@@ -21,16 +16,15 @@ export async function loadPortalAcademyFinances(request: Request) {
   if (!eventContext.activeEvent) {
     return {
       activeEvent: null,
-      activeBalanceInvoices: [],
-      activeDepositInvoices: [],
+      choreographyFinanceRows: [],
       payments: [],
       summary: emptyOperationalFinanceSummary(),
     };
   }
 
   const eventId = eventContext.activeEvent.id;
-  const [summary, payments, activeInvoices] = await Promise.all([
-    readAcademyEventOperationalFinanceSummary({
+  const [financeDetail, payments, allocationRows] = await Promise.all([
+    readAcademyEventOperationalFinanceDetail({
       academyId: academy.id,
       eventId,
     }),
@@ -43,8 +37,8 @@ export async function loadPortalAcademyFinances(request: Request) {
         paymentMethod: true,
         reference: true,
       },
-      where: (table, { and }) =>
-        and(
+      where: (table, { and: andCondition }) =>
+        andCondition(
           eq(table.academyId, academy.id),
           eq(table.eventId, eventId),
           isNull(table.annulledAt),
@@ -55,48 +49,42 @@ export async function loadPortalAcademyFinances(request: Request) {
         desc(academyEventPayments.createdAt),
       ],
     }),
-    readActiveAcademyEventInvoices({
-      academyId: academy.id,
-      eventId,
-    }),
+    db
+      .select({
+        paymentId: paymentAllocations.paymentId,
+        amount: paymentAllocations.amount,
+      })
+      .from(paymentAllocations)
+      .where(
+        and(
+          eq(paymentAllocations.academyId, academy.id),
+          eq(paymentAllocations.eventId, eventId),
+        ),
+      ),
   ]);
 
-  const imputationTotals = await listActiveImputationTotalsByIds({
-    invoiceIds: activeInvoices.map((invoice) => invoice.id),
-    paymentIds: payments.map((payment) => payment.id),
-  });
+  const allocatedByPayment = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByPayment.set(
+      allocation.paymentId,
+      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
+    );
+  }
+
   const hydratedPayments = payments.map((payment) => {
-    const imputedAmount = imputationTotals.paymentTotals.get(payment.id) ?? 0;
+    const allocatedAmount = allocatedByPayment.get(payment.id) ?? 0;
 
     return {
       ...payment,
-      availableAmount: payment.amount - imputedAmount,
-      imputedAmount,
-    };
-  });
-  const hydratedInvoices = activeInvoices.map((invoice) => {
-    const imputedAmount = imputationTotals.invoiceTotals.get(invoice.id) ?? 0;
-
-    return {
-      ...invoice,
-      imputedAmount,
-      pendingAmount: Math.max(0, invoice.amount - imputedAmount),
-      status: getInvoiceState({
-        amount: invoice.amount,
-        imputedAmount,
-      }),
+      allocatedAmount,
+      availableAmount: payment.amount - allocatedAmount,
     };
   });
 
   return {
     activeEvent: eventContext.activeEvent,
-    activeBalanceInvoices: hydratedInvoices.filter(
-      (invoice) => invoice.invoiceType === "saldo",
-    ),
-    activeDepositInvoices: hydratedInvoices.filter(
-      (invoice) => invoice.invoiceType === "sena",
-    ),
+    choreographyFinanceRows: financeDetail.choreographyFinanceRows,
     payments: hydratedPayments,
-    summary,
+    summary: financeDetail.summary,
   };
 }

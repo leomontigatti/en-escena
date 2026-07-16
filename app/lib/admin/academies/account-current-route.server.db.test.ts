@@ -2,13 +2,10 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  academyEventChoreographyInvoices,
-  academyEventPayments,
-  prices,
-} from "@/db/schema";
+import { academyEventPayments, choreographyDancers, prices } from "@/db/schema";
 import {
   createChoreographyRecord,
+  createDancer,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
@@ -29,7 +26,6 @@ import {
   createSignedInRequest,
   detailActionArgs,
   detailRouteArgs,
-  issueDepositInvoiceForTest,
   renderAcademiesRoute,
   renderAccountCurrentRoute,
   routeArgs,
@@ -143,7 +139,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     );
   });
 
-  test("uses the active seña snapshot in operational amounts while the choreography is still impaga", async () => {
+  test("uses the frozen seña snapshot for a señada choreography's operational amounts", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );
@@ -158,23 +154,20 @@ describe.sequential("administracion academias cuenta corriente", () => {
         email: "academia.snapshot.cuenta.corriente@example.com",
         event,
       });
-
-    await issueDepositInvoiceForTest({
-      academyId: academy.academy.id,
-      choreographyIds: [choreography.id],
-      eventId: event.id,
-      issueDate: "2026-03-20",
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Ana",
+      lastName: "López",
     });
 
-    await db
-      .update(academyEventChoreographyInvoices)
-      .set({
-        basePriceAmount: 12000,
-        depositAmount: 3600,
-      })
-      .where(
-        eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
-      );
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      frozenBasePriceAmount: 12000,
+      depositReferenceDate: "2026-03-20",
+      depositPercentage: 30,
+      depositAmount: 3600,
+    });
 
     const { request } = await createSignedInRequest({
       email: "admin.snapshot.cuenta.corriente@example.com",
@@ -192,21 +185,21 @@ describe.sequential("administracion academias cuenta corriente", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
-        financialState: "impaga",
-        owedAmount: { amount: 12000, status: "complete" },
-        owedDepositAmount: { amount: 3600, status: "complete" },
+        financialState: "señada",
+        owedAmount: { amount: 8400, status: "complete" },
+        owedDepositAmount: { amount: 0, status: "complete" },
       },
     ]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 0,
-      owedAmount: { amount: 12000, status: "complete" },
-      owedDepositAmount: { amount: 3600, status: "complete" },
+      owedAmount: { amount: 8400, status: "complete" },
+      owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 0,
     });
     expect(markup).toContain("$ 3.600");
-    expect(markup).toContain("$ 12.000");
-    expect(markup).toContain("Impaga");
-    expect(markup).not.toContain("Señada");
+    expect(markup).toContain("$ 8.400");
+    expect(markup).toContain("Señada");
+    expect(markup).not.toContain("Impaga");
   });
 
   test("allows auditor read-only access and blocks non-admin payment registration", async () => {
@@ -271,7 +264,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
       paymentDeadline: "2026-12-31",
       scheduleId: catalog.schedule.id,
     });
-    await createChoreographyRecord({
+    const aire = await createChoreographyRecord({
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
@@ -281,7 +274,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    await createChoreographyRecord({
+    const tango = await createChoreographyRecord({
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
@@ -291,6 +284,17 @@ describe.sequential("administracion academias cuenta corriente", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    for (const choreographyId of [aire.id, tango.id]) {
+      const dancer = await createDancer(academy.academy.id, {
+        firstName: `Bailarín ${choreographyId}`,
+        lastName: "Solo",
+      });
+      await db.insert(choreographyDancers).values({
+        ageAtEventStart: 14,
+        choreographyId,
+        dancerId: dancer.id,
+      });
+    }
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.finanzas@example.com",
       role: "admin",
@@ -304,22 +308,20 @@ describe.sequential("administracion academias cuenta corriente", () => {
       loaderData,
     });
 
+    // Each impaga inscription owes only its pending seña (30% of $10.000).
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
         name: "Aire",
-        owedAmount: { status: "complete", amount: 10000 },
+        owedAmount: { status: "complete", amount: 3000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         name: "Tango",
-        owedAmount: { status: "complete", amount: 10000 },
+        owedAmount: { status: "complete", amount: 3000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
     expect(markup).toContain("Cuenta corriente");
-    expect(markup).toContain(
-      "Revisá la cuenta corriente y las facturas de una academia.",
-    );
     expect(markup).toContain("Buscar coreografía por nombre");
     expect(markup).toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
@@ -334,7 +336,6 @@ describe.sequential("administracion academias cuenta corriente", () => {
     expect(markup).toContain("Aire");
     expect(markup).toContain("Tango");
     expect(markup).toContain("$ 3.000");
-    expect(markup).toContain("$ 10.000");
   });
 
   test("registers event-scoped payment numbers, persists payments, and updates totals without invoices", async () => {

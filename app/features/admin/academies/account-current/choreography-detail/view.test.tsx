@@ -21,9 +21,11 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
             choreography: {
               depositAmount: { amount: 3000, status: "complete" },
               depositCompletedOn: "2026-03-21",
+              financialState: "señada",
               groupType: "duo",
               id: "choreography_1",
               name: "Aire",
+              needsAttention: false,
               owedAmount: { amount: 7000, status: "complete" },
               paidAmount: 3000,
             },

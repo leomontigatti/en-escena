@@ -3,19 +3,18 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventChoreographyInvoices,
-  academyEventInvoiceImputations,
   academyEventPayments,
+  choreographyDancers,
+  paymentAllocations,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
+  createDancer,
   createEventCatalog,
   date as choreographyDate,
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as financeInvoicesLoader } from "@/routes/administracion.facturas";
 import { loader as legacyReportLoader } from "@/routes/administracion.academias.reporte";
 import { loader as financeAccountsLoader } from "@/routes/administracion.finanzas";
 import { loader as financePaymentsLoader } from "@/routes/administracion.pagos";
@@ -26,36 +25,84 @@ import {
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  accountCurrentUrl,
-  buildAnnulImputationRequest,
-  buildAnnulPaymentRequest,
-  buildBalanceInvoiceIssueRequest,
-  buildCancelInvoiceRequest,
   buildGlobalPaymentRequest,
-  buildPaymentImputationRequest,
   createAcademyUser,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
-  detailActionArgs,
-  issueDepositInvoiceForTest,
   registerPaymentForTest,
   renderAcademiesRoute,
   reportRouteArgs,
   reportUrl,
   routeArgs,
   renderFinanceAccountsRoute,
-  renderFinanceInvoicesRoute,
   renderFinancePaymentsRoute,
   paymentCreateRouteArgs,
 } from "./account-current-route.test-support";
-import { action as accountCurrentAction } from "@/routes/administracion.academias_.$academyId";
 
 installDatabaseTestHooks();
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+async function seedPaymentRecord(input: {
+  academyId: string;
+  amount: number;
+  createdByUserId: string;
+  eventId: string;
+  paymentDate: string;
+  paymentNumber: number;
+}) {
+  const [payment] = await db
+    .insert(academyEventPayments)
+    .values({
+      academyId: input.academyId,
+      amount: input.amount,
+      createdByUserId: input.createdByUserId,
+      eventId: input.eventId,
+      paymentDate: input.paymentDate,
+      paymentMethod: "transferencia",
+      paymentNumber: input.paymentNumber,
+    })
+    .returning();
+
+  return payment;
+}
+
+async function seedSignedInscription(input: {
+  academyId: string;
+  choreographyId: string;
+  dancerId: string;
+  depositAmount: number;
+  frozenBasePriceAmount: number;
+  paid?: { finalTotalAmount: number; balanceAmount: number };
+}) {
+  const [inscription] = await db
+    .insert(choreographyDancers)
+    .values({
+      ageAtEventStart: 14,
+      choreographyId: input.choreographyId,
+      dancerId: input.dancerId,
+      frozenBasePriceAmount: input.frozenBasePriceAmount,
+      depositReferenceDate: "2026-03-20",
+      depositPercentage: 30,
+      depositAmount: input.depositAmount,
+      ...(input.paid
+        ? {
+            balanceReferenceDate: "2026-03-23",
+            appliedDancerDiscountPercentage: 0,
+            appliedDancerDiscountAmount: 0,
+            finalTotalAmount: input.paid.finalTotalAmount,
+            balanceAmount: input.paid.balanceAmount,
+            balanceCompletedAt: "2026-03-23",
+          }
+        : {}),
+    })
+    .returning();
+
+  return inscription;
+}
 
 describe.sequential("administracion finanzas", () => {
   test("lets admin open finance accounts from academies and renders event-scoped balances", async () => {
@@ -81,39 +128,33 @@ describe.sequential("administracion finanzas", () => {
     });
     const eventCatalog = await createEventCatalog(event.id);
     const otherEventCatalog = await createEventCatalog(otherEvent.id);
-    const northChoreography = await createChoreographyRecord({
-      academyId: academyNorth.academy.id,
-      categoryId: eventCatalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: eventCatalog.level.id,
-      modalityId: eventCatalog.modality.id,
-      name: "Norte Activa",
-      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
-      submodalityId: eventCatalog.submodality.id,
-    });
-    await createChoreographyRecord({
-      academyId: academyNorth.academy.id,
-      categoryId: eventCatalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-12T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: eventCatalog.level.id,
-      modalityId: eventCatalog.modality.id,
-      name: "Norte Segunda",
-      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
-      submodalityId: eventCatalog.submodality.id,
-    });
-    const northPaidChoreography = await createChoreographyRecord({
-      academyId: academyNorth.academy.id,
-      categoryId: eventCatalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-13T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: eventCatalog.level.id,
-      modalityId: eventCatalog.modality.id,
-      name: "Norte Pagada",
-      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
-      submodalityId: eventCatalog.submodality.id,
-    });
+
+    async function createNorthChoreography(name: string, createdAt: string) {
+      return await createChoreographyRecord({
+        academyId: academyNorth.academy.id,
+        categoryId: eventCatalog.categoryWithLevel.id,
+        createdAt: choreographyDate(createdAt),
+        eventId: event.id,
+        experienceLevelId: eventCatalog.level.id,
+        modalityId: eventCatalog.modality.id,
+        name,
+        scheduleCapacityId: eventCatalog.scheduleCapacity.id,
+        submodalityId: eventCatalog.submodality.id,
+      });
+    }
+
+    const northActive = await createNorthChoreography(
+      "Norte Activa",
+      "2026-03-10T12:00:00Z",
+    );
+    const northSecond = await createNorthChoreography(
+      "Norte Segunda",
+      "2026-03-12T12:00:00Z",
+    );
+    const northPaid = await createNorthChoreography(
+      "Norte Pagada",
+      "2026-03-13T12:00:00Z",
+    );
     const southChoreography = await createChoreographyRecord({
       academyId: academySouth.academy.id,
       categoryId: eventCatalog.categoryWithLevel.id,
@@ -126,6 +167,7 @@ describe.sequential("administracion finanzas", () => {
       submodalityId: eventCatalog.submodality.id,
     });
 
+    // Ghost academy only participates in the inactive event.
     await createChoreographyRecord({
       academyId: academyGhost.academy.id,
       categoryId: otherEventCatalog.categoryWithLevel.id,
@@ -138,263 +180,105 @@ describe.sequential("administracion finanzas", () => {
       submodalityId: otherEventCatalog.submodality.id,
     });
 
-    await registerPaymentForTest({
+    const northPayment = await seedPaymentRecord({
       academyId: academyNorth.academy.id,
-      amount: "20000",
+      amount: 20000,
+      createdByUserId: academyNorth.user.id,
       eventId: event.id,
       paymentDate: "2026-03-15",
+      paymentNumber: 1,
     });
-    await db.insert(academyEventPayments).values({
+    // A payment on the inactive event must not leak into active-event balances.
+    await seedPaymentRecord({
       academyId: academyNorth.academy.id,
       amount: 3333,
       createdByUserId: academyNorth.user.id,
       eventId: otherEvent.id,
       paymentDate: "2026-03-14",
-      paymentMethod: "transferencia",
       paymentNumber: 1,
     });
-    await registerPaymentForTest({
+    await seedPaymentRecord({
       academyId: academySouth.academy.id,
-      amount: "3000",
+      amount: 3000,
+      createdByUserId: academySouth.user.id,
       eventId: event.id,
       paymentDate: "2026-03-16",
+      paymentNumber: 2,
     });
 
-    await issueDepositInvoiceForTest({
+    // Norte Activa: señada with a deposit allocation -> pending saldo 7000.
+    const northActiveDancer = await createDancer(academyNorth.academy.id, {
+      firstName: "Ana",
+      lastName: "Activa",
+    });
+    const northActiveInscription = await seedSignedInscription({
       academyId: academyNorth.academy.id,
-      choreographyIds: [northChoreography.id, northPaidChoreography.id],
+      choreographyId: northActive.id,
+      dancerId: northActiveDancer.id,
+      depositAmount: 3000,
+      frozenBasePriceAmount: 10000,
+    });
+    await db.insert(paymentAllocations).values({
+      academyId: academyNorth.academy.id,
+      allocationType: "deposit",
+      amount: 3000,
       eventId: event.id,
-      issueDate: "2026-03-20",
-    });
-    await issueDepositInvoiceForTest({
-      academyId: academySouth.academy.id,
-      choreographyIds: [southChoreography.id],
-      eventId: event.id,
-      issueDate: "2026-03-20",
+      inscriptionId: northActiveInscription.id,
+      paymentId: northPayment.id,
     });
 
-    const northPayment = (
-      await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academyNorth.academy.id),
-      })
-    ).find((payment) => payment.eventId === event.id);
-    const southPayment = (
-      await db.query.academyEventPayments.findMany({
-        where: eq(academyEventPayments.academyId, academySouth.academy.id),
-      })
-    ).find((payment) => payment.eventId === event.id);
-    const [northInvoice] =
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: eq(
-          academyEventChoreographyInvoices.choreographyId,
-          northChoreography.id,
-        ),
-      });
-    const [northPaidDepositInvoice] =
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: eq(
-          academyEventChoreographyInvoices.choreographyId,
-          northPaidChoreography.id,
-        ),
-      });
-    const [southInvoice] =
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: eq(
-          academyEventChoreographyInvoices.choreographyId,
-          southChoreography.id,
-        ),
-      });
+    // Norte Segunda: impaga -> pending seña 3000 at the tentative price.
+    const northSecondDancer = await createDancer(academyNorth.academy.id, {
+      firstName: "Bruno",
+      lastName: "Segundo",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: northSecond.id,
+      dancerId: northSecondDancer.id,
+    });
 
-    if (
-      !northPayment ||
-      !southPayment ||
-      !northInvoice ||
-      !northPaidDepositInvoice ||
-      !southInvoice
-    ) {
-      throw new Error("Expected payments and invoices for the report test.");
-    }
-
-    const { request: northImputationRequest } =
-      await buildPaymentImputationRequest({
-        imputationDate: "2026-03-21",
-        invoiceId: northInvoice.id,
+    // Norte Pagada: pagada with deposit + balance allocations.
+    const northPaidDancer = await createDancer(academyNorth.academy.id, {
+      firstName: "Carla",
+      lastName: "Pagada",
+    });
+    const northPaidInscription = await seedSignedInscription({
+      academyId: academyNorth.academy.id,
+      choreographyId: northPaid.id,
+      dancerId: northPaidDancer.id,
+      depositAmount: 3000,
+      frozenBasePriceAmount: 10000,
+      paid: { balanceAmount: 7000, finalTotalAmount: 10000 },
+    });
+    await db.insert(paymentAllocations).values([
+      {
+        academyId: academyNorth.academy.id,
+        allocationType: "deposit",
+        amount: 3000,
+        eventId: event.id,
+        inscriptionId: northPaidInscription.id,
         paymentId: northPayment.id,
-        requestUrl: accountCurrentUrl(academyNorth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(northImputationRequest, academyNorth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const { request: northPaidDepositImputationRequest } =
-      await buildPaymentImputationRequest({
-        imputationDate: "2026-03-21",
-        invoiceId: northPaidDepositInvoice.id,
+      },
+      {
+        academyId: academyNorth.academy.id,
+        allocationType: "balance",
+        amount: 7000,
+        eventId: event.id,
+        inscriptionId: northPaidInscription.id,
         paymentId: northPayment.id,
-        requestUrl: accountCurrentUrl(academyNorth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          northPaidDepositImputationRequest,
-          academyNorth.academy.id,
-        ),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
+      },
+    ]);
+
+    // Sur Activa: impaga -> pending seña 3000, no allocations.
+    const southDancer = await createDancer(academySouth.academy.id, {
+      firstName: "Delia",
+      lastName: "Sur",
     });
-
-    const { request: northBalanceIssueRequest } =
-      await buildBalanceInvoiceIssueRequest({
-        administrativeDiscountAmount: "1000",
-        administrativeDiscountInternalReason: "Descuento operativo.",
-        choreographyId: northChoreography.id,
-        issueDate: "2026-03-22",
-        requestUrl: accountCurrentUrl(academyNorth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(northBalanceIssueRequest, academyNorth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const { request: northPaidBalanceIssueRequest } =
-      await buildBalanceInvoiceIssueRequest({
-        choreographyId: northPaidChoreography.id,
-        issueDate: "2026-03-22",
-        requestUrl: accountCurrentUrl(academyNorth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(northPaidBalanceIssueRequest, academyNorth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const northPaidBalanceInvoice = (
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: eq(
-          academyEventChoreographyInvoices.choreographyId,
-          northPaidChoreography.id,
-        ),
-      })
-    ).find((invoice) => invoice.invoiceType === "saldo");
-
-    if (!northPaidBalanceInvoice) {
-      throw new Error("Expected paid choreography balance invoice.");
-    }
-
-    const { request: northPaidBalanceImputationRequest } =
-      await buildPaymentImputationRequest({
-        imputationDate: "2026-03-23",
-        invoiceId: northPaidBalanceInvoice.id,
-        paymentId: northPayment.id,
-        requestUrl: accountCurrentUrl(academyNorth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          northPaidBalanceImputationRequest,
-          academyNorth.academy.id,
-        ),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const { request: southImputationRequest } =
-      await buildPaymentImputationRequest({
-        imputationDate: "2026-03-21",
-        invoiceId: southInvoice.id,
-        paymentId: southPayment.id,
-        requestUrl: accountCurrentUrl(academySouth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(southImputationRequest, academySouth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const [southImputation] =
-      await db.query.academyEventInvoiceImputations.findMany({
-        where: eq(academyEventInvoiceImputations.invoiceId, southInvoice.id),
-      });
-
-    if (!southImputation) {
-      throw new Error("Expected imputation for the report test.");
-    }
-
-    const { request: cancelInvoiceRequest } = await buildCancelInvoiceRequest({
-      invoiceId: southInvoice.id,
-      reason: "Factura emitida por error.",
-      requestUrl: accountCurrentUrl(academySouth.academy.id, event.id),
-      role: "admin",
-    });
-    const cancelInvoiceResult = await accountCurrentAction(
-      detailActionArgs(cancelInvoiceRequest, academySouth.academy.id),
-    );
-
-    expect(cancelInvoiceResult).toMatchObject({
-      status: "error",
-    });
-
-    const { request: annulImputationRequest } =
-      await buildAnnulImputationRequest({
-        imputationId: southImputation.id,
-        reason: "Imputación aplicada a una factura incorrecta.",
-        requestUrl: accountCurrentUrl(academySouth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(annulImputationRequest, academySouth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const { request: cancelledInvoiceRequest } =
-      await buildCancelInvoiceRequest({
-        invoiceId: southInvoice.id,
-        reason: "Factura emitida por error.",
-        requestUrl: accountCurrentUrl(academySouth.academy.id, event.id),
-        role: "admin",
-      });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(cancelledInvoiceRequest, academySouth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    const { request: annulPaymentRequest } = await buildAnnulPaymentRequest({
-      paymentId: southPayment.id,
-      reason: "Pago duplicado.",
-      requestUrl: accountCurrentUrl(academySouth.academy.id, event.id),
-      role: "admin",
-    });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(annulPaymentRequest, academySouth.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: southChoreography.id,
+      dancerId: southDancer.id,
     });
 
     const { request: listRequest } = await createSignedInRequest({
@@ -408,12 +292,6 @@ describe.sequential("administracion finanzas", () => {
     });
 
     expect(academiesMarkup).not.toContain('aria-label="Acciones"');
-    expect(academiesMarkup).not.toContain(
-      '<a href="/administracion/academias/reporte"',
-    );
-    expect(academiesMarkup).not.toContain(
-      `/administracion/academias/${academyNorth.academy.id}`,
-    );
 
     const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",
@@ -429,19 +307,24 @@ describe.sequential("administracion finanzas", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
+    // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
+    // 3000 (impaga); saldo adeudado (7000 saldo señada + 3000 seña impaga) -
+    // 7000 disponible = 3000.
+    // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
+    // saldo adeudado max(0, 3000 - 3000) = 0.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
-        owedAmount: { status: "complete", amount: 9000 },
+        owedAmount: { status: "complete", amount: 3000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
-        availableBalanceAmount: 0,
-        owedAmount: { status: "complete", amount: 10000 },
+        availableBalanceAmount: 3000,
+        owedAmount: { status: "complete", amount: 0 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
@@ -452,18 +335,6 @@ describe.sequential("administracion finanzas", () => {
     expect(markup).toContain("Seña adeudada");
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
-    expect(markup).toMatch(/<button[^>]*>Nombre/);
-    expect(markup).not.toMatch(/<button[^>]*>Seña adeudada/);
-    expect(markup).not.toMatch(/<button[^>]*>Saldo disponible/);
-    expect(markup).not.toMatch(/<button[^>]*>Saldo adeudado/);
-    expect(markup).not.toContain("Total pagado");
-    expect(markup).not.toContain("Total estimado");
-    expect(markup).not.toContain("Seña estimada");
-    expect(markup).not.toContain("Facturas pendientes");
-    expect(markup).not.toContain("Pagos sin imputar");
-    expect(markup).not.toContain("Mixto");
-    expect(markup).toContain("$ 9.000");
-    expect(markup).toContain("$ 10.000");
     expect(markup).toContain("$ 7.000");
     expect(markup).toContain("$ 3.000");
     expect(markup).not.toContain("$ 20.000");
@@ -480,7 +351,7 @@ describe.sequential("administracion finanzas", () => {
       academyName: "Academia Sin Precio",
     });
     const eventCatalog = await createEventCatalog(event.id);
-    await createChoreographyRecord({
+    const duoChoreography = await createChoreographyRecord({
       academyId: academy.academy.id,
       categoryId: eventCatalog.categoryWithLevel.id,
       createdAt: choreographyDate("2026-03-10T12:00:00Z"),
@@ -491,6 +362,16 @@ describe.sequential("administracion finanzas", () => {
       name: "Duo sin precio",
       scheduleCapacityId: eventCatalog.scheduleCapacity.id,
       submodalityId: eventCatalog.submodality.id,
+    });
+    // An impaga inscription with no applicable duo price yields pending amounts.
+    const duoDancer = await createDancer(academy.academy.id, {
+      firstName: "Sol",
+      lastName: "Duo",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: duoChoreography.id,
+      dancerId: duoDancer.id,
     });
 
     const { request } = await createSignedInRequest({
@@ -523,25 +404,13 @@ describe.sequential("administracion finanzas", () => {
     ]);
     expect(markup.match(/Pendiente/g)).toHaveLength(2);
   });
-  test("renders payment and invoice control lists for the active event", async () => {
+  test("renders the payments control list for the active event", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
     const academy = await createAcademyUser({
       email: "academia.finanzas.listas@example.com",
       academyName: "Academia Listas",
-    });
-    const eventCatalog = await createEventCatalog(event.id);
-    const choreography = await createChoreographyRecord({
-      academyId: academy.academy.id,
-      categoryId: eventCatalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-10T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: eventCatalog.level.id,
-      modalityId: eventCatalog.modality.id,
-      name: "Coreografía Facturada",
-      scheduleCapacityId: eventCatalog.scheduleCapacity.id,
-      submodalityId: eventCatalog.submodality.id,
     });
 
     await registerPaymentForTest({
@@ -556,63 +425,18 @@ describe.sequential("administracion finanzas", () => {
       eventId: event.id,
       paymentDate: "2026-03-16",
     });
-    await issueDepositInvoiceForTest({
-      academyId: academy.academy.id,
-      choreographyIds: [choreography.id],
-      eventId: event.id,
-      issueDate: "2026-03-20",
-    });
 
-    const [payment] = await db.query.academyEventPayments.findMany({
-      where: eq(academyEventPayments.paymentDate, "2026-03-15"),
-    });
-    const [invoice] = await db.query.academyEventChoreographyInvoices.findMany({
-      where: eq(
-        academyEventChoreographyInvoices.choreographyId,
-        choreography.id,
-      ),
-    });
-
-    if (!payment || !invoice) {
-      throw new Error("Expected payment and invoice for finance lists.");
-    }
-
-    const { request: imputationRequest } = await buildPaymentImputationRequest({
-      imputationDate: "2026-03-21",
-      invoiceId: invoice.id,
-      paymentId: payment.id,
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-      role: "admin",
-    });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(imputationRequest, academy.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
+    // Annulled payments must not appear in the payments control list.
     const [annullablePayment] = await db.query.academyEventPayments.findMany({
       where: eq(academyEventPayments.paymentDate, "2026-03-16"),
     });
-
     if (!annullablePayment) {
       throw new Error("Expected annullable payment for finance lists.");
     }
-
-    const { request: annulPaymentRequest } = await buildAnnulPaymentRequest({
-      paymentId: annullablePayment.id,
-      reason: "Pago duplicado en conciliación.",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-      role: "admin",
-    });
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(annulPaymentRequest, academy.academy.id),
-      ),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
+    await db
+      .update(academyEventPayments)
+      .set({ annulledAt: new Date(), annulledReason: "Pago duplicado." })
+      .where(eq(academyEventPayments.id, annullablePayment.id));
 
     const { request: paymentsRequest } = await createSignedInRequest({
       email: "admin.finanzas.pagos@example.com",
@@ -642,42 +466,6 @@ describe.sequential("administracion finanzas", () => {
     expect(paymentsMarkup).toContain("$ 5.000");
     expect(paymentsMarkup).not.toContain("Anulado");
     expect(paymentsMarkup).not.toContain("$ 7.000");
-
-    const { request: invoicesRequest } = await createSignedInRequest({
-      email: "admin.finanzas.facturas@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/facturas?evento=${event.id}`,
-    });
-    let invoicesRedirect: Response | null = null;
-
-    try {
-      await financeInvoicesLoader(reportRouteArgs(invoicesRequest));
-    } catch (error) {
-      invoicesRedirect = error as Response;
-    }
-
-    expect(invoicesRedirect).toMatchObject({ status: 302 });
-    expect(invoicesRedirect?.headers.get("location")).toBe("/administracion");
-
-    const invoicesData = await loadAdminInvoicesList(invoicesRequest);
-    const invoicesMarkup = renderFinanceInvoicesRoute({
-      loaderData: invoicesData,
-    });
-
-    expect(invoicesData.rows).toEqual([
-      expect.objectContaining({
-        academyName: "Academia Listas",
-        amount: 3000,
-        choreographyName: "Coreografía Facturada",
-        imputedAmount: 3000,
-        invoiceType: "sena",
-        pendingAmount: 0,
-        status: "pagada",
-      }),
-    ]);
-    expect(invoicesMarkup).toContain("Facturas");
-    expect(invoicesMarkup).toContain("Coreografía Facturada");
-    expect(invoicesMarkup).toContain("Pagada");
   });
 
   test("lets admin create a payment from the payments form", async () => {

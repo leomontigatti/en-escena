@@ -4,24 +4,6 @@ import { redirect } from "react-router";
 import { db } from "@/db";
 import { academies, academyEventPayments } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
-import {
-  annulPayment,
-  annulPaymentImputation,
-  cancelDepositInvoice,
-  type CorrectionResult,
-} from "@/lib/finances/account-current-corrections.server";
-import {
-  issueBalanceInvoice,
-  previewBalanceInvoice,
-} from "@/lib/finances/choreography-invoices.server";
-import {
-  createPaymentImputation,
-  deriveChoreographyFinancialStates,
-  getInvoiceState,
-  listActiveImputationTotalsByIds,
-  listActiveImputationsForAcademyEvent,
-} from "@/lib/finances/payment-imputations.server";
-import { readActiveAcademyEventInvoices } from "@/lib/finances/academy-account-current.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
@@ -32,30 +14,12 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import { registerAcademyEventPayment } from "./payments.server";
 
 import {
-  annulImputationSchema,
-  annulPaymentSchema,
-  balanceInvoiceFieldNames,
-  balanceInvoiceSchema,
-  cancelInvoiceSchema,
-  type AccountCurrentCorrectionFormValues,
-  correctionFieldNames,
   defaultAccountCurrentActionValues,
-  imputationFieldNames,
   paymentFieldNames,
-  paymentImputationSchema,
-  readAccountCurrentCorrectionValues,
-  readBalanceInvoiceValues,
-  readPaymentImputationValues,
   readRegisterPaymentValues,
   registerPaymentSchema,
   type AdministrativeAcademyAccountCurrentActionData,
 } from "./shared";
-import { listAccountCurrentMovements } from "./movements";
-
-type CorrectionSchema =
-  | typeof annulImputationSchema
-  | typeof annulPaymentSchema
-  | typeof cancelInvoiceSchema;
 
 type AccountCurrentActionContext = {
   academyId: string;
@@ -73,22 +37,12 @@ type AccountCurrentActionErrorData = Extract<
   AdministrativeAcademyAccountCurrentActionData,
   { status: "error" }
 >;
-type AccountCurrentPreviewData = Extract<
-  AdministrativeAcademyAccountCurrentActionData,
-  { status: "preview" }
->;
 type AccountCurrentActionValues =
   AdministrativeAcademyAccountCurrentActionData["values"];
 
 const accountCurrentActionHandlers: Partial<
   Record<string, AccountCurrentActionHandler>
 > = {
-  "annul-imputation": handleAnnulImputationAction,
-  "annul-payment": handleAnnulPaymentAction,
-  "cancel-invoice": handleCancelInvoiceAction,
-  "impute-payment": handleImputePaymentAction,
-  "issue-balance-invoice": handleIssueBalanceInvoiceAction,
-  "preview-balance-invoice": handlePreviewBalanceInvoiceAction,
   "register-payment": handleRegisterPaymentAction,
 };
 
@@ -100,16 +54,13 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
   const eventContext = await loadAdminEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
-  const [financeDetail, payments, activeInvoices, imputations, movements] =
+  const [financeDetail, payments] =
     eventContext.selectedEventId === null
       ? [
           {
             choreographyFinanceRows: [],
             summary: emptyOperationalFinanceSummary(),
           },
-          [],
-          [],
-          [],
           [],
         ]
       : await Promise.all([
@@ -138,70 +89,13 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
               desc(academyEventPayments.createdAt),
             ],
           }),
-          readActiveAcademyEventInvoices({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
-          listActiveImputationsForAcademyEvent({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
-          listAccountCurrentMovements({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
         ]);
-
-  const imputationTotals = await listActiveImputationTotalsByIds({
-    invoiceIds: activeInvoices.map((invoice) => invoice.id),
-    paymentIds: payments.map((payment) => payment.id),
-  });
-  const choreographyFinancialStates = await deriveChoreographyFinancialStates([
-    ...new Set(activeInvoices.map((invoice) => invoice.choreographyId)),
-  ]);
-  const hydratedPayments = payments.map((payment) => {
-    const imputedAmount = imputationTotals.paymentTotals.get(payment.id) ?? 0;
-
-    return {
-      ...payment,
-      availableAmount: payment.amount - imputedAmount,
-      imputedAmount,
-    };
-  });
-  const hydratedInvoices = activeInvoices.map((invoice) => {
-    const imputedAmount = imputationTotals.invoiceTotals.get(invoice.id) ?? 0;
-    const pendingAmount = Math.max(0, invoice.amount - imputedAmount);
-
-    return {
-      ...invoice,
-      choreographyFinancialState:
-        choreographyFinancialStates.get(invoice.choreographyId) ?? "impaga",
-      imputedAmount,
-      pendingAmount,
-      status: getInvoiceState({
-        amount: invoice.amount,
-        imputedAmount,
-      }),
-    };
-  });
-  const hydratedDepositInvoices = hydratedInvoices.filter(
-    (invoice) => invoice.invoiceType === "sena",
-  );
-  const hydratedBalanceInvoices = hydratedInvoices.filter(
-    (invoice) => invoice.invoiceType === "saldo",
-  );
 
   return {
     academy,
-    canCorrectRecords: user.role === "admin",
-    canImputePayments: user.role === "admin",
     canRegisterPayments: user.role === "admin",
-    activeBalanceInvoices: hydratedBalanceInvoices,
-    activeDepositInvoices: hydratedDepositInvoices,
     choreographyFinanceRows: financeDetail.choreographyFinanceRows,
-    imputations,
-    movements,
-    payments: hydratedPayments,
+    payments,
     selectedEventId: eventContext.selectedEventId,
     summary: financeDetail.summary,
   };
@@ -272,200 +166,6 @@ async function handleRegisterPaymentAction(
   throw redirect(context.requestUrl);
 }
 
-async function handlePreviewBalanceInvoiceAction(
-  context: AccountCurrentActionContext,
-) {
-  const values = readBalanceInvoiceValues(context.formData);
-  const parsed = balanceInvoiceSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return balanceInvoiceActionError({
-      fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
-      message: "Revisá los datos de la factura.",
-      values,
-    });
-  }
-
-  const result = await previewBalanceInvoice({
-    academyId: context.academyId,
-    administrativeDiscountAmount: Number(
-      parsed.data.administrativeDiscountAmount,
-    ),
-    administrativeDiscountInternalReason:
-      parsed.data.administrativeDiscountInternalReason || null,
-    administrativeDiscountPublicLabel:
-      parsed.data.administrativeDiscountPublicLabel || null,
-    choreographyId: parsed.data.choreographyId,
-    eventId: context.eventId,
-    issueDate: parsed.data.issueDate,
-  });
-
-  if (!result.ok) {
-    return balanceInvoiceActionError({
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      values,
-    });
-  }
-
-  return accountCurrentPreview({
-    preview: result.preview,
-    values: { balanceInvoice: values },
-  });
-}
-
-async function handleIssueBalanceInvoiceAction(
-  context: AccountCurrentActionContext,
-) {
-  const values = readBalanceInvoiceValues(context.formData);
-  const parsed = balanceInvoiceSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return balanceInvoiceActionError({
-      fieldErrors: getFieldErrors(parsed.error, balanceInvoiceFieldNames),
-      message: "Revisá los datos de la factura.",
-      values,
-    });
-  }
-
-  const result = await issueBalanceInvoice({
-    academyId: context.academyId,
-    administrativeDiscountAmount: Number(
-      parsed.data.administrativeDiscountAmount,
-    ),
-    administrativeDiscountInternalReason:
-      parsed.data.administrativeDiscountInternalReason || null,
-    administrativeDiscountPublicLabel:
-      parsed.data.administrativeDiscountPublicLabel || null,
-    choreographyId: parsed.data.choreographyId,
-    createdByUserId: context.adminUserId,
-    eventId: context.eventId,
-    issueDate: parsed.data.issueDate,
-  });
-
-  if (!result.ok) {
-    return balanceInvoiceActionError({
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      values,
-    });
-  }
-
-  throw redirect(context.requestUrl);
-}
-
-async function handleImputePaymentAction(context: AccountCurrentActionContext) {
-  const values = readPaymentImputationValues(context.formData);
-  const parsed = paymentImputationSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return accountCurrentActionError({
-      fieldErrors: getFieldErrors(parsed.error, imputationFieldNames),
-      message: "Revisá los datos de la imputación.",
-      values: { imputation: values },
-    });
-  }
-
-  const result = await createPaymentImputation({
-    academyId: context.academyId,
-    createdByUserId: context.adminUserId,
-    eventId: context.eventId,
-    imputationDate: parsed.data.imputationDate,
-    invoiceId: parsed.data.invoiceId,
-    paymentId: parsed.data.paymentId,
-  });
-
-  if (!result.ok) {
-    return accountCurrentActionError({
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      values: { imputation: values },
-    });
-  }
-
-  throw redirect(context.requestUrl);
-}
-
-async function handleAnnulImputationAction(
-  context: AccountCurrentActionContext,
-) {
-  return await handleCorrectionAction({
-    formData: context.formData,
-    requestUrl: context.requestUrl,
-    schema: annulImputationSchema,
-    run: (data) =>
-      annulPaymentImputation({
-        academyId: context.academyId,
-        annulledByUserId: context.adminUserId,
-        eventId: context.eventId,
-        imputationId: data.imputationId,
-        reason: data.reason,
-      }),
-  });
-}
-
-async function handleCancelInvoiceAction(context: AccountCurrentActionContext) {
-  return await handleCorrectionAction({
-    formData: context.formData,
-    requestUrl: context.requestUrl,
-    schema: cancelInvoiceSchema,
-    run: (data) =>
-      cancelDepositInvoice({
-        academyId: context.academyId,
-        cancelledByUserId: context.adminUserId,
-        eventId: context.eventId,
-        invoiceId: data.invoiceId,
-        reason: data.reason,
-      }),
-  });
-}
-
-async function handleAnnulPaymentAction(context: AccountCurrentActionContext) {
-  return await handleCorrectionAction({
-    formData: context.formData,
-    requestUrl: context.requestUrl,
-    schema: annulPaymentSchema,
-    run: (data) =>
-      annulPayment({
-        academyId: context.academyId,
-        annulledByUserId: context.adminUserId,
-        eventId: context.eventId,
-        paymentId: data.paymentId,
-        reason: data.reason,
-      }),
-  });
-}
-
-async function handleCorrectionAction(input: {
-  formData: FormData;
-  requestUrl: string;
-  run: (data: AccountCurrentCorrectionFormValues) => Promise<CorrectionResult>;
-  schema: CorrectionSchema;
-}): Promise<AdministrativeAcademyAccountCurrentActionData | never> {
-  const values = readAccountCurrentCorrectionValues(input.formData);
-  const parsed = input.schema.safeParse(values);
-
-  if (!parsed.success) {
-    return correctionActionError({
-      fieldErrors: getFieldErrors(parsed.error, correctionFieldNames),
-      message: "Revisá los datos de la corrección.",
-      values,
-    });
-  }
-
-  const result = await input.run(values);
-
-  if (!result.ok) {
-    return correctionActionError({
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      values,
-    });
-  }
-
-  throw redirect(input.requestUrl);
-}
-
 function accountCurrentActionError(input: {
   fieldErrors: Partial<Record<string, string>>;
   message: string;
@@ -479,29 +179,6 @@ function accountCurrentActionError(input: {
   };
 }
 
-function balanceInvoiceActionError(input: {
-  fieldErrors: Partial<Record<string, string>>;
-  message: string;
-  values: AccountCurrentActionValues["balanceInvoice"];
-}) {
-  return accountCurrentActionError({
-    fieldErrors: input.fieldErrors,
-    message: input.message,
-    values: { balanceInvoice: input.values },
-  });
-}
-
-function accountCurrentPreview(input: {
-  preview: AccountCurrentPreviewData["preview"];
-  values?: Partial<AccountCurrentActionValues>;
-}): AccountCurrentPreviewData {
-  return {
-    status: "preview",
-    preview: input.preview,
-    values: accountCurrentActionValues(input.values),
-  };
-}
-
 function accountCurrentActionValues(
   values: Partial<AccountCurrentActionValues> = {},
 ): AccountCurrentActionValues {
@@ -509,18 +186,6 @@ function accountCurrentActionValues(
     ...defaultAccountCurrentActionValues(),
     ...values,
   };
-}
-
-function correctionActionError(input: {
-  fieldErrors: Partial<Record<string, string>>;
-  message: string;
-  values: AccountCurrentCorrectionFormValues;
-}): AdministrativeAcademyAccountCurrentActionData {
-  return accountCurrentActionError({
-    fieldErrors: input.fieldErrors,
-    message: input.message,
-    values: { correction: input.values },
-  });
 }
 
 async function readAcademy(academyId: string) {

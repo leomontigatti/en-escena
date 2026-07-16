@@ -6,11 +6,13 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventChoreographyInvoices,
   academyEventPayments,
+  choreographyDancers,
+  paymentAllocations,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
+  createDancer,
   createEventCatalog,
   date as choreographyDate,
 } from "@/features/portal/choreographies/test-support/db";
@@ -22,25 +24,15 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { PortalAcademyFinancesRouteView } from "@/features/portal/finances/view";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { activateEvent } from "@/lib/events/management.server";
-import { action as accountCurrentAction } from "@/routes/administracion.academias_.$academyId";
 import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
 import { loader as portalFinanzasLoader } from "@/routes/portal.finanzas";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   accountCurrentUrl,
-  buildAnnulImputationRequest,
-  buildAnnulPaymentRequest,
-  buildBalanceInvoiceIssueRequest,
-  buildCancelInvoiceRequest,
-  buildPaymentImputationRequest,
-  completeDepositInvoiceForTest,
   createSavedEvent,
   createSignedInRequest,
-  detailActionArgs,
   detailRouteArgs,
-  issueDepositInvoiceForTest,
-  registerPaymentForTest,
 } from "../../../lib/admin/academies/account-current-route.test-support";
 
 installDatabaseTestHooks();
@@ -48,6 +40,78 @@ installDatabaseTestHooks();
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+async function seedPayment(input: {
+  academyId: string;
+  amount: number;
+  createdByUserId: string;
+  eventId: string;
+  paymentDate: string;
+  paymentNumber: number;
+  reference?: string;
+  internalNote?: string;
+}) {
+  const [payment] = await db
+    .insert(academyEventPayments)
+    .values({
+      academyId: input.academyId,
+      amount: input.amount,
+      createdByUserId: input.createdByUserId,
+      eventId: input.eventId,
+      internalNote: input.internalNote ?? null,
+      paymentDate: input.paymentDate,
+      paymentMethod: "transferencia",
+      paymentNumber: input.paymentNumber,
+      reference: input.reference ?? null,
+    })
+    .returning();
+
+  return payment;
+}
+
+async function seedImpagaInscription(
+  choreographyId: string,
+  academyId: string,
+) {
+  const dancer = await createDancer(academyId, {
+    firstName: "Ana",
+    lastName: choreographyId,
+  });
+
+  await db.insert(choreographyDancers).values({
+    ageAtEventStart: 14,
+    choreographyId,
+    dancerId: dancer.id,
+  });
+}
+
+async function seedSignedInscription(input: {
+  academyId: string;
+  choreographyId: string;
+  depositAmount: number;
+  depositReferenceDate?: string;
+  frozenBasePriceAmount: number;
+}) {
+  const dancer = await createDancer(input.academyId, {
+    firstName: "Luna",
+    lastName: input.choreographyId,
+  });
+
+  const [inscription] = await db
+    .insert(choreographyDancers)
+    .values({
+      ageAtEventStart: 14,
+      choreographyId: input.choreographyId,
+      dancerId: dancer.id,
+      frozenBasePriceAmount: input.frozenBasePriceAmount,
+      depositReferenceDate: input.depositReferenceDate ?? "2026-03-20",
+      depositPercentage: 30,
+      depositAmount: input.depositAmount,
+    })
+    .returning();
+
+  return inscription;
+}
 
 describe.sequential("loadPortalAcademyFinances", () => {
   test("shows only the authenticated academy active-event financial records", async () => {
@@ -68,47 +132,26 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await activateEvent(event.id);
     const catalog = await createEventCatalog(event.id);
-    const ownerDepositChoreography = await createChoreographyRecord({
+
+    const signedChoreography = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       createdAt: choreographyDate("2026-03-10T12:00:00Z"),
       eventId: event.id,
       experienceLevelId: catalog.level.id,
       modalityId: catalog.modality.id,
-      name: "Dueto Portal",
+      name: "Solo Señada",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    const ownerBalanceChoreography = await createChoreographyRecord({
+    const impagaChoreography = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       createdAt: choreographyDate("2026-03-12T12:00:00Z"),
       eventId: event.id,
       experienceLevelId: catalog.level.id,
       modalityId: catalog.modality.id,
-      name: "Solo Beca",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    const ownerGenericDiscountChoreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-13T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      name: "Solo Descuento",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    const cancelledChoreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      createdAt: choreographyDate("2026-03-14T12:00:00Z"),
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      name: "Cancelada",
+      name: "Solo Impaga",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
@@ -124,271 +167,54 @@ describe.sequential("loadPortalAcademyFinances", () => {
       submodalityId: catalog.submodality.id,
     });
 
-    await registerPaymentForTest({
+    const activePayment = await seedPayment({
       academyId: owner.academyId,
-      amount: "15000",
+      amount: 15000,
+      createdByUserId: owner.userId,
       eventId: event.id,
+      internalNote: "Nota interna admin",
       paymentDate: "2026-03-15",
+      paymentNumber: 1,
+      reference: "TRX-PORTAL-001",
     });
-    await registerPaymentForTest({
+    const annulledPayment = await seedPayment({
       academyId: owner.academyId,
-      amount: "6500",
+      amount: 6500,
+      createdByUserId: owner.userId,
       eventId: event.id,
       paymentDate: "2026-03-16",
+      paymentNumber: 2,
     });
-    await registerPaymentForTest({
-      academyId: otherAcademy.id,
-      amount: "9999",
-      eventId: event.id,
-      paymentDate: "2026-03-17",
-    });
-
     await db
       .update(academyEventPayments)
-      .set({
-        reference: "TRX-PORTAL-001",
-        internalNote: "Nota interna admin",
-      })
-      .where(eq(academyEventPayments.academyId, owner.academyId));
+      .set({ annulledAt: new Date(), annulledReason: "Pago duplicado." })
+      .where(eq(academyEventPayments.id, annulledPayment.id));
 
-    await issueDepositInvoiceForTest({
-      academyId: owner.academyId,
-      choreographyIds: [
-        ownerDepositChoreography.id,
-        ownerBalanceChoreography.id,
-        ownerGenericDiscountChoreography.id,
-      ],
-      eventId: event.id,
-      issueDate: "2026-03-20",
-    });
-    await issueDepositInvoiceForTest({
-      academyId: owner.academyId,
-      choreographyIds: [cancelledChoreography.id],
-      eventId: event.id,
-      issueDate: "2026-03-21",
-    });
-    await issueDepositInvoiceForTest({
+    await seedPayment({
       academyId: otherAcademy.id,
-      choreographyIds: [otherChoreography.id],
+      amount: 9999,
+      createdByUserId: owner.userId,
       eventId: event.id,
-      issueDate: "2026-03-20",
+      paymentDate: "2026-03-17",
+      paymentNumber: 3,
     });
 
-    const ownerPayments = await db.query.academyEventPayments.findMany({
-      where: (table, { eq }) => eq(table.academyId, owner.academyId),
-      orderBy: (table, { asc }) => [asc(table.paymentNumber)],
+    const signedInscription = await seedSignedInscription({
+      academyId: owner.academyId,
+      choreographyId: signedChoreography.id,
+      depositAmount: 3000,
+      frozenBasePriceAmount: 10000,
     });
-    const ownerInvoices =
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: (table, { eq }) => eq(table.academyId, owner.academyId),
-        orderBy: (table, { asc }) => [asc(table.invoiceNumber)],
-      });
-
-    const activePayment = ownerPayments[0];
-    const annulledPayment = ownerPayments[1];
-    const activeDepositInvoices = ownerInvoices.filter(
-      (invoice) => invoice.cancelledAt === null,
-    );
-    const depositInvoice = activeDepositInvoices.find(
-      (invoice) => invoice.choreographyId === ownerDepositChoreography.id,
-    );
-    const balanceSeedInvoice = activeDepositInvoices.find(
-      (invoice) => invoice.choreographyId === ownerBalanceChoreography.id,
-    );
-    const genericDiscountSeedInvoice = activeDepositInvoices.find(
-      (invoice) =>
-        invoice.choreographyId === ownerGenericDiscountChoreography.id,
-    );
-    const cancelledInvoice = ownerInvoices.find(
-      (invoice) => invoice.choreographyId === cancelledChoreography.id,
-    );
-
-    if (
-      !activePayment ||
-      !annulledPayment ||
-      !depositInvoice ||
-      !balanceSeedInvoice ||
-      !genericDiscountSeedInvoice ||
-      !cancelledInvoice
-    ) {
-      throw new Error("Expected payment and invoice fixtures to exist.");
-    }
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildPaymentImputationRequest({
-              imputationDate: "2026-03-22",
-              invoiceId: depositInvoice.id,
-              paymentId: activePayment.id,
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildPaymentImputationRequest({
-              imputationDate: "2026-03-23",
-              invoiceId: balanceSeedInvoice.id,
-              paymentId: activePayment.id,
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildPaymentImputationRequest({
-              imputationDate: "2026-03-24",
-              invoiceId: genericDiscountSeedInvoice.id,
-              paymentId: activePayment.id,
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildBalanceInvoiceIssueRequest({
-              administrativeDiscountAmount: "500",
-              administrativeDiscountInternalReason: "Beca interna",
-              administrativeDiscountPublicLabel: "Beca academia",
-              choreographyId: ownerBalanceChoreography.id,
-              issueDate: "2026-03-26",
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    const issuedInvoices =
-      await db.query.academyEventChoreographyInvoices.findMany({
-        where: (table, { eq }) => eq(table.academyId, owner.academyId),
-      });
-    const balanceInvoice = issuedInvoices.find(
-      (invoice) =>
-        invoice.invoiceType === "saldo" &&
-        invoice.choreographyId === ownerBalanceChoreography.id,
-    );
-
-    if (!balanceInvoice) {
-      throw new Error("Expected the balance invoice fixture to exist.");
-    }
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildPaymentImputationRequest({
-              imputationDate: "2026-03-27",
-              invoiceId: balanceInvoice.id,
-              paymentId: annulledPayment.id,
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    const [annulledImputation] =
-      await db.query.academyEventInvoiceImputations.findMany({
-        where: (table, { eq }) => eq(table.paymentId, annulledPayment.id),
-      });
-
-    if (!annulledImputation) {
-      throw new Error("Expected the annulled imputation fixture to exist.");
-    }
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildAnnulImputationRequest({
-              imputationId: annulledImputation.id,
-              reason: "Se imputó en la factura equivocada.",
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildBalanceInvoiceIssueRequest({
-              administrativeDiscountAmount: "200",
-              administrativeDiscountInternalReason: "Ajuste interno",
-              choreographyId: ownerGenericDiscountChoreography.id,
-              issueDate: "2026-03-26",
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildCancelInvoiceRequest({
-              invoiceId: cancelledInvoice.id,
-              reason: "No corresponde cobrar esta coreografía.",
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
-
-    await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildAnnulPaymentRequest({
-              paymentId: annulledPayment.id,
-              reason: "Pago duplicado.",
-              requestUrl: accountCurrentUrl(owner.academyId, event.id),
-              role: "admin",
-            })
-          ).request,
-          owner.academyId,
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 302 });
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      allocationType: "deposit",
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: signedInscription.id,
+      paymentId: activePayment.id,
+    });
+    await seedImpagaInscription(impagaChoreography.id, owner.academyId);
+    await seedImpagaInscription(otherChoreography.id, otherAcademy.id);
 
     const loaderData = await loadPortalAcademyFinances(
       new Request("http://localhost/portal/finanzas", {
@@ -398,8 +224,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const markup = renderFinances(loaderData);
 
     expect(loaderData.summary).toEqual({
-      availableBalanceAmount: 6000,
-      owedAmount: { status: "complete", amount: 24300 },
+      availableBalanceAmount: 12000,
+      owedAmount: { status: "complete", amount: 0 },
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
@@ -408,47 +234,21 @@ describe.sequential("loadPortalAcademyFinances", () => {
       paymentNumber: 1,
       paymentMethod: "transferencia",
       reference: "TRX-PORTAL-001",
-      imputedAmount: 9000,
-      availableAmount: 6000,
+      allocatedAmount: 3000,
+      availableAmount: 12000,
       amount: 15000,
     });
     expect(loaderData.payments[0]).not.toHaveProperty("internalNote");
-    expect(loaderData.activeDepositInvoices).toHaveLength(3);
-    expect(loaderData.activeBalanceInvoices).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          administrativeDiscountPublicLabel: "Beca academia",
-          amount: 6500,
-        }),
-        expect.objectContaining({
-          administrativeDiscountPublicLabel: null,
-          amount: 6800,
-        }),
-      ]),
-    );
-    expect(loaderData.activeDepositInvoices).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ choreographyName: "Cancelada" }),
-      ]),
-    );
-    expect(loaderData.activeBalanceInvoices).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ choreographyName: "Ajena" }),
-      ]),
-    );
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).toContain("Pagos activos");
-    expect(markup).toContain("Facturas de seña activas");
-    expect(markup).toContain("Facturas de saldo activas");
+    expect(markup).toContain("Coreografías");
     expect(markup).toContain("TRX-PORTAL-001");
-    expect(markup).toContain("Beca academia");
-    expect(markup).toContain("Descuento administrativo");
+    expect(markup).toContain("Solo Señada");
     expect(markup).not.toContain("Nota interna admin");
     expect(markup).not.toContain("Pago duplicado.");
-    expect(markup).not.toContain("Cancelada");
     expect(markup).not.toContain("Ajena");
   });
 
@@ -466,7 +266,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await activateEvent(event.id);
     const catalog = await createEventCatalog(event.id);
-    await createChoreographyRecord({
+    const choreography = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       createdAt: choreographyDate("2026-03-10T12:00:00Z"),
@@ -477,6 +277,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    await seedImpagaInscription(choreography.id, owner.academyId);
 
     const loaderData = await loadPortalAcademyFinances(
       new Request("http://localhost/portal/finanzas", {
@@ -503,7 +304,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
         status: "incomplete",
       },
     });
-    expect(markup.match(/Pendiente/g)).toHaveLength(2);
+    expect(markup).toContain("Pendiente");
   });
 
   test("matches admin operational summaries for a paid seña snapshot", async () => {
@@ -532,33 +333,28 @@ describe.sequential("loadPortalAcademyFinances", () => {
       submodalityId: catalog.submodality.id,
     });
 
-    await registerPaymentForTest({
+    const payment = await seedPayment({
       academyId: owner.academyId,
-      amount: "3600",
-      eventId: event.id,
-      paymentDate: "2026-03-21",
-    });
-    await issueDepositInvoiceForTest({
-      academyId: owner.academyId,
-      choreographyIds: [choreography.id],
-      eventId: event.id,
-      issueDate: "2026-03-20",
-    });
-    await db
-      .update(academyEventChoreographyInvoices)
-      .set({
-        basePriceAmount: 12000,
-        depositAmount: 3600,
-      })
-      .where(
-        eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
-      );
-    await completeDepositInvoiceForTest({
-      academyId: owner.academyId,
-      choreographyId: choreography.id,
+      amount: 3600,
       createdByUserId: owner.userId,
       eventId: event.id,
-      imputationDate: "2026-03-21",
+      paymentDate: "2026-03-21",
+      paymentNumber: 1,
+    });
+    const inscription = await seedSignedInscription({
+      academyId: owner.academyId,
+      choreographyId: choreography.id,
+      depositAmount: 3600,
+      depositReferenceDate: "2026-03-21",
+      frozenBasePriceAmount: 12000,
+    });
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      allocationType: "deposit",
+      amount: 3600,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
     });
 
     const portalLoaderData = await loadPortalAcademyFinances(

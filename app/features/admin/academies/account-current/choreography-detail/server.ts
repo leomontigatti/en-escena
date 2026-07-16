@@ -40,34 +40,38 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     throw new Response("No encontramos esa coreografía.", { status: 404 });
   }
 
+  const inscriptionsById = new Map(
+    financeDetail.inscriptions
+      .filter((inscription) => inscription.choreographyId === choreographyId)
+      .map((inscription) => [inscription.dancerId, inscription]),
+  );
   const participationRows = await listChoreographyParticipationRows({
     choreographyId,
   });
-  const participationBasePriceAmount =
-    choreographyFinanceRow.basePriceAmount.status === "complete"
-      ? Math.round(
-          choreographyFinanceRow.basePriceAmount.amount /
-            choreographyFinanceRow.registrationCount,
-        )
-      : null;
 
   return {
     academy,
     choreography: {
       depositAmount: choreographyFinanceRow.depositAmount,
       depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
+      financialState: choreographyFinanceRow.financialState,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
       name: choreographyFinanceRow.name,
+      needsAttention: choreographyFinanceRow.needsAttention,
       owedAmount: choreographyFinanceRow.owedAmount,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
-    participations: participationRows.map((participation) => ({
-      ...participation,
-      basePriceAmount: participationBasePriceAmount,
-      discountAmount: 0,
-      finalPriceAmount: participationBasePriceAmount,
-    })),
+    participations: participationRows.map((participation) => {
+      const inscription = inscriptionsById.get(participation.dancerId);
+
+      return {
+        ...participation,
+        basePriceAmount: inscription?.basePriceAmount ?? null,
+        discountAmount: inscription?.dancerDiscountAmount ?? 0,
+        finalPriceAmount: inscription?.finalPriceAmount ?? null,
+      };
+    }),
     selectedEventId: eventContext.selectedEventId,
   };
 }

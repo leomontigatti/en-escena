@@ -16,10 +16,6 @@ import {
   formatChoreographyFinancialState,
   formatOperationalAmount,
 } from "./formatters";
-import {
-  ActiveBalanceInvoicesTable,
-  ActiveDepositInvoicesTable,
-} from "./tables";
 import type { AccountCurrentLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -50,7 +46,7 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Cuenta corriente"
-      description="Revisá la cuenta corriente y las facturas de una academia."
+      description="Revisá el estado financiero de las coreografías de una academia."
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar la cuenta corriente",
         description:
@@ -91,13 +87,6 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
             direction: "asc",
           }}
           emptyMessage="No hay coreografías para mostrar."
-        />
-
-        <ActiveDepositInvoicesTable
-          invoices={loaderData.activeDepositInvoices}
-        />
-        <ActiveBalanceInvoicesTable
-          invoices={loaderData.activeBalanceInvoices}
         />
       </div>
     </AdminResourceLayout>

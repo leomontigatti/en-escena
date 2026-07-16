@@ -13,7 +13,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("hides corrections, payments, imputations, and movements from the view", async () => {
+  test("shows aggregates and hides invoices, imputations, and corrections", async () => {
     const router = createMemoryRouter(
       [
         {
@@ -21,13 +21,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
           element: (
             <AdministracionAcademiaCuentaCorrienteRouteView
               loaderData={accountCurrentLoaderDataFixture({
-                activeDepositInvoices: [activeDepositInvoiceFixture()],
-                canCorrectRecords: true,
-                canImputePayments: true,
                 canRegisterPayments: true,
-                imputations: [imputationFixture()],
-                movements: [movementFixture()],
-                payments: [paymentFixture()],
                 summary: {
                   availableBalanceAmount: 5000,
                   owedAmount: { amount: 10000, status: "complete" },
@@ -49,22 +43,19 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
     const text = document.body.textContent ?? "";
 
     expect(text).toContain("Cuenta corriente");
-    expect(text).toContain("Facturas de seña activas");
     expect(text).toContain("Seña adeudada");
     expect(text).toContain("Saldo disponible");
     expect(text).toContain("Saldo adeudado");
+    expect(text).toContain("Aire");
     expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(text).not.toContain("Facturas de seña activas");
+    expect(text).not.toContain("Facturas de saldo activas");
     expect(text).not.toContain("Correcciones administrativas");
     expect(text).not.toContain("Anular pago");
-    expect(text).not.toContain("Registrar pago");
     expect(text).not.toContain("Imputar pago");
     expect(text).not.toContain("Fecha de imputación");
-    expect(text).not.toContain("Pagos activos");
-    expect(text).not.toContain("Todavía no hay pagos registrados");
     expect(text).not.toContain("Imputaciones activas");
     expect(text).not.toContain("Movimientos");
-    expect(text).not.toContain("Pago N° 1 registrado");
-    expect(text).not.toContain("TRX-001");
   });
 
   test("hides the choreography selection column when list actions are disabled", async () => {
@@ -109,10 +100,6 @@ function accountCurrentLoaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
-    activeBalanceInvoices: [],
-    activeDepositInvoices: [],
-    canCorrectRecords: false,
-    canImputePayments: false,
     canRegisterPayments: false,
     choreographyFinanceRows: [
       choreographyFinanceRowFixture({
@@ -124,8 +111,6 @@ function accountCurrentLoaderDataFixture(
         name: "Tango",
       }),
     ],
-    imputations: [],
-    movements: [],
     payments: [],
     selectedEventId: "event_1",
     summary: {
@@ -148,6 +133,7 @@ function choreographyFinanceRowFixture(
     depositAmount: { amount: 3000, status: "complete" },
     depositCompletedOn: null,
     financialState: "impaga",
+    needsAttention: false,
     groupType: "solo",
     id: "choreography",
     name: "Coreografía",
@@ -155,81 +141,6 @@ function choreographyFinanceRowFixture(
     owedDepositAmount: { amount: 3000, status: "complete" },
     paidAmount: 0,
     registrationCount: 1,
-    ...overrides,
-  };
-}
-
-function activeDepositInvoiceFixture(
-  overrides: Partial<
-    AccountCurrentLoaderData["activeDepositInvoices"][number]
-  > = {},
-): AccountCurrentLoaderData["activeDepositInvoices"][number] {
-  return {
-    administrativeDiscountAmount: null,
-    administrativeDiscountPublicLabel: null,
-    amount: 3000,
-    appliedDepositAmount: 0,
-    choreographyFinancialState: "impaga",
-    choreographyId: "choreography_1",
-    choreographyName: "Aire",
-    dancerDiscountAmount: null,
-    depositCompletedOn: null,
-    finalTotalAmount: null,
-    id: "invoice_1",
-    imputedAmount: 0,
-    invoiceNumber: 1,
-    invoiceType: "sena",
-    issueDate: "2026-03-20",
-    pendingAmount: 3000,
-    selectedPaymentDeadline: "2026-03-31",
-    status: "pendiente",
-    totalDiscountAmount: null,
-    ...overrides,
-  };
-}
-
-function paymentFixture(
-  overrides: Partial<AccountCurrentLoaderData["payments"][number]> = {},
-): AccountCurrentLoaderData["payments"][number] {
-  return {
-    amount: 5000,
-    availableAmount: 5000,
-    id: "payment_1",
-    imputedAmount: 0,
-    internalNote: "Primer pago",
-    paymentDate: "2026-03-20",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
-    reference: "TRX-001",
-    ...overrides,
-  };
-}
-
-function imputationFixture(
-  overrides: Partial<AccountCurrentLoaderData["imputations"][number]> = {},
-): AccountCurrentLoaderData["imputations"][number] {
-  return {
-    amount: 3000,
-    choreographyName: "Aire",
-    id: "imputation_1",
-    imputationDate: "2026-03-21",
-    invoiceNumber: 1,
-    paymentNumber: 1,
-    ...overrides,
-  };
-}
-
-function movementFixture(
-  overrides: Partial<AccountCurrentLoaderData["movements"][number]> = {},
-): AccountCurrentLoaderData["movements"][number] {
-  return {
-    actorEmail: "admin@enescena.com.ar",
-    amount: 5000,
-    detail: "Pago registrado · Referencia TRX-001",
-    key: "payment-created-payment_1",
-    label: "Pago N° 1 registrado",
-    occurredOn: "2026-03-20",
-    reason: null,
     ...overrides,
   };
 }
