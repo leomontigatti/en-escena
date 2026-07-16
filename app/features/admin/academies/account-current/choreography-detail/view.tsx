@@ -1,19 +1,49 @@
-import { ChevronLeft, CircleDollarSign, Landmark, Receipt } from "lucide-react";
-import { Link } from "react-router";
+import {
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  CircleDollarSign,
+  Landmark,
+  LoaderCircle,
+  Receipt,
+} from "lucide-react";
+import { useState } from "react";
+import { Link, useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
+import { MetricCard } from "@/components/shared/metric-card";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
-import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -24,15 +54,33 @@ import {
 } from "@/components/ui/table";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
-import { formatAmount, formatOperationalAmount } from "../formatters";
+import {
+  formatAmount,
+  formatDate,
+  formatOperationalAmount,
+} from "../formatters";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
 >;
 
+type InscriptionRow =
+  ChoreographyFinanceDetailLoaderData["inscriptions"][number];
+type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
+
 type AdministracionCoreografiaFinancieraDetalleViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
+};
+
+const stageBadge: Record<
+  InscriptionRow["state"],
+  { label: string; variant: "secondary" | "info" | "success" }
+> = {
+  impaga: { label: "Impaga", variant: "secondary" },
+  señada: { label: "Señada", variant: "info" },
+  pagada: { label: "Pagada", variant: "success" },
 };
 
 export function AdministracionCoreografiaFinancieraDetalleView({
@@ -54,9 +102,14 @@ export function AdministracionCoreografiaFinancieraDetalleView({
         description:
           "Activá un evento para consultar el detalle financiero de una coreografía.",
       }}
+      headerAction={
+        choreography ? <CobroActions loaderData={loaderData} /> : undefined
+      }
     >
       {choreography ? (
         <div className="flex flex-col gap-6">
+          <ChoreographyAlerts loaderData={loaderData} />
+
           <section className="grid gap-4 md:grid-cols-3">
             <MetricCard
               icon={Receipt}
@@ -104,7 +157,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 
           <InscriptionsTable
             backHref={`/administracion/finanzas/${loaderData.academy.id}`}
-            participations={loaderData.participations}
+            inscriptions={loaderData.inscriptions}
           />
         </div>
       ) : (
@@ -117,12 +170,175 @@ export function AdministracionCoreografiaFinancieraDetalleView({
   );
 }
 
+function ChoreographyAlerts({
+  loaderData,
+}: AdministracionCoreografiaFinancieraDetalleViewProps) {
+  const stage = resolveStage(loaderData);
+  const stageTotal = stageTotalFor(loaderData, stage);
+  const eligible = eligiblePayments(loaderData.payments, stageTotal);
+  const needsAttention = loaderData.choreography?.needsAttention ?? false;
+  const noEligiblePayments = stage !== null && eligible.length === 0;
+
+  if (!needsAttention && !noEligiblePayments) {
+    return null;
+  }
+
+  return (
+    <AlertStack>
+      {needsAttention ? (
+        <Alert variant="warning">
+          <AlertTriangle aria-hidden="true" />
+          <AlertDescription>
+            Existen inscripciones que necesitan atención específica.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {noEligiblePayments ? (
+        <Alert variant="warning">
+          <AlertTriangle aria-hidden="true" />
+          <AlertDescription>
+            No existen pagos con saldo suficiente para cubrir una etapa completa
+            de esta coreografía.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </AlertStack>
+  );
+}
+
+function CobroActions({
+  loaderData,
+}: AdministracionCoreografiaFinancieraDetalleViewProps) {
+  const stage = resolveStage(loaderData);
+  const stageTotal = stageTotalFor(loaderData, stage);
+  const eligible = eligiblePayments(loaderData.payments, stageTotal);
+  const [open, setOpen] = useState(false);
+
+  if (stage === null || eligible.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            setOpen(true);
+          }}
+        >
+          {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
+        </DropdownMenuItem>
+      </ResourceActionsMenu>
+      <CobroDialog
+        eligiblePayments={eligible}
+        open={open}
+        onOpenChange={setOpen}
+        stage={stage}
+      />
+    </>
+  );
+}
+
+function CobroDialog({
+  eligiblePayments,
+  open,
+  onOpenChange,
+  stage,
+}: {
+  eligiblePayments: PaymentRow[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  stage: "deposit" | "balance";
+}) {
+  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
+    null,
+  );
+  const isSaving = fetcher.state !== "idle";
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !isSaving && onOpenChange(next)}
+    >
+      <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogHeader>
+          <DialogTitle>
+            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Elegí el pago que cubre la etapa completa de la coreografía.
+          </DialogDescription>
+        </DialogHeader>
+
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="intent"
+            value={stage === "deposit" ? payDepositIntent : payBalanceIntent}
+          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Pago a asignar</span>
+            <Select
+              name="paymentId"
+              value={selectedPaymentId ?? undefined}
+              onValueChange={setSelectedPaymentId}
+              disabled={isSaving}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Elegí un pago" />
+              </SelectTrigger>
+              <SelectContent>
+                {eligiblePayments.map((payment) => (
+                  <SelectItem key={payment.id} value={payment.id}>
+                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
+                    {formatDate(payment.paymentDate)} · disponible{" "}
+                    {formatAmount(payment.availableAmount)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {fetcher.data?.status === "error" ? (
+            <Alert variant="destructive">
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>{fetcher.data.message}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={isSaving}>
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={!selectedPaymentId || isSaving}>
+              {isSaving ? (
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="animate-spin"
+                  data-icon="inline-start"
+                />
+              ) : (
+                <Check aria-hidden="true" data-icon="inline-start" />
+              )}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </fetcher.Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function InscriptionsTable({
   backHref,
-  participations,
+  inscriptions,
 }: {
   backHref: string;
-  participations: ChoreographyFinanceDetailLoaderData["participations"];
+  inscriptions: InscriptionRow[];
 }) {
   return (
     <Card aria-label="Inscripciones">
@@ -131,36 +347,44 @@ function InscriptionsTable({
           <TableHeader>
             <TableRow>
               <TableHead>Bailarín</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="text-right">Precio base</TableHead>
-              <TableHead className="text-right">Descuento</TableHead>
-              <TableHead className="text-right">Precio final</TableHead>
+              <TableHead className="text-right">Seña</TableHead>
+              <TableHead className="text-right">Saldo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {participations.length > 0 ? (
-              participations.map((participation) => (
-                <TableRow key={participation.dancerId}>
-                  <TableCell className="font-medium">
-                    {formatDancerName(participation)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatParticipationAmount(participation.basePriceAmount)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatAmount(participation.discountAmount)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatParticipationAmount(participation.finalPriceAmount)}
-                  </TableCell>
-                </TableRow>
-              ))
+            {inscriptions.length > 0 ? (
+              inscriptions.map((inscription) => {
+                const badge = stageBadge[inscription.state];
+
+                return (
+                  <TableRow key={inscription.dancerId}>
+                    <TableCell className="font-medium">
+                      {formatDancerName(inscription)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatInscriptionAmount(inscription.basePriceAmount)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatInscriptionAmount(inscription.depositAmount)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatAmount(inscription.balanceAmount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No hay participaciones para mostrar.
+                  No hay inscripciones para mostrar.
                 </TableCell>
               </TableRow>
             )}
@@ -179,10 +403,47 @@ function InscriptionsTable({
   );
 }
 
+function resolveStage(
+  loaderData: ChoreographyFinanceDetailLoaderData,
+): "deposit" | "balance" | null {
+  if (loaderData.canPayDeposit) {
+    return "deposit";
+  }
+
+  if (loaderData.canPayBalance) {
+    return "balance";
+  }
+
+  return null;
+}
+
+function stageTotalFor(
+  loaderData: ChoreographyFinanceDetailLoaderData,
+  stage: "deposit" | "balance" | null,
+) {
+  if (stage === "deposit") {
+    return loaderData.depositTotal;
+  }
+
+  if (stage === "balance") {
+    return loaderData.balanceTotal;
+  }
+
+  return 0;
+}
+
+function eligiblePayments(payments: PaymentRow[], total: number) {
+  return payments.filter((payment) => payment.availableAmount >= total);
+}
+
 function formatDancerName(input: { firstName: string; lastName: string }) {
   return `${input.firstName} ${input.lastName}`;
 }
 
-function formatParticipationAmount(amount: number | null) {
+function formatInscriptionAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);
+}
+
+function formatPaymentNumber(paymentNumber: number) {
+  return `PAG-${String(paymentNumber).padStart(4, "0")}`;
 }

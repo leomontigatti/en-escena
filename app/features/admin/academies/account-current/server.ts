@@ -155,7 +155,6 @@ async function handleRegisterPaymentAction(
   await registerAcademyEventPayment({
     academyId: context.academyId,
     amount: Number(parsed.data.amount),
-    createdByUserId: context.adminUserId,
     eventId: context.eventId,
     internalNote: parsed.data.internalNote || null,
     paymentDate: parsed.data.paymentDate,

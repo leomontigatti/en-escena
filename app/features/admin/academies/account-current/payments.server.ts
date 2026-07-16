@@ -6,7 +6,6 @@ import { academyEventPayments, eventFinancialSequences } from "@/db/schema";
 export async function registerAcademyEventPayment(input: {
   academyId: string;
   amount: number;
-  createdByUserId: string;
   eventId: string;
   internalNote: string | null;
   paymentDate: string;
@@ -38,7 +37,6 @@ export async function registerAcademyEventPayment(input: {
     await tx.insert(academyEventPayments).values({
       academyId: input.academyId,
       amount: input.amount,
-      createdByUserId: input.createdByUserId,
       eventId: input.eventId,
       internalNote: input.internalNote,
       paymentDate: input.paymentDate,

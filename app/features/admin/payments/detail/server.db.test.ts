@@ -33,7 +33,7 @@ describe.sequential("admin payment detail", () => {
       email: "academia.pago.edicion.nueva@example.com",
       academyName: "Academia Pago Nueva",
     });
-    const { userId: adminUserId } = await createSignedInRequest({
+    await createSignedInRequest({
       email: "admin.pago.edicion@example.com",
       role: "admin",
       requestUrl: paymentDetailUrl("payment_pending", event.id),
@@ -42,7 +42,6 @@ describe.sequential("admin payment detail", () => {
     await registerAcademyEventPayment({
       academyId: academy.academy.id,
       amount: 5000,
-      createdByUserId: adminUserId,
       eventId: event.id,
       internalNote: "Carga inicial",
       paymentDate: "2026-03-15",
@@ -156,7 +155,7 @@ describe.sequential("admin payment detail", () => {
       email: "academia.pago.eliminar@example.com",
       academyName: "Academia Pago Eliminar",
     });
-    const { userId: adminUserId } = await createSignedInRequest({
+    await createSignedInRequest({
       email: "admin.pago.eliminar@example.com",
       role: "admin",
       requestUrl: paymentDetailUrl("payment_pending", event.id),
@@ -165,7 +164,6 @@ describe.sequential("admin payment detail", () => {
     await registerAcademyEventPayment({
       academyId: academy.academy.id,
       amount: 4000,
-      createdByUserId: adminUserId,
       eventId: event.id,
       internalNote: null,
       paymentDate: "2026-03-15",

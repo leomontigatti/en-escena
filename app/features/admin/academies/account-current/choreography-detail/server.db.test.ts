@@ -98,14 +98,17 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       owedAmount: { amount: 3000, status: "complete" },
       paidAmount: 0,
     });
-    expect(loaderData.participations).toEqual([
+    expect(loaderData.inscriptions).toEqual([
       {
         basePriceAmount: 10000,
+        balanceAmount: 0,
         dancerId: dancer.id,
+        depositAmount: 3000,
         discountAmount: 0,
         finalPriceAmount: 10000,
         firstName: "Ana",
         lastName: "López",
+        state: "impaga",
       },
     ]);
   });
@@ -178,14 +181,17 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       owedAmount: { amount: 7000, status: "complete" },
       paidAmount: 3000,
     });
-    expect(loaderData.participations).toEqual([
+    expect(loaderData.inscriptions).toEqual([
       {
         basePriceAmount: 10000,
+        balanceAmount: 7000,
         dancerId: dancer.id,
+        depositAmount: 3000,
         discountAmount: 0,
         finalPriceAmount: 10000,
         firstName: "Luna",
         lastName: "García",
+        state: "señada",
       },
     ]);
   });
@@ -327,14 +333,17 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         status: "incomplete",
       },
     });
-    expect(loaderData.participations).toEqual([
+    expect(loaderData.inscriptions).toEqual([
       {
         basePriceAmount: null,
+        balanceAmount: 0,
         dancerId: dancer.id,
+        depositAmount: null,
         discountAmount: 0,
         finalPriceAmount: null,
         firstName: "Mora",
         lastName: "Pérez",
+        state: "impaga",
       },
     ]);
   });

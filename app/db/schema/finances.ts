@@ -83,9 +83,11 @@ export const academyEventPayments = createTable(
       withTimezone: true,
     }),
     annulledReason: text("annulled_reason"),
-    createdByUserId: varchar("created_by_user_id", { length: 255 })
-      .notNull()
-      .references(() => user.id),
+    // Sin auditoría de actor: el sistema no registra quién crea un pago. La
+    // columna queda nullable por compatibilidad con datos previos.
+    createdByUserId: varchar("created_by_user_id", {
+      length: 255,
+    }).references(() => user.id),
     annulledByUserId: varchar("annulled_by_user_id", {
       length: 255,
     }).references(() => user.id),

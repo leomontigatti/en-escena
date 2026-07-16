@@ -266,7 +266,7 @@ describe.sequential(
         owedAmount: { amount: 3000, status: "complete" },
         paidAmount: 0,
       });
-      expect(currentPriceDetail.participations).toEqual([
+      expect(currentPriceDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 10000,
           finalPriceAmount: 10000,
@@ -278,7 +278,7 @@ describe.sequential(
         owedAmount: { amount: 8400, status: "complete" },
         paidAmount: 3600,
       });
-      expect(pendingSnapshotDetail.participations).toEqual([
+      expect(pendingSnapshotDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 12000,
           finalPriceAmount: 12000,
@@ -290,7 +290,7 @@ describe.sequential(
         owedAmount: { amount: 0, status: "complete" },
         paidAmount: 12000,
       });
-      expect(paidSnapshotDetail.participations).toEqual([
+      expect(paidSnapshotDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 12000,
           finalPriceAmount: 12000,
@@ -309,7 +309,7 @@ describe.sequential(
         },
         paidAmount: 0,
       });
-      expect(missingPriceDetail.participations).toEqual([
+      expect(missingPriceDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: null,
           finalPriceAmount: null,

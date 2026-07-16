@@ -1,10 +1,31 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, choreographyDancers, dancers } from "@/db/schema";
+import {
+  academies,
+  academyEventPayments,
+  choreographyDancers,
+  dancers,
+  paymentAllocations,
+} from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import {
+  requireAdminUser,
+  requireInternalUser,
+} from "@/lib/auth/internal-access.server";
+import {
+  deletePaymentAllocation,
+  payChoreographyBalance,
+  payChoreographyDeposit,
+} from "@/lib/finances/choreography-cobro.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
+
+import {
+  deleteAllocationIntent,
+  payBalanceIntent,
+  payDepositIntent,
+  type ChoreographyFinanceActionData,
+} from "./shared";
 
 export async function loadAdministrativeChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
@@ -23,14 +44,20 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     return {
       academy,
       choreography: null,
-      participations: [],
+      inscriptions: [],
+      payments: [],
+      canPayDeposit: false,
+      canPayBalance: false,
+      depositTotal: 0,
+      balanceTotal: 0,
       selectedEventId: null,
     };
   }
 
+  const eventId = eventContext.selectedEventId;
   const financeDetail = await readAcademyEventOperationalFinanceDetail({
     academyId,
-    eventId: eventContext.selectedEventId,
+    eventId,
   });
   const choreographyFinanceRow = financeDetail.choreographyFinanceRows.find(
     (row) => row.id === choreographyId,
@@ -40,14 +67,52 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     throw new Response("No encontramos esa coreografía.", { status: 404 });
   }
 
-  const inscriptionsById = new Map(
-    financeDetail.inscriptions
-      .filter((inscription) => inscription.choreographyId === choreographyId)
-      .map((inscription) => [inscription.dancerId, inscription]),
+  const choreographyInscriptions = financeDetail.inscriptions.filter(
+    (inscription) => inscription.choreographyId === choreographyId,
+  );
+  const inscriptionsByDancer = new Map(
+    choreographyInscriptions.map((inscription) => [
+      inscription.dancerId,
+      inscription,
+    ]),
   );
   const participationRows = await listChoreographyParticipationRows({
     choreographyId,
   });
+
+  const inscriptions = participationRows.map((participation) => {
+    const inscription = inscriptionsByDancer.get(participation.dancerId);
+
+    return {
+      dancerId: participation.dancerId,
+      firstName: participation.firstName,
+      lastName: participation.lastName,
+      state: inscription?.state ?? "impaga",
+      basePriceAmount: inscription?.basePriceAmount ?? null,
+      depositAmount: inscription?.depositAmount ?? null,
+      balanceAmount: inscription?.balancePendingAmount ?? 0,
+      discountAmount: inscription?.dancerDiscountAmount ?? 0,
+      finalPriceAmount: inscription?.finalPriceAmount ?? null,
+    };
+  });
+
+  const states = choreographyInscriptions.map(
+    (inscription) => inscription.state,
+  );
+  const canPayDeposit =
+    states.length > 0 && states.every((state) => state === "impaga");
+  const canPayBalance =
+    states.length > 0 && states.every((state) => state === "señada");
+  const depositTotal = choreographyInscriptions.reduce(
+    (sum, inscription) => sum + (inscription.depositAmount ?? 0),
+    0,
+  );
+  const balanceTotal = choreographyInscriptions.reduce(
+    (sum, inscription) => sum + inscription.balancePendingAmount,
+    0,
+  );
+
+  const payments = await listAvailablePayments({ academyId, eventId });
 
   return {
     academy,
@@ -62,18 +127,93 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       owedAmount: choreographyFinanceRow.owedAmount,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
-    participations: participationRows.map((participation) => {
-      const inscription = inscriptionsById.get(participation.dancerId);
-
-      return {
-        ...participation,
-        basePriceAmount: inscription?.basePriceAmount ?? null,
-        discountAmount: inscription?.dancerDiscountAmount ?? 0,
-        finalPriceAmount: inscription?.finalPriceAmount ?? null,
-      };
-    }),
-    selectedEventId: eventContext.selectedEventId,
+    inscriptions,
+    payments,
+    canPayDeposit,
+    canPayBalance,
+    depositTotal,
+    balanceTotal,
+    selectedEventId: eventId,
   };
+}
+
+export async function handleAdministrativeChoreographyFinanceAction(input: {
+  params: { academyId?: string; choreographyId?: string };
+  request: Request;
+}): Promise<ChoreographyFinanceActionData | never> {
+  await requireAdminUser(input.request);
+
+  const academyId = readAcademyId(input.params);
+  const choreographyId = readChoreographyId(input.params);
+  const eventContext = await loadAdminEventContext(input.request);
+
+  if (eventContext.selectedEventId === null) {
+    return {
+      status: "error",
+      message: "Activá un evento para operar la coreografía.",
+    };
+  }
+
+  const eventId = eventContext.selectedEventId;
+  const formData = await input.request.formData();
+  const intent = String(formData.get("intent") ?? "");
+
+  if (intent === payDepositIntent || intent === payBalanceIntent) {
+    const paymentId = String(formData.get("paymentId") ?? "").trim();
+    if (!paymentId) {
+      return { status: "error", message: "Elegí un pago para asignar." };
+    }
+
+    const result =
+      intent === payDepositIntent
+        ? await payChoreographyDeposit({
+            academyId,
+            choreographyId,
+            eventId,
+            paymentId,
+          })
+        : await payChoreographyBalance({
+            academyId,
+            choreographyId,
+            eventId,
+            paymentId,
+          });
+
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  if (intent === deleteAllocationIntent) {
+    const allocationId = String(formData.get("allocationId") ?? "").trim();
+    if (!allocationId) {
+      return { status: "error", message: "No encontramos esa asignación." };
+    }
+
+    const result = await deletePaymentAllocation({ allocationId });
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  return { status: "error", message: "No pudimos procesar esa acción." };
+}
+
+function redirectToDetail(
+  academyId: string,
+  choreographyId: string,
+  eventId: string,
+) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `/administracion/finanzas/${academyId}/coreografias/${choreographyId}?evento=${eventId}`,
+    },
+  });
 }
 
 async function readAcademy(academyId: string) {
@@ -107,6 +247,59 @@ async function listChoreographyParticipationRows(input: {
     .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
     .where(eq(choreographyDancers.choreographyId, input.choreographyId))
     .orderBy(asc(dancers.lastName), asc(dancers.firstName));
+}
+
+async function listAvailablePayments(input: {
+  academyId: string;
+  eventId: string;
+}) {
+  const [paymentRows, allocationRows] = await Promise.all([
+    db
+      .select({
+        id: academyEventPayments.id,
+        amount: academyEventPayments.amount,
+        paymentDate: academyEventPayments.paymentDate,
+        paymentMethod: academyEventPayments.paymentMethod,
+        paymentNumber: academyEventPayments.paymentNumber,
+      })
+      .from(academyEventPayments)
+      .where(
+        and(
+          eq(academyEventPayments.academyId, input.academyId),
+          eq(academyEventPayments.eventId, input.eventId),
+          isNull(academyEventPayments.annulledAt),
+        ),
+      )
+      .orderBy(asc(academyEventPayments.paymentDate)),
+    db
+      .select({
+        paymentId: paymentAllocations.paymentId,
+        amount: paymentAllocations.amount,
+      })
+      .from(paymentAllocations)
+      .where(
+        and(
+          eq(paymentAllocations.academyId, input.academyId),
+          eq(paymentAllocations.eventId, input.eventId),
+        ),
+      ),
+  ]);
+
+  const allocatedByPayment = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByPayment.set(
+      allocation.paymentId,
+      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
+    );
+  }
+
+  return paymentRows.map((payment) => ({
+    id: payment.id,
+    paymentNumber: payment.paymentNumber,
+    paymentDate: payment.paymentDate,
+    paymentMethod: payment.paymentMethod,
+    availableAmount: payment.amount - (allocatedByPayment.get(payment.id) ?? 0),
+  }));
 }
 
 function readAcademyId(params: { academyId?: string }) {

@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
 
 describe("AdministracionCoreografiaFinancieraDetalleView", () => {
-  test("renders readonly finance cards, choreography fields, and participations", () => {
+  test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter>
         <AdministracionCoreografiaFinancieraDetalleView
@@ -29,16 +29,24 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
               owedAmount: { amount: 7000, status: "complete" },
               paidAmount: 3000,
             },
-            participations: [
+            inscriptions: [
               {
                 basePriceAmount: 10000,
+                balanceAmount: 7000,
                 dancerId: "dancer_1",
+                depositAmount: 3000,
                 discountAmount: 0,
                 finalPriceAmount: 10000,
                 firstName: "Ana",
                 lastName: "López",
+                state: "señada",
               },
             ],
+            payments: [],
+            canPayDeposit: false,
+            canPayBalance: false,
+            depositTotal: 3000,
+            balanceTotal: 7000,
             selectedEventId: "event_1",
           }}
         />
@@ -46,20 +54,16 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     );
 
     expect(markup).toContain("Detalle financiero");
-    expect(markup).not.toContain("Detalle financiero de coreografía");
-    expect(markup).not.toContain("Datos de coreografía");
-    expect(markup).not.toContain("Participaciones");
-    expect(markup).toContain("Seña");
-    expect(markup).toContain("Pagado");
-    expect(markup).toContain("Saldo");
+    expect(markup).toContain("Estado");
+    expect(markup).toContain("Señada");
     expect(markup).toContain('value="Academia Centro"');
     expect(markup).toContain('value="Aire"');
     expect(markup).toContain('value="Dúo"');
     expect(markup).toContain("21 de marzo de 2026");
     expect(markup).toContain("Bailarín");
     expect(markup).toContain("Precio base");
-    expect(markup).toContain("Descuento");
-    expect(markup).toContain("Precio final");
+    expect(markup).toContain("Seña");
+    expect(markup).toContain("Saldo");
     expect(markup).toContain("Ana López");
     expect(markup).toContain("Volver");
   });
