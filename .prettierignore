@@ -3,6 +3,7 @@ build
 .react-router
 .firecrawl
 .sandcastle
+.claude/worktrees
 supabase/.temp
 package-lock.json
 pnpm-lock.yaml
