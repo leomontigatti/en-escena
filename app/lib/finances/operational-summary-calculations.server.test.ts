@@ -167,7 +167,7 @@ describe("computeDancerDiscountAmounts", () => {
 });
 
 describe("buildChoreographyOperationalFinanceRow", () => {
-  test("sums seña and saldo of impaga inscriptions, and owes only the seña", () => {
+  test("owes both the seña and the saldo of an impaga inscription", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
@@ -186,9 +186,10 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.depositAmount).toEqual({ amount: 3000, status: "complete" });
     // La tarjeta Saldo suma el saldo de toda inscripción, tentativo o no.
     expect(row.balanceAmount).toEqual({ amount: 7000, status: "complete" });
-    // Una impaga adeuda seña, no saldo.
+    // Una coreografía registrada se adeuda completa: la impaga aporta su seña
+    // a una deuda y su saldo a la otra.
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
-    expect(row.owedBalanceAmount).toEqual({ amount: 0, status: "complete" });
+    expect(row.owedBalanceAmount).toEqual({ amount: 7000, status: "complete" });
     expect(row.registrationCount).toBe(1);
   });
 
@@ -237,7 +238,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.paidAmount).toBe(10000);
   });
 
-  test("splits seña and saldo owed across a mixed roster", () => {
+  test("owes the saldo of every unpaid inscription across a mixed roster", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
@@ -253,14 +254,26 @@ describe("buildChoreographyOperationalFinanceRow", () => {
           depositAmount: 3000,
           balanceAmount: 7000,
         }),
+        resolvedInscription({
+          id: "i3",
+          state: "pagada",
+          depositAmount: 3000,
+          balanceAmount: 7000,
+          depositReferenceDate: "2026-03-21",
+        }),
       ],
     });
 
     expect(row.financialState).toBe("señada");
     expect(row.needsAttention).toBe(true);
-    expect(row.balanceAmount).toEqual({ amount: 14000, status: "complete" });
+    expect(row.balanceAmount).toEqual({ amount: 21000, status: "complete" });
+    // Sólo la impaga adeuda seña.
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
-    expect(row.owedBalanceAmount).toEqual({ amount: 7000, status: "complete" });
+    // Señada e impaga adeudan saldo; la pagada no.
+    expect(row.owedBalanceAmount).toEqual({
+      amount: 14000,
+      status: "complete",
+    });
   });
 
   test("reports incomplete amounts when an impaga inscription has no price", () => {
@@ -288,6 +301,11 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       status: "incomplete",
     });
     expect(row.owedDepositAmount).toEqual({
+      amount: 0,
+      missingPriceCount: 1,
+      status: "incomplete",
+    });
+    expect(row.owedBalanceAmount).toEqual({
       amount: 0,
       missingPriceCount: 1,
       status: "incomplete",
@@ -323,7 +341,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       status: "complete",
     });
     expect(summary.owedBalanceAmount).toEqual({
-      amount: 0,
+      amount: 7000,
       status: "complete",
     });
     expect(summary.availableBalanceAmount).toBe(2000);
@@ -364,7 +382,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
     });
   });
 
-  test("counts each inscription once across seña and saldo owed", () => {
+  test("owes the saldo of every unpaid inscription and the seña of the impagas", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,
@@ -399,13 +417,14 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       totalPaidAmount: 0,
     });
 
-    // impaga => seña; señada => saldo; pagada => ninguna.
+    // Seña: sólo la impaga. Saldo: la impaga y la señada, no la pagada. La
+    // impaga cuenta en las dos.
     expect(summary.owedDepositAmount).toEqual({
       amount: 3000,
       status: "complete",
     });
     expect(summary.owedBalanceAmount).toEqual({
-      amount: 7000,
+      amount: 14000,
       status: "complete",
     });
   });

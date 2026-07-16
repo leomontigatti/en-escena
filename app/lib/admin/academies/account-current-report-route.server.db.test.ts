@@ -300,22 +300,23 @@ describe.sequential("administracion finanzas", () => {
 
     expect(loaderData.selectedEventId).toBe(event.id);
     // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
-    // 3000 (la impaga); saldo adeudado 7000 (la señada), bruto.
+    // 3000 (la impaga); saldo adeudado 14000 = 7000 de la señada + 7000 de la
+    // impaga, que adeuda las dos cosas.
     // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
-    // saldo adeudado 0 porque no tiene inscripciones señadas.
+    // saldo adeudado 7000, el de su única inscripción impaga.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
-        owedBalanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 14000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 3000,
-        owedBalanceAmount: { status: "complete", amount: 0 },
+        owedBalanceAmount: { status: "complete", amount: 7000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
@@ -381,8 +382,13 @@ describe.sequential("administracion finanzas", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        // La inscripción sin precio es impaga: sólo afecta Seña adeudada.
-        owedBalanceAmount: { status: "complete", amount: 0 },
+        // La impaga sin precio adeuda seña y saldo, y no se puede cuantificar
+        // ninguno de los dos.
+        owedBalanceAmount: {
+          status: "incomplete",
+          amount: 0,
+          missingPriceCount: 1,
+        },
         owedDepositAmount: {
           status: "incomplete",
           amount: 0,
@@ -390,7 +396,7 @@ describe.sequential("administracion finanzas", () => {
         },
       },
     ]);
-    expect(markup.match(/Pendiente/g)).toHaveLength(1);
+    expect(markup.match(/Pendiente/g)).toHaveLength(2);
   });
 
   test("lets admin create a payment from the payments form", async () => {

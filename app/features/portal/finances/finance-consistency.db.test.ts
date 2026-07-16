@@ -182,8 +182,13 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 pagos - 15600 asignaciones = 1000 disponible.
         availableBalanceAmount: 1000,
-        // 8400 saldo de la única señada, bruto: no descuenta el disponible.
-        owedBalanceAmount: { amount: 8400, status: "complete" },
+        // 8400 de la señada + 7000 de la impaga a precio vigente; la impaga sin
+        // precio suma 1 al incompleto. Bruto: no descuenta el disponible.
+        owedBalanceAmount: {
+          amount: 15400,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
         // 3000 seña impaga (currentPrice); missing price adds 1.
         owedDepositAmount: {
           amount: 3000,
@@ -202,7 +207,11 @@ describe.sequential(
             missingPriceCount: 1,
             status: "incomplete",
           },
-          owedBalanceAmount: { amount: 0, status: "complete" },
+          owedBalanceAmount: {
+            amount: 0,
+            missingPriceCount: 1,
+            status: "incomplete",
+          },
           owedDepositAmount: {
             amount: 0,
             missingPriceCount: 1,
@@ -213,9 +222,9 @@ describe.sequential(
           id: currentPriceChoreography.id,
           basePriceAmount: { amount: 10000, status: "complete" },
           financialState: "impaga",
-          // Saldo tentativo: 10000 - 3000.
+          // Saldo tentativo: 10000 - 3000. La impaga adeuda seña y saldo.
           balanceAmount: { amount: 7000, status: "complete" },
-          owedBalanceAmount: { amount: 0, status: "complete" },
+          owedBalanceAmount: { amount: 7000, status: "complete" },
           owedDepositAmount: { amount: 3000, status: "complete" },
         },
         {

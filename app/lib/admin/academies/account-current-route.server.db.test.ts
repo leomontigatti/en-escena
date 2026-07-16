@@ -313,19 +313,19 @@ describe.sequential("administracion academias cuenta corriente", () => {
       loaderData,
     });
 
-    // Each impaga inscription owes only its pending seña (30% of $10.000), and
-    // shows the tentative saldo it will owe afterwards.
+    // Cada inscripción impaga adeuda su seña (30% de $10.000) y también su
+    // saldo: una coreografía registrada se adeuda completa.
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
         name: "Aire",
         balanceAmount: { status: "complete", amount: 7000 },
-        owedBalanceAmount: { status: "complete", amount: 0 },
+        owedBalanceAmount: { status: "complete", amount: 7000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         name: "Tango",
         balanceAmount: { status: "complete", amount: 7000 },
-        owedBalanceAmount: { status: "complete", amount: 0 },
+        owedBalanceAmount: { status: "complete", amount: 7000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);

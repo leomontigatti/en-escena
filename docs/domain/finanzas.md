@@ -325,14 +325,19 @@ Esa divergencia es información, no un error de cálculo.
 
 ### Por academia
 
+**Una coreografía registrada se adeuda completa.** No hay deuda "todavía no
+exigible": desde que la inscripción existe, su saldo se debe, aunque su seña no
+esté paga. Esto es lo que hace comparables los adeudados con los importes de
+referencia de las tablas.
+
 - `Saldo disponible` es el total de pagos activos menos el total de asignaciones
   de pago activas.
 - `Seña adeudada` es la suma de las señas de las inscripciones activas
   `impagas`, a precio tentativo vigente.
-- `Saldo adeudado` es la suma de los saldos de las inscripciones activas
-  `señadas`.
+- `Saldo adeudado` es la suma de los saldos de las inscripciones activas que
+  **no están `pagadas`** — es decir, `impagas` y `señadas`.
 
-Dos reglas gobiernan ambas:
+Tres reglas gobiernan ambas:
 
 - **Se agregan por inscripción, nunca por coreografía.** El estado de una
   coreografía es una marca de agua derivada (ver "Estado financiero de
@@ -340,15 +345,20 @@ Dos reglas gobiernan ambas:
   dentro de una coreografía ya `señada` por un cambio de roster.
 - **Son brutas**: ninguna descuenta `Saldo disponible`, que se muestra al lado
   como su propia métrica.
+- **No son disjuntas.** Una inscripción `impaga` aporta a las dos: su seña a
+  `Seña adeudada` y su saldo a `Saldo adeudado`. No se suman entre sí; son dos
+  cortes distintos de la misma deuda, no dos partes de un total.
 
-La partición es disjunta y exhaustiva — cada inscripción activa aporta a
-**exactamente una** de las dos, o a ninguna:
+| Estado   | Aporta su seña a | Aporta su saldo a |
+| -------- | ---------------- | ----------------- |
+| `impaga` | `Seña adeudada`  | `Saldo adeudado`  |
+| `señada` | —                | `Saldo adeudado`  |
+| `pagada` | —                | —                 |
 
-| Estado   | Aporta a         |
-| -------- | ---------------- |
-| `impaga` | `Seña adeudada`  |
-| `señada` | `Saldo adeudado` |
-| `pagada` | ninguna          |
+Por eso `Saldo adeudado` de una academia **no tiene por qué coincidir** con la
+suma de la columna `Saldo` de su tabla de coreografías: esa columna incluye
+también las inscripciones ya `pagadas`, que no se adeudan. La diferencia es
+exactamente lo ya cobrado.
 
 El Portal de academias y el Panel de administración usan el mismo cálculo, y los
 importes primarios de ambos son `Seña adeudada`, `Saldo disponible` y `Saldo

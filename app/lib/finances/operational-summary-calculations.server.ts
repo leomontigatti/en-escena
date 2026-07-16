@@ -81,8 +81,9 @@ export type ChoreographyOperationalFinanceRow = {
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
-  // Deuda por etapa, disjunta: una `impaga` adeuda seña, una `señada` adeuda
-  // saldo, una `pagada` no adeuda nada. Cada inscripción cuenta una sola vez.
+  // Deuda exigible. Una coreografía registrada se adeuda completa, así que
+  // toda inscripción no `pagada` adeuda su saldo y toda `impaga` adeuda además
+  // su seña. No son disjuntas: una `impaga` aporta a las dos.
   owedBalanceAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
   paidAmount: number;
@@ -265,7 +266,12 @@ export function buildChoreographyOperationalFinanceRow(input: {
       } else {
         owedDepositAmount += inscription.depositAmount;
       }
-    } else if (inscription.state === "señada") {
+    }
+
+    // Toda inscripción no `pagada` adeuda su saldo, esté señada o no: una
+    // coreografía registrada es exigible completa. Una `impaga` aporta a las
+    // dos deudas — su seña a una, su saldo a la otra.
+    if (inscription.state !== "pagada") {
       if (inscription.balanceAmount === null) {
         owedBalanceMissingPriceCount++;
       } else {

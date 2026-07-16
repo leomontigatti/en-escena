@@ -204,9 +204,9 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
-      // 7000 de saldo de la señada, bruto: los 12000 disponibles no se
-      // descuentan acá, se muestran en su propia métrica.
-      owedBalanceAmount: { status: "complete", amount: 7000 },
+      // 7000 de la señada + 7000 de la impaga. Bruto: los 12000 disponibles no
+      // se descuentan acá, se muestran en su propia métrica.
+      owedBalanceAmount: { status: "complete", amount: 14000 },
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
@@ -273,9 +273,13 @@ describe.sequential("loadPortalAcademyFinances", () => {
     );
 
     expect(loaderData.summary).toMatchObject({
-      // La inscripción sin precio es impaga: aporta a Seña adeudada, no a
-      // Saldo adeudado.
-      owedBalanceAmount: { amount: 0, status: "complete" },
+      // La impaga sin precio adeuda seña y saldo, y no se puede cuantificar
+      // ninguno de los dos.
+      owedBalanceAmount: {
+        amount: 0,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
       owedDepositAmount: {
         amount: 0,
         missingPriceCount: 1,
