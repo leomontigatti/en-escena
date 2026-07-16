@@ -258,6 +258,7 @@ function CreateChoreographyFooterAction({
     canAdvanceFromExperienceLevel,
     canAdvanceFromModality,
     canAdvanceFromName,
+    canAdvanceFromProfessors,
     canAdvanceFromSchedule,
     canAdvanceFromSubmodality,
     canResolve,
@@ -340,7 +341,11 @@ function CreateChoreographyFooterAction({
       </Button>
     ),
     professors: (
-      <Button type="button" onClick={handleAdvanceFromProfessors}>
+      <Button
+        type="button"
+        disabled={!canAdvanceFromProfessors}
+        onClick={handleAdvanceFromProfessors}
+      >
         Siguiente
         <ChevronRight aria-hidden="true" data-icon />
       </Button>

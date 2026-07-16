@@ -27,9 +27,9 @@ import {
 } from "@/lib/events/experience-levels";
 
 const INVALID_EXPERIENCE_LEVEL_ERROR =
-  "Elegí un Nivel de experiencia válido para confirmar la Coreografía.";
+  "Elegí un nivel de experiencia válido para confirmar la coreografía.";
 const INVALID_SCHEDULE_ENTRY_ERROR =
-  "Elegí un Cupo de cronograma compatible para confirmar la Coreografía.";
+  "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -87,10 +87,17 @@ export async function createChoreographyRegistration(
 
   const uniqueProfessorIds = [...new Set(input.professorIds)];
 
+  if (uniqueProfessorIds.length === 0) {
+    return createFailure(
+      "invalid-professors",
+      "Elegí uno o más profesores válidos para la coreografía.",
+    );
+  }
+
   if (uniqueProfessorIds.length !== input.professorIds.length) {
     return createFailure(
       "invalid-professors",
-      "Elegí Profesores válidos sin repetirlos en la misma Coreografía.",
+      "Elegí profesores válidos sin repetirlos en la misma coreografía.",
     );
   }
 
@@ -191,7 +198,7 @@ export async function createChoreographyRegistration(
         if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
           throw createFailure(
             "schedule-capacity-full",
-            "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+            "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
           );
         }
       }
@@ -219,7 +226,7 @@ export async function createChoreographyRegistration(
       if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
         throw createFailure(
           "schedule-capacity-full",
-          "El Cronograma seleccionado ya no tiene cupo disponible.",
+          "El cronograma seleccionado ya no tiene cupo disponible.",
         );
       }
 
@@ -289,7 +296,7 @@ function normalizeChoreographyName(
       ok: false,
       failure: createFailure(
         "invalid-name",
-        "Ingresá el nombre de la Coreografía.",
+        "Ingresá el nombre de la coreografía.",
       ),
     };
   }
@@ -306,7 +313,7 @@ function normalizeChoreographyName(
       ok: false,
       failure: createFailure(
         "invalid-name",
-        "El nombre de la Coreografía no puede superar los 120 caracteres.",
+        "El nombre de la coreografía no puede superar los 120 caracteres.",
       ),
     };
   }
@@ -373,7 +380,7 @@ async function resolveProfessorIds(input: {
       ok: false,
       failure: createFailure(
         "invalid-professors",
-        "Elegí Profesores activos que pertenezcan a tu academia.",
+        "Elegí profesores activos que pertenezcan a tu academia.",
       ),
     };
   }

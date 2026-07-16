@@ -54,7 +54,7 @@ export const createChoreographySchema = z.object({
   modalityId: z.string().trim().min(1, requiredFieldMessage),
   submodalityId: z.string().trim().optional(),
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
-  professorIds: z.array(z.string()),
+  professorIds: z.array(z.string()).min(1, requiredFieldMessage),
   experienceLevelId: z.string().trim().optional(),
   scheduleCapacityId: z.string().trim().optional(),
 });

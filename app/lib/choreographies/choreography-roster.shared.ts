@@ -150,15 +150,15 @@ export type ResolvedChoreographyDancerUpdateContext =
       };
     };
 
-export const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
+export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 export const invalidProfessorSelectionMessage =
-  "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
+  "Seleccioná solo profesores activos o ya vinculados a esta coreografía.";
 export const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
 export const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";
 export const compatibleScheduleSelectionRequiredMessage =
-  "Elegí un Cupo de cronograma compatible para guardar los bailarines.";
+  "Elegí un cupo de cronograma compatible para guardar los bailarines.";
 
 type ResolvedChoreographyCategory = {
   id: string | null;

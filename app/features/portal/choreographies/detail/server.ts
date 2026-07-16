@@ -19,8 +19,8 @@ import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context
 
 const routeNotificationSearchParam = "notificacion";
 const choreographySavedNotification = "coreografia-guardada";
-const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
-const readOnlyEventMessage = "Este Evento es de solo lectura.";
+const choreographyNotFoundMessage = "No encontramos esa coreografía.";
+const readOnlyEventMessage = "Este evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
 const academyRosterRemovedMessage =
   "Las academias solo pueden editar la música desde el portal.";

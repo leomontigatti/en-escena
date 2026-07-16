@@ -76,9 +76,9 @@ describe("choreography create flow helpers", () => {
     ).toBe(4);
   });
 
-  test("rejects placeholder-only choreography names", () => {
+  test("requires at least one professor", () => {
     const result = createChoreographySchema.safeParse({
-      name: "-",
+      name: "Danza de la Luna",
       modalityId: "modality_1",
       submodalityId: "",
       dancerIds: ["dancer_1"],
@@ -91,7 +91,29 @@ describe("choreography create flow helpers", () => {
     expect(result.error?.issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          message: "Ingresá un nombre válido para la Coreografía.",
+          message: "Este campo es obligatorio.",
+          path: ["professorIds"],
+        }),
+      ]),
+    );
+  });
+
+  test("rejects placeholder-only choreography names", () => {
+    const result = createChoreographySchema.safeParse({
+      name: "-",
+      modalityId: "modality_1",
+      submodalityId: "",
+      dancerIds: ["dancer_1"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "",
+      scheduleCapacityId: "",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Ingresá un nombre válido para la coreografía.",
           path: ["name"],
         }),
       ]),
