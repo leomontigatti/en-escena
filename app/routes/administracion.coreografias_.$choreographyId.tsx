@@ -4,9 +4,9 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeChoreographyDetailAction,
   loadAdministrativeChoreographyDetailRouteData,
+  type AdministrativeChoreographyDetailActionData,
   type AdministrativeChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
-import type { AdministrativeChoreographyActionData } from "@/features/admin/choreographies/detail/shared";
 import { AdministracionCoreografiaDetalleRouteView as CoreografiaDetalleView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
@@ -46,7 +46,9 @@ export async function loader({
 export async function action({
   request,
   params,
-}: Route.ActionArgs): Promise<AdministrativeChoreographyActionData | Response> {
+}: Route.ActionArgs): Promise<
+  AdministrativeChoreographyDetailActionData | Response
+> {
   return await handleAdministrativeChoreographyDetailAction({
     request,
     params,
@@ -58,7 +60,11 @@ function AdministracionCoreografiaDetalleRouteView({
   loaderData,
 }: AdministracionCoreografiaDetalleRouteProps) {
   const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
+    actionDataOverride &&
+    "status" in actionDataOverride &&
+    actionDataOverride.status === "error"
+      ? actionDataOverride
+      : undefined;
 
   return (
     <CoreografiaDetalleView actionData={actionData} loaderData={loaderData} />

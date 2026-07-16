@@ -195,6 +195,7 @@ function buildChoreography(
   > = {},
 ): AdministrativeChoreographyDetailLoaderData["choreography"] {
   return {
+    academyId: "academy_1",
     academyName: "Academia Norte",
     categoryName: "Juvenil",
     dancers: [

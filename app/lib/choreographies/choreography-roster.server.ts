@@ -7,7 +7,10 @@ import {
   updateChoreographyProfessors,
   validateChoreographyProfessorSelection,
 } from "@/lib/choreographies/choreography-roster-professor-update.server";
-import type { UpdateChoreographyResult } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  haveSameIds,
+  type UpdateChoreographyResult,
+} from "@/lib/choreographies/choreography-roster.shared";
 
 export {
   getDancerEditingEligibility,
@@ -121,14 +124,4 @@ export async function updateChoreography(input: {
   }
 
   return { ok: true };
-}
-
-function haveSameIds(left: string[], right: string[]) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  const leftSet = new Set(left);
-
-  return right.every((id) => leftSet.has(id));
 }

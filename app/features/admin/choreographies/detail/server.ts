@@ -21,6 +21,8 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
+import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
@@ -34,11 +36,15 @@ import {
   administrativeChoreographyNotFoundMessage,
   deleteAdministrativeChoreographyIntent,
   renameAdministrativeChoreographyIntent,
+  resolveAdministrativeChoreographyRosterIntent,
+  updateAdministrativeChoreographyRosterIntent,
   type AdministrativeChoreographyActionData,
   type AdministrativeChoreographyDeleteBlocker,
+  type AdministrativeChoreographyRosterErrorData,
 } from "./shared";
 
 type AdministrativeChoreographyDetailRow = {
+  academyId: string;
   academyName: string;
   categoryExperienceLevels: string[] | null;
   categoryId: string | null;
@@ -70,6 +76,7 @@ export type AdministrativeChoreographyDetailLoaderData = {
 };
 
 export type AdministrativeChoreographyDetail = {
+  academyId: string;
   academyName: string;
   categoryName: string | null;
   dancers: Array<{
@@ -146,10 +153,20 @@ export async function loadAdministrativeChoreographyDetailRouteData(input: {
   };
 }
 
+export type AdministrativeChoreographyRosterResolutionData = {
+  intent: typeof resolveAdministrativeChoreographyRosterIntent;
+  result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
+};
+
+export type AdministrativeChoreographyDetailActionData =
+  | AdministrativeChoreographyActionData
+  | AdministrativeChoreographyRosterErrorData
+  | AdministrativeChoreographyRosterResolutionData;
+
 export async function handleAdministrativeChoreographyDetailAction(input: {
   request: Request;
   params: { choreographyId?: string };
-}): Promise<AdministrativeChoreographyActionData | Response> {
+}): Promise<AdministrativeChoreographyDetailActionData | Response> {
   await requireAdminUser(input.request);
   const eventContext = await loadAdminEventContext(input.request);
 
@@ -195,6 +212,28 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
     );
   }
 
+  if (intent === resolveAdministrativeChoreographyRosterIntent) {
+    return {
+      intent: resolveAdministrativeChoreographyRosterIntent,
+      result: await resolveChoreographyDancers({
+        academyId: choreography.academyId,
+        choreographyId,
+        dancerIds: readFormStringArray(formData, "dancerIds"),
+        eventId: selectedEventId,
+        isRegistrationOpen: true,
+      }),
+    };
+  }
+
+  if (intent === updateAdministrativeChoreographyRosterIntent) {
+    return await updateAdministrativeChoreographyRosterAction({
+      choreography,
+      eventId: selectedEventId,
+      formData,
+      requestUrl: input.request.url,
+    });
+  }
+
   throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
@@ -204,6 +243,7 @@ async function findAdministrativeChoreographyDetail(input: {
 }): Promise<AdministrativeChoreographyDetail | null> {
   const rows: AdministrativeChoreographyDetailRow[] = await db
     .select({
+      academyId: choreographies.academyId,
       academyName: academies.name,
       categoryExperienceLevels: categories.experienceLevels,
       categoryId: choreographies.categoryId,
@@ -257,6 +297,7 @@ async function findAdministrativeChoreographyDetail(input: {
   ]);
 
   return {
+    academyId: row.academyId,
     academyName: row.academyName,
     categoryName: row.categoryName,
     dancers: dancerRows,
@@ -363,6 +404,46 @@ async function renameAdministrativeChoreography(input: {
   );
 }
 
+async function updateAdministrativeChoreographyRosterAction(input: {
+  choreography: AdministrativeChoreographyDetail;
+  eventId: string;
+  formData: FormData;
+  requestUrl: string;
+}): Promise<AdministrativeChoreographyRosterErrorData | Response> {
+  const result = await updateAdministrativeChoreographyRoster({
+    academyId: input.choreography.academyId,
+    choreographyId: input.choreography.id,
+    dancerIds: readFormStringArray(input.formData, "dancerIds"),
+    eventId: input.eventId,
+    experienceLevelId: readOptionalFormString(
+      input.formData,
+      "experienceLevelId",
+    ),
+    professorIds: readFormStringArray(input.formData, "professorIds"),
+    scheduleCapacityId: readOptionalFormString(
+      input.formData,
+      "scheduleCapacityId",
+    ),
+  });
+
+  if (!result.ok) {
+    return {
+      fieldErrors: result.fieldErrors,
+      message: result.message,
+      section: result.section,
+      status: "roster-error",
+    };
+  }
+
+  return redirect(
+    buildDetailNotificationHref(
+      input.requestUrl,
+      input.choreography.id,
+      "coreografia-guardada",
+    ),
+  );
+}
+
 async function deleteAdministrativeChoreography(
   choreography: AdministrativeChoreographyDetail,
 ) {
@@ -432,6 +513,18 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+function readFormStringArray(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .flatMap((value) => (typeof value === "string" && value ? [value] : []));
+}
+
+function readOptionalFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function buildDetailNotificationHref(

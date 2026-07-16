@@ -230,7 +230,7 @@ export async function resolveChoreographyDancers(input: {
   };
 }
 
-async function resolveChoreographyDancerUpdateContext(input: {
+export async function resolveChoreographyDancerUpdateContext(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;
@@ -362,7 +362,7 @@ async function resolveChoreographyDancerUpdateContext(input: {
   };
 }
 
-function resolveSelectedExperienceLevelId(input: {
+export function resolveSelectedExperienceLevelId(input: {
   currentCategoryId: string | null;
   currentExperienceLevelId: string | null;
   experienceLevelId: string | null;
@@ -509,7 +509,7 @@ function resolveDancerUpdateScheduleSelection(
   };
 }
 
-function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
+export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   schedule: ChoreographyDancerScheduleResolution;
   scheduleCapacityId: string | null;
 }):
