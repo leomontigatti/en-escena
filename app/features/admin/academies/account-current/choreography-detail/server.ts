@@ -1,4 +1,5 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { redirect } from "react-router";
 
 import { db } from "@/db";
 import {
@@ -208,12 +209,9 @@ function redirectToDetail(
   choreographyId: string,
   eventId: string,
 ) {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `/administracion/finanzas/${academyId}/coreografias/${choreographyId}?evento=${eventId}`,
-    },
-  });
+  return redirect(
+    `/administracion/finanzas/${academyId}/coreografias/${choreographyId}?evento=${eventId}`,
+  );
 }
 
 async function readAcademy(academyId: string) {
