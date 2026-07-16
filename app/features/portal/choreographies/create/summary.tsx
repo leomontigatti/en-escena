@@ -1,3 +1,4 @@
+import { AccessNotice } from "@/components/auth/access-ui";
 import { FieldLabel } from "@/components/ui/field";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import type { RegistrationResolution } from "@/features/portal/choreographies/create/flow";
@@ -83,6 +84,11 @@ export function ChoreographyCreationSummary({
   return (
     <section aria-label="Resumen de coreografía">
       <FieldLabel>Resumen</FieldLabel>
+      <div className="mt-3">
+        <AccessNotice variant="info">
+          Revisá los datos ya que una vez guardados no vas a poder modificarlos.
+        </AccessNotice>
+      </div>
       <dl className="mt-3 flex flex-col gap-3">
         {summaryItems.map((item) => (
           <div key={item.label} className="flex items-baseline gap-3">

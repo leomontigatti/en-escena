@@ -13,6 +13,7 @@ import {
   formatAmount,
   formatOperationalAmount,
 } from "@/features/admin/academies/account-current/formatters";
+import { cn } from "@/lib/shared/utils";
 
 import type {
   FinanceAccountRow,
@@ -52,14 +53,24 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     header: "Saldo disponible",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.availableBalanceAmount),
+    // Una academia sin saldo a favor es el caso normal: atenuarlo deja que las
+    // que sí tienen plata disponible salten a la vista.
+    cell: (row) => (
+      <span
+        className={cn(
+          row.availableBalanceAmount === 0 && "text-muted-foreground",
+        )}
+      >
+        {formatAmount(row.availableBalanceAmount)}
+      </span>
+    ),
   },
   {
-    id: "owedAmount",
+    id: "owedBalanceAmount",
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedAmount),
+    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
   },
 ];
 

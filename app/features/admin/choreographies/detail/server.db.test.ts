@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventChoreographyInvoices,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
@@ -19,7 +18,6 @@ import {
 import {
   createAcademySession,
   createChoreographyRecord,
-  createDepositInvoiceRecord,
   createDancer,
   createEventCatalog,
   createEventRecord,
@@ -122,7 +120,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("renames active-event choreographies for admins even when financial or presentation blockers exist", async () => {
+  test("renames active-event choreographies for admins even when presentation blockers exist", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Renombre",
       email: "admin.coreografias.renombre.academia@example.com",
@@ -142,12 +140,6 @@ describe("administrative choreography detail server", () => {
       name: "Nombre anterior",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
-    });
-    await createDepositInvoiceRecord({
-      academyId: owner.academyId,
-      choreographyId: choreography.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
     });
 
     const response = await submitDetailAction({
@@ -259,7 +251,7 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual([]);
   });
 
-  test("blocks admin deletion with concrete invoice and presentation reasons", async () => {
+  test("blocks admin deletion with concrete presentation reasons", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Bloqueos",
       email: "admin.coreografias.bloqueos.academia@example.com",
@@ -269,16 +261,6 @@ describe("administrative choreography detail server", () => {
       name: "Regional 2026",
     });
     const catalog = await createEventCatalog(event.id);
-    const invoiceBlocked = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.categoryWithLevel.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      name: "Factura cancelada",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
     const presentationBlocked = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
@@ -290,32 +272,10 @@ describe("administrative choreography detail server", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    const invoice = await createDepositInvoiceRecord({
-      academyId: owner.academyId,
-      choreographyId: invoiceBlocked.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-    });
-    await db
-      .update(academyEventChoreographyInvoices)
-      .set({ cancelledAt: new Date("2026-04-01T12:00:00Z") })
-      .where(eq(academyEventChoreographyInvoices.id, invoice.id));
 
-    await expect(loadDeleteBlockers(invoiceBlocked.id)).resolves.toEqual([
-      "invoices",
-    ]);
     await expect(loadDeleteBlockers(presentationBlocked.id)).resolves.toEqual([
       "presentation",
     ]);
-    await expectThrownResponse(
-      submitDetailAction({
-        body: deleteFormData(),
-        choreographyId: invoiceBlocked.id,
-        email: "admin.coreografias.bloqueo.factura@example.com",
-        role: "admin",
-      }),
-      409,
-    );
     await expectThrownResponse(
       submitDetailAction({
         body: deleteFormData(),
@@ -325,11 +285,6 @@ describe("administrative choreography detail server", () => {
       }),
       409,
     );
-    await expect(
-      db.query.choreographies.findFirst({
-        where: eq(choreographies.id, invoiceBlocked.id),
-      }),
-    ).resolves.toBeDefined();
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, presentationBlocked.id),

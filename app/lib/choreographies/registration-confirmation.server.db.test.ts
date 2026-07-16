@@ -14,6 +14,7 @@ import {
   createAcademySession,
   createDancer,
   createOpenEventCatalog,
+  createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 
@@ -22,7 +23,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("choreography registration confirmation", () => {
-  test("creates a Coreografía with dancer age snapshots, optional Profesores, and normalized Spanish title case on final confirmation", async () => {
+  test("creates a Coreografía with dancer age snapshots, Profesores, and normalized Spanish title case on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Confirmación",
       email: "registro.coreografia.confirmacion@example.com",
@@ -116,6 +117,7 @@ describe.sequential("choreography registration confirmation", () => {
     const dancer = await createDancer(owner.academyId, {
       birthDate: "2014-05-01",
     });
+    const professor = await createProfessor(owner.academyId);
 
     await expect(
       createChoreographyRegistration({
@@ -125,14 +127,14 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [dancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: catalog.soloScheduleCapacity.id,
       }),
     ).resolves.toMatchObject({
       ok: false,
       code: "invalid-name",
-      error: "Ingresá un nombre válido para la Coreografía.",
+      error: "Ingresá un nombre válido para la coreografía.",
     });
 
     const storedChoreographies = await db.query.choreographies.findMany({
@@ -150,6 +152,7 @@ describe.sequential("choreography registration confirmation", () => {
     const dancer = await createDancer(owner.academyId, {
       birthDate: "2014-05-01",
     });
+    const professor = await createProfessor(owner.academyId);
 
     await expect(
       createChoreographyRegistration({
@@ -159,7 +162,7 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [dancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: "level_fake",
         scheduleCapacityId: catalog.soloScheduleCapacity.id,
       }),
@@ -176,7 +179,7 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [dancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: "schedule_fake",
       }),
@@ -184,6 +187,40 @@ describe.sequential("choreography registration confirmation", () => {
       ok: false,
       code: "invalid-schedule-capacity",
     });
+  });
+
+  test("rejects a Coreografía without Profesores on final confirmation", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Sin Profesores",
+      email: "registro.coreografia.sin-profesores@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+    });
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Pieza sin profesores",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+        professorIds: [],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "invalid-professors",
+      error: "Elegí uno o más profesores válidos para la coreografía.",
+    });
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(0);
   });
 
   test("rejects Profesores from another Academia on final confirmation", async () => {
@@ -239,6 +276,7 @@ describe.sequential("choreography registration confirmation", () => {
     const secondDancer = await createDancer(owner.academyId, {
       birthDate: "2014-06-01",
     });
+    const professor = await createProfessor(owner.academyId);
 
     await db
       .update(scheduleCapacities)
@@ -253,7 +291,7 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [firstDancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: catalog.soloScheduleCapacity.id,
       }),
@@ -269,14 +307,14 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [secondDancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: catalog.soloScheduleCapacity.id,
       }),
     ).resolves.toMatchObject({
       ok: false,
       code: "schedule-capacity-full",
-      error: "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+      error: "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
     });
 
     const storedChoreographies = await db.query.choreographies.findMany({
@@ -300,6 +338,7 @@ describe.sequential("choreography registration confirmation", () => {
     const secondDancer = await createDancer(owner.academyId, {
       birthDate: "2014-06-01",
     });
+    const professor = await createProfessor(owner.academyId);
     const globalScheduleOptionId = `schedule:${catalog.schedule.id}:global`;
 
     await db
@@ -318,7 +357,7 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [firstDancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: globalScheduleOptionId,
       }),
@@ -338,14 +377,14 @@ describe.sequential("choreography registration confirmation", () => {
         modalityId: catalog.modality.id,
         submodalityId: catalog.submodality.id,
         dancerIds: [secondDancer.id],
-        professorIds: [],
+        professorIds: [professor.id],
         experienceLevelId: catalog.level.id,
         scheduleCapacityId: globalScheduleOptionId,
       }),
     ).resolves.toMatchObject({
       ok: false,
       code: "schedule-capacity-full",
-      error: "El Cronograma seleccionado ya no tiene cupo disponible.",
+      error: "El cronograma seleccionado ya no tiene cupo disponible.",
     });
 
     const storedChoreographies = await db.query.choreographies.findMany({

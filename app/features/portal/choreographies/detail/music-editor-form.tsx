@@ -1,10 +1,10 @@
-import { Check, LoaderCircle, Lock } from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Form, Link } from "react-router";
+import { useForm } from "react-hook-form";
+import { Form, Link, useNavigation } from "react-router";
 import { toast } from "sonner";
 
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
-import { ChoreographySelectPreviewField } from "@/features/portal/choreographies/detail/roster-editor-fields";
 import {
   choreographyMusicAccept,
   choreographyMusicAllowedMimeTypes,
@@ -21,20 +20,21 @@ import {
   choreographyMusicMaxFileSizeBytes,
   choreographyMusicMaxFileSizeMessage,
   choreographyMusicUploadErrorToastId,
-  type ChoreographyRosterEditorActionData,
-  type ChoreographyRosterEditorLoaderData,
   updateChoreographyIntent,
-} from "@/features/portal/choreographies/detail/roster-editor.shared";
-import { useChoreographyRosterEditorForm } from "@/features/portal/choreographies/detail/use-choreography-roster-editor-form";
+  type PortalChoreographyMusicActionData,
+  type PortalChoreographyMusicLoaderData,
+} from "@/features/portal/choreographies/detail/music-editor.shared";
 
-export function ChoreographyRosterEditorForm({
+export function ChoreographyMusicEditorForm({
   actionData,
   loaderData,
 }: {
-  actionData: ChoreographyRosterEditorActionData;
-  loaderData: ChoreographyRosterEditorLoaderData;
+  actionData: PortalChoreographyMusicActionData;
+  loaderData: PortalChoreographyMusicLoaderData;
 }) {
   const choreography = loaderData.choreography;
+  const canEditMusic =
+    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null
@@ -44,8 +44,6 @@ export function ChoreographyRosterEditorForm({
   const [musicStorageKey, setMusicStorageKey] = useState(
     selectedMusicStorageKey,
   );
-  const hasActiveFinancialLink =
-    loaderData.dancerEditingEligibility.reasonCode === "active-financial-link";
   useEffect(() => {
     setMusicStorageKey(selectedMusicStorageKey);
     setSelectedMusicFileName(null);
@@ -57,7 +55,15 @@ export function ChoreographyRosterEditorForm({
         id: choreographyMusicUploadErrorToastId,
       });
     }
-  }, [actionData?.message, actionData?.section, actionData?.status]);
+  }, [actionData?.message, actionData?.status]);
+
+  const form = useForm<{ musicStorageKey: string }>({
+    values: { musicStorageKey: selectedMusicStorageKey },
+  });
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state !== "idle" &&
+    navigation.formData?.get("intent") === updateChoreographyIntent;
 
   const hasMusicChanged = useMemo(
     () =>
@@ -65,33 +71,19 @@ export function ChoreographyRosterEditorForm({
       musicStorageKey !== (choreography.musicStorageKey ?? ""),
     [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
   );
-  const editor = useChoreographyRosterEditorForm({
-    actionData,
-    hasMusicChanged,
-    loaderData,
-    musicHasValidationError,
-  });
-  const {
-    canEditDancers,
-    canEditMusic,
-    canEditProfessors,
-    canSubmit,
-    dancerOptions,
-    derivedResolution,
-    experienceLevelFieldId,
-    experienceLevelOptions,
-    form,
-    handleSubmit,
-    hasResolvedRosterChange,
-    isResolving,
-    isSubmitting,
-    professorOptions,
-    readonlyExperienceLevelName,
-    readonlyScheduleLabel,
-    scheduleFieldId,
-    scheduleResolution,
-    scheduleSelectOptions,
-  } = editor;
+  const canSubmit =
+    canEditMusic &&
+    hasMusicChanged &&
+    !musicHasValidationError &&
+    !isSubmitting;
+
+  const dancerNames = choreography.dancers
+    .map((dancer) => `${dancer.firstName} ${dancer.lastName}`)
+    .join(", ");
+  const professorNames = choreography.professors
+    .map((professor) => `${professor.firstName} ${professor.lastName}`)
+    .join(", ");
+
   const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
     setMusicHasValidationError(hasError);
   }, []);
@@ -118,7 +110,7 @@ export function ChoreographyRosterEditorForm({
   );
 
   return (
-    <Form method="post" encType="multipart/form-data" onSubmit={handleSubmit}>
+    <Form method="post" encType="multipart/form-data">
       <Card>
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
@@ -139,71 +131,26 @@ export function ChoreographyRosterEditorForm({
             />
             <ReadOnlyField
               label="Categoría"
-              value={derivedResolution.categoryName ?? "Sin asignar"}
+              value={choreography.categoryName ?? "Sin asignar"}
             />
             <ReadOnlySelectField
               label="Tipo de grupo"
               options={choreographyGroupTypeOptions}
-              value={derivedResolution.groupType}
+              value={choreography.groupType}
             />
-            {hasResolvedRosterChange &&
-            derivedResolution.experienceLevelRequired ? (
-              <ChoreographySelectPreviewField
-                control={form.control}
-                fieldName="experienceLevelId"
-                id={experienceLevelFieldId}
-                label="Nivel de experiencia"
-                options={experienceLevelOptions}
-              />
-            ) : (
-              <ReadOnlyField
-                label="Nivel de experiencia"
-                value={readonlyExperienceLevelName}
-              />
-            )}
-            {hasResolvedRosterChange &&
-            scheduleResolution?.status === "multiple" ? (
-              <ChoreographySelectPreviewField
-                control={form.control}
-                fieldName="scheduleCapacityId"
-                id={scheduleFieldId}
-                label="Cronograma"
-                options={scheduleSelectOptions}
-              />
-            ) : (
-              <ReadOnlyField label="Cronograma" value={readonlyScheduleLabel} />
-            )}
+            <ReadOnlyField
+              label="Nivel de experiencia"
+              value={choreography.experienceLevelName ?? "Sin asignar"}
+            />
+            <ReadOnlyField
+              label="Cronograma"
+              value={choreography.scheduleLabel}
+            />
           </FieldGroup>
 
           <FieldGroup>
-            <MultiComboboxField
-              control={form.control}
-              disabled={!canEditDancers}
-              emptyMessage="Sin bailarines disponibles"
-              inputName="dancerIds"
-              label="Bailarines"
-              name="dancerIds"
-              options={dancerOptions}
-              placeholder="Buscar bailarines"
-              searchable={true}
-              trailingIcon={
-                hasActiveFinancialLink ? (
-                  <Lock aria-label="Bailarines bloqueados por vínculo financiero activo" />
-                ) : null
-              }
-            />
-
-            <MultiComboboxField
-              control={form.control}
-              disabled={!canEditProfessors}
-              emptyMessage="Sin profesores disponibles"
-              inputName="professorIds"
-              label="Profesores"
-              name="professorIds"
-              options={professorOptions}
-              placeholder="Buscar profesores"
-              searchable={true}
-            />
+            <ReadOnlyField label="Bailarines" value={dancerNames} />
+            <ReadOnlyField label="Profesores" value={professorNames} />
             <FileUploadField
               control={form.control}
               name="musicStorageKey"
@@ -225,7 +172,6 @@ export function ChoreographyRosterEditorForm({
               onSelectedFileChange={handleSelectedMusicFileChange}
               onStorageKeyChange={handleMusicStorageKeyChange}
               onValidationErrorChange={handleMusicValidationErrorChange}
-              variant="compact"
             />
           </FieldGroup>
         </CardContent>
@@ -234,7 +180,7 @@ export function ChoreographyRosterEditorForm({
             <Link to="/portal/coreografias">Volver</Link>
           </Button>
           <Button type="submit" size="lg" disabled={!canSubmit}>
-            {isResolving || isSubmitting ? (
+            {isSubmitting ? (
               <LoaderCircle
                 aria-hidden="true"
                 className="animate-spin"

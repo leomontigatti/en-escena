@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -14,7 +13,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("opens the register payment form from the actions menu", async () => {
+  test("shows aggregates and hides invoices, imputations, and corrections", async () => {
     const router = createMemoryRouter(
       [
         {
@@ -23,6 +22,12 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
             <AdministracionAcademiaCuentaCorrienteRouteView
               loaderData={accountCurrentLoaderDataFixture({
                 canRegisterPayments: true,
+                summary: {
+                  availableBalanceAmount: 5000,
+                  owedBalanceAmount: { amount: 10000, status: "complete" },
+                  owedDepositAmount: { amount: 3000, status: "complete" },
+                  totalPaidAmount: 5000,
+                },
               })}
             />
           ),
@@ -35,86 +40,53 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    expect(document.body.textContent).not.toContain("Registrar pago");
-    expect(document.body.textContent).not.toContain("Emitir factura de seña");
-    expect(document.body.textContent).not.toContain("Emitir factura de saldo");
+    const text = document.body.textContent ?? "";
 
-    await openActionsMenu();
-    await clickMenuItem("Registrar pago");
-
-    expect(document.body.textContent).toContain("Registrar pago");
-    expect(document.body.textContent).toContain("Fecha de pago");
+    expect(text).toContain("Cuenta corriente");
+    expect(text).toContain("Seña adeudada");
+    expect(text).toContain("Saldo disponible");
+    expect(text).toContain("Saldo adeudado");
+    expect(text).toContain("Aire");
+    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(text).not.toContain("Facturas de seña activas");
+    expect(text).not.toContain("Facturas de saldo activas");
+    expect(text).not.toContain("Correcciones administrativas");
+    expect(text).not.toContain("Anular pago");
+    expect(text).not.toContain("Imputar pago");
+    expect(text).not.toContain("Fecha de imputación");
+    expect(text).not.toContain("Imputaciones activas");
+    expect(text).not.toContain("Movimientos");
   });
 
-  test("renders the imputation form without a manual amount field", async () => {
+  test("hides the choreography selection column when list actions are disabled", async () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/academias/:academyId",
+          path: "/administracion/finanzas/:academyId",
           element: (
             <AdministracionAcademiaCuentaCorrienteRouteView
-              loaderData={accountCurrentLoaderDataFixture({
-                canImputePayments: true,
-                activeDepositInvoices: [
-                  {
-                    id: "invoice_1",
-                    amount: 3000,
-                    appliedDepositAmount: 0,
-                    choreographyFinancialState: "impaga",
-                    choreographyId: "choreography_1",
-                    choreographyName: "Aire",
-                    administrativeDiscountAmount: null,
-                    administrativeDiscountPublicLabel: null,
-                    dancerDiscountAmount: null,
-                    depositCompletedOn: null,
-                    finalTotalAmount: null,
-                    imputedAmount: 0,
-                    invoiceNumber: 1,
-                    invoiceType: "sena",
-                    issueDate: "2026-03-20",
-                    pendingAmount: 3000,
-                    selectedPaymentDeadline: "2026-03-31",
-                    status: "pendiente",
-                    totalDiscountAmount: null,
-                  },
-                ],
-                payments: [
-                  {
-                    id: "payment_1",
-                    amount: 5000,
-                    availableAmount: 5000,
-                    imputedAmount: 0,
-                    internalNote: null,
-                    paymentDate: "2026-03-20",
-                    paymentMethod: "transferencia",
-                    paymentNumber: 1,
-                    reference: null,
-                  },
-                ],
-              })}
+              loaderData={accountCurrentLoaderDataFixture()}
+              selectableChoreographyRows={false}
             />
           ),
         },
       ],
       {
-        initialEntries: ["/administracion/academias/academy_1"],
+        initialEntries: ["/administracion/finanzas/academy_1"],
       },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    const imputationForm = document
-      .querySelector('input[name="intent"][value="impute-payment"]')
-      ?.closest("form");
-
-    if (!imputationForm) {
-      throw new Error("Expected the imputation form to be rendered.");
-    }
-
-    expect(document.body.textContent).toContain("Imputar pago");
-    expect(document.body.textContent).toContain("Fecha de imputación");
-    expect(document.querySelector("#payment-imputation-amount")).toBeNull();
-    expect(imputationForm.querySelector('input[name="amount"]')).toBeNull();
+    expect(document.body.textContent).toContain("Aire");
+    expect(
+      document.querySelector(
+        'button[aria-label="Seleccionar todas las filas"]',
+      ),
+    ).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Seleccionar fila"]'),
+    ).toBeNull();
   });
 });
 
@@ -128,10 +100,6 @@ function accountCurrentLoaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
-    activeBalanceInvoices: [],
-    activeDepositInvoices: [],
-    canCorrectRecords: false,
-    canImputePayments: false,
     canRegisterPayments: false,
     choreographyFinanceRows: [
       choreographyFinanceRowFixture({
@@ -143,13 +111,11 @@ function accountCurrentLoaderDataFixture(
         name: "Tango",
       }),
     ],
-    imputations: [],
-    movements: [],
     payments: [],
     selectedEventId: "event_1",
     summary: {
       availableBalanceAmount: 0,
-      owedAmount: { amount: 20000, status: "complete" },
+      owedBalanceAmount: { amount: 20000, status: "complete" },
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,
     },
@@ -165,65 +131,17 @@ function choreographyFinanceRowFixture(
   return {
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },
+    balanceAmount: { amount: 7000, status: "complete" },
     depositCompletedOn: null,
     financialState: "impaga",
+    needsAttention: false,
     groupType: "solo",
     id: "choreography",
     name: "Coreografía",
-    owedAmount: { amount: 10000, status: "complete" },
+    owedBalanceAmount: { amount: 0, status: "complete" },
     owedDepositAmount: { amount: 3000, status: "complete" },
     paidAmount: 0,
     registrationCount: 1,
     ...overrides,
   };
-}
-
-async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
-
-  if (!button) {
-    throw new Error("Expected account-current actions button to be rendered.");
-  }
-
-  const pointerDown = new MouseEvent("pointerdown", {
-    bubbles: true,
-    button: 0,
-    cancelable: true,
-    ctrlKey: false,
-  });
-  Object.defineProperty(pointerDown, "pointerType", {
-    value: "mouse",
-  });
-
-  await act(async () => {
-    button.dispatchEvent(pointerDown);
-    button.dispatchEvent(
-      new MouseEvent("pointerup", {
-        bubbles: true,
-        button: 0,
-        cancelable: true,
-      }),
-    );
-    await Promise.resolve();
-  });
-}
-
-async function clickMenuItem(label: string) {
-  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
-    (candidate) => candidate.textContent?.includes(label),
-  );
-
-  if (!item) {
-    throw new Error(`Expected menu item "${label}" to be rendered.`);
-  }
-
-  await act(async () => {
-    item.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await Promise.resolve();
-  });
 }

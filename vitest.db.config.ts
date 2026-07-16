@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { mergeConfig } from "vitest/config";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 import viteConfig from "./vite.config";
 
@@ -31,7 +31,11 @@ export default mergeConfig(
       ],
     },
     test: {
-      exclude: ["**/.sandcastle/**"],
+      exclude: [
+        ...configDefaults.exclude,
+        "**/.sandcastle/**",
+        "**/.claude/worktrees/**",
+      ],
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,

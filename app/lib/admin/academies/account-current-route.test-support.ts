@@ -1,31 +1,17 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { expect } from "vitest";
 
 import { db } from "@/db";
-import {
-  academies,
-  academyEventChoreographyInvoices,
-  academyEventInvoiceImputations,
-  academyEventPayments,
-  choreographyDancers,
-  choreographies,
-  events,
-  eventFinancialSequences,
-  scheduleCapacities,
-  user,
-} from "@/db/schema";
+import { academies, user } from "@/db/schema";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
-import { calculateDepositAmount } from "@/lib/finances/choreography-invoices.server";
 import {
-  createDepositInvoiceRecord,
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
-import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 import {
   AdministracionAcademiasRouteView,
   loader as academiesLoader,
@@ -35,8 +21,6 @@ import {
   AdministracionAcademiaCuentaCorrienteRouteView,
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
-import { AdministracionFacturasRouteView } from "@/routes/administracion.facturas";
-import { loadAdminInvoicesList } from "@/features/admin/invoices/list/server";
 import {
   AdministracionPagosRouteView,
   loader as financePaymentsLoader,
@@ -217,118 +201,6 @@ export async function buildGlobalPaymentRequest(input: {
   return { request: result.request };
 }
 
-export async function buildBalanceInvoicePreviewRequest(input: {
-  administrativeDiscountAmount?: string;
-  administrativeDiscountInternalReason?: string;
-  administrativeDiscountPublicLabel?: string;
-  choreographyId: string;
-  issueDate: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  const result = await buildSignedFormPostRequest(input, (formData) =>
-    populateBalanceInvoiceFormData(formData, input, "preview-balance-invoice"),
-  );
-
-  return { request: result.request };
-}
-
-export async function buildBalanceInvoiceIssueRequest(input: {
-  administrativeDiscountAmount?: string;
-  administrativeDiscountInternalReason?: string;
-  administrativeDiscountPublicLabel?: string;
-  choreographyId: string;
-  issueDate: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  const result = await buildSignedFormPostRequest(input, (formData) =>
-    populateBalanceInvoiceFormData(formData, input, "issue-balance-invoice"),
-  );
-
-  return { request: result.request };
-}
-
-export async function buildPaymentImputationRequest(input: {
-  imputationDate: string;
-  invoiceId: string;
-  paymentId: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  const result = await buildSignedFormPostRequest(input, (formData) => {
-    formData.set("intent", "impute-payment");
-    formData.set("imputationDate", input.imputationDate);
-    formData.set("invoiceId", input.invoiceId);
-    formData.set("paymentId", input.paymentId);
-  });
-
-  return { request: result.request };
-}
-
-export async function buildAnnulImputationRequest(input: {
-  imputationId: string;
-  reason: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  return await buildCorrectionRequest({
-    fieldName: "imputationId",
-    fieldValue: input.imputationId,
-    intent: "annul-imputation",
-    reason: input.reason,
-    requestUrl: input.requestUrl,
-    role: input.role,
-  });
-}
-
-export async function buildCancelInvoiceRequest(input: {
-  invoiceId: string;
-  reason: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  return await buildCorrectionRequest({
-    fieldName: "invoiceId",
-    fieldValue: input.invoiceId,
-    intent: "cancel-invoice",
-    reason: input.reason,
-    requestUrl: input.requestUrl,
-    role: input.role,
-  });
-}
-
-export async function buildAnnulPaymentRequest(input: {
-  paymentId: string;
-  reason: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  return await buildCorrectionRequest({
-    fieldName: "paymentId",
-    fieldValue: input.paymentId,
-    intent: "annul-payment",
-    reason: input.reason,
-    requestUrl: input.requestUrl,
-    role: input.role,
-  });
-}
-
-async function buildCorrectionRequest(input: {
-  fieldName: "imputationId" | "invoiceId" | "paymentId";
-  fieldValue: string;
-  intent: "annul-imputation" | "annul-payment" | "cancel-invoice";
-  reason: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  return await buildSignedFormPostRequest(input, (formData) => {
-    formData.set("intent", input.intent);
-    formData.set(input.fieldName, input.fieldValue);
-    formData.set("reason", input.reason);
-  });
-}
-
 async function buildSignedFormPostRequest(
   input: {
     requestUrl: string;
@@ -356,34 +228,6 @@ async function buildSignedFormPostRequest(
   };
 }
 
-function populateBalanceInvoiceFormData(
-  formData: FormData,
-  input: {
-    administrativeDiscountAmount?: string;
-    administrativeDiscountInternalReason?: string;
-    administrativeDiscountPublicLabel?: string;
-    choreographyId: string;
-    issueDate: string;
-  },
-  intent: "issue-balance-invoice" | "preview-balance-invoice",
-) {
-  formData.set("intent", intent);
-  formData.set("choreographyId", input.choreographyId);
-  formData.set("issueDate", input.issueDate);
-  formData.set(
-    "administrativeDiscountAmount",
-    input.administrativeDiscountAmount ?? "0",
-  );
-  formData.set(
-    "administrativeDiscountInternalReason",
-    input.administrativeDiscountInternalReason ?? "",
-  );
-  formData.set(
-    "administrativeDiscountPublicLabel",
-    input.administrativeDiscountPublicLabel ?? "",
-  );
-}
-
 export async function registerPaymentForTest(input: {
   academyId: string;
   amount: string;
@@ -403,208 +247,6 @@ export async function registerPaymentForTest(input: {
   ).rejects.toMatchObject({
     status: 302,
   });
-}
-
-export async function issueDepositInvoiceForTest(input: {
-  academyId: string;
-  choreographyIds: string[];
-  eventId: string;
-  issueDate: string;
-}) {
-  await db
-    .insert(eventFinancialSequences)
-    .values({
-      eventId: input.eventId,
-    })
-    .onConflictDoNothing();
-
-  const [academy, sequence, event] = await Promise.all([
-    db.query.academies.findFirst({
-      columns: {
-        userId: true,
-      },
-      where: eq(academies.id, input.academyId),
-    }),
-    db.query.eventFinancialSequences.findFirst({
-      columns: {
-        nextInvoiceNumber: true,
-      },
-      where: eq(eventFinancialSequences.eventId, input.eventId),
-    }),
-    db.query.events.findFirst({
-      columns: {
-        requiredDepositPercentage: true,
-      },
-      where: eq(events.id, input.eventId),
-    }),
-  ]);
-
-  if (!academy || !sequence || !event) {
-    throw new Error(
-      "Expected academy, event, and financial sequence fixtures.",
-    );
-  }
-
-  let invoiceNumber = sequence.nextInvoiceNumber;
-
-  for (const choreographyId of input.choreographyIds) {
-    const choreography = await db
-      .select({
-        groupType: choreographies.groupType,
-        registrationCount:
-          sql<number>`count(${choreographyDancers.dancerId})`.mapWith(Number),
-        scheduleId: scheduleCapacities.scheduleId,
-      })
-      .from(choreographies)
-      .leftJoin(
-        scheduleCapacities,
-        eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-      )
-      .leftJoin(
-        choreographyDancers,
-        eq(choreographyDancers.choreographyId, choreographies.id),
-      )
-      .where(eq(choreographies.id, choreographyId))
-      .groupBy(
-        choreographies.groupType,
-        choreographies.id,
-        scheduleCapacities.scheduleId,
-      )
-      .then((rows) => rows[0]);
-
-    if (!choreography) {
-      throw new Error("Expected choreography fixture.");
-    }
-
-    const priceResult = await resolveApplicablePrice({
-      eventId: input.eventId,
-      groupType: choreography.groupType,
-      paymentDate: input.issueDate,
-      scheduleId: choreography.scheduleId,
-    });
-
-    if (!priceResult.ok) {
-      throw new Error("Expected applicable price fixture.");
-    }
-
-    const basePriceAmount =
-      priceResult.price.amount * Math.max(1, choreography.registrationCount);
-
-    await createDepositInvoiceRecord({
-      academyId: input.academyId,
-      basePriceAmount,
-      choreographyId,
-      createdByUserId: academy.userId,
-      depositAmount: calculateDepositAmount({
-        amount: basePriceAmount,
-        percentage: event.requiredDepositPercentage,
-      }),
-      eventId: input.eventId,
-      invoiceNumber: invoiceNumber++,
-      issueDate: input.issueDate,
-      requiredDepositPercentageSnapshot: event.requiredDepositPercentage,
-      selectedPaymentDeadline: priceResult.price.paymentDeadline,
-      selectedPriceId: priceResult.price.id,
-    });
-  }
-
-  await db
-    .update(eventFinancialSequences)
-    .set({
-      nextInvoiceNumber: invoiceNumber,
-      updatedAt: new Date(),
-    })
-    .where(eq(eventFinancialSequences.eventId, input.eventId));
-}
-
-export async function completeDepositInvoiceForTest(input: {
-  academyId: string;
-  choreographyId: string;
-  createdByUserId: string;
-  eventId: string;
-  imputationDate?: string;
-}) {
-  const [payment, depositInvoice] = await Promise.all([
-    db.query.academyEventPayments.findFirst({
-      where: eq(academyEventPayments.academyId, input.academyId),
-    }),
-    db.query.academyEventChoreographyInvoices.findFirst({
-      where: eq(
-        academyEventChoreographyInvoices.choreographyId,
-        input.choreographyId,
-      ),
-    }),
-  ]);
-
-  if (!payment || !depositInvoice) {
-    throw new Error("Expected payment and deposit invoice fixtures.");
-  }
-
-  const imputationDate = input.imputationDate ?? "2026-03-21";
-
-  await db.insert(academyEventInvoiceImputations).values({
-    academyId: input.academyId,
-    amount: depositInvoice.depositAmount,
-    createdByUserId: input.createdByUserId,
-    eventId: input.eventId,
-    imputationDate,
-    invoiceId: depositInvoice.id,
-    paymentId: payment.id,
-  });
-  await db
-    .update(academyEventChoreographyInvoices)
-    .set({
-      depositCompletedOn: imputationDate,
-    })
-    .where(eq(academyEventChoreographyInvoices.id, depositInvoice.id));
-
-  return { depositInvoice, payment };
-}
-
-export async function createAccountCurrentInvoicePaymentFixture(input: {
-  academyName: string;
-  choreographyName: string;
-  email: string;
-  event: Awaited<ReturnType<typeof createSavedEvent>>;
-  catalog?: Awaited<ReturnType<typeof createEventCatalog>>;
-  invoiceIssueDate?: string;
-  paymentAmount?: string;
-  paymentDate?: string;
-}) {
-  const { academy, catalog, choreography } =
-    await createAccountCurrentChoreographyFixture({
-      academyName: input.academyName,
-      catalog: input.catalog,
-      choreographyName: input.choreographyName,
-      email: input.email,
-      event: input.event,
-    });
-
-  await registerPaymentForTest({
-    academyId: academy.academy.id,
-    amount: input.paymentAmount ?? "3000",
-    eventId: input.event.id,
-    paymentDate: input.paymentDate ?? "2026-03-15",
-  });
-  await issueDepositInvoiceForTest({
-    academyId: academy.academy.id,
-    choreographyIds: [choreography.id],
-    eventId: input.event.id,
-    issueDate: input.invoiceIssueDate ?? "2026-03-20",
-  });
-
-  const payment = await db.query.academyEventPayments.findFirst({
-    where: eq(academyEventPayments.academyId, academy.academy.id),
-  });
-  const invoice = await db.query.academyEventChoreographyInvoices.findFirst({
-    where: eq(academyEventChoreographyInvoices.choreographyId, choreography.id),
-  });
-
-  if (!payment || !invoice) {
-    throw new Error("Expected payment and invoice fixtures to exist.");
-  }
-
-  return { academy, catalog, choreography, invoice, payment };
 }
 
 export function renderAcademiesRoute(input: {
@@ -674,22 +316,6 @@ export function renderFinancePaymentsRoute(input: {
         initialEntries: ["/administracion/pagos"],
       },
       createElement(AdministracionPagosRouteView, {
-        loaderData: input.loaderData,
-      }),
-    ),
-  );
-}
-
-export function renderFinanceInvoicesRoute(input: {
-  loaderData: Awaited<ReturnType<typeof loadAdminInvoicesList>>;
-}) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: ["/administracion/facturas"],
-      },
-      createElement(AdministracionFacturasRouteView, {
         loaderData: input.loaderData,
       }),
     ),

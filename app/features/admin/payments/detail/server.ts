@@ -1,12 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  academyEventInvoiceImputations,
-  academyEventPayments,
-} from "@/db/schema";
+import { academies, paymentAllocations, payments } from "@/db/schema";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -17,7 +13,6 @@ import {
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { deletePaymentWithoutReason } from "@/lib/finances/account-current-corrections.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
 import { listAdminPaymentAcademyOptions } from "../academy-options.server";
@@ -51,22 +46,20 @@ export async function loadAdminPaymentDetail(
 
   const payment = await db
     .select({
-      academyId: academyEventPayments.academyId,
+      academyId: payments.academyId,
       academyName: academies.name,
-      amount: academyEventPayments.amount,
-      annulledAt: academyEventPayments.annulledAt,
-      annulledReason: academyEventPayments.annulledReason,
-      eventId: academyEventPayments.eventId,
-      id: academyEventPayments.id,
-      internalNote: academyEventPayments.internalNote,
-      paymentDate: academyEventPayments.paymentDate,
-      paymentMethod: academyEventPayments.paymentMethod,
-      paymentNumber: academyEventPayments.paymentNumber,
-      reference: academyEventPayments.reference,
+      amount: payments.amount,
+      eventId: payments.eventId,
+      id: payments.id,
+      internalNote: payments.internalNote,
+      paymentDate: payments.paymentDate,
+      paymentMethod: payments.paymentMethod,
+      paymentNumber: payments.paymentNumber,
+      reference: payments.reference,
     })
-    .from(academyEventPayments)
-    .innerJoin(academies, eq(academyEventPayments.academyId, academies.id))
-    .where(eq(academyEventPayments.id, paymentId))
+    .from(payments)
+    .innerJoin(academies, eq(payments.academyId, academies.id))
+    .where(eq(payments.id, paymentId))
     .limit(1);
 
   const paymentDetail = payment[0];
@@ -75,15 +68,14 @@ export async function loadAdminPaymentDetail(
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const [academyOptions, activeImputations] = await Promise.all([
+  const [academyOptions, allocatedAmount] = await Promise.all([
     listAdminPaymentAcademyOptions(),
-    listActivePaymentImputations(paymentDetail.id),
+    sumPaymentAllocatedAmount(paymentDetail.id),
   ]);
-  const activeImputedAmount = sumActiveImputedAmount(activeImputations);
 
   return {
     academies: academyOptions,
-    activeImputedAmount,
+    allocatedAmount,
     canDelete: user.role === "admin",
     canEdit: user.role === "admin",
     payment: paymentDetail,
@@ -96,7 +88,7 @@ export async function handleAdminPaymentDetailAction(
   request: Request,
   paymentId: string,
 ): Promise<AdminPaymentDetailActionData | never> {
-  const adminUser = await requireAdminUser(request);
+  await requireAdminUser(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
@@ -110,7 +102,6 @@ export async function handleAdminPaymentDetailAction(
 
   if (intent === deleteAdminPaymentIntent) {
     return await deleteAdminPayment({
-      adminUserId: adminUser.id,
       formData,
       paymentId,
     });
@@ -138,14 +129,13 @@ async function updateAdminPayment(input: {
   }
 
   const [payment, academy] = await Promise.all([
-    db.query.academyEventPayments.findFirst({
+    db.query.payments.findFirst({
       columns: {
         academyId: true,
-        annulledAt: true,
         eventId: true,
         id: true,
       },
-      where: eq(academyEventPayments.id, input.paymentId),
+      where: eq(payments.id, input.paymentId),
     }),
     db.query.academies.findFirst({
       columns: { id: true },
@@ -169,25 +159,12 @@ async function updateAdminPayment(input: {
     };
   }
 
-  if (payment.annulledAt) {
-    return {
-      status: "error",
-      intent: updateAdminPaymentIntent,
-      message: "No se puede editar un pago eliminado.",
-      fieldErrors: {
-        paymentId: "No se puede editar un pago eliminado.",
-      },
-      values,
-    };
-  }
-
-  const activeImputations = await listActivePaymentImputations(payment.id);
+  const allocatedAmount = await sumPaymentAllocatedAmount(payment.id);
   const accountingFieldErrors = getPaymentEditAccountingFieldErrors({
-    activeImputations,
+    allocatedAmount,
     currentAcademyId: payment.academyId,
     nextAcademyId: parsed.data.academyId,
     nextAmount: Number(parsed.data.amount),
-    nextPaymentDate: parsed.data.paymentDate,
   });
 
   if (Object.keys(accountingFieldErrors).length > 0) {
@@ -201,7 +178,7 @@ async function updateAdminPayment(input: {
   }
 
   await db
-    .update(academyEventPayments)
+    .update(payments)
     .set({
       academyId: parsed.data.academyId,
       amount: Number(parsed.data.amount),
@@ -211,13 +188,12 @@ async function updateAdminPayment(input: {
       reference: parsed.data.reference || null,
       updatedAt: new Date(),
     })
-    .where(eq(academyEventPayments.id, payment.id));
+    .where(eq(payments.id, payment.id));
 
   throw redirect(input.requestUrl);
 }
 
 async function deleteAdminPayment(input: {
-  adminUserId: string;
   formData: FormData;
   paymentId: string;
 }): Promise<DeletePaymentActionData | never> {
@@ -236,39 +212,31 @@ async function deleteAdminPayment(input: {
     };
   }
 
-  const payment = await db.query.academyEventPayments.findFirst({
+  const payment = await db.query.payments.findFirst({
     columns: {
-      academyId: true,
       eventId: true,
     },
-    where: eq(academyEventPayments.id, input.paymentId),
+    where: eq(payments.id, input.paymentId),
   });
 
   if (!payment) {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const result = await deletePaymentWithoutReason({
-    academyId: payment.academyId,
-    deletedByUserId: input.adminUserId,
-    eventId: payment.eventId,
-    paymentId: input.paymentId,
-  });
+  const allocatedAmount = await sumPaymentAllocatedAmount(input.paymentId);
 
-  if (!result.ok) {
+  if (allocatedAmount > 0) {
     return {
       status: "error",
       intent: deleteAdminPaymentIntent,
       message: "No se puede eliminar el pago.",
       fieldErrors: {
-        paymentId:
-          result.fieldErrors.paymentId ===
-          "Anulá primero las imputaciones activas de este Pago."
-            ? "Eliminá primero las imputaciones activas de este pago."
-            : result.fieldErrors.paymentId,
+        paymentId: "Eliminá primero las asignaciones activas de este pago.",
       },
     };
   }
+
+  await db.delete(payments).where(eq(payments.id, input.paymentId));
 
   throw redirect(`/administracion/pagos?evento=${payment.eventId}`);
 }
@@ -291,66 +259,33 @@ function getPaymentFormValues(payment: {
   };
 }
 
-async function listActivePaymentImputations(paymentId: string) {
-  return await db
-    .select({
-      amount: academyEventInvoiceImputations.amount,
-      imputationDate: academyEventInvoiceImputations.imputationDate,
-    })
-    .from(academyEventInvoiceImputations)
-    .where(
-      and(
-        eq(academyEventInvoiceImputations.paymentId, paymentId),
-        isNull(academyEventInvoiceImputations.annulledAt),
-      ),
-    );
-}
+async function sumPaymentAllocatedAmount(paymentId: string) {
+  const rows = await db
+    .select({ amount: paymentAllocations.amount })
+    .from(paymentAllocations)
+    .where(eq(paymentAllocations.paymentId, paymentId));
 
-function sumActiveImputedAmount(activeImputations: Array<{ amount: number }>) {
-  return activeImputations.reduce(
-    (total, imputation) => total + imputation.amount,
-    0,
-  );
+  return rows.reduce((total, allocation) => total + allocation.amount, 0);
 }
 
 function getPaymentEditAccountingFieldErrors(input: {
-  activeImputations: Array<{ amount: number; imputationDate: string }>;
+  allocatedAmount: number;
   currentAcademyId: string;
   nextAcademyId: string;
   nextAmount: number;
-  nextPaymentDate: string;
 }): Partial<Record<CreatePaymentFieldName, string>> {
   const fieldErrors: Partial<Record<CreatePaymentFieldName, string>> = {};
-  const activeImputedAmount = sumActiveImputedAmount(input.activeImputations);
-  const earliestImputationDate = input.activeImputations.reduce<string | null>(
-    (earliestDate, imputation) => {
-      if (!earliestDate || imputation.imputationDate < earliestDate) {
-        return imputation.imputationDate;
-      }
-
-      return earliestDate;
-    },
-    null,
-  );
 
   if (
-    activeImputedAmount > 0 &&
+    input.allocatedAmount > 0 &&
     input.nextAcademyId !== input.currentAcademyId
   ) {
     fieldErrors.academyId =
-      "No se puede cambiar la academia de un pago con imputaciones activas.";
+      "No se puede cambiar la academia de un pago con asignaciones activas.";
   }
 
-  if (input.nextAmount < activeImputedAmount) {
-    fieldErrors.amount = "El monto no puede ser menor al total ya imputado.";
-  }
-
-  if (
-    earliestImputationDate &&
-    input.nextPaymentDate > earliestImputationDate
-  ) {
-    fieldErrors.paymentDate =
-      "La fecha de pago no puede ser posterior a una imputación activa.";
+  if (input.nextAmount < input.allocatedAmount) {
+    fieldErrors.amount = "El monto no puede ser menor al total ya asignado.";
   }
 
   return fieldErrors;

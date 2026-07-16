@@ -1064,7 +1064,6 @@ describe.sequential("administracion/bailarines route", () => {
       categoryId: catalog.youngerCategory.id,
       choreographyName: "Umbral",
       experienceLevelId: catalog.level.id,
-      hasActiveFinancialLink: true,
       modalityId: catalog.modality.id,
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
@@ -1119,7 +1118,6 @@ describe.sequential("administracion/bailarines route", () => {
           experienceLevelId: true,
           groupType: true,
           scheduleCapacityId: true,
-          hasActiveFinancialLink: true,
         },
         where: eq(choreographies.id, choreography.id),
       }),
@@ -1130,7 +1128,6 @@ describe.sequential("administracion/bailarines route", () => {
       experienceLevelId: null,
       groupType: "solo",
       scheduleCapacityId: catalog.scheduleCapacity.id,
-      hasActiveFinancialLink: true,
     });
     await expect(
       db
@@ -1209,7 +1206,6 @@ describe.sequential("administracion/bailarines route", () => {
       categoryId: catalog.youngerCategory.id,
       choreographyName: "Sin cambio competitivo",
       experienceLevelId: catalog.level.id,
-      hasActiveFinancialLink: true,
       modalityId: catalog.modality.id,
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
@@ -1877,7 +1873,6 @@ async function createAdministrativeLinkedChoreography(input: {
   categoryId: string | null;
   experienceLevelId: string | null;
   scheduleCapacityId: string;
-  hasActiveFinancialLink: boolean;
 }) {
   const [choreography] = await db
     .insert(choreographies)
@@ -1895,7 +1890,6 @@ async function createAdministrativeLinkedChoreography(input: {
           ? input.experienceLevelId
           : null,
       scheduleCapacityId: input.scheduleCapacityId,
-      hasActiveFinancialLink: input.hasActiveFinancialLink,
     })
     .returning();
 

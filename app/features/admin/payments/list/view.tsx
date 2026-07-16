@@ -16,7 +16,12 @@ import {
   formatAmount,
   formatDate,
 } from "@/features/admin/academies/account-current/formatters";
-import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
+import {
+  formatPaymentMethodLabel,
+  getPaymentMethodBadgeVariant,
+  paymentMethodOptions,
+} from "@/lib/finances/payment-methods";
+import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 import type { AdminPaymentRow, AdminPaymentsListLoaderData } from "./server";
 
@@ -33,7 +38,7 @@ const paymentColumns: DataTableColumn<AdminPaymentRow>[] = [
     className: "font-medium tabular-nums",
     cell: (row) => (
       <DataTableLink to={`/administracion/pagos/${row.id}`}>
-        {row.paymentNumber}
+        {formatPaymentNumber(row.paymentNumber)}
       </DataTableLink>
     ),
   },
@@ -54,7 +59,7 @@ const paymentColumns: DataTableColumn<AdminPaymentRow>[] = [
     id: "paymentMethod",
     header: "Medio de pago",
     cell: (row) => (
-      <Badge variant="secondary">
+      <Badge variant={getPaymentMethodBadgeVariant(row.paymentMethod)}>
         {formatPaymentMethodLabel(row.paymentMethod)}
       </Badge>
     ),
@@ -73,12 +78,7 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "medio",
     label: "Medio de pago",
-    options: [
-      { label: "Transferencia", value: "transferencia" },
-      { label: "Efectivo", value: "efectivo" },
-      { label: "Mercado Pago", value: "mercado_pago" },
-      { label: "Otro", value: "otro" },
-    ],
+    options: [...paymentMethodOptions],
   },
 ];
 

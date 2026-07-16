@@ -126,7 +126,7 @@ describe("coreografías request flow", () => {
           ok: false,
           code: "schedule-capacity-full",
           error:
-            "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+            "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
         },
       },
       state: "idle",
@@ -158,7 +158,7 @@ describe("coreografías request flow", () => {
 
     expect(document.body.textContent).toContain("Nueva coreografía");
     expect(document.body.textContent).toContain(
-      "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
+      "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
     );
   });
 });
@@ -207,21 +207,11 @@ function buildDetailLoaderData() {
           active: true,
         },
       ],
-      dancerEditingEligibility: {
-        canEdit: true,
-        reasonCode: null,
-        reasonText: null,
-      },
       operationalStatus: {
         code: "complete",
         pendingItems: [],
       },
       hasPresentation: false,
-    },
-    dancerEditingEligibility: {
-      canEdit: true,
-      reasonCode: null,
-      reasonText: null,
     },
     availableDancers: [
       {

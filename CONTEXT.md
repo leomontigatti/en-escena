@@ -129,12 +129,20 @@ Persona asociada a una academia y cargada por esa academia como parte de sus dat
 _Evitar_: Usuario, administrador
 
 **Inscripción**:
-Vínculo entre una coreografía y un bailarín dentro de un evento concreto.
-_Evitar_: Participación de academia, cuenta
+Vínculo con identidad económica e identidad estable (`id` propio) entre una coreografía y un bailarín dentro de un evento concreto. Puede estar impaga, señada o pagada. Quitar una inscripción es un borrado físico; no existe estado inactiva.
+_Evitar_: Participación de academia, cuenta, pago, factura, inscripción inactiva
+
+**Inscripción activa**:
+Inscripción que participa en los cálculos vigentes de una coreografía, sus importes pendientes y los descuentos automáticos.
+_Evitar_: Inscripción pagada, participación competitiva
 
 **Coreografía**:
 Coreografía registrada por una academia para un evento concreto.
 _Evitar_: Obra reutilizable, inscripción, número
+
+**Coreografía sin inscripciones activas**:
+Caso excepcional pendiente de definición para una coreografía que conserva historial pero ya no tiene inscripciones activas.
+_Evitar_: Coreografía eliminada, coreografía impaga
 
 **Registro de coreografía**:
 Flujo del portal de academias para crear una coreografía en el Evento activo dentro del período de inscripción.
@@ -181,12 +189,8 @@ Completitud de datos necesarios para presentar una coreografía.
 _Evitar_: Estado financiero, estado del evento
 
 **Estado financiero de coreografía**:
-Situación financiera derivada de documentos e imputaciones vigentes de una coreografía.
+Situación financiera derivada de los estados económicos de las inscripciones activas de una coreografía.
 _Evitar_: Estado operativo, estado del evento
-
-**Estado de factura**:
-Situación financiera propia de una factura según sus imputaciones y cancelación.
-_Evitar_: Estado financiero de coreografía
 
 **Presentación**:
 Instancia ordenada de una coreografía para el día del evento.
@@ -245,47 +249,79 @@ Archivo de audio opcional asociado a la evaluación o descalificación realizada
 _Evitar_: Puntaje numérico, presentación
 
 **Pago**:
-Ingreso de dinero registrado en la cuenta corriente de una academia.
-_Evitar_: Factura, imputación, estado financiero de coreografía
+Ingreso de dinero registrado para una academia en un evento, que puede quedar disponible o aplicarse mediante asignaciones de pago.
+_Evitar_: Factura, asignación de pago, estado financiero de coreografía
 
 **Factura de coreografía**:
-Documento financiero que vincula una coreografía con un importe a cobrar.
+Documento financiero pendiente de redefinición que podría representar información derivada de pagos, asignaciones e inscripciones.
 _Evitar_: Pago, inscripción
 
 **Imputación**:
-Aplicación de saldo de un pago a una factura.
-_Evitar_: Pago, factura
+Concepto financiero retirado del nuevo modelo de pagos e inscripciones.
+_Evitar_: Asignación de pago, pago, factura
+
+**Asignación de pago**:
+Aplicación de saldo de un pago a una o más inscripciones de una academia en un evento.
+_Evitar_: Pago, factura, imputación
+
+**Etapa de inscripción**:
+Parte financiera completa de una inscripción que puede recibir una asignación de pago: seña o saldo.
+_Evitar_: Cuota, pago parcial, factura
 
 **Cuenta corriente de academia**:
-Saldo financiero de una academia compuesto por pagos, imputaciones, facturas, cancelaciones y notas de crédito.
+Saldo financiero de una academia en un evento, compuesto por pagos, asignaciones de pago y el saldo disponible derivado.
 _Evitar_: Estado financiero de coreografía, pago, saldo operativo
 
 **Saldo disponible**:
-Monto de pagos activos de una academia que todavía no fue imputado a facturas activas.
+Monto de pagos activos de una academia que todavía no fue aplicado mediante asignaciones de pago.
 _Evitar_: Saldo adeudado, total pagado
 
 **Saldo adeudado**:
-Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con importes esperados de coreografías y descuento del Saldo disponible. No es un total documental de facturas activas y nunca es menor que cero.
+Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con señas y saldos pendientes de inscripciones activas y descuento del Saldo disponible. Nunca es menor que cero.
 _Evitar_: Saldo disponible, total pagado, total estimado
 
 **Seña adeudada**:
-Monto operativo bruto de seña pendiente para coreografías que todavía no están señadas ni pagadas, usado para orientar el pago o cobro de una o varias señas. Una factura de seña activa fija este monto desde su fecha de emisión; no descuenta el Saldo disponible.
-_Evitar_: Factura de coreografía, saldo disponible
+Monto operativo bruto de seña pendiente para inscripciones activas impagas. No descuenta el Saldo disponible.
+_Evitar_: Factura de coreografía, saldo disponible, saldo adeudado
+
+**Seña de inscripción**:
+Monto de seña calculado para una inscripción a partir de su precio congelado.
+_Evitar_: Seña de coreografía, factura de seña
+
+**Saldo de inscripción**:
+Monto restante de una inscripción después de descontar su seña asignada y sus descuentos aplicables.
+_Evitar_: Saldo de coreografía, saldo disponible
 
 **Precio de coreografía**:
-Importe total calculado para una coreografía a partir del precio base aplicable por inscripción, la cantidad de inscripciones, tipo de grupo, fecha límite de pago y una fecha de referencia financiera. La fecha de referencia es la fecha de emisión de la factura de seña activa, o la fecha calendario de negocio en Córdoba cuando todavía no hay factura de seña activa.
-_Evitar_: Pago, estado financiero
+Importe derivado para una coreografía a partir de los precios de sus inscripciones activas.
+_Evitar_: Pago, estado financiero, precio congelado de inscripción
+
+**Precio tentativo de inscripción**:
+Precio orientativo de una inscripción impaga, calculado con las reglas vigentes para mostrar o decidir una asignación futura.
+_Evitar_: Precio congelado, factura
+
+**Precio congelado de inscripción**:
+Precio fijado para una inscripción cuando recibe una asignación de pago.
+_Evitar_: Precio tentativo, factura
+
+**Snapshot financiero de inscripción**:
+Datos económicos fijados por una asignación de pago para que el estado financiero de una inscripción no dependa de cambios posteriores de precios o descuentos.
+_Evitar_: Factura, precio tentativo
 
 **Fecha de referencia financiera**:
-Fecha usada para seleccionar la ventana de precio aplicable a una coreografía: fecha de emisión de la factura de seña activa o, si no existe, fecha calendario del negocio en Córdoba.
+Fecha de negocio usada para resolver el precio tentativo o congelado de una inscripción.
 _Evitar_: Fecha UTC
 
 **Fecha límite de pago**:
-Fecha hasta la que un Precio de coreografía puede aplicarse cuando una academia paga la seña.
+Fecha hasta la que un precio configurado puede aplicarse a una inscripción.
 _Evitar_: Fecha de seña, vencimiento de factura
 
+**Descuento por bailarín**:
+Descuento automático aplicado al saldo de una inscripción según las reglas del evento y las inscripciones activas del mismo bailarín.
+_Evitar_: Descuento administrativo, descuento manual
+
 **Descuento administrativo**:
-Reducción excepcional aplicada por administración a una factura de saldo, independiente de descuentos por bailarín o fechas de pago.
+Reducción excepcional aplicada por administración cuyo lugar exacto en el modelo financiero está pendiente de definición.
 _Evitar_: Descuento individual, precio base
 
 **Modalidad**:

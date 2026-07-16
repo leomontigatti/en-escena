@@ -146,7 +146,7 @@ export function AdminResourceFormCard({
         {children}
       </CardContent>
       {footer ? (
-        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
+        <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
           {footer}
         </CardFooter>
       ) : null}

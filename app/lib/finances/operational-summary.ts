@@ -13,7 +13,9 @@ export type OperationalFinanceAmount =
 
 export type OperationalFinanceSummary = {
   availableBalanceAmount: number;
-  owedAmount: OperationalFinanceAmount;
+  // `Saldo adeudado`: bruto, suma del saldo de toda inscripción no `pagada`.
+  owedBalanceAmount: OperationalFinanceAmount;
+  // `Seña adeudada`: bruto, suma de la seña de las inscripciones `impagas`.
   owedDepositAmount: OperationalFinanceAmount;
   totalPaidAmount: number;
 };
@@ -41,7 +43,7 @@ export function incompleteOperationalFinanceAmount(input: {
 export function emptyOperationalFinanceSummary(): OperationalFinanceSummary {
   return {
     availableBalanceAmount: 0,
-    owedAmount: completeOperationalFinanceAmount(0),
+    owedBalanceAmount: completeOperationalFinanceAmount(0),
     owedDepositAmount: completeOperationalFinanceAmount(0),
     totalPaidAmount: 0,
   };

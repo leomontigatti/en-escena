@@ -1,11 +1,6 @@
-import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
-import {
-  academyEventChoreographyInvoices,
-  academyEventInvoiceImputations,
-  choreographies,
-  scheduleCapacities,
-} from "@/db/schema";
+import { choreographyDancers } from "@/db/schema";
 import {
   created,
   db,
@@ -31,14 +26,9 @@ import type {
 } from "@/lib/events/bases-repository/shared.server";
 
 const paidInvoicePriceUpdateError =
-  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay facturas pagadas históricas que dependen de este precio.";
+  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
 const paidInvoicePriceDeleteError =
-  "No se puede borrar el precio porque hay facturas pagadas históricas que dependen de este precio.";
-
-type HistoricalPriceReference = Pick<
-  typeof prices.$inferSelect,
-  "amount" | "groupType" | "id" | "paymentDeadline" | "scheduleId"
->;
+  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
 
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
@@ -225,96 +215,15 @@ export async function resolveApplicablePrice(input: {
 }
 
 async function priceHasOperationalDependencies(priceId: string) {
-  const price = await db.query.prices.findFirst({
-    columns: {
-      amount: true,
-      eventId: true,
-      groupType: true,
-      id: true,
-      paymentDeadline: true,
-      scheduleId: true,
-    },
-    where: eq(prices.id, priceId),
-  });
-
-  if (!price) {
-    return false;
-  }
-
   const [dependency] = await db
     .select({
-      id: academyEventChoreographyInvoices.id,
+      id: choreographyDancers.id,
     })
-    .from(academyEventChoreographyInvoices)
-    .innerJoin(
-      choreographies,
-      eq(academyEventChoreographyInvoices.choreographyId, choreographies.id),
-    )
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .leftJoin(
-      academyEventInvoiceImputations,
-      and(
-        eq(
-          academyEventInvoiceImputations.invoiceId,
-          academyEventChoreographyInvoices.id,
-        ),
-        isNull(academyEventInvoiceImputations.annulledAt),
-      ),
-    )
-    .where(
-      and(
-        eq(academyEventChoreographyInvoices.eventId, price.eventId),
-        isNull(academyEventChoreographyInvoices.cancelledAt),
-        buildHistoricalPriceReferenceFilter(price),
-      ),
-    )
-    .groupBy(
-      academyEventChoreographyInvoices.id,
-      academyEventChoreographyInvoices.depositAmount,
-    )
-    .having(
-      sql`coalesce(sum(${academyEventInvoiceImputations.amount}), 0) >= ${academyEventChoreographyInvoices.depositAmount}`,
-    )
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.selectedPriceId, priceId))
     .limit(1);
 
   return Boolean(dependency);
-}
-
-function buildHistoricalPriceReferenceFilter(price: HistoricalPriceReference) {
-  const legacyReferenceFilter = and(
-    isNull(academyEventChoreographyInvoices.selectedPriceId),
-    eq(choreographies.groupType, price.groupType),
-    eq(academyEventChoreographyInvoices.basePriceAmount, price.amount),
-    buildLegacyPaymentDeadlineFilter(price),
-    buildLegacyScheduleFilter(price),
-  );
-
-  return or(
-    eq(academyEventChoreographyInvoices.selectedPriceId, price.id),
-    legacyReferenceFilter,
-  );
-}
-
-function buildLegacyPaymentDeadlineFilter(price: HistoricalPriceReference) {
-  if (price.paymentDeadline === null) {
-    return isNull(academyEventChoreographyInvoices.selectedPaymentDeadline);
-  }
-
-  return eq(
-    academyEventChoreographyInvoices.selectedPaymentDeadline,
-    price.paymentDeadline,
-  );
-}
-
-function buildLegacyScheduleFilter(price: HistoricalPriceReference) {
-  if (price.scheduleId === null) {
-    return undefined;
-  }
-
-  return eq(scheduleCapacities.scheduleId, price.scheduleId);
 }
 
 async function validatePriceInput(

@@ -292,6 +292,7 @@ export function useCreateChoreographyDialog({
   const canAdvanceFromSubmodality =
     !canChooseSubmodality || selectedSubmodalityId.length > 0;
   const canResolve = selectedDancerIds.length > 0;
+  const canAdvanceFromProfessors = selectedProfessorIds.length > 0;
   const hasRequiredExperienceLevel =
     resolution !== null &&
     (!resolution.experienceLevel.required ||
@@ -307,6 +308,7 @@ export function useCreateChoreographyDialog({
       resolution !== null && hasRequiredExperienceLevel,
     canAdvanceFromModality,
     canAdvanceFromName,
+    canAdvanceFromProfessors,
     canAdvanceFromSchedule: resolution !== null && hasRequiredSchedule,
     canAdvanceFromSubmodality,
     canChooseSubmodality,

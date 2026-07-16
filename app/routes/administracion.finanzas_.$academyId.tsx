@@ -1,5 +1,3 @@
-import { useActionData } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeAcademyAccountCurrentAction,
@@ -10,10 +8,8 @@ import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView }
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
-type ActionData = Awaited<ReturnType<typeof action>>;
 
 type AdministracionFinanzasCuentaCorrienteRouteProps = {
-  actionData?: ActionData;
   loaderData: LoaderData;
 };
 
@@ -43,13 +39,12 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 function AdministracionFinanzasCuentaCorrienteRouteView({
-  actionData: actionDataOverride,
   loaderData,
 }: AdministracionFinanzasCuentaCorrienteRouteProps) {
   return (
     <CuentaCorrienteView
-      actionData={actionDataOverride}
       loaderData={loaderData}
+      selectableChoreographyRows={false}
     />
   );
 }
@@ -57,12 +52,7 @@ function AdministracionFinanzasCuentaCorrienteRouteView({
 export default function AdministracionFinanzasCuentaCorrienteRoute({
   loaderData,
 }: AdministracionFinanzasCuentaCorrienteRouteProps) {
-  const actionData = useActionData<typeof action>();
-
   return (
-    <AdministracionFinanzasCuentaCorrienteRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <AdministracionFinanzasCuentaCorrienteRouteView loaderData={loaderData} />
   );
 }

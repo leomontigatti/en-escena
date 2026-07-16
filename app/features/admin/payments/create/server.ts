@@ -31,7 +31,7 @@ export async function loadAdminPaymentCreate(request: Request) {
 export async function handleAdminPaymentCreateAction(
   request: Request,
 ): Promise<CreatePaymentActionData | never> {
-  const adminUser = await requireAdminUser(request);
+  await requireAdminUser(request);
   const eventContext = await loadAdminEventContext(request);
   const formData = await request.formData();
   const values = readCreatePaymentValues(formData);
@@ -75,7 +75,6 @@ export async function handleAdminPaymentCreateAction(
   await registerAcademyEventPayment({
     academyId: parsed.data.academyId,
     amount: Number(parsed.data.amount),
-    createdByUserId: adminUser.id,
     eventId: eventContext.selectedEventId,
     internalNote: parsed.data.internalNote || null,
     paymentDate: parsed.data.paymentDate,

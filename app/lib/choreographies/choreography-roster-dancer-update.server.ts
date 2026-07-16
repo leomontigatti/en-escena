@@ -1,24 +1,16 @@
-import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  choreographies,
-  choreographyDancers,
-  dancers,
-  events,
-  schedules,
-  scheduleCapacities,
-} from "@/db/schema";
+import { choreographyDancers, dancers, events } from "@/db/schema";
 import {
   resolveChoreographyRegistrationOperationForResolvedDancers,
   type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
-} from "@/lib/portal/choreography-access.server";
+} from "@/lib/choreographies/choreography-access.server";
 import {
   choreographyNotFoundMessage,
   compatibleScheduleSelectionRequiredMessage,
@@ -30,176 +22,11 @@ import {
   type ChoreographyDancerScheduleResolution,
   type ResolveChoreographyDancersResult,
   type ResolvedChoreographyDancerUpdateContext,
-  type UpdateChoreographyDancersResult,
-} from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster.shared";
 import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
-
-export async function updateChoreographyDancers(input: {
-  academyId: string;
-  eventId: string;
-  choreographyId: string;
-  dancerIds: string[];
-  experienceLevelId: string | null;
-  scheduleCapacityId?: string | null;
-  isRegistrationOpen: boolean;
-}): Promise<UpdateChoreographyDancersResult> {
-  const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
-
-  if (!resolvedUpdate.ok) {
-    return resolvedUpdate;
-  }
-
-  const { choreography, resolvedDancers, resolution, scheduleResolution } =
-    resolvedUpdate;
-  const resolvedExperienceLevelId = resolveSelectedExperienceLevelId({
-    currentCategoryId: choreography.categoryId,
-    currentExperienceLevelId: choreography.experienceLevelId,
-    experienceLevelId: input.experienceLevelId,
-    resolution,
-  });
-
-  if (!resolvedExperienceLevelId.ok) {
-    return {
-      ok: false,
-      message: resolvedExperienceLevelId.message,
-      fieldErrors: resolvedExperienceLevelId.fieldErrors,
-    };
-  }
-
-  const resolvedScheduleCapacityId =
-    resolveSelectedScheduleCapacityIdForDancerUpdate({
-      schedule: scheduleResolution,
-      scheduleCapacityId: input.scheduleCapacityId ?? null,
-    });
-
-  if (!resolvedScheduleCapacityId.ok) {
-    return {
-      ok: false,
-      message: resolvedScheduleCapacityId.message,
-      fieldErrors: resolvedScheduleCapacityId.fieldErrors,
-    };
-  }
-
-  try {
-    await db.transaction(async (tx) => {
-      const selectedSchedule = resolvedScheduleCapacityId.value;
-      const [lockedSchedule] = await tx
-        .select({
-          id: schedules.id,
-          totalCapacity: schedules.totalCapacity,
-        })
-        .from(schedules)
-        .where(eq(schedules.id, selectedSchedule.scheduleId))
-        .for("update");
-
-      if (!lockedSchedule) {
-        throw new Error("Expected selected schedule to exist.");
-      }
-
-      if (selectedSchedule.scheduleCapacityId) {
-        const [lockedScheduleCapacity] = await tx
-          .select({
-            id: scheduleCapacities.id,
-            capacity: scheduleCapacities.capacity,
-          })
-          .from(scheduleCapacities)
-          .where(eq(scheduleCapacities.id, selectedSchedule.scheduleCapacityId))
-          .for("update");
-
-        if (!lockedScheduleCapacity) {
-          throw new Error("Expected selected schedule entry to exist.");
-        }
-
-        const [specificOccupancyRow] = await tx
-          .select({
-            occupiedCount: sql<number>`count(*)`,
-          })
-          .from(choreographies)
-          .where(
-            and(
-              eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
-              ne(choreographies.id, input.choreographyId),
-            ),
-          );
-
-        const specificOccupiedCount = Number(
-          specificOccupancyRow?.occupiedCount ?? 0,
-        );
-
-        if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
-          throw new Error("schedule-capacity-full");
-        }
-      }
-
-      const [scheduleOccupancyRow] = await tx
-        .select({
-          occupiedCount: sql<number>`count(*)`,
-        })
-        .from(choreographies)
-        .leftJoin(
-          scheduleCapacities,
-          eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-        )
-        .where(
-          and(
-            ne(choreographies.id, input.choreographyId),
-            or(
-              eq(choreographies.scheduleId, lockedSchedule.id),
-              eq(scheduleCapacities.scheduleId, lockedSchedule.id),
-            ),
-          ),
-        );
-
-      const scheduleOccupiedCount = Number(
-        scheduleOccupancyRow?.occupiedCount ?? 0,
-      );
-
-      if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
-        throw new Error("schedule-capacity-full");
-      }
-
-      await tx
-        .delete(choreographyDancers)
-        .where(eq(choreographyDancers.choreographyId, input.choreographyId));
-
-      await tx.insert(choreographyDancers).values(
-        resolvedDancers.map((dancer) => ({
-          choreographyId: input.choreographyId,
-          dancerId: dancer.id,
-          ageAtEventStart: dancer.ageAtEventStart,
-        })),
-      );
-
-      await tx
-        .update(choreographies)
-        .set({
-          groupType: resolution.groupType,
-          categoryId: getResolvedChoreographyCategory(resolution).id,
-          categoryCalculationMode: resolution.categoryCalculationMode,
-          categoryAgeBasis: resolution.categoryAgeBasis,
-          experienceLevelId: resolvedExperienceLevelId.value,
-          scheduleId: lockedSchedule.id,
-          scheduleCapacityId: selectedSchedule.scheduleCapacityId,
-        })
-        .where(eq(choreographies.id, input.choreographyId));
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message === "schedule-capacity-full") {
-      return {
-        ok: false,
-        message:
-          "El Cupo de cronograma seleccionado ya no tiene cupo disponible.",
-      };
-    }
-
-    throw error;
-  }
-
-  return { ok: true };
-}
 
 export async function resolveChoreographyDancers(input: {
   academyId: string;
@@ -231,7 +58,7 @@ export async function resolveChoreographyDancers(input: {
   };
 }
 
-async function resolveChoreographyDancerUpdateContext(input: {
+export async function resolveChoreographyDancerUpdateContext(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;
@@ -255,9 +82,6 @@ async function resolveChoreographyDancerUpdateContext(input: {
   );
 
   const eligibility = getDancerEditingEligibility({
-    hasActiveFinancialLink: await hasActiveInvoiceForChoreography(
-      input.choreographyId,
-    ),
     hasPresentation: choreography.hasPresentation,
     isRegistrationOpen: input.isRegistrationOpen,
   });
@@ -366,7 +190,7 @@ async function resolveChoreographyDancerUpdateContext(input: {
   };
 }
 
-function resolveSelectedExperienceLevelId(input: {
+export function resolveSelectedExperienceLevelId(input: {
   currentCategoryId: string | null;
   currentExperienceLevelId: string | null;
   experienceLevelId: string | null;
@@ -513,7 +337,7 @@ function resolveDancerUpdateScheduleSelection(
   };
 }
 
-function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
+export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   schedule: ChoreographyDancerScheduleResolution;
   scheduleCapacityId: string | null;
 }):

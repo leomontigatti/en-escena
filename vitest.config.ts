@@ -29,6 +29,7 @@ export default mergeConfig(
         ...configDefaults.exclude,
         "**/*.db.test.ts",
         "**/.sandcastle/**",
+        "**/.claude/worktrees/**",
       ],
     },
   }),

@@ -15,18 +15,12 @@ import {
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
-import {
-  getDancerEditingEligibility,
-  type DancerEditingEligibility,
-} from "@/lib/portal/choreography-roster.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type ChoreographyDetail = ChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
-  dancerEditingEligibility: DancerEditingEligibility;
   hasPresentation?: boolean;
   musicStorageKey: string | null;
   scheduleCapacityId: string;
@@ -47,12 +41,6 @@ export type ChoreographyDetail = ChoreographyListItem & {
   }>;
 };
 
-export type ChoreographyDeletionAvailability = {
-  canDelete: boolean;
-  warningMessage: string | null;
-};
-
-const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -111,9 +99,6 @@ export async function findChoreographyForAcademyEvent(
   academyId: string,
   eventId: string,
   choreographyId: string,
-  options: {
-    isRegistrationOpen: boolean;
-  },
 ): Promise<ChoreographyDetail | null> {
   const rows: ChoreographyDetailRow[] = await db
     .select({
@@ -162,9 +147,6 @@ export async function findChoreographyForAcademyEvent(
     return null;
   }
 
-  const hasActiveInvoice =
-    await hasActiveInvoiceForChoreography(choreographyId);
-
   const [base] = await hydrateChoreographyRows([row]);
   const [dancerRows, professorRows] = await Promise.all([
     db
@@ -198,11 +180,6 @@ export async function findChoreographyForAcademyEvent(
   return {
     ...base,
     categoryId: row.categoryId,
-    dancerEditingEligibility: getDancerEditingEligibility({
-      hasActiveFinancialLink: hasActiveInvoice,
-      hasPresentation: row.hasPresentation,
-      isRegistrationOpen: options.isRegistrationOpen,
-    }),
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
     musicStorageKey: row.musicStorageKey,
@@ -228,10 +205,7 @@ export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
   resolveChoreographyDancers,
-  updateChoreography,
-  updateChoreographyDancers,
-  updateChoreographyProfessors,
-} from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/choreography-roster.server";
 export type {
   ChoreographyCategoryCalculationMode,
   ChoreographyDancerOption,
@@ -243,54 +217,7 @@ export type {
   UpdateChoreographyDancersResult,
   UpdateChoreographyProfessorsResult,
   UpdateChoreographyResult,
-} from "@/lib/portal/choreography-roster.server";
-
-export async function deleteChoreography(input: {
-  academyId: string;
-  eventId: string;
-  choreographyId: string;
-}): Promise<void> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: {
-      id: true,
-      academyId: true,
-      eventId: true,
-    },
-    where: eq(choreographies.id, input.choreographyId),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (
-    choreography.academyId !== input.academyId ||
-    choreography.eventId !== input.eventId
-  ) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (await hasActiveInvoiceForChoreography(input.choreographyId)) {
-    throw new Response(
-      "No podés eliminar esta Coreografía porque tiene una factura activa.",
-      { status: 409 },
-    );
-  }
-
-  await db
-    .delete(choreographies)
-    .where(eq(choreographies.id, input.choreographyId));
-}
-
-export function getChoreographyDeletionAvailability(_input: {
-  isReadOnly: boolean;
-  isRegistrationOpen: boolean;
-}): ChoreographyDeletionAvailability {
-  return {
-    canDelete: false,
-    warningMessage: null,
-  };
-}
+} from "@/lib/choreographies/choreography-roster.server";
 
 async function hydrateChoreographyRows(
   rows: ChoreographyRow[],

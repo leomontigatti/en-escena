@@ -163,21 +163,21 @@ export async function resolveChoreographyRegistrationOperation(
   if (!event) {
     return failure(
       "event-not-found",
-      "No encontramos ese Evento para resolver el registro.",
+      "No encontramos ese evento para resolver el registro.",
     );
   }
 
   if (!event.active) {
     return failure(
       "event-not-active",
-      "Solo podés registrar Coreografías en el Evento activo.",
+      "Solo podés registrar coreografías en el evento activo.",
     );
   }
 
   if (!isRegistrationWindowOpen(event, new Date())) {
     return failure(
       "registration-closed",
-      "La inscripción del Evento activo no está abierta en este momento.",
+      "La inscripción del evento activo no está abierta en este momento.",
     );
   }
 
@@ -255,7 +255,7 @@ async function resolveRegistrationBases(
   ) {
     return failure(
       "invalid-dancers",
-      "Elegí uno o más Bailarines válidos para resolver la Coreografía.",
+      "Elegí uno o más bailarines válidos para resolver la coreografía.",
     );
   }
 
@@ -269,7 +269,7 @@ async function resolveRegistrationBases(
   if (!resolvedDancers) {
     return failure(
       "invalid-dancers",
-      "Elegí Bailarines activos que pertenezcan a tu academia.",
+      "Elegí bailarines activos que pertenezcan a tu academia.",
     );
   }
 
@@ -300,7 +300,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
     if (!readiness.isReady) {
       return failure(
         "event-not-ready",
-        "El Evento activo todavía no tiene las bases mínimas para registrar Coreografías.",
+        "El evento activo todavía no tiene las bases mínimas para registrar coreografías.",
       );
     }
   }
@@ -312,7 +312,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
   if (!modality) {
     return failure(
       "invalid-modality",
-      "Elegí una Modalidad válida del Evento activo.",
+      "Elegí una modalidad válida del evento activo.",
     );
   }
 
@@ -336,7 +336,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
   ) {
     return failure(
       "invalid-dancers",
-      "Elegí uno o más Bailarines válidos para resolver la Coreografía.",
+      "Elegí uno o más bailarines válidos para resolver la coreografía.",
     );
   }
 
@@ -367,7 +367,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
   };
 }
 
-function deriveGroupType(dancerCount: number): GroupType {
+export function deriveGroupType(dancerCount: number): GroupType {
   if (dancerCount === 1) {
     return "solo";
   }
@@ -392,7 +392,7 @@ function validateSubmodalitySelection(input: {
       ok: false,
       failure: failure(
         "submodality-required",
-        "Elegí una Submodalidad para la Modalidad seleccionada.",
+        "Elegí una submodalidad para la modalidad seleccionada.",
       ),
     };
   }
@@ -410,7 +410,7 @@ function validateSubmodalitySelection(input: {
       ok: false,
       failure: failure(
         "invalid-submodality",
-        "Elegí una Submodalidad válida para la Modalidad seleccionada.",
+        "Elegí una submodalidad válida para la modalidad seleccionada.",
       ),
     };
   }

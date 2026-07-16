@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   integer,
+  pgEnum,
   text,
   timestamp,
   uniqueIndex,
@@ -11,21 +12,22 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
-import {
-  choreographyCategoryCalculationMode,
-  createTable,
-  experienceLevel,
-  groupType,
-} from "./core";
+import { createTable, experienceLevel, groupType } from "./core";
 import {
   categories,
   events,
   modalities,
+  prices,
   scheduleCapacities,
   schedules,
   submodalities,
 } from "./events";
 import { dancers, professors } from "./roster";
+
+export const categoryCalculationMode = pgEnum(
+  "en_escena_choreography_category_calculation_mode",
+  ["oldest", "group_tolerance", "group_average"],
+);
 
 export const choreographies = createTable(
   "choreography",
@@ -50,7 +52,7 @@ export const choreographies = createTable(
       () => categories.id,
     ),
     categoryAgeBasis: integer("category_age_basis"),
-    categoryCalculationMode: choreographyCategoryCalculationMode(
+    categoryCalculationMode: categoryCalculationMode(
       "category_calculation_mode",
     ).notNull(),
     experienceLevelId: experienceLevel("experience_level"),
@@ -60,9 +62,6 @@ export const choreographies = createTable(
     }),
     musicStorageKey: text("music_storage_key"),
     hasPresentation: boolean("has_presentation").notNull().default(false),
-    hasActiveFinancialLink: boolean("has_active_financial_link")
-      .notNull()
-      .default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -105,9 +104,32 @@ export const choreographies = createTable(
 export const choreographyDancers = createTable(
   "choreography_dancer",
   {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     dancerId: varchar("dancer_id", { length: 255 }).notNull(),
     ageAtEventStart: integer("age_at_event_start").notNull(),
+    // Snapshot de seña: se fija al crear la asignación `deposit` y se limpia al
+    // borrarla. Sin snapshot de seña, la inscripción es `impaga`.
+    frozenBasePriceAmount: integer("frozen_base_price_amount"),
+    selectedPriceId: varchar("selected_price_id", { length: 255 }).references(
+      () => prices.id,
+    ),
+    depositReferenceDate: text("deposit_reference_date"),
+    depositPercentage: integer("deposit_percentage"),
+    depositAmount: integer("deposit_amount"),
+    // Snapshot de saldo: se fija al crear la asignación `balance` y se limpia al
+    // borrarla, devolviendo la inscripción a `señada`.
+    balanceReferenceDate: text("balance_reference_date"),
+    appliedDancerDiscountPercentage: integer(
+      "applied_dancer_discount_percentage",
+    ),
+    appliedDancerDiscountAmount: integer("applied_dancer_discount_amount"),
+    finalTotalAmount: integer("final_total_amount"),
+    balanceAmount: integer("balance_amount"),
+    balanceCompletedAt: text("balance_completed_at"),
   },
   (table) => [
     foreignKey({
@@ -125,6 +147,7 @@ export const choreographyDancers = createTable(
       table.dancerId,
     ),
     index("choreography_dancer_dancer_id_idx").on(table.dancerId),
+    index("choreography_dancer_selected_price_idx").on(table.selectedPriceId),
   ],
 ).enableRLS();
 

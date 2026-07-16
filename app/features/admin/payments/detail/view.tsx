@@ -31,6 +31,7 @@ import {
   PaymentFields,
 } from "@/features/admin/payments/form-fields";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
+import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -80,7 +81,7 @@ export function AdministracionPagoDetalleRouteView({
         title="Detalle pago"
         description="Consultá y editá los datos registrados del pago."
         headerAction={
-          loaderData.canDelete && !payment.annulledAt ? (
+          loaderData.canDelete ? (
             <ResourceActionsMenu>
               <DropdownMenuItem
                 variant="destructive"
@@ -99,9 +100,9 @@ export function AdministracionPagoDetalleRouteView({
         <PaymentDetailForm actionData={actionData} loaderData={loaderData} />
       </AdminResourceLayout>
 
-      {loaderData.canDelete && !payment.annulledAt ? (
+      {loaderData.canDelete ? (
         <DeleteDialog
-          description="El pago va a quedar fuera del saldo disponible. Si tiene imputaciones activas, eliminá primero esas imputaciones."
+          description="El pago va a quedar fuera del saldo disponible. Si tiene asignaciones activas, eliminá primero esas asignaciones."
           intentValue={deleteAdminPaymentIntent}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
@@ -116,7 +117,7 @@ export function AdministracionPagoDetalleRouteView({
 export function getAdminPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
-  return payment ? `# ${payment.paymentNumber}` : "Pago";
+  return payment ? `# ${formatPaymentNumber(payment.paymentNumber)}` : "Pago";
 }
 
 function PaymentDetailForm({
@@ -126,7 +127,7 @@ function PaymentDetailForm({
   actionData?: AdminPaymentDetailActionData;
   loaderData: LoaderData;
 }) {
-  if (loaderData.canEdit && !loaderData.payment.annulledAt) {
+  if (loaderData.canEdit) {
     return (
       <EditablePaymentDetailForm
         actionData={actionData}
@@ -189,7 +190,7 @@ function EditablePaymentDetailForm({
           <PaymentAcademyField
             academies={loaderData.academies}
             control={form.control}
-            disabled={loaderData.activeImputedAmount > 0}
+            disabled={loaderData.allocatedAmount > 0}
             value={values.academyId}
           />
           <PaymentFields control={form.control} />
@@ -232,21 +233,6 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
           label="Nota interna"
           value={payment.internalNote ?? ""}
         />
-        {payment.annulledAt ? (
-          <>
-            <ReadOnlyDateField
-              label="Fecha de eliminación"
-              value={payment.annulledAt.toISOString().slice(0, 10)}
-            />
-            {payment.annulledReason ? (
-              <ReadOnlyTextareaField
-                className="md:col-span-2"
-                label="Motivo registrado"
-                value={payment.annulledReason}
-              />
-            ) : null}
-          </>
-        ) : null}
       </FieldGroup>
     </AdminResourceFormCard>
   );

@@ -213,18 +213,12 @@ export function choreographyCreateFormData(input: {
   });
 }
 
-export function choreographyUpdateFormData(input: {
-  dancerIds: string[];
-  professorIds: string[];
-  experienceLevelId: string;
-  scheduleCapacityId: string;
+export function choreographyMusicUpdateFormData(input: {
+  musicStorageKey: string;
 }) {
   return stringFormData({
     intent: "update-choreography",
-    dancerIds: input.dancerIds,
-    professorIds: input.professorIds,
-    experienceLevelId: input.experienceLevelId,
-    scheduleCapacityId: input.scheduleCapacityId,
+    musicStorageKey: input.musicStorageKey,
   });
 }
 

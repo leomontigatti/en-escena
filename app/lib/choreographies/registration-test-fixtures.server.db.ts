@@ -8,6 +8,7 @@ import {
   events,
   modalities,
   prices,
+  professors,
   scheduleModalities,
   schedules,
   scheduleCapacities,
@@ -258,6 +259,24 @@ export async function createDancer(
     .returning();
 
   return dancer;
+}
+
+export async function createProfessor(
+  academyId: string,
+  overrides: Partial<typeof professors.$inferInsert> = {},
+) {
+  const [professor] = await db
+    .insert(professors)
+    .values({
+      academyId,
+      firstName: "Luz",
+      lastName: "Suárez",
+      active: true,
+      ...overrides,
+    })
+    .returning();
+
+  return professor;
 }
 
 export function date(value: string) {

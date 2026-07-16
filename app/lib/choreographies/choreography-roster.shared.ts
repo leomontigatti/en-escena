@@ -18,10 +18,7 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason =
-  | "presentation"
-  | "active-financial-link"
-  | "registration-closed";
+export type DancerEditingBlockReason = "presentation" | "registration-closed";
 
 export type DancerEditingEligibility =
   | {
@@ -153,15 +150,15 @@ export type ResolvedChoreographyDancerUpdateContext =
       };
     };
 
-export const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
+export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 export const invalidProfessorSelectionMessage =
-  "Seleccioná solo Profesores activos o ya vinculados a esta Coreografía.";
+  "Seleccioná solo profesores activos o ya vinculados a esta coreografía.";
 export const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
 export const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";
 export const compatibleScheduleSelectionRequiredMessage =
-  "Elegí un Cupo de cronograma compatible para guardar los bailarines.";
+  "Elegí un cupo de cronograma compatible para guardar los bailarines.";
 
 type ResolvedChoreographyCategory = {
   id: string | null;
@@ -169,7 +166,6 @@ type ResolvedChoreographyCategory = {
 };
 
 export function getDancerEditingEligibility(input: {
-  hasActiveFinancialLink: boolean;
   hasPresentation: boolean;
   isRegistrationOpen: boolean;
 }): DancerEditingEligibility {
@@ -179,15 +175,6 @@ export function getDancerEditingEligibility(input: {
       reasonCode: "presentation",
       reasonText:
         "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
-    };
-  }
-
-  if (input.hasActiveFinancialLink) {
-    return {
-      canEdit: false,
-      reasonCode: "active-financial-link",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque tiene un vínculo financiero activo.",
     };
   }
 
@@ -225,4 +212,14 @@ export function getResolvedChoreographyCategory(
 
 export function getGlobalScheduleCapacityOptionId(scheduleId: string) {
   return `schedule:${scheduleId}:global`;
+}
+
+export function haveSameIds(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftSet = new Set(left);
+
+  return right.every((id) => leftSet.has(id));
 }
