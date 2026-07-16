@@ -6,7 +6,6 @@ import {
   type OperationalFinanceAmount,
   type OperationalFinanceSummary,
 } from "@/lib/finances/operational-summary";
-import { calculateDepositAmount } from "@/lib/finances/choreography-invoice-values.server";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
@@ -368,7 +367,12 @@ export function resolveEstimatedBasePriceAmount(input: {
   };
 }
 
-export { calculateDepositAmount };
+export function calculateDepositAmount(input: {
+  amount: number;
+  percentage: number;
+}) {
+  return Math.round((input.amount * input.percentage) / 100);
+}
 
 function buildOperationalFinanceAmount(input: {
   amount: number;
