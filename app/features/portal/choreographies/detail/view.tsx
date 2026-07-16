@@ -1,27 +1,14 @@
 import { AlertStack } from "@/components/shared/alert-stack";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
-import {
-  ChoreographyRosterEditorForm,
-  type ChoreographyRosterEditorActionData,
-  type ChoreographyRosterEditorLoaderData,
-} from "@/features/portal/choreographies/detail/roster-editor";
-import type { PortalEventContext } from "@/lib/portal/event-context";
-import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
-
-type PortalChoreographyDetailLoaderData = ChoreographyRosterEditorLoaderData & {
-  choreography: ChoreographyRosterEditorLoaderData["choreography"] &
-    Record<string, unknown>;
-  deletionAvailability: {
-    canDelete: boolean;
-    warningMessage: string | null;
-  };
-  eventContext: PortalEventContext;
-} & Record<string, unknown>;
+import { ChoreographyMusicEditorForm } from "@/features/portal/choreographies/detail/music-editor-form";
+import type {
+  PortalChoreographyMusicActionData,
+  PortalChoreographyMusicLoaderData,
+} from "@/features/portal/choreographies/detail/music-editor.shared";
 
 export type PortalChoreographyDetailRouteViewProps = {
-  loaderData: PortalChoreographyDetailLoaderData;
-  actionData?: ChoreographyRosterEditorActionData;
-  initialDancerResolution?: ResolveChoreographyDancersResult;
+  loaderData: PortalChoreographyMusicLoaderData;
+  actionData?: PortalChoreographyMusicActionData;
 };
 
 export function PortalChoreographyDetailRouteView({
@@ -42,7 +29,8 @@ export function PortalChoreographyDetailRouteView({
             Editar coreografía
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Actualizá bailarines, profesores y música de esta coreografía.
+            Actualizá la música de esta coreografía. El resto de los datos se
+            editan desde administración.
           </p>
         </div>
       </div>
@@ -55,7 +43,7 @@ export function PortalChoreographyDetailRouteView({
         ) : null}
       </AlertStack>
 
-      <ChoreographyRosterEditorForm
+      <ChoreographyMusicEditorForm
         actionData={actionData}
         loaderData={loaderData}
       />

@@ -1,21 +1,12 @@
 import { useActionData } from "react-router";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import {
-  resolveChoreographyDancersIntent,
-  type ChoreographyRosterEditorActionData,
-} from "@/features/portal/choreographies/detail/roster-editor";
+import type { PortalChoreographyMusicActionData } from "@/features/portal/choreographies/detail/music-editor.shared";
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import {
   handlePortalChoreographyDetailRouteAction,
   loadPortalChoreographyDetail,
 } from "@/features/portal/choreographies/detail/server";
-
-type DancerResolutionActionData = {
-  intent: typeof resolveChoreographyDancersIntent;
-};
-
-type ActionData = ChoreographyRosterEditorActionData;
 
 type PortalChoreographyDetailRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -37,20 +28,6 @@ export const handle = {
     },
   ],
 } satisfies PortalRouteHandle;
-
-export function shouldRevalidate({
-  defaultShouldRevalidate,
-  formData,
-}: {
-  defaultShouldRevalidate: boolean;
-  formData?: FormData;
-}) {
-  if (formData?.get("intent") === resolveChoreographyDancersIntent) {
-    return false;
-  }
-
-  return defaultShouldRevalidate;
-}
 
 export async function loader({
   request,
@@ -75,7 +52,9 @@ export async function action({
 export default function PortalChoreographyDetailRoute({
   loaderData,
 }: PortalChoreographyDetailRouteProps) {
-  const actionData = getUpdateActionData(useActionData<typeof action>());
+  const actionData = useActionData<
+    typeof action
+  >() as PortalChoreographyMusicActionData;
 
   return (
     <PortalChoreographyDetailRouteView
@@ -83,14 +62,4 @@ export default function PortalChoreographyDetailRoute({
       actionData={actionData}
     />
   );
-}
-
-function getUpdateActionData(
-  actionData: ActionData | DancerResolutionActionData,
-): ActionData {
-  if (!actionData || !("status" in actionData)) {
-    return undefined;
-  }
-
-  return actionData.status === "update-error" ? actionData : undefined;
 }

@@ -50,22 +50,6 @@ function buildLoaderData(
   };
 
   return {
-    availableDancers: [
-      {
-        id: "dancer_1",
-        firstName: "Ana",
-        lastName: "Paz",
-        active: true,
-      },
-    ],
-    availableProfessors: [
-      {
-        id: "professor_1",
-        firstName: "Luz",
-        lastName: "Suárez",
-        active: true,
-      },
-    ],
     choreography: {
       id: "choreo_1",
       name: "Danza lunar",
@@ -80,7 +64,10 @@ function buildLoaderData(
         code: "complete",
         pendingItems: [],
       },
+      musicStorageKey: "music/choreo_1.mp3",
+      musicDownloadUrl: null,
       scheduleCapacityId: "schedule_capacity_1",
+      scheduleName: "Bloque tarde",
       scheduleLabel: "Bloque tarde · 01/05/2026 · 14:00",
       dancers: [
         {
@@ -106,16 +93,6 @@ function buildLoaderData(
       },
       hasPresentation: false,
     },
-    dancerEditingEligibility: {
-      canEdit: true,
-      reasonCode: null,
-      reasonText: null,
-    },
-    deletionAvailability: {
-      canDelete: true,
-      warningMessage:
-        "Si eliminás esta coreografía con la inscripción cerrada, quizá no puedas registrarla nuevamente salvo ajuste administrativo.",
-    },
     eventContext: {
       selectedEvent: eventSummary,
       activeEvent: eventSummary,
@@ -125,7 +102,6 @@ function buildLoaderData(
       isRegistrationOpen: false,
       activeEventRegistrationReadiness: null,
     },
-    successMessage: null,
     ...overrides,
   };
 }

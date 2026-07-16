@@ -11,7 +11,7 @@ import * as eventsManagementModule from "@/lib/events/management.server";
 import * as eventBasesModule from "@/lib/events/bases.server";
 import * as eventReadinessModule from "@/lib/events/registration-readiness.server";
 import * as portalChoreographiesModule from "@/lib/portal/choreographies.server";
-import * as portalChoreographyRosterModule from "@/lib/choreographies/choreography-roster.server";
+import * as portalChoreographyMusicModule from "@/lib/portal/choreography-music.server";
 import * as portalDancersModule from "@/lib/portal/dancers.server";
 import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
@@ -63,7 +63,7 @@ import {
   adminEventFormData,
   adminLoaderArgs,
   choreographyCreateFormData,
-  choreographyUpdateFormData,
+  choreographyMusicUpdateFormData,
   portalLayoutArgs,
   seedBaselineFixture,
   stringFormData,
@@ -720,16 +720,6 @@ export async function measureCriticalRequestBaseline(): Promise<
           "findChoreographyForAcademyEvent",
           "mainQueryMs",
         ),
-        trackAsync(
-          portalChoreographyRosterModule,
-          "listProfessorOptionsForChoreography",
-          "mainQueryMs",
-        ),
-        trackAsync(
-          portalChoreographyRosterModule,
-          "listDancerOptionsForChoreography",
-          "mainQueryMs",
-        ),
       ],
       run: () =>
         portalCoreografiaDetailLoader({
@@ -752,8 +742,8 @@ export async function measureCriticalRequestBaseline(): Promise<
           "eventContextMs",
         ),
         trackAsync(
-          portalChoreographyRosterModule,
-          "updateChoreography",
+          portalChoreographyMusicModule,
+          "updateChoreographyMusic",
           "actionMs",
         ),
       ],
@@ -761,11 +751,8 @@ export async function measureCriticalRequestBaseline(): Promise<
         portalCoreografiaDetailAction({
           request: fixture.portalPostRequest(
             `/portal/coreografias/${fixture.choreography.id}`,
-            choreographyUpdateFormData({
-              dancerIds: [fixture.dancer.id],
-              professorIds: [fixture.professor.id],
-              experienceLevelId: fixture.catalog.level.id,
-              scheduleCapacityId: fixture.catalog.scheduleCapacity.id,
+            choreographyMusicUpdateFormData({
+              musicStorageKey: fixture.choreography.musicStorageKey ?? "",
             }),
           ),
           params: { choreographyId: fixture.choreography.id },

@@ -46,11 +46,6 @@ export type ChoreographyDetail = ChoreographyListItem & {
   }>;
 };
 
-export type ChoreographyDeletionAvailability = {
-  canDelete: boolean;
-  warningMessage: string | null;
-};
-
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -238,16 +233,6 @@ export type {
   UpdateChoreographyProfessorsResult,
   UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.server";
-
-export function getChoreographyDeletionAvailability(_input: {
-  isReadOnly: boolean;
-  isRegistrationOpen: boolean;
-}): ChoreographyDeletionAvailability {
-  return {
-    canDelete: false,
-    warningMessage: null,
-  };
-}
 
 async function hydrateChoreographyRows(
   rows: ChoreographyRow[],

@@ -173,7 +173,7 @@ app/features/portal/choreographies/
 `-- detail/
     |-- server.ts
     |-- view.tsx
-    |-- roster-editor.tsx
+    |-- music-editor-form.tsx
     `-- ...
 ```
 
@@ -184,7 +184,7 @@ Inside a feature flow:
 - Use `view.tsx` for the route-level screen view when the folder name already
   supplies the context (`list/view.tsx`, `detail/view.tsx`).
 - Use specific filenames for substantial submodules, such as
-  `roster-editor.tsx`, `delete-dialog.tsx`, `flow.ts`, `fields.tsx`, or
+  `music-editor-form.tsx`, `flow.ts`, `fields.tsx`, or
   `formatters.ts`.
 - Co-locate focused tests with the module they exercise when the behavior is
   feature-specific.
