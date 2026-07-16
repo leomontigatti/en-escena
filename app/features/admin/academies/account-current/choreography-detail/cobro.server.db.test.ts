@@ -2,11 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  academyEventPayments,
-  choreographyDancers,
-  paymentAllocations,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
@@ -58,8 +54,8 @@ async function seedCobroFixture() {
     eventId: event.id,
     paymentDate: "2026-04-10",
   });
-  const payment = await db.query.academyEventPayments.findFirst({
-    where: eq(academyEventPayments.academyId, academy.academy.id),
+  const payment = await db.query.payments.findFirst({
+    where: eq(payments.academyId, academy.academy.id),
   });
   if (!payment) {
     throw new Error("Expected a registered payment.");

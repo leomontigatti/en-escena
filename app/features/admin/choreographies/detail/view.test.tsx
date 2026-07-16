@@ -97,7 +97,6 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
         deletion: {
           canDelete: false,
           blockers: [
-            { code: "invoices", label: "facturas" },
             { code: "presentation", label: "presentación" },
             { code: "scores", label: "puntajes" },
           ],
@@ -108,7 +107,6 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
     expect(document.body.textContent).toContain(
       "No se puede eliminar esta coreografía",
     );
-    expect(document.body.textContent).toContain("facturas");
     expect(document.body.textContent).toContain("presentación");
     expect(document.body.textContent).toContain("puntajes");
     expect(document.body.textContent).toContain("Cerrar");

@@ -1,10 +1,10 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
 import {
   academies,
-  academyEventPayments,
+  payments as paymentTable,
   choreographyDancers,
   dancers,
   paymentAllocations,
@@ -254,21 +254,20 @@ async function listAvailablePayments(input: {
   const [paymentRows, allocationRows] = await Promise.all([
     db
       .select({
-        id: academyEventPayments.id,
-        amount: academyEventPayments.amount,
-        paymentDate: academyEventPayments.paymentDate,
-        paymentMethod: academyEventPayments.paymentMethod,
-        paymentNumber: academyEventPayments.paymentNumber,
+        id: paymentTable.id,
+        amount: paymentTable.amount,
+        paymentDate: paymentTable.paymentDate,
+        paymentMethod: paymentTable.paymentMethod,
+        paymentNumber: paymentTable.paymentNumber,
       })
-      .from(academyEventPayments)
+      .from(paymentTable)
       .where(
         and(
-          eq(academyEventPayments.academyId, input.academyId),
-          eq(academyEventPayments.eventId, input.eventId),
-          isNull(academyEventPayments.annulledAt),
+          eq(paymentTable.academyId, input.academyId),
+          eq(paymentTable.eventId, input.eventId),
         ),
       )
-      .orderBy(asc(academyEventPayments.paymentDate)),
+      .orderBy(asc(paymentTable.paymentDate)),
     db
       .select({
         paymentId: paymentAllocations.paymentId,

@@ -3,7 +3,6 @@ import {
   CalendarDays,
   ChevronsUpDown,
   Building2,
-  FileText,
   GraduationCap,
   Home,
   LogOut,
@@ -160,12 +159,6 @@ const financeNavigationItems = [
     label: "Pagos",
     to: "/administracion/pagos",
     icon: HandCoins,
-  },
-  {
-    label: "Facturas",
-    to: "/administracion/facturas",
-    icon: FileText,
-    disabled: true,
   },
 ] satisfies SidebarNavigationItem[];
 

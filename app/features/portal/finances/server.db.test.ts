@@ -1,15 +1,10 @@
-import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  academyEventPayments,
-  choreographyDancers,
-  paymentAllocations,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -44,7 +39,6 @@ afterEach(() => {
 async function seedPayment(input: {
   academyId: string;
   amount: number;
-  createdByUserId: string;
   eventId: string;
   paymentDate: string;
   paymentNumber: number;
@@ -52,11 +46,10 @@ async function seedPayment(input: {
   internalNote?: string;
 }) {
   const [payment] = await db
-    .insert(academyEventPayments)
+    .insert(payments)
     .values({
       academyId: input.academyId,
       amount: input.amount,
-      createdByUserId: input.createdByUserId,
       eventId: input.eventId,
       internalNote: input.internalNote ?? null,
       paymentDate: input.paymentDate,
@@ -170,30 +163,16 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const activePayment = await seedPayment({
       academyId: owner.academyId,
       amount: 15000,
-      createdByUserId: owner.userId,
       eventId: event.id,
       internalNote: "Nota interna admin",
       paymentDate: "2026-03-15",
       paymentNumber: 1,
       reference: "TRX-PORTAL-001",
     });
-    const annulledPayment = await seedPayment({
-      academyId: owner.academyId,
-      amount: 6500,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-      paymentDate: "2026-03-16",
-      paymentNumber: 2,
-    });
-    await db
-      .update(academyEventPayments)
-      .set({ annulledAt: new Date(), annulledReason: "Pago duplicado." })
-      .where(eq(academyEventPayments.id, annulledPayment.id));
 
     await seedPayment({
       academyId: otherAcademy.id,
       amount: 9999,
-      createdByUserId: owner.userId,
       eventId: event.id,
       paymentDate: "2026-03-17",
       paymentNumber: 3,
@@ -248,7 +227,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     expect(markup).toContain("TRX-PORTAL-001");
     expect(markup).toContain("Solo Señada");
     expect(markup).not.toContain("Nota interna admin");
-    expect(markup).not.toContain("Pago duplicado.");
     expect(markup).not.toContain("Ajena");
   });
 
@@ -336,7 +314,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const payment = await seedPayment({
       academyId: owner.academyId,
       amount: 3600,
-      createdByUserId: owner.userId,
       eventId: event.id,
       paymentDate: "2026-03-21",
       paymentNumber: 1,

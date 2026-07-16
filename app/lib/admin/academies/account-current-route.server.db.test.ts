@@ -2,7 +2,11 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academyEventPayments, choreographyDancers, prices } from "@/db/schema";
+import {
+  payments as paymentTable,
+  choreographyDancers,
+  prices,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -361,10 +365,9 @@ describe.sequential("administracion academias cuenta corriente", () => {
       status: 302,
     });
 
-    await db.insert(academyEventPayments).values({
+    await db.insert(paymentTable).values({
       academyId: academy.academy.id,
       amount: 9999,
-      createdByUserId: academy.user.id,
       eventId: otherEvent.id,
       paymentDate: "2026-03-01",
       paymentMethod: "efectivo",
@@ -385,8 +388,8 @@ describe.sequential("administracion academias cuenta corriente", () => {
       status: 302,
     });
 
-    const payments = await db.query.academyEventPayments.findMany({
-      where: eq(academyEventPayments.academyId, academy.academy.id),
+    const payments = await db.query.payments.findMany({
+      where: eq(paymentTable.academyId, academy.academy.id),
       orderBy: (table, { asc }) => [asc(table.paymentNumber)],
     });
     const loaderData = await accountCurrentLoader(
@@ -461,8 +464,8 @@ describe.sequential("administracion academias cuenta corriente", () => {
       },
     });
     await expect(
-      db.query.academyEventPayments.findFirst({
-        where: eq(academyEventPayments.academyId, academy.academy.id),
+      db.query.payments.findFirst({
+        where: eq(paymentTable.academyId, academy.academy.id),
       }),
     ).resolves.toBeUndefined();
   });

@@ -21,7 +21,6 @@ export type AdministrativeChoreographyActionData = {
 };
 
 export type AdministrativeChoreographyDeleteBlockerCode =
-  | "invoices"
   | "presentation"
   | "scores";
 

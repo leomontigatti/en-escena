@@ -2,11 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  academyEventPayments,
-  choreographyDancers,
-  paymentAllocations,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -61,8 +57,8 @@ async function createInscriptionFixture() {
     eventId: event.id,
     paymentDate: "2026-03-21",
   });
-  const payment = await db.query.academyEventPayments.findFirst({
-    where: eq(academyEventPayments.academyId, owner.academyId),
+  const payment = await db.query.payments.findFirst({
+    where: eq(payments.academyId, owner.academyId),
   });
   if (!payment) {
     throw new Error("Expected a registered payment.");

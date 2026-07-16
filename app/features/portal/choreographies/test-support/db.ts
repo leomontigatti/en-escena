@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import {
-  academyEventChoreographyInvoices,
   categories,
   categoryModalities,
   choreographies,
+  choreographyDancers,
   dancers,
   events,
   modalities,
@@ -229,39 +229,37 @@ export async function createChoreographyRecord(
   return choreography;
 }
 
-export async function createDepositInvoiceRecord(input: {
+// Congela el snapshot de seña de una inscripción (choreography_dancer),
+// reemplazando el viejo registro de factura de seña. Una inscripción con
+// `selectedPriceId` establecido es la que hace que un precio tenga
+// dependencias operativas.
+export async function freezeInscriptionDepositForTest(input: {
   academyId: string;
   choreographyId: string;
-  createdByUserId: string;
-  eventId: string;
-  issueDate?: string;
-  invoiceNumber?: number;
   basePriceAmount?: number;
+  dancerId?: string;
   depositAmount?: number;
-  requiredDepositPercentageSnapshot?: number;
+  depositPercentage?: number;
+  depositReferenceDate?: string;
   selectedPriceId?: string | null;
-  selectedPaymentDeadline?: string | null;
 }) {
-  const [invoice] = await db
-    .insert(academyEventChoreographyInvoices)
+  const dancerId = input.dancerId ?? (await createDancer(input.academyId)).id;
+
+  const [inscription] = await db
+    .insert(choreographyDancers)
     .values({
-      academyId: input.academyId,
-      basePriceAmount: input.basePriceAmount ?? 10000,
       choreographyId: input.choreographyId,
-      createdByUserId: input.createdByUserId,
-      depositAmount: input.depositAmount ?? 3000,
-      eventId: input.eventId,
-      invoiceNumber: input.invoiceNumber ?? 1,
-      invoiceType: "sena",
-      issueDate: input.issueDate ?? "2026-03-20",
-      requiredDepositPercentageSnapshot:
-        input.requiredDepositPercentageSnapshot ?? 30,
+      dancerId,
+      ageAtEventStart: 14,
+      frozenBasePriceAmount: input.basePriceAmount ?? 10000,
       selectedPriceId: input.selectedPriceId ?? null,
-      selectedPaymentDeadline: input.selectedPaymentDeadline ?? "2026-05-31",
+      depositReferenceDate: input.depositReferenceDate ?? "2026-03-20",
+      depositPercentage: input.depositPercentage ?? 30,
+      depositAmount: input.depositAmount ?? 3000,
     })
     .returning();
 
-  return invoice;
+  return inscription;
 }
 
 export function date(value: string) {

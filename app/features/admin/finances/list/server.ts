@@ -1,12 +1,7 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  academies,
-  academyEventChoreographyInvoices,
-  academyEventPayments,
-  choreographies,
-} from "@/db/schema";
+import { academies, choreographies, payments } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import {
@@ -77,46 +72,26 @@ export async function loadAdminFinanceAccountCurrentList(request: Request) {
 }
 
 async function listAcademyIdsForEvent(eventId: string) {
-  const [
-    academyIdsWithChoreographies,
-    academyIdsWithPayments,
-    academyIdsWithInvoices,
-  ] = await Promise.all([
-    db
-      .selectDistinct({
-        academyId: choreographies.academyId,
-      })
-      .from(choreographies)
-      .where(eq(choreographies.eventId, eventId)),
-    db
-      .selectDistinct({
-        academyId: academyEventPayments.academyId,
-      })
-      .from(academyEventPayments)
-      .where(
-        and(
-          eq(academyEventPayments.eventId, eventId),
-          isNull(academyEventPayments.annulledAt),
-        ),
-      ),
-    db
-      .selectDistinct({
-        academyId: academyEventChoreographyInvoices.academyId,
-      })
-      .from(academyEventChoreographyInvoices)
-      .where(
-        and(
-          eq(academyEventChoreographyInvoices.eventId, eventId),
-          isNull(academyEventChoreographyInvoices.cancelledAt),
-        ),
-      ),
-  ]);
+  const [academyIdsWithChoreographies, academyIdsWithPayments] =
+    await Promise.all([
+      db
+        .selectDistinct({
+          academyId: choreographies.academyId,
+        })
+        .from(choreographies)
+        .where(eq(choreographies.eventId, eventId)),
+      db
+        .selectDistinct({
+          academyId: payments.academyId,
+        })
+        .from(payments)
+        .where(eq(payments.eventId, eventId)),
+    ]);
 
   return [
     ...new Set([
       ...academyIdsWithChoreographies.map((row) => row.academyId),
       ...academyIdsWithPayments.map((row) => row.academyId),
-      ...academyIdsWithInvoices.map((row) => row.academyId),
     ]),
   ];
 }

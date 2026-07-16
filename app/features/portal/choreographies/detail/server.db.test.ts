@@ -19,12 +19,12 @@ import { createPortalPostRequest } from "@/features/portal/test-support/db";
 import {
   createAcademySession,
   createChoreographyRecord,
-  createDepositInvoiceRecord,
   createDancer,
   createEventCatalog,
   createEventRecord,
   createProfessor,
   date,
+  freezeInscriptionDepositForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
   choreographyUpdateFormData,
@@ -187,19 +187,13 @@ describe.sequential("portal choreographies reads", () => {
         ageAtEventStart: 15,
       },
     ]);
-    await createDepositInvoiceRecord({
+    await freezeInscriptionDepositForTest({
       academyId: owner.academyId,
       choreographyId: activeInvoiceChoreography.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-      invoiceNumber: 1,
     });
-    await createDepositInvoiceRecord({
+    await freezeInscriptionDepositForTest({
       academyId: owner.academyId,
       choreographyId: presentationBlockedChoreography.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-      invoiceNumber: 2,
     });
 
     const activeInvoiceDetail = await choreographyDetailLoader({
@@ -269,12 +263,9 @@ describe.sequential("portal choreographies reads", () => {
       dancerId: dancer.id,
       ageAtEventStart: 15,
     });
-    await createDepositInvoiceRecord({
+    await freezeInscriptionDepositForTest({
       academyId: owner.academyId,
       choreographyId: registrationClosedChoreography.id,
-      createdByUserId: owner.userId,
-      eventId: event.id,
-      invoiceNumber: 1,
     });
 
     const registrationClosedDetail = await choreographyDetailLoader({

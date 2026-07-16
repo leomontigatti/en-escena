@@ -1,18 +1,8 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  ilike,
-  isNull,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, academyEventPayments } from "@/db/schema";
+import { academies, payments } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
@@ -83,12 +73,12 @@ export async function loadAdminPaymentsList(
   const where = buildAdminPaymentsWhere(selectedEventId, filters);
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(academyEventPayments)
-    .where(eq(academyEventPayments.eventId, selectedEventId));
+    .from(payments)
+    .where(eq(payments.eventId, selectedEventId));
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(academyEventPayments)
-    .innerJoin(academies, eq(academyEventPayments.academyId, academies.id))
+    .from(payments)
+    .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where);
   const totalCount = Number(count);
   const totalPages = Math.max(1, Math.ceil(totalCount / adminPaymentsPageSize));
@@ -97,16 +87,16 @@ export async function loadAdminPaymentsList(
 
   const paymentRows = await db
     .select({
-      academyId: academyEventPayments.academyId,
+      academyId: payments.academyId,
       academyName: academies.name,
-      amount: academyEventPayments.amount,
-      id: academyEventPayments.id,
-      paymentDate: academyEventPayments.paymentDate,
-      paymentMethod: academyEventPayments.paymentMethod,
-      paymentNumber: academyEventPayments.paymentNumber,
+      amount: payments.amount,
+      id: payments.id,
+      paymentDate: payments.paymentDate,
+      paymentMethod: payments.paymentMethod,
+      paymentNumber: payments.paymentNumber,
     })
-    .from(academyEventPayments)
-    .innerJoin(academies, eq(academyEventPayments.academyId, academies.id))
+    .from(payments)
+    .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where)
     .orderBy(...buildAdminPaymentsOrderBy(normalizedFilters.order))
     .limit(adminPaymentsPageSize)
@@ -166,26 +156,21 @@ function buildAdminPaymentsWhere(
   selectedEventId: string,
   filters: AdminPaymentsListFilters,
 ) {
-  const conditions: SQL[] = [eq(academyEventPayments.eventId, selectedEventId)];
+  const conditions: SQL[] = [eq(payments.eventId, selectedEventId)];
   const query = filters.query.trim();
 
   if (query.length > 0) {
     conditions.push(
       or(
         ilike(academies.name, `%${query}%`),
-        ilike(
-          sql`cast(${academyEventPayments.paymentNumber} as text)`,
-          `%${query}%`,
-        ),
+        ilike(sql`cast(${payments.paymentNumber} as text)`, `%${query}%`),
       )!,
     );
   }
 
   if (filters.method !== null) {
-    conditions.push(eq(academyEventPayments.paymentMethod, filters.method));
+    conditions.push(eq(payments.paymentMethod, filters.method));
   }
-
-  conditions.push(isNull(academyEventPayments.annulledAt));
 
   return and(...conditions);
 }
@@ -193,14 +178,14 @@ function buildAdminPaymentsWhere(
 function buildAdminPaymentsOrderBy(order: AdminPaymentsListOrder) {
   const orderPaymentDate =
     order.direction === "asc"
-      ? asc(academyEventPayments.paymentDate)
-      : desc(academyEventPayments.paymentDate);
+      ? asc(payments.paymentDate)
+      : desc(payments.paymentDate);
   const orderPaymentNumber =
     order.direction === "asc"
-      ? asc(academyEventPayments.paymentNumber)
-      : desc(academyEventPayments.paymentNumber);
+      ? asc(payments.paymentNumber)
+      : desc(payments.paymentNumber);
 
-  return [orderPaymentDate, orderPaymentNumber, desc(academyEventPayments.id)];
+  return [orderPaymentDate, orderPaymentNumber, desc(payments.id)];
 }
 
 function buildCanonicalAdminPaymentsSearch(input: {

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventPayments,
+  payments,
   choreographyDancers,
   paymentAllocations,
   prices,
@@ -100,11 +100,10 @@ describe.sequential(
       });
 
       const [payment] = await db
-        .insert(academyEventPayments)
+        .insert(payments)
         .values({
           academyId: owner.academyId,
           amount: 16600,
-          createdByUserId: owner.userId,
           eventId: event.id,
           paymentDate: "2026-03-21",
           paymentMethod: "transferencia",

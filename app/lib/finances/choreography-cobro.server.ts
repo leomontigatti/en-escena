@@ -1,8 +1,8 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academyEventPayments,
+  payments,
   choreographies,
   choreographyDancers,
   events,
@@ -301,7 +301,7 @@ type CobroContext =
       };
       event: { requiredDepositPercentage: number };
       inscriptions: InscriptionRow[];
-      payment: typeof academyEventPayments.$inferSelect;
+      payment: typeof payments.$inferSelect;
     };
 
 async function loadCobroContext(
@@ -355,12 +355,11 @@ async function loadCobroContext(
     };
   }
 
-  const payment = await tx.query.academyEventPayments.findFirst({
+  const payment = await tx.query.payments.findFirst({
     where: and(
-      eq(academyEventPayments.id, input.paymentId),
-      eq(academyEventPayments.academyId, input.academyId),
-      eq(academyEventPayments.eventId, input.eventId),
-      isNull(academyEventPayments.annulledAt),
+      eq(payments.id, input.paymentId),
+      eq(payments.academyId, input.academyId),
+      eq(payments.eventId, input.eventId),
     ),
   });
 
@@ -420,7 +419,7 @@ async function resolveApplicablePriceRow(
 async function assertPaymentAvailability(
   tx: Transaction,
   input: {
-    payment: typeof academyEventPayments.$inferSelect;
+    payment: typeof payments.$inferSelect;
     requiredAmount: number;
   },
 ): Promise<CobroResult> {

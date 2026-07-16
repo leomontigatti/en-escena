@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventPayments,
+  payments as paymentTable,
   choreographyDancers,
   paymentAllocations,
 } from "@/db/schema";
@@ -17,7 +17,6 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
 import { loader as legacyReportLoader } from "@/routes/administracion.academias.reporte";
 import { loader as financeAccountsLoader } from "@/routes/administracion.finanzas";
-import { loader as financePaymentsLoader } from "@/routes/administracion.pagos";
 import {
   action as paymentCreateAction,
   loader as paymentCreateLoader,
@@ -30,13 +29,11 @@ import {
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
-  registerPaymentForTest,
   renderAcademiesRoute,
   reportRouteArgs,
   reportUrl,
   routeArgs,
   renderFinanceAccountsRoute,
-  renderFinancePaymentsRoute,
   paymentCreateRouteArgs,
 } from "./account-current-route.test-support";
 
@@ -49,17 +46,15 @@ afterEach(() => {
 async function seedPaymentRecord(input: {
   academyId: string;
   amount: number;
-  createdByUserId: string;
   eventId: string;
   paymentDate: string;
   paymentNumber: number;
 }) {
   const [payment] = await db
-    .insert(academyEventPayments)
+    .insert(paymentTable)
     .values({
       academyId: input.academyId,
       amount: input.amount,
-      createdByUserId: input.createdByUserId,
       eventId: input.eventId,
       paymentDate: input.paymentDate,
       paymentMethod: "transferencia",
@@ -183,7 +178,6 @@ describe.sequential("administracion finanzas", () => {
     const northPayment = await seedPaymentRecord({
       academyId: academyNorth.academy.id,
       amount: 20000,
-      createdByUserId: academyNorth.user.id,
       eventId: event.id,
       paymentDate: "2026-03-15",
       paymentNumber: 1,
@@ -192,7 +186,6 @@ describe.sequential("administracion finanzas", () => {
     await seedPaymentRecord({
       academyId: academyNorth.academy.id,
       amount: 3333,
-      createdByUserId: academyNorth.user.id,
       eventId: otherEvent.id,
       paymentDate: "2026-03-14",
       paymentNumber: 1,
@@ -200,7 +193,6 @@ describe.sequential("administracion finanzas", () => {
     await seedPaymentRecord({
       academyId: academySouth.academy.id,
       amount: 3000,
-      createdByUserId: academySouth.user.id,
       eventId: event.id,
       paymentDate: "2026-03-16",
       paymentNumber: 2,
@@ -404,69 +396,6 @@ describe.sequential("administracion finanzas", () => {
     ]);
     expect(markup.match(/Pendiente/g)).toHaveLength(2);
   });
-  test("renders the payments control list for the active event", async () => {
-    const event = await createSavedEvent({
-      requiredDepositPercentage: 30,
-    });
-    const academy = await createAcademyUser({
-      email: "academia.finanzas.listas@example.com",
-      academyName: "Academia Listas",
-    });
-
-    await registerPaymentForTest({
-      academyId: academy.academy.id,
-      amount: "5000",
-      eventId: event.id,
-      paymentDate: "2026-03-15",
-    });
-    await registerPaymentForTest({
-      academyId: academy.academy.id,
-      amount: "7000",
-      eventId: event.id,
-      paymentDate: "2026-03-16",
-    });
-
-    // Annulled payments must not appear in the payments control list.
-    const [annullablePayment] = await db.query.academyEventPayments.findMany({
-      where: eq(academyEventPayments.paymentDate, "2026-03-16"),
-    });
-    if (!annullablePayment) {
-      throw new Error("Expected annullable payment for finance lists.");
-    }
-    await db
-      .update(academyEventPayments)
-      .set({ annulledAt: new Date(), annulledReason: "Pago duplicado." })
-      .where(eq(academyEventPayments.id, annullablePayment.id));
-
-    const { request: paymentsRequest } = await createSignedInRequest({
-      email: "admin.finanzas.pagos@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/pagos?evento=${event.id}`,
-    });
-    const paymentsData = await financePaymentsLoader(
-      reportRouteArgs(paymentsRequest),
-    );
-    const paymentsMarkup = renderFinancePaymentsRoute({
-      loaderData: paymentsData,
-    });
-
-    expect(paymentsData.rows).toEqual([
-      expect.objectContaining({
-        academyName: "Academia Listas",
-        amount: 5000,
-        paymentDate: "2026-03-15",
-        paymentMethod: "transferencia",
-        paymentNumber: 1,
-      }),
-    ]);
-    expect(paymentsMarkup).toContain("Pagos");
-    expect(paymentsMarkup).toContain("Nuevo pago");
-    expect(paymentsMarkup).toContain("/administracion/pagos/nuevo");
-    expect(paymentsMarkup).toContain("Transferencia");
-    expect(paymentsMarkup).toContain("$ 5.000");
-    expect(paymentsMarkup).not.toContain("Anulado");
-    expect(paymentsMarkup).not.toContain("$ 7.000");
-  });
 
   test("lets admin create a payment from the payments form", async () => {
     const event = await createSavedEvent();
@@ -530,8 +459,8 @@ describe.sequential("administracion finanzas", () => {
       status: 302,
     });
 
-    const payments = await db.query.academyEventPayments.findMany({
-      where: eq(academyEventPayments.academyId, academy.academy.id),
+    const payments = await db.query.payments.findMany({
+      where: eq(paymentTable.academyId, academy.academy.id),
     });
 
     expect(payments).toEqual([

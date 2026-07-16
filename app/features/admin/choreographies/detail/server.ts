@@ -4,7 +4,6 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import {
-  academyEventChoreographyInvoices,
   academies,
   categories,
   choreographies,
@@ -385,15 +384,8 @@ async function getAdministrativeChoreographyDeleteBlockers(
     "hasPresentation" | "id"
   >,
 ): Promise<AdministrativeChoreographyDeleteBlocker[]> {
-  const [hasInvoices, hasScores] = await Promise.all([
-    hasAnyInvoiceForChoreography(choreography.id),
-    hasScoresForChoreography(choreography.id),
-  ]);
+  const hasScores = await hasScoresForChoreography(choreography.id);
   const blockers: AdministrativeChoreographyDeleteBlocker[] = [];
-
-  if (hasInvoices) {
-    blockers.push({ code: "invoices", label: "facturas" });
-  }
 
   if (choreography.hasPresentation) {
     blockers.push({ code: "presentation", label: "presentación" });
@@ -404,16 +396,6 @@ async function getAdministrativeChoreographyDeleteBlockers(
   }
 
   return blockers;
-}
-
-async function hasAnyInvoiceForChoreography(choreographyId: string) {
-  const rows = await db
-    .select({ id: academyEventChoreographyInvoices.id })
-    .from(academyEventChoreographyInvoices)
-    .where(eq(academyEventChoreographyInvoices.choreographyId, choreographyId))
-    .limit(1);
-
-  return rows.length > 0;
 }
 
 async function hasScoresForChoreography(_choreographyId: string) {

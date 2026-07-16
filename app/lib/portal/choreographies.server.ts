@@ -15,7 +15,6 @@ import {
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { hasActiveInvoiceForChoreography } from "@/lib/finances/choreography-invoices.server";
 import type { ChoreographyListItem } from "@/lib/portal/choreographies";
 import {
   getDancerEditingEligibility,
@@ -52,7 +51,6 @@ export type ChoreographyDeletionAvailability = {
   warningMessage: string | null;
 };
 
-const choreographyNotFoundMessage = "No encontramos esa Coreografía.";
 type ChoreographyRow = {
   id: string;
   name: string;
@@ -240,43 +238,6 @@ export type {
   UpdateChoreographyProfessorsResult,
   UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.server";
-
-export async function deleteChoreography(input: {
-  academyId: string;
-  eventId: string;
-  choreographyId: string;
-}): Promise<void> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: {
-      id: true,
-      academyId: true,
-      eventId: true,
-    },
-    where: eq(choreographies.id, input.choreographyId),
-  });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (
-    choreography.academyId !== input.academyId ||
-    choreography.eventId !== input.eventId
-  ) {
-    throw new Response(choreographyNotFoundMessage, { status: 404 });
-  }
-
-  if (await hasActiveInvoiceForChoreography(input.choreographyId)) {
-    throw new Response(
-      "No podés eliminar esta Coreografía porque tiene una factura activa.",
-      { status: 409 },
-    );
-  }
-
-  await db
-    .delete(choreographies)
-    .where(eq(choreographies.id, input.choreographyId));
-}
 
 export function getChoreographyDeletionAvailability(_input: {
   isReadOnly: boolean;

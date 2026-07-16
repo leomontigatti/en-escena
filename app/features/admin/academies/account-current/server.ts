@@ -1,8 +1,8 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, academyEventPayments } from "@/db/schema";
+import { academies, payments as paymentTable } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -68,7 +68,7 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
-          db.query.academyEventPayments.findMany({
+          db.query.payments.findMany({
             columns: {
               id: true,
               paymentNumber: true,
@@ -79,14 +79,13 @@ export async function loadAdministrativeAcademyAccountCurrent(input: {
               internalNote: true,
             },
             where: and(
-              eq(academyEventPayments.academyId, academy.id),
-              eq(academyEventPayments.eventId, eventContext.selectedEventId),
-              isNull(academyEventPayments.annulledAt),
+              eq(paymentTable.academyId, academy.id),
+              eq(paymentTable.eventId, eventContext.selectedEventId),
             ),
             orderBy: [
-              desc(academyEventPayments.paymentDate),
-              desc(academyEventPayments.paymentNumber),
-              desc(academyEventPayments.createdAt),
+              desc(paymentTable.paymentDate),
+              desc(paymentTable.paymentNumber),
+              desc(paymentTable.createdAt),
             ],
           }),
         ]);

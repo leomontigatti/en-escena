@@ -1,8 +1,8 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academyEventPayments,
+  payments,
   choreographyDancers,
   choreographies,
   events,
@@ -232,12 +232,11 @@ async function readAcademyEventFinance(input: {
           inArray(paymentAllocations.academyId, input.academyIds),
         ),
       ),
-    db.query.academyEventPayments.findMany({
+    db.query.payments.findMany({
       columns: { academyId: true, amount: true },
       where: and(
-        eq(academyEventPayments.eventId, input.eventId),
-        inArray(academyEventPayments.academyId, input.academyIds),
-        isNull(academyEventPayments.annulledAt),
+        eq(payments.eventId, input.eventId),
+        inArray(payments.academyId, input.academyIds),
       ),
     }),
   ]);

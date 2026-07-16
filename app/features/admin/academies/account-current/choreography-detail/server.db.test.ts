@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  academyEventPayments,
-  choreographyDancers,
-  paymentAllocations,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
@@ -27,16 +23,14 @@ afterEach(() => {
 async function seedPayment(input: {
   academyId: string;
   amount: number;
-  createdByUserId: string;
   eventId: string;
   paymentNumber: number;
 }) {
   const [payment] = await db
-    .insert(academyEventPayments)
+    .insert(payments)
     .values({
       academyId: input.academyId,
       amount: input.amount,
-      createdByUserId: input.createdByUserId,
       eventId: input.eventId,
       paymentDate: "2026-03-21",
       paymentMethod: "transferencia",
@@ -142,7 +136,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     const payment = await seedPayment({
       academyId: academy.academy.id,
       amount: 3000,
-      createdByUserId: academy.user.id,
       eventId: event.id,
       paymentNumber: 1,
     });
@@ -231,7 +224,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     const payment = await seedPayment({
       academyId: academy.academy.id,
       amount: 10000,
-      createdByUserId: academy.user.id,
       eventId: event.id,
       paymentNumber: 1,
     });

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academyEventPayments, eventFinancialSequences } from "@/db/schema";
+import { payments, eventFinancialSequences } from "@/db/schema";
 
 export async function registerAcademyEventPayment(input: {
   academyId: string;
@@ -9,7 +9,7 @@ export async function registerAcademyEventPayment(input: {
   eventId: string;
   internalNote: string | null;
   paymentDate: string;
-  paymentMethod: (typeof academyEventPayments.$inferInsert)["paymentMethod"];
+  paymentMethod: (typeof payments.$inferInsert)["paymentMethod"];
   reference: string | null;
 }) {
   return await db.transaction(async (tx) => {
@@ -34,7 +34,7 @@ export async function registerAcademyEventPayment(input: {
 
     const paymentNumber = sequence.nextPaymentNumber;
 
-    await tx.insert(academyEventPayments).values({
+    await tx.insert(payments).values({
       academyId: input.academyId,
       amount: input.amount,
       eventId: input.eventId,

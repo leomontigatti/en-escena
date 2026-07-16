@@ -1,7 +1,7 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academyEventPayments, paymentAllocations } from "@/db/schema";
+import { paymentAllocations, payments as paymentTable } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -28,7 +28,7 @@ export async function loadPortalAcademyFinances(request: Request) {
       academyId: academy.id,
       eventId,
     }),
-    db.query.academyEventPayments.findMany({
+    db.query.payments.findMany({
       columns: {
         id: true,
         paymentNumber: true,
@@ -41,12 +41,11 @@ export async function loadPortalAcademyFinances(request: Request) {
         andCondition(
           eq(table.academyId, academy.id),
           eq(table.eventId, eventId),
-          isNull(table.annulledAt),
         ),
       orderBy: [
-        desc(academyEventPayments.paymentDate),
-        desc(academyEventPayments.paymentNumber),
-        desc(academyEventPayments.createdAt),
+        desc(paymentTable.paymentDate),
+        desc(paymentTable.paymentNumber),
+        desc(paymentTable.createdAt),
       ],
     }),
     db
