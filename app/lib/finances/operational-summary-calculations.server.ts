@@ -314,25 +314,6 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   };
 }
 
-export function sumAmountsBy<T>(
-  rows: T[],
-  getKey: (row: T) => string,
-  getAmount: (row: T) => number,
-) {
-  const amounts = new Map<string, number>();
-
-  for (const row of rows) {
-    const key = getKey(row);
-    amounts.set(key, (amounts.get(key) ?? 0) + getAmount(row));
-  }
-
-  return amounts;
-}
-
-export function sumAmounts<T>(rows: T[], getAmount: (row: T) => number) {
-  return rows.reduce((total, row) => total + getAmount(row), 0);
-}
-
 /**
  * Precio tentativo vigente para una inscripción `impaga`, contra la fecha de
  * negocio de Córdoba. `missing-price` cuando no hay fila de precio aplicable.
