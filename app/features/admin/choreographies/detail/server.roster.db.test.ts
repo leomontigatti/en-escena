@@ -3,10 +3,10 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  academyEventPayments,
   choreographies,
   choreographyDancers,
   paymentAllocations,
+  payments,
 } from "@/db/schema";
 import { handleAdministrativeChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import { updateAdministrativeChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
@@ -128,7 +128,7 @@ describe("administrative choreography roster editing", () => {
       dancerId: dancerB.id,
     });
     const [payment] = await db
-      .insert(academyEventPayments)
+      .insert(payments)
       .values({
         academyId: owner.academyId,
         amount: 3000,
