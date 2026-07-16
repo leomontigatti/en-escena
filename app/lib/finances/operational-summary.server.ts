@@ -50,18 +50,6 @@ export type AcademyEventOperationalFinanceDetail = {
   summary: OperationalFinanceSummary;
 };
 
-export async function readAcademyEventOperationalFinanceSummary(input: {
-  academyId: string;
-  eventId: string;
-}): Promise<OperationalFinanceSummary> {
-  const summaries = await readAcademyEventOperationalFinanceSummaries({
-    academyIds: [input.academyId],
-    eventId: input.eventId,
-  });
-
-  return summaries.get(input.academyId) ?? emptyOperationalFinanceSummary();
-}
-
 export async function readAcademyEventOperationalFinanceSummaries(input: {
   academyIds: string[];
   eventId: string;
