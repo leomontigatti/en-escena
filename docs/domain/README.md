@@ -14,8 +14,7 @@ Read order for domain work:
 - [acceso.md](./acceso.md) - registration, users, sessions and invitations.
 - [coreografias.md](./coreografias.md) - roster links, choreography registration, locks and Bases del evento.
 - [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
-- [finanzas.md](./finanzas.md) - financial states, invoices, payments, account balance and pricing.
-- [pagos-inscripciones.md](./pagos-inscripciones.md) - redesign notes for payments, payment assignments, inscriptions and active financial state.
+- [finanzas.md](./finanzas.md) - canonical finance model: inscriptions, payments, payment assignments, financial state, pricing and snapshots.
 - [auditoria.md](./auditoria.md) - traceability, audit history and state-level audit fields.
 - [rules.md](./rules.md) - index for compatibility.
 
