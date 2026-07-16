@@ -11,7 +11,7 @@ import * as eventsManagementModule from "@/lib/events/management.server";
 import * as eventBasesModule from "@/lib/events/bases.server";
 import * as eventReadinessModule from "@/lib/events/registration-readiness.server";
 import * as portalChoreographiesModule from "@/lib/portal/choreographies.server";
-import * as portalChoreographyRosterModule from "@/lib/portal/choreography-roster.server";
+import * as portalChoreographyRosterModule from "@/lib/choreographies/choreography-roster.server";
 import * as portalDancersModule from "@/lib/portal/dancers.server";
 import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";

@@ -2,12 +2,12 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyDancers, choreographyProfessors } from "@/db/schema";
-import { updateChoreographyDancers } from "@/lib/portal/choreography-roster-dancer-update.server";
+import { updateChoreographyDancers } from "@/lib/choreographies/choreography-roster-dancer-update.server";
 import {
   updateChoreographyProfessors,
   validateChoreographyProfessorSelection,
-} from "@/lib/portal/choreography-roster-professor-update.server";
-import type { UpdateChoreographyResult } from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster-professor-update.server";
+import type { UpdateChoreographyResult } from "@/lib/choreographies/choreography-roster.shared";
 
 export {
   getDancerEditingEligibility,
@@ -22,16 +22,16 @@ export {
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyProfessorsResult,
   type UpdateChoreographyResult,
-} from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster.shared";
 export {
   resolveChoreographyDancers,
   updateChoreographyDancers,
-} from "@/lib/portal/choreography-roster-dancer-update.server";
+} from "@/lib/choreographies/choreography-roster-dancer-update.server";
 export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
-} from "@/lib/portal/choreography-roster-options.server";
-export { updateChoreographyProfessors } from "@/lib/portal/choreography-roster-professor-update.server";
+} from "@/lib/choreographies/choreography-roster-options.server";
+export { updateChoreographyProfessors } from "@/lib/choreographies/choreography-roster-professor-update.server";
 
 export async function updateChoreography(input: {
   academyId: string;

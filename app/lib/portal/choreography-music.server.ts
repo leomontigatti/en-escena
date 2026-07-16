@@ -5,7 +5,7 @@ import { choreographies } from "@/db/schema";
 import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
-} from "@/lib/portal/choreography-access.server";
+} from "@/lib/choreographies/choreography-access.server";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 type PortalChoreographyMusicStorage = ReturnType<

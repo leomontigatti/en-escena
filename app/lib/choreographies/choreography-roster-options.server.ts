@@ -5,7 +5,7 @@ import { dancers, professors } from "@/db/schema";
 import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
-} from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster.shared";
 
 export async function listProfessorOptionsForChoreography(
   academyId: string,

@@ -6,7 +6,7 @@ import {
   type ChoreographyRosterEditorLoaderData,
 } from "@/features/portal/choreographies/detail/roster-editor";
 import type { PortalEventContext } from "@/lib/portal/event-context";
-import type { ResolveChoreographyDancersResult } from "@/lib/portal/choreography-roster.server";
+import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
 type PortalChoreographyDetailLoaderData = ChoreographyRosterEditorLoaderData & {
   choreography: ChoreographyRosterEditorLoaderData["choreography"] &

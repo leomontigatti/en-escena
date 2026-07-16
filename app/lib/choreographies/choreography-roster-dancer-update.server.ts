@@ -17,7 +17,7 @@ import {
 import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
-} from "@/lib/portal/choreography-access.server";
+} from "@/lib/choreographies/choreography-access.server";
 import {
   choreographyNotFoundMessage,
   compatibleScheduleSelectionRequiredMessage,
@@ -30,7 +30,7 @@ import {
   type ResolveChoreographyDancersResult,
   type ResolvedChoreographyDancerUpdateContext,
   type UpdateChoreographyDancersResult,
-} from "@/lib/portal/choreography-roster.shared";
+} from "@/lib/choreographies/choreography-roster.shared";
 import {
   type ExperienceLevel,
   isExperienceLevel,

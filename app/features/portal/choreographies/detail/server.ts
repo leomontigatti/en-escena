@@ -26,7 +26,7 @@ import {
   listProfessorOptionsForChoreography,
   resolveChoreographyDancers,
   updateChoreography,
-} from "@/lib/portal/choreography-roster.server";
+} from "@/lib/choreographies/choreography-roster.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 
 const routeNotificationSearchParam = "notificacion";
