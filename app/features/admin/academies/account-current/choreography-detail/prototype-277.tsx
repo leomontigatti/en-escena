@@ -4,7 +4,7 @@
  * quitar inscripciones, eliminar la coreografía), y cómo se reflejan sus
  * consecuencias financieras?
  *
- * Contexto de dominio (docs/domain/pagos-inscripciones.md, #273/#270/#272):
+ * Contexto de dominio (docs/domain/finanzas.md, #273/#270/#272):
  *  - Solo el administrador edita el roster; sin bloqueo por coreografía, sin
  *    ciclo de solicitud/desbloqueo, sin motivos ni auditoría.
  *  - Quitar una inscripción = borrado físico + devolución de TODO lo asignado
@@ -214,7 +214,7 @@ export const SCENARIOS: MockScenario[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Derivations (mirror docs/domain/pagos-inscripciones.md)
+// Derivations (mirror docs/domain/finanzas.md)
 // ---------------------------------------------------------------------------
 
 /** Estados mezclados que el flujo normal no resuelve en una sola acción. */
