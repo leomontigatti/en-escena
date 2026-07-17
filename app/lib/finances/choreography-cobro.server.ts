@@ -10,6 +10,7 @@ import {
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
   calculateDepositAmount,
   computeDancerDiscountAmounts,
@@ -156,9 +157,7 @@ export async function quoteChoreographyDepositTotals(input: {
     return totals;
   }
 
-  const scheduleId =
-    choreographyRow.scheduleCapacityScheduleId ??
-    choreographyRow.choreographyScheduleId;
+  const scheduleId = resolveChoreographyPricingScheduleId(choreographyRow);
 
   const [event, inscriptionRows, priceRows] = await Promise.all([
     db.query.events.findFirst({
@@ -459,9 +458,7 @@ async function loadCobroContext(
     ok: true,
     choreography: {
       groupType: choreographyRow.groupType,
-      scheduleId:
-        choreographyRow.scheduleCapacityScheduleId ??
-        choreographyRow.choreographyScheduleId,
+      scheduleId: resolveChoreographyPricingScheduleId(choreographyRow),
     },
     event,
     inscriptions,
