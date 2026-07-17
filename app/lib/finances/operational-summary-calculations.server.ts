@@ -1,4 +1,5 @@
 import { prices } from "@/db/schema";
+import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
   completeOperationalFinanceAmount,
   type ChoreographyFinancialState,
@@ -348,9 +349,7 @@ export function resolveEstimatedBasePriceAmount(input: {
   priceRows: FinancePriceRow[];
 }): FinanceAmountResolution {
   const financialReferenceDate = getBusinessDateOnly();
-  const scheduleId =
-    input.choreography.scheduleCapacityScheduleId ??
-    input.choreography.choreographyScheduleId;
+  const scheduleId = resolveChoreographyPricingScheduleId(input.choreography);
   const schedulePrice = scheduleId
     ? selectApplicablePriceFromCandidates(
         input.priceRows.filter(
