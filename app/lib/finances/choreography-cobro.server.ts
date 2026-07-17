@@ -10,6 +10,7 @@ import {
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
   calculateDepositAmount,
   computeDancerDiscountAmounts,
@@ -142,6 +143,7 @@ export async function quoteChoreographyDepositTotals(input: {
   const [choreographyRow] = await db
     .select({
       groupType: choreographies.groupType,
+      choreographyScheduleId: choreographies.scheduleId,
       scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
     })
     .from(choreographies)
@@ -154,6 +156,8 @@ export async function quoteChoreographyDepositTotals(input: {
   if (!choreographyRow) {
     return totals;
   }
+
+  const scheduleId = resolveChoreographyPricingScheduleId(choreographyRow);
 
   const [event, inscriptionRows, priceRows] = await Promise.all([
     db.query.events.findFirst({
@@ -179,7 +183,7 @@ export async function quoteChoreographyDepositTotals(input: {
     const price = selectApplicablePriceRow({
       priceRows: candidatePriceRows,
       referenceDate,
-      scheduleId: choreographyRow.scheduleCapacityScheduleId,
+      scheduleId,
     });
 
     if (!price) {
@@ -400,6 +404,7 @@ async function loadCobroContext(
       academyId: choreographies.academyId,
       eventId: choreographies.eventId,
       groupType: choreographies.groupType,
+      choreographyScheduleId: choreographies.scheduleId,
       scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
     })
     .from(choreographies)
@@ -453,7 +458,7 @@ async function loadCobroContext(
     ok: true,
     choreography: {
       groupType: choreographyRow.groupType,
-      scheduleId: choreographyRow.scheduleCapacityScheduleId,
+      scheduleId: resolveChoreographyPricingScheduleId(choreographyRow),
     },
     event,
     inscriptions,
