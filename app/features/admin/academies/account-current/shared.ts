@@ -17,8 +17,6 @@ export const paymentFieldNames = [
   "internalNote",
 ] as const;
 
-export type PaymentFieldName = (typeof paymentFieldNames)[number];
-
 export const registerPaymentSchema = z.object({
   paymentDate: z
     .string()
@@ -70,15 +68,6 @@ export const registerPaymentSchema = z.object({
 
 export type RegisterPaymentFormValues = z.input<typeof registerPaymentSchema>;
 
-export type AdministrativeAcademyAccountCurrentActionData = {
-  fieldErrors: Partial<Record<PaymentFieldName, string>>;
-  message: string;
-  status: "error";
-  values: {
-    payment: RegisterPaymentFormValues;
-  };
-};
-
 export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
   return {
     paymentDate: todayDateOnly(),
@@ -86,12 +75,6 @@ export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
     paymentMethod: "transferencia",
     reference: "",
     internalNote: "",
-  };
-}
-
-export function defaultAccountCurrentActionValues(): AdministrativeAcademyAccountCurrentActionData["values"] {
-  return {
-    payment: defaultRegisterPaymentValues(),
   };
 }
 

@@ -5,8 +5,6 @@ import { db } from "@/db";
 import {
   academies,
   payments as paymentTable,
-  choreographyDancers,
-  dancers,
   paymentAllocations,
 } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
@@ -20,6 +18,7 @@ import {
   payChoreographyDeposit,
   quoteChoreographyDepositTotals,
 } from "@/lib/finances/choreography-cobro.server";
+import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -77,30 +76,9 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
   const choreographyInscriptions = financeDetail.inscriptions.filter(
     (inscription) => inscription.choreographyId === choreographyId,
   );
-  const inscriptionsByDancer = new Map(
-    choreographyInscriptions.map((inscription) => [
-      inscription.dancerId,
-      inscription,
-    ]),
-  );
-  const participationRows = await listChoreographyParticipationRows({
+  const inscriptions = await readChoreographyInscriptionRows({
+    academyEventInscriptions: financeDetail.inscriptions,
     choreographyId,
-  });
-
-  const inscriptions = participationRows.map((participation) => {
-    const inscription = inscriptionsByDancer.get(participation.dancerId);
-
-    return {
-      dancerId: participation.dancerId,
-      firstName: participation.firstName,
-      lastName: participation.lastName,
-      state: inscription?.state ?? "impaga",
-      basePriceAmount: inscription?.basePriceAmount ?? null,
-      depositAmount: inscription?.depositAmount ?? null,
-      balanceAmount: inscription?.balanceAmount ?? null,
-      discountAmount: inscription?.dancerDiscountAmount ?? 0,
-      finalPriceAmount: inscription?.finalPriceAmount ?? null,
-    };
   });
 
   const stage = resolveCobroStage(
@@ -294,21 +272,6 @@ async function readAcademy(academyId: string) {
   }
 
   return academy;
-}
-
-async function listChoreographyParticipationRows(input: {
-  choreographyId: string;
-}) {
-  return await db
-    .select({
-      dancerId: dancers.id,
-      firstName: dancers.firstName,
-      lastName: dancers.lastName,
-    })
-    .from(choreographyDancers)
-    .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(eq(choreographyDancers.choreographyId, input.choreographyId))
-    .orderBy(asc(dancers.lastName), asc(dancers.firstName));
 }
 
 async function listAvailablePayments(input: {

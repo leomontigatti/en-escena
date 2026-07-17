@@ -1,188 +1,36 @@
-import { and, desc, eq } from "drizzle-orm";
-import { redirect } from "react-router";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, payments as paymentTable } from "@/db/schema";
+import { academies } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
-import { getFieldErrors } from "@/lib/shared/form-validation";
-import { registerAcademyEventPayment } from "./payments.server";
-
-import {
-  defaultAccountCurrentActionValues,
-  paymentFieldNames,
-  readRegisterPaymentValues,
-  registerPaymentSchema,
-  type AdministrativeAcademyAccountCurrentActionData,
-} from "./shared";
-
-type AccountCurrentActionContext = {
-  academyId: string;
-  adminUserId: string;
-  eventId: string;
-  formData: FormData;
-  requestUrl: string;
-};
-
-type AccountCurrentActionHandler = (
-  context: AccountCurrentActionContext,
-) => Promise<AdministrativeAcademyAccountCurrentActionData | never>;
-
-type AccountCurrentActionErrorData = Extract<
-  AdministrativeAcademyAccountCurrentActionData,
-  { status: "error" }
->;
-type AccountCurrentActionValues =
-  AdministrativeAcademyAccountCurrentActionData["values"];
-
-const accountCurrentActionHandlers: Partial<
-  Record<string, AccountCurrentActionHandler>
-> = {
-  "register-payment": handleRegisterPaymentAction,
-};
+import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
 export async function loadAdministrativeAcademyAccountCurrent(input: {
   params: { academyId?: string };
   request: Request;
 }) {
-  const user = await requireInternalUser(input.request, ["admin", "auditor"]);
+  await requireInternalUser(input.request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
-  const [financeDetail, payments] =
+  const financeDetail =
     eventContext.selectedEventId === null
-      ? [
-          {
-            choreographyFinanceRows: [],
-            summary: emptyOperationalFinanceSummary(),
-          },
-          [],
-        ]
-      : await Promise.all([
-          readAcademyEventOperationalFinanceDetail({
-            academyId: academy.id,
-            eventId: eventContext.selectedEventId,
-          }),
-          db.query.payments.findMany({
-            columns: {
-              id: true,
-              paymentNumber: true,
-              paymentDate: true,
-              amount: true,
-              paymentMethod: true,
-              reference: true,
-              internalNote: true,
-            },
-            where: and(
-              eq(paymentTable.academyId, academy.id),
-              eq(paymentTable.eventId, eventContext.selectedEventId),
-            ),
-            orderBy: [
-              desc(paymentTable.paymentDate),
-              desc(paymentTable.paymentNumber),
-              desc(paymentTable.createdAt),
-            ],
-          }),
-        ]);
+      ? {
+          choreographyFinanceRows: [],
+          summary: emptyOperationalFinanceSummary(),
+        }
+      : await readAcademyEventOperationalFinanceDetail({
+          academyId: academy.id,
+          eventId: eventContext.selectedEventId,
+        });
 
   return {
     academy,
-    canRegisterPayments: user.role === "admin",
     choreographyFinanceRows: financeDetail.choreographyFinanceRows,
-    payments,
     selectedEventId: eventContext.selectedEventId,
     summary: financeDetail.summary,
-  };
-}
-
-export async function handleAdministrativeAcademyAccountCurrentAction(input: {
-  params: { academyId?: string };
-  request: Request;
-}): Promise<AdministrativeAcademyAccountCurrentActionData | never> {
-  const adminUser = await requireAdminUser(input.request);
-  const eventContext = await loadAdminEventContext(input.request);
-  const academyId = readAcademyId(input.params);
-  await readAcademy(academyId);
-
-  if (eventContext.selectedEventId === null) {
-    return accountCurrentActionError({
-      fieldErrors: {},
-      message: "Activá un evento para operar la cuenta corriente.",
-    });
-  }
-
-  const eventId = eventContext.selectedEventId;
-  const formData = await input.request.formData();
-  const intent = String(formData.get("intent") ?? "");
-  const handler = accountCurrentActionHandlers[intent];
-
-  if (!handler) {
-    return accountCurrentActionError({
-      fieldErrors: {},
-      message: "No pudimos procesar esa acción.",
-    });
-  }
-
-  return await handler({
-    academyId,
-    adminUserId: adminUser.id,
-    eventId,
-    formData,
-    requestUrl: input.request.url,
-  });
-}
-
-async function handleRegisterPaymentAction(
-  context: AccountCurrentActionContext,
-) {
-  const values = readRegisterPaymentValues(context.formData);
-  const parsed = registerPaymentSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return accountCurrentActionError({
-      fieldErrors: getFieldErrors(parsed.error, paymentFieldNames),
-      message: "Revisá los datos del pago.",
-      values: { payment: values },
-    });
-  }
-
-  await registerAcademyEventPayment({
-    academyId: context.academyId,
-    amount: Number(parsed.data.amount),
-    eventId: context.eventId,
-    internalNote: parsed.data.internalNote || null,
-    paymentDate: parsed.data.paymentDate,
-    paymentMethod: parsed.data.paymentMethod,
-    reference: parsed.data.reference || null,
-  });
-
-  throw redirect(context.requestUrl);
-}
-
-function accountCurrentActionError(input: {
-  fieldErrors: Partial<Record<string, string>>;
-  message: string;
-  values?: Partial<AccountCurrentActionValues>;
-}): AccountCurrentActionErrorData {
-  return {
-    status: "error",
-    message: input.message,
-    fieldErrors: input.fieldErrors,
-    values: accountCurrentActionValues(input.values),
-  };
-}
-
-function accountCurrentActionValues(
-  values: Partial<AccountCurrentActionValues> = {},
-): AccountCurrentActionValues {
-  return {
-    ...defaultAccountCurrentActionValues(),
-    ...values,
   };
 }
 

@@ -7,7 +7,7 @@ export const meta = () => [
 ];
 
 export const handle = {
-  portalBreadcrumbs: [{ label: "Finanzas" }],
+  portalBreadcrumbs: [{ label: "Resumen" }],
 } satisfies PortalRouteHandle;
 
 export async function loader({ request }: { request: Request }) {

@@ -210,23 +210,13 @@ describe.sequential("loadPortalAcademyFinances", () => {
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
-    expect(loaderData.payments).toHaveLength(1);
-    expect(loaderData.payments[0]).toMatchObject({
-      paymentNumber: 1,
-      paymentMethod: "transferencia",
-      reference: "TRX-PORTAL-001",
-      allocatedAmount: 3000,
-      availableAmount: 12000,
-      amount: 15000,
-    });
-    expect(loaderData.payments[0]).not.toHaveProperty("internalNote");
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
-    expect(markup).toContain("Pagos activos");
-    expect(markup).toContain("Coreografías");
-    expect(markup).toContain("TRX-PORTAL-001");
+    // Los pagos viven en `/portal/pagos`, no en el resumen.
+    expect(markup).not.toContain("Pagos activos");
+    expect(markup).not.toContain("TRX-PORTAL-001");
     expect(markup).toContain("Solo Señada");
     expect(markup).not.toContain("Nota interna admin");
     expect(markup).not.toContain("Ajena");

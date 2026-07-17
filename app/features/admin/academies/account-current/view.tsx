@@ -9,13 +9,14 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
+import {
+  choreographyFinancialStateOptions,
+  formatChoreographyFinancialState,
+  getChoreographyFinancialStateBadgeVariant,
+} from "@/lib/finances/choreography-financial-state";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import {
-  formatAmount,
-  formatChoreographyFinancialState,
-  formatOperationalAmount,
-} from "./formatters";
+import { formatAmount, formatOperationalAmount } from "./formatters";
 import type { AccountCurrentLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -25,11 +26,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [
-      { label: "Impaga", value: "impaga" },
-      { label: "Señada", value: "señada" },
-      { label: "Pagada", value: "pagada" },
-    ],
+    options: [...choreographyFinancialStateOptions],
   },
 ];
 
@@ -139,24 +136,15 @@ function buildChoreographyFinanceColumns(
       id: "financialState",
       header: "Estado",
       cell: (row) => (
-        <Badge variant={getFinancialStateBadgeVariant(row.financialState)}>
+        <Badge
+          variant={getChoreographyFinancialStateBadgeVariant(
+            row.financialState,
+          )}
+        >
           {formatChoreographyFinancialState(row.financialState)}
         </Badge>
       ),
       filterValue: (row) => row.financialState,
     },
   ];
-}
-
-function getFinancialStateBadgeVariant(
-  status: ChoreographyFinanceRow["financialState"],
-) {
-  switch (status) {
-    case "impaga":
-      return "warning";
-    case "señada":
-      return "info";
-    case "pagada":
-      return "success";
-  }
 }

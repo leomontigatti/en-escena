@@ -1,18 +1,5 @@
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 
-export function formatChoreographyFinancialState(
-  status: "impaga" | "pagada" | "señada",
-) {
-  switch (status) {
-    case "impaga":
-      return "Impaga";
-    case "señada":
-      return "Señada";
-    case "pagada":
-      return "Pagada";
-  }
-}
-
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",

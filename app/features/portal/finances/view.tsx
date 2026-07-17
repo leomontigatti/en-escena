@@ -1,31 +1,89 @@
 import { CircleDollarSign, Landmark, Receipt, WalletCards } from "lucide-react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
+import {
+  ClientDataTable,
+  type DataTableColumn,
+  type DataTableFacetedFilter,
+} from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   formatAmount,
-  formatChoreographyFinancialState,
-  formatDate,
   formatOperationalAmount,
 } from "@/features/admin/academies/account-current/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
+import {
+  choreographyFinancialStateOptions,
+  formatChoreographyFinancialState,
+  getChoreographyFinancialStateBadgeVariant,
+} from "@/lib/finances/choreography-financial-state";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { formatPaymentMethodLabel } from "@/lib/finances/payment-methods";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 type PortalAcademyFinancesLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyFinances>
 >;
+
+type ChoreographyFinanceRow =
+  PortalAcademyFinancesLoaderData["choreographyFinanceRows"][number];
+
+const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [...choreographyFinancialStateOptions],
+  },
+];
+
+const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
+  {
+    id: "name",
+    header: "Nombre",
+    className: "min-w-56 font-medium",
+    cell: (row) => (
+      <DataTableLink to={`/portal/finanzas/${row.id}`}>
+        {row.name}
+      </DataTableLink>
+    ),
+    filterValue: (row) => row.name,
+    sortValue: (row) => row.name,
+  },
+  {
+    id: "groupType",
+    header: "Tipo de grupo",
+    cell: (row) => (
+      <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
+    ),
+  },
+  {
+    id: "depositAmount",
+    header: "Seña",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatOperationalAmount(row.depositAmount),
+  },
+  {
+    id: "balanceAmount",
+    header: "Saldo",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatOperationalAmount(row.balanceAmount),
+    sortValue: (row) => row.balanceAmount.amount,
+  },
+  {
+    id: "financialState",
+    header: "Estado",
+    cell: (row) => (
+      <Badge
+        variant={getChoreographyFinancialStateBadgeVariant(row.financialState)}
+      >
+        {formatChoreographyFinancialState(row.financialState)}
+      </Badge>
+    ),
+    filterValue: (row) => row.financialState,
+  },
+];
 
 export function PortalAcademyFinancesRouteView({
   loaderData,
@@ -36,12 +94,12 @@ export function PortalAcademyFinancesRouteView({
     return (
       <PortalListPage
         titleId="finanzas-title"
-        title="Resumen"
-        description="Consultá el estado de tu cuenta corriente dentro del evento."
+        title="Cuenta corriente"
+        description="Revisá el estado financiero de las coreografías de tu academia."
       >
         <PortalEmptyState
           title="Todavía no hay un evento activo"
-          description="Cuando administración active un evento, vas a poder consultar tu saldo, pagos y coreografías desde esta sección."
+          description="Cuando administración active un evento, vas a poder consultar tu saldo y tus coreografías desde esta sección."
           icon={<WalletCards aria-hidden="true" />}
         />
       </PortalListPage>
@@ -51,8 +109,8 @@ export function PortalAcademyFinancesRouteView({
   return (
     <PortalListPage
       titleId="finanzas-title"
-      title="Resumen"
-      description={`Consultá el estado de tu cuenta corriente dentro del evento.`}
+      title="Cuenta corriente"
+      description="Revisá el estado financiero de las coreografías de tu academia."
     >
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
@@ -72,128 +130,19 @@ export function PortalAcademyFinancesRouteView({
         />
       </section>
 
-      <PaymentsTable payments={loaderData.payments} />
-      <ChoreographyFinanceTable rows={loaderData.choreographyFinanceRows} />
+      <ClientDataTable
+        rows={loaderData.choreographyFinanceRows}
+        columns={choreographyFinanceColumns}
+        facetedFilters={choreographyFinanceFacetedFilters}
+        getRowKey={(row) => row.id}
+        searchPlaceholder="Buscar coreografía por nombre"
+        textFilterColumnId="name"
+        initialSort={{
+          columnId: "name",
+          direction: "asc",
+        }}
+        emptyMessage="No hay coreografías para mostrar."
+      />
     </PortalListPage>
-  );
-}
-
-function PaymentsTable({
-  payments,
-}: {
-  payments: PortalAcademyFinancesLoaderData["payments"];
-}) {
-  if (payments.length === 0) {
-    return (
-      <PortalEmptyState
-        title="Todavía no hay pagos activos"
-        description="Cuando administración registre pagos para tu academia en este evento, vas a poder revisarlos acá."
-        icon={<Receipt aria-hidden="true" />}
-      />
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pagos activos</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>N°</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Medio</TableHead>
-              <TableHead>Referencia</TableHead>
-              <TableHead className="text-right">Asignado</TableHead>
-              <TableHead className="text-right">Disponible</TableHead>
-              <TableHead className="text-right">Monto</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell className="font-medium tabular-nums">
-                  {formatPaymentNumber(payment.paymentNumber)}
-                </TableCell>
-                <TableCell>{formatDate(payment.paymentDate)}</TableCell>
-                <TableCell>
-                  {formatPaymentMethodLabel(payment.paymentMethod)}
-                </TableCell>
-                <TableCell>{payment.reference ?? ""}</TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(payment.allocatedAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(payment.availableAmount)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatAmount(payment.amount)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ChoreographyFinanceTable({
-  rows,
-}: {
-  rows: PortalAcademyFinancesLoaderData["choreographyFinanceRows"];
-}) {
-  if (rows.length === 0) {
-    return (
-      <PortalEmptyState
-        title="Todavía no hay coreografías"
-        description="Cuando cargues coreografías en este evento, vas a ver acá su estado financiero."
-        icon={<Receipt aria-hidden="true" />}
-      />
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Coreografías</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Tipo de grupo</TableHead>
-              <TableHead className="text-right">Seña</TableHead>
-              <TableHead className="text-right">Saldo</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium">{row.name}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">
-                    {formatGroupTypeLabel(row.groupType)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatOperationalAmount(row.depositAmount)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatOperationalAmount(row.balanceAmount)}
-                </TableCell>
-                <TableCell>
-                  {formatChoreographyFinancialState(row.financialState)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
   );
 }
