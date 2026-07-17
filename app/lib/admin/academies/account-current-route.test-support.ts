@@ -21,10 +21,6 @@ import {
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
 import {
-  AdministracionPagosRouteView,
-  loader as financePaymentsLoader,
-} from "@/routes/administracion.pagos";
-import {
   AdministracionFinanzasRouteView,
   loader as financeAccountsLoader,
 } from "@/routes/administracion.finanzas";
@@ -274,22 +270,6 @@ export function renderFinanceAccountsRoute(input: {
         initialEntries: ["/administracion/finanzas"],
       },
       createElement(AdministracionFinanzasRouteView, {
-        loaderData: input.loaderData,
-      }),
-    ),
-  );
-}
-
-export function renderFinancePaymentsRoute(input: {
-  loaderData: Awaited<ReturnType<typeof financePaymentsLoader>>;
-}) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: ["/administracion/pagos"],
-      },
-      createElement(AdministracionPagosRouteView, {
         loaderData: input.loaderData,
       }),
     ),
