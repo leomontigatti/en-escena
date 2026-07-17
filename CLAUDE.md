@@ -33,6 +33,15 @@ Los cambios de frontend y UI deben seguir
 de color de En Escena, spacing, tipografía, convenciones de shadcn/ui y el tono
 en español de la UI.
 
+## Verificación de UI
+
+La verificación de UI/UX se hace localmente manejando un navegador real con
+`playwright-cli` (instalado globalmente; usar la skill `playwright-cli`). No usar
+el navegador embebido de la app de escritorio: no existe en la CLI de terminal.
+Es un flujo local; los agentes de Sandcastle no tienen browser y saltean esta
+verificación. Ver la sección "UI Verification" en
+[docs/agents/workflows.md](docs/agents/workflows.md).
+
 ## Issue tracker
 
 Los issues se trackean en GitHub Issues para `leomontigatti/en-escena` con el
