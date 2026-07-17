@@ -37,7 +37,7 @@ async function ensureDatabaseExists(databaseUrl: string) {
   }
 }
 
-async function resetTestSchema(
+async function dropExistingTables(
   testClient: postgres.Sql<Record<string, unknown>>,
 ) {
   const existingTables = await testClient<{ tablename: string }[]>`
@@ -57,6 +57,40 @@ async function resetTestSchema(
       .map((table) => quoteIdentifier(table.tablename))
       .join(", ")} cascade`,
   );
+}
+
+async function dropExistingEnums(
+  testClient: postgres.Sql<Record<string, unknown>>,
+) {
+  const existingEnums = await testClient<{ typname: string }[]>`
+      select t.typname
+      from pg_type t
+      join pg_namespace n on n.oid = t.typnamespace
+      where t.typtype = 'e'
+        and n.nspname = 'public'
+        and t.typname like 'en\\_escena\\_%' escape '\\'
+      order by t.typname
+    `;
+
+  if (existingEnums.length === 0) {
+    return;
+  }
+
+  await testClient.unsafe(
+    `drop type ${existingEnums
+      .map((enumType) => quoteIdentifier(enumType.typname))
+      .join(", ")} cascade`,
+  );
+}
+
+// Los enums deben quedar fuera de la base junto con las tablas: si sobrevive uno
+// que el schema ya no declara, `drizzle-kit push` lo lee como posible rename del
+// enum nuevo y abre un prompt interactivo que sin TTY aborta la corrida.
+async function resetTestSchema(
+  testClient: postgres.Sql<Record<string, unknown>>,
+) {
+  await dropExistingTables(testClient);
+  await dropExistingEnums(testClient);
 }
 
 const testDatabaseUrl = getTestDatabaseUrl();
