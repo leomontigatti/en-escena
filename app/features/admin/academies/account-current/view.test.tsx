@@ -21,7 +21,6 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
           element: (
             <AdministracionAcademiaCuentaCorrienteRouteView
               loaderData={accountCurrentLoaderDataFixture({
-                canRegisterPayments: true,
                 summary: {
                   availableBalanceAmount: 5000,
                   owedBalanceAmount: { amount: 10000, status: "complete" },
@@ -100,7 +99,6 @@ function accountCurrentLoaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
-    canRegisterPayments: false,
     choreographyFinanceRows: [
       choreographyFinanceRowFixture({
         id: "choreography_1",
@@ -111,7 +109,6 @@ function accountCurrentLoaderDataFixture(
         name: "Tango",
       }),
     ],
-    payments: [],
     selectedEventId: "event_1",
     summary: {
       availableBalanceAmount: 0,

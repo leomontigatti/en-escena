@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -104,18 +105,10 @@ export const paymentAllocations = createTable(
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    paymentId: varchar("payment_id", { length: 255 })
-      .notNull()
-      .references(() => payments.id),
-    inscriptionId: varchar("inscription_id", { length: 255 })
-      .notNull()
-      .references(() => choreographyDancers.id, { onDelete: "cascade" }),
-    academyId: varchar("academy_id", { length: 255 })
-      .notNull()
-      .references(() => academies.id, { onDelete: "cascade" }),
-    eventId: varchar("event_id", { length: 255 })
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
+    paymentId: varchar("payment_id", { length: 255 }).notNull(),
+    inscriptionId: varchar("inscription_id", { length: 255 }).notNull(),
+    academyId: varchar("academy_id", { length: 255 }).notNull(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
     allocationType: allocationType("allocation_type").notNull(),
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at", {
@@ -131,7 +124,30 @@ export const paymentAllocations = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
+  // Las foreign keys van nombradas porque el nombre que deriva Drizzle de esta
+  // tabla supera los 63 caracteres de un identificador de Postgres y se trunca.
+  // Los nombres deben coincidir con los de supabase/migrations.
   (table) => [
+    foreignKey({
+      columns: [table.paymentId],
+      foreignColumns: [payments.id],
+      name: "payment_allocation_payment_fk",
+    }),
+    foreignKey({
+      columns: [table.inscriptionId],
+      foreignColumns: [choreographyDancers.id],
+      name: "payment_allocation_inscription_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.academyId],
+      foreignColumns: [academies.id],
+      name: "payment_allocation_academy_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "payment_allocation_event_fk",
+    }).onDelete("cascade"),
     uniqueIndex("payment_allocation_payment_inscription_type_unique").on(
       table.paymentId,
       table.inscriptionId,

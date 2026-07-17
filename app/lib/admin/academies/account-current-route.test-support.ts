@@ -2,10 +2,10 @@ import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
-import { expect } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
 import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -17,14 +17,9 @@ import {
   loader as academiesLoader,
 } from "@/routes/administracion.academias";
 import {
-  action as accountCurrentAction,
   AdministracionAcademiaCuentaCorrienteRouteView,
   loader as accountCurrentLoader,
 } from "@/routes/administracion.academias_.$academyId";
-import {
-  AdministracionPagosRouteView,
-  loader as financePaymentsLoader,
-} from "@/routes/administracion.pagos";
 import {
   AdministracionFinanzasRouteView,
   loader as financeAccountsLoader,
@@ -157,27 +152,6 @@ export async function createAccountCurrentChoreographyFixture(input: {
   return { academy, catalog, choreography };
 }
 
-export async function buildPaymentRequest(input: {
-  amount: string;
-  internalNote?: string;
-  paymentDate: string;
-  paymentMethod: string;
-  reference?: string;
-  requestUrl: string;
-  role: "admin" | "auditor";
-}) {
-  const result = await buildSignedFormPostRequest(input, (formData) => {
-    formData.set("intent", "register-payment");
-    formData.set("amount", input.amount);
-    formData.set("paymentDate", input.paymentDate);
-    formData.set("paymentMethod", input.paymentMethod);
-    formData.set("reference", input.reference ?? "");
-    formData.set("internalNote", input.internalNote ?? "");
-  });
-
-  return { request: result.request };
-}
-
 export async function buildGlobalPaymentRequest(input: {
   academyId: string;
   amount: string;
@@ -234,18 +208,14 @@ export async function registerPaymentForTest(input: {
   eventId: string;
   paymentDate: string;
 }) {
-  const { request } = await buildPaymentRequest({
-    amount: input.amount,
+  await registerAcademyEventPayment({
+    academyId: input.academyId,
+    amount: Number(input.amount),
+    eventId: input.eventId,
+    internalNote: null,
     paymentDate: input.paymentDate,
     paymentMethod: "transferencia",
-    requestUrl: accountCurrentUrl(input.academyId, input.eventId),
-    role: "admin",
-  });
-
-  await expect(
-    accountCurrentAction(detailActionArgs(request, input.academyId)),
-  ).rejects.toMatchObject({
-    status: 302,
+    reference: null,
   });
 }
 
@@ -306,22 +276,6 @@ export function renderFinanceAccountsRoute(input: {
   );
 }
 
-export function renderFinancePaymentsRoute(input: {
-  loaderData: Awaited<ReturnType<typeof financePaymentsLoader>>;
-}) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: ["/administracion/pagos"],
-      },
-      createElement(AdministracionPagosRouteView, {
-        loaderData: input.loaderData,
-      }),
-    ),
-  );
-}
-
 export function accountCurrentUrl(academyId: string, eventId: string) {
   return `http://localhost/administracion/academias/${academyId}?evento=${eventId}`;
 }
@@ -341,16 +295,6 @@ export function routeArgs(request: Request) {
 }
 
 export function detailRouteArgs(request: Request, academyId: string) {
-  return {
-    request,
-    params: { academyId },
-    context: {},
-    url: new URL(request.url),
-    pattern: "/administracion/academias/:academyId",
-  };
-}
-
-export function detailActionArgs(request: Request, academyId: string) {
   return {
     request,
     params: { academyId },

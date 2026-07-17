@@ -52,6 +52,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  formatChoreographyFinancialState,
+  getChoreographyFinancialStateBadgeVariant,
+} from "@/lib/finances/choreography-financial-state";
+import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { cn } from "@/lib/shared/utils";
@@ -76,31 +81,6 @@ type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
 
 type AdministracionCoreografiaFinancieraDetalleViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
-};
-
-const stageBadge: Record<
-  InscriptionRow["state"],
-  { label: string; variant: "warning" | "info" | "success" }
-> = {
-  impaga: { label: "Impaga", variant: "warning" },
-  señada: { label: "Señada", variant: "info" },
-  pagada: { label: "Pagada", variant: "success" },
-};
-
-type InscriptionAmountColumn = "basePrice" | "deposit" | "balance";
-
-/**
- * Importes todavía sujetos a cambio, por estado. El precio base y la seña se
- * fijan al pagar la seña; el saldo recién al pagar el saldo, porque hasta ese
- * momento el `Descuento por bailarín` sigue el roster.
- */
-const tentativeColumnsByState: Record<
-  InscriptionRow["state"],
-  ReadonlySet<InscriptionAmountColumn>
-> = {
-  impaga: new Set<InscriptionAmountColumn>(["basePrice", "deposit", "balance"]),
-  señada: new Set<InscriptionAmountColumn>(["balance"]),
-  pagada: new Set<InscriptionAmountColumn>(),
 };
 
 export function AdministracionCoreografiaFinancieraDetalleView({
@@ -411,38 +391,52 @@ function InscriptionsTable({
           </TableHeader>
           <TableBody>
             {inscriptions.length > 0 ? (
-              inscriptions.map((inscription) => {
-                const badge = stageBadge[inscription.state];
-                const tentative = tentativeColumnsByState[inscription.state];
-
-                return (
-                  <TableRow key={inscription.dancerId}>
-                    <TableCell className="font-medium">
-                      {formatDancerName(inscription)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={badge.variant}>{badge.label}</Badge>
-                    </TableCell>
-                    <TableCell
-                      className={amountCellClassName(
-                        tentative.has("basePrice"),
+              inscriptions.map((inscription) => (
+                <TableRow key={inscription.dancerId}>
+                  <TableCell className="font-medium">
+                    {formatDancerName(inscription)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={getChoreographyFinancialStateBadgeVariant(
+                        inscription.state,
                       )}
                     >
-                      {formatInscriptionAmount(inscription.basePriceAmount)}
-                    </TableCell>
-                    <TableCell
-                      className={amountCellClassName(tentative.has("deposit"))}
-                    >
-                      {formatInscriptionAmount(inscription.depositAmount)}
-                    </TableCell>
-                    <TableCell
-                      className={amountCellClassName(tentative.has("balance"))}
-                    >
-                      {formatInscriptionAmount(inscription.balanceAmount)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                      {formatChoreographyFinancialState(inscription.state)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell
+                    className={amountCellClassName(
+                      isTentativeInscriptionAmount(
+                        inscription.state,
+                        "basePrice",
+                      ),
+                    )}
+                  >
+                    {formatInscriptionAmount(inscription.basePriceAmount)}
+                  </TableCell>
+                  <TableCell
+                    className={amountCellClassName(
+                      isTentativeInscriptionAmount(
+                        inscription.state,
+                        "deposit",
+                      ),
+                    )}
+                  >
+                    {formatInscriptionAmount(inscription.depositAmount)}
+                  </TableCell>
+                  <TableCell
+                    className={amountCellClassName(
+                      isTentativeInscriptionAmount(
+                        inscription.state,
+                        "balance",
+                      ),
+                    )}
+                  >
+                    {formatInscriptionAmount(inscription.balanceAmount)}
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
               <TableRow>
                 <TableCell

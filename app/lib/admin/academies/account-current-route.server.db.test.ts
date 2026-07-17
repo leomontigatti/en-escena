@@ -14,22 +14,20 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import {
-  action as accountCurrentAction,
-  loader as accountCurrentLoader,
-} from "@/routes/administracion.academias_.$academyId";
+import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
+import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   accountCurrentUrl,
-  buildPaymentRequest,
+  buildGlobalPaymentRequest,
   createAcademyUser,
   createAccountCurrentChoreographyFixture,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
-  detailActionArgs,
   detailRouteArgs,
+  paymentCreateRouteArgs,
   renderAcademiesRoute,
   renderAccountCurrentRoute,
   routeArgs,
@@ -226,27 +224,24 @@ describe.sequential("administracion academias cuenta corriente", () => {
       loaderData,
     });
 
-    expect(loaderData.canRegisterPayments).toBe(false);
     expect(markup).toContain("Cuenta corriente");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
 
+    // Los pagos se registran desde `/administracion/pagos`, y solo un admin
+    // puede hacerlo.
+    const { request: auditorPaymentRequest } = await buildGlobalPaymentRequest({
+      academyId: academy.academy.id,
+      amount: "25000",
+      paymentDate: "2026-04-10",
+      paymentMethod: "transferencia",
+      requestUrl: `http://localhost/administracion/pagos/nuevo?evento=${event.id}`,
+      role: "auditor",
+    });
+
     await expect(
-      accountCurrentAction(
-        detailActionArgs(
-          (
-            await buildPaymentRequest({
-              amount: "25000",
-              paymentDate: "2026-04-10",
-              paymentMethod: "transferencia",
-              requestUrl: accountCurrentUrl(academy.academy.id, event.id),
-              role: "auditor",
-            })
-          ).request,
-          academy.academy.id,
-        ),
-      ),
+      paymentCreateAction(paymentCreateRouteArgs(auditorPaymentRequest)),
     ).rejects.toMatchObject({
       status: 403,
     });
@@ -353,18 +348,20 @@ describe.sequential("administracion academias cuenta corriente", () => {
       email: "academia.pagos.finanzas@example.com",
       academyName: "Academia Pagos",
     });
-    const { request: firstRequest } = await buildPaymentRequest({
+    const createUrl = `http://localhost/administracion/pagos/nuevo?evento=${event.id}`;
+    const { request: firstRequest } = await buildGlobalPaymentRequest({
+      academyId: academy.academy.id,
       amount: "25000",
       paymentDate: "2026-04-10",
       paymentMethod: "transferencia",
       reference: "TRX-001",
       internalNote: "Primer pago",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: createUrl,
       role: "admin",
     });
 
     await expect(
-      accountCurrentAction(detailActionArgs(firstRequest, academy.academy.id)),
+      paymentCreateAction(paymentCreateRouteArgs(firstRequest)),
     ).rejects.toMatchObject({
       status: 302,
     });
@@ -378,16 +375,17 @@ describe.sequential("administracion academias cuenta corriente", () => {
       paymentNumber: 1,
     });
 
-    const { request: secondRequest } = await buildPaymentRequest({
+    const { request: secondRequest } = await buildGlobalPaymentRequest({
+      academyId: academy.academy.id,
       amount: "8000",
       paymentDate: "2026-04-11",
       paymentMethod: "mercado_pago",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: createUrl,
       role: "admin",
     });
 
     await expect(
-      accountCurrentAction(detailActionArgs(secondRequest, academy.academy.id)),
+      paymentCreateAction(paymentCreateRouteArgs(secondRequest)),
     ).rejects.toMatchObject({
       status: 302,
     });
@@ -425,9 +423,6 @@ describe.sequential("administracion academias cuenta corriente", () => {
       owedDepositAmount: { status: "complete", amount: 0 },
       totalPaidAmount: 33000,
     });
-    expect(loaderData.payments.map((payment) => payment.paymentNumber)).toEqual(
-      [2, 1],
-    );
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).toContain("$ 33.000");
     expect(markup).toContain("Seña adeudada");
@@ -446,16 +441,17 @@ describe.sequential("administracion academias cuenta corriente", () => {
       email: "academia.validacion.finanzas@example.com",
       academyName: "Academia Validacion",
     });
-    const { request } = await buildPaymentRequest({
+    const { request } = await buildGlobalPaymentRequest({
+      academyId: academy.academy.id,
       amount: "10.5",
       paymentDate: "2099-01-01",
       paymentMethod: "",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: `http://localhost/administracion/pagos/nuevo?evento=${event.id}`,
       role: "admin",
     });
 
-    const actionData = await accountCurrentAction(
-      detailActionArgs(request, academy.academy.id),
+    const actionData = await paymentCreateAction(
+      paymentCreateRouteArgs(request),
     );
 
     expect(actionData).toMatchObject({

@@ -1,8 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import {
-  handleAdministrativeAcademyAccountCurrentAction,
-  loadAdministrativeAcademyAccountCurrent,
-} from "@/features/admin/academies/account-current/server";
+import { loadAdministrativeAcademyAccountCurrent } from "@/features/admin/academies/account-current/server";
 import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView } from "@/features/admin/academies/account-current/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
@@ -29,13 +26,6 @@ export const handle = {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadAdministrativeAcademyAccountCurrent({ request, params });
-}
-
-export async function action({ request, params }: Route.ActionArgs) {
-  return await handleAdministrativeAcademyAccountCurrentAction({
-    request,
-    params,
-  });
 }
 
 function AdministracionFinanzasCuentaCorrienteRouteView({

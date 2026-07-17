@@ -114,9 +114,7 @@ export const choreographyDancers = createTable(
     // Snapshot de seña: se fija al crear la asignación `deposit` y se limpia al
     // borrarla. Sin snapshot de seña, la inscripción es `impaga`.
     frozenBasePriceAmount: integer("frozen_base_price_amount"),
-    selectedPriceId: varchar("selected_price_id", { length: 255 }).references(
-      () => prices.id,
-    ),
+    selectedPriceId: varchar("selected_price_id", { length: 255 }),
     depositReferenceDate: text("deposit_reference_date"),
     depositPercentage: integer("deposit_percentage"),
     depositAmount: integer("deposit_amount"),
@@ -141,6 +139,11 @@ export const choreographyDancers = createTable(
       columns: [table.dancerId],
       foreignColumns: [dancers.id],
       name: "choreography_dancer_dancer_fk",
+    }),
+    foreignKey({
+      columns: [table.selectedPriceId],
+      foreignColumns: [prices.id],
+      name: "choreography_dancer_selected_price_fk",
     }),
     uniqueIndex("choreography_dancer_unique").on(
       table.choreographyId,

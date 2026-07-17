@@ -5,6 +5,7 @@ import {
   CircleCheck,
   ClipboardList,
   GraduationCap,
+  HandCoins,
   Home,
   Inbox,
   Info,
@@ -204,6 +205,11 @@ const financeNavigationItems = [
     label: "Resumen",
     to: "/portal/finanzas",
     icon: ClipboardList,
+  },
+  {
+    label: "Pagos",
+    to: "/portal/pagos",
+    icon: HandCoins,
   },
 ] satisfies SidebarNavigationItem[];
 

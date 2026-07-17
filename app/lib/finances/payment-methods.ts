@@ -17,7 +17,7 @@ export const paymentMethodOptions = [
   value: PaymentMethod;
 }>;
 
-export const paymentMethodBadgeVariants = {
+const paymentMethodBadgeVariants = {
   transferencia: "info",
   efectivo: "success",
   mercado_pago: "warning",
