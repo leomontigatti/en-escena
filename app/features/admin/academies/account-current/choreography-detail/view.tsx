@@ -65,7 +65,11 @@ import {
   formatOperationalAmount,
 } from "../formatters";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
-import { payBalanceIntent, payDepositIntent } from "./shared";
+import {
+  payBalanceIntent,
+  payDepositIntent,
+  payInscriptionDepositIntent,
+} from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
@@ -76,6 +80,10 @@ type InscriptionRow =
 type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 type EligiblePayment = PaymentRow & { stageTotalAmount: number };
 type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
+type InscriptionDepositOptions = NonNullable<
+  ChoreographyFinanceDetailLoaderData["inscriptionDeposit"]
+>;
+type InscriptionPriceRow = InscriptionDepositOptions["priceRows"][number];
 
 type AdministracionCoreografiaFinancieraDetalleViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
@@ -156,6 +164,8 @@ export function AdministracionCoreografiaFinancieraDetalleView({
           <InscriptionsTable
             backHref={`/administracion/finanzas/${loaderData.academy.id}`}
             inscriptions={loaderData.inscriptions}
+            inscriptionDeposit={loaderData.inscriptionDeposit}
+            payments={loaderData.payments}
           />
         </div>
       ) : (
@@ -370,16 +380,22 @@ function StageTotalSummary({
 function InscriptionsTable({
   backHref,
   inscriptions,
+  inscriptionDeposit,
+  payments,
 }: {
   backHref: string;
   inscriptions: InscriptionRow[];
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
 }) {
+  const columns = buildInscriptionColumns({ inscriptionDeposit, payments });
+
   return (
     <Card aria-label="Inscripciones">
       <CardContent>
         <ClientDataTable
           rows={inscriptions}
-          columns={inscriptionColumns}
+          columns={columns}
           getRowKey={(inscription) => inscription.dancerId}
           searchPlaceholder="Buscar inscripción por bailarín"
           emptyMessage="No hay inscripciones para mostrar."
@@ -410,14 +426,228 @@ function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
   );
 }
 
-const inscriptionColumns: DataTableColumn<InscriptionRow>[] = [
-  {
-    id: "dancer",
-    header: "Bailarín",
-    className: "font-medium",
-    cell: (inscription) => formatDancerName(inscription),
-    filterValue: (inscription) => formatDancerName(inscription),
-  },
+function buildInscriptionColumns(cobro: {
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
+}): DataTableColumn<InscriptionRow>[] {
+  return [
+    {
+      id: "dancer",
+      header: "Bailarín",
+      className: "font-medium",
+      cell: (inscription) => (
+        <DancerNameCell
+          inscription={inscription}
+          inscriptionDeposit={cobro.inscriptionDeposit}
+          payments={cobro.payments}
+        />
+      ),
+      filterValue: (inscription) => formatDancerName(inscription),
+    },
+    ...inscriptionAmountColumns,
+  ];
+}
+
+/**
+ * Nombre del bailarín. En una coreografía mixta, una inscripción `impaga`
+ * huérfana lo muestra como botón que abre el diálogo de cobro de seña por fila.
+ * Sin opciones de cobro (coreografía 100% `impaga` o inscripción ya congelada)
+ * es solo texto.
+ */
+function DancerNameCell({
+  inscription,
+  inscriptionDeposit,
+  payments,
+}: {
+  inscription: InscriptionRow;
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
+}) {
+  const [open, setOpen] = useState(false);
+  const canCharge =
+    inscriptionDeposit !== null &&
+    inscriptionDeposit.priceRows.length > 0 &&
+    inscription.state === "impaga" &&
+    inscription.inscriptionId !== null;
+
+  if (!canCharge) {
+    return <>{formatDancerName(inscription)}</>;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="text-left font-medium text-primary underline-offset-4 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        {formatDancerName(inscription)}
+      </button>
+      <InscriptionCobroDialog
+        inscription={inscription}
+        open={open}
+        onOpenChange={setOpen}
+        priceRows={inscriptionDeposit.priceRows}
+        payments={payments}
+      />
+    </>
+  );
+}
+
+/**
+ * Diálogo por fila del cobro extraordinario de seña de una huérfana: elegir una
+ * fila de precio (acotada por el piso, ya filtrada en el loader) y un pago con
+ * disponible suficiente para la seña de esa fila. El server vuelve a validar el
+ * piso y la disponibilidad.
+ */
+function InscriptionCobroDialog({
+  inscription,
+  open,
+  onOpenChange,
+  priceRows,
+  payments,
+}: {
+  inscription: InscriptionRow;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  priceRows: InscriptionPriceRow[];
+  payments: PaymentRow[];
+}) {
+  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
+    null,
+  );
+  const isSaving = fetcher.state !== "idle";
+  const selectedPrice =
+    priceRows.find((price) => price.id === selectedPriceId) ?? null;
+  const eligiblePayments = payments.filter(
+    (payment) =>
+      selectedPrice !== null &&
+      payment.availableAmount >= selectedPrice.depositAmount,
+  );
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !isSaving && onOpenChange(next)}
+    >
+      <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogHeader>
+          <DialogTitle>Cobrar seña de la inscripción</DialogTitle>
+          <DialogDescription>
+            Elegí la fila de precio y el pago para señar a{" "}
+            {formatDancerName(inscription)}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="intent"
+            value={payInscriptionDepositIntent}
+          />
+          <input
+            type="hidden"
+            name="inscriptionId"
+            value={inscription.inscriptionId ?? ""}
+          />
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Fila de precio</span>
+            <Select
+              name="priceId"
+              value={selectedPriceId ?? undefined}
+              onValueChange={(value) => {
+                setSelectedPriceId(value);
+                setSelectedPaymentId(null);
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Elegí una fila de precio" />
+              </SelectTrigger>
+              <SelectContent>
+                {priceRows.map((price) => (
+                  <SelectItem key={price.id} value={price.id}>
+                    {price.name} · {formatAmount(price.amount)} · seña{" "}
+                    {formatAmount(price.depositAmount)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Pago a asignar</span>
+            <Select
+              name="paymentId"
+              value={selectedPaymentId ?? undefined}
+              onValueChange={setSelectedPaymentId}
+              disabled={isSaving || selectedPrice === null}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue
+                  placeholder={
+                    selectedPrice === null
+                      ? "Elegí primero una fila de precio"
+                      : "Elegí un pago"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {eligiblePayments.map((payment) => (
+                  <SelectItem key={payment.id} value={payment.id}>
+                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
+                    {formatDate(payment.paymentDate)} · disponible{" "}
+                    {formatAmount(payment.availableAmount)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedPrice !== null && eligiblePayments.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                No hay pagos con disponible suficiente para esta fila.
+              </span>
+            ) : null}
+          </div>
+
+          {fetcher.data?.status === "error" ? (
+            <Alert variant="destructive">
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>{fetcher.data.message}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={isSaving}>
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={!selectedPriceId || !selectedPaymentId || isSaving}
+            >
+              {isSaving ? (
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="animate-spin"
+                  data-icon="inline-start"
+                />
+              ) : (
+                <Check aria-hidden="true" data-icon="inline-start" />
+              )}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </fetcher.Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
     id: "state",
     header: "Estado",

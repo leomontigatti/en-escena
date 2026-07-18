@@ -36,6 +36,49 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Volver");
   });
 
+  test("renders a clickable name for an orphan impaga in a mixed choreography", () => {
+    const markup = renderDetail({
+      inscriptionDeposit: {
+        floor: 10000,
+        priceRows: [
+          {
+            id: "price_1",
+            name: "Solo tardío",
+            amount: 12000,
+            depositAmount: 3600,
+          },
+        ],
+      },
+      inscriptions: [
+        inscriptionFixture({
+          state: "impaga",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("does not link an impaga inscription in a fully impaga choreography", () => {
+    const markup = renderDetail({
+      inscriptionDeposit: null,
+      inscriptions: [
+        inscriptionFixture({
+          state: "impaga",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).not.toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+    expect(markup).toContain("Bruno Benítez");
+  });
+
   test("shows the saldo of an impaga inscription instead of zero", () => {
     const markup = renderDetail({
       inscriptions: [
@@ -189,6 +232,7 @@ function loaderDataFixture(
       needsAttention: false,
       paidAmount: 3000,
     },
+    inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ state: "señada" })],
     payments: [],
     stage: null,
@@ -220,6 +264,7 @@ function inscriptionFixture(
     discountAmount: 0,
     finalPriceAmount: 10000,
     firstName: "Ana",
+    inscriptionId: "inscription_1",
     lastName: "López",
     state: "señada",
     ...overrides,

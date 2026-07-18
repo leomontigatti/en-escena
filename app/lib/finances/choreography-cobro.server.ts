@@ -122,6 +122,251 @@ export async function payChoreographyDeposit(input: {
 }
 
 /**
+ * Cobro extraordinario de seña de **una sola inscripción** huérfana en una
+ * coreografía mixta. A diferencia del flujo por coreografía entera, la fila de
+ * precio la elige el administrador (no se deriva de la fecha) y solo se congela
+ * el snapshot de esa inscripción; sus hermanas quedan intactas. `payment.date`
+ * se guarda como fecha de referencia del snapshot.
+ *
+ * Reglas que se aplican en el server:
+ * - La inscripción objetivo debe estar `impaga`.
+ * - Solo procede en coreografías **mixtas** (alguna hermana ya `señada` o
+ *   `pagada`); en una coreografía 100% `impaga` el primer congelamiento es el
+ *   del flujo normal por coreografía entera.
+ * - La fila elegida debe pertenecer al conjunto candidato (mismo `groupType` y
+ *   cronograma) y cumplir `price.amount >= piso`, con el piso =
+ *   `min(frozenBasePriceAmount)` sobre las hermanas activas ya `señada`/`pagada`.
+ */
+export async function payInscriptionDeposit(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  inscriptionId: string;
+  paymentId: string;
+  priceId: string;
+}): Promise<CobroResult> {
+  return await db.transaction(async (tx) => {
+    const context = await loadCobroContext(tx, input);
+    if (!context.ok) {
+      return context;
+    }
+
+    const { choreography, event, inscriptions, payment } = context;
+
+    const target = inscriptions.find(
+      (inscription) => inscription.id === input.inscriptionId,
+    );
+    if (!target) {
+      return { ok: false, message: "No encontramos esa inscripción." };
+    }
+
+    if (deriveInscriptionFinancialState(target) !== "impaga") {
+      return {
+        ok: false,
+        message: "Esta inscripción ya tiene la seña congelada.",
+      };
+    }
+
+    const floor = resolveInscriptionDepositFloor(inscriptions, target.id);
+    if (floor === null) {
+      return {
+        ok: false,
+        message:
+          "El cobro por inscripción solo aplica en coreografías con otra inscripción ya señada.",
+      };
+    }
+
+    const price = await loadCandidatePriceRow(tx, {
+      eventId: input.eventId,
+      groupType: choreography.groupType,
+      priceId: input.priceId,
+      scheduleId: choreography.scheduleId,
+    });
+    if (!price) {
+      return { ok: false, message: "No encontramos esa fila de precio." };
+    }
+
+    if (price.amount < floor) {
+      return {
+        ok: false,
+        message:
+          "La fila de precio no puede ser menor que el piso de la coreografía.",
+      };
+    }
+
+    const depositAmount = calculateDepositAmount({
+      amount: price.amount,
+      percentage: event.requiredDepositPercentage,
+    });
+
+    const availability = await assertPaymentAvailability(tx, {
+      payment,
+      requiredAmount: depositAmount,
+    });
+    if (!availability.ok) {
+      return availability;
+    }
+
+    await tx
+      .update(choreographyDancers)
+      .set({
+        frozenBasePriceAmount: price.amount,
+        selectedPriceId: price.id,
+        depositReferenceDate: payment.paymentDate,
+        depositPercentage: event.requiredDepositPercentage,
+        depositAmount,
+      })
+      .where(eq(choreographyDancers.id, target.id));
+
+    await tx.insert(paymentAllocations).values({
+      academyId: input.academyId,
+      allocationType: "deposit",
+      amount: depositAmount,
+      eventId: input.eventId,
+      inscriptionId: target.id,
+      paymentId: payment.id,
+    });
+
+    return { ok: true };
+  });
+}
+
+/**
+ * Opciones para el cobro de seña por inscripción de una coreografía. Devuelve
+ * `null` cuando la coreografía **no** es mixta (no hay huérfana `impaga` con al
+ * menos una hermana ya `señada`/`pagada`), que es cuando este flujo no se
+ * ofrece. El conjunto de filas de precio candidatas es el de mismo `groupType` y
+ * cronograma, sin filtrar por fecha, acotado por el piso.
+ */
+export async function readInscriptionDepositOptions(input: {
+  choreographyId: string;
+  eventId: string;
+}): Promise<{
+  floor: number;
+  priceRows: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    depositAmount: number;
+  }>;
+} | null> {
+  const [choreographyRow] = await db
+    .select({
+      groupType: choreographies.groupType,
+      choreographyScheduleId: choreographies.scheduleId,
+      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+    })
+    .from(choreographies)
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .where(eq(choreographies.id, input.choreographyId));
+
+  if (!choreographyRow) {
+    return null;
+  }
+
+  const [event, inscriptions] = await Promise.all([
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, input.eventId),
+    }),
+    db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, input.choreographyId),
+    }),
+  ]);
+
+  if (!event) {
+    return null;
+  }
+
+  const floor = resolveInscriptionDepositFloor(inscriptions, null);
+  const hasOrphan = inscriptions.some(
+    (inscription) => deriveInscriptionFinancialState(inscription) === "impaga",
+  );
+  if (floor === null || !hasOrphan) {
+    return null;
+  }
+
+  const scheduleId = resolveChoreographyPricingScheduleId(choreographyRow);
+  const priceRows = (
+    await db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) })
+  )
+    .filter(
+      (price) =>
+        price.groupType === choreographyRow.groupType &&
+        (price.scheduleId === null || price.scheduleId === scheduleId) &&
+        price.amount >= floor,
+    )
+    .map((price) => ({
+      id: price.id,
+      name: price.name,
+      amount: price.amount,
+      depositAmount: calculateDepositAmount({
+        amount: price.amount,
+        percentage: event.requiredDepositPercentage,
+      }),
+    }))
+    .sort((a, b) => a.amount - b.amount);
+
+  return { floor, priceRows };
+}
+
+/**
+ * Piso del cobro por inscripción: `min(frozenBasePriceAmount)` sobre las
+ * inscripciones activas ya `señada`/`pagada`, excluyendo la huérfana objetivo.
+ * `null` cuando ninguna hermana está congelada (la coreografía no es mixta).
+ */
+function resolveInscriptionDepositFloor(
+  inscriptions: InscriptionRow[],
+  excludeInscriptionId: string | null,
+): number | null {
+  const frozenAmounts = inscriptions
+    .filter((inscription) => inscription.id !== excludeInscriptionId)
+    .filter((inscription) => {
+      const state = deriveInscriptionFinancialState(inscription);
+      return state === "señada" || state === "pagada";
+    })
+    .map((inscription) => inscription.frozenBasePriceAmount ?? 0);
+
+  if (frozenAmounts.length === 0) {
+    return null;
+  }
+
+  return Math.min(...frozenAmounts);
+}
+
+/**
+ * Carga la fila de precio elegida validando que pertenezca al conjunto candidato
+ * de la coreografía: mismo evento, mismo `groupType` y cronograma (una fila
+ * específica del cronograma o una general), sin filtrar por fecha.
+ */
+async function loadCandidatePriceRow(
+  tx: Transaction,
+  input: {
+    eventId: string;
+    groupType: string;
+    priceId: string;
+    scheduleId: string | null;
+  },
+): Promise<FinancePriceRow | null> {
+  const price = await tx.query.prices.findFirst({
+    where: and(eq(prices.id, input.priceId), eq(prices.eventId, input.eventId)),
+  });
+
+  if (
+    !price ||
+    price.groupType !== input.groupType ||
+    (price.scheduleId !== null && price.scheduleId !== input.scheduleId)
+  ) {
+    return null;
+  }
+
+  return price;
+}
+
+/**
  * Cotiza cuánto costaría la seña completa de una coreografía por cada fecha
  * candidata, resolviendo el precio igual que `payChoreographyDeposit`: contra la
  * fecha del pago, no contra hoy. Mientras la coreografía sigue `impaga` su

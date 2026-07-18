@@ -16,7 +16,9 @@ import {
   deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
+  payInscriptionDeposit,
   quoteChoreographyDepositTotals,
+  readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
@@ -27,10 +29,14 @@ import {
   deleteAllocationIntent,
   payBalanceIntent,
   payDepositIntent,
+  payInscriptionDepositIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
 type CobroStage = "deposit" | "balance";
+type InscriptionDepositOptions = Awaited<
+  ReturnType<typeof readInscriptionDepositOptions>
+>;
 type AvailablePayment = Awaited<
   ReturnType<typeof listAvailablePayments>
 >[number];
@@ -53,6 +59,7 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     return {
       academy,
       choreography: null,
+      inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
       payments: [] as StagePayment[],
       stage: null,
@@ -84,6 +91,10 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
   const stage = resolveCobroStage(
     choreographyInscriptions.map((inscription) => inscription.state),
   );
+  const inscriptionDeposit = await readInscriptionDepositOptions({
+    choreographyId,
+    eventId,
+  });
   const payments = await attachStageTotals({
     balanceTotal: choreographyFinanceRow.balanceAmount,
     choreographyId,
@@ -105,6 +116,7 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       needsAttention: choreographyFinanceRow.needsAttention,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
+    inscriptionDeposit,
     inscriptions,
     payments,
     stage,
@@ -221,6 +233,36 @@ export async function handleAdministrativeChoreographyFinanceAction(input: {
             eventId,
             paymentId,
           });
+
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  if (intent === payInscriptionDepositIntent) {
+    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
+    const priceId = String(formData.get("priceId") ?? "").trim();
+    const paymentId = String(formData.get("paymentId") ?? "").trim();
+    if (!inscriptionId) {
+      return { status: "error", message: "Elegí una inscripción para cobrar." };
+    }
+    if (!priceId) {
+      return { status: "error", message: "Elegí una fila de precio." };
+    }
+    if (!paymentId) {
+      return { status: "error", message: "Elegí un pago para asignar." };
+    }
+
+    const result = await payInscriptionDeposit({
+      academyId,
+      choreographyId,
+      eventId,
+      inscriptionId,
+      paymentId,
+      priceId,
+    });
 
     if (!result.ok) {
       return { status: "error", message: result.message };

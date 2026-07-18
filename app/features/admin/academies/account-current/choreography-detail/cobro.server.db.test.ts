@@ -1,8 +1,13 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
+import {
+  payments,
+  choreographyDancers,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
@@ -62,6 +67,59 @@ async function seedCobroFixture() {
   }
 
   return { academy, choreography, event, payment };
+}
+
+/**
+ * Coreografía mixta: `Ana` queda `señada` a mano (piso = su precio congelado) y
+ * `Bruno` sigue `impaga` como huérfana. Agrega dos filas de precio generales
+ * para el mismo tipo de grupo: una por encima del piso y otra por debajo.
+ */
+async function seedMixedCobroFixture() {
+  const fixture = await seedCobroFixture();
+
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
+    orderBy: (row, { asc }) => asc(row.ageAtEventStart),
+  });
+  const [ana, bruno] = inscriptions;
+  if (!ana || !bruno) {
+    throw new Error("Expected two inscriptions.");
+  }
+
+  await db
+    .update(choreographyDancers)
+    .set({
+      frozenBasePriceAmount: 10000,
+      depositReferenceDate: "2026-04-10",
+      depositPercentage: 30,
+      depositAmount: 3000,
+    })
+    .where(eq(choreographyDancers.id, ana.id));
+
+  const [priceAbove] = await db
+    .insert(prices)
+    .values({
+      eventId: fixture.event.id,
+      name: "Solo tardío",
+      groupType: "solo",
+      amount: 12000,
+      paymentDeadline: "2026-04-30",
+      scheduleId: null,
+    })
+    .returning();
+  const [priceBelow] = await db
+    .insert(prices)
+    .values({
+      eventId: fixture.event.id,
+      name: "Solo temprano",
+      groupType: "solo",
+      amount: 8000,
+      paymentDeadline: "2026-03-31",
+      scheduleId: null,
+    })
+    .returning();
+
+  return { ...fixture, ana, bruno, priceAbove, priceBelow };
 }
 
 async function postDetailAction(input: {
@@ -228,6 +286,76 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(inscription?.balanceReferenceDate).toBeNull();
     expect(inscription?.balanceAmount).toBeNull();
     expect(inscription?.depositReferenceDate).toBe("2026-04-10");
+  });
+
+  test("Cobrar seña de una huérfana congela solo su snapshot y la deja señada", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    const response = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-deposit",
+        inscriptionId: fixture.bruno.id,
+        priceId: fixture.priceAbove.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(response).toMatchObject({ status: 302 });
+
+    const bruno = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.bruno.id),
+    });
+    expect(bruno?.frozenBasePriceAmount).toBe(12000);
+    expect(bruno?.depositReferenceDate).toBe("2026-04-10");
+    expect(bruno?.depositAmount).toBe(3600);
+    expect(bruno?.selectedPriceId).toBe(fixture.priceAbove.id);
+
+    // La hermana ya señada no se toca.
+    const ana = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.ana.id),
+    });
+    expect(ana?.frozenBasePriceAmount).toBe(10000);
+    expect(ana?.depositAmount).toBe(3000);
+
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+    });
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0]?.allocationType).toBe("deposit");
+    expect(allocations[0]?.amount).toBe(3600);
+  });
+
+  test("El server rechaza una fila de precio por debajo del piso", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-deposit",
+        inscriptionId: fixture.bruno.id,
+        priceId: fixture.priceBelow.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const bruno = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.bruno.id),
+    });
+    expect(bruno?.depositReferenceDate).toBeNull();
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: and(
+        eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+        eq(paymentAllocations.paymentId, fixture.payment.id),
+      ),
+    });
+    expect(allocations).toHaveLength(0);
   });
 
   test("releaseInscriptionAllocations returns everything allocated to the available balance", async () => {
