@@ -174,9 +174,16 @@ function ChoreographyAlerts({
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
   const needsAttention = loaderData.choreography?.needsAttention ?? false;
-  const noEligiblePayments = stage !== null && eligible.length === 0;
+  const depositAmount = loaderData.choreography?.depositAmount;
+  // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
+  // precio configurado, no que los pagos no alcancen. Por eso enunciamos esa
+  // causa y suprimimos la alerta que culpa a los pagos.
+  const missingDepositPrice =
+    stage === "deposit" && depositAmount?.status === "incomplete";
+  const noEligiblePayments =
+    stage !== null && eligible.length === 0 && !missingDepositPrice;
 
-  if (!needsAttention && !noEligiblePayments) {
+  if (!needsAttention && !noEligiblePayments && !missingDepositPrice) {
     return null;
   }
 
@@ -187,6 +194,14 @@ function ChoreographyAlerts({
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
             Existen inscripciones que necesitan atención específica.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {missingDepositPrice ? (
+        <Alert variant="warning">
+          <AlertTriangle aria-hidden="true" />
+          <AlertDescription>
+            Esta coreografía no tiene un precio configurado para cobrar la seña.
           </AlertDescription>
         </Alert>
       ) : null}

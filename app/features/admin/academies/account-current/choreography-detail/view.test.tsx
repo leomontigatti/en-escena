@@ -16,6 +16,9 @@ type ChoreographyFinanceDetailLoaderData = Extract<
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
+type ChoreographyRow = NonNullable<
+  ChoreographyFinanceDetailLoaderData["choreography"]
+>;
 
 describe("AdministracionCoreografiaFinancieraDetalleView", () => {
   test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
@@ -116,6 +119,23 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
 
     expect(markup).toContain("No existen pagos con saldo suficiente");
   });
+
+  test("blames the missing price instead of the payments when the deposit has no configured price", () => {
+    const markup = renderDetail({
+      stage: "deposit",
+      choreography: choreographyFixture({
+        depositAmount: {
+          amount: 0,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
+      }),
+      payments: [paymentFixture({ stageTotalAmount: null })],
+    });
+
+    expect(markup).toContain("no tiene un precio configurado");
+    expect(markup).not.toContain("No existen pagos con saldo suficiente");
+  });
 });
 
 /**
@@ -178,21 +198,28 @@ function loaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
-    choreography: {
-      balanceAmount: { amount: 7000, status: "complete" },
-      depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: "2026-03-21",
-      financialState: "señada",
-      groupType: "duo",
-      id: "choreography_1",
-      name: "Aire",
-      needsAttention: false,
-      paidAmount: 3000,
-    },
+    choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ state: "señada" })],
     payments: [],
     stage: null,
     selectedEventId: "event_1",
+    ...overrides,
+  };
+}
+
+function choreographyFixture(
+  overrides: Partial<ChoreographyRow> = {},
+): ChoreographyRow {
+  return {
+    balanceAmount: { amount: 7000, status: "complete" },
+    depositAmount: { amount: 3000, status: "complete" },
+    depositCompletedOn: "2026-03-21",
+    financialState: "señada",
+    groupType: "duo",
+    id: "choreography_1",
+    name: "Aire",
+    needsAttention: false,
+    paidAmount: 3000,
     ...overrides,
   };
 }

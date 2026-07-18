@@ -422,6 +422,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
     });
 
+    // La etapa cobrable es la seña: junto con el importe incompleto es la
+    // condición "sin precio" que la vista usa para culpar a la falta de precio
+    // en vez de a los pagos.
+    expect(loaderData.stage).toBe("deposit");
     expect(loaderData.choreography).toMatchObject({
       depositAmount: {
         amount: 0,
