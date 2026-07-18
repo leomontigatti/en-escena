@@ -82,6 +82,39 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Bruno Benítez");
   });
 
+  test("renders a clickable name for an orphan señada in a mixed choreography", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: true,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("does not link a señada inscription in a uniform choreography", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).not.toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+    expect(markup).toContain("Bruno Benítez");
+  });
+
   test("shows the saldo of an impaga inscription instead of zero", () => {
     const markup = renderDetail({
       inscriptions: [
@@ -242,6 +275,7 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     choreography: choreographyFixture(),
+    canPayInscriptionBalance: false,
     inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ state: "señada" })],
     payments: [],

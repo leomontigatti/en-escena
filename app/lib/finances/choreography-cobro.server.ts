@@ -542,6 +542,108 @@ export async function payChoreographyBalance(input: {
 }
 
 /**
+ * Cobro extraordinario de saldo de **una sola inscripción** `señada` huérfana en
+ * una coreografía mixta. A diferencia del flujo por coreografía entera, solo
+ * congela el snapshot de saldo de esa inscripción; sus hermanas quedan intactas.
+ * `payment.date` se guarda como fecha de referencia y de completado.
+ *
+ * Reglas que se aplican en el server:
+ * - La inscripción objetivo debe estar `señada` (seña congelada, saldo
+ *   pendiente).
+ * - Solo procede en coreografías **mixtas** (alguna hermana en otro estado); en
+ *   una coreografía 100% `señada` el primer congelamiento de saldo es el del
+ *   flujo normal por coreografía entera.
+ * - El `Descuento por bailarín` se calcula contra el roster `señada`/`pagada`
+ *   vigente de esa inscripción, con la asimetría aceptada respecto de las
+ *   hermanas ya `pagada` (congelamiento secuencial e irreversible).
+ */
+export async function payInscriptionBalance(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  inscriptionId: string;
+  paymentId: string;
+}): Promise<CobroResult> {
+  return await db.transaction(async (tx) => {
+    const context = await loadCobroContext(tx, input);
+    if (!context.ok) {
+      return context;
+    }
+
+    const { inscriptions, payment } = context;
+
+    const target = inscriptions.find(
+      (inscription) => inscription.id === input.inscriptionId,
+    );
+    if (!target) {
+      return { ok: false, message: "No encontramos esa inscripción." };
+    }
+
+    if (deriveInscriptionFinancialState(target) !== "señada") {
+      return {
+        ok: false,
+        message: "Esta inscripción no tiene un saldo pendiente de cobro.",
+      };
+    }
+
+    if (
+      inscriptions.every(
+        (inscription) =>
+          deriveInscriptionFinancialState(inscription) === "señada",
+      )
+    ) {
+      return {
+        ok: false,
+        message:
+          "El cobro de saldo por inscripción solo aplica en coreografías mixtas; usá Pagar saldo.",
+      };
+    }
+
+    const discounts = await resolveDancerDiscounts(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      inscriptions,
+    });
+    const discount = discounts.get(target.id) ?? { amount: 0, percentage: 0 };
+    const frozenBasePriceAmount = target.frozenBasePriceAmount ?? 0;
+    const depositAmount = target.depositAmount ?? 0;
+    const finalTotalAmount = frozenBasePriceAmount - discount.amount;
+    const balanceAmount = Math.max(0, finalTotalAmount - depositAmount);
+
+    const availability = await assertPaymentAvailability(tx, {
+      payment,
+      requiredAmount: balanceAmount,
+    });
+    if (!availability.ok) {
+      return availability;
+    }
+
+    await tx
+      .update(choreographyDancers)
+      .set({
+        balanceReferenceDate: payment.paymentDate,
+        appliedDancerDiscountPercentage: discount.percentage,
+        appliedDancerDiscountAmount: discount.amount,
+        finalTotalAmount,
+        balanceAmount,
+        balanceCompletedAt: payment.paymentDate,
+      })
+      .where(eq(choreographyDancers.id, target.id));
+
+    await tx.insert(paymentAllocations).values({
+      academyId: input.academyId,
+      allocationType: "balance",
+      amount: balanceAmount,
+      eventId: input.eventId,
+      inscriptionId: target.id,
+      paymentId: payment.id,
+    });
+
+    return { ok: true };
+  });
+}
+
+/**
  * Borra una asignación de pago y limpia el snapshot correspondiente, devolviendo
  * la inscripción al estado anterior: borrar la `deposit` la deja `impaga`;
  * borrar la `balance` la deja `señada`. El monto liberado vuelve al `Saldo

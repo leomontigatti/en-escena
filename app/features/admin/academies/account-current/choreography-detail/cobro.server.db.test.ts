@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -120,6 +120,50 @@ async function seedMixedCobroFixture() {
     .returning();
 
   return { ...fixture, ana, bruno, priceAbove, priceBelow };
+}
+
+/**
+ * Coreografía mixta con saldo pendiente: `Ana` queda `pagada` (saldo congelado)
+ * y `Bruno` sigue `señada` como huérfana. Distintos bailarines, así que no hay
+ * `Descuento por bailarín` en juego (queda en 0).
+ */
+async function seedMixedBalanceFixture() {
+  const fixture = await seedCobroFixture();
+
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
+    orderBy: (row, { asc }) => asc(row.ageAtEventStart),
+  });
+  const [ana, bruno] = inscriptions;
+  if (!ana || !bruno) {
+    throw new Error("Expected two inscriptions.");
+  }
+
+  // Ambas señadas al mismo precio congelado.
+  await db
+    .update(choreographyDancers)
+    .set({
+      frozenBasePriceAmount: 10000,
+      depositReferenceDate: "2026-04-10",
+      depositPercentage: 30,
+      depositAmount: 3000,
+    })
+    .where(inArray(choreographyDancers.id, [ana.id, bruno.id]));
+
+  // Ana ya pagada (saldo congelado); Bruno sigue señada como huérfana.
+  await db
+    .update(choreographyDancers)
+    .set({
+      balanceReferenceDate: "2026-04-10",
+      appliedDancerDiscountPercentage: 0,
+      appliedDancerDiscountAmount: 0,
+      finalTotalAmount: 10000,
+      balanceAmount: 7000,
+      balanceCompletedAt: "2026-04-10",
+    })
+    .where(eq(choreographyDancers.id, ana.id));
+
+  return { ...fixture, ana, bruno };
 }
 
 async function postDetailAction(input: {
@@ -356,6 +400,62 @@ describe.sequential("choreography cobro through the route action", () => {
       ),
     });
     expect(allocations).toHaveLength(0);
+  });
+
+  test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {
+    const fixture = await seedMixedBalanceFixture();
+
+    const response = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-balance",
+        inscriptionId: fixture.bruno.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(response).toMatchObject({ status: 302 });
+
+    const bruno = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.bruno.id),
+    });
+    expect(bruno?.balanceReferenceDate).toBe("2026-04-10");
+    expect(bruno?.balanceAmount).toBe(7000);
+    expect(bruno?.finalTotalAmount).toBe(10000);
+    expect(bruno?.balanceCompletedAt).toBe("2026-04-10");
+
+    // La hermana ya pagada no se toca.
+    const ana = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.ana.id),
+    });
+    expect(ana?.balanceAmount).toBe(7000);
+
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+    });
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0]?.allocationType).toBe("balance");
+    expect(allocations[0]?.amount).toBe(7000);
+  });
+
+  test("El server rechaza cobrar saldo por inscripción cuando no está señada", async () => {
+    const fixture = await seedMixedBalanceFixture();
+
+    // Ana ya está pagada: intentar cobrar su saldo de nuevo debe fallar.
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-balance",
+        inscriptionId: fixture.ana.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
   });
 
   test("releaseInscriptionAllocations returns everything allocated to the available balance", async () => {

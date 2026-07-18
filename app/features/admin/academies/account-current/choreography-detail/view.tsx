@@ -64,6 +64,7 @@ import {
   formatDate,
   formatOperationalAmount,
 } from "../formatters";
+import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
   formatDancerName,
   InscriptionCobroDialog,
@@ -159,6 +160,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 
           <InscriptionsTable
             backHref={`/administracion/finanzas/${loaderData.academy.id}`}
+            canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
             inscriptionDeposit={loaderData.inscriptionDeposit}
             payments={loaderData.payments}
@@ -390,16 +392,22 @@ function StageTotalSummary({
 
 function InscriptionsTable({
   backHref,
+  canPayInscriptionBalance,
   inscriptions,
   inscriptionDeposit,
   payments,
 }: {
   backHref: string;
+  canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
   payments: PaymentRow[];
 }) {
-  const columns = buildInscriptionColumns({ inscriptionDeposit, payments });
+  const columns = buildInscriptionColumns({
+    canPayInscriptionBalance,
+    inscriptionDeposit,
+    payments,
+  });
 
   return (
     <Card aria-label="Inscripciones">
@@ -438,6 +446,7 @@ function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
 }
 
 function buildInscriptionColumns(cobro: {
+  canPayInscriptionBalance: boolean;
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
   payments: PaymentRow[];
 }): DataTableColumn<InscriptionRow>[] {
@@ -448,6 +457,7 @@ function buildInscriptionColumns(cobro: {
       className: "font-medium",
       cell: (inscription) => (
         <DancerNameCell
+          canPayInscriptionBalance={cobro.canPayInscriptionBalance}
           inscription={inscription}
           inscriptionDeposit={cobro.inscriptionDeposit}
           payments={cobro.payments}
@@ -460,28 +470,36 @@ function buildInscriptionColumns(cobro: {
 }
 
 /**
- * Nombre del bailarín. En una coreografía mixta, una inscripción `impaga`
- * huérfana lo muestra como botón que abre el diálogo de cobro de seña por fila.
- * Sin opciones de cobro (coreografía 100% `impaga` o inscripción ya congelada)
- * es solo texto.
+ * Nombre del bailarín. En una coreografía mixta lo muestra como botón que abre el
+ * diálogo de cobro por fila: seña para una inscripción `impaga` huérfana, saldo
+ * para una `señada` huérfana. Sin opciones de cobro (coreografía uniforme o
+ * inscripción sin la etapa correspondiente pendiente) es solo texto.
  */
 function DancerNameCell({
+  canPayInscriptionBalance,
   inscription,
   inscriptionDeposit,
   payments,
 }: {
+  canPayInscriptionBalance: boolean;
   inscription: InscriptionRow;
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
   payments: PaymentRow[];
 }) {
   const [open, setOpen] = useState(false);
-  const canCharge =
+  const hasInscriptionId = inscription.inscriptionId !== null;
+  const canChargeDeposit =
     inscriptionDeposit !== null &&
     inscriptionDeposit.priceRows.length > 0 &&
     inscription.state === "impaga" &&
-    inscription.inscriptionId !== null;
+    hasInscriptionId;
+  const canChargeBalance =
+    canPayInscriptionBalance &&
+    inscription.state === "señada" &&
+    inscription.balanceAmount !== null &&
+    hasInscriptionId;
 
-  if (!canCharge) {
+  if (!canChargeDeposit && !canChargeBalance) {
     return <>{formatDancerName(inscription)}</>;
   }
 
@@ -494,13 +512,22 @@ function DancerNameCell({
       >
         {formatDancerName(inscription)}
       </button>
-      <InscriptionCobroDialog
-        inscription={inscription}
-        open={open}
-        onOpenChange={setOpen}
-        priceRows={inscriptionDeposit.priceRows}
-        payments={payments}
-      />
+      {canChargeDeposit && inscriptionDeposit !== null ? (
+        <InscriptionCobroDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          priceRows={inscriptionDeposit.priceRows}
+          payments={payments}
+        />
+      ) : (
+        <InscriptionBalanceDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          payments={payments}
+        />
+      )}
     </>
   );
 }

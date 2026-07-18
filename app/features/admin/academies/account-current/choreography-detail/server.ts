@@ -16,6 +16,7 @@ import {
   deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
+  payInscriptionBalance,
   payInscriptionDeposit,
   quoteChoreographyDepositTotals,
   readInscriptionDepositOptions,
@@ -29,6 +30,7 @@ import {
   deleteAllocationIntent,
   payBalanceIntent,
   payDepositIntent,
+  payInscriptionBalanceIntent,
   payInscriptionDepositIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
@@ -59,6 +61,7 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     return {
       academy,
       choreography: null,
+      canPayInscriptionBalance: false,
       inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
       payments: [] as StagePayment[],
@@ -95,6 +98,9 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     choreographyId,
     eventId,
   });
+  const canPayInscriptionBalance = resolveInscriptionBalanceEligibility(
+    choreographyInscriptions.map((inscription) => inscription.state),
+  );
   const payments = await attachStageTotals({
     balanceTotal: choreographyFinanceRow.balanceAmount,
     choreographyId,
@@ -116,12 +122,27 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       needsAttention: choreographyFinanceRow.needsAttention,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
+    canPayInscriptionBalance,
     inscriptionDeposit,
     inscriptions,
     payments,
     stage,
     selectedEventId: eventId,
   };
+}
+
+/**
+ * Si una inscripción `señada` huérfana puede cobrarse el saldo por fila. Solo en
+ * coreografías mixtas: hay al menos una `señada` y alguna hermana en otro estado,
+ * así que el flujo normal por coreografía entera (todas `señadas`) no aplica.
+ */
+function resolveInscriptionBalanceEligibility(
+  states: InscriptionFinancialState[],
+): boolean {
+  return (
+    states.some((state) => state === "señada") &&
+    states.some((state) => state !== "señada")
+  );
 }
 
 /**
@@ -262,6 +283,31 @@ export async function handleAdministrativeChoreographyFinanceAction(input: {
       inscriptionId,
       paymentId,
       priceId,
+    });
+
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  if (intent === payInscriptionBalanceIntent) {
+    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
+    const paymentId = String(formData.get("paymentId") ?? "").trim();
+    if (!inscriptionId) {
+      return { status: "error", message: "Elegí una inscripción para cobrar." };
+    }
+    if (!paymentId) {
+      return { status: "error", message: "Elegí un pago para asignar." };
+    }
+
+    const result = await payInscriptionBalance({
+      academyId,
+      choreographyId,
+      eventId,
+      inscriptionId,
+      paymentId,
     });
 
     if (!result.ok) {
