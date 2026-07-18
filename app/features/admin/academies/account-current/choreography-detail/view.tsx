@@ -1,14 +1,13 @@
 import {
   AlertTriangle,
   Check,
-  ChevronLeft,
   CircleDollarSign,
   Landmark,
   LoaderCircle,
   Receipt,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -29,7 +28,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -160,7 +159,6 @@ export function AdministracionCoreografiaFinancieraDetalleView({
           </Card>
 
           <InscriptionsTable
-            backHref={`/administracion/finanzas/${loaderData.academy.id}`}
             canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
             inscriptionDeposit={loaderData.inscriptionDeposit}
@@ -392,13 +390,11 @@ function StageTotalSummary({
 }
 
 function InscriptionsTable({
-  backHref,
   canPayInscriptionBalance,
   inscriptions,
   inscriptionDeposit,
   payments,
 }: {
-  backHref: string;
   canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
@@ -411,25 +407,17 @@ function InscriptionsTable({
   });
 
   return (
-    <Card aria-label="Inscripciones">
-      <CardContent>
-        <ClientDataTable
-          rows={inscriptions}
-          columns={columns}
-          getRowKey={(inscription) => inscription.dancerId}
-          searchPlaceholder="Buscar inscripción por bailarín"
-          emptyMessage="No hay inscripciones para mostrar."
-        />
-      </CardContent>
-      <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-        <Button asChild variant="outline">
-          <Link to={backHref}>
-            <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-            Volver
-          </Link>
-        </Button>
-      </CardFooter>
-    </Card>
+    <section aria-label="Inscripciones">
+      <ClientDataTable
+        rows={inscriptions}
+        columns={columns}
+        getRowKey={(inscription) => inscription.dancerId}
+        searchPlaceholder="Buscar inscripción por bailarín"
+        emptyMessage="No hay inscripciones para mostrar."
+        hideSearch
+        hidePagination
+      />
+    </section>
   );
 }
 
@@ -543,13 +531,14 @@ function DancerNameCell({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="text-left font-medium text-primary underline-offset-4 hover:underline"
+        variant="link"
+        className="h-auto p-0 text-left font-medium"
         onClick={() => setOpen(true)}
       >
         {formatDancerName(inscription)}
-      </button>
+      </Button>
       {renderRowDialog()}
     </>
   );

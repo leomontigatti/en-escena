@@ -60,6 +60,8 @@ type DataTableShellProps<TData> = {
   searchPlaceholder: string;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  hideSearch?: boolean;
+  hidePagination?: boolean;
   facetedFilters: DataTableFacetedFilter[];
   getSelectedFilterValues: (columnId: string) => DataTableFacetedFilterValue;
   onFacetedFilterChange: (values: DataTableFacetedFilterValue) => void;
@@ -268,6 +270,8 @@ export function DataTableShell<TData>({
   searchPlaceholder,
   searchQuery,
   onSearchChange,
+  hideSearch = false,
+  hidePagination = false,
   facetedFilters,
   getSelectedFilterValues,
   onFacetedFilterChange,
@@ -291,49 +295,53 @@ export function DataTableShell<TData>({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <label className="relative block sm:max-w-md sm:flex-1 lg:max-w-xl">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <span className="sr-only">Buscar en la tabla</span>
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="pr-8 pl-8"
-            />
-            {searchQuery.length > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="absolute top-1/2 right-1 -translate-y-1/2"
-                onClick={() => onSearchChange("")}
-              >
-                <X aria-hidden="true" data-icon />
-                <span className="sr-only">Limpiar búsqueda</span>
-              </Button>
-            ) : null}
-          </label>
-          {facetedFilters.length > 0 ? (
-            <TooltipProvider>
-              <div className="flex flex-wrap justify-end gap-2">
-                <DataTableFacetedFilterControl
-                  groups={facetedFilters}
-                  selectedValues={getSelectedFilterValues(
-                    dataTableFacetedFilterColumnId,
-                  )}
-                  onChange={onFacetedFilterChange}
+      {!hideSearch || facetedFilters.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            {!hideSearch ? (
+              <label className="relative block sm:max-w-md sm:flex-1 lg:max-w-xl">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
                 />
-              </div>
-            </TooltipProvider>
-          ) : null}
+                <span className="sr-only">Buscar en la tabla</span>
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="pr-8 pl-8"
+                />
+                {searchQuery.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="absolute top-1/2 right-1 -translate-y-1/2"
+                    onClick={() => onSearchChange("")}
+                  >
+                    <X aria-hidden="true" data-icon />
+                    <span className="sr-only">Limpiar búsqueda</span>
+                  </Button>
+                ) : null}
+              </label>
+            ) : null}
+            {facetedFilters.length > 0 ? (
+              <TooltipProvider>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <DataTableFacetedFilterControl
+                    groups={facetedFilters}
+                    selectedValues={getSelectedFilterValues(
+                      dataTableFacetedFilterColumnId,
+                    )}
+                    onChange={onFacetedFilterChange}
+                  />
+                </div>
+              </TooltipProvider>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
       <div
         className={cn(
           "rounded-lg border bg-background transition-opacity",
@@ -440,32 +448,34 @@ export function DataTableShell<TData>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {filteredRowCount} de {totalRows}{" "}
-          {totalRows === 1 ? "registro" : "registros"}
-          {isLoading ? (
-            <span className="ml-2 inline-flex items-center gap-1">
-              <LoaderCircle
-                className="size-3 animate-spin"
-                aria-hidden="true"
-              />
-              Actualizando…
-            </span>
-          ) : null}
-        </p>
-        <DataTablePagination
-          basePath={basePath}
-          pageCount={pageCount}
-          currentPage={currentPage}
-          canPreviousPage={canPreviousPage}
-          canNextPage={canNextPage}
-          onPreviousPage={onPreviousPage}
-          onNextPage={onNextPage}
-          onPageChange={onPageChange}
-          pageHrefBuilder={pageHrefBuilder}
-        />
-      </div>
+      {!hidePagination ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {filteredRowCount} de {totalRows}{" "}
+            {totalRows === 1 ? "registro" : "registros"}
+            {isLoading ? (
+              <span className="ml-2 inline-flex items-center gap-1">
+                <LoaderCircle
+                  className="size-3 animate-spin"
+                  aria-hidden="true"
+                />
+                Actualizando…
+              </span>
+            ) : null}
+          </p>
+          <DataTablePagination
+            basePath={basePath}
+            pageCount={pageCount}
+            currentPage={currentPage}
+            canPreviousPage={canPreviousPage}
+            canNextPage={canNextPage}
+            onPreviousPage={onPreviousPage}
+            onNextPage={onNextPage}
+            onPageChange={onPageChange}
+            pageHrefBuilder={pageHrefBuilder}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
