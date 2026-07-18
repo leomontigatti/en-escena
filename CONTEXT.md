@@ -252,12 +252,15 @@ _Evitar_: Puntaje numérico, presentación
 Ingreso de dinero registrado para una academia en un evento, que puede quedar disponible o aplicarse mediante asignaciones de pago.
 _Evitar_: Factura, asignación de pago, estado financiero de coreografía
 
-**Factura de coreografía**:
-Documento financiero pendiente de redefinición que podría representar información derivada de pagos, asignaciones e inscripciones.
-_Evitar_: Pago, inscripción
+**Factura (comprobante fiscal ARCA)**:
+Comprobante fiscal electrónico —Factura C de monotributo, emitida contra ARCA/WSFEv1— como documento derivado de pagos, asignaciones e inscripciones que nunca gobierna el estado financiero. Modelo en definición (mapa #320). El término "factura"/"comprobante" queda reservado para este uso fiscal.
+_Evitar_: Pago, asignación de pago, Factura de coreografía (retirada)
 
-**Imputación**:
-Concepto financiero retirado del nuevo modelo de pagos e inscripciones.
+**Factura de coreografía** _(término retirado)_:
+Documento del modelo financiero viejo (tablas `academy_event_choreography_invoice` e `academy_event_invoice_imputation`), removido en V1 (ver ADR-0009). No usar; para el comprobante fiscal ver **Factura (comprobante fiscal ARCA)**.
+
+**Imputación** _(término retirado)_:
+Concepto financiero del modelo viejo, retirado del modelo de pagos e inscripciones (ver ADR-0009). No usar; la aplicación de un pago es una **Asignación de pago**.
 _Evitar_: Asignación de pago, pago, factura
 
 **Asignación de pago**:

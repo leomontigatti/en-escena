@@ -19,7 +19,7 @@ Rules for event context, Bases del evento, administration and portal behavior.
 - Portal de academias can manage profesores and bailarines even without an active event.
 - Portal coreografías stays visible without active event, showing an empty state.
 - If inscription is closed, portal shows existing coreografías, disables new ones, and still allows deleting eligible unpaid coreografías.
-- Portal price/payment view shows all academy coreografías, including unpaid, incomplete and without active invoice.
+- Portal price/payment view shows all academy coreografías, including unpaid and incomplete ones.
 - Academy sees price after creating a coreografía, not during registration.
 - Admin dashboard lists are operational views; direct `/administracion/*` sections hold global event management and Bases del evento.
 - Administración does not create coreografías, profesores or bailarines in ordinary flows; those belong to portal.

@@ -4,11 +4,21 @@ Project-local workflows for agents working on En Escena.
 
 These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code and other agents that read `CLAUDE.md`.
 
+## Investigate before implementing
+
+When the user asks to investigate, review, diagnose, audit, analyze, or explain
+something, do not implement changes automatically. Return findings, relevant
+context, options or tradeoffs, and a recommended next step, then wait for the
+user to explicitly ask for implementation before editing files.
+
+Start implementing right away only when the user clearly asks to implement, fix,
+apply changes, or make the change.
+
 ## Command Guardrail
 
 Use `pnpm typecheck` for type validation.
 
-Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app.
+Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.claude/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
 
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
