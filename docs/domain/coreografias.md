@@ -35,10 +35,10 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - Administrador can rename a Coreografía at any time, including when it has facturas, presentación or puntajes.
 - Administrative renaming changes only the Coreografía name; it does not recalculate price, capacity, category, schedule or competitive state.
 - Deleting a coreografía releases cupo de cronograma capacity and leaves no visible domain entity.
-- Once signed, academy cannot edit blocked data or dancers until admin removes the active financial link.
+- The dancer roster is never academy-editable; changing it is an administrative action (see Choreography Locks). Once signed, academy also cannot edit other blocked data until admin removes the active financial link.
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
-- Academy choreography modification is submitted as one save operation; if a dancer change cannot be confirmed, professor changes in the same submission are not saved.
+- Administrative roster modification is submitted as one save operation; if a dancer change cannot be confirmed, professor changes in the same submission are not saved.
 
 ## Administrative Choreography Lists
 
@@ -110,13 +110,14 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - If recalculation needs a level, admin must choose it in same correction.
 - Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
 - If financial docs are canceled/accredited, coreografía can become editable/deletable again.
-- Academy can change choreography dancers only during the inscription period and only while the choreography has no active financial document or presentation.
+- Academy cannot change choreography dancers after registration. The roster is chosen once, at creation, and from then on only the administrator can change it. This is a permanent, role-based restriction, not an inscription-window rule (see `docs/domain/finanzas.md` → "Edición y eliminación de coreografía").
+- Even the administrator cannot change the roster while the choreography has a presentation (hard lock, like the deletion lock).
 - A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category; it becomes editable when new category requires level.
 - A roster change that recalculates to a category requiring level must choose the new level before confirmation.
 - Cupo de cronograma stays when roster change does not change group type; it clears when group type changes.
 - When roster change clears cupo de cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
-- Roster change can recalculate price on confirmation, but the academy edit flow remains operational and does not show price amounts before confirming.
+- Roster change can recalculate price on confirmation, but the administrative roster edit flow remains operational and does not show price amounts before confirming.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
 - Music and professor links can be edited while presentation is pending, even if registration is closed or the choreography has an active financial link.
 - Music/professor links stop being editable once presentation is no longer pending.

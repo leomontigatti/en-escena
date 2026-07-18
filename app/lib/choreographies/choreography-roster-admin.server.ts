@@ -156,10 +156,7 @@ async function updateAdministrativeChoreographyDancers(input: {
   name?: string;
   scheduleCapacityId?: string | null;
 }): Promise<UpdateChoreographyDancersResult> {
-  const resolvedUpdate = await resolveChoreographyDancerUpdateContext({
-    ...input,
-    isRegistrationOpen: true,
-  });
+  const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
 
   if (!resolvedUpdate.ok) {
     return resolvedUpdate;
@@ -266,7 +263,6 @@ async function readRosterHardLock(
 
   const eligibility = getDancerEditingEligibility({
     hasPresentation: choreography?.hasPresentation ?? false,
-    isRegistrationOpen: true,
   });
 
   return eligibility.canEdit ? null : eligibility.reasonText;

@@ -18,7 +18,7 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason = "presentation" | "registration-closed";
+export type DancerEditingBlockReason = "presentation";
 
 export type DancerEditingEligibility =
   | {
@@ -167,7 +167,6 @@ type ResolvedChoreographyCategory = {
 
 export function getDancerEditingEligibility(input: {
   hasPresentation: boolean;
-  isRegistrationOpen: boolean;
 }): DancerEditingEligibility {
   if (input.hasPresentation) {
     return {
@@ -175,15 +174,6 @@ export function getDancerEditingEligibility(input: {
       reasonCode: "presentation",
       reasonText:
         "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
-    };
-  }
-
-  if (!input.isRegistrationOpen) {
-    return {
-      canEdit: false,
-      reasonCode: "registration-closed",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque el período de inscripción está cerrado.",
     };
   }
 

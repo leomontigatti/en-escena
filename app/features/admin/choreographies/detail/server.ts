@@ -243,7 +243,6 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
         choreographyId,
         dancerIds: readFormStringArray(formData, "dancerIds"),
         eventId: selectedEventId,
-        isRegistrationOpen: true,
       }),
     };
   }
