@@ -415,7 +415,6 @@ function InscriptionsTable({
         searchPlaceholder="Buscar inscripción por bailarín"
         emptyMessage="No hay inscripciones para mostrar."
         hideSearch
-        hidePagination
       />
     </section>
   );
@@ -453,6 +452,7 @@ function buildInscriptionColumns(cobro: {
         />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
+      sortValue: (inscription) => formatDancerName(inscription),
     },
     ...inscriptionAmountColumns,
   ];
