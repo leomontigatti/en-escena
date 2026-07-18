@@ -52,7 +52,10 @@ import {
   formatChoreographyFinancialState,
   getChoreographyFinancialStateBadgeVariant,
 } from "@/lib/finances/choreography-financial-state";
-import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
+import {
+  type InscriptionAmountColumn,
+  isTentativeInscriptionAmount,
+} from "@/lib/finances/inscription-amounts";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
@@ -460,9 +463,10 @@ function formatDancerName(input: { firstName: string; lastName: string }) {
 }
 
 function tentativeAmountClassName(
-  ...args: Parameters<typeof isTentativeInscriptionAmount>
+  state: InscriptionRow["state"],
+  column: InscriptionAmountColumn,
 ) {
-  return isTentativeInscriptionAmount(...args)
+  return isTentativeInscriptionAmount(state, column)
     ? "text-muted-foreground"
     : undefined;
 }
