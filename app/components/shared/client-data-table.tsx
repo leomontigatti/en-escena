@@ -44,6 +44,8 @@ export function ClientDataTable<TData>({
   initialFacetedFilterValues = emptyFacetedFilterValues,
   textFilterColumnId,
   selectableRows = false,
+  hideSearch = false,
+  hidePagination = false,
   initialSort,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
@@ -171,6 +173,8 @@ export function ClientDataTable<TData>({
       searchPlaceholder={searchPlaceholder}
       searchQuery={searchQuery}
       onSearchChange={setSearchFilter}
+      hideSearch={hideSearch}
+      hidePagination={hidePagination}
       facetedFilters={facetedFilters}
       getSelectedFilterValues={getSelectedFilterValues}
       onFacetedFilterChange={setFacetedFilterValue}

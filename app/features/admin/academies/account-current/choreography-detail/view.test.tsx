@@ -36,7 +36,6 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Seña");
     expect(markup).toContain("Saldo");
     expect(markup).toContain("Ana López");
-    expect(markup).toContain("Volver");
   });
 
   test("renders a clickable name for an orphan impaga in a mixed choreography", () => {

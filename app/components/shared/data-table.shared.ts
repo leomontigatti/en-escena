@@ -56,6 +56,8 @@ export type DataTableBaseProps<TData> = {
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
   textFilterColumnId?: string;
   selectableRows?: boolean;
+  hideSearch?: boolean;
+  hidePagination?: boolean;
   initialSort?: {
     columnId: string;
     direction: DataTableSortDirection;
