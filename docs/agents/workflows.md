@@ -360,45 +360,6 @@ Watch for:
 
 Prefer slim query variants when a route only needs IDs, labels, status flags, or counts. Keep route loaders focused on data needed by that route.
 
-## UI Verification
-
-Verify UI changes by driving a real browser with `playwright-cli` (installed
-globally on the developer machine; the `playwright-cli` skill wraps it). This
-replaces the desktop app's embedded preview browser, which is not available in
-the terminal CLI.
-
-Scope: this is a local, interactive workflow. It requires `playwright-cli` and a
-Chromium binary on the machine running the agent. The Sandcastle sandbox image
-ships neither, so **Sandcastle agents skip browser UI verification** and rely on
-`pnpm test` / `pnpm test:db` plus type checks instead.
-
-Only verify when the change is observable in the browser — something the dev
-server renders, serves, or logs. Skip it for changes the browser can't exercise
-(types, unit/DB tests, tooling, server-only code with no rendered surface).
-
-Loop:
-
-1. Start the dev server: `pnpm dev` (React Router, port 5173 per
-   `.claude/launch.json`; it may pick the next free port).
-2. `playwright-cli open http://localhost:5173/<route>`, then
-   `playwright-cli snapshot` to get the accessibility snapshot with element refs
-   (`e3`, `e15`, …). Use `playwright-cli find "<text>"` to locate a ref by text.
-3. Drive the flow with refs: `playwright-cli click e15`,
-   `playwright-cli fill e5 "texto" --submit`, `playwright-cli type "..."`,
-   `playwright-cli press Enter`. Re-run `playwright-cli snapshot` to confirm the
-   result.
-4. Diagnose from the page, not guesses: `playwright-cli console` for console
-   errors, and `playwright-cli requests` + `playwright-cli response-body <n>`
-   for network calls. Fix the source file, then re-check from step 2.
-5. Capture proof for the user when the change is visual:
-   `playwright-cli screenshot`. Prefer snapshots over screenshots for asserting
-   text and structure.
-6. `playwright-cli close` when done.
-
-Never ask the user to check the UI manually — drive it and share the snapshot or
-screenshot as proof. For `$`-segment routes, quote the URL/path so the shell does
-not expand route params.
-
 ## Request Performance and Loading
 
 Use this when a route, form, table, or navigation path feels slow.
