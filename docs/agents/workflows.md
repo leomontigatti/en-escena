@@ -43,10 +43,11 @@ Recommended final validation after code changes:
 2. `pnpm check:repo-styles` when the change adds or edits app UI code
 3. `pnpm typecheck`
 4. `pnpm test` when the change affects runtime behavior, shared modules,
-   route behavior, or UI behavior with meaningful regression risk
-5. `pnpm test:db` when the change touches database schema, repositories,
-   loaders/actions that persist data, or persistence-backed business rules
-6. `pnpm build` when the change touches routing, server rendering, bundling,
+   route behavior, UI behavior with meaningful regression risk, database
+   schema, repositories, loaders/actions that persist data, or
+   persistence-backed business rules. `pnpm test` runs the unit/react suite
+   and the DB suite on in-process PGlite, so it needs no local Postgres.
+5. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to
@@ -93,31 +94,30 @@ changed before running the broader final checks:
   changes, then run `pnpm test` before finishing when the change affects
   runtime behavior, shared modules, route behavior, or UI behavior with
   meaningful regression risk.
-- Run `pnpm test:db:file <path-to-db-test>` while iterating on database
+- Use `pnpm test:db <path-to-db-test>` while iterating on database
   schema, repositories, loaders/actions that persist data, or
-  persistence-backed business rules. This focused path uses the fast PGlite
-  harness.
-- For database-backed work, finish with `pnpm test:db`. This default DB
-  suite is the reliable Postgres path through `TEST_DATABASE_URL`.
-- Run the full applicable command before finishing the work: `pnpm test` for
-  the regular suite, `pnpm test:db` for database-backed work, and
-  `pnpm build` for routing, server rendering, bundling, CSS, or deployment
+  persistence-backed business rules. This runs the fast in-process PGlite
+  harness against a single file.
+- Run `pnpm test` before finishing when the change affects runtime behavior,
+  shared modules, route behavior, UI behavior, schema, or persistence-backed
+  business rules. It covers the unit/react suite and the DB suite on PGlite,
+  and `pnpm build` for routing, server rendering, bundling, CSS, or deployment
   behavior.
 - Do not use focused runs as the only final validation when the change touches
   a shared interface, cross-surface behavior, schema, or persistence-backed
   business rule.
 
-For Codex sessions that run inside the managed sandbox, the final reliable DB
-validation path still needs elevated local permission because
-`TEST_DATABASE_URL` points at Postgres over TCP on `localhost:5433`. The fast
-PGlite paths do not need that TCP access. When requesting persistent approval,
-use these scoped prefixes:
+`pnpm test` and `pnpm test:db` run on in-process PGlite and need no local
+Postgres, so the AFK implementer and reviewer can run them on a GHA runner with
+no Postgres service. Real Postgres is the high-fidelity path
+`pnpm test:db:postgres`, reserved for the CI gate on the PR (#305) and manual
+fidelity checks. For Codex sessions inside the managed sandbox, that path still
+needs elevated local permission because `TEST_DATABASE_URL` points at Postgres
+over TCP on `localhost:5433`. When requesting persistent approval, use these
+scoped prefixes:
 
-- `pnpm test:db`
-- `pnpm test:db:final`
 - `pnpm test:db:postgres`
-- `pnpm test:db:file:final`
-- `pnpm test:db:file:postgres`
+- `pnpm db:test:push`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
@@ -319,27 +319,28 @@ Principles:
 
 The repo has two DB validation paths:
 
-- `pnpm test:db:file <path>` uses the fast PGlite harness with a cached
-  schema snapshot for focused iteration.
-- `pnpm test:db` is the default reliable suite. It delegates through
-  `pnpm test:db:final` to the PostgreSQL validation path. The script creates
-  the configured test database when needed, pushes the Drizzle schema, and runs
-  `*.db.test.ts` with serial file execution.
-- `pnpm test:db:fast:full` keeps the full PGlite suite available for
-  harness debugging. It is experimental because the parallel full-suite PGlite
-  path has shown worker-initialization instability.
+- `pnpm test:db` is the default suite. It runs `*.db.test.ts` on the
+  in-process PGlite harness with a cached schema snapshot, needs no local
+  Postgres, and is included in `pnpm test`. Pass a path to focus a single
+  file: `pnpm test:db <path>`.
+- `pnpm test:db:postgres` is the high-fidelity path. It creates the configured
+  test database when needed, pushes the Drizzle schema, and runs `*.db.test.ts`
+  against real Postgres through `TEST_DATABASE_URL`. Reserved for the CI gate
+  on the PR (#305) and manual fidelity checks. Pass a path to focus a single
+  file: `pnpm test:db:postgres <path>`.
 
 For a focused DB test file during development, use:
 
 ```bash
-pnpm test:db:file app/lib/example.db.test.ts
+pnpm test:db app/lib/example.db.test.ts
 ```
 
-Use `pnpm test:db:file <path-to-db-test>` while iterating.
-Run the full `pnpm test:db` command before finishing work that must prove
-the final reliable DB path.
-When you need the focused PostgreSQL path for comparison or harness debugging,
-run `pnpm test:db:file:final <path-to-db-test>`.
+Use `pnpm test:db <path-to-db-test>` while iterating.
+Run `pnpm test` before finishing work that must prove runtime, shared,
+route, UI, schema, or persistence-backed behavior; it covers the unit and
+PGlite DB suites.
+When you need real Postgres for fidelity comparison, run
+`pnpm test:db:postgres <path-to-db-test>`.
 
 ## Frontend State TDD
 

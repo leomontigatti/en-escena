@@ -48,9 +48,10 @@ comportan como espera la app.
 
 - Como POC, PGlite es suficientemente fiel para seguir evaluando un harness mas
   rapido con schema in-process.
-- En el workflow actual, PGlite se usa para corridas enfocadas con
-  `pnpm test:db:file <archivo>`. La suite completa confiable usa
-  Postgres real con `pnpm test:db`.
+- En el workflow actual, PGlite es la ruta default de la suite DB completa con
+  `pnpm test:db` (parte de `pnpm test`), y para corridas enfocadas con
+  `pnpm test:db <archivo>`. Postgres real queda como ruta de alta fidelidad en
+  `pnpm test:db:postgres`, reservada al gate de CI (#305).
 - Todavia no es un reemplazo transparente del stack actual porque faltaria
   resolver el bootstrap del schema, la compatibilidad de shape de errores y la
   estabilidad de inicializacion en modo paralelo.

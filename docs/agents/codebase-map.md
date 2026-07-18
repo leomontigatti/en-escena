@@ -187,7 +187,7 @@ program and results visibility.
 ## Cross-Cutting Validation
 
 - Run route/type validation with `pnpm typecheck`, never `pnpm exec tsc`.
-- Use `pnpm test:db:file <path>` for focused persistence work and `pnpm test:db` for final DB confidence.
+- Use `pnpm test:db <path>` for focused persistence work; `pnpm test` (unit + PGlite DB) is the default confidence command and needs no local Postgres. Real Postgres is `pnpm test:db:postgres`, reserved for the CI gate (#305).
 - Use `pnpm check:repo-styles` after UI changes.
 - Use `pnpm check:file-tokens` before committing staged application source.
 - Performance notes live in `docs/agents/request-performance-baseline.md` and `docs/agents/request-performance-refactor-plan.md`.

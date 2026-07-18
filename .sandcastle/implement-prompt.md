@@ -170,9 +170,8 @@ Before committing, run the validation commands in this order:
 2. `pnpm check:repo-styles` when the change adds or edits app UI code
 3. `pnpm check:file-tokens`
 4. `pnpm typecheck`
-5. `pnpm test`
-6. `pnpm test:db` if the change touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules
-7. `pnpm build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
+5. `pnpm test` (unit/react plus the DB suite on in-process PGlite; also covers database schema, repositories, loaders/actions that persist data, or persistence-backed business rules)
+6. `pnpm build` if the change touches routing, server rendering, bundling, CSS, or deployment behavior
 
 If a command fails, fix that failure and rerun the same command before moving to the next one.
 Do not start `typecheck`, tests, DB tests, or build while formatting or
@@ -186,15 +185,15 @@ When validation output is long, use the failing test names, error summaries, and
 focused reruns to diagnose. Do not paste or re-read full logs when a narrower
 command gives the needed signal.
 During development, use focused test commands for the code you are changing.
-For focused DB tests, use `pnpm test:db:file -- <path-to-db-test>`; this
-uses the fast PGlite harness for one file. Do not expect
-`pnpm test:db -- <path>` to narrow the suite.
-For final database-backed validation, use `pnpm test:db`; this is the
-reliable Postgres path through `TEST_DATABASE_URL`. Do not use the experimental
-full PGlite suite (`pnpm test:db:fast:full`) as the final confidence check.
-Run the full validation sequence once at the end. If `pnpm test:db` fails
-because of infrastructure or unrelated database state, do a focused diagnosis
-before repeating the full DB suite. Do not run multiple DB validation commands
+For focused DB tests, use `pnpm test:db <path-to-db-test>`; this uses the fast
+in-process PGlite harness for one file. The default database-backed validation
+is `pnpm test:db` (run as part of `pnpm test`), which runs the full DB suite on
+PGlite and needs no local Postgres. Real Postgres is the high-fidelity path
+`pnpm test:db:postgres`, reserved for the CI gate on the PR (#305); use it only
+for a manual fidelity check.
+Run the full validation sequence once at the end. If a DB test fails because of
+infrastructure or unrelated database state, do a focused diagnosis before
+repeating the full DB suite. Do not run multiple DB validation commands
 in parallel against the shared test database.
 
 # COMMIT

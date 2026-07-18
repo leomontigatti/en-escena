@@ -51,9 +51,10 @@ docker compose up -d postgres
 
 Sandcastle containers attach to the `en-escena_default` Docker network by
 default and receive `DATABASE_URL` and `TEST_DATABASE_URL` pointing at the
-Compose service hostname `postgres`. This lets agents run `pnpm test:db` for
-persistence-backed changes without accidentally using the host development
-database URL.
+Compose service hostname `postgres`. This lets agents run the high-fidelity
+`pnpm test:db:postgres` path without accidentally using the host development
+database URL. The default `pnpm test:db` runs on in-process PGlite and needs no
+Postgres service.
 
 Issue sandboxes get isolated test databases derived from the base URL. For
 example, issue 34 uses `en-escena-test-issue-34`, and the merge phase uses
@@ -99,10 +100,10 @@ Sandcastle prompts must preserve this repo's validation order:
 2. `pnpm check:repo-styles` when the change adds or edits app UI code
 3. `pnpm check:file-tokens`
 4. `pnpm typecheck`
-5. `pnpm test`
-6. `pnpm test:db` when the change touches database schema, repositories,
-   loaders/actions that persist data, or persistence-backed business rules
-7. `pnpm build` when the change touches routing, server rendering, bundling,
+5. `pnpm test` (unit/react plus the DB suite on in-process PGlite; also covers
+   database schema, repositories, loaders/actions that persist data, or
+   persistence-backed business rules)
+6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
 If a command fails, fix it and rerun that same command before starting the next
@@ -117,13 +118,14 @@ instead of adding shallow pass-through wrappers to satisfy the token limit.
 During development, focused DB tests can target one file:
 
 ```bash
-pnpm test:db:file -- app/lib/example.db.test.ts
+pnpm test:db app/lib/example.db.test.ts
 ```
 
-Focused DB tests use the fast PGlite harness. Use full `pnpm test:db` before
-finishing database-backed work; it is the reliable Postgres path through
-`TEST_DATABASE_URL`. `pnpm test:db:fast:full` is an experimental full PGlite
-suite for harness debugging, not a final confidence check.
+Focused DB tests use the fast in-process PGlite harness. Run `pnpm test` before
+finishing database-backed work; it covers the unit suite and the full PGlite DB
+suite with no local Postgres. `pnpm test:db:postgres` is the high-fidelity
+real-Postgres path through `TEST_DATABASE_URL`, reserved for the CI gate on the
+PR (#305).
 
 Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates React
 Router route types before running TypeScript.

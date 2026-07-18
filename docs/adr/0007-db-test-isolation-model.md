@@ -84,6 +84,33 @@ Because the parallel PGlite full suite is not currently reliable,
 useful for focused TDD via `pnpm test:db:file <path>`, where it avoids
 the repeated schema push and does not require local Postgres.
 
+**Amendment on 2026-07-18**
+
+Issue `#310` re-measured the parallel PGlite full suite as a prerequisite for
+the AFK agent platform (map `#319`), where the implementer and reviewer must run
+the same validation on a GitHub Actions runner **without** a Postgres service.
+The `PGlite failed to initialize properly` instability reported on 2026-06-21 no
+longer reproduces with `@electric-sql/pglite@0.5.3` and `vitest@3.2.x`: the full
+parallel suite (`vitest --config vitest.db.fast.config.ts`, `fileParallelism:
+true`, `maxWorkers: 50%`) passed 4 consecutive runs, 63 files and 345 tests each,
+in ~86–120s wall on a loaded machine, with no worker-initialization failures.
+
+Decision: PGlite is now the **default** database validation path. `pnpm test`
+runs the unit/react suite plus the PGlite DB suite (`pnpm test:unit && pnpm
+test:db`), in-process, with no local Postgres, so it is the single confidence
+command the AFK implementer and reviewer run. Real Postgres is preserved as the
+high-fidelity path `pnpm test:db:postgres` (`vitest.db.config.ts` through
+`TEST_DATABASE_URL`), **reserved for the CI gate on the PR (`#305`)** and manual
+fidelity checks — not for the agent's pre-commit loop. The prior zoo of aliases
+(`test:db:final`, `test:db:fast:full`, `test:db:file`, `test:db:file:final`,
+`test:db:file:postgres`) is consolidated away; focus a single file by passing a
+path to `pnpm test:db <path>` or `pnpm test:db:postgres <path>`.
+
+If the parallel PGlite full suite regresses to worker-initialization
+instability, the fallback is to run it single-worker/sharded
+(`--no-file-parallelism --maxWorkers=1`) before reverting `pnpm test:db` to the
+Postgres path.
+
 **Fidelity Risks**
 
 - `Evento`: active-event uniqueness, registration windows, and lifecycle rules
