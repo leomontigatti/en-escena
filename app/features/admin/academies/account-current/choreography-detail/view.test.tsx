@@ -115,6 +115,40 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Bruno Benítez");
   });
 
+  test("links a señada inscription in a uniform choreography when it can be undone", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+          undoableAllocation: { id: "allocation_1", stage: "deposit" },
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("links a pagada inscription that has an allocation to undo", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "pagada",
+          inscriptionId: "inscription_paid",
+          firstName: "Bruno",
+          lastName: "Benítez",
+          undoableAllocation: { id: "allocation_2", stage: "balance" },
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
   test("shows the saldo of an impaga inscription instead of zero", () => {
     const markup = renderDetail({
       inscriptions: [
@@ -328,6 +362,7 @@ function inscriptionFixture(
     inscriptionId: "inscription_1",
     lastName: "López",
     state: "señada",
+    undoableAllocation: null,
     ...overrides,
   };
 }

@@ -332,6 +332,56 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(inscription?.depositReferenceDate).toBe("2026-04-10");
   });
 
+  test("rejects deshacer seña while the inscription is still pagada", async () => {
+    const fixture = await seedCobroFixture();
+
+    await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+    });
+    await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+    });
+
+    // El orden es balance antes que deposit: con el saldo todavía asignado, la
+    // inscripción sigue pagada y no se puede deshacer la seña.
+    const depositAllocation = await db.query.paymentAllocations.findFirst({
+      where: eq(paymentAllocations.allocationType, "deposit"),
+    });
+    if (!depositAllocation) {
+      throw new Error("Expected a deposit allocation.");
+    }
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "delete-allocation",
+        allocationId: depositAllocation.id,
+      },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, depositAllocation.inscriptionId),
+    });
+    expect(inscription?.depositReferenceDate).toBe("2026-04-10");
+    expect(inscription?.balanceReferenceDate).toBe("2026-04-10");
+    const survivingAllocations = await db.query.paymentAllocations.findMany({
+      where: eq(
+        paymentAllocations.inscriptionId,
+        depositAllocation.inscriptionId,
+      ),
+    });
+    expect(survivingAllocations).toHaveLength(2);
+  });
+
   test("Cobrar seña de una huérfana congela solo su snapshot y la deja señada", async () => {
     const fixture = await seedMixedCobroFixture();
 

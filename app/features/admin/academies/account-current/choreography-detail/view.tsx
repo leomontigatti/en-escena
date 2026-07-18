@@ -69,6 +69,7 @@ import {
   formatDancerName,
   InscriptionCobroDialog,
 } from "./inscription-cobro-dialog";
+import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
@@ -470,10 +471,11 @@ function buildInscriptionColumns(cobro: {
 }
 
 /**
- * Nombre del bailarín. En una coreografía mixta lo muestra como botón que abre el
- * diálogo de cobro por fila: seña para una inscripción `impaga` huérfana, saldo
- * para una `señada` huérfana. Sin opciones de cobro (coreografía uniforme o
- * inscripción sin la etapa correspondiente pendiente) es solo texto.
+ * Nombre del bailarín. Lo muestra como botón que abre el diálogo por fila cuando
+ * hay algo para hacer con esa inscripción: cobrar seña de una `impaga` huérfana o
+ * saldo de una `señada` huérfana (coreografía mixta), o deshacer una asignación
+ * ya existente. Una `señada` mixta ofrece cobro y deshacer a la vez; una fila sin
+ * cobro ni asignación (por ejemplo una `impaga` sin inscripción) es solo texto.
  */
 function DancerNameCell({
   canPayInscriptionBalance,
@@ -488,6 +490,7 @@ function DancerNameCell({
 }) {
   const [open, setOpen] = useState(false);
   const hasInscriptionId = inscription.inscriptionId !== null;
+  const undoableAllocation = inscription.undoableAllocation;
   const canChargeDeposit =
     inscriptionDeposit !== null &&
     inscriptionDeposit.priceRows.length > 0 &&
@@ -499,7 +502,7 @@ function DancerNameCell({
     inscription.balanceAmount !== null &&
     hasInscriptionId;
 
-  if (!canChargeDeposit && !canChargeBalance) {
+  if (!canChargeDeposit && !canChargeBalance && undoableAllocation === null) {
     return <>{formatDancerName(inscription)}</>;
   }
 
@@ -520,14 +523,21 @@ function DancerNameCell({
           priceRows={inscriptionDeposit.priceRows}
           payments={payments}
         />
-      ) : (
+      ) : canChargeBalance ? (
         <InscriptionBalanceDialog
           inscription={inscription}
           open={open}
           onOpenChange={setOpen}
           payments={payments}
         />
-      )}
+      ) : undoableAllocation !== null ? (
+        <InscriptionUndoDialog
+          inscription={inscription}
+          allocation={undoableAllocation}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      ) : null}
     </>
   );
 }

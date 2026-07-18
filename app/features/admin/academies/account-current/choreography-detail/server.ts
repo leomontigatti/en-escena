@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -21,7 +21,10 @@ import {
   quoteChoreographyDepositTotals,
   readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
-import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
+import {
+  readChoreographyInscriptionRows,
+  type ChoreographyInscriptionRow,
+} from "@/lib/finances/choreography-inscriptions.server";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -86,10 +89,12 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
   const choreographyInscriptions = financeDetail.inscriptions.filter(
     (inscription) => inscription.choreographyId === choreographyId,
   );
-  const inscriptions = await readChoreographyInscriptionRows({
-    academyEventInscriptions: financeDetail.inscriptions,
-    choreographyId,
-  });
+  const inscriptions = await attachUndoableAllocations(
+    await readChoreographyInscriptionRows({
+      academyEventInscriptions: financeDetail.inscriptions,
+      choreographyId,
+    }),
+  );
 
   const stage = resolveCobroStage(
     choreographyInscriptions.map((inscription) => inscription.state),
@@ -211,6 +216,78 @@ async function attachStageTotals(input: {
     ...payment,
     stageTotalAmount: depositTotals.get(payment.paymentDate) ?? null,
   }));
+}
+
+type UndoableAllocationStage = "deposit" | "balance";
+type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
+  undoableAllocation: { id: string; stage: UndoableAllocationStage } | null;
+};
+
+/**
+ * Anota a cada inscripción con la asignación que su fila puede deshacer. Deshacer
+ * baja una etapa: la `balance` (si existe) vuelve la inscripción a `señada`, y la
+ * `deposit` la vuelve a `impaga`. Por eso se ofrece la etapa más alta —`balance`
+ * antes que `deposit`—, que es la que el server permite borrar primero.
+ */
+async function attachUndoableAllocations(
+  inscriptions: ChoreographyInscriptionRow[],
+): Promise<InscriptionRowWithUndo[]> {
+  const inscriptionIds = inscriptions
+    .map((row) => row.inscriptionId)
+    .filter((id): id is string => id !== null);
+
+  if (inscriptionIds.length === 0) {
+    return inscriptions.map((row) => ({ ...row, undoableAllocation: null }));
+  }
+
+  const allocationRows = await db
+    .select({
+      id: paymentAllocations.id,
+      inscriptionId: paymentAllocations.inscriptionId,
+      allocationType: paymentAllocations.allocationType,
+    })
+    .from(paymentAllocations)
+    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+
+  return inscriptions.map((row) => ({
+    ...row,
+    undoableAllocation: resolveUndoableAllocation(
+      row.inscriptionId,
+      allocationRows,
+    ),
+  }));
+}
+
+function resolveUndoableAllocation(
+  inscriptionId: string | null,
+  allocationRows: {
+    id: string;
+    inscriptionId: string;
+    allocationType: UndoableAllocationStage;
+  }[],
+): { id: string; stage: UndoableAllocationStage } | null {
+  if (inscriptionId === null) {
+    return null;
+  }
+
+  const own = allocationRows.filter(
+    (allocation) => allocation.inscriptionId === inscriptionId,
+  );
+  const balance = own.find(
+    (allocation) => allocation.allocationType === "balance",
+  );
+  if (balance) {
+    return { id: balance.id, stage: "balance" };
+  }
+
+  const deposit = own.find(
+    (allocation) => allocation.allocationType === "deposit",
+  );
+  if (deposit) {
+    return { id: deposit.id, stage: "deposit" };
+  }
+
+  return null;
 }
 
 export async function handleAdministrativeChoreographyFinanceAction(input: {

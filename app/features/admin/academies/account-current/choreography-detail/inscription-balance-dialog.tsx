@@ -24,6 +24,7 @@ import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 import { formatAmount, formatDate } from "../formatters";
 import { formatDancerName } from "./inscription-cobro-dialog";
+import { DeleteAllocationSection } from "./inscription-undo-dialog";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payInscriptionBalanceIntent } from "./shared";
 
@@ -38,7 +39,9 @@ type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
  * Diálogo por fila del cobro extraordinario de saldo de una huérfana `señada` en
  * una coreografía mixta: elegir un pago con disponible suficiente para el saldo
  * de esa inscripción. El saldo mostrado es tentativo (descuento estimado contra
- * el roster vigente); el server recalcula el descuento y congela el snapshot.
+ * el roster vigente); el server recalcula el descuento y congela el snapshot. La
+ * `señada` ya tiene su seña asignada, así que el diálogo también ofrece
+ * deshacerla y devolver la inscripción a `impaga`.
  */
 export function InscriptionBalanceDialog({
   inscription,
@@ -152,6 +155,14 @@ export function InscriptionBalanceDialog({
             </Button>
           </DialogFooter>
         </fetcher.Form>
+
+        {inscription.undoableAllocation ? (
+          <DeleteAllocationSection
+            inscription={inscription}
+            allocation={inscription.undoableAllocation}
+            disabled={isSaving}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
