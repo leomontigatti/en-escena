@@ -45,6 +45,7 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
     className?: string;
     headerClassName?: string;
+    cellClassName?: (row: TData) => string | undefined;
   }
 }
 
@@ -130,6 +131,7 @@ export function createDataTableColumns<TData>(
     meta: {
       className: column.className,
       headerClassName: column.headerClassName,
+      cellClassName: column.cellClassName,
     },
   }));
 
@@ -411,6 +413,9 @@ export function DataTableShell<TData>({
                         className={cn(
                           "px-3",
                           cell.column.columnDef.meta?.className,
+                          cell.column.columnDef.meta?.cellClassName?.(
+                            row.original,
+                          ),
                         )}
                       >
                         {flexRender(
