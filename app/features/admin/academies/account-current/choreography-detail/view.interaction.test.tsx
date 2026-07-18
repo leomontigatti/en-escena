@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -44,6 +45,48 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
+    expect(document.body.textContent).toContain(
+      "Cobrar saldo de la inscripción",
+    );
+  });
+
+  // Regresión: el diálogo por fila vivía en una celda que se remontaba cuando
+  // el padre re-renderizaba (por columnas recreadas en cada render), lo que lo
+  // cerraba de inmediato. Con las columnas memoizadas y loaderData estable el
+  // diálogo debe sobrevivir a un re-render del padre.
+  test("keeps the dialog open across a parent re-render", async () => {
+    const loaderData = loaderDataFixture();
+
+    function Wrapper() {
+      const [, setTick] = useState(0);
+      return (
+        <>
+          <button
+            type="button"
+            aria-label="re-render"
+            onClick={() => setTick((tick) => tick + 1)}
+          >
+            re-render
+          </button>
+          <AdministracionCoreografiaFinancieraDetalleView
+            loaderData={loaderData}
+          />
+        </>
+      );
+    }
+
+    const router = createMemoryRouter([{ path: "/", element: <Wrapper /> }], {
+      initialEntries: ["/"],
+    });
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickReactDomButton("Bruno Benítez");
+    expect(document.body.textContent).toContain(
+      "Cobrar saldo de la inscripción",
+    );
+
+    await clickReactDomButton("re-render");
     expect(document.body.textContent).toContain(
       "Cobrar saldo de la inscripción",
     );

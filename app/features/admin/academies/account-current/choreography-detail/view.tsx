@@ -6,7 +6,7 @@ import {
   LoaderCircle,
   Receipt,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
 import {
@@ -400,11 +400,19 @@ function InscriptionsTable({
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
   payments: PaymentRow[];
 }) {
-  const columns = buildInscriptionColumns({
-    canPayInscriptionBalance,
-    inscriptionDeposit,
-    payments,
-  });
+  // Las columnas se memoizan para conservar una referencia estable entre
+  // renders: sin esto, cada render recrea el array y React Table remonta las
+  // celdas, perdiendo el estado `open` del diálogo por fila (se abría y se
+  // cerraba de inmediato al re-renderizar la página).
+  const columns = useMemo(
+    () =>
+      buildInscriptionColumns({
+        canPayInscriptionBalance,
+        inscriptionDeposit,
+        payments,
+      }),
+    [canPayInscriptionBalance, inscriptionDeposit, payments],
+  );
 
   return (
     <section aria-label="Inscripciones">
