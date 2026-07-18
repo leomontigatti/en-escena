@@ -67,6 +67,28 @@ describe("AdministracionPagoDetalleRouteView", () => {
     ).not.toBeNull();
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();
   });
+
+  test("lists affected choreographies and flags blocking ones in the delete dialog", async () => {
+    await renderDetailIntoDocument({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        affectedChoreographies: [
+          { blocksDeletion: false, id: "cho_1", name: "Coreografía Uno" },
+          { blocksDeletion: true, id: "cho_2", name: "Coreografía Dos" },
+        ],
+      }),
+    });
+
+    expect(document.body.textContent).toContain(
+      "También se van a eliminar sus asignaciones a estas coreografías",
+    );
+    expect(document.body.textContent).toContain("Coreografía Uno");
+    expect(document.body.textContent).toContain("Coreografía Dos");
+    // La coreografía bloqueante lleva la marca suave.
+    expect(document.body.textContent).toContain(
+      "Tiene el saldo pagado en otro pago",
+    );
+  });
 });
 
 async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
@@ -103,6 +125,7 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
       },
       { contactName: "Academia Sur", id: "academy_2", name: "Academia Sur" },
     ],
+    affectedChoreographies: [],
     allocatedAmount: 0,
     canDelete: true,
     canEdit: true,

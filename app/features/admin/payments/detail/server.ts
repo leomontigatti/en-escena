@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, paymentAllocations, payments } from "@/db/schema";
+import {
+  academies,
+  choreographies,
+  choreographyDancers,
+  paymentAllocations,
+  payments,
+} from "@/db/schema";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -13,6 +19,8 @@ import {
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { deletePaymentWithAllocations } from "@/lib/finances/choreography-cobro.server";
+import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
 import { listAdminPaymentAcademyOptions } from "../academy-options.server";
@@ -68,13 +76,16 @@ export async function loadAdminPaymentDetail(
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const [academyOptions, allocatedAmount] = await Promise.all([
-    listAdminPaymentAcademyOptions(),
-    sumPaymentAllocatedAmount(paymentDetail.id),
-  ]);
+  const [academyOptions, allocatedAmount, affectedChoreographies] =
+    await Promise.all([
+      listAdminPaymentAcademyOptions(),
+      sumPaymentAllocatedAmount(paymentDetail.id),
+      listPaymentAffectedChoreographies(paymentDetail.id),
+    ]);
 
   return {
     academies: academyOptions,
+    affectedChoreographies,
     allocatedAmount,
     canDelete: user.role === "admin",
     canEdit: user.role === "admin",
@@ -82,6 +93,89 @@ export async function loadAdminPaymentDetail(
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
     values: getPaymentFormValues(paymentDetail),
   };
+}
+
+export type PaymentAffectedChoreography = {
+  blocksDeletion: boolean;
+  id: string;
+  name: string;
+};
+
+/**
+ * Coreografías cuyas inscripciones tienen asignaciones a este pago, sin
+ * duplicar (una coreografía aparece una sola vez). `blocksDeletion` marca las
+ * que impedirían la cascada: una inscripción `pagada` cuya `deposit` está en
+ * este pago pero cuyo `balance` vive en otro pago (borrar la seña la dejaría
+ * pagada sin seña). Es una marca suave para la UI; el server es la fuente de
+ * verdad al confirmar.
+ */
+async function listPaymentAffectedChoreographies(
+  paymentId: string,
+): Promise<PaymentAffectedChoreography[]> {
+  const rows = await db
+    .select({
+      allocationType: paymentAllocations.allocationType,
+      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
+      choreographyId: choreographies.id,
+      choreographyName: choreographies.name,
+      depositReferenceDate: choreographyDancers.depositReferenceDate,
+      inscriptionId: paymentAllocations.inscriptionId,
+    })
+    .from(paymentAllocations)
+    .innerJoin(
+      choreographyDancers,
+      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
+    )
+    .innerJoin(
+      choreographies,
+      eq(choreographyDancers.choreographyId, choreographies.id),
+    )
+    .where(eq(paymentAllocations.paymentId, paymentId));
+
+  // Por inscripción: si acá está la seña, si acá está el saldo y su estado.
+  const inscriptions = new Map<
+    string,
+    { hasBalanceHere: boolean; hasDepositHere: boolean; isPaid: boolean }
+  >();
+  for (const row of rows) {
+    const entry = inscriptions.get(row.inscriptionId) ?? {
+      hasBalanceHere: false,
+      hasDepositHere: false,
+      isPaid:
+        deriveInscriptionFinancialState({
+          balanceReferenceDate: row.balanceReferenceDate,
+          depositReferenceDate: row.depositReferenceDate,
+        }) === "pagada",
+    };
+    if (row.allocationType === "deposit") {
+      entry.hasDepositHere = true;
+    } else {
+      entry.hasBalanceHere = true;
+    }
+    inscriptions.set(row.inscriptionId, entry);
+  }
+
+  // Dedup por coreografía; bloquea si alguna de sus inscripciones bloquea.
+  const choreographyList = new Map<string, PaymentAffectedChoreography>();
+  for (const row of rows) {
+    const inscription = inscriptions.get(row.inscriptionId);
+    const blocks = Boolean(
+      inscription &&
+      inscription.isPaid &&
+      inscription.hasDepositHere &&
+      !inscription.hasBalanceHere,
+    );
+    const existing = choreographyList.get(row.choreographyId);
+    choreographyList.set(row.choreographyId, {
+      blocksDeletion: (existing?.blocksDeletion ?? false) || blocks,
+      id: row.choreographyId,
+      name: row.choreographyName,
+    });
+  }
+
+  return [...choreographyList.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "es"),
+  );
 }
 
 export async function handleAdminPaymentDetailAction(
@@ -223,20 +317,20 @@ async function deleteAdminPayment(input: {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const allocatedAmount = await sumPaymentAllocatedAmount(input.paymentId);
+  const result = await deletePaymentWithAllocations({
+    paymentId: input.paymentId,
+  });
 
-  if (allocatedAmount > 0) {
+  if (!result.ok) {
     return {
       status: "error",
       intent: deleteAdminPaymentIntent,
-      message: "No se puede eliminar el pago.",
+      message: "No se pudo eliminar el pago.",
       fieldErrors: {
-        paymentId: "Eliminá primero las asignaciones activas de este pago.",
+        paymentId: result.message,
       },
     };
   }
-
-  await db.delete(payments).where(eq(payments.id, input.paymentId));
 
   throw redirect(`/administracion/pagos?evento=${payment.eventId}`);
 }
