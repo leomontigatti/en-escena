@@ -506,6 +506,41 @@ function DancerNameCell({
     return <>{formatDancerName(inscription)}</>;
   }
 
+  function renderRowDialog() {
+    if (canChargeDeposit && inscriptionDeposit !== null) {
+      return (
+        <InscriptionCobroDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          priceRows={inscriptionDeposit.priceRows}
+          payments={payments}
+        />
+      );
+    }
+    if (canChargeBalance) {
+      return (
+        <InscriptionBalanceDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          payments={payments}
+        />
+      );
+    }
+    if (undoableAllocation !== null) {
+      return (
+        <InscriptionUndoDialog
+          inscription={inscription}
+          allocation={undoableAllocation}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      );
+    }
+    return null;
+  }
+
   return (
     <>
       <button
@@ -515,29 +550,7 @@ function DancerNameCell({
       >
         {formatDancerName(inscription)}
       </button>
-      {canChargeDeposit && inscriptionDeposit !== null ? (
-        <InscriptionCobroDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-          priceRows={inscriptionDeposit.priceRows}
-          payments={payments}
-        />
-      ) : canChargeBalance ? (
-        <InscriptionBalanceDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-          payments={payments}
-        />
-      ) : undoableAllocation !== null ? (
-        <InscriptionUndoDialog
-          inscription={inscription}
-          allocation={undoableAllocation}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      ) : null}
+      {renderRowDialog()}
     </>
   );
 }
