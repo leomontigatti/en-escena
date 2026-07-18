@@ -21,6 +21,7 @@ function DeleteDialog({
   confirmFieldName = "confirmDeletion",
   confirmFieldValue,
   description,
+  details,
   intentValue,
   isBlocked = false,
   open,
@@ -33,6 +34,7 @@ function DeleteDialog({
   confirmFieldName?: string;
   confirmFieldValue?: string;
   description: ReactNode;
+  details?: ReactNode;
   intentValue: string;
   isBlocked?: boolean;
   open: boolean;
@@ -62,6 +64,7 @@ function DeleteDialog({
             </AlertDescription>
           </Alert>
           <DialogDescription>{description}</DialogDescription>
+          {details}
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>

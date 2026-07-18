@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useSubmit } from "react-router";
-import { Trash2 } from "lucide-react";
+import { TriangleAlert, Trash2 } from "lucide-react";
 
 import {
   AdminResourceFormCard,
@@ -102,7 +102,18 @@ export function AdministracionPagoDetalleRouteView({
 
       {loaderData.canDelete ? (
         <DeleteDialog
-          description="El pago va a quedar fuera del saldo disponible. Si tiene asignaciones activas, eliminá primero esas asignaciones."
+          description={
+            loaderData.affectedChoreographies.length > 0
+              ? "El pago va a quedar fuera del saldo disponible. También se van a eliminar sus asignaciones a estas coreografías y esos montos van a volver al saldo disponible:"
+              : "El pago va a quedar fuera del saldo disponible."
+          }
+          details={
+            loaderData.affectedChoreographies.length > 0 ? (
+              <AffectedChoreographiesList
+                choreographies={loaderData.affectedChoreographies}
+              />
+            ) : undefined
+          }
           intentValue={deleteAdminPaymentIntent}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
@@ -111,6 +122,28 @@ export function AdministracionPagoDetalleRouteView({
         />
       ) : null}
     </>
+  );
+}
+
+function AffectedChoreographiesList({
+  choreographies,
+}: {
+  choreographies: LoaderData["affectedChoreographies"];
+}) {
+  return (
+    <ul className="divide-y divide-border rounded-md border text-sm">
+      {choreographies.map((choreography) => (
+        <li key={choreography.id} className="flex flex-col gap-0.5 px-3 py-2">
+          <span className="font-medium">{choreography.name}</span>
+          {choreography.blocksDeletion ? (
+            <span className="flex items-center gap-1.5 text-xs text-warning">
+              <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+              Tiene el saldo pagado en otro pago; desasigná ese saldo primero.
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 

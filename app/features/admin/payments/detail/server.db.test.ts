@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { paymentAllocations, payments } from "@/db/schema";
+import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
 import {
   createChoreographyRecord,
@@ -200,16 +200,16 @@ describe.sequential("admin payment detail", () => {
     await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
   });
 
-  test("blocks deleting a payment with active allocations", async () => {
+  test("cascades allocation removal when deleting a payment", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
     const academy = await createAcademyUser({
-      email: "academia.pago.eliminar.asignado@example.com",
-      academyName: "Academia Pago Eliminar Asignado",
+      email: "academia.pago.eliminar.cascada@example.com",
+      academyName: "Academia Pago Eliminar Cascada",
     });
     await createSignedInRequest({
-      email: "admin.pago.eliminar.asignado@example.com",
+      email: "admin.pago.eliminar.cascada@example.com",
       role: "admin",
       requestUrl: paymentDetailUrl("payment_pending", event.id),
     });
@@ -251,16 +251,131 @@ describe.sequential("admin payment detail", () => {
 
     await expect(
       handleAdminPaymentDetailAction(request, payment.id),
+    ).rejects.toMatchObject({
+      status: 302,
+    });
+
+    // El pago y su asignación quedan eliminados.
+    await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
+    await expect(findAllocationsByPaymentId(payment.id)).resolves.toEqual([]);
+
+    // La inscripción vuelve a `impaga`: el snapshot de seña quedó limpio.
+    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
+      depositReferenceDate: null,
+      depositAmount: null,
+      frozenBasePriceAmount: null,
+    });
+  });
+
+  test("aborts deletion when an inscription keeps a paid balance in another payment", async () => {
+    const event = await createSavedEvent({
+      requiredDepositPercentage: 30,
+    });
+    const academy = await createAcademyUser({
+      email: "academia.pago.eliminar.saldo@example.com",
+      academyName: "Academia Pago Eliminar Saldo",
+    });
+    await createSignedInRequest({
+      email: "admin.pago.eliminar.saldo@example.com",
+      role: "admin",
+      requestUrl: paymentDetailUrl("payment_pending", event.id),
+    });
+
+    // Pago A: lleva la seña. Pago B: lleva el saldo.
+    await registerAcademyEventPayment({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      internalNote: null,
+      paymentDate: "2026-03-15",
+      paymentMethod: "transferencia",
+      reference: "SEÑA",
+    });
+    await registerAcademyEventPayment({
+      academyId: academy.academy.id,
+      amount: 7000,
+      eventId: event.id,
+      internalNote: null,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      reference: "SALDO",
+    });
+
+    const depositPayment = await findPaymentByReference(
+      academy.academy.id,
+      "SEÑA",
+    );
+    const balancePayment = await findPaymentByReference(
+      academy.academy.id,
+      "SALDO",
+    );
+
+    const inscription = await createFrozenInscription({
+      academyId: academy.academy.id,
+      eventId: event.id,
+    });
+
+    // La inscripción quedó `pagada`: el saldo está congelado y asignado al pago B.
+    await db
+      .update(choreographyDancers)
+      .set({
+        balanceReferenceDate: "2026-03-20",
+        finalTotalAmount: 10000,
+        balanceAmount: 7000,
+        balanceCompletedAt: "2026-03-20",
+      })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    await db.insert(paymentAllocations).values([
+      {
+        academyId: academy.academy.id,
+        allocationType: "deposit",
+        amount: 3000,
+        eventId: event.id,
+        inscriptionId: inscription.id,
+        paymentId: depositPayment.id,
+      },
+      {
+        academyId: academy.academy.id,
+        allocationType: "balance",
+        amount: 7000,
+        eventId: event.id,
+        inscriptionId: inscription.id,
+        paymentId: balancePayment.id,
+      },
+    ]);
+
+    const request = await buildPaymentDetailPostRequest({
+      fields: {
+        confirmDeletion: depositPayment.id,
+        id: depositPayment.id,
+      },
+      intent: deleteAdminPaymentIntent,
+      paymentId: depositPayment.id,
+      requestUrl: paymentDetailUrl(depositPayment.id, event.id),
+    });
+
+    await expect(
+      handleAdminPaymentDetailAction(request, depositPayment.id),
     ).resolves.toMatchObject({
       status: "error",
       intent: deleteAdminPaymentIntent,
       fieldErrors: {
-        paymentId: "Eliminá primero las asignaciones activas de este pago.",
+        paymentId:
+          "No se pudo eliminar el pago: hay coreografías con el saldo pagado en otro pago. Desasigná ese saldo primero.",
       },
     });
 
-    await expect(findPaymentById(payment.id)).resolves.toMatchObject({
-      id: payment.id,
+    // Rollback total: pago, asignación y snapshot intactos.
+    await expect(findPaymentById(depositPayment.id)).resolves.toMatchObject({
+      id: depositPayment.id,
+    });
+    await expect(
+      findAllocationsByPaymentId(depositPayment.id),
+    ).resolves.toHaveLength(1);
+    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
+      depositReferenceDate: "2026-03-20",
+      balanceReferenceDate: "2026-03-20",
     });
   });
 });
@@ -327,9 +442,36 @@ async function findPaymentByAcademyId(academyId: string) {
   return payment;
 }
 
+async function findPaymentByReference(academyId: string, reference: string) {
+  const payment = await db.query.payments.findFirst({
+    where: and(
+      eq(payments.academyId, academyId),
+      eq(payments.reference, reference),
+    ),
+  });
+
+  if (!payment) {
+    throw new Error(`Expected payment fixture with reference ${reference}.`);
+  }
+
+  return payment;
+}
+
 async function findPaymentById(paymentId: string) {
   return await db.query.payments.findFirst({
     where: eq(payments.id, paymentId),
+  });
+}
+
+async function findAllocationsByPaymentId(paymentId: string) {
+  return await db.query.paymentAllocations.findMany({
+    where: eq(paymentAllocations.paymentId, paymentId),
+  });
+}
+
+async function findInscriptionById(inscriptionId: string) {
+  return await db.query.choreographyDancers.findFirst({
+    where: eq(choreographyDancers.id, inscriptionId),
   });
 }
 
