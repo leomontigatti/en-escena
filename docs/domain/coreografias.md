@@ -10,7 +10,7 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - A professor with empty document pair is incomplete but can be used in coreografías.
 - Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia.
 - Professors do not have manual admin verification.
-- Professor records can be edited even when linked to invoiced, paid or presented coreografías; professor links inside non-pending coreografías can be blocked.
+- Professor records can be edited even when linked to paid or presented coreografías; professor links inside non-pending coreografías can be blocked.
 - `Bailarín` birth date is a declared civil date without time or timezone and is compared against event local start date for competitive age.
 - Tipo de documento y número de documento de `Bailarín` se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse.
 - Si uno está completo y el otro vacío, la ficha es inválida y no se guarda.
@@ -30,12 +30,11 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
 - It can be confirmed without category when no category rule applies; then it is operationally incomplete.
 - Academia cannot delete a Coreografía after registration; removal is an administrative action.
-- Administrador can delete a Coreografía only when it has no facturas, no presentación and no puntajes.
-- A canceled factura still blocks Coreografía deletion while the factura record exists; a future corrective factura deletion flow could make the Coreografía deletable after removing the financial record.
-- Administrador can rename a Coreografía at any time, including when it has facturas, presentación or puntajes.
+- Administrador can delete a Coreografía only when it has no presentación and no puntajes.
+- Administrador can rename a Coreografía at any time, including when it has presentación or puntajes.
 - Administrative renaming changes only the Coreografía name; it does not recalculate price, capacity, category, schedule or competitive state.
 - Deleting a coreografía releases cupo de cronograma capacity and leaves no visible domain entity.
-- Once signed, academy cannot edit blocked data or dancers until admin removes the active financial link.
+- After registration, academy cannot edit blocked data or dancers; roster changes are an administrative action (see finanzas.md, "Edición y eliminación de coreografía").
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
 - Academy choreography modification is submitted as one save operation; if a dancer change cannot be confirmed, professor changes in the same submission are not saved.
@@ -65,7 +64,7 @@ Rules for roster links, choreography registration, locks and Bases del evento.
   de instancia; si la coreografía no es eliminable, el diálogo informa el motivo
   de bloqueo en vez de ocultar la acción.
 - El diálogo de eliminación bloqueada lista los bloqueos concretos de la
-  coreografía: facturas, presentación y/o puntajes.
+  coreografía: presentación y/o puntajes.
 - La lista operativa muestra únicamente coreografías del evento activo y no
   actúa como archivo histórico de otros eventos.
 - Si no hay evento activo, la pantalla debe mostrar un estado vacío específico
@@ -103,14 +102,13 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 ## Choreography Locks
 
 - `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category, level and cupo de cronograma.
-- For unpaid choreographies without financial docs or presentation, expected correction path is delete and register again.
+- For unpaid choreographies without presentation, expected correction path is delete and register again.
 - Administrative renaming is not a structural correction and is allowed even when structural data is otherwise blocked.
-- Admin structural correction is exceptional, instance-level, requires reason, and is allowed only without presentation or active financial docs.
+- Admin structural correction is exceptional, instance-level, requires reason, and is allowed only without presentation.
 - Structural correction that changes modalidad, submodalidad or dancers recalculates group type, category, level and schedule.
 - If recalculation needs a level, admin must choose it in same correction.
-- Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
-- If financial docs are canceled/accredited, coreografía can become editable/deletable again.
-- Academy can change choreography dancers only during the inscription period and only while the choreography has no active financial document or presentation.
+- Presentation blocks dancer changes and deletion.
+- Academy can change choreography dancers only during the inscription period and only while the choreography has no presentation.
 - A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category; it becomes editable when new category requires level.
 - A roster change that recalculates to a category requiring level must choose the new level before confirmation.

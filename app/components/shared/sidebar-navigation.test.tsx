@@ -24,8 +24,8 @@ const navigationGroups = [
         icon: Users,
       },
       {
-        label: "Facturas",
-        to: "/portal/facturas",
+        label: "Reportes",
+        to: "/portal/reportes",
         icon: Receipt,
         disabled: true,
       },
@@ -47,9 +47,9 @@ describe("SidebarNavigationGroups", () => {
   test("renders disabled navigation items without links", () => {
     const markup = renderNavigation("/portal");
 
-    expect(markup).toContain("Facturas");
+    expect(markup).toContain("Reportes");
     expect(markup).toContain("disabled");
-    expect(markup).not.toContain('href="/portal/facturas"');
+    expect(markup).not.toContain('href="/portal/reportes"');
   });
 });
 
