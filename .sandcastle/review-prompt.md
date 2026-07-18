@@ -121,10 +121,9 @@ here so this prompt is self-contained inside the Sandcastle sandbox.
 
 8. **Apply project standards**: You are the standards pass for this Sandcastle
    pipeline. Follow the coding standards defined in
-   @.sandcastle/CODING_STANDARDS.md when available. Also use
-   `docs/agents/coding-standards.md`, and use `docs/agents/style-guide.md` for
-   app UI changes. Make standards-driven refinements here rather than assuming
-   the implementer already handled them.
+   @.sandcastle/CODING_STANDARDS.md (canonical), and use
+   `docs/agents/style-guide.md` for app UI changes. Make standards-driven
+   refinements here rather than assuming the implementer already handled them.
 
 9. **Preserve functionality**: Never change what the code does unless required
    to satisfy a missed acceptance criterion or fix a correctness bug introduced
