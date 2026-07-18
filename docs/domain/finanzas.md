@@ -162,9 +162,13 @@ rol**.
 - Una inscripción ya congelada es **inmutable**; un cambio de roster no toca su
   precio congelado ni sus snapshots.
 - `Precio de coreografía` es el importe derivado a partir de los precios de sus
-  inscripciones activas: precio aplicable por inscripción multiplicado por la
-  cantidad de inscripciones activas. Es estimado mientras hay inscripciones sin
-  congelar y final cuando todas están congeladas.
+  inscripciones activas: la **suma de los precios base por inscripción**. Es
+  estimado mientras hay inscripciones sin congelar y final cuando todas están
+  congeladas. La forma "precio aplicable × cantidad de inscripciones" es solo un
+  caso particular válido **mientras todas las inscripciones comparten el mismo
+  precio tentativo uniforme**; apenas una congela un precio distinto (por un
+  cambio de fila de precio o por el flujo extraordinario), deja de valer y hay
+  que sumar precio por precio.
 - Un precio tiene dependencias operativas históricas cuando lo referencia el
   snapshot de una inscripción `señada` o `pagada`. Los precios tentativos no
   bloquean cambiar precios.
@@ -239,6 +243,46 @@ rol**.
   asignación manual extraordinaria apunta a una sola inscripción y una sola
   etapa completa.
 
+### Cobro extraordinario por inscripción
+
+- El cobro extraordinario es **por inscripción individual**, nunca por un
+  subconjunto de inscripciones: la granularidad es una sola inscripción por
+  acción, aunque varias huérfanas compartan la misma resolución. No existe un
+  "cobro por subconjunto homogéneo".
+- Cubre la **escalera completa** de una inscripción: `impaga` → `señada`
+  (cobrar su seña) y `señada` → `pagada` (cobrar su saldo). El caso mixto
+  `pagada` + `impaga` requiere recorrer los dos escalones sobre la huérfana
+  (primero señarla, después pagarle el saldo) para llevarla al nivel de sus
+  hermanas.
+- El cobro de seña por inscripción usa el **flujo extraordinario** de selección
+  explícita de fila de precio con piso descrito en "Selección de la fila de
+  precio al congelar". Al señar la primera huérfana de una coreografía mixta, su
+  precio congelado pasa a integrar el conjunto que define el piso para las
+  siguientes huérfanas.
+- El cobro individual solo se ofrece en coreografías **mixtas**. En una
+  coreografía 100% `impaga`, el primer congelamiento (que fija el piso) es el del
+  flujo normal por coreografía entera; la fila individual no ofrece cobro.
+
+### Deshacer una asignación por inscripción (`delete-allocation`)
+
+- Desde la vista financiera de la coreografía se puede **deshacer** una
+  asignación de una inscripción como corrección financiera: bajar una etapa
+  (`saldo` → devuelve la inscripción a `señada`; `seña` → devuelve a `impaga`)
+  **manteniendo la inscripción** en el roster.
+- Es una acción distinta de **quitar una inscripción del roster** (ver
+  "Inscripciones"): quitar del roster elimina físicamente la inscripción; deshacer
+  una asignación no la elimina, solo revierte un cobro por etapa. El monto
+  liberado vuelve al `Saldo disponible` de la academia en el evento activo.
+- Es una acción destructiva sobre dinero y pide confirmación. Se ejecuta sin
+  motivo y sin dejar entrada de auditoría (ver "Sin auditoría en finanzas"). Si se
+  deshace la seña de una inscripción que también tiene saldo pago, el orden es
+  bajar `saldo` antes que `seña`.
+- **Regla "fila uniforme solo deshace":** en una coreografía **uniforme** (todas
+  sus inscripciones activas en el mismo estado), la operación por fila de una
+  inscripción individual **solo permite deshacer**; el "pagar" sigue viviendo en
+  el flujo por coreografía entera, para no degradar el caso común a N acciones
+  individuales.
+
 ## Seña y saldo
 
 - La seña se calcula por inscripción: un porcentaje de su precio congelado,
@@ -305,6 +349,13 @@ bailarín`, que se calcula automáticamente y vive por inscripción.
   congela con la mejor estimación al momento y no se re-liquida hacia atrás. La
   "foto ideal" del descuento del bailarín solo se garantiza si se paga el saldo
   de la coreografía completa en una sola acción (`Pagar saldo`).
+- El cobro de saldo **por inscripción** (extraordinario) congela el `Descuento
+por bailarín` contra el roster `señada`/`pagada` **vigente de ese bailarín al
+  momento de pagar ese saldo**. Esto es **asimétrico** respecto de las
+  inscripciones hermanas que ya pagaron su saldo antes: cada una congeló con el
+  conteo vigente en su propio momento, así que dos inscripciones del mismo
+  bailarín pueden terminar con descuentos congelados distintos. Es consecuencia
+  intencional del congelamiento secuencial e irreversible, no un error.
 - `Descuento administrativo` queda fuera del alcance y pendiente de definición.
 
 ## Importes agregados
