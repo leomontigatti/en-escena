@@ -16,6 +16,8 @@ export type ChoreographyInscriptionRow = {
   discountAmount: number;
   finalPriceAmount: number | null;
   firstName: string;
+  /** `null` para un bailarín del roster que todavía no tiene inscripción. */
+  inscriptionId: string | null;
   lastName: string;
   state: AcademyEventFinanceInscriptions[number]["state"];
 };
@@ -62,6 +64,7 @@ function toInscriptionRow(
   if (!inscription) {
     return {
       ...participation,
+      inscriptionId: null,
       state: "impaga",
       basePriceAmount: null,
       depositAmount: null,
@@ -73,6 +76,7 @@ function toInscriptionRow(
 
   return {
     ...participation,
+    inscriptionId: inscription.id,
     state: inscription.state,
     basePriceAmount: inscription.basePriceAmount,
     depositAmount: inscription.depositAmount,

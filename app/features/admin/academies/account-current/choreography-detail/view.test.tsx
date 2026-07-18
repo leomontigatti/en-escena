@@ -16,6 +16,9 @@ type ChoreographyFinanceDetailLoaderData = Extract<
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
+type ChoreographyRow = NonNullable<
+  ChoreographyFinanceDetailLoaderData["choreography"]
+>;
 
 describe("AdministracionCoreografiaFinancieraDetalleView", () => {
   test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
@@ -34,6 +37,116 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Saldo");
     expect(markup).toContain("Ana López");
     expect(markup).toContain("Volver");
+  });
+
+  test("renders a clickable name for an orphan impaga in a mixed choreography", () => {
+    const markup = renderDetail({
+      inscriptionDeposit: {
+        floor: 10000,
+        priceRows: [
+          {
+            id: "price_1",
+            name: "Solo tardío",
+            amount: 12000,
+            depositAmount: 3600,
+          },
+        ],
+      },
+      inscriptions: [
+        inscriptionFixture({
+          state: "impaga",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("does not link an impaga inscription in a fully impaga choreography", () => {
+    const markup = renderDetail({
+      inscriptionDeposit: null,
+      inscriptions: [
+        inscriptionFixture({
+          state: "impaga",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).not.toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+    expect(markup).toContain("Bruno Benítez");
+  });
+
+  test("renders a clickable name for an orphan señada in a mixed choreography", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: true,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("does not link a señada inscription in a uniform choreography", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+        }),
+      ],
+    });
+
+    expect(markup).not.toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+    expect(markup).toContain("Bruno Benítez");
+  });
+
+  test("links a señada inscription in a uniform choreography when it can be undone", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "señada",
+          inscriptionId: "inscription_orphan",
+          firstName: "Bruno",
+          lastName: "Benítez",
+          undoableAllocation: { id: "allocation_1", stage: "deposit" },
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+  });
+
+  test("links a pagada inscription that has an allocation to undo", () => {
+    const markup = renderDetail({
+      canPayInscriptionBalance: false,
+      inscriptions: [
+        inscriptionFixture({
+          state: "pagada",
+          inscriptionId: "inscription_paid",
+          firstName: "Bruno",
+          lastName: "Benítez",
+          undoableAllocation: { id: "allocation_2", stage: "balance" },
+        }),
+      ],
+    });
+
+    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
   });
 
   test("shows the saldo of an impaga inscription instead of zero", () => {
@@ -116,6 +229,23 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
 
     expect(markup).toContain("No existen pagos con saldo suficiente");
   });
+
+  test("blames the missing price instead of the payments when the deposit has no configured price", () => {
+    const markup = renderDetail({
+      stage: "deposit",
+      choreography: choreographyFixture({
+        depositAmount: {
+          amount: 0,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
+      }),
+      payments: [paymentFixture({ stageTotalAmount: null })],
+    });
+
+    expect(markup).toContain("no tiene un precio configurado");
+    expect(markup).not.toContain("No existen pagos con saldo suficiente");
+  });
 });
 
 /**
@@ -178,21 +308,30 @@ function loaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
-    choreography: {
-      balanceAmount: { amount: 7000, status: "complete" },
-      depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: "2026-03-21",
-      financialState: "señada",
-      groupType: "duo",
-      id: "choreography_1",
-      name: "Aire",
-      needsAttention: false,
-      paidAmount: 3000,
-    },
+    choreography: choreographyFixture(),
+    canPayInscriptionBalance: false,
+    inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ state: "señada" })],
     payments: [],
     stage: null,
     selectedEventId: "event_1",
+    ...overrides,
+  };
+}
+
+function choreographyFixture(
+  overrides: Partial<ChoreographyRow> = {},
+): ChoreographyRow {
+  return {
+    balanceAmount: { amount: 7000, status: "complete" },
+    depositAmount: { amount: 3000, status: "complete" },
+    depositCompletedOn: "2026-03-21",
+    financialState: "señada",
+    groupType: "duo",
+    id: "choreography_1",
+    name: "Aire",
+    needsAttention: false,
+    paidAmount: 3000,
     ...overrides,
   };
 }
@@ -220,8 +359,10 @@ function inscriptionFixture(
     discountAmount: 0,
     finalPriceAmount: 10000,
     firstName: "Ana",
+    inscriptionId: "inscription_1",
     lastName: "López",
     state: "señada",
+    undoableAllocation: null,
     ...overrides,
   };
 }

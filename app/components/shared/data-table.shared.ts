@@ -17,6 +17,7 @@ export type DataTableColumn<TData> = {
   hidden?: boolean;
   className?: string;
   headerClassName?: string;
+  cellClassName?: (row: TData) => string | undefined;
   filterValue?: (row: TData) => string;
   filterValues?: (row: TData) => string[];
   sortValue?: (row: TData) => DataTableSortValue;

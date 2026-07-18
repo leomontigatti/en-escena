@@ -22,6 +22,10 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import {
+  ClientDataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,27 +49,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   formatChoreographyFinancialState,
   getChoreographyFinancialStateBadgeVariant,
 } from "@/lib/finances/choreography-financial-state";
-import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
+import {
+  type InscriptionAmountColumn,
+  isTentativeInscriptionAmount,
+} from "@/lib/finances/inscription-amounts";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
-import { cn } from "@/lib/shared/utils";
 
 import {
   formatAmount,
   formatDate,
   formatOperationalAmount,
 } from "../formatters";
+import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
+import {
+  formatDancerName,
+  InscriptionCobroDialog,
+} from "./inscription-cobro-dialog";
+import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
@@ -157,7 +161,10 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 
           <InscriptionsTable
             backHref={`/administracion/finanzas/${loaderData.academy.id}`}
+            canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
+            inscriptionDeposit={loaderData.inscriptionDeposit}
+            payments={loaderData.payments}
           />
         </div>
       ) : (
@@ -176,9 +183,16 @@ function ChoreographyAlerts({
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
   const needsAttention = loaderData.choreography?.needsAttention ?? false;
-  const noEligiblePayments = stage !== null && eligible.length === 0;
+  const depositAmount = loaderData.choreography?.depositAmount;
+  // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
+  // precio configurado, no que los pagos no alcancen. Por eso enunciamos esa
+  // causa y suprimimos la alerta que culpa a los pagos.
+  const missingDepositPrice =
+    stage === "deposit" && depositAmount?.status === "incomplete";
+  const noEligiblePayments =
+    stage !== null && eligible.length === 0 && !missingDepositPrice;
 
-  if (!needsAttention && !noEligiblePayments) {
+  if (!needsAttention && !noEligiblePayments && !missingDepositPrice) {
     return null;
   }
 
@@ -189,6 +203,14 @@ function ChoreographyAlerts({
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
             Existen inscripciones que necesitan atención específica.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {missingDepositPrice ? (
+        <Alert variant="warning">
+          <AlertTriangle aria-hidden="true" />
+          <AlertDescription>
+            Esta coreografía no tiene un precio configurado para cobrar la seña.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -371,84 +393,33 @@ function StageTotalSummary({
 
 function InscriptionsTable({
   backHref,
+  canPayInscriptionBalance,
   inscriptions,
+  inscriptionDeposit,
+  payments,
 }: {
   backHref: string;
+  canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
 }) {
+  const columns = buildInscriptionColumns({
+    canPayInscriptionBalance,
+    inscriptionDeposit,
+    payments,
+  });
+
   return (
     <Card aria-label="Inscripciones">
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Bailarín</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Precio base</TableHead>
-              <TableHead className="text-right">Seña</TableHead>
-              <TableHead className="text-right">Saldo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {inscriptions.length > 0 ? (
-              inscriptions.map((inscription) => (
-                <TableRow key={inscription.dancerId}>
-                  <TableCell className="font-medium">
-                    {formatDancerName(inscription)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={getChoreographyFinancialStateBadgeVariant(
-                        inscription.state,
-                      )}
-                    >
-                      {formatChoreographyFinancialState(inscription.state)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "basePrice",
-                      ),
-                    )}
-                  >
-                    {formatInscriptionAmount(inscription.basePriceAmount)}
-                  </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "deposit",
-                      ),
-                    )}
-                  >
-                    {formatInscriptionAmount(inscription.depositAmount)}
-                  </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "balance",
-                      ),
-                    )}
-                  >
-                    {formatInscriptionAmount(inscription.balanceAmount)}
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No hay inscripciones para mostrar.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <ClientDataTable
+          rows={inscriptions}
+          columns={columns}
+          getRowKey={(inscription) => inscription.dancerId}
+          searchPlaceholder="Buscar inscripción por bailarín"
+          emptyMessage="No hay inscripciones para mostrar."
+        />
       </CardContent>
       <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
         <Button asChild variant="outline">
@@ -475,12 +446,163 @@ function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
   );
 }
 
-function formatDancerName(input: { firstName: string; lastName: string }) {
-  return `${input.firstName} ${input.lastName}`;
+function buildInscriptionColumns(cobro: {
+  canPayInscriptionBalance: boolean;
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
+}): DataTableColumn<InscriptionRow>[] {
+  return [
+    {
+      id: "dancer",
+      header: "Bailarín",
+      className: "font-medium",
+      cell: (inscription) => (
+        <DancerNameCell
+          canPayInscriptionBalance={cobro.canPayInscriptionBalance}
+          inscription={inscription}
+          inscriptionDeposit={cobro.inscriptionDeposit}
+          payments={cobro.payments}
+        />
+      ),
+      filterValue: (inscription) => formatDancerName(inscription),
+    },
+    ...inscriptionAmountColumns,
+  ];
 }
 
-function amountCellClassName(isTentative: boolean) {
-  return cn("text-right tabular-nums", isTentative && "text-muted-foreground");
+/**
+ * Nombre del bailarín. Lo muestra como botón que abre el diálogo por fila cuando
+ * hay algo para hacer con esa inscripción: cobrar seña de una `impaga` huérfana o
+ * saldo de una `señada` huérfana (coreografía mixta), o deshacer una asignación
+ * ya existente. Una `señada` mixta ofrece cobro y deshacer a la vez; una fila sin
+ * cobro ni asignación (por ejemplo una `impaga` sin inscripción) es solo texto.
+ */
+function DancerNameCell({
+  canPayInscriptionBalance,
+  inscription,
+  inscriptionDeposit,
+  payments,
+}: {
+  canPayInscriptionBalance: boolean;
+  inscription: InscriptionRow;
+  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  payments: PaymentRow[];
+}) {
+  const [open, setOpen] = useState(false);
+  const hasInscriptionId = inscription.inscriptionId !== null;
+  const undoableAllocation = inscription.undoableAllocation;
+  const canChargeDeposit =
+    inscriptionDeposit !== null &&
+    inscriptionDeposit.priceRows.length > 0 &&
+    inscription.state === "impaga" &&
+    hasInscriptionId;
+  const canChargeBalance =
+    canPayInscriptionBalance &&
+    inscription.state === "señada" &&
+    inscription.balanceAmount !== null &&
+    hasInscriptionId;
+
+  if (!canChargeDeposit && !canChargeBalance && undoableAllocation === null) {
+    return <>{formatDancerName(inscription)}</>;
+  }
+
+  function renderRowDialog() {
+    if (canChargeDeposit && inscriptionDeposit !== null) {
+      return (
+        <InscriptionCobroDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          priceRows={inscriptionDeposit.priceRows}
+          payments={payments}
+        />
+      );
+    }
+    if (canChargeBalance) {
+      return (
+        <InscriptionBalanceDialog
+          inscription={inscription}
+          open={open}
+          onOpenChange={setOpen}
+          payments={payments}
+        />
+      );
+    }
+    if (undoableAllocation !== null) {
+      return (
+        <InscriptionUndoDialog
+          inscription={inscription}
+          allocation={undoableAllocation}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      );
+    }
+    return null;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="text-left font-medium text-primary underline-offset-4 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        {formatDancerName(inscription)}
+      </button>
+      {renderRowDialog()}
+    </>
+  );
+}
+
+const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
+  {
+    id: "state",
+    header: "Estado",
+    cell: (inscription) => (
+      <Badge
+        variant={getChoreographyFinancialStateBadgeVariant(inscription.state)}
+      >
+        {formatChoreographyFinancialState(inscription.state)}
+      </Badge>
+    ),
+  },
+  {
+    id: "basePrice",
+    header: "Precio base",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cellClassName: (inscription) =>
+      tentativeAmountClassName(inscription.state, "basePrice"),
+    cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
+  },
+  {
+    id: "deposit",
+    header: "Seña",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cellClassName: (inscription) =>
+      tentativeAmountClassName(inscription.state, "deposit"),
+    cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
+  },
+  {
+    id: "balance",
+    header: "Saldo",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cellClassName: (inscription) =>
+      tentativeAmountClassName(inscription.state, "balance"),
+    cell: (inscription) => formatInscriptionAmount(inscription.balanceAmount),
+  },
+];
+
+function tentativeAmountClassName(
+  state: InscriptionRow["state"],
+  column: InscriptionAmountColumn,
+) {
+  return isTentativeInscriptionAmount(state, column)
+    ? "text-muted-foreground"
+    : undefined;
 }
 
 function formatInscriptionAmount(amount: number | null) {

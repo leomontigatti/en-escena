@@ -141,8 +141,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         discountAmount: 0,
         finalPriceAmount: 10000,
         firstName: "Ana",
+        inscriptionId: expect.any(String),
         lastName: "López",
         state: "impaga",
+        undoableAllocation: null,
       },
     ]);
   });
@@ -179,14 +181,17 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    await db.insert(paymentAllocations).values({
-      academyId: academy.academy.id,
-      allocationType: "deposit",
-      amount: 3000,
-      eventId: event.id,
-      inscriptionId: inscription.id,
-      paymentId: payment.id,
-    });
+    const [depositAllocation] = await db
+      .insert(paymentAllocations)
+      .values({
+        academyId: academy.academy.id,
+        allocationType: "deposit",
+        amount: 3000,
+        eventId: event.id,
+        inscriptionId: inscription.id,
+        paymentId: payment.id,
+      })
+      .returning();
 
     const loaderData = await loadDetailAsAdmin({
       academyId: academy.academy.id,
@@ -212,8 +217,11 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         discountAmount: 0,
         finalPriceAmount: 10000,
         firstName: "Luna",
+        inscriptionId: expect.any(String),
         lastName: "García",
         state: "señada",
+        // Deshacer una señada borra su asignación de seña y la vuelve a impaga.
+        undoableAllocation: { id: depositAllocation.id, stage: "deposit" },
       },
     ]);
   });
@@ -256,24 +264,30 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    await db.insert(paymentAllocations).values([
-      {
-        academyId: academy.academy.id,
-        allocationType: "deposit",
-        amount: 3000,
-        eventId: event.id,
-        inscriptionId: inscription.id,
-        paymentId: payment.id,
-      },
-      {
-        academyId: academy.academy.id,
-        allocationType: "balance",
-        amount: 7000,
-        eventId: event.id,
-        inscriptionId: inscription.id,
-        paymentId: payment.id,
-      },
-    ]);
+    const insertedAllocations = await db
+      .insert(paymentAllocations)
+      .values([
+        {
+          academyId: academy.academy.id,
+          allocationType: "deposit",
+          amount: 3000,
+          eventId: event.id,
+          inscriptionId: inscription.id,
+          paymentId: payment.id,
+        },
+        {
+          academyId: academy.academy.id,
+          allocationType: "balance",
+          amount: 7000,
+          eventId: event.id,
+          inscriptionId: inscription.id,
+          paymentId: payment.id,
+        },
+      ])
+      .returning();
+    const balanceAllocation = insertedAllocations.find(
+      (allocation) => allocation.allocationType === "balance",
+    );
 
     const loaderData = await loadDetailAsAdmin({
       academyId: academy.academy.id,
@@ -287,6 +301,11 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       // El saldo congelado se sigue mostrando aunque ya esté pagado.
       balanceAmount: { amount: 7000, status: "complete" },
       paidAmount: 10000,
+    });
+    // Deshacer una pagada borra su asignación de saldo y la vuelve a señada.
+    expect(loaderData.inscriptions[0]?.undoableAllocation).toEqual({
+      id: balanceAllocation?.id,
+      stage: "balance",
     });
   });
 
@@ -422,6 +441,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
     });
 
+    // La etapa cobrable es la seña: junto con el importe incompleto es la
+    // condición "sin precio" que la vista usa para culpar a la falta de precio
+    // en vez de a los pagos.
+    expect(loaderData.stage).toBe("deposit");
     expect(loaderData.choreography).toMatchObject({
       depositAmount: {
         amount: 0,
@@ -443,8 +466,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         discountAmount: 0,
         finalPriceAmount: null,
         firstName: "Mora",
+        inscriptionId: expect.any(String),
         lastName: "Pérez",
         state: "impaga",
+        undoableAllocation: null,
       },
     ]);
   });

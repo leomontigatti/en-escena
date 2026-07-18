@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -16,9 +16,15 @@ import {
   deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
+  payInscriptionBalance,
+  payInscriptionDeposit,
   quoteChoreographyDepositTotals,
+  readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
-import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
+import {
+  readChoreographyInscriptionRows,
+  type ChoreographyInscriptionRow,
+} from "@/lib/finances/choreography-inscriptions.server";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -27,10 +33,15 @@ import {
   deleteAllocationIntent,
   payBalanceIntent,
   payDepositIntent,
+  payInscriptionBalanceIntent,
+  payInscriptionDepositIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
 type CobroStage = "deposit" | "balance";
+type InscriptionDepositOptions = Awaited<
+  ReturnType<typeof readInscriptionDepositOptions>
+>;
 type AvailablePayment = Awaited<
   ReturnType<typeof listAvailablePayments>
 >[number];
@@ -53,6 +64,8 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     return {
       academy,
       choreography: null,
+      canPayInscriptionBalance: false,
+      inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
       payments: [] as StagePayment[],
       stage: null,
@@ -76,12 +89,21 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
   const choreographyInscriptions = financeDetail.inscriptions.filter(
     (inscription) => inscription.choreographyId === choreographyId,
   );
-  const inscriptions = await readChoreographyInscriptionRows({
-    academyEventInscriptions: financeDetail.inscriptions,
-    choreographyId,
-  });
+  const inscriptions = await attachUndoableAllocations(
+    await readChoreographyInscriptionRows({
+      academyEventInscriptions: financeDetail.inscriptions,
+      choreographyId,
+    }),
+  );
 
   const stage = resolveCobroStage(
+    choreographyInscriptions.map((inscription) => inscription.state),
+  );
+  const inscriptionDeposit = await readInscriptionDepositOptions({
+    choreographyId,
+    eventId,
+  });
+  const canPayInscriptionBalance = resolveInscriptionBalanceEligibility(
     choreographyInscriptions.map((inscription) => inscription.state),
   );
   const payments = await attachStageTotals({
@@ -105,11 +127,27 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
       needsAttention: choreographyFinanceRow.needsAttention,
       paidAmount: choreographyFinanceRow.paidAmount,
     },
+    canPayInscriptionBalance,
+    inscriptionDeposit,
     inscriptions,
     payments,
     stage,
     selectedEventId: eventId,
   };
+}
+
+/**
+ * Si una inscripción `señada` huérfana puede cobrarse el saldo por fila. Solo en
+ * coreografías mixtas: hay al menos una `señada` y alguna hermana en otro estado,
+ * así que el flujo normal por coreografía entera (todas `señadas`) no aplica.
+ */
+function resolveInscriptionBalanceEligibility(
+  states: InscriptionFinancialState[],
+): boolean {
+  return (
+    states.some((state) => state === "señada") &&
+    states.some((state) => state !== "señada")
+  );
 }
 
 /**
@@ -180,6 +218,78 @@ async function attachStageTotals(input: {
   }));
 }
 
+type UndoableAllocationStage = "deposit" | "balance";
+type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
+  undoableAllocation: { id: string; stage: UndoableAllocationStage } | null;
+};
+
+/**
+ * Anota a cada inscripción con la asignación que su fila puede deshacer. Deshacer
+ * baja una etapa: la `balance` (si existe) vuelve la inscripción a `señada`, y la
+ * `deposit` la vuelve a `impaga`. Por eso se ofrece la etapa más alta —`balance`
+ * antes que `deposit`—, que es la que el server permite borrar primero.
+ */
+async function attachUndoableAllocations(
+  inscriptions: ChoreographyInscriptionRow[],
+): Promise<InscriptionRowWithUndo[]> {
+  const inscriptionIds = inscriptions
+    .map((row) => row.inscriptionId)
+    .filter((id): id is string => id !== null);
+
+  if (inscriptionIds.length === 0) {
+    return inscriptions.map((row) => ({ ...row, undoableAllocation: null }));
+  }
+
+  const allocationRows = await db
+    .select({
+      id: paymentAllocations.id,
+      inscriptionId: paymentAllocations.inscriptionId,
+      allocationType: paymentAllocations.allocationType,
+    })
+    .from(paymentAllocations)
+    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+
+  return inscriptions.map((row) => ({
+    ...row,
+    undoableAllocation: resolveUndoableAllocation(
+      row.inscriptionId,
+      allocationRows,
+    ),
+  }));
+}
+
+function resolveUndoableAllocation(
+  inscriptionId: string | null,
+  allocationRows: {
+    id: string;
+    inscriptionId: string;
+    allocationType: UndoableAllocationStage;
+  }[],
+): { id: string; stage: UndoableAllocationStage } | null {
+  if (inscriptionId === null) {
+    return null;
+  }
+
+  const own = allocationRows.filter(
+    (allocation) => allocation.inscriptionId === inscriptionId,
+  );
+  const balance = own.find(
+    (allocation) => allocation.allocationType === "balance",
+  );
+  if (balance) {
+    return { id: balance.id, stage: "balance" };
+  }
+
+  const deposit = own.find(
+    (allocation) => allocation.allocationType === "deposit",
+  );
+  if (deposit) {
+    return { id: deposit.id, stage: "deposit" };
+  }
+
+  return null;
+}
+
 export async function handleAdministrativeChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
@@ -221,6 +331,61 @@ export async function handleAdministrativeChoreographyFinanceAction(input: {
             eventId,
             paymentId,
           });
+
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  if (intent === payInscriptionDepositIntent) {
+    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
+    const priceId = String(formData.get("priceId") ?? "").trim();
+    const paymentId = String(formData.get("paymentId") ?? "").trim();
+    if (!inscriptionId) {
+      return { status: "error", message: "Elegí una inscripción para cobrar." };
+    }
+    if (!priceId) {
+      return { status: "error", message: "Elegí una fila de precio." };
+    }
+    if (!paymentId) {
+      return { status: "error", message: "Elegí un pago para asignar." };
+    }
+
+    const result = await payInscriptionDeposit({
+      academyId,
+      choreographyId,
+      eventId,
+      inscriptionId,
+      paymentId,
+      priceId,
+    });
+
+    if (!result.ok) {
+      return { status: "error", message: result.message };
+    }
+
+    throw redirectToDetail(academyId, choreographyId, eventId);
+  }
+
+  if (intent === payInscriptionBalanceIntent) {
+    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
+    const paymentId = String(formData.get("paymentId") ?? "").trim();
+    if (!inscriptionId) {
+      return { status: "error", message: "Elegí una inscripción para cobrar." };
+    }
+    if (!paymentId) {
+      return { status: "error", message: "Elegí un pago para asignar." };
+    }
+
+    const result = await payInscriptionBalance({
+      academyId,
+      choreographyId,
+      eventId,
+      inscriptionId,
+      paymentId,
+    });
 
     if (!result.ok) {
       return { status: "error", message: result.message };

@@ -33,7 +33,6 @@ export async function resolveChoreographyDancers(input: {
   eventId: string;
   choreographyId: string;
   dancerIds: string[];
-  isRegistrationOpen: boolean;
 }): Promise<ResolveChoreographyDancersResult> {
   const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
 
@@ -63,7 +62,6 @@ export async function resolveChoreographyDancerUpdateContext(input: {
   eventId: string;
   choreographyId: string;
   dancerIds: string[];
-  isRegistrationOpen: boolean;
 }): Promise<ResolvedChoreographyDancerUpdateContext> {
   const choreography = assertPortalChoreographyFound(
     await db.query.choreographies.findFirst({
@@ -83,7 +81,6 @@ export async function resolveChoreographyDancerUpdateContext(input: {
 
   const eligibility = getDancerEditingEligibility({
     hasPresentation: choreography.hasPresentation,
-    isRegistrationOpen: input.isRegistrationOpen,
   });
 
   if (!eligibility.canEdit) {
