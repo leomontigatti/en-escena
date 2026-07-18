@@ -13,7 +13,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("shows aggregates and hides invoices, imputations, and corrections", async () => {
+  test("shows aggregates only, without per-document breakdown or corrections", async () => {
     const router = createMemoryRouter(
       [
         {

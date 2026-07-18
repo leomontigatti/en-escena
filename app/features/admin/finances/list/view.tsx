@@ -85,7 +85,7 @@ export function AdministracionFinanzasRouteView({
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:
-          "Activá un evento para revisar cuentas corrientes, pagos y facturas.",
+          "Activá un evento para revisar cuentas corrientes y pagos.",
       }}
     >
       {loaderData.rows.length > 0 ? (

@@ -25,9 +25,9 @@ import type {
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
 
-const paidInvoicePriceUpdateError =
+const frozenPriceUpdateError =
   "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
-const paidInvoicePriceDeleteError =
+const frozenPriceDeleteError =
   "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
 
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
@@ -118,7 +118,7 @@ export async function updatePrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error: paidInvoicePriceUpdateError,
+      error: frozenPriceUpdateError,
     };
   }
 
@@ -150,7 +150,7 @@ export async function deletePrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error: paidInvoicePriceDeleteError,
+      error: frozenPriceDeleteError,
     };
   }
 

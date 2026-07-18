@@ -341,7 +341,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     expect(markup).toContain("$ 3.000");
   });
 
-  test("registers event-scoped payment numbers, persists payments, and updates totals without invoices", async () => {
+  test("registers event-scoped payment numbers, persists payments, and updates totals", async () => {
     const event = await createSavedEvent();
     const otherEvent = await createInactiveEvent("Regional 2025");
     const academy = await createAcademyUser({

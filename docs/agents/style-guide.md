@@ -410,7 +410,7 @@ Reglas:
 - Usar formas como `Ingresá`, `Revisá`, `Completá`.
 - Evitar tono de marketing en flujos operativos.
 - Nombrar botones con verbo y objeto cuando ayude: `Guardar cambios`,
-  `Crear factura`, `Publicar resultados`.
+  `Registrar pago`, `Publicar resultados`.
 - En estados vacíos, explicar causa y próxima acción disponible.
 - En errores, indicar qué corregir. Usar mensajes genéricos solo como fallback.
 - En administración, usar términos canónicos del glosario como `Coreografía`,

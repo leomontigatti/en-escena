@@ -229,10 +229,9 @@ export async function createChoreographyRecord(
   return choreography;
 }
 
-// Congela el snapshot de seña de una inscripción (choreography_dancer),
-// reemplazando el viejo registro de factura de seña. Una inscripción con
-// `selectedPriceId` establecido es la que hace que un precio tenga
-// dependencias operativas.
+// Congela el snapshot de seña de una inscripción (choreography_dancer). Una
+// inscripción con `selectedPriceId` establecido es la que hace que un precio
+// tenga dependencias operativas.
 export async function freezeInscriptionDepositForTest(input: {
   academyId: string;
   choreographyId: string;

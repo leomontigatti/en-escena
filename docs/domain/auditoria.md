@@ -39,5 +39,4 @@ fields.
 - Audit payloads must not store raw passwords, password hashes, credential
   secrets or private file contents.
 - Audit timestamps are server-side timestamps. User-supplied dates, such as
-  invoice issue dates or payment dates, are business dates and do not replace
-  audit timestamps.
+  payment dates, are business dates and do not replace audit timestamps.
