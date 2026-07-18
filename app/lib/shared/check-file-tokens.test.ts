@@ -67,7 +67,7 @@ describe("file-token check", () => {
       readFile("package.json", "utf8"),
       readFile(".husky/pre-commit", "utf8"),
       readFile("docs/agents/workflows.md", "utf8"),
-      readFile("docs/agents/coding-standards.md", "utf8"),
+      readFile(".sandcastle/CODING_STANDARDS.md", "utf8"),
       readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
 

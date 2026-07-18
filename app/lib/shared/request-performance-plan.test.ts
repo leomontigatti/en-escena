@@ -72,7 +72,7 @@ const permanentRuleDocuments = [
     ],
   },
   {
-    path: "docs/agents/coding-standards.md",
+    path: ".sandcastle/CODING_STANDARDS.md",
     requiredText: [
       "## File Size And Boundaries",
       "maintainability rule that protects module boundaries",

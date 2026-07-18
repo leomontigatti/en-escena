@@ -6,7 +6,7 @@ Permanent implementation rules now live in:
 
 - `docs/agents/workflows.md` for measurement workflow and validation entrypoints
 - `docs/agents/style-guide.md` for pending/loading/View Transition guidance
-- `docs/agents/coding-standards.md` for maintainable file-boundary guidance
+- `.sandcastle/CODING_STANDARDS.md` for maintainable file-boundary guidance
 
 ## Current Validation Workflow
 
