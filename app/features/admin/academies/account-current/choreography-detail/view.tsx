@@ -521,7 +521,7 @@ function InscriptionCobroDialog({
   const isSaving = fetcher.state !== "idle";
   const selectedPrice =
     priceRows.find((price) => price.id === selectedPriceId) ?? null;
-  const eligiblePayments = payments.filter(
+  const payableForSelectedPrice = payments.filter(
     (payment) =>
       selectedPrice !== null &&
       payment.availableAmount >= selectedPrice.depositAmount,
@@ -596,7 +596,7 @@ function InscriptionCobroDialog({
                 />
               </SelectTrigger>
               <SelectContent>
-                {eligiblePayments.map((payment) => (
+                {payableForSelectedPrice.map((payment) => (
                   <SelectItem key={payment.id} value={payment.id}>
                     {formatPaymentNumber(payment.paymentNumber)} ·{" "}
                     {formatDate(payment.paymentDate)} · disponible{" "}
@@ -605,7 +605,7 @@ function InscriptionCobroDialog({
                 ))}
               </SelectContent>
             </Select>
-            {selectedPrice !== null && eligiblePayments.length === 0 ? (
+            {selectedPrice !== null && payableForSelectedPrice.length === 0 ? (
               <span className="text-xs text-muted-foreground">
                 No hay pagos con disponible suficiente para esta fila.
               </span>
