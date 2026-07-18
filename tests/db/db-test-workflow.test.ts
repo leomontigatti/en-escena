@@ -28,16 +28,16 @@ const deferredProjectSplitDocumentation = [
 ];
 
 const dbWorkflowScopeGuardrails = [
-  "Use `pnpm test:db:file <path-to-db-test>` while iterating",
-  "Run the full `pnpm test:db` command before finishing",
+  "Use `pnpm test:db <path-to-db-test>` while iterating",
+  "Run `pnpm test` before finishing",
   "Do not run `pnpm exec tsc` directly",
 ];
 
 const localAuthDatabaseModes = [
-  "Fast focused DB validation (`pnpm test:db:file <archivo>`)",
+  "Default DB validation (`pnpm test:db`, part of `pnpm test`)",
   "does not",
   "require local Postgres once the repo dependencies are installed.",
-  "Final DB validation (`pnpm test:db`, `pnpm test:db:final` or",
+  "High-fidelity DB validation (`pnpm test:db:postgres`)",
   "requires local Postgres through",
   "`TEST_DATABASE_URL`.",
 ];
@@ -50,24 +50,29 @@ const requiredIsolatedTestExamples = [
 ];
 
 describe("DB test workflow", () => {
-  test("uses Postgres for the default DB suite and keeps PGlite focused", async () => {
+  test("uses PGlite for the default DB suite and reserves Postgres for the CI gate", async () => {
     const scripts = await readPackageScripts();
-    const defaultDatabaseSuite = scripts["test:db"];
-    const focusedDatabaseSuite = scripts["test:db:file"];
-    const finalDatabaseSuite = scripts["test:db:final"];
-    const postgresDatabaseSuite = scripts["test:db:postgres"];
-    const focusedFinalDatabaseSuite = scripts["test:db:file:final"];
-    const focusedPostgresDatabaseSuite = scripts["test:db:file:postgres"];
 
-    expect(defaultDatabaseSuite).toBe("pnpm test:db:final");
-    expect(focusedDatabaseSuite).toContain("vitest.db.fast.config.ts");
-    expect(focusedDatabaseSuite).toContain("--run");
-    expect(finalDatabaseSuite).toBe("pnpm test:db:postgres");
-    expect(focusedFinalDatabaseSuite).toBe("pnpm test:db:file:postgres");
-    expect(postgresDatabaseSuite).toContain("vitest.db.config.ts");
-    expect(postgresDatabaseSuite).toContain("--run");
-    expect(focusedPostgresDatabaseSuite).toContain("vitest.db.config.ts");
-    expect(focusedPostgresDatabaseSuite).toContain("--run");
+    // `pnpm test` is the single pre-commit confidence command: unit + DB on
+    // PGlite, in-process, no local Postgres.
+    expect(scripts["test"]).toBe("pnpm test:unit && pnpm test:db");
+    expect(scripts["test:unit"]).toBe("vitest --run");
+
+    // The default DB suite runs on PGlite so the AFK implementer/reviewer can
+    // run it on a GHA runner with no Postgres service.
+    expect(scripts["test:db"]).toContain("vitest.db.fast.config.ts");
+    expect(scripts["test:db"]).toContain("--run");
+
+    // Real Postgres is the high-fidelity path reserved for the CI gate (#305).
+    expect(scripts["test:db:postgres"]).toContain("vitest.db.config.ts");
+    expect(scripts["test:db:postgres"]).toContain("--run");
+
+    // The consolidated model drops the old zoo of aliases.
+    expect(scripts["test:db:final"]).toBeUndefined();
+    expect(scripts["test:db:fast:full"]).toBeUndefined();
+    expect(scripts["test:db:file"]).toBeUndefined();
+    expect(scripts["test:db:file:final"]).toBeUndefined();
+    expect(scripts["test:db:file:postgres"]).toBeUndefined();
   });
 
   test("keeps fast DB runs worker-safe and leaves the Postgres suite serialized", () => {

@@ -76,10 +76,10 @@ container before running it.
 
 For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
 connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
-at local Postgres so the default DB suite and `pnpm test:db:postgres` stay
-isolated from hosted data. The focused command
-`pnpm test:db:file <archivo>` uses an in-process PGlite harness with a
-cached schema snapshot instead of connecting to `TEST_DATABASE_URL`.
+at local Postgres so `pnpm test:db:postgres` stays isolated from hosted data.
+The default DB suite `pnpm test:db` (and a focused `pnpm test:db <archivo>`)
+uses an in-process PGlite harness with a cached schema snapshot instead of
+connecting to `TEST_DATABASE_URL`.
 
 Choose the connection mode for the runtime:
 
@@ -96,27 +96,20 @@ Do not point local `.env` at production to run `pnpm db:push`; production
 Drizzle pushes are intentionally blocked.
 Database-backed tests keep two paths:
 
-- `pnpm test:db:file <archivo>`: fast focused `PGlite` path backed by the
-  cached schema snapshot.
-- `pnpm test:db` and `pnpm test:db:final` (alias of
-  `pnpm test:db:postgres`): final reliable path that resets and pushes
-  schema through `TEST_DATABASE_URL`.
-- `pnpm test:db:file:final <archivo>` (alias of
-  `pnpm test:db:file:postgres <archivo>`): focused final reliable path
-  for one DB test file through `TEST_DATABASE_URL`.
-- `pnpm test:db:fast:full`: experimental full-suite PGlite path for harness
-  debugging.
+- `pnpm test:db`: default in-process `PGlite` suite backed by the cached
+  schema snapshot. Runs the full `*.db.test.ts` set, or a single file with
+  `pnpm test:db <archivo>`. It is also part of `pnpm test`.
+- `pnpm test:db:postgres`: high-fidelity path that resets and pushes schema
+  through `TEST_DATABASE_URL` against real Postgres. Reserved for the CI gate
+  on the PR (#305) and manual fidelity checks. Focus a file with
+  `pnpm test:db:postgres <archivo>`.
 
 Validation mode requirements:
 
-- Fast focused DB validation (`pnpm test:db:file <archivo>`) does not
+- Default DB validation (`pnpm test:db`, part of `pnpm test`) does not
   require local Postgres once the repo dependencies are installed.
-- Final DB validation (`pnpm test:db`, `pnpm test:db:final` or
-  `pnpm test:db:postgres`) requires local Postgres through
-  `TEST_DATABASE_URL`.
-- Focused final DB validation (`pnpm test:db:file:final <archivo>` or
-  `pnpm test:db:file:postgres <archivo>`) also requires local Postgres
-  through `TEST_DATABASE_URL`.
+- High-fidelity DB validation (`pnpm test:db:postgres`)
+  requires local Postgres through `TEST_DATABASE_URL`.
 
 When local development needs production-like data, create and restore a fresh
 production dump with [docs/db/production-dump.md](db/production-dump.md).

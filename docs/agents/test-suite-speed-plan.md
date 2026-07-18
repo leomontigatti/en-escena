@@ -7,35 +7,53 @@ workflows.
 
 ## Contexto actual
 
-En Escena separa tests regulares y tests DB con dos rutas:
+> Nota (issue #310, 2026-07-18): el zoo de scripts descrito abajo fue
+> consolidado. Ver la "Enmienda operativa 2026-07-18" al final de esta seccion
+> para el modelo vigente. Las secciones historicas se conservan como registro
+> de las mediciones que llevaron a la decision.
 
-- `pnpm test`: corre Vitest excluyendo `*.db.test.ts`.
-- `pnpm test:db:file <archivo>`: usa el harness rapido con `PGlite` y un
-  snapshot cacheado del schema para un archivo DB enfocado.
-- `pnpm test:db`: corre la suite DB completa sobre la ruta final confiable
-  con Postgres real.
-- `pnpm test:db:final`: alias explicito de la misma corrida final confiable
-  sobre Postgres real.
-- `pnpm test:db:fast:full`: conserva la suite DB completa sobre el harness
-  rapido con `PGlite`, pero queda como ruta experimental para depurar el
-  harness. No es el comando default de confianza.
-- `pnpm test:db:file:final <archivo>`: alias explicito de la corrida
-  final enfocada sobre Postgres real.
-- `pnpm test:db:file:postgres <archivo>`: conserva la ruta enfocada sobre
-  Postgres real para comparar o depurar el harness rapido.
+En Escena separa tests regulares y tests DB. Modelo vigente (post-#310):
 
-La corrida final confiable usa un Postgres local en `localhost:5433`,
-configurado por `TEST_DATABASE_URL`. En agentes con sandbox administrado, ese
-acceso TCP local puede requerir aprobacion elevada aunque no salga de la
-maquina. Por eso `docs/agents/workflows.md` documenta los prefijos
-persistentes:
+- `pnpm test`: corre unit/react (`pnpm test:unit`) mas la suite DB sobre
+  `PGlite` in-process (`pnpm test:db`), sin Postgres local. Es el comando
+  unico de confianza pre-commit.
+- `pnpm test:unit`: solo la suite regular, excluyendo `*.db.test.ts`.
+- `pnpm test:db`: suite DB completa sobre el harness `PGlite` con snapshot
+  cacheado del schema. Enfocar un archivo con `pnpm test:db <archivo>`.
+- `pnpm test:db:postgres`: ruta de alta fidelidad sobre Postgres real via
+  `TEST_DATABASE_URL`, reservada al gate de CI en el PR (#305). Enfocar un
+  archivo con `pnpm test:db:postgres <archivo>`.
 
-- `pnpm test:db:final`
-- `pnpm test:db`
+La ruta Postgres usa un Postgres local en `localhost:5433`, configurado por
+`TEST_DATABASE_URL`. En agentes con sandbox administrado, ese acceso TCP local
+puede requerir aprobacion elevada aunque no salga de la maquina. Por eso
+`docs/agents/workflows.md` documenta los prefijos persistentes:
+
 - `pnpm test:db:postgres`
-- `pnpm test:db:file:final`
-- `pnpm test:db:file:postgres`
+- `pnpm db:test:push`
 - `docker compose up -d postgres`
+
+## Enmienda operativa 2026-07-18
+
+El issue #310 remidio la suite `PGlite` full en paralelo como prerequisito de
+la plataforma AFK (mapa #319), donde el implementer y el reviewer deben correr
+la misma validacion en un runner de GitHub Actions sin servicio Postgres.
+
+- La inestabilidad `PGlite failed to initialize properly` reportada el
+  2026-06-21 ya no se reproduce con `@electric-sql/pglite@0.5.3` y
+  `vitest@3.2.x`.
+- La suite full paralela (`vitest --config vitest.db.fast.config.ts`,
+  `fileParallelism: true`, `maxWorkers: 50%`) paso 4 corridas consecutivas, 63
+  archivos y 345 tests cada una, en ~86-120s de pared en una maquina cargada,
+  sin fallas de worker-init.
+
+Decision: `PGlite` pasa a ser la ruta default. `pnpm test` corre unit + DB
+sobre `PGlite` sin Postgres local; Postgres real queda como `pnpm
+test:db:postgres`, reservado al gate de CI (#305). Se consolidan los alias
+`test:db:final`, `test:db:fast:full`, `test:db:file`, `test:db:file:final` y
+`test:db:file:postgres`. Si la suite paralela regresa a inestabilidad, el
+fallback es correrla single-worker/sharded antes de volver a Postgres. Ver
+`docs/adr/0007-db-test-isolation-model.md` (enmienda 2026-07-18).
 
 ## Implementacion issue #126
 

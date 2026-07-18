@@ -31,7 +31,7 @@ For each branch:
 1. Run `git merge <branch> --no-edit`
 2. If there are merge conflicts, resolve them using the vendored conflict rules
    below
-3. After resolving conflicts, run validation in this exact order: `pnpm format` when formatting needs to be applied, otherwise `pnpm format:check` for final formatting verification; `pnpm check:repo-styles` when the merged branch adds or edits app UI code; `pnpm check:file-tokens`; `pnpm typecheck`; `pnpm test`; `pnpm test:db` if the merged branch touches database schema, repositories, loaders/actions that persist data, or persistence-backed business rules; and `pnpm build` if the merged branch touches routing, server rendering, bundling, CSS, or deployment behavior. `pnpm test:db` is the reliable Postgres path through `TEST_DATABASE_URL`; do not use the experimental full PGlite suite (`pnpm test:db:fast:full`) as the final confidence check
+3. After resolving conflicts, run validation in this exact order: `pnpm format` when formatting needs to be applied, otherwise `pnpm format:check` for final formatting verification; `pnpm check:repo-styles` when the merged branch adds or edits app UI code; `pnpm check:file-tokens`; `pnpm typecheck`; `pnpm test` (unit/react plus the DB suite on in-process PGlite, which also covers database schema, repositories, loaders/actions that persist data, or persistence-backed business rules); and `pnpm build` if the merged branch touches routing, server rendering, bundling, CSS, or deployment behavior. Real Postgres is the high-fidelity path `pnpm test:db:postgres`, reserved for the CI gate on the PR (#305)
 4. If validation fails, fix the issue and rerun the same command before proceeding to the next command or branch. Do not run validation commands in parallel when later commands depend on earlier code state.
 
 Keep merge fixes minimal. Do not perform a coding-standards or maintainability
@@ -97,7 +97,6 @@ Verified:
 - pnpm check:file-tokens
 - pnpm typecheck
 - pnpm test
-- pnpm test:db
 - pnpm build
 ```
 

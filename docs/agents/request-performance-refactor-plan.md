@@ -20,10 +20,10 @@ Final validation order for this refactor:
 2. `pnpm check:repo-styles` when the change adds or edits app UI code
 3. `pnpm check:file-tokens`
 4. `pnpm typecheck`
-5. `pnpm test`
-6. `pnpm test:db` for database-backed route, loader, action, repository, or
-   business-rule changes
-7. `pnpm build` for routing, server-rendering, bundling, CSS, or deployment
+5. `pnpm test` (unit/react plus the DB suite on in-process PGlite), which also
+   covers database-backed route, loader, action, repository, or business-rule
+   changes
+6. `pnpm build` for routing, server-rendering, bundling, CSS, or deployment
    changes
 
 Implementation guardrails that still matter for this PRD:
@@ -31,10 +31,11 @@ Implementation guardrails that still matter for this PRD:
 - `pnpm typecheck` remains the required TypeScript entrypoint because it runs
   React Router type generation before `tsc`.
 - `pnpm check:file-tokens` is the strict staged-file module-boundary check.
-- `pnpm test:db:file <path-to-db-test>` is the fast focused DB loop.
-- `pnpm test:db` is the final reliable database-backed validation path.
-- `pnpm test:db:fast:full` remains experimental and is not the final signoff
-  command.
+- `pnpm test:db <path-to-db-test>` is the fast focused DB loop on PGlite.
+- `pnpm test:db` (part of `pnpm test`) is the default in-process PGlite
+  database-backed validation path and needs no local Postgres.
+- `pnpm test:db:postgres` is the high-fidelity real-Postgres path reserved for
+  the CI gate on the PR (#305).
 
 ## Critical Administración Routes
 
@@ -224,8 +225,9 @@ Changed or stale versus PRD #130:
 - The PRD points to a generic local plan reference, but the repo now needs this
   explicit route and submit inventory before issues #132 onward start.
 - The repo has a stronger DB validation split than the PRD text implied:
-  focused iteration uses `pnpm test:db:file <path-to-db-test>`, while
-  final database-backed validation uses `pnpm test:db`.
+  focused iteration uses `pnpm test:db <path-to-db-test>` on PGlite, the
+  default `pnpm test` covers unit plus the PGlite DB suite, and real Postgres
+  stays as `pnpm test:db:postgres` for the CI gate (#305).
 - `docs/agents/workflows.md` now standardizes the regular test command as
   `pnpm test` for consistency with the repo task contract and the rest of
   the documented `pnpm ...` workflow.

@@ -24,7 +24,7 @@ const requiredAssumptions = [
   "The local plan file referenced by PRD #130 did not exist",
   "`createValidatedNativeSubmitHandler` still ends in `formElement.submit()`",
   "`pnpm typecheck` remains the required TypeScript entrypoint",
-  "`pnpm test:db` is the final reliable database-backed validation path",
+  "`pnpm test:db <path-to-db-test>` is the fast focused DB loop on PGlite.",
 ];
 
 const requiredViewTransitionDecisions = [
