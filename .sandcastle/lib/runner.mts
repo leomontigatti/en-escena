@@ -1,6 +1,6 @@
 // Shared helpers for the AFK agent runners (spec §3.8 — the agent-runner
-// contract). Unlike `.sandcastle/main.mts` (the legacy local Docker runner
-// where the agent mutates git/GitHub), these runners follow the
+// contract). Unlike the retired local Docker runner (where a single agent
+// mutated git/GitHub directly), these runners follow the
 // orchestrator↔runner split: they run on the GitHub Actions host with
 // `noSandbox()`, hold **no GitHub token**, and only ever emit commits on the
 // already-checked-out branch plus plain/JSON files under `OUTPUT_DIR`. The

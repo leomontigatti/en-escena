@@ -5,12 +5,11 @@ use when a script has operational risk.
 
 ## Development
 
-| Script            | Purpose                                         |
-| ----------------- | ----------------------------------------------- |
-| `pnpm dev`        | Start the React Router development server.      |
-| `pnpm build`      | Build the app for production.                   |
-| `pnpm start`      | Serve the built app with `@react-router/serve`. |
-| `pnpm sandcastle` | Run the Sandcastle workflow.                    |
+| Script       | Purpose                                         |
+| ------------ | ----------------------------------------------- |
+| `pnpm dev`   | Start the React Router development server.      |
+| `pnpm build` | Build the app for production.                   |
+| `pnpm start` | Serve the built app with `@react-router/serve`. |
 
 ## Validation
 

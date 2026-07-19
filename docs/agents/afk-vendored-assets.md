@@ -43,8 +43,10 @@ referencias concretas al repo:
 
 - El **Apéndice A** ("Reference implementation notes — Sandcastle / Claude Code") describe el
   stack de referencia del repo original; se mantiene tal cual como documentación de esa
-  realización concreta. Nuestro `.sandcastle/` actual tiene otra estructura (`main.mts`,
-  `*-prompt.md`); la reconciliación runner ↔ orquestador es trabajo de los tickets-fase
-  posteriores del mapa #319, no de esta vendorización.
+  realización concreta. La reconciliación runner ↔ orquestador ya se completó en los
+  tickets-fase del mapa #319 (#344 el modelo orquestador↔runner, #347 el cutover): el runner
+  local Docker (`main.mts` + `*-prompt.md`) fue retirado y `.sandcastle/` hoy contiene solo los
+  runners AFK (`agent-*/`), sus helpers (`lib/`, `run-with-retry.mts`, `retry-feedback.mts`) y
+  `CODING_STANDARDS.md`.
 - Los **prompts siguen siendo skeletons runner-neutrales**: la mitad "cómo se invoca al runner"
   se concreta al cablear cada workflow.
