@@ -20,9 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
-
-import { formatAmount, formatDate } from "../formatters";
+import { formatAmount } from "../formatters";
+import { PaymentField } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payInscriptionDepositIntent } from "./shared";
 
@@ -128,37 +127,13 @@ export function InscriptionCobroDialog({
           </div>
 
           {selectedPrice !== null ? (
-            payableForSelectedPrice.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium">Pago</span>
-                <Select
-                  name="paymentId"
-                  value={selectedPaymentId ?? ""}
-                  onValueChange={setSelectedPaymentId}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Elegí un pago" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {payableForSelectedPrice.map((payment) => (
-                      <SelectItem key={payment.id} value={payment.id}>
-                        {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                        {formatDate(payment.paymentDate)} · disponible{" "}
-                        {formatAmount(payment.availableAmount)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <Alert variant="warning">
-                <AlertTriangle aria-hidden="true" />
-                <AlertDescription>
-                  No hay pagos con saldo suficiente para el precio elegido.
-                </AlertDescription>
-              </Alert>
-            )
+            <PaymentField
+              payments={payableForSelectedPrice}
+              value={selectedPaymentId}
+              onValueChange={setSelectedPaymentId}
+              disabled={isSaving}
+              emptyMessage="No hay pagos con saldo suficiente para el precio elegido."
+            />
           ) : null}
 
           {fetcher.data?.status === "error" ? (

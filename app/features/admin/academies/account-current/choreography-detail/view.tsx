@@ -43,7 +43,6 @@ import { FieldGroup } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -55,7 +54,6 @@ import {
   type InscriptionAmountColumn,
   isTentativeInscriptionAmount,
 } from "@/lib/finances/inscription-amounts";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 import {
@@ -69,6 +67,7 @@ import {
   InscriptionCobroDialog,
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
+import { PaymentSelectItems } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
@@ -311,13 +310,7 @@ function CobroDialog({
                 <SelectValue placeholder="Elegí un pago" />
               </SelectTrigger>
               <SelectContent>
-                {eligiblePayments.map((payment) => (
-                  <SelectItem key={payment.id} value={payment.id}>
-                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                    {formatDate(payment.paymentDate)} · disponible{" "}
-                    {formatAmount(payment.availableAmount)}
-                  </SelectItem>
-                ))}
+                <PaymentSelectItems payments={eligiblePayments} />
               </SelectContent>
             </Select>
           </div>

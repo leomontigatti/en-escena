@@ -2,12 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  choreographies,
   choreographyDancers,
   events,
   paymentAllocations,
   prices,
-  scheduleCapacities,
 } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { todayDateOnly } from "@/lib/shared/date-only";
@@ -19,6 +17,7 @@ import {
 import {
   assertPaymentAvailability,
   loadCandidatePriceRow,
+  loadChoreographyScheduleRow,
   loadCobroContext,
   resolveApplicablePriceRow,
   resolveDancerDiscounts,
@@ -272,18 +271,10 @@ export async function readInscriptionDepositOptions(input: {
     depositAmount: number;
   }>;
 } | null> {
-  const [choreographyRow] = await db
-    .select({
-      groupType: choreographies.groupType,
-      choreographyScheduleId: choreographies.scheduleId,
-      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
-    })
-    .from(choreographies)
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .where(eq(choreographies.id, input.choreographyId));
+  const choreographyRow = await loadChoreographyScheduleRow(
+    db,
+    input.choreographyId,
+  );
 
   if (!choreographyRow) {
     return null;
@@ -372,18 +363,10 @@ export async function quoteChoreographyDepositTotals(input: {
     return totals;
   }
 
-  const [choreographyRow] = await db
-    .select({
-      groupType: choreographies.groupType,
-      choreographyScheduleId: choreographies.scheduleId,
-      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
-    })
-    .from(choreographies)
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .where(eq(choreographies.id, input.choreographyId));
+  const choreographyRow = await loadChoreographyScheduleRow(
+    db,
+    input.choreographyId,
+  );
 
   if (!choreographyRow) {
     return totals;

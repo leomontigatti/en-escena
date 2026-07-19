@@ -82,6 +82,35 @@ export async function loadCandidatePriceRow(
   return price;
 }
 
+/**
+ * Cabecera común de la carga de una coreografía para pricing: trae el `groupType`
+ * y los dos orígenes posibles del cronograma (la fila directa o la de la capacidad
+ * asociada), más la identidad para validar pertenencia. El cronograma efectivo se
+ * resuelve con `resolveChoreographyPricingScheduleId`. Acepta la conexión o una
+ * transacción; devuelve `null` si la coreografía no existe.
+ */
+export async function loadChoreographyScheduleRow(
+  executor: Transaction | typeof db,
+  choreographyId: string,
+) {
+  const [choreographyRow] = await executor
+    .select({
+      academyId: choreographies.academyId,
+      eventId: choreographies.eventId,
+      groupType: choreographies.groupType,
+      choreographyScheduleId: choreographies.scheduleId,
+      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+    })
+    .from(choreographies)
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .where(eq(choreographies.id, choreographyId));
+
+  return choreographyRow ?? null;
+}
+
 export type CobroContext =
   | { ok: false; message: string }
   | {
@@ -104,20 +133,10 @@ export async function loadCobroContext(
     paymentId: string;
   },
 ): Promise<CobroContext> {
-  const [choreographyRow] = await tx
-    .select({
-      academyId: choreographies.academyId,
-      eventId: choreographies.eventId,
-      groupType: choreographies.groupType,
-      choreographyScheduleId: choreographies.scheduleId,
-      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
-    })
-    .from(choreographies)
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .where(eq(choreographies.id, input.choreographyId));
+  const choreographyRow = await loadChoreographyScheduleRow(
+    tx,
+    input.choreographyId,
+  );
 
   if (
     !choreographyRow ||

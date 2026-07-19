@@ -13,16 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
-
-import { formatAmount, formatDate } from "../formatters";
+import { formatAmount } from "../formatters";
+import { PaymentField } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { deleteAllocationIntent, payInscriptionBalanceIntent } from "./shared";
 
@@ -100,38 +92,13 @@ export function InscriptionBalanceDialog({
             </div>
           </div>
 
-          {payableForBalance.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Pago</span>
-              <Select
-                name="paymentId"
-                value={selectedPaymentId ?? ""}
-                onValueChange={setSelectedPaymentId}
-                disabled={isBusy}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Elegí un pago" />
-                </SelectTrigger>
-                <SelectContent>
-                  {payableForBalance.map((payment) => (
-                    <SelectItem key={payment.id} value={payment.id}>
-                      {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                      {formatDate(payment.paymentDate)} · disponible{" "}
-                      {formatAmount(payment.availableAmount)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <Alert variant="warning">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>
-                No hay pagos con saldo suficiente para el saldo de la
-                inscripción.
-              </AlertDescription>
-            </Alert>
-          )}
+          <PaymentField
+            payments={payableForBalance}
+            value={selectedPaymentId}
+            onValueChange={setSelectedPaymentId}
+            disabled={isBusy}
+            emptyMessage="No hay pagos con saldo suficiente para el saldo de la inscripción."
+          />
 
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
