@@ -303,7 +303,7 @@ function CobroDialog({
             <span className="text-sm font-medium">Pago a asignar</span>
             <Select
               name="paymentId"
-              value={selectedPaymentId ?? undefined}
+              value={selectedPaymentId ?? ""}
               onValueChange={setSelectedPaymentId}
               disabled={isSaving}
             >

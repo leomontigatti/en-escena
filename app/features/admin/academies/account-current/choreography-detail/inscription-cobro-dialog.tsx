@@ -106,7 +106,7 @@ export function InscriptionCobroDialog({
             <span className="text-sm font-medium">Precio</span>
             <Select
               name="priceId"
-              value={selectedPriceId ?? undefined}
+              value={selectedPriceId ?? ""}
               onValueChange={(value) => {
                 setSelectedPriceId(value);
                 setSelectedPaymentId(null);
@@ -133,7 +133,7 @@ export function InscriptionCobroDialog({
                 <span className="text-sm font-medium">Pago</span>
                 <Select
                   name="paymentId"
-                  value={selectedPaymentId ?? undefined}
+                  value={selectedPaymentId ?? ""}
                   onValueChange={setSelectedPaymentId}
                   disabled={isSaving}
                 >

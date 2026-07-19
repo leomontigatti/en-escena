@@ -105,7 +105,7 @@ export function InscriptionBalanceDialog({
               <span className="text-sm font-medium">Pago</span>
               <Select
                 name="paymentId"
-                value={selectedPaymentId ?? undefined}
+                value={selectedPaymentId ?? ""}
                 onValueChange={setSelectedPaymentId}
                 disabled={isBusy}
               >
