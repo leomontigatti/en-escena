@@ -1,0 +1,146 @@
+# AFK — Review. Spec §4.4.
+#
+# PR labeled `agent:review` → review runner improves the code + emits a review
+# payload → orchestrator pushes any improvement commit (race-safe), posts one
+# review (event: COMMENT, never APPROVE), replies to unresolved threads, and
+# marks the PR ready. Hands back to a human — no automatic chaining.
+#
+# `pull_request_target` (not `pull_request`): the labeled event must fire even
+# when the PR is out-of-date/conflicting, which has no test-merge commit (§3.3).
+
+name: AFK Review
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+concurrency:
+  # Shared with Implement PR + Update Branch: all push to the PR branch (§3.5).
+  group: agent-mutate-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.label.name == 'agent:review'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      BRANCH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Transition to in-progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/afk-output"
+          gh pr edit "$PR_NUMBER" \
+            --remove-label "agent:review" \
+            --remove-label "agent:blocked" \
+            --add-label "agent:in-progress"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.AGENT_PAT || github.token }}
+
+      - name: Prepare branch refs
+        run: |
+          set -euo pipefail
+          git fetch origin master:master
+          # Point the local branch at the checked-out head sha so the race-safe
+          # push has a named branch to lease against.
+          git checkout -B "$BRANCH" "$BRANCH_HEAD_SHA"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install deps + agent runner
+        run: |
+          pnpm install --frozen-lockfile
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git identity
+        run: |
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+
+      - name: Run review runner
+        env:
+          # Read-only prefetch (diff, linked issue, PR_COMMENTS_JSON) uses this;
+          # the agent is instructed not to mutate anything.
+          GH_TOKEN: ${{ github.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: pnpm exec tsx .sandcastle/agent-review/review.mts
+
+      - name: Race-safe push (if the agent committed)
+        run: |
+          set -euo pipefail
+          if [ "$(git rev-parse HEAD)" = "$BRANCH_HEAD_SHA" ]; then
+            echo "No new commit; nothing to push."
+            exit 0
+          fi
+          git push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
+          if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
+            echo "Branch advanced during review run." > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
+
+      - name: Post review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/$GH_REPO/pulls/$PR_NUMBER/reviews" \
+            --input "$OUTPUT_DIR/review_payload.json"
+
+      - name: Mark PR ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr ready "$PR_NUMBER"
+
+      - name: Post thread replies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          replies="$OUTPUT_DIR/replies.json"
+          [ -s "$replies" ] || { echo "No replies."; exit 0; }
+          count=$(jq 'length' "$replies")
+          for i in $(seq 0 $((count - 1))); do
+            node_id=$(jq -r ".[$i].commentId" "$replies")
+            body=$(jq -r ".[$i].body" "$replies")
+            rest_id=$(gh api graphql \
+              -f query='query($id:ID!){node(id:$id){... on PullRequestReviewComment{databaseId}}}' \
+              -F id="$node_id" --jq '.data.node.databaseId')
+            [ -n "$rest_id" ] || { echo "Skipping reply with unresolvable id $node_id"; continue; }
+            gh api -X POST "repos/$GH_REPO/pulls/$PR_NUMBER/comments/$rest_id/replies" -f body="$body"
+          done
+
+      - name: On failure — block + comment
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          gh pr edit "$PR_NUMBER" --add-label "agent:blocked"
+          gh pr comment "$PR_NUMBER" --body "$(printf '`agent:review` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:review` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
+
+      - name: Always — remove in-progress
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit "$PR_NUMBER" --remove-label "agent:in-progress" || true
