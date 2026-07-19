@@ -1,0 +1,173 @@
+# AFK — To Issues (PRD decomposition). Spec §4.1.
+#
+# issue labeled `agent:to-issues` → the to-issues agent drafts a flat, ordered
+# list of tracer-bullet slices → the orchestrator creates each as a native
+# sub-issue and attaches it to the PRD. No automatic chaining: a human reviews
+# the sub-issues, then labels the PRD `agent:implement`.
+#
+# The orchestrator (this workflow) owns every tracker mutation; the runner holds
+# no GitHub token (spec §3.9).
+
+name: AFK To Issues
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: agent-to-issues-prd-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  to-issues:
+    if: github.event.label.name == 'agent:to-issues'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+    steps:
+      # --- Preflight: compute shape and refuse per §4.1. ---
+      - name: Preflight (shape + refusals)
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/afk-output"
+
+          sub_count=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" --jq 'length' 2>/dev/null || echo 0)
+          parent=$(gh api graphql -f query='
+            query ($owner: String!, $repo: String!, $num: Int!) {
+              repository(owner: $owner, name: $repo) { issue(number: $num) { parent { number } } }
+            }' -F owner="${GH_REPO%/*}" -F repo="${GH_REPO#*/}" -F num="$ISSUE_NUMBER" \
+            --jq '.data.repository.issue.parent.number // empty' 2>/dev/null || echo "")
+
+          if [ "${sub_count:-0}" -gt 0 ]; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label "agent:to-issues" --add-label "agent:blocked"
+            gh issue comment "$ISSUE_NUMBER" --body "Already has $sub_count sub-issue(s); detach them first before re-labelling \`agent:to-issues\`."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "$parent" ]; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label "agent:to-issues" --add-label "agent:blocked"
+            gh issue comment "$ISSUE_NUMBER" --body "Nested PRDs are not supported; flatten this into a top-level PRD (it is currently a sub-issue of #$parent)."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Transition to in-progress
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue edit "$ISSUE_NUMBER" \
+            --remove-label "agent:to-issues" \
+            --remove-label "agent:blocked" \
+            --add-label "agent:in-progress"
+
+      # Prefetch the PRD body (§3.8): the runner has no GitHub token, so the
+      # agent gets the PRD text from here, never via `gh`. Random heredoc
+      # delimiter so a crafted body line can't break out of GITHUB_ENV.
+      - name: Capture PRD body
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          delim="PRD_BODY_EOF_$(openssl rand -hex 12)"
+          {
+            echo "PRD_BODY<<$delim"
+            gh issue view "$ISSUE_NUMBER" --json body --jq '.body'
+            echo "$delim"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout master
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: pnpm/action-setup@v4 # versión desde `packageManager` (pnpm 11.9.0)
+      - name: Setup Node
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install deps + agent runner
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Run to-issues runner
+        if: steps.preflight.outputs.proceed == 'true'
+        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        env:
+          # No GH_TOKEN: the runner is token-less (§3.9); PRD_BODY is prefetched.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PRD_NUMBER: ${{ github.event.issue.number }}
+          PRD_TITLE: ${{ github.event.issue.title }}
+        run: pnpm exec tsx .sandcastle/agent-to-issues/to-issues.mts
+
+      # --- Create + attach each slice as a native sub-issue, in order (§4.1). ---
+      - name: Create and attach sub-issues
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          slices="$OUTPUT_DIR/slices.json"
+          if [ ! -s "$slices" ]; then
+            echo "to-issues runner produced no slices.json." > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
+          count=$(jq '.slices | length' "$slices")
+          if [ "$count" -eq 0 ]; then
+            echo "to-issues runner produced zero slices." > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
+          for i in $(seq 0 $((count - 1))); do
+            title=$(jq -r ".slices[$i].title" "$slices")
+            what=$(jq -r ".slices[$i].whatToBuild" "$slices")
+            criteria=$(jq -r ".slices[$i].acceptanceCriteria[] | \"- [ ] \" + ." "$slices")
+            body=$(printf '## Parent PRD\n\n#%s\n\n## What to build\n\n%s\n\n## Acceptance criteria\n\n%s\n' \
+              "$ISSUE_NUMBER" "$what" "$criteria")
+            url=$(gh issue create --title "$title" --body "$body")
+            sub_number=$(basename "$url")
+            sub_id=$(gh api "repos/$GH_REPO/issues/$sub_number" --jq .id)
+            gh api -X POST "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" -F "sub_issue_id=$sub_id" >/dev/null
+            echo "Created and attached sub-issue #$sub_number: $title"
+          done
+
+      # --- Failure: mark blocked + comment, listing sub-issues already created (§4.1). ---
+      - name: On failure — block + comment
+        if: failure() && steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          created=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" --jq '[.[]|"#\(.number)"]|join(", ")' 2>/dev/null || echo "")
+          [ -n "$created" ] || created="(none)"
+          gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
+          gh issue comment "$ISSUE_NUMBER" --body "$(printf '`agent:to-issues` run failed.\n\n**Reason:** %s\n\n**Sub-issues already created (clean up if needed):** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:to-issues` to retry.' "$reason" "$created" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
+
+      - name: Always — remove in-progress
+        if: always() && steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true
