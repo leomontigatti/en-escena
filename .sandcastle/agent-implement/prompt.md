@@ -9,9 +9,16 @@
 
 Implement issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
 
-You are on branch `{{BRANCH}}`, already created from the base branch (`master`). Pull in the
-issue with `gh issue view {{ISSUE_NUMBER}} --comments`. If it has a parent PRD, pull that in
-too.
+You are on branch `{{BRANCH}}`, already created from the base branch (`master`).
+
+The full issue is embedded below — it is your **complete source of truth**. You have **no
+GitHub access** (no token, by design): do **not** run `gh` in any form, do not read or query
+the tracker, and do not try to re-fetch or re-verify the issue. If something seems missing,
+work from what is here; do not go looking for it with `gh`.
+
+<issue number="{{ISSUE_NUMBER}}" title="{{ISSUE_TITLE}}">
+{{ISSUE_BODY}}
+</issue>
 
 # CONTEXT
 
@@ -41,3 +48,11 @@ Make one or more commits on `{{BRANCH}}` with conventional-commit messages
 - Do **not** push the branch — the workflow handles it.
 - Do **not** close the issue — the merged PR handles it.
 - Do **not** touch the tracker or the remote in any way; you have no GitHub write access.
+
+# WHEN YOU ARE DONE
+
+Once your commits are on `{{BRANCH}}` and the working tree is clean, you are **finished** —
+stop immediately. Do **not** re-verify against the tracker, do **not** loop re-running
+`git status` / `git log` / `gh` to double-check, and do **not** make empty or redundant
+commits. Emit a one-line summary of what you committed and end your turn. Re-checking work
+that is already committed is the failure mode this instruction exists to prevent.

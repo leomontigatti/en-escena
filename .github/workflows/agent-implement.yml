@@ -87,6 +87,22 @@ jobs:
             --remove-label "agent:blocked" \
             --add-label "agent:in-progress"
 
+      # Prefetch the issue body (§3.8): the runner has no GitHub token, so the
+      # agent gets the issue text from here, never via `gh`. Random heredoc
+      # delimiter so a crafted body line can't break out of GITHUB_ENV.
+      - name: Capture issue body
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          delim="ISSUE_BODY_EOF_$(openssl rand -hex 12)"
+          {
+            echo "ISSUE_BODY<<$delim"
+            gh issue view "$ISSUE_NUMBER" --json body --jq '.body'
+            echo "$delim"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout master
         if: steps.preflight.outputs.proceed == 'true'
         uses: actions/checkout@v4
