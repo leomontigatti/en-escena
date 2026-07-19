@@ -67,7 +67,7 @@ Este runbook no puede generar credenciales, pero sí guiar su carga. El helper
 claude setup-token
 
 # 2. Correr el helper: pide CLAUDE_CODE_OAUTH_TOKEN y AGENT_PAT, los carga y verifica
-bash scripts/setup-github-secrets.sh
+pnpm setup:secrets
 ```
 
 El PAT de orquestación se genera aparte, en https://github.com/settings/tokens (classic:
