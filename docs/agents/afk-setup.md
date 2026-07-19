@@ -58,20 +58,29 @@ Sin él la plataforma **funciona pero se degrada** (ver abajo). Hace falta por d
 
 ### Checklist de carga (acción humana)
 
-Este runbook no puede generar credenciales. Para dejar los secrets **cargados**:
+Este runbook no puede generar credenciales, pero sí guiar su carga. El helper
+[`scripts/setup-github-secrets.sh`](../../scripts/setup-github-secrets.sh) es idempotente
+(pregunta antes de sobreescribir), toma el input oculto y verifica al final:
 
 ```bash
-# 1. Token del runner (Claude Code)
-claude setup-token                       # copia el token que imprime
-gh secret set CLAUDE_CODE_OAUTH_TOKEN    # pegalo cuando lo pida
+# 1. Generar el token del runner (imprime un token OAuth de larga duración)
+claude setup-token
 
-# 2. PAT de orquestación
-#    Generar en https://github.com/settings/tokens (classic: repo + workflow)
-gh secret set AGENT_PAT                   # pegá el PAT
-
-# 3. Verificar (no muestra valores, solo nombres)
-gh secret list
+# 2. Correr el helper: pide CLAUDE_CODE_OAUTH_TOKEN y AGENT_PAT, los carga y verifica
+pnpm setup:secrets
 ```
+
+El PAT de orquestación se genera aparte, en https://github.com/settings/tokens (classic:
+scopes `repo` + `workflow`), antes de correr el helper. A mano, sin el script, es lo mismo
+que hace por dentro: `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, `gh secret set AGENT_PAT`,
+`gh secret list`.
+
+> **Divergencia con el script de Matt Pocock** (`course-video-manager`, de donde se
+> vendorizó el spec): el suyo carga `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` — un PAT
+> read-only para que el _agente_ lea issues _dentro_ del runner. Nuestro modelo
+> orquestador↔runner (§3.9) no le da token de GitHub al runner: el orquestador prefetcha el
+> contexto. Por eso el segundo secret es `AGENT_PAT` (`repo` + `workflow`), con otro
+> propósito. Se adaptó la ergonomía, no el modelo de secrets.
 
 Si `AGENT_PAT` se omite: la plataforma sigue, degradada. Ver la sección siguiente.
 
