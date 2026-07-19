@@ -99,12 +99,44 @@ rol**.
   de solicitud de cambio o eliminación.
 - **Administrador:** es el único que puede modificar cualquier dato de la
   coreografía (incluido el roster: agregar o quitar inscripciones) y
-  **eliminarla físicamente**, en cualquier momento.
+  **eliminarla físicamente**, en cualquier momento — con **una sola excepción**:
+  el bloqueo por **comprobante fiscal asociado** (ver abajo).
 - Quitar una inscripción (borrado físico + devolución de todo lo asignado al
   `Saldo disponible`, ver "Inscripciones") es, por lo tanto, una acción del
   administrador.
 - No existe columna `has_active_financial_link` ni gate de edición derivado de
-  facturas activas; la restricción de edición es por rol.
+  facturas activas; la restricción de edición es por rol. (El bloqueo por
+  comprobante fiscal de abajo es distinto: no es un gate de _edición_ sino de
+  _eliminación_, y no deriva del modelo viejo de facturas sino de un comprobante
+  ARCA con CAE.)
+
+### Bloqueo de eliminación por comprobante fiscal
+
+Una coreografía que tiene **al menos un comprobante ARCA asociado** (comprobante
+derivado con CAE; ver la especificación de facturación electrónica de ARCA,
+issue #320) **no puede eliminarse físicamente**. El comprobante con CAE es
+**inmutable e imborrable por obligación fiscal**, y el modelo mantiene el
+invariante de que todo comprobante conserva su coreografía ancla viva (no
+existen comprobantes huérfanos).
+
+- **Alcance del bloqueo:** cuenta **cualquier** comprobante asociado, en
+  **cualquier estado** — `vigente` **o** `anulada`, incluidas las filas de
+  **Nota de crédito** (tipo 13). Basta la existencia de historia fiscal.
+- **No se libera nunca:** anular con Nota de crédito **no** habilita el borrado;
+  los CAE anulados también deben conservarse. Una coreografía que alguna vez se
+  facturó queda **permanentemente indeleteable**.
+- **Solo bloquea el borrado, no la edición de roster.** Agregar o quitar
+  bailarines sigue permitido: el cambio de monto se gestiona por el camino
+  "comprobante desactualizado → anular con Nota de crédito" (ver la spec de
+  facturación, issue #320), no bloqueando el roster. Esto lo diferencia del
+  bloqueo por **presentación asociada** (provisional), que sí congela el roster.
+- **Enforcement server-side (invariante duro).** El rechazo del borrado se
+  aplica **siempre en el servidor**, con independencia de la UI: el estado puede
+  cambiar entre render y click (emisión concurrente de un comprobante) y el
+  invariante fiscal no puede depender del cliente. La **presentación** del
+  bloqueo en el panel de administración (afordancia deshabilitada con motivo,
+  ocultamiento, o toast de error) se define en el diseño de UX de emisión, no
+  acá.
 
 ### Edición de roster desde administración
 
