@@ -203,12 +203,20 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
           set +e
+          # Use the REST labels endpoint, not `gh pr edit`: the latter issues a
+          # GraphQL query touching org fields (needs `read:org`), which the
+          # classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose the
+          # PAT-triggered chain. REST `POST issues/{n}/labels` needs only `repo`,
+          # and labelling a PR through it fires `pull_request_target: labeled`.
+          add_review_label() {
+            gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" \
+              -f "labels[]=agent:review" > /dev/null
+          }
           if [ -n "$AGENT_PAT" ]; then
-            GH_TOKEN="$AGENT_PAT" gh pr edit "$PR_NUMBER" --add-label "agent:review"
-            if [ $? -eq 0 ]; then exit 0; fi
+            GH_TOKEN="$AGENT_PAT" add_review_label && exit 0
             echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (Review won't auto-start)."
           fi
-          GH_TOKEN="$GITHUB_TOKEN" gh pr edit "$PR_NUMBER" --add-label "agent:review"
+          GH_TOKEN="$GITHUB_TOKEN" add_review_label
 
       # --- Failure: mark blocked + comment (§3.7). ---
       - name: On failure — block + comment
