@@ -46,8 +46,9 @@ describe("internal access authorization", () => {
     });
     findUser.mockResolvedValue(null);
 
-    const { requireSignedInUser } =
-      await import("@/lib/auth/internal-access.server");
+    const { requireSignedInUser } = await import(
+      "@/lib/auth/internal-access.server"
+    );
 
     const response = await expectThrownResponse(
       requireSignedInUser(new Request("http://localhost/portal")),
@@ -67,8 +68,9 @@ describe("internal access authorization", () => {
     });
     findUser.mockResolvedValue(null);
 
-    const { requireInternalUser } =
-      await import("@/lib/auth/internal-access.server");
+    const { requireInternalUser } = await import(
+      "@/lib/auth/internal-access.server"
+    );
 
     const response = await expectThrownResponse(
       requireInternalUser(new Request("http://localhost/administracion")),

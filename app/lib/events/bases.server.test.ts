@@ -31,8 +31,9 @@ describe("event bases service", () => {
       initialOptions,
     );
 
-    const { getChoreographyRegistrationInitialOptions } =
-      await import("@/lib/events/bases.server");
+    const { getChoreographyRegistrationInitialOptions } = await import(
+      "@/lib/events/bases.server"
+    );
 
     await expect(
       getChoreographyRegistrationInitialOptions("event-1"),

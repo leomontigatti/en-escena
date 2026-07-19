@@ -83,8 +83,9 @@ describe("administracion.cronogramas route adapters", () => {
   });
 
   test("delegates loader, action and render to the admin event schedules create feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.cronogramas_.nuevo");
+    const routeModule = await import(
+      "@/routes/administracion.cronogramas_.nuevo"
+    );
     const request = new Request(
       "http://localhost/administracion/cronogramas/nuevo",
       {
@@ -125,8 +126,9 @@ describe("administracion.cronogramas route adapters", () => {
   });
 
   test("delegates loader, action and render to the admin event schedules detail feature module", async () => {
-    const routeModule =
-      await import("@/routes/administracion.cronogramas_.$scheduleId");
+    const routeModule = await import(
+      "@/routes/administracion.cronogramas_.$scheduleId"
+    );
     const request = new Request(
       "http://localhost/administracion/cronogramas/schedule_1",
       {

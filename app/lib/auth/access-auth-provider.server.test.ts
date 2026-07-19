@@ -56,8 +56,9 @@ describe("accessAuthProvider", () => {
     createLocalTestAccessAuthProvider.mockReturnValue(localAdapter);
     createSupabaseAccessAuthProvider.mockReturnValue(supabaseAdapter);
 
-    const { accessAuthProvider } =
-      await import("@/lib/auth/access-auth-provider.server");
+    const { accessAuthProvider } = await import(
+      "@/lib/auth/access-auth-provider.server"
+    );
 
     expect(accessAuthProvider).toBe(localAdapter);
     expect(createLocalTestAccessAuthProvider).toHaveBeenCalledTimes(1);
@@ -70,8 +71,9 @@ describe("accessAuthProvider", () => {
     createLocalTestAccessAuthProvider.mockReturnValue(localAdapter);
     createSupabaseAccessAuthProvider.mockReturnValue(supabaseAdapter);
 
-    const { accessAuthProvider } =
-      await import("@/lib/auth/access-auth-provider.server");
+    const { accessAuthProvider } = await import(
+      "@/lib/auth/access-auth-provider.server"
+    );
 
     expect(accessAuthProvider).toBe(supabaseAdapter);
     expect(createSupabaseAccessAuthProvider).toHaveBeenCalledTimes(1);
