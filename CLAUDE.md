@@ -19,3 +19,5 @@
 - **Plataforma AFK** (spec de los 8 workflows, fuente de verdad; vendorizado de Matt Pocock):
   [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); qué se
   adaptó en [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
+- **AFK setup operativo** (labels `agent:*`, secrets, degradación sin PAT; runbook del
+  spec §3.1/§3.4): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
