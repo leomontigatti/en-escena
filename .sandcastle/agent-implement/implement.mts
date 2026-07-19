@@ -4,7 +4,9 @@
 // output; the orchestrator asserts ≥1 commit afterwards. Does NOT push and does
 // NOT close the issue — the workflow pushes, the merged PR closes.
 //
-// Env: ISSUE_NUMBER, ISSUE_TITLE, BRANCH, OUTPUT_DIR.
+// Env: ISSUE_NUMBER, ISSUE_TITLE, ISSUE_BODY, BRANCH, OUTPUT_DIR.
+// ISSUE_BODY is prefetched by the orchestrator (§3.8): the runner holds no
+// GitHub token, so the agent must get the issue text here — never via `gh`.
 
 import { run } from "@ai-hero/sandcastle";
 
@@ -22,6 +24,8 @@ await runMain(async () => {
   const issueNumber = requireEnv("ISSUE_NUMBER");
   const issueTitle = requireEnv("ISSUE_TITLE");
   const branch = requireEnv("BRANCH");
+  // Body may legitimately be empty; don't require it.
+  const issueBody = process.env.ISSUE_BODY ?? "";
 
   await run({
     name: "implement",
@@ -33,6 +37,7 @@ await runMain(async () => {
     promptArgs: {
       ISSUE_NUMBER: issueNumber,
       ISSUE_TITLE: issueTitle,
+      ISSUE_BODY: issueBody,
       BRANCH: branch,
     },
   });
