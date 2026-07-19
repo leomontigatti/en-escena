@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import * as sandcastle from "@ai-hero/sandcastle";
+import { type LoggingOption } from "@ai-hero/sandcastle";
 import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 
 export const AGENT_MODEL = "claude-opus-4-8";
@@ -33,6 +34,34 @@ export function createSandboxProvider() {
 /** The directory the orchestrator reads runner outputs from (GHA `runner.temp`). */
 export function outputDir(): string {
   return requireEnv("OUTPUT_DIR");
+}
+
+/**
+ * Logging for a runner that forwards the agent's stream to **stdout** as it
+ * happens, so the GitHub Actions console captures it live.
+ *
+ * Sandcastle's default is log-to-file mode into an ephemeral dir the
+ * orchestrator never sees — in CI that means a silent, undiagnosable run (we
+ * lost 30 min to exactly this on the #357 smoke test). We keep file mode (the
+ * on-disk log lands under `OUTPUT_DIR` so a workflow step can upload it as an
+ * artifact) but attach `onAgentStreamEvent` to echo each text chunk and tool
+ * call to stdout. When the agent stalls, the last line tells us *where*.
+ */
+export function streamingLog(name: string): LoggingOption {
+  return {
+    type: "file",
+    path: join(outputDir(), `${name}.agent.log`),
+    onAgentStreamEvent: (event) => {
+      const stamp = `[${name} i${event.iteration}]`;
+      if (event.type === "text") {
+        const text = event.message.trim();
+        if (text) console.log(`${stamp} ${text}`);
+      } else if (event.type === "toolCall") {
+        console.log(`${stamp} ⚙ ${event.name} ${event.formattedArgs}`);
+      }
+      // "raw" events are intentionally dropped to keep the CI log readable.
+    },
+  };
 }
 
 /** Write a well-known output file the orchestrator consumes in a later step. */

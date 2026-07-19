@@ -13,6 +13,7 @@ import {
   createSandboxProvider,
   requireEnv,
   runMain,
+  streamingLog,
   writeOutput,
 } from "../lib/runner.mjs";
 import { runWithRetry } from "../run-with-retry.mjs";
@@ -27,6 +28,7 @@ await runMain(async () => {
     name: "write-pr",
     agent: createAgent(),
     sandbox: createSandboxProvider(),
+    logging: streamingLog("write-pr"),
     maxIterations: 1,
     promptFile: "./.sandcastle/agent-write-pr/prompt.md",
     promptArgs: {

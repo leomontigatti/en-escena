@@ -132,6 +132,7 @@ jobs:
 
       - name: Run implement runner
         if: steps.preflight.outputs.proceed == 'true'
+        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           BRANCH: ${{ steps.branch.outputs.branch }}
