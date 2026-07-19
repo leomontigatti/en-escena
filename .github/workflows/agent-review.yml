@@ -78,6 +78,7 @@ jobs:
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
       - name: Run review runner
+        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
         env:
           # Read-only prefetch (diff, linked issue, PR_COMMENTS_JSON) uses this;
           # the agent is instructed not to mutate anything.

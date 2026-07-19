@@ -16,6 +16,7 @@ import {
   createSandboxProvider,
   requireEnv,
   runMain,
+  streamingLog,
   writeOutput,
 } from "../lib/runner.mjs";
 import { runWithExtraction } from "../lib/run-with-extraction.mjs";
@@ -43,6 +44,7 @@ await runMain(async () => {
     name: "review",
     agent: createAgent(),
     sandbox: createSandboxProvider(),
+    logging: streamingLog("review"),
     maxIterations: 100,
     promptFile: "./.sandcastle/agent-review/prompt.md",
     promptArgs: {

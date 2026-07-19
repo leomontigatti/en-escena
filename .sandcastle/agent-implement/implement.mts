@@ -13,6 +13,7 @@ import {
   createSandboxProvider,
   requireEnv,
   runMain,
+  streamingLog,
 } from "../lib/runner.mjs";
 
 const MAX_ITERATIONS = 100;
@@ -26,6 +27,7 @@ await runMain(async () => {
     name: "implement",
     agent: createAgent(),
     sandbox: createSandboxProvider(),
+    logging: streamingLog("implement"),
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-implement/prompt.md",
     promptArgs: {
