@@ -31,7 +31,6 @@
     "db:test:push": "node --import tsx tests/db/push-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
     "setup:secrets": "bash scripts/setup-github-secrets.sh",
-    "sandcastle": "pnpm exec tsx .sandcastle/main.mts",
     "agent:implement": "pnpm exec tsx .sandcastle/agent-implement/implement.mts",
     "agent:write-pr": "pnpm exec tsx .sandcastle/agent-write-pr/write-pr.mts",
     "agent:review": "pnpm exec tsx .sandcastle/agent-review/review.mts"
