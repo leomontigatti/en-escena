@@ -55,7 +55,15 @@ export async function runWithExtraction<T, A extends AgentProvider>(
 
       if (!lastError) {
         // First extract: resume the produce session with the extraction prompt.
-        extract = (await produce.resume(extractionPrompt, { output })) as RunResult & {
+        // `resume()` spreads the produce run's options — including its
+        // `promptArgs` — but uses an inline prompt, and sandcastle rejects
+        // `promptArgs` alongside an inline prompt. Its own auto-retry clears
+        // them; `resume()` does not, so we clear them here (empty object passes
+        // the "no args with inline prompt" check).
+        extract = (await produce.resume(extractionPrompt, {
+          output,
+          promptArgs: {},
+        })) as RunResult & {
           readonly output: T;
         };
       } else {
