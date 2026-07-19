@@ -128,9 +128,9 @@ export function InscriptionCobroDialog({
           </div>
 
           {selectedPrice !== null ? (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Pago</span>
-              {payableForSelectedPrice.length > 0 ? (
+            payableForSelectedPrice.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">Pago</span>
                 <Select
                   name="paymentId"
                   value={selectedPaymentId ?? undefined}
@@ -150,15 +150,15 @@ export function InscriptionCobroDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <Alert variant="warning">
-                  <AlertTriangle aria-hidden="true" />
-                  <AlertDescription>
-                    No hay pagos con saldo suficiente para el precio elegido.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+              </div>
+            ) : (
+              <Alert variant="warning">
+                <AlertTriangle aria-hidden="true" />
+                <AlertDescription>
+                  No hay pagos con saldo suficiente para el precio elegido.
+                </AlertDescription>
+              </Alert>
+            )
           ) : null}
 
           {fetcher.data?.status === "error" ? (

@@ -195,8 +195,9 @@ export async function payInscriptionDeposit(input: {
       };
     }
 
-    // Techo: el precio vigente hoy. No se puede señar por encima del precio
-    // actualizado al día de la consulta.
+    // Techo: el precio vigente hoy, nunca por debajo del piso (igualar lo que
+    // pagó la primera hermana señada siempre es válido). No se puede señar por
+    // encima de ese techo.
     const ceilingPrice = await resolveApplicablePriceRow(tx, {
       eventId: input.eventId,
       groupType: choreography.groupType,
@@ -204,7 +205,7 @@ export async function payInscriptionDeposit(input: {
       scheduleId: choreography.scheduleId,
     });
 
-    if (ceilingPrice && price.amount > ceilingPrice.amount) {
+    if (ceilingPrice && price.amount > Math.max(floor, ceilingPrice.amount)) {
       return {
         ok: false,
         message:
@@ -316,14 +317,17 @@ export async function readInscriptionDepositOptions(input: {
   ).filter((price) => price.groupType === choreographyRow.groupType);
 
   // Techo: el precio vigente hoy, resuelto con la misma regla que el cobro
-  // (específico del cronograma por sobre el general). Si hoy no hay precio
-  // aplicable, no se impone techo para no ocultar todas las filas.
+  // (específico del cronograma por sobre el general). Nunca por debajo del piso:
+  // igualar el precio que pagó la primera hermana señada siempre es válido, aun
+  // si hoy rige un vencimiento más barato. Si hoy no hay precio aplicable, no se
+  // impone techo para no ocultar todas las filas.
   const ceilingPrice = selectApplicablePriceRow({
     priceRows: groupTypePrices,
     referenceDate: todayDateOnly(),
     scheduleId,
   });
-  const ceiling = ceilingPrice?.amount ?? null;
+  const ceiling =
+    ceilingPrice === null ? null : Math.max(floor, ceilingPrice.amount);
 
   const priceRows = groupTypePrices
     .filter(

@@ -100,9 +100,9 @@ export function InscriptionBalanceDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Pago</span>
-            {payableForBalance.length > 0 ? (
+          {payableForBalance.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Pago</span>
               <Select
                 name="paymentId"
                 value={selectedPaymentId ?? undefined}
@@ -122,16 +122,16 @@ export function InscriptionBalanceDialog({
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              <Alert variant="warning">
-                <AlertTriangle aria-hidden="true" />
-                <AlertDescription>
-                  No hay pagos con saldo suficiente para el saldo de la
-                  inscripción.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+            </div>
+          ) : (
+            <Alert variant="warning">
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>
+                No hay pagos con saldo suficiente para el saldo de la
+                inscripción.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
@@ -171,7 +171,7 @@ export function InscriptionBalanceDialog({
                 ) : (
                   <Trash2 aria-hidden="true" data-icon="inline-start" />
                 )}
-                Eliminar sin confirmación
+                Eliminar
               </Button>
             </deleteFetcher.Form>
           ) : (

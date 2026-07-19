@@ -9,7 +9,10 @@ import {
   prices,
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
-import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
+import {
+  readInscriptionDepositOptions,
+  releaseInscriptionAllocations,
+} from "@/lib/finances/choreography-cobro.server";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
@@ -489,6 +492,42 @@ describe.sequential("choreography cobro through the route action", () => {
       where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
     });
     expect(allocations).toHaveLength(0);
+  });
+
+  test("Ofrece el precio del piso cuando el precio vigente hoy quedó por debajo", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    // Precio vigente hoy (techo) por debajo del piso (10000): igualar el piso
+    // debe seguir siendo válido, así que las opciones no pueden quedar vacías.
+    await db.insert(prices).values([
+      {
+        eventId: fixture.event.id,
+        name: "Solo barato vigente",
+        groupType: "solo",
+        amount: 8000,
+        paymentDeadline: "2999-01-01",
+        scheduleId: null,
+      },
+      {
+        eventId: fixture.event.id,
+        name: "Solo piso vigente",
+        groupType: "solo",
+        amount: 10000,
+        paymentDeadline: "2999-12-31",
+        scheduleId: null,
+      },
+    ]);
+
+    const options = await readInscriptionDepositOptions({
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+    });
+
+    expect(options?.floor).toBe(10000);
+    // No queda vacío: el techo efectivo no baja del piso, así que se sigue
+    // ofreciendo el precio del piso (10000) y nada por debajo ni por encima.
+    expect(options?.priceRows.length).toBeGreaterThan(0);
+    expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(true);
   });
 
   test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {
