@@ -75,12 +75,27 @@ scopes `repo` + `workflow`), antes de correr el helper. A mano, sin el script, e
 que hace por dentro: `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, `gh secret set AGENT_PAT`,
 `gh secret list`.
 
-> **Divergencia con el script de Matt Pocock** (`course-video-manager`, de donde se
-> vendorizó el spec): el suyo carga `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` — un PAT
-> read-only para que el _agente_ lea issues _dentro_ del runner. Nuestro modelo
-> orquestador↔runner (§3.9) no le da token de GitHub al runner: el orquestador prefetcha el
-> contexto. Por eso el segundo secret es `AGENT_PAT` (`repo` + `workflow`), con otro
-> propósito. Se adaptó la ergonomía, no el modelo de secrets.
+> **Por qué no hay un `GH_READ_TOKEN` (y por qué eso _es_ apegarse a Matt).** El script de
+> Matt en `course-video-manager` carga `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` para que
+> el _agente_ lea issues con `gh issue view` _dentro_ del runner. Eso puede leerse como una
+> divergencia, pero es al revés: `course-video-manager` es su proyecto **anterior y liviano**
+> (RALPH); el **spec de esta plataforma** (también de Matt, más evolucionado) fija como
+> **regla central** (spec §3, "central design rule") que _«the agent never holds a GitHub
+> token and never calls the GitHub API to mutate state»_. Nosotros seguimos **esa** regla: el
+> orquestador prefetcha el contexto (p. ej. el body del issue, [#366]) y el runner no lleva
+> credencial de GitHub. Apegarse a Matt = mantenerlo sin token.
+>
+> Hay además un motivo de seguridad fuerte e independiente: el agente ingiere texto
+> controlable por terceros (cuerpos de issues, comentarios de PR), así que un LLM + una
+> credencial de GitHub = radio de daño de _prompt injection_. Nótese que el `GH_READ_TOKEN`
+> de Matt es un PAT **classic con scope `repo`**, que **no es read-only** (da lectura _y_
+> escritura a todos los repos del dueño). Cero credenciales en el agente es defense-in-depth.
+>
+> Por eso nuestro segundo secret es `AGENT_PAT` (`repo` + `workflow`) — que lo usa el
+> **orquestador** para encadenar y pushear a `.github/workflows/`, no el agente. Del script de
+> Matt tomamos la **ergonomía** (idempotencia, input oculto, verificación), no el modelo de
+> secrets. Si algún día el agente necesitara lecturas ad-hoc, la escalación correcta sería un
+> token **fine-grained, read-only, de un solo repo**, no el `repo`-classic amplio.
 
 Si `AGENT_PAT` se omite: la plataforma sigue, degradada. Ver la sección siguiente.
 
