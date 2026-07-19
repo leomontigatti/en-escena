@@ -52,9 +52,8 @@ describe("createSupabaseAccessAuthProvider", () => {
       status: 400,
     });
 
-    const { createSupabaseAccessAuthProvider } = await import(
-      "@/lib/auth/access-auth-provider.supabase.server"
-    );
+    const { createSupabaseAccessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.supabase.server");
 
     await expect(
       createSupabaseAccessAuthProvider().getAccessSession(
@@ -74,9 +73,8 @@ describe("createSupabaseAccessAuthProvider", () => {
       status: 400,
     });
 
-    const { createSupabaseAccessAuthProvider } = await import(
-      "@/lib/auth/access-auth-provider.supabase.server"
-    );
+    const { createSupabaseAccessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.supabase.server");
 
     await expect(
       createSupabaseAccessAuthProvider().getAccessSession(
@@ -98,9 +96,8 @@ describe("createSupabaseAccessAuthProvider", () => {
       error: null,
     });
 
-    const { createSupabaseAccessAuthProvider } = await import(
-      "@/lib/auth/access-auth-provider.supabase.server"
-    );
+    const { createSupabaseAccessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.supabase.server");
 
     await expect(
       createSupabaseAccessAuthProvider().confirmEmailOtp({
@@ -129,9 +126,8 @@ describe("createSupabaseAccessAuthProvider", () => {
       error: null,
     });
 
-    const { createSupabaseAccessAuthProvider } = await import(
-      "@/lib/auth/access-auth-provider.supabase.server"
-    );
+    const { createSupabaseAccessAuthProvider } =
+      await import("@/lib/auth/access-auth-provider.supabase.server");
 
     await expect(
       createSupabaseAccessAuthProvider().startEmailSignUp({

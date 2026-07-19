@@ -161,9 +161,9 @@ async function listPaymentAffectedChoreographies(
     const inscription = inscriptions.get(row.inscriptionId);
     const blocks = Boolean(
       inscription &&
-        inscription.isPaid &&
-        inscription.hasDepositHere &&
-        !inscription.hasBalanceHere,
+      inscription.isPaid &&
+      inscription.hasDepositHere &&
+      !inscription.hasBalanceHere,
     );
     const existing = choreographyList.get(row.choreographyId);
     choreographyList.set(row.choreographyId, {

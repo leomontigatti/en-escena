@@ -152,9 +152,8 @@ describe("administracion/eventos route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/eventos/${event.id}`,
     });
-    const newRouteModule = await import(
-      "@/routes/administracion.eventos_.nuevo"
-    );
+    const newRouteModule =
+      await import("@/routes/administracion.eventos_.nuevo");
 
     const listData = await loader(routeArgs(listRequest));
     const detailData = await detailLoader(

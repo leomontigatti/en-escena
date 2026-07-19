@@ -74,9 +74,8 @@ describe("administracion.bailarines route adapters", () => {
   });
 
   test("delegates detail loader, action, and render to the admin Bailarín detail feature module", async () => {
-    const routeModule = await import(
-      "@/routes/administracion.bailarines_.$dancerId"
-    );
+    const routeModule =
+      await import("@/routes/administracion.bailarines_.$dancerId");
     const request = new Request(
       "http://localhost/administracion/bailarines/dancer-1",
       {

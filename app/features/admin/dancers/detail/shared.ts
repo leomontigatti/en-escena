@@ -324,10 +324,10 @@ function hasDancerVerificationMinimumData(
 ) {
   return Boolean(
     dancer.birthDate &&
-      dancer.documentType &&
-      dancer.documentNumber &&
-      dancer.documentFrontImageStorageKey &&
-      dancer.documentBackImageStorageKey,
+    dancer.documentType &&
+    dancer.documentNumber &&
+    dancer.documentFrontImageStorageKey &&
+    dancer.documentBackImageStorageKey,
   );
 }
 

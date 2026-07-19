@@ -23,9 +23,8 @@ describe("EventPriceDetailRouteView", () => {
 
     const detailModule = await import("@/features/admin/prices/detail/view");
     const listModule = await import("@/features/admin/prices/list/view");
-    const viewSharedModule = await import(
-      "@/features/admin/prices/view-shared"
-    );
+    const viewSharedModule =
+      await import("@/features/admin/prices/view-shared");
 
     EventPriceDetailRouteView = detailModule.AdministrativeEventPriceDetailView;
     EventPricesRouteView = listModule.AdministrativeEventPricesListView;

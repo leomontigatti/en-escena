@@ -18,9 +18,8 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   let AdministracionBailarinDetalleRouteView: AdministracionBailarinDetalleRouteViewComponent;
 
   beforeAll(async () => {
-    ({ AdministracionBailarinDetalleRouteView } = await import(
-      "@/routes/administracion.bailarines_.$dancerId"
-    ));
+    ({ AdministracionBailarinDetalleRouteView } =
+      await import("@/routes/administracion.bailarines_.$dancerId"));
   }, 30_000);
 
   afterEach(renderer.cleanup);

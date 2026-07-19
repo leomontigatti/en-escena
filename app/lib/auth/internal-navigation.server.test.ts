@@ -48,9 +48,8 @@ describe("internal navigation", () => {
     });
     findUser.mockResolvedValue(null);
 
-    const { redirectSignedInUserFromPublicRoute } = await import(
-      "@/lib/auth/internal-navigation.server"
-    );
+    const { redirectSignedInUserFromPublicRoute } =
+      await import("@/lib/auth/internal-navigation.server");
 
     const response = await expectThrownResponse(
       redirectSignedInUserFromPublicRoute(
@@ -65,9 +64,8 @@ describe("internal navigation", () => {
   test("keeps public routes available while clearing stale Supabase cookies", async () => {
     getAccessSession.mockResolvedValue(null);
 
-    const { redirectSignedInUserFromPublicRoute } = await import(
-      "@/lib/auth/internal-navigation.server"
-    );
+    const { redirectSignedInUserFromPublicRoute } =
+      await import("@/lib/auth/internal-navigation.server");
 
     const result = await redirectSignedInUserFromPublicRoute(
       new Request("http://localhost/registro", {
