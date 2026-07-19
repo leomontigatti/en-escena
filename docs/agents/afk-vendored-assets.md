@@ -9,11 +9,11 @@ ticket [Vendorizar el spec AFK + prompts + skill do-work](https://github.com/leo
 
 ## Qué se trajo
 
-| Asset | Local | Fuente |
-| ----- | ----- | ------ |
-| Spec de los 8 workflows | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md) | `docs/agents/afk-agent-platform-spec.md` |
-| Prompts base de los runners (9) | [`prompts/`](./prompts/) | `docs/agents/prompts/*.prompt.md` |
-| Skill `do-work` (SKILL + DB-TDD + FRONTEND-TDD) | [`.claude/skills/do-work/`](../../.claude/skills/do-work/) | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
+| Asset                                           | Local                                                        | Fuente                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| Spec de los 8 workflows                         | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md) | `docs/agents/afk-agent-platform-spec.md`                |
+| Prompts base de los runners (9)                 | [`prompts/`](./prompts/)                                     | `docs/agents/prompts/*.prompt.md`                       |
+| Skill `do-work` (SKILL + DB-TDD + FRONTEND-TDD) | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)   | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
 
 ## Qué se adaptó vs. la fuente
 

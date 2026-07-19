@@ -563,12 +563,12 @@ the sub-issues **already created before** the failure (so a human can clean up p
 
 **Preconditions & refusals.** Compute shape, then:
 
-| Condition | Action |
+| Condition                             | Action                                                                                                                                                                      |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------ |
-| Has sub-issues (is a PRD) | **Silent skip** — [Implement PRD](#43-implement-prd) owns this trigger for PRDs. |
-| Is a sub-issue (has parent) | **Refuse:** remove trigger, add `agent:blocked`, comment "label the parent PRD, not the sub-issue". |
+| Has sub-issues (is a PRD)             | **Silent skip** — [Implement PRD](#43-implement-prd) owns this trigger for PRDs.                                                                                            |
+| Is a sub-issue (has parent)           | **Refuse:** remove trigger, add `agent:blocked`, comment "label the parent PRD, not the sub-issue".                                                                         |
 | An open PR already targets this issue | **Refuse:** remove trigger, comment with the existing PR URL, exit. Detect via `gh pr list --state open --search "in:body \"#N\""` then filter bodies matching `(?i)(closes | fixes | resolves)\s+#N\b`. |
-| Otherwise | Run. |
+| Otherwise                             | Run.                                                                                                                                                                        |
 
 **Step sequence.**
 
