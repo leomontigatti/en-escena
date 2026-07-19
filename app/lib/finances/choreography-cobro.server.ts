@@ -1,8 +1,7 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  payments,
   choreographies,
   choreographyDancers,
   events,
@@ -11,27 +10,29 @@ import {
   scheduleCapacities,
 } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
+import { todayDateOnly } from "@/lib/shared/date-only";
 import {
   calculateDepositAmount,
-  computeDancerDiscountAmounts,
   deriveInscriptionFinancialState,
 } from "@/lib/finances/operational-summary-calculations.server";
-import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 
-type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+import {
+  assertPaymentAvailability,
+  loadCandidatePriceRow,
+  loadCobroContext,
+  resolveApplicablePriceRow,
+  resolveDancerDiscounts,
+  resolveInscriptionDepositFloor,
+  selectApplicablePriceRow,
+  type CobroResult,
+} from "./choreography-cobro-support.server";
 
-type AllocationType =
-  (typeof paymentAllocations.$inferSelect)["allocationType"];
-
-type FinancePriceRow = typeof prices.$inferSelect;
-
-/**
- * Resultado de una operación de cobro. Cuando `ok` es `false`, `message` es un
- * texto listo para mostrar en la UI administrativa.
- */
-export type CobroResult = { ok: true } | { ok: false; message: string };
-
-type InscriptionRow = typeof choreographyDancers.$inferSelect;
+export {
+  deletePaymentAllocation,
+  deletePaymentWithAllocations,
+  releaseInscriptionAllocations,
+} from "./choreography-cobro-allocations.server";
+export type { CobroResult };
 
 /**
  * `Pagar seña` de una coreografía completa. Solo procede si todas las
@@ -134,8 +135,8 @@ export async function payChoreographyDeposit(input: {
  *   `pagada`); en una coreografía 100% `impaga` el primer congelamiento es el
  *   del flujo normal por coreografía entera.
  * - La fila elegida debe pertenecer al conjunto candidato (mismo `groupType` y
- *   cronograma) y cumplir `price.amount >= piso`, con el piso =
- *   `min(frozenBasePriceAmount)` sobre las hermanas activas ya `señada`/`pagada`.
+ *   cronograma) y quedar entre el piso (`min(frozenBasePriceAmount)` sobre las
+ *   hermanas activas ya `señada`/`pagada`) y el techo (precio vigente hoy).
  */
 export async function payInscriptionDeposit(input: {
   academyId: string;
@@ -194,6 +195,23 @@ export async function payInscriptionDeposit(input: {
       };
     }
 
+    // Techo: el precio vigente hoy. No se puede señar por encima del precio
+    // actualizado al día de la consulta.
+    const ceilingPrice = await resolveApplicablePriceRow(tx, {
+      eventId: input.eventId,
+      groupType: choreography.groupType,
+      paymentDate: todayDateOnly(),
+      scheduleId: choreography.scheduleId,
+    });
+
+    if (ceilingPrice && price.amount > ceilingPrice.amount) {
+      return {
+        ok: false,
+        message:
+          "La fila de precio no puede superar el precio vigente al día de hoy.",
+      };
+    }
+
     const depositAmount = calculateDepositAmount({
       amount: price.amount,
       percentage: event.requiredDepositPercentage,
@@ -236,7 +254,10 @@ export async function payInscriptionDeposit(input: {
  * `null` cuando la coreografía **no** es mixta (no hay huérfana `impaga` con al
  * menos una hermana ya `señada`/`pagada`), que es cuando este flujo no se
  * ofrece. El conjunto de filas de precio candidatas es el de mismo `groupType` y
- * cronograma, sin filtrar por fecha, acotado por el piso.
+ * cronograma, acotado entre el **piso** (`min(frozenBasePriceAmount)` de las
+ * hermanas ya congeladas) y el **techo**: el precio vigente al día de hoy (día
+ * de la consulta). No se ofrece un precio menor al que pagó la primera hermana
+ * señada ni mayor al vigente hoy.
  */
 export async function readInscriptionDepositOptions(input: {
   choreographyId: string;
@@ -290,14 +311,26 @@ export async function readInscriptionDepositOptions(input: {
   }
 
   const scheduleId = resolveChoreographyPricingScheduleId(choreographyRow);
-  const priceRows = (
+  const groupTypePrices = (
     await db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) })
-  )
+  ).filter((price) => price.groupType === choreographyRow.groupType);
+
+  // Techo: el precio vigente hoy, resuelto con la misma regla que el cobro
+  // (específico del cronograma por sobre el general). Si hoy no hay precio
+  // aplicable, no se impone techo para no ocultar todas las filas.
+  const ceilingPrice = selectApplicablePriceRow({
+    priceRows: groupTypePrices,
+    referenceDate: todayDateOnly(),
+    scheduleId,
+  });
+  const ceiling = ceilingPrice?.amount ?? null;
+
+  const priceRows = groupTypePrices
     .filter(
       (price) =>
-        price.groupType === choreographyRow.groupType &&
         (price.scheduleId === null || price.scheduleId === scheduleId) &&
-        price.amount >= floor,
+        price.amount >= floor &&
+        (ceiling === null || price.amount <= ceiling),
     )
     .map((price) => ({
       id: price.id,
@@ -311,59 +344,6 @@ export async function readInscriptionDepositOptions(input: {
     .sort((a, b) => a.amount - b.amount);
 
   return { floor, priceRows };
-}
-
-/**
- * Piso del cobro por inscripción: `min(frozenBasePriceAmount)` sobre las
- * inscripciones activas ya `señada`/`pagada`, excluyendo la huérfana objetivo.
- * `null` cuando ninguna hermana está congelada (la coreografía no es mixta).
- */
-function resolveInscriptionDepositFloor(
-  inscriptions: InscriptionRow[],
-  excludeInscriptionId: string | null,
-): number | null {
-  const frozenAmounts = inscriptions
-    .filter((inscription) => inscription.id !== excludeInscriptionId)
-    .filter((inscription) => {
-      const state = deriveInscriptionFinancialState(inscription);
-      return state === "señada" || state === "pagada";
-    })
-    .map((inscription) => inscription.frozenBasePriceAmount ?? 0);
-
-  if (frozenAmounts.length === 0) {
-    return null;
-  }
-
-  return Math.min(...frozenAmounts);
-}
-
-/**
- * Carga la fila de precio elegida validando que pertenezca al conjunto candidato
- * de la coreografía: mismo evento, mismo `groupType` y cronograma (una fila
- * específica del cronograma o una general), sin filtrar por fecha.
- */
-async function loadCandidatePriceRow(
-  tx: Transaction,
-  input: {
-    eventId: string;
-    groupType: string;
-    priceId: string;
-    scheduleId: string | null;
-  },
-): Promise<FinancePriceRow | null> {
-  const price = await tx.query.prices.findFirst({
-    where: and(eq(prices.id, input.priceId), eq(prices.eventId, input.eventId)),
-  });
-
-  if (
-    !price ||
-    price.groupType !== input.groupType ||
-    (price.scheduleId !== null && price.scheduleId !== input.scheduleId)
-  ) {
-    return null;
-  }
-
-  return price;
 }
 
 /**
@@ -641,421 +621,4 @@ export async function payInscriptionBalance(input: {
 
     return { ok: true };
   });
-}
-
-/**
- * Borra una asignación de pago y limpia el snapshot correspondiente, devolviendo
- * la inscripción al estado anterior: borrar la `deposit` la deja `impaga`;
- * borrar la `balance` la deja `señada`. El monto liberado vuelve al `Saldo
- * disponible` de la academia (derivado de pagos − asignaciones).
- */
-export async function deletePaymentAllocation(input: {
-  allocationId: string;
-}): Promise<CobroResult> {
-  return await db.transaction((tx) =>
-    deletePaymentAllocationWithinTx(tx, input.allocationId),
-  );
-}
-
-/**
- * Núcleo de `deletePaymentAllocation` que participa de una transacción externa:
- * revierte el snapshot de la inscripción y borra la asignación. Respeta el guard
- * de orden (no se puede borrar la `deposit` de una inscripción `pagada` sin
- * borrar antes su `balance`). Reutilizado por la cascada al eliminar un pago.
- */
-async function deletePaymentAllocationWithinTx(
-  tx: Transaction,
-  allocationId: string,
-): Promise<CobroResult> {
-  const allocation = await tx.query.paymentAllocations.findFirst({
-    where: eq(paymentAllocations.id, allocationId),
-  });
-
-  if (!allocation) {
-    return { ok: false, message: "No encontramos esa asignación." };
-  }
-
-  const inscription = await tx.query.choreographyDancers.findFirst({
-    where: eq(choreographyDancers.id, allocation.inscriptionId),
-  });
-
-  if (!inscription) {
-    return { ok: false, message: "No encontramos esa inscripción." };
-  }
-
-  if (allocation.allocationType === "deposit") {
-    if (deriveInscriptionFinancialState(inscription) === "pagada") {
-      return {
-        ok: false,
-        message: DEPOSIT_BEFORE_BALANCE_MESSAGE,
-      };
-    }
-
-    await tx
-      .update(choreographyDancers)
-      .set(clearDepositSnapshot())
-      .where(eq(choreographyDancers.id, inscription.id));
-  } else {
-    await tx
-      .update(choreographyDancers)
-      .set(clearBalanceSnapshot())
-      .where(eq(choreographyDancers.id, inscription.id));
-  }
-
-  await tx
-    .delete(paymentAllocations)
-    .where(eq(paymentAllocations.id, allocation.id));
-
-  return { ok: true };
-}
-
-/**
- * Elimina un pago arrastrando en cascada todas sus asignaciones, dentro de una
- * sola transacción. Revierte el snapshot de cada inscripción reusando la lógica
- * de `deletePaymentAllocation`. Las asignaciones de `balance` se borran antes
- * que las de `deposit` para que el guard de orden pase en el caso común (seña y
- * saldo en el mismo pago). Si alguna inscripción queda con el saldo pagado en
- * otro pago, el guard bloquea, se hace rollback total y se informa.
- */
-export async function deletePaymentWithAllocations(input: {
-  paymentId: string;
-}): Promise<CobroResult> {
-  try {
-    await db.transaction(async (tx) => {
-      const allocations = await tx.query.paymentAllocations.findMany({
-        where: eq(paymentAllocations.paymentId, input.paymentId),
-      });
-
-      // `balance` antes que `deposit`: así, cuando ambos están en este pago, al
-      // llegar a la seña la inscripción ya no está `pagada` y el guard pasa.
-      const ordered = [...allocations].sort(
-        (a, b) =>
-          allocationDeletionRank(a.allocationType) -
-          allocationDeletionRank(b.allocationType),
-      );
-
-      for (const allocation of ordered) {
-        const result = await deletePaymentAllocationWithinTx(tx, allocation.id);
-        if (!result.ok) {
-          // El guard de orden significa que el saldo vive en otro pago: se
-          // traduce a un mensaje a nivel pago. Cualquier otra causa se propaga
-          // tal cual para no ocultar el error real.
-          throw new PaymentCascadeBlockedError(
-            result.message === DEPOSIT_BEFORE_BALANCE_MESSAGE
-              ? "No se pudo eliminar el pago: hay coreografías con el saldo pagado en otro pago. Desasigná ese saldo primero."
-              : result.message,
-          );
-        }
-      }
-
-      await tx.delete(payments).where(eq(payments.id, input.paymentId));
-    });
-
-    return { ok: true };
-  } catch (error) {
-    if (error instanceof PaymentCascadeBlockedError) {
-      return { ok: false, message: error.message };
-    }
-
-    throw error;
-  }
-}
-
-function allocationDeletionRank(allocationType: AllocationType): number {
-  return allocationType === "balance" ? 0 : 1;
-}
-
-const DEPOSIT_BEFORE_BALANCE_MESSAGE =
-  "Borrá primero la asignación de saldo antes de la de seña.";
-
-class PaymentCascadeBlockedError extends Error {}
-
-/**
- * Devuelve al `Saldo disponible` de la academia todo lo asignado a una
- * inscripción: borra sus asignaciones de pago (seña y, si existía, saldo) y
- * limpia sus snapshots. Helper consumido al quitar una inscripción del roster.
- * Acepta una transacción externa para participar del borrado del roster.
- */
-export async function releaseInscriptionAllocations(
-  input: { inscriptionId: string },
-  tx: Transaction | typeof db = db,
-): Promise<{ releasedAmount: number }> {
-  const allocations = await tx.query.paymentAllocations.findMany({
-    where: eq(paymentAllocations.inscriptionId, input.inscriptionId),
-  });
-
-  const releasedAmount = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
-  );
-
-  await tx
-    .delete(paymentAllocations)
-    .where(eq(paymentAllocations.inscriptionId, input.inscriptionId));
-
-  await tx
-    .update(choreographyDancers)
-    .set({ ...clearDepositSnapshot(), ...clearBalanceSnapshot() })
-    .where(eq(choreographyDancers.id, input.inscriptionId));
-
-  return { releasedAmount };
-}
-
-type CobroContext =
-  | { ok: false; message: string }
-  | {
-      ok: true;
-      choreography: {
-        groupType: string;
-        scheduleId: string | null;
-      };
-      event: { requiredDepositPercentage: number };
-      inscriptions: InscriptionRow[];
-      payment: typeof payments.$inferSelect;
-    };
-
-async function loadCobroContext(
-  tx: Transaction,
-  input: {
-    academyId: string;
-    choreographyId: string;
-    eventId: string;
-    paymentId: string;
-  },
-): Promise<CobroContext> {
-  const [choreographyRow] = await tx
-    .select({
-      academyId: choreographies.academyId,
-      eventId: choreographies.eventId,
-      groupType: choreographies.groupType,
-      choreographyScheduleId: choreographies.scheduleId,
-      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
-    })
-    .from(choreographies)
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .where(eq(choreographies.id, input.choreographyId));
-
-  if (
-    !choreographyRow ||
-    choreographyRow.academyId !== input.academyId ||
-    choreographyRow.eventId !== input.eventId
-  ) {
-    return { ok: false, message: "No encontramos esa coreografía." };
-  }
-
-  const event = await tx.query.events.findFirst({
-    columns: { requiredDepositPercentage: true },
-    where: eq(events.id, input.eventId),
-  });
-
-  if (!event) {
-    return { ok: false, message: "No encontramos el evento." };
-  }
-
-  const inscriptions = await tx.query.choreographyDancers.findMany({
-    where: eq(choreographyDancers.choreographyId, input.choreographyId),
-  });
-
-  if (inscriptions.length === 0) {
-    return {
-      ok: false,
-      message: "La coreografía no tiene inscripciones activas.",
-    };
-  }
-
-  const payment = await tx.query.payments.findFirst({
-    where: and(
-      eq(payments.id, input.paymentId),
-      eq(payments.academyId, input.academyId),
-      eq(payments.eventId, input.eventId),
-    ),
-  });
-
-  if (!payment) {
-    return { ok: false, message: "No encontramos ese pago." };
-  }
-
-  return {
-    ok: true,
-    choreography: {
-      groupType: choreographyRow.groupType,
-      scheduleId: resolveChoreographyPricingScheduleId(choreographyRow),
-    },
-    event,
-    inscriptions,
-    payment,
-  };
-}
-
-/**
- * Selecciona la fila de precio vigente para un tipo de grupo y cronograma contra
- * `paymentDate`, priorizando el precio específico del cronograma sobre el
- * general. Consulta con la transacción activa para no abrir una conexión nueva.
- */
-async function resolveApplicablePriceRow(
-  tx: Transaction,
-  input: {
-    eventId: string;
-    groupType: string;
-    paymentDate: string;
-    scheduleId: string | null;
-  },
-) {
-  const priceRows = (
-    await tx.query.prices.findMany({
-      where: eq(prices.eventId, input.eventId),
-    })
-  ).filter((price) => price.groupType === input.groupType);
-
-  return selectApplicablePriceRow({
-    priceRows,
-    referenceDate: input.paymentDate,
-    scheduleId: input.scheduleId,
-  });
-}
-
-/**
- * Elige entre filas ya cargadas y filtradas por tipo de grupo, priorizando el
- * precio específico del cronograma sobre el general. Es la regla que comparten
- * el cobro y su cotización previa, para que ambos lleguen al mismo precio.
- */
-function selectApplicablePriceRow(input: {
-  priceRows: FinancePriceRow[];
-  referenceDate: string;
-  scheduleId: string | null;
-}) {
-  if (input.scheduleId) {
-    const specificPrice = selectApplicablePriceFromCandidates(
-      input.priceRows.filter((price) => price.scheduleId === input.scheduleId),
-      input.referenceDate,
-    );
-
-    if (specificPrice) {
-      return specificPrice;
-    }
-  }
-
-  return selectApplicablePriceFromCandidates(
-    input.priceRows.filter((price) => price.scheduleId === null),
-    input.referenceDate,
-  );
-}
-
-async function assertPaymentAvailability(
-  tx: Transaction,
-  input: {
-    payment: typeof payments.$inferSelect;
-    requiredAmount: number;
-  },
-): Promise<CobroResult> {
-  const allocations = await tx.query.paymentAllocations.findMany({
-    columns: { amount: true },
-    where: eq(paymentAllocations.paymentId, input.payment.id),
-  });
-  const allocatedAmount = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
-  );
-  const availableAmount = input.payment.amount - allocatedAmount;
-
-  if (availableAmount < input.requiredAmount) {
-    return {
-      ok: false,
-      message: "El pago no tiene saldo disponible suficiente.",
-    };
-  }
-
-  return { ok: true };
-}
-
-async function resolveDancerDiscounts(
-  tx: Transaction,
-  input: {
-    academyId: string;
-    eventId: string;
-    inscriptions: InscriptionRow[];
-  },
-) {
-  const dancerIds = [
-    ...new Set(input.inscriptions.map((inscription) => inscription.dancerId)),
-  ];
-
-  const qualifyingRows = await tx
-    .select({
-      id: choreographyDancers.id,
-      dancerId: choreographyDancers.dancerId,
-      frozenBasePriceAmount: choreographyDancers.frozenBasePriceAmount,
-      depositReferenceDate: choreographyDancers.depositReferenceDate,
-      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
-    })
-    .from(choreographyDancers)
-    .innerJoin(
-      choreographies,
-      eq(choreographyDancers.choreographyId, choreographies.id),
-    )
-    .where(
-      and(
-        eq(choreographies.academyId, input.academyId),
-        eq(choreographies.eventId, input.eventId),
-        inArray(choreographyDancers.dancerId, dancerIds),
-      ),
-    );
-
-  const qualifyingByDancer = new Map<
-    string,
-    Array<{ id: string; frozenBasePriceAmount: number }>
-  >();
-  for (const row of qualifyingRows) {
-    const state = deriveInscriptionFinancialState(row);
-    if (
-      (state !== "señada" && state !== "pagada") ||
-      row.frozenBasePriceAmount === null
-    ) {
-      continue;
-    }
-
-    const bucket = qualifyingByDancer.get(row.dancerId);
-    const entry = {
-      frozenBasePriceAmount: row.frozenBasePriceAmount,
-      id: row.id,
-    };
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      qualifyingByDancer.set(row.dancerId, [entry]);
-    }
-  }
-
-  const discounts = new Map<string, { amount: number; percentage: number }>();
-  for (const group of qualifyingByDancer.values()) {
-    for (const [id, discount] of computeDancerDiscountAmounts(group)) {
-      discounts.set(id, discount);
-    }
-  }
-
-  return discounts;
-}
-
-function clearDepositSnapshot() {
-  return {
-    frozenBasePriceAmount: null,
-    selectedPriceId: null,
-    depositReferenceDate: null,
-    depositPercentage: null,
-    depositAmount: null,
-  };
-}
-
-function clearBalanceSnapshot() {
-  return {
-    balanceReferenceDate: null,
-    appliedDancerDiscountPercentage: null,
-    appliedDancerDiscountAmount: null,
-    finalTotalAmount: null,
-    balanceAmount: null,
-    balanceCompletedAt: null,
-  };
 }

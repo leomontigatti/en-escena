@@ -452,6 +452,45 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(allocations).toHaveLength(0);
   });
 
+  test("El server rechaza una fila de precio por encima del precio vigente hoy", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    // Techo: único precio con vencimiento aún no pasado, así queda como el
+    // "precio vigente hoy" (11000). priceAbove (12000) está sobre el piso pero
+    // por encima de este techo.
+    await db.insert(prices).values({
+      eventId: fixture.event.id,
+      name: "Solo vigente",
+      groupType: "solo",
+      amount: 11000,
+      paymentDeadline: "2999-12-31",
+      scheduleId: null,
+    });
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-deposit",
+        inscriptionId: fixture.bruno.id,
+        priceId: fixture.priceAbove.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const bruno = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.bruno.id),
+    });
+    expect(bruno?.depositReferenceDate).toBeNull();
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+    });
+    expect(allocations).toHaveLength(0);
+  });
+
   test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {
     const fixture = await seedMixedBalanceFixture();
 

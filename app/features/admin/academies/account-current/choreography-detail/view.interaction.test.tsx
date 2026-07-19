@@ -39,15 +39,11 @@ describe("DancerNameCell interaction", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    expect(document.body.textContent).not.toContain(
-      "Cobrar saldo de la inscripción",
-    );
+    expect(document.body.textContent).not.toContain("Asignar saldo");
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(document.body.textContent).toContain(
-      "Cobrar saldo de la inscripción",
-    );
+    expect(document.body.textContent).toContain("Asignar saldo");
   });
 
   // Regresión: el diálogo por fila vivía en una celda que se remontaba cuando
@@ -82,14 +78,10 @@ describe("DancerNameCell interaction", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await clickReactDomButton("Bruno Benítez");
-    expect(document.body.textContent).toContain(
-      "Cobrar saldo de la inscripción",
-    );
+    expect(document.body.textContent).toContain("Asignar saldo");
 
     await clickReactDomButton("re-render");
-    expect(document.body.textContent).toContain(
-      "Cobrar saldo de la inscripción",
-    );
+    expect(document.body.textContent).toContain("Asignar saldo");
   });
 });
 

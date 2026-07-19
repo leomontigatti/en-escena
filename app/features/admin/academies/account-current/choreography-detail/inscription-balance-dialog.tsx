@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -23,10 +23,8 @@ import {
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 import { formatAmount, formatDate } from "../formatters";
-import { formatDancerName } from "./inscription-cobro-dialog";
-import { DeleteAllocationSection } from "./inscription-undo-dialog";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
-import { payInscriptionBalanceIntent } from "./shared";
+import { deleteAllocationIntent, payInscriptionBalanceIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
@@ -55,29 +53,31 @@ export function InscriptionBalanceDialog({
   payments: PaymentRow[];
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const deleteFetcher = useFetcher<{ status: "error"; message: string }>();
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
     null,
   );
   const isSaving = fetcher.state !== "idle";
+  const isDeleting = deleteFetcher.state !== "idle";
+  const isBusy = isSaving || isDeleting;
   const balanceAmount = inscription.balanceAmount ?? 0;
   const payableForBalance = payments.filter(
     (payment) => payment.availableAmount >= balanceAmount,
   );
+  const undoableAllocation = inscription.undoableAllocation;
+  const formId = `assign-balance-${inscription.inscriptionId ?? "row"}`;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !isSaving && onOpenChange(next)}
-    >
+    <Dialog open={open} onOpenChange={(next) => !isBusy && onOpenChange(next)}>
       <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Cobrar saldo de la inscripción</DialogTitle>
+          <DialogTitle>Asignar saldo</DialogTitle>
           <DialogDescription>
-            Elegí el pago para saldar a {formatDancerName(inscription)}.
+            Elegí el pago para saldar la inscripción.
           </DialogDescription>
         </DialogHeader>
 
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <fetcher.Form id={formId} method="post" className="flex flex-col gap-4">
           <input
             type="hidden"
             name="intent"
@@ -101,31 +101,36 @@ export function InscriptionBalanceDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Pago a asignar</span>
-            <Select
-              name="paymentId"
-              value={selectedPaymentId ?? undefined}
-              onValueChange={setSelectedPaymentId}
-              disabled={isSaving}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Elegí un pago" />
-              </SelectTrigger>
-              <SelectContent>
-                {payableForBalance.map((payment) => (
-                  <SelectItem key={payment.id} value={payment.id}>
-                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                    {formatDate(payment.paymentDate)} · disponible{" "}
-                    {formatAmount(payment.availableAmount)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {payableForBalance.length === 0 ? (
-              <span className="text-xs text-muted-foreground">
-                No hay pagos con disponible suficiente para este saldo.
-              </span>
-            ) : null}
+            <span className="text-sm font-medium">Pago</span>
+            {payableForBalance.length > 0 ? (
+              <Select
+                name="paymentId"
+                value={selectedPaymentId ?? undefined}
+                onValueChange={setSelectedPaymentId}
+                disabled={isBusy}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Elegí un pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  {payableForBalance.map((payment) => (
+                    <SelectItem key={payment.id} value={payment.id}>
+                      {formatPaymentNumber(payment.paymentNumber)} ·{" "}
+                      {formatDate(payment.paymentDate)} · disponible{" "}
+                      {formatAmount(payment.availableAmount)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Alert variant="warning">
+                <AlertTriangle aria-hidden="true" />
+                <AlertDescription>
+                  No hay pagos con saldo suficiente para el saldo de la
+                  inscripción.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           {fetcher.data?.status === "error" ? (
@@ -134,14 +139,56 @@ export function InscriptionBalanceDialog({
               <AlertDescription>{fetcher.data.message}</AlertDescription>
             </Alert>
           ) : null}
+        </fetcher.Form>
 
-          <DialogFooter>
+        {deleteFetcher.data?.status === "error" ? (
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>{deleteFetcher.data.message}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <DialogFooter className="sm:justify-between">
+          {undoableAllocation ? (
+            <deleteFetcher.Form method="post">
+              <input
+                type="hidden"
+                name="intent"
+                value={deleteAllocationIntent}
+              />
+              <input
+                type="hidden"
+                name="allocationId"
+                value={undoableAllocation.id}
+              />
+              <Button type="submit" variant="destructive" disabled={isBusy}>
+                {isDeleting ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                ) : (
+                  <Trash2 aria-hidden="true" data-icon="inline-start" />
+                )}
+                Eliminar sin confirmación
+              </Button>
+            </deleteFetcher.Form>
+          ) : (
+            <span />
+          )}
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSaving}>
+              <Button type="button" variant="outline" disabled={isBusy}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={!selectedPaymentId || isSaving}>
+            <Button
+              type="submit"
+              form={formId}
+              disabled={!selectedPaymentId || isBusy}
+            >
               {isSaving ? (
                 <LoaderCircle
                   aria-hidden="true"
@@ -153,16 +200,8 @@ export function InscriptionBalanceDialog({
               )}
               Guardar
             </Button>
-          </DialogFooter>
-        </fetcher.Form>
-
-        {inscription.undoableAllocation ? (
-          <DeleteAllocationSection
-            inscription={inscription}
-            allocation={inscription.undoableAllocation}
-            disabled={isSaving}
-          />
-        ) : null}
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

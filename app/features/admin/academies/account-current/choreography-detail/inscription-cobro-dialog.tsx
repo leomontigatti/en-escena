@@ -84,10 +84,9 @@ export function InscriptionCobroDialog({
     >
       <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Cobrar seña de la inscripción</DialogTitle>
+          <DialogTitle>Asignar seña</DialogTitle>
           <DialogDescription>
-            Elegí la fila de precio y el pago para señar a{" "}
-            {formatDancerName(inscription)}.
+            Elegí el precio y el pago para señar la inscripción.
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +103,7 @@ export function InscriptionCobroDialog({
           />
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Fila de precio</span>
+            <span className="text-sm font-medium">Precio</span>
             <Select
               name="priceId"
               value={selectedPriceId ?? undefined}
@@ -115,7 +114,7 @@ export function InscriptionCobroDialog({
               disabled={isSaving}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Elegí una fila de precio" />
+                <SelectValue placeholder="Elegí un precio" />
               </SelectTrigger>
               <SelectContent>
                 {priceRows.map((price) => (
@@ -128,39 +127,39 @@ export function InscriptionCobroDialog({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Pago a asignar</span>
-            <Select
-              name="paymentId"
-              value={selectedPaymentId ?? undefined}
-              onValueChange={setSelectedPaymentId}
-              disabled={isSaving || selectedPrice === null}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue
-                  placeholder={
-                    selectedPrice === null
-                      ? "Elegí primero una fila de precio"
-                      : "Elegí un pago"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {payableForSelectedPrice.map((payment) => (
-                  <SelectItem key={payment.id} value={payment.id}>
-                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                    {formatDate(payment.paymentDate)} · disponible{" "}
-                    {formatAmount(payment.availableAmount)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedPrice !== null && payableForSelectedPrice.length === 0 ? (
-              <span className="text-xs text-muted-foreground">
-                No hay pagos con disponible suficiente para esta fila.
-              </span>
-            ) : null}
-          </div>
+          {selectedPrice !== null ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Pago</span>
+              {payableForSelectedPrice.length > 0 ? (
+                <Select
+                  name="paymentId"
+                  value={selectedPaymentId ?? undefined}
+                  onValueChange={setSelectedPaymentId}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Elegí un pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payableForSelectedPrice.map((payment) => (
+                      <SelectItem key={payment.id} value={payment.id}>
+                        {formatPaymentNumber(payment.paymentNumber)} ·{" "}
+                        {formatDate(payment.paymentDate)} · disponible{" "}
+                        {formatAmount(payment.availableAmount)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Alert variant="warning">
+                  <AlertTriangle aria-hidden="true" />
+                  <AlertDescription>
+                    No hay pagos con saldo suficiente para el precio elegido.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          ) : null}
 
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
