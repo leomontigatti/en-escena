@@ -9,7 +9,10 @@ import {
   prices,
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
-import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
+import {
+  readInscriptionDepositOptions,
+  releaseInscriptionAllocations,
+} from "@/lib/finances/choreography-cobro.server";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
@@ -450,6 +453,81 @@ describe.sequential("choreography cobro through the route action", () => {
       ),
     });
     expect(allocations).toHaveLength(0);
+  });
+
+  test("El server rechaza una fila de precio por encima del precio vigente hoy", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    // Techo: único precio con vencimiento aún no pasado, así queda como el
+    // "precio vigente hoy" (11000). priceAbove (12000) está sobre el piso pero
+    // por encima de este techo.
+    await db.insert(prices).values({
+      eventId: fixture.event.id,
+      name: "Solo vigente",
+      groupType: "solo",
+      amount: 11000,
+      paymentDeadline: "2999-12-31",
+      scheduleId: null,
+    });
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: {
+        intent: "pay-inscription-deposit",
+        inscriptionId: fixture.bruno.id,
+        priceId: fixture.priceAbove.id,
+        paymentId: fixture.payment.id,
+      },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const bruno = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.bruno.id),
+    });
+    expect(bruno?.depositReferenceDate).toBeNull();
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+    });
+    expect(allocations).toHaveLength(0);
+  });
+
+  test("Ofrece el precio del piso cuando el precio vigente hoy quedó por debajo", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    // Precio vigente hoy (techo) por debajo del piso (10000): igualar el piso
+    // debe seguir siendo válido, así que las opciones no pueden quedar vacías.
+    await db.insert(prices).values([
+      {
+        eventId: fixture.event.id,
+        name: "Solo barato vigente",
+        groupType: "solo",
+        amount: 8000,
+        paymentDeadline: "2999-01-01",
+        scheduleId: null,
+      },
+      {
+        eventId: fixture.event.id,
+        name: "Solo piso vigente",
+        groupType: "solo",
+        amount: 10000,
+        paymentDeadline: "2999-12-31",
+        scheduleId: null,
+      },
+    ]);
+
+    const options = await readInscriptionDepositOptions({
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+    });
+
+    expect(options?.floor).toBe(10000);
+    // No queda vacío: el techo efectivo no baja del piso, así que se sigue
+    // ofreciendo el precio del piso (10000) y nada por debajo ni por encima.
+    expect(options?.priceRows.length).toBeGreaterThan(0);
+    expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(true);
   });
 
   test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {

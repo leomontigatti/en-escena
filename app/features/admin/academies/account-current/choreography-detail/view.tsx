@@ -6,7 +6,7 @@ import {
   LoaderCircle,
   Receipt,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
 import {
@@ -43,7 +43,6 @@ import { FieldGroup } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -55,7 +54,6 @@ import {
   type InscriptionAmountColumn,
   isTentativeInscriptionAmount,
 } from "@/lib/finances/inscription-amounts";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 import {
@@ -69,6 +67,7 @@ import {
   InscriptionCobroDialog,
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
+import { PaymentSelectItems } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
@@ -303,7 +302,7 @@ function CobroDialog({
             <span className="text-sm font-medium">Pago a asignar</span>
             <Select
               name="paymentId"
-              value={selectedPaymentId ?? undefined}
+              value={selectedPaymentId ?? ""}
               onValueChange={setSelectedPaymentId}
               disabled={isSaving}
             >
@@ -311,13 +310,7 @@ function CobroDialog({
                 <SelectValue placeholder="Elegí un pago" />
               </SelectTrigger>
               <SelectContent>
-                {eligiblePayments.map((payment) => (
-                  <SelectItem key={payment.id} value={payment.id}>
-                    {formatPaymentNumber(payment.paymentNumber)} ·{" "}
-                    {formatDate(payment.paymentDate)} · disponible{" "}
-                    {formatAmount(payment.availableAmount)}
-                  </SelectItem>
-                ))}
+                <PaymentSelectItems payments={eligiblePayments} />
               </SelectContent>
             </Select>
           </div>
@@ -400,11 +393,19 @@ function InscriptionsTable({
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
   payments: PaymentRow[];
 }) {
-  const columns = buildInscriptionColumns({
-    canPayInscriptionBalance,
-    inscriptionDeposit,
-    payments,
-  });
+  // Las columnas se memoizan para conservar una referencia estable entre
+  // renders: sin esto, cada render recrea el array y React Table remonta las
+  // celdas, perdiendo el estado `open` del diálogo por fila (se abría y se
+  // cerraba de inmediato al re-renderizar la página).
+  const columns = useMemo(
+    () =>
+      buildInscriptionColumns({
+        canPayInscriptionBalance,
+        inscriptionDeposit,
+        payments,
+      }),
+    [canPayInscriptionBalance, inscriptionDeposit, payments],
+  );
 
   return (
     <section aria-label="Inscripciones">
@@ -415,7 +416,6 @@ function InscriptionsTable({
         searchPlaceholder="Buscar inscripción por bailarín"
         emptyMessage="No hay inscripciones para mostrar."
         hideSearch
-        hidePagination
       />
     </section>
   );
@@ -453,6 +453,7 @@ function buildInscriptionColumns(cobro: {
         />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
+      sortValue: (inscription) => formatDancerName(inscription),
     },
     ...inscriptionAmountColumns,
   ];
@@ -519,7 +520,6 @@ function DancerNameCell({
     if (undoableAllocation !== null) {
       return (
         <InscriptionUndoDialog
-          inscription={inscription}
           allocation={undoableAllocation}
           open={open}
           onOpenChange={setOpen}
