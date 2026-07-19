@@ -51,8 +51,19 @@ Make one or more commits on `{{BRANCH}}` with conventional-commit messages
 
 # WHEN YOU ARE DONE
 
-Once your commits are on `{{BRANCH}}` and the working tree is clean, you are **finished** —
-stop immediately. Do **not** re-verify against the tracker, do **not** loop re-running
-`git status` / `git log` / `gh` to double-check, and do **not** make empty or redundant
-commits. Emit a one-line summary of what you committed and end your turn. Re-checking work
-that is already committed is the failure mode this instruction exists to prevent.
+The moment your commits are on `{{BRANCH}}` and the working tree is clean, you are
+**finished**. Emit a one-line summary of what you committed, then output the literal
+completion signal on its own line:
+
+```
+<promise>COMPLETE</promise>
+```
+
+This signal ends the run. Emit it **as soon as** the work is committed — do **not** re-verify
+against the tracker, do **not** loop re-running `git status` / `git log` / `gh` to
+double-check, and do **not** make empty or redundant commits first. Looping to re-confirm
+already-committed work instead of emitting the signal is the exact failure this prevents.
+
+Do **not** output `<promise>COMPLETE</promise>` unless the work really is committed on
+`{{BRANCH}}`; if you genuinely cannot complete the issue, explain why and stop without emitting
+it (the run will end at the iteration limit and be marked failed).

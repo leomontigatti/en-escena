@@ -181,7 +181,11 @@ jobs:
         id: pr
         if: steps.preflight.outputs.proceed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # AGENT_PAT (a user identity) creates the PR: GITHUB_TOKEN is blocked
+          # by the "Allow GitHub Actions to create and approve pull requests"
+          # org/repo setting, which is off here. Falls back to github.token
+          # (works only if that setting is enabled).
+          GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           set -euo pipefail

@@ -61,6 +61,17 @@ commit as a single squashed commit _(reference message prefix: `RALPH: Review -`
 `pnpm typecheck` and `pnpm test` again; don't leave the branch broken. If the code is already
 clean and there's nothing to answer, make no commit.
 
+When your review is finished and any improvement commit is made, output the literal completion
+signal on its own line to end this pass:
+
+```
+<promise>COMPLETE</promise>
+```
+
+Emit it as soon as the review work is done — do not loop re-checking. (The structured
+`<output>` block below is requested separately, in a follow-up pass; you do not need to produce
+it now.)
+
 # OUTPUT (extraction pass)
 
 Emit a single `<output>` block as the **last thing** in your response:
