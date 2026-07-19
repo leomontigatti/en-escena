@@ -1,5 +1,4 @@
-import { AlertTriangle, LoaderCircle, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, LoaderCircle, Trash2 } from "lucide-react";
 import { useFetcher } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { formatDancerName } from "./inscription-cobro-dialog";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { deleteAllocationIntent } from "./shared";
 
@@ -34,123 +32,69 @@ function nextState(stage: UndoableAllocation["stage"]) {
 }
 
 /**
- * Deshacer una asignación baja una etapa de la inscripción sin quitarla del
- * roster: la `balance` vuelve a `señada`, la `deposit` vuelve a `impaga`, y el
- * monto liberado vuelve al `Saldo disponible`. Se ofrece con confirmación en dos
- * pasos porque es una acción destructiva sobre el estado financiero.
+ * Diálogo por fila cuando la única acción disponible es eliminar una asignación:
+ * coreografía uniforme `señada`/`pagada`, donde el cobro en bloque vive en el
+ * header y la fila solo puede bajar una etapa de esa inscripción. Eliminar la
+ * asignación baja una etapa (la `balance` vuelve a `señada`, la `deposit` vuelve
+ * a `impaga`) y devuelve el monto liberado al saldo disponible de la academia.
+ * No hay confirmación: el admin ya conoce el efecto y puede volver a crearla.
  */
-export function DeleteAllocationSection({
-  inscription,
+export function InscriptionUndoDialog({
   allocation,
-  disabled,
+  open,
+  onOpenChange,
 }: {
-  inscription: InscriptionRow;
   allocation: UndoableAllocation;
-  disabled?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const [confirming, setConfirming] = useState(false);
-  const isSaving = fetcher.state !== "idle";
+  const isDeleting = fetcher.state !== "idle";
   const label = stageLabel(allocation.stage);
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-destructive/30 px-3 py-2">
-      {confirming ? (
-        <fetcher.Form method="post" className="flex flex-col gap-2">
-          <input type="hidden" name="intent" value={deleteAllocationIntent} />
-          <input type="hidden" name="allocationId" value={allocation.id} />
-          <span className="text-sm">
-            ¿Deshacer la {label} de {formatDancerName(inscription)}? La
-            inscripción vuelve a {nextState(allocation.stage)} y el monto
-            liberado vuelve al saldo disponible.
-          </span>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !isDeleting && onOpenChange(next)}
+    >
+      <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogHeader>
+          <DialogTitle>Eliminar {label}</DialogTitle>
+          <DialogDescription>
+            Eliminá el pago{" "}
+            {allocation.stage === "balance" ? "del saldo" : "de esta seña"} para
+            dejar la inscripción {nextState(allocation.stage)}. El monto
+            liberado vuelve al saldo disponible de la academia.
+          </DialogDescription>
+        </DialogHeader>
 
-          {fetcher.data?.status === "error" ? (
-            <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>{fetcher.data.message}</AlertDescription>
-            </Alert>
-          ) : null}
+        {fetcher.data?.status === "error" ? (
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>{fetcher.data.message}</AlertDescription>
+          </Alert>
+        ) : null}
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirming(false)}
-              disabled={isSaving}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" variant="destructive" disabled={isSaving}>
-              {isSaving ? (
+        <DialogFooter className="sm:justify-between">
+          <fetcher.Form method="post">
+            <input type="hidden" name="intent" value={deleteAllocationIntent} />
+            <input type="hidden" name="allocationId" value={allocation.id} />
+            <Button type="submit" variant="destructive" disabled={isDeleting}>
+              {isDeleting ? (
                 <LoaderCircle
                   aria-hidden="true"
                   className="animate-spin"
                   data-icon="inline-start"
                 />
               ) : (
-                <Undo2 aria-hidden="true" data-icon="inline-start" />
+                <Trash2 aria-hidden="true" data-icon="inline-start" />
               )}
-              Confirmar
+              Eliminar
             </Button>
-          </div>
-        </fetcher.Form>
-      ) : (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">
-            Deshacer devuelve la inscripción a {nextState(allocation.stage)} y
-            libera el monto.
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setConfirming(true)}
-            disabled={disabled || isSaving}
-          >
-            <Undo2 aria-hidden="true" data-icon="inline-start" />
-            Deshacer {label}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
+          </fetcher.Form>
 
-/**
- * Diálogo por fila cuando la única acción disponible es deshacer: coreografía
- * uniforme `señada`/`pagada`, donde el cobro en bloque vive en el header y la
- * fila solo puede bajar una etapa de esa inscripción.
- */
-export function InscriptionUndoDialog({
-  inscription,
-  allocation,
-  open,
-  onOpenChange,
-}: {
-  inscription: InscriptionRow;
-  allocation: UndoableAllocation;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader>
-          <DialogTitle>Deshacer {stageLabel(allocation.stage)}</DialogTitle>
-          <DialogDescription>
-            Bajá una etapa de la inscripción de {formatDancerName(inscription)}{" "}
-            sin quitarla del roster.
-          </DialogDescription>
-        </DialogHeader>
-
-        <DeleteAllocationSection
-          inscription={inscription}
-          allocation={allocation}
-        />
-
-        <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={isDeleting}>
               Cerrar
             </Button>
           </DialogClose>

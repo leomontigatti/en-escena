@@ -527,7 +527,6 @@ function DancerNameCell({
     if (undoableAllocation !== null) {
       return (
         <InscriptionUndoDialog
-          inscription={inscription}
           allocation={undoableAllocation}
           open={open}
           onOpenChange={setOpen}
