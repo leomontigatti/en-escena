@@ -21,9 +21,9 @@ jobs:
     name: checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4 # versión desde el campo `packageManager` (pnpm 11.9.0)
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5 # versión desde el campo `packageManager` (pnpm 11.9.0)
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -57,9 +57,9 @@ jobs:
       # respeta esta env var, y `db:test:push` la propaga como DATABASE_URL a drizzle-kit.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/en-escena-test
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
