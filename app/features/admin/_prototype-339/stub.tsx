@@ -16,6 +16,12 @@ export type PortionKey = "seña" | "saldo" | "total";
 export type ComprobanteEstado = "vigente" | "anulada";
 export type TipoComprobante = "factura" | "nota-credito"; // WSFEv1 11 | 13
 
+/**
+ * Estado único de display para la lista: colapsa `estado` + `desactualizada` en
+ * un solo eje de tres valores (una NC nunca queda desactualizada).
+ */
+export type DisplayEstado = "vigente" | "desactualizada" | "anulada";
+
 export type StubComprobante = {
   id: string;
   tipoComprobante: TipoComprobante;
@@ -33,30 +39,71 @@ export type StubComprobante = {
   relacionadoId?: string; // NC → factura, factura → NC
 };
 
-/**
- * Estado de cada porción {seña, saldo, total} en una coreografía, tal como lo
- * derivaría el backend a partir de los comprobantes vigentes + la matriz
- * anti-doble-cobro (#323).
- */
-export type PortionState =
-  | { key: PortionKey; kind: "facturable"; montoDerivado: number }
-  | { key: PortionKey; kind: "bloqueada"; motivo: string }
-  | { key: PortionKey; kind: "no-uniforme"; motivo: string }
-  | {
-      key: PortionKey;
-      kind: "facturada";
-      comprobante: StubComprobante;
-      montoDerivado: number;
-      desactualizada: boolean; // snapshot impTotal ≠ monto derivado (roster cambió)
-    };
+/** Facturación de una porción (seña/saldo): sin facturar, o con comprobante. */
+export type PortionBilling = {
+  comprobante: StubComprobante | null;
+  estadoDisplay: DisplayEstado | null; // null ⟺ sin facturar
+};
 
-export type ScenarioKey = "limpio" | "mix" | "total" | "anulada";
+export const SIN_FACTURAR: PortionBilling = {
+  comprobante: null,
+  estadoDisplay: null,
+};
+
+/**
+ * Estado del detalle de UNA coreografía en los dos ejes del negocio: pago
+ * (seña → saldo, secuencial) y facturación (seña → saldo, secuencial).
+ */
+export type DetailState = {
+  señaPagada: boolean;
+  saldoPagado: boolean;
+  seña: PortionBilling;
+  saldo: PortionBilling;
+};
+
+export type DetailAction =
+  | "pagar-seña"
+  | "pagar-saldo"
+  | "facturar-seña"
+  | "facturar-saldo";
+
+/** Una porción cuenta como facturada "activa" si bloquea re-facturar (no anulada). */
+export function esFacturadaActiva(b: PortionBilling): boolean {
+  return b.estadoDisplay === "vigente" || b.estadoDisplay === "desactualizada";
+}
+
+/**
+ * Acciones del menú del header, derivadas del estado (reglas secuenciales:
+ * pago seña→saldo, facturación seña→saldo, y solo se factura lo ya pagado).
+ */
+export function availableActions(s: DetailState): DetailAction[] {
+  const actions: DetailAction[] = [];
+  if (!s.señaPagada) actions.push("pagar-seña");
+  else if (!s.saldoPagado) actions.push("pagar-saldo");
+  if (s.señaPagada && !esFacturadaActiva(s.seña)) actions.push("facturar-seña");
+  if (
+    s.saldoPagado &&
+    esFacturadaActiva(s.seña) &&
+    !esFacturadaActiva(s.saldo)
+  ) {
+    actions.push("facturar-saldo");
+  }
+  return actions;
+}
+
+export type ScenarioKey =
+  | "impaga"
+  | "señada"
+  | "pagada"
+  | "desactualizada"
+  | "anulada";
 
 export const scenarioOptions: { key: ScenarioKey; label: string }[] = [
-  { key: "mix", label: "Seña facturada + desactualizada" },
-  { key: "limpio", label: "Sin facturar" },
-  { key: "total", label: "Total facturado" },
-  { key: "anulada", label: "Anulada por NC (liberada)" },
+  { key: "impaga", label: "Impaga" },
+  { key: "señada", label: "Señada" },
+  { key: "pagada", label: "Pagada" },
+  { key: "desactualizada", label: "Seña desactualizada" },
+  { key: "anulada", label: "Seña anulada" },
 ];
 
 // Montos derivados de referencia para la coreografía del detalle.
@@ -65,6 +112,9 @@ const DERIVADO: Record<PortionKey, number> = {
   saldo: 98000,
   total: 140000,
 };
+
+/** Monto derivado fijo por porción (el valor de la MetricCard no depende del estado). */
+export const derivedMonto: Record<PortionKey, number> = DERIVADO;
 
 const CHOREO = "Fuego — Jazz Juvenil";
 const ACADEMY = "Estudio Danza Norte";
@@ -89,94 +139,47 @@ function comprobante(
   };
 }
 
-/** Escenario del detalle de UNA coreografía. */
-export function buildDetailScenario(scenario: ScenarioKey): {
-  comprobantes: StubComprobante[];
-  portions: PortionState[];
-} {
-  if (scenario === "limpio") {
+/** Crea una factura C vigente para una porción (al facturar en el prototipo). */
+export function buildFactura(
+  porcion: PortionKey,
+  cbteNro: number,
+): StubComprobante {
+  return comprobante({ porcion, cbteNro });
+}
+
+/** Semilla del detalle de UNA coreografía según el escenario. */
+export function seedDetail(scenario: ScenarioKey): DetailState {
+  const base = {
+    señaPagada: false,
+    saldoPagado: false,
+    seña: { ...SIN_FACTURAR },
+    saldo: { ...SIN_FACTURAR },
+  };
+
+  if (scenario === "impaga") return base;
+  if (scenario === "señada") return { ...base, señaPagada: true };
+  if (scenario === "pagada") {
+    return { ...base, señaPagada: true, saldoPagado: true };
+  }
+
+  if (scenario === "desactualizada") {
+    // Facturó 42000, pero el roster cambió y el importe derivado hoy es otro.
+    const c = comprobante({ porcion: "seña", cbteNro: 128 });
     return {
-      comprobantes: [],
-      portions: (["seña", "saldo", "total"] as PortionKey[]).map((key) => ({
-        key,
-        kind: "facturable",
-        montoDerivado: DERIVADO[key],
-      })),
+      señaPagada: true,
+      saldoPagado: true,
+      seña: { comprobante: c, estadoDisplay: "desactualizada" },
+      saldo: { ...SIN_FACTURAR },
     };
   }
 
-  if (scenario === "total") {
-    const c = comprobante({ porcion: "total" });
-    return {
-      comprobantes: [c],
-      portions: [
-        {
-          key: "seña",
-          kind: "bloqueada",
-          motivo: "El total ya tiene comprobante vigente.",
-        },
-        {
-          key: "saldo",
-          kind: "bloqueada",
-          motivo: "El total ya tiene comprobante vigente.",
-        },
-        {
-          key: "total",
-          kind: "facturada",
-          comprobante: c,
-          montoDerivado: DERIVADO.total,
-          desactualizada: false,
-        },
-      ],
-    };
-  }
-
-  if (scenario === "anulada") {
-    const factura = comprobante({
-      porcion: "seña",
-      estado: "anulada",
-      cbteNro: 128,
-    });
-    const nc = comprobante({
-      porcion: "seña",
-      tipoComprobante: "nota-credito",
-      cbteTipoCodigo: 13,
-      cbteNro: 3,
-      cae: "75987654321098",
-      fechaEmision: "2026-07-16",
-      relacionadoId: factura.id,
-    });
-    factura.relacionadoId = nc.id;
-    return {
-      comprobantes: [factura, nc],
-      // Anular liberó la porción: vuelve a ser facturable, y con nada vigente el total también.
-      portions: (["seña", "saldo", "total"] as PortionKey[]).map((key) => ({
-        key,
-        kind: "facturable",
-        montoDerivado: DERIVADO[key],
-      })),
-    };
-  }
-
-  // mix (default): seña facturada + desactualizada, saldo facturable, total bloqueado.
-  const c = comprobante({ porcion: "seña", impTotalSnapshot: 42000 });
+  // anulada: la factura de la seña fue anulada con NC (liberada → re-facturable).
+  const c = comprobante({ porcion: "seña", cbteNro: 128, estado: "anulada" });
   return {
-    comprobantes: [c],
-    portions: [
-      {
-        key: "seña",
-        kind: "facturada",
-        comprobante: c,
-        montoDerivado: 49000,
-        desactualizada: true,
-      },
-      { key: "saldo", kind: "facturable", montoDerivado: DERIVADO.saldo },
-      {
-        key: "total",
-        kind: "bloqueada",
-        motivo: "La seña ya tiene comprobante vigente.",
-      },
-    ],
+    señaPagada: true,
+    saldoPagado: true,
+    seña: { comprobante: c, estadoDisplay: "anulada" },
+    saldo: { ...SIN_FACTURAR },
   };
 }
 
@@ -255,6 +258,38 @@ export function porcionLabel(p: PortionKey) {
   return p === "seña" ? "Seña" : p === "saldo" ? "Saldo" : "Total";
 }
 
+/** Colapsa estado + desactualizada en un único estado de display. */
+export function deriveDisplayEstado(c: {
+  estado: ComprobanteEstado;
+  desactualizada?: boolean;
+  tipoComprobante: TipoComprobante;
+}): DisplayEstado {
+  if (c.estado === "anulada") return "anulada";
+  if (c.tipoComprobante === "factura" && c.desactualizada) {
+    return "desactualizada";
+  }
+  return "vigente";
+}
+
+// Opciones de filtro facetado (el `value` debe coincidir con el valor crudo de
+// la fila; el matching es por igualdad normalizada).
+export const estadoFilterOptions = [
+  { label: "Vigente", value: "vigente" },
+  { label: "Desactualizada", value: "desactualizada" },
+  { label: "Anulada", value: "anulada" },
+] as const;
+
+export const tipoFilterOptions = [
+  { label: "Factura", value: "factura" },
+  { label: "Nota de crédito", value: "nota-credito" },
+] as const;
+
+export const porcionFilterOptions = [
+  { label: "Seña", value: "seña" },
+  { label: "Saldo", value: "saldo" },
+  { label: "Total", value: "total" },
+] as const;
+
 const dateFmt = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
   month: "2-digit",
@@ -277,11 +312,26 @@ export function EstadoBadge({ estado }: { estado: ComprobanteEstado }) {
   );
 }
 
-export function TipoBadge({ tipo }: { tipo: TipoComprobante }) {
+/** Badge único para la columna Estado de la lista (tres estados de display). */
+export function DisplayEstadoBadge({ estado }: { estado: DisplayEstado }) {
+  if (estado === "anulada") return <Badge variant="secondary">Anulada</Badge>;
+  if (estado === "desactualizada") {
+    return <Badge variant="warning">Desactualizada</Badge>;
+  }
+  return <Badge variant="success">Vigente</Badge>;
+}
+
+export function TipoBadge({
+  tipo,
+  short = false,
+}: {
+  tipo: TipoComprobante;
+  short?: boolean;
+}) {
   return tipo === "factura" ? (
-    <Badge variant="info">Factura C</Badge>
+    <Badge variant="info">{short ? "FC" : "Factura C"}</Badge>
   ) : (
-    <Badge variant="warning">Nota de crédito C</Badge>
+    <Badge variant="warning">{short ? "NC" : "Nota de crédito C"}</Badge>
   );
 }
 

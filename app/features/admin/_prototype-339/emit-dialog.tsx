@@ -1,7 +1,7 @@
 /**
- * PROTOTIPO #339 — diálogo de emisión de Factura C: elección de porción
- * (matriz anti-doble-cobro), previsualización, confirmación irreversible y UX
- * de contingencia (rechazo / timeout de ARCA). Compartido por las 3 variantes.
+ * PROTOTIPO #339 — diálogo de emisión de Factura C para una porción concreta
+ * (disparado por "Facturar seña" / "Facturar saldo"): previsualización,
+ * confirmación irreversible y UX de contingencia (rechazo / timeout de ARCA).
  * Throwaway.
  */
 
@@ -22,43 +22,35 @@ import {
 } from "@/components/ui/dialog";
 
 import { PreviewRow, type SimResult } from "./detail-shared";
-import {
-  formatAmount,
-  porcionLabel,
-  type PortionKey,
-  type PortionState,
-} from "./stub";
+import { formatAmount, porcionLabel, type PortionKey } from "./stub";
+
+export type EmitTarget = { porcion: PortionKey; monto: number };
 
 export function EmitDialog({
-  portions,
+  target,
   open,
   onOpenChange,
   onEmit,
 }: {
-  portions: PortionState[];
+  target: EmitTarget | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onEmit: (p: PortionKey) => void;
 }) {
-  const [selected, setSelected] = useState<PortionKey | null>(null);
   const [sim, setSim] = useState<SimResult>("exito");
   const [phase, setPhase] = useState<"form" | "sending" | "error">("form");
 
-  const sel = portions.find((p) => p.key === selected) ?? null;
-  const monto = sel && "montoDerivado" in sel ? sel.montoDerivado : null;
-
   function reset() {
-    setSelected(null);
     setSim("exito");
     setPhase("form");
   }
 
   function confirm() {
-    if (!selected) return;
+    if (!target) return;
     setPhase("sending");
     window.setTimeout(() => {
       if (sim === "exito") {
-        onEmit(selected);
+        onEmit(target.porcion);
         onOpenChange(false);
         reset();
       } else {
@@ -78,7 +70,10 @@ export function EmitDialog({
     >
       <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Emitir comprobante — Factura C</DialogTitle>
+          <DialogTitle>
+            Facturar {target ? porcionLabel(target.porcion).toLowerCase() : ""}{" "}
+            — Factura C
+          </DialogTitle>
           <DialogDescription>
             El comprobante es inmutable: una vez que ARCA otorga el CAE no se
             edita ni se borra. Para corregir hay que anular con Nota de crédito.
@@ -89,34 +84,21 @@ export function EmitDialog({
           <EmitErrorState sim={sim} onRetry={() => setPhase("form")} />
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium">Porción a facturar</span>
-              <div className="grid gap-2">
-                {portions.map((p) => (
-                  <PortionRadio
-                    key={p.key}
-                    portion={p}
-                    checked={selected === p.key}
-                    onSelect={() =>
-                      p.kind === "facturable" && setSelected(p.key)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-
-            {sel && monto !== null ? (
+            {target ? (
               <div className="flex flex-col gap-1.5 rounded-md border bg-muted/50 p-3 text-sm">
                 <PreviewRow
                   label="Tipo"
                   value={<Badge variant="info">Factura C (cód. 11)</Badge>}
                 />
-                <PreviewRow label="Porción" value={porcionLabel(sel.key)} />
+                <PreviewRow
+                  label="Porción"
+                  value={porcionLabel(target.porcion)}
+                />
                 <PreviewRow
                   label="Importe (ImpTotal)"
                   value={
                     <span className="font-medium tabular-nums">
-                      {formatAmount(monto)}
+                      {formatAmount(target.monto)}
                     </span>
                   }
                 />
@@ -126,11 +108,7 @@ export function EmitDialog({
                 />
                 <PreviewRow label="Leyenda" value="A CONSUMIDOR FINAL" />
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Elegí una porción facturable para ver la previsualización.
-              </p>
-            )}
+            ) : null}
 
             {/* Control de prototipo: simular respuesta de ARCA (concern #4). */}
             <label className="flex items-center gap-2 rounded-md border border-dashed border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
@@ -155,7 +133,7 @@ export function EmitDialog({
               </DialogClose>
               <Button
                 type="button"
-                disabled={!selected || phase === "sending"}
+                disabled={!target || phase === "sending"}
                 onClick={confirm}
               >
                 {phase === "sending" ? (
@@ -195,7 +173,7 @@ function EmitErrorState({
         </AlertTitle>
         <AlertDescription>
           {isTimeout
-            ? "No se recibió CAE. No se generó ningún comprobante: podés reintentar sin riesgo de duplicar. Si el problema persiste, la coreografía queda sin facturar."
+            ? "No se recibió CAE. No se generó ningún comprobante: podés reintentar sin riesgo de duplicar. Si el problema persiste, la porción queda sin facturar."
             : "Observación 10016: el importe no cumple una validación. No se generó comprobante. Revisá los datos y reintentá."}
         </AlertDescription>
       </Alert>
@@ -211,48 +189,5 @@ function EmitErrorState({
         </Button>
       </DialogFooter>
     </div>
-  );
-}
-
-function PortionRadio({
-  portion,
-  checked,
-  onSelect,
-}: {
-  portion: PortionState;
-  checked: boolean;
-  onSelect: () => void;
-}) {
-  const selectable = portion.kind === "facturable";
-  const monto = "montoDerivado" in portion ? portion.montoDerivado : null;
-  return (
-    <button
-      type="button"
-      disabled={!selectable}
-      onClick={onSelect}
-      className={[
-        "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm",
-        checked ? "border-primary ring-1 ring-primary" : "border-border",
-        selectable ? "hover:bg-muted/50" : "cursor-not-allowed opacity-60",
-      ].join(" ")}
-    >
-      <span className="flex items-center gap-2">
-        <span className="font-medium">{porcionLabel(portion.key)}</span>
-        {portion.kind === "facturada" ? (
-          <Badge variant="success">Ya facturada</Badge>
-        ) : portion.kind === "bloqueada" ? (
-          <Badge variant="secondary">Bloqueada</Badge>
-        ) : null}
-      </span>
-      <span className="text-right">
-        {monto !== null ? (
-          <span className="tabular-nums">{formatAmount(monto)}</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {portion.kind === "bloqueada" ? portion.motivo : "—"}
-          </span>
-        )}
-      </span>
-    </button>
   );
 }

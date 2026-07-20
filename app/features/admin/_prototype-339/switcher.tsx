@@ -1,6 +1,6 @@
 /**
- * PROTOTIPO #339 — barra flotante para cambiar de variante (y de escenario en el
- * detalle). Oculta en producción. Throwaway.
+ * PROTOTIPO #339 — barra flotante para cambiar el escenario del detalle. Oculta
+ * en producción. Throwaway.
  */
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -11,49 +11,27 @@ import { cn } from "@/lib/shared/utils";
 
 import { scenarioOptions, type ScenarioKey } from "./stub";
 
-export const VARIANTS = ["A", "B", "C"] as const;
-export type VariantKey = (typeof VARIANTS)[number];
-
-export function useVariant(): VariantKey {
-  const [params] = useSearchParams();
-  const raw = params.get("variant");
-  return (VARIANTS as readonly string[]).includes(raw ?? "")
-    ? (raw as VariantKey)
-    : "A";
-}
-
 export function useScenario(): ScenarioKey {
   const [params] = useSearchParams();
   const raw = params.get("scenario") as ScenarioKey | null;
-  return raw && scenarioOptions.some((s) => s.key === raw) ? raw : "mix";
+  return raw && scenarioOptions.some((s) => s.key === raw) ? raw : "impaga";
 }
 
-export function PrototypeSwitcher({
-  labels,
-  showScenario = false,
-}: {
-  labels: Record<VariantKey, string>;
-  showScenario?: boolean;
-}) {
+export function ScenarioSwitcher() {
   const [params, setParams] = useSearchParams();
-  const variant = useVariant();
   const scenario = useScenario();
-
-  function go(next: VariantKey) {
-    const p = new URLSearchParams(params);
-    p.set("variant", next);
-    setParams(p, { replace: true });
-  }
-
-  function cycle(dir: 1 | -1) {
-    const i = VARIANTS.indexOf(variant);
-    go(VARIANTS[(i + dir + VARIANTS.length) % VARIANTS.length]);
-  }
+  const keys = scenarioOptions.map((o) => o.key);
+  const current = scenarioOptions.find((o) => o.key === scenario);
 
   function setScenario(next: ScenarioKey) {
     const p = new URLSearchParams(params);
     p.set("scenario", next);
     setParams(p, { replace: true });
+  }
+
+  function cycle(dir: 1 | -1) {
+    const i = keys.indexOf(scenario);
+    setScenario(keys[(i + dir + keys.length) % keys.length]);
   }
 
   useEffect(() => {
@@ -86,41 +64,39 @@ export function PrototypeSwitcher({
             type="button"
             onClick={() => cycle(-1)}
             className="rounded p-1 hover:bg-warning/20"
-            aria-label="Variante anterior"
+            aria-label="Escenario anterior"
           >
             <ChevronLeft className="size-4" />
           </button>
           <span className="min-w-52 text-center text-sm font-medium">
-            {variant} — {labels[variant]}
+            {current?.label}
           </span>
           <button
             type="button"
             onClick={() => cycle(1)}
             className="rounded p-1 hover:bg-warning/20"
-            aria-label="Variante siguiente"
+            aria-label="Escenario siguiente"
           >
             <ChevronRight className="size-4" />
           </button>
         </div>
-        {showScenario ? (
-          <div className="flex flex-wrap items-center justify-center gap-1">
-            {scenarioOptions.map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setScenario(opt.key)}
-                className={cn(
-                  "rounded px-2 py-0.5 text-[11px]",
-                  scenario === opt.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/70",
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {scenarioOptions.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setScenario(opt.key)}
+              className={cn(
+                "rounded px-2 py-0.5 text-[11px]",
+                scenario === opt.key
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/70",
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

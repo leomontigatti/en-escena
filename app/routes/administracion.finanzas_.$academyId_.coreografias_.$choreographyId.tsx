@@ -57,7 +57,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 function AdministracionCoreografiaFinancieraDetalleRouteView({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  // PROTOTIPO #339: con ?variant=A|B|C se muestran las variantes de diseño en
+  // PROTOTIPO #339: con ?variant en la URL se muestra el prototipo de diseño en
   // vez de la vista real. Sin el search param, la vista real queda intacta.
   const [params] = useSearchParams();
   if (!import.meta.env.PROD && params.has("variant")) {
