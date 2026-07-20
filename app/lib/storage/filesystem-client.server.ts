@@ -208,10 +208,15 @@ export async function serveFilesystemObject(input: {
     return new Response("Not Found", { status: 404 });
   }
 
+  // These bytes are now served from the app's own origin (previously they came
+  // from B2/Supabase, a separate origin). The stored Content-Type is derived
+  // from the client-declared upload type, so `nosniff` keeps a browser from
+  // reinterpreting an object as active content inside the app origin.
   return new Response(bytes, {
     headers: {
       "Cache-Control": "private, no-store",
       "Content-Type": getContentType(key),
+      "X-Content-Type-Options": "nosniff",
     },
     status: 200,
   });

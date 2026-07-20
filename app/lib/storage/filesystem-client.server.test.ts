@@ -238,6 +238,7 @@ describe("serving objects from the volume", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/jpeg");
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(await response.text()).toBe("front-bytes");
   });
 
