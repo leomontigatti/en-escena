@@ -15,6 +15,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 
 import { Output } from "@ai-hero/sandcastle";
 
+import { gh } from "../lib/gh.mjs";
 import {
   createAgent,
   createSandboxProvider,
@@ -84,10 +85,7 @@ await runMain(async () => {
   }
 
   // --- Conflict path: the working tree is now in the conflicted state. ---
-  const prView = execFileSync("gh", ["pr", "view", prNumber], {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  const prView = gh(["pr", "view", prNumber]);
   const mergeStatus = execFileSync("git", ["status"], { encoding: "utf8" });
   const conflictingFiles = git(["diff", "--name-only", "--diff-filter=U"]);
 
