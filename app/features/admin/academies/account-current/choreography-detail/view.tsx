@@ -215,8 +215,10 @@ function ChoreographyAlerts({
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
-            No existen pagos con saldo suficiente para cubrir una etapa completa
-            de esta coreografía.
+            No existe un pago registrado con saldo suficiente para{" "}
+            {stage === "deposit"
+              ? "cubrir la seña completa de la coreografía."
+              : "cubrir el saldo completo de la coreografía."}
           </AlertDescription>
         </Alert>
       ) : null}
