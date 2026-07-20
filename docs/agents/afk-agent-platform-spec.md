@@ -297,6 +297,16 @@ correct — but the downstream workflow does not auto-start. A human re-adding t
 All groups set **`cancel-in-progress: false`** — an in-flight agent run is expensive and must
 never be cancelled by a newer event; the new one waits.
 
+**Only real runs join the shared group.** The three `agent-mutate-pr-*` members all trigger on
+`pull_request_target: [labeled]`, so a single `labeled` event starts all three runs — each then
+skips via its job `if` unless its own label fired. If all three joined the shared group, GitHub
+would cancel the _pending_ real run when the no-op siblings queued behind it, killing the run
+that should have executed (#383). So each workflow computes its group conditionally: it joins the
+shared `agent-mutate-pr-${PR_NUMBER}` **only when its own label is the one that fired**, and
+otherwise takes a unique per-run group (`agent-mutate-pr-noop-${{ github.run_id }}`) that contends
+with nobody. Two workflows that genuinely run against the same PR (e.g. Review mid-run, then an
+`agent:implement` dispatch) still share the group and serialise — the §3.5 mutual exclusion holds.
+
 ## 3.6 Push safety
 
 Workflows that let the agent commit and then push the branch protect against the branch
