@@ -1,8 +1,14 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, test } from "vitest";
 
+import { serveFilesystemObject } from "./filesystem-client.server";
 import {
   type DancerDocumentStorageAdapter,
   createDancerDocumentStorage,
+  createFilesystemDancerDocumentStorage,
   createSupabaseDancerDocumentStorage,
   getRequiredSupabaseStorageEnv,
 } from "./dancer-documents.server";
@@ -324,6 +330,93 @@ describe("dancer document storage", () => {
         type: "signed-url",
       },
     ]);
+  });
+
+  test("stores documents on the local volume and serves them via a signed route", async () => {
+    const baseDir = await mkdtemp(join(tmpdir(), "en-escena-docs-"));
+    const secret = "volume-signing-secret";
+
+    try {
+      const storage = createFilesystemDancerDocumentStorage({
+        baseDir,
+        now: () => 1_000_000,
+        secret,
+      });
+
+      const storageKey = await storage.uploadDocumentImage({
+        academyId: "academy-1",
+        dancerId: "dancer-1",
+        file: new Blob(["front"], { type: "image/jpeg" }),
+        side: "front",
+      });
+
+      expect(storageKey).toBe(
+        "academies/academy-1/dancers/dancer-1/document-front.jpg",
+      );
+      await expect(
+        readFile(
+          join(baseDir, "en-escena-dancer-documents", storageKey),
+          "utf8",
+        ),
+      ).resolves.toBe("front");
+
+      const signedUrl = await storage.createDocumentImageSignedUrl(storageKey);
+      const params = new URL(signedUrl, "https://sistema.enescena.com.ar")
+        .searchParams;
+
+      const response = await serveFilesystemObject({
+        baseDir,
+        now: 1_000_000,
+        params,
+        secret,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("image/jpeg");
+      expect(await response.text()).toBe("front");
+    } finally {
+      await rm(baseDir, { force: true, recursive: true });
+    }
+  });
+
+  test("replaces a prior document side on the volume regardless of extension", async () => {
+    const baseDir = await mkdtemp(join(tmpdir(), "en-escena-docs-"));
+
+    try {
+      const storage = createFilesystemDancerDocumentStorage({
+        baseDir,
+        now: () => 1_000_000,
+        secret: "volume-signing-secret",
+      });
+
+      await storage.uploadDocumentImage({
+        academyId: "academy-1",
+        dancerId: "dancer-1",
+        file: new Blob(["old"], { type: "image/jpeg" }),
+        side: "front",
+      });
+      await storage.uploadDocumentImage({
+        academyId: "academy-1",
+        dancerId: "dancer-1",
+        file: new Blob(["new"], { type: "image/png" }),
+        side: "front",
+      });
+
+      const folder = join(
+        baseDir,
+        "en-escena-dancer-documents",
+        "academies/academy-1/dancers/dancer-1",
+      );
+
+      await expect(
+        readFile(join(folder, "document-front.png"), "utf8"),
+      ).resolves.toBe("new");
+      await expect(
+        readFile(join(folder, "document-front.jpg"), "utf8"),
+      ).rejects.toThrow();
+    } finally {
+      await rm(baseDir, { force: true, recursive: true });
+    }
   });
 
   test("requires Supabase project settings for the default storage client", () => {

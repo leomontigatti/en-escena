@@ -1,10 +1,16 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, test } from "vitest";
 
 import {
   type ChoreographyMusicStorageAdapter,
   createChoreographyMusicStorage,
+  createFilesystemChoreographyMusicStorage,
   createSupabaseChoreographyMusicStorage,
 } from "./choreography-music.server";
+import { serveFilesystemObject } from "./filesystem-client.server";
 
 function createStorageAdapter(
   overrides: Partial<ChoreographyMusicStorageAdapter>,
@@ -234,5 +240,56 @@ describe("choreography music storage", () => {
         type: "remove",
       },
     ]);
+  });
+
+  test("stores music on the local volume, signs a route and removes it", async () => {
+    const baseDir = await mkdtemp(join(tmpdir(), "en-escena-music-"));
+    const secret = "volume-signing-secret";
+
+    try {
+      const storage = createFilesystemChoreographyMusicStorage({
+        baseDir,
+        now: () => 1_000_000,
+        secret,
+      });
+
+      const storageKey = await storage.uploadMusic({
+        academyId: "academy-1",
+        choreographyId: "choreography-1",
+        file: new Blob(["song"], { type: "audio/mpeg" }),
+      });
+
+      expect(storageKey).toBe(
+        "academies/academy-1/choreographies/choreography-1/music.mp3",
+      );
+
+      const signedUrl = await storage.createMusicSignedUrl(storageKey);
+      const params = new URL(signedUrl, "https://sistema.enescena.com.ar")
+        .searchParams;
+
+      const served = await serveFilesystemObject({
+        baseDir,
+        now: 1_000_000,
+        params,
+        secret,
+      });
+
+      expect(served.status).toBe(200);
+      expect(served.headers.get("Content-Type")).toBe("audio/mpeg");
+      expect(await served.text()).toBe("song");
+
+      await storage.removeMusic(storageKey);
+
+      const afterRemoval = await serveFilesystemObject({
+        baseDir,
+        now: 1_000_000,
+        params,
+        secret,
+      });
+
+      expect(afterRemoval.status).toBe(404);
+    } finally {
+      await rm(baseDir, { force: true, recursive: true });
+    }
   });
 });
