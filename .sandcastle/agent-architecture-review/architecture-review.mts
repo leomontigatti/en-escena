@@ -10,10 +10,9 @@
 // Env: GH_REPO, OUTPUT_DIR. GH_TOKEN is present for the read-only prefetch of
 // prior proposals only; the agent holds no token.
 
-import { execFileSync } from "node:child_process";
-
 import { Output } from "@ai-hero/sandcastle";
 
+import { gh } from "../lib/gh.mjs";
 import {
   createAgent,
   createSandboxProvider,
@@ -39,26 +38,22 @@ await runMain(async () => {
   // Prefetch prior source:architecture-review proposals (open + closed) so the
   // tokenless agent can dedupe without calling `gh`.
   const priorProposals =
-    execFileSync(
-      "gh",
-      [
-        "issue",
-        "list",
-        "-R",
-        repo,
-        "--label",
-        "source:architecture-review",
-        "--state",
-        "all",
-        "--limit",
-        "100",
-        "--json",
-        "number,title,state",
-        "--jq",
-        "[.[] | {number, title, state}]",
-      ],
-      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-    ).trim() || "[]";
+    gh([
+      "issue",
+      "list",
+      "-R",
+      repo,
+      "--label",
+      "source:architecture-review",
+      "--state",
+      "all",
+      "--limit",
+      "100",
+      "--json",
+      "number,title,state",
+      "--jq",
+      "[.[] | {number, title, state}]",
+    ]).trim() || "[]";
 
   const result = await runWithExtraction({
     name: "architecture-review",

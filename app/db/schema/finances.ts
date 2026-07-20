@@ -126,7 +126,8 @@ export const paymentAllocations = createTable(
   },
   // Las foreign keys van nombradas porque el nombre que deriva Drizzle de esta
   // tabla supera los 63 caracteres de un identificador de Postgres y se trunca.
-  // Los nombres deben coincidir con los de supabase/migrations.
+  // Los nombres deben coincidir con los de la migración baseline en
+  // app/db/migrations.
   (table) => [
     foreignKey({
       columns: [table.paymentId],
