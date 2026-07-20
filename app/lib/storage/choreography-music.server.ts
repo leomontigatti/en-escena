@@ -1,8 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
+import {
+  type B2PresignSignedUrl,
+  type B2S3Client,
+  b2CreateSignedUrl,
+  b2Remove,
+  b2Upload,
+  createDefaultB2S3Client,
+  defaultB2PresignSignedUrl,
+} from "@/lib/storage/b2-client.server";
 
-import { getRequiredSupabaseStorageEnv } from "@/lib/storage/dancer-documents.server";
-
-const CHOREOGRAPHY_MUSIC_BUCKET = "choreography-music";
+const CHOREOGRAPHY_MUSIC_BUCKET = "en-escena-choreography-music";
 const CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = 300;
 const CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 const CHOREOGRAPHY_MUSIC_EXTENSION_BY_CONTENT_TYPE = {
@@ -65,17 +71,7 @@ type SupabaseStorageClient = {
 };
 
 export function createDefaultChoreographyMusicStorage() {
-  return createSupabaseChoreographyMusicStorage(
-    createClient(
-      getRequiredSupabaseStorageEnv("SUPABASE_URL", process.env),
-      getRequiredSupabaseStorageEnv("SUPABASE_SERVICE_ROLE_KEY", process.env),
-      {
-        auth: {
-          persistSession: false,
-        },
-      },
-    ),
-  );
+  return createB2ChoreographyMusicStorage(createDefaultB2S3Client());
 }
 
 export function createChoreographyMusicStorage(
@@ -158,6 +154,34 @@ export function createSupabaseChoreographyMusicStorage(
         throw new Error(`Could not upload music: ${error.message}`);
       }
     },
+  });
+}
+
+export function createB2ChoreographyMusicStorage(
+  client: B2S3Client,
+  deps: { presign?: B2PresignSignedUrl } = {},
+) {
+  const presign = deps.presign ?? defaultB2PresignSignedUrl;
+
+  return createChoreographyMusicStorage({
+    createSignedUrl: (input) =>
+      b2CreateSignedUrl({
+        bucket: input.bucket,
+        client,
+        expiresInSeconds: input.expiresInSeconds,
+        key: input.key,
+        presign,
+      }),
+    remove: (input) =>
+      b2Remove({ bucket: input.bucket, client, keys: input.keys }),
+    upload: (input) =>
+      b2Upload({
+        bucket: input.bucket,
+        client,
+        contentType: input.options.contentType,
+        file: input.file,
+        key: input.key,
+      }),
   });
 }
 

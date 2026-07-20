@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 
 import { pgliteSchema } from "./pglite-schema";
-import { runPgliteSchemaPush } from "./pglite-schema-runner";
+import { runPgliteSchemaMigrate } from "./pglite-schema-runner";
 
 function quoteIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`;
@@ -15,7 +15,7 @@ function quoteIdentifier(identifier: string) {
 
 export async function createPgliteTestDatabase() {
   const dataDir = await mkdtemp(path.join(tmpdir(), "en-escena-pglite-"));
-  runPgliteSchemaPush(dataDir);
+  runPgliteSchemaMigrate(dataDir);
   const client = new PGlite(dataDir);
   const db = drizzle(client, { schema: pgliteSchema });
 

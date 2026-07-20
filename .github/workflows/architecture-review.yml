@@ -1,0 +1,119 @@
+# AFK — Architecture Review. Spec §4.8.
+#
+# Scheduled unattended pass: the architecture-review runner surveys the codebase
+# read-only, picks ONE high-leverage deepening opportunity not already proposed,
+# and emits it as a PRD-shaped structured output → orchestrator publishes it as an
+# issue labeled `source:architecture-review`. A human then triages it (may label
+# it `agent:to-issues`). The agent creates nothing — the orchestrator is the sole
+# publisher (§3.9).
+
+name: AFK Architecture Review
+
+on:
+  schedule:
+    - cron: "0 9 * * 1-5" # 09:00 UTC, weekdays
+  workflow_dispatch: {}
+
+concurrency:
+  group: architecture-review
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  architecture-review:
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Set OUTPUT_DIR
+        run: |
+          set -euo pipefail
+          echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/afk-output"
+
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install deps + agent runner
+        run: |
+          pnpm install --frozen-lockfile
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Run architecture-review runner
+        timeout-minutes: 20 # spec §4.8 guardrail
+        env:
+          # Read-only prefetch of prior proposals uses this; the agent holds no token.
+          GH_TOKEN: ${{ github.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: pnpm exec tsx .sandcastle/agent-architecture-review/architecture-review.mts
+
+      - name: Publish PRD (if proposed)
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          out="$OUTPUT_DIR/architecture_review_output.json"
+          if [ ! -s "$out" ]; then
+            echo "status=missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          status=$(jq -r '.status' "$out")
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" != "proposed" ]; then
+            exit 0
+          fi
+          # Idempotent — the label already exists (created in AFK setup #343).
+          gh label create source:architecture-review --color 5319E7 \
+            --description "PRD proposed by the scheduled architecture-review pass" 2>/dev/null || true
+          title=$(head -c 256 "$OUTPUT_DIR/prd_title.txt")
+          url=$(gh issue create --title "$title" \
+            --body-file "$OUTPUT_DIR/prd_body.md" \
+            --label source:architecture-review)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Run summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          out="$OUTPUT_DIR/architecture_review_output.json"
+          {
+            echo "# Architecture Review"
+            echo
+            status="${{ steps.publish.outputs.status }}"
+            case "$status" in
+              proposed)
+                echo "**Proposed a PRD:** ${{ steps.publish.outputs.url }}"
+                echo
+                summary=$(jq -r '.oneLineSummary // ""' "$out" 2>/dev/null || echo "")
+                [ -n "$summary" ] && echo "> $summary"
+                echo
+                echo "**Candidates considered:**"
+                jq -r '.candidatesConsidered[]? | "- \(.)"' "$out" 2>/dev/null || true
+                ;;
+              skipped)
+                echo "**Skipped** — no new PRD this run."
+                echo
+                reason=$(jq -r '.reason // ""' "$out" 2>/dev/null || echo "")
+                [ -n "$reason" ] && echo "> $reason"
+                ;;
+              *)
+                echo "**No output produced** — the agent likely crashed. Check the run logs."
+                ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -7,7 +7,9 @@ mismo source de schema que hoy usan los tests DB (`app/db/schema.ts`).
 
 - Archivo piloto: `tests/db/pglite.db.test.ts`
 - Helper in-process: `tests/db/pglite.ts`
-- Bootstrap del schema: `tests/db/push-pglite-schema.ts`
+- Bootstrap del schema: `tests/db/migrate-pglite-schema.ts` (aplica
+  `app/db/migrations` vía `migrate`; `tests/db/push-pglite-schema.ts` sobrevive
+  como oráculo de `pushSchema` para el test de equivalencia)
 - Workflow Postgres preservado: `pnpm test:db` y
   `pnpm test:db:file:postgres <archivo>`
 
@@ -32,9 +34,10 @@ comportan como espera la app.
 
 1. `drizzle-kit/api` no carga de forma estable dentro del pipeline de
    transformacion de Vitest para este repo.
-   Impacto: el schema PGlite se aplica desde un script Node separado
-   (`tests/db/push-pglite-schema.ts`) en lugar de importar `pushSchema`
-   directamente desde el test o un `globalSetup` Vitest sin ajustes extra.
+   Impacto: `pushSchema` se ejecuta desde un script Node separado
+   (`tests/db/push-pglite-schema.ts`, hoy solo el oráculo de equivalencia) en
+   lugar de importarlo directamente desde el test o un `globalSetup` Vitest sin
+   ajustes extra.
 
 2. Los errores del driver PGlite no tienen la misma forma que los errores del
    harness actual con `postgres`.

@@ -1,0 +1,237 @@
+# AFK — Implement (single issue). Spec §4.2.
+#
+# issue labeled `agent:implement` (no sub-issues, no parent) → fresh branch →
+# implement runner commits → push → write-pr runner → draft PR → label it
+# `agent:review` to chain into the Review workflow.
+#
+# The orchestrator (this workflow) owns every tracker/VCS mutation; the runners
+# hold no GitHub token (spec §3.9).
+
+name: AFK Implement
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: agent-implement-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    if: github.event.label.name == 'agent:implement'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+    steps:
+      # --- Preflight: compute issue shape and refuse/skip per §4.2. ---
+      - name: Preflight (shape + refusals)
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
+          export OUTPUT_DIR="$RUNNER_TEMP/afk-output"
+          mkdir -p "$OUTPUT_DIR"
+
+          sub_count=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" --jq 'length' 2>/dev/null || echo 0)
+          parent=$(gh api graphql -f query='
+            query ($owner: String!, $repo: String!, $num: Int!) {
+              repository(owner: $owner, name: $repo) { issue(number: $num) { parent { number } } }
+            }' -F owner="${GH_REPO%/*}" -F repo="${GH_REPO#*/}" -F num="$ISSUE_NUMBER" \
+            --jq '.data.repository.issue.parent.number // empty' 2>/dev/null || echo "")
+
+          if [ "${sub_count:-0}" -gt 0 ]; then
+            echo "Issue #$ISSUE_NUMBER has sub-issues (is a PRD); Implement PRD owns this trigger. Silent skip."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "$parent" ]; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label "agent:implement" --add-label "agent:blocked"
+            gh issue comment "$ISSUE_NUMBER" --body "Label the parent PRD (#$parent), not the sub-issue."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # An open PR already targets this issue?
+          existing=$(gh pr list --state open --search "in:body \"#$ISSUE_NUMBER\"" \
+            --json url,body \
+            --jq '[.[] | select(.body | test("(closes|fixes|resolves) +#'"$ISSUE_NUMBER"'\\b"; "i")) | .url] | first // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label "agent:implement"
+            gh issue comment "$ISSUE_NUMBER" --body "An open PR already targets this issue: $existing"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      # --- Accept: transition labels (remove trigger + blocked, add in-progress). ---
+      - name: Transition to in-progress
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue edit "$ISSUE_NUMBER" \
+            --remove-label "agent:implement" \
+            --remove-label "agent:blocked" \
+            --add-label "agent:in-progress"
+
+      # Prefetch the issue body (§3.8): the runner has no GitHub token, so the
+      # agent gets the issue text from here, never via `gh`. Random heredoc
+      # delimiter so a crafted body line can't break out of GITHUB_ENV.
+      - name: Capture issue body
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          delim="ISSUE_BODY_EOF_$(openssl rand -hex 12)"
+          {
+            echo "ISSUE_BODY<<$delim"
+            gh issue view "$ISSUE_NUMBER" --json body --jq '.body'
+            echo "$delim"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout master
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          # PAT lets the later push include any .github/workflows/** changes.
+          token: ${{ secrets.AGENT_PAT || github.token }}
+
+      - name: Compute branch and create it
+        id: branch
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          slug=$(echo "$ISSUE_TITLE" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+            | cut -c1-50 | sed -E 's/-+$//')
+          branch="agent/issue-${ISSUE_NUMBER}-${slug}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git checkout -b "$branch"
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: pnpm/action-setup@v4 # versión desde `packageManager` (pnpm 11.9.0)
+      - name: Setup Node
+        if: steps.preflight.outputs.proceed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install deps + agent runner
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git identity
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+
+      - name: Run implement runner
+        if: steps.preflight.outputs.proceed == 'true'
+        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: pnpm exec tsx .sandcastle/agent-implement/implement.mts
+
+      - name: Assert at least one commit
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          count=$(git rev-list --count master..HEAD)
+          if [ "$count" -eq 0 ]; then
+            echo "The implement runner produced no commits." > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
+
+      - name: Push branch
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: git push --force origin "$BRANCH"
+
+      - name: Run write-pr runner
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: pnpm exec tsx .sandcastle/agent-write-pr/write-pr.mts
+
+      - name: Open draft PR
+        id: pr
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          # AGENT_PAT (a user identity) creates the PR: GITHUB_TOKEN is blocked
+          # by the "Allow GitHub Actions to create and approve pull requests"
+          # org/repo setting, which is off here. Falls back to github.token
+          # (works only if that setting is enabled).
+          GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          title=$(head -c 256 "$OUTPUT_DIR/pr_title.txt")
+          url=$(gh pr create --draft --base master --head "$BRANCH" \
+            --title "$title" --body-file "$OUTPUT_DIR/pr_description.txt")
+          echo "number=$(basename "$url")" >> "$GITHUB_OUTPUT"
+
+      # --- Chain: add agent:review to the PR. PAT triggers Review; fallback lands it (§3.4). ---
+      - name: Chain to Review
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set +e
+          # Use the REST labels endpoint, not `gh pr edit`: the latter issues a
+          # GraphQL query touching org fields (needs `read:org`), which the
+          # classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose the
+          # PAT-triggered chain. REST `POST issues/{n}/labels` needs only `repo`,
+          # and labelling a PR through it fires `pull_request_target: labeled`.
+          add_review_label() {
+            gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" \
+              -f "labels[]=agent:review" > /dev/null
+          }
+          if [ -n "$AGENT_PAT" ]; then
+            GH_TOKEN="$AGENT_PAT" add_review_label && exit 0
+            echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (Review won't auto-start)."
+          fi
+          GH_TOKEN="$GITHUB_TOKEN" add_review_label
+
+      # --- Failure: mark blocked + comment (§3.7). ---
+      - name: On failure — block + comment
+        if: failure() && steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
+          gh issue comment "$ISSUE_NUMBER" --body "$(printf '`agent:implement` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:implement` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
+
+      # --- Always: release the lock. ---
+      - name: Always — remove in-progress
+        if: always() && steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true

@@ -1,0 +1,83 @@
+# Pipeline de CI — implementa la decisión de #305 (charter completo del workflow).
+# PR-only: issue -> rama -> PR -> merge. Dos jobs, ambos pensados para ser required:
+#   - checks : lint / typecheck / tests no-DB / build, sin base de datos (@/db es lazy, #308).
+#   - db-gate: suite `*.db.test.ts` completa contra Postgres 17 real (calca prod).
+# Branch protection (exigir estos checks + prohibir push directo a master) NO se enciende acá:
+# #305 la secuencia con el cutover a Sandcastle-en-GHA y el mapa #319 la ubica en #347
+# ("Cutover Fase 4: branch protection enforced"). Encenderla ahora rompería el runner local.
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5 # versión desde el campo `packageManager` (pnpm 11.9.0)
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm check:repo-styles
+      - run: pnpm check:file-tokens
+      # Drift-check (diferido desde #391): `db:generate` es offline (compara
+      # `schema.ts` contra los snapshots de `app/db/migrations/meta/`, sin DB) y
+      # debe reportar "No schema changes". Si emite una migración, `schema.ts`
+      # derivó respecto del baseline versionado y quedó sin commitear → falla.
+      # El fix va en `schema.ts` + regenerar el baseline, nunca editando el .sql.
+      - name: drift-check (db:generate sin migraciones sin commitear)
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain app/db/migrations)" ]; then
+            echo "::error::Drift de schema: db:generate produjo una migración sin commitear. Corregí schema.ts y regenerá el baseline (ver docs/db/migrations.md)."
+            git status --porcelain app/db/migrations
+            git --no-pager diff -- app/db/migrations
+            exit 1
+          fi
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - run: pnpm build
+
+  db-gate:
+    name: db-gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine # calca prod
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: en-escena-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # El default local es 5433; en CI el service mapea a 5432. `tests/db/config.ts`
+      # respeta esta env var, y `db:test:push` la propaga como DATABASE_URL a drizzle-kit.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/en-escena-test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Aplica el schema vía `drizzle-kit migrate` (path de #305/#391; `db:test:push`
+      # corre `migrate`, no `push`) y corre la suite DB completa contra Postgres real.
+      - run: pnpm test:db:postgres

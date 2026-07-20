@@ -1,99 +1,42 @@
-# Sandcastle
+# `.sandcastle/` — AFK agent runners
 
-Sandcastle runs the project issue workflow with isolated Docker worktrees.
+This directory holds the **AFK agent runners** invoked by the GitHub Actions
+workflows in `.github/workflows/agent-*.yml` and `architecture-review.yml`. It
+implements the **orchestrator↔runner split** of the AFK platform spec
+(`docs/agents/afk-agent-platform-spec.md`, §3.8/§3.9): the workflow
+(orchestrator) owns every tracker/VCS mutation (labels, comments, push, PR,
+close) and prefetches context; each **runner holds no GitHub token** and only
+emits commits on the already-checked-out branch plus plain/JSON files under
+`OUTPUT_DIR`.
 
-## Setup
+The legacy local Docker runner (`main.mts` and its `*-prompt.md` chain, driven
+by `pnpm sandcastle`) was **retired in the Fase 4 cutover** (issue #347). The
+development flow is now **AFK-on-GHA with human merge**: label an issue/PR to
+trigger the relevant workflow → the agent produces changes on a branch → a draft
+PR is opened → a human merges. Work can also be done manually (Claude Code on a
+branch/worktree → PR → human merge); that path stays available for iterating on
+the runners themselves.
 
-Create `.sandcastle/.env` from `.sandcastle/.env.example` and set:
+## Layout
 
-- `GH_TOKEN` only if Sandcastle should use a specific GitHub token. It must have
-  Issues read/write and Metadata read access. If this is empty, Sandcastle falls
-  back to the host `gh auth token` login and passes that token to Docker
-  sandboxes.
-- `CLAUDE_CODE_OAUTH_TOKEN` (recommended) or `ANTHROPIC_API_KEY` — the Claude
-  Code credentials injected into each sandbox. See the auth section below.
-- `SANDCASTLE_DOCKER_NETWORK` only if your Docker Compose network is not
-  `en-escena_default`.
-- `SANDCASTLE_TEST_DATABASE_URL` only if Sandcastle should use a different base
-  test database URL than
-  `postgres://postgres:postgres@postgres:5432/en-escena-test`.
+- `agent-implement/`, `agent-write-pr/`, `agent-review/`, `agent-implement-pr/`,
+  `agent-update-branch/`, `agent-architecture-review/`, `agent-to-issues/`,
+  `agent-implement-prd/`, `agent-write-prd-pr/` — one directory per runner,
+  invoked by the matching workflow.
+- `lib/` — shared runner helpers (`runner.mts`, `run-with-extraction.mts`, …).
+- `run-with-retry.mts`, `retry-feedback.mts` — shared output/retry helpers used
+  by several runners.
+- `CODING_STANDARDS.md` — canonical coding standards for the whole repo (not
+  just these runners); referenced from `CLAUDE.md`.
 
-The repository must have at least one commit before Sandcastle runs. Sandcastle
-creates Git worktrees from `HEAD`, so an unborn branch such as `No commits yet on
-master` cannot be used as the base.
-
-After changing `.sandcastle/Dockerfile`, rebuild the sandbox image:
-
-```bash
-pnpm exec sandcastle docker build-image
-```
-
-Sandcastle drives the Claude Code CLI inside each sandbox. Authentication uses a
-subscription OAuth token (recommended, does not consume API credits). Generate
-one on the host and put it in `.sandcastle/.env`:
-
-```bash
-claude setup-token
-```
-
-Copy the printed token into `CLAUDE_CODE_OAUTH_TOKEN`. To use an Anthropic
-Platform API key instead, set `ANTHROPIC_API_KEY` and leave the OAuth token
-empty. The runner verifies that one of the two is configured, then injects it as
-an environment variable into each Docker sandbox — no host auth file is mounted.
-Each sandbox writes its own Claude sessions and logs locally inside the
-container.
-
-For database tests, start PostgreSQL before running Sandcastle:
-
-```bash
-docker compose up -d postgres
-```
-
-Sandcastle containers attach to the `en-escena_default` Docker network by
-default and receive `DATABASE_URL` and `TEST_DATABASE_URL` pointing at the
-Compose service hostname `postgres`. This lets agents run the high-fidelity
-`pnpm test:db:postgres` path without accidentally using the host development
-database URL. The default `pnpm test:db` runs on in-process PGlite and needs no
-Postgres service.
-
-Issue sandboxes get isolated test databases derived from the base URL. For
-example, issue 34 uses `en-escena-test-issue-34`, and the merge phase uses
-`en-escena-test-merger`. The DB test setup creates these databases on demand.
-
-## Running
-
-Run the normal planner workflow:
-
-```bash
-pnpm sandcastle
-```
-
-The planner only loads open issues labeled `ready-for-agent`. Native GitHub
-sub-issues are valid implementation targets when they have that label; parent
-PRDs, epics, and tracking issues should not carry `ready-for-agent`.
-
-Run a single issue without changing labels on the rest of the backlog:
-
-```bash
-pnpm sandcastle -- --issue 4
-```
-
-Equivalent forms:
-
-```bash
-pnpm sandcastle -- 4
-pnpm sandcastle -- --issue=4
-pnpm sandcastle -- -i 4
-```
-
-Single-issue mode skips the planner, verifies that the issue is open and labeled
-`ready-for-agent`, and works on `sandcastle/issue-<number>`. If the issue has a
-native GitHub parent, Sandcastle includes the parent issue context in the
-implementer prompt.
+The runners run on the GitHub Actions host with `noSandbox()` (see
+`lib/runner.mts`); they need no local `.env` and no Docker image. Auth and
+tokens are provided by the workflow via GitHub Actions secrets — see
+`docs/agents/afk-setup.md`.
 
 ## Validation Rules
 
-Sandcastle prompts must preserve this repo's validation order:
+Runner prompts must preserve this repo's validation order:
 
 1. `pnpm format` when formatting needs to be applied, otherwise
    `pnpm format:check` for final formatting verification
@@ -111,9 +54,9 @@ validation command. Do not run `typecheck`, tests, DB tests, or build while
 formatting, `format:check`, repo-style checks, or file-token checks are still
 broken.
 
-`pnpm check:file-tokens` is strict for staged application source files.
-Sandcastle agents should split files at real module boundaries before committing
-instead of adding shallow pass-through wrappers to satisfy the token limit.
+`pnpm check:file-tokens` is strict for staged application source files. Split
+files at real module boundaries before committing instead of adding shallow
+pass-through wrappers to satisfy the token limit.
 
 During development, focused DB tests can target one file:
 
@@ -124,8 +67,8 @@ pnpm test:db app/lib/example.db.test.ts
 Focused DB tests use the fast in-process PGlite harness. Run `pnpm test` before
 finishing database-backed work; it covers the unit suite and the full PGlite DB
 suite with no local Postgres. `pnpm test:db:postgres` is the high-fidelity
-real-Postgres path through `TEST_DATABASE_URL`, reserved for the CI gate on the
-PR (#305).
+real-Postgres path, reserved for the CI gate on the PR (`ci.yml`, issues
+#305/#342).
 
-Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates React
-Router route types before running TypeScript.
+Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates
+React Router route types before running TypeScript.

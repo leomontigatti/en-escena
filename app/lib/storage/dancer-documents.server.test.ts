@@ -49,7 +49,7 @@ describe("dancer document storage", () => {
     );
     expect(uploads).toEqual([
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         file,
         key: "academies/academy-1/dancers/dancer-1/document-front.jpg",
         options: {
@@ -90,7 +90,7 @@ describe("dancer document storage", () => {
     );
     expect(uploads).toEqual([
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         file,
         key: "academies/academy-2/dancers/dancer-2/document-back.webp",
         options: {
@@ -182,12 +182,12 @@ describe("dancer document storage", () => {
 
     expect(calls).toEqual([
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         prefix: "academies/academy-1/dancers/dancer-1",
         type: "list",
       },
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         file,
         key: "academies/academy-1/dancers/dancer-1/document-front.png",
         options: {
@@ -197,7 +197,7 @@ describe("dancer document storage", () => {
         type: "upload",
       },
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         keys: [
           "academies/academy-1/dancers/dancer-1/document-front.jpg",
           "academies/academy-1/dancers/dancer-1/document-front.webp",
@@ -230,7 +230,7 @@ describe("dancer document storage", () => {
     expect(signedUrl).toBe("https://example.supabase.co/signed/document-front");
     expect(signedUrlRequests).toEqual([
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         expiresInSeconds: 300,
         key: "academies/academy-1/dancers/dancer-1/document-front.jpg",
       },
@@ -297,13 +297,13 @@ describe("dancer document storage", () => {
 
     expect(calls).toEqual([
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         options: { limit: 100 },
         prefix: "academies/academy-1/dancers/dancer-1",
         type: "list",
       },
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         file: uploadedFile,
         key: "academies/academy-1/dancers/dancer-1/document-front.png",
         options: {
@@ -313,12 +313,12 @@ describe("dancer document storage", () => {
         type: "upload",
       },
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         keys: ["academies/academy-1/dancers/dancer-1/document-front.jpg"],
         type: "remove",
       },
       {
-        bucket: "dancer-documents",
+        bucket: "en-escena-dancer-documents",
         expiresInSeconds: 300,
         key: "academies/academy-1/dancers/dancer-1/document-front.png",
         type: "signed-url",

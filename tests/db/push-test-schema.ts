@@ -83,14 +83,22 @@ async function dropExistingEnums(
   );
 }
 
-// Los enums deben quedar fuera de la base junto con las tablas: si sobrevive uno
-// que el schema ya no declara, `drizzle-kit push` lo lee como posible rename del
-// enum nuevo y abre un prompt interactivo que sin TTY aborta la corrida.
+// El estado de migraciones debe irse junto con el schema: la base de test es un
+// Postgres persistente, así que si `drizzle.__drizzle_migrations` sobrevive al
+// reset, `drizzle-kit migrate` trata el baseline como aplicado y deja la base
+// vacía. Dropear el schema `drizzle` fuerza a migrate a re-aplicar desde cero.
+async function dropMigrationState(
+  testClient: postgres.Sql<Record<string, unknown>>,
+) {
+  await testClient.unsafe(`drop schema if exists drizzle cascade`);
+}
+
 async function resetTestSchema(
   testClient: postgres.Sql<Record<string, unknown>>,
 ) {
   await dropExistingTables(testClient);
   await dropExistingEnums(testClient);
+  await dropMigrationState(testClient);
 }
 
 const testDatabaseUrl = getTestDatabaseUrl();
@@ -107,7 +115,7 @@ try {
 
   const result = spawnSync(
     "drizzle-kit",
-    ["push", "--config=drizzle.config.ts", "--force"],
+    ["migrate", "--config=drizzle.config.ts"],
     {
       env: {
         ...process.env,

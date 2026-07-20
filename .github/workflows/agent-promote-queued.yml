@@ -1,0 +1,116 @@
+# AFK — Promote Queued. Spec §4.7.
+#
+# When an issue closes, promote any `agent:queued` issue that declared it as a
+# blocker — but only once ALL that dependent's blockers have cleared — by
+# flipping it to `agent:implement`. The exit ramp from the queued state: humans
+# apply `agent:queued`, this workflow removes it.
+#
+# No agent, no concurrency group (§4.7): parallel runs are made safe by the
+# idempotent re-fetch-before-mutate in the promote step.
+
+name: AFK Promote Queued
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  promote:
+    # A wontfix/not-planned close unblocks nothing.
+    if: github.event.issue.state_reason != 'not_planned'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_REPO: ${{ github.repository }}
+      CLOSED_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Promote unblocked dependents
+        env:
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner="${GH_REPO%/*}"
+          repo="${GH_REPO#*/}"
+
+          # 1. Dependents of the closed issue: issues that declared it as a blocker.
+          deps=$(GH_TOKEN="$GITHUB_TOKEN" gh api graphql -f query='
+            query ($owner: String!, $repo: String!, $num: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $num) {
+                  blocking(first: 100) { nodes { number state } }
+                }
+              }
+            }' -F owner="$owner" -F repo="$repo" -F num="$CLOSED_NUMBER" \
+            --jq '.data.repository.issue.blocking.nodes[] | select(.state == "OPEN") | .number' 2>/dev/null || echo "")
+
+          if [ -z "$deps" ]; then
+            echo "No open dependents blocking on #$CLOSED_NUMBER."
+            exit 0
+          fi
+
+          for Y in $deps; do
+            info=$(GH_TOKEN="$GITHUB_TOKEN" gh api graphql -f query='
+              query ($owner: String!, $repo: String!, $num: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $num) {
+                    labels(first: 50) { nodes { name } }
+                    parent { number }
+                    blockedBy(first: 100) { nodes { number state } }
+                  }
+                }
+              }' -F owner="$owner" -F repo="$repo" -F num="$Y")
+
+            labels=$(echo "$info" | jq -r '.data.repository.issue.labels.nodes[].name')
+            parent=$(echo "$info" | jq -r '.data.repository.issue.parent.number // empty')
+            open_blockers=$(echo "$info" | jq '[.data.repository.issue.blockedBy.nodes[] | select(.state == "OPEN")] | length')
+
+            if ! echo "$labels" | grep -qx "agent:queued"; then
+              echo "#$Y not labeled agent:queued — skip."
+              continue
+            fi
+            if echo "$labels" | grep -qx "agent:in-progress"; then
+              echo "#$Y is agent:in-progress — skip."
+              continue
+            fi
+            if [ -n "$parent" ]; then
+              echo "#$Y is a sub-issue of #$parent — refusing to promote."
+              GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --remove-label "agent:queued" --add-label "agent:blocked"
+              GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "This is a sub-issue of #$parent; label the parent PRD \`agent:implement\` instead of queueing the sub-issue."
+              continue
+            fi
+            if [ "$open_blockers" -gt 0 ]; then
+              echo "#$Y still has $open_blockers open blocker(s) — skip (GitHub UI shows them)."
+              continue
+            fi
+
+            # 3. Idempotent flip: re-fetch labels; a sibling run may have won.
+            still_queued=$(GH_TOKEN="$GITHUB_TOKEN" gh issue view "$Y" --json labels \
+              --jq '[.labels[].name] | index("agent:queued") // empty')
+            if [ -z "$still_queued" ]; then
+              echo "#$Y no longer agent:queued (a sibling run won) — skip."
+              continue
+            fi
+
+            GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --remove-label "agent:queued"
+            GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "Unblocked by #$CLOSED_NUMBER closing — promoting to \`agent:implement\`."
+
+            # PAT-or-fallback: only AGENT_PAT re-triggers the Implement workflow (§3.4).
+            set +e
+            promoted=1
+            if [ -n "$AGENT_PAT" ]; then
+              GH_TOKEN="$AGENT_PAT" gh issue edit "$Y" --add-label "agent:implement"
+              promoted=$?
+              if [ "$promoted" -ne 0 ]; then
+                echo "AGENT_PAT label add failed for #$Y; falling back (Implement won't auto-start)."
+              fi
+            fi
+            if [ "$promoted" -ne 0 ]; then
+              GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --add-label "agent:implement"
+            fi
+            set -e
+            echo "Promoted #$Y to agent:implement."
+          done

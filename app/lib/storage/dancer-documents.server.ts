@@ -1,6 +1,15 @@
-import { createClient } from "@supabase/supabase-js";
+import {
+  type B2PresignSignedUrl,
+  type B2S3Client,
+  b2CreateSignedUrl,
+  b2List,
+  b2Remove,
+  b2Upload,
+  createDefaultB2S3Client,
+  defaultB2PresignSignedUrl,
+} from "@/lib/storage/b2-client.server";
 
-const DANCER_DOCUMENTS_BUCKET = "dancer-documents";
+const DANCER_DOCUMENTS_BUCKET = "en-escena-dancer-documents";
 const DOCUMENT_IMAGE_SIGNED_URL_EXPIRES_IN_SECONDS = 300;
 const DOCUMENT_IMAGE_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const DOCUMENT_IMAGE_EXTENSION_BY_CONTENT_TYPE = {
@@ -72,17 +81,7 @@ type SupabaseStorageClient = {
 };
 
 export function createDefaultDancerDocumentStorage() {
-  return createSupabaseDancerDocumentStorage(
-    createClient(
-      getRequiredSupabaseStorageEnv("SUPABASE_URL", process.env),
-      getRequiredSupabaseStorageEnv("SUPABASE_SERVICE_ROLE_KEY", process.env),
-      {
-        auth: {
-          persistSession: false,
-        },
-      },
-    ),
-  );
+  return createB2DancerDocumentStorage(createDefaultB2S3Client());
 }
 
 export function createDancerDocumentStorage(
@@ -183,6 +182,36 @@ export function createSupabaseDancerDocumentStorage(
         throw new Error(`Could not upload document image: ${error.message}`);
       }
     },
+  });
+}
+
+export function createB2DancerDocumentStorage(
+  client: B2S3Client,
+  deps: { presign?: B2PresignSignedUrl } = {},
+) {
+  const presign = deps.presign ?? defaultB2PresignSignedUrl;
+
+  return createDancerDocumentStorage({
+    createSignedUrl: (input) =>
+      b2CreateSignedUrl({
+        bucket: input.bucket,
+        client,
+        expiresInSeconds: input.expiresInSeconds,
+        key: input.key,
+        presign,
+      }),
+    list: (input) =>
+      b2List({ bucket: input.bucket, client, prefix: input.prefix }),
+    remove: (input) =>
+      b2Remove({ bucket: input.bucket, client, keys: input.keys }),
+    upload: (input) =>
+      b2Upload({
+        bucket: input.bucket,
+        client,
+        contentType: input.options.contentType,
+        file: input.file,
+        key: input.key,
+      }),
   });
 }
 

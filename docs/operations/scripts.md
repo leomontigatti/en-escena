@@ -5,12 +5,11 @@ use when a script has operational risk.
 
 ## Development
 
-| Script            | Purpose                                         |
-| ----------------- | ----------------------------------------------- |
-| `pnpm dev`        | Start the React Router development server.      |
-| `pnpm build`      | Build the app for production.                   |
-| `pnpm start`      | Serve the built app with `@react-router/serve`. |
-| `pnpm sandcastle` | Run the Sandcastle workflow.                    |
+| Script       | Purpose                                         |
+| ------------ | ----------------------------------------------- |
+| `pnpm dev`   | Start the React Router development server.      |
+| `pnpm build` | Build the app for production.                   |
+| `pnpm start` | Serve the built app with `@react-router/serve`. |
 
 ## Validation
 
@@ -27,18 +26,14 @@ use when a script has operational risk.
 
 ## Database
 
-| Script                         | Purpose                                                                                                                          |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:push`                 | Push the Drizzle schema to a local `DATABASE_URL`; refuses non-local hosts.                                                      |
-| `pnpm db:push:prod`            | Blocked guardrail for the old Drizzle production push path. See [Production Schema Migrations](../db/production-schema-push.md). |
-| `pnpm db:migration:new <name>` | Create a timestamped Supabase SQL migration file.                                                                                |
-| `pnpm db:migration:list`       | List local and linked production Supabase migrations.                                                                            |
-| `pnpm db:migration:dry-run`    | Show linked production migrations that would be applied without applying them.                                                   |
-| `pnpm db:migration:advisors`   | Run Supabase database advisors against the linked project.                                                                       |
-| `pnpm db:migration:push`       | Apply pending Supabase SQL migrations to the linked project after review.                                                        |
-| `pnpm db:refresh:prod`         | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                |
-| `pnpm db:test:push`            | Reset and push the schema to `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                   |
-| `pnpm db:studio`               | Open Drizzle Studio using `.env`.                                                                                                |
+| Script                 | Purpose                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:generate`     | Generate a versioned SQL migration in `app/db/migrations` from the Drizzle schema. See [Database Migrations](../db/migrations.md).          |
+| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL` (same command in dev, test, CI, and prod).                                                       |
+| `pnpm db:baseline`     | Register the baseline migration as applied on an existing database without running its DDL. See [Database Migrations](../db/migrations.md). |
+| `pnpm db:refresh:prod` | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                           |
+| `pnpm db:test:push`    | Reset and migrate the schema on `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                           |
+| `pnpm db:studio`       | Open Drizzle Studio using `.env`.                                                                                                           |
 
 ## Database Tests
 

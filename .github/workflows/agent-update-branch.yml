@@ -1,0 +1,131 @@
+# AFK — Update Branch. Spec §4.6.
+#
+# PR labeled `agent:update-branch` → the runner script does the deterministic
+# merge of the base into the branch itself; the agent is invoked ONLY when that
+# merge conflicts → orchestrator pushes the result (race-safe) and posts a comment
+# describing the merge. Hands back to a human — no automatic chaining.
+#
+# `pull_request_target` (not `pull_request`): the labeled event must fire even
+# when the PR is out-of-date/conflicting — which is exactly when this runs (§3.3).
+
+name: AFK Update Branch
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+concurrency:
+  # Shared with Review + Implement PR when this run will actually mutate the
+  # branch: all three push to the PR branch, so they serialise (§3.5). A single
+  # `labeled` event starts all three workflows; the two whose label doesn't
+  # match are no-ops. If those no-ops also joined the shared group they would
+  # cancel the pending real run (#383), so a no-op takes a unique per-run group
+  # instead and contends with nobody.
+  group: ${{ github.event.label.name == 'agent:update-branch' && format('agent-mutate-pr-{0}', github.event.pull_request.number) || format('agent-mutate-pr-noop-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-branch:
+    if: github.event.label.name == 'agent:update-branch'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      BRANCH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+    steps:
+      - name: Transition to in-progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/afk-output"
+          gh pr edit "$PR_NUMBER" \
+            --remove-label "agent:update-branch" \
+            --remove-label "agent:blocked" \
+            --add-label "agent:in-progress"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.AGENT_PAT || github.token }}
+
+      - name: Prepare branch refs
+        run: |
+          set -euo pipefail
+          # Point the local branch at the checked-out head sha so the race-safe
+          # push has a named branch to lease against. The runner fetches the base.
+          git checkout -B "$BRANCH" "$BRANCH_HEAD_SHA"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install deps + agent runner
+        run: |
+          pnpm install --frozen-lockfile
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git identity
+        run: |
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+
+      - name: Run update-branch runner
+        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        env:
+          # Read-only prefetch (`gh pr view`) uses this; the agent holds no token.
+          GH_TOKEN: ${{ github.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: pnpm exec tsx .sandcastle/agent-update-branch/update-branch.mts
+
+      - name: Race-safe push (if the merge produced anything)
+        run: |
+          set -euo pipefail
+          [ "$(cat "$OUTPUT_DIR/should_push.txt" 2>/dev/null || echo false)" = "true" ] || {
+            echo "Nothing to push (already up to date)."
+            exit 0
+          }
+          # The lease tolerates the rewritten history of a merge commit as long as
+          # the remote head is unchanged (§3.6).
+          git push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
+          if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
+            echo "Branch advanced during update-branch run." > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
+
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          comment="$OUTPUT_DIR/comment.md"
+          [ -s "$comment" ] || { echo "No comment to post."; exit 0; }
+          gh pr comment "$PR_NUMBER" --body-file "$comment"
+
+      - name: On failure — block + comment
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          gh pr edit "$PR_NUMBER" --add-label "agent:blocked"
+          gh pr comment "$PR_NUMBER" --body "$(printf '`agent:update-branch` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:update-branch` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
+
+      - name: Always — remove in-progress
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit "$PR_NUMBER" --remove-label "agent:in-progress" || true
