@@ -15,8 +15,13 @@ on:
     types: [labeled]
 
 concurrency:
-  # Shared with Review + Implement PR: all push to the PR branch (§3.5).
-  group: agent-mutate-pr-${{ github.event.pull_request.number }}
+  # Shared with Review + Implement PR when this run will actually mutate the
+  # branch: all three push to the PR branch, so they serialise (§3.5). A single
+  # `labeled` event starts all three workflows; the two whose label doesn't
+  # match are no-ops. If those no-ops also joined the shared group they would
+  # cancel the pending real run (#383), so a no-op takes a unique per-run group
+  # instead and contends with nobody.
+  group: ${{ github.event.label.name == 'agent:update-branch' && format('agent-mutate-pr-{0}', github.event.pull_request.number) || format('agent-mutate-pr-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 permissions:
