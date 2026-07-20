@@ -24,12 +24,7 @@
       "Bash(git show:*)",
       "Bash(git branch:*)"
     ],
-    "deny": [
-      "Bash(pnpm db:push:prod)",
-      "Bash(pnpm db:migration:push)",
-      "Bash(pnpm db:refresh:prod)",
-      "Read(./.env)"
-    ]
+    "deny": ["Bash(pnpm db:refresh:prod)", "Read(./.env)"]
   },
   "hooks": {
     "PreToolUse": [
