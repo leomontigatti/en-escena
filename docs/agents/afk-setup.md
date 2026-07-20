@@ -34,6 +34,30 @@ Verificar: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
 > on-demand si falta; lo pre-creamos igual para que la procedencia sea consistente desde el día
 > cero.
 
+## Despacho: de `ready-for-agent` (triage) al trigger `agent:*`
+
+Los workflows AFK **disparan por los labels `agent:*` de arriba**, nunca por el label de triage
+`ready-for-agent` (ver [triage-labels.md](triage-labels.md)). `ready-for-agent` significa
+"especificado y agarrable" — es un **estado de triage, no un trigger**: un issue/PRD con
+`ready-for-agent` y sin label `agent:*` **no hace nada**.
+
+El despacho es **deliberadamente humano** (encaja con el modelo PR-only + merge humano del mapa
+#319): vos decidís _cuándo_ corre cada ítem agregando el label a mano después de publicarlo.
+
+- **PRD → sub-issues** (auto-split): poné **`agent:to-issues`** en el PRD.
+- **Issue single → implementación**: poné **`agent:implement`** en el issue (standalone, sin parent).
+- **Ítem bloqueado** que querés encolar: poné **`agent:queued`**; se auto-promueve a implementable
+  cuando cierren sus blockers declarados (deps nativas).
+
+### Con las skills `to-spec` / `to-tickets`
+
+Son skills HITL globales; corren en tu sesión, no en GHA, y por defecto etiquetan lo que publican
+como `ready-for-agent` (y `to-tickets` sugiere trabajar la frontera con `/implement`, comando
+**local ya retirado** en #347). Con el modelo humano-gateado eso es lo correcto: **dejá que
+publiquen con `ready-for-agent`, pedíles que no usen `/implement` al terminar, y después agregás
+vos el label `agent:*`** que corresponda para despachar. No hace falta adaptar las skills
+globales.
+
 ## Secrets
 
 Tres credenciales; matriz completa (qué es / por qué) en spec §3.1 → «Secrets». Resumen
