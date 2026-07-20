@@ -8,6 +8,8 @@
 
 import { execFileSync } from "node:child_process";
 
+import { gh } from "../lib/gh.mjs";
+
 export interface ReviewContext {
   readonly issueNumber: string;
   readonly issueTitle: string;
@@ -20,10 +22,6 @@ export interface ReviewContext {
 
 function git(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-}
-
-function gh(args: string[]): string {
-  return execFileSync("gh", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 }
 
 /** First `closes|fixes|resolves #<n>` in the PR body. */
