@@ -62,15 +62,16 @@ Start it with:
 docker compose up -d postgres
 ```
 
-After changing schema or starting from an empty database, push the Drizzle schema
-to the local `DATABASE_URL`:
+After changing the schema, generate a migration and apply pending migrations to
+the local `DATABASE_URL`:
 
 ```sh
-pnpm db:push
+pnpm db:generate
+pnpm db:migrate
 ```
 
-`pnpm db:push` refuses non-local hosts. Confirm `.env` points at the local
-container before running it.
+Confirm `.env` points at the local container before running `pnpm db:migrate`.
+See [docs/db/migrations.md](db/migrations.md) for the full migration workflow.
 
 ### Supabase Postgres
 
@@ -90,17 +91,16 @@ If you use a transaction pooler, validate the app before rollout because
 transaction pooling can affect prepared statements and session-level database
 behavior.
 
-For schema changes against production Supabase, use versioned Supabase SQL
-migrations in [docs/db/production-schema-push.md](db/production-schema-push.md).
-Do not point local `.env` at production to run `pnpm db:push`; production
-Drizzle pushes are intentionally blocked.
+For schema changes against production, use versioned Drizzle migrations applied
+with `pnpm db:migrate`; see [docs/db/migrations.md](db/migrations.md). Do not
+point local `.env` at production.
 Database-backed tests keep two paths:
 
 - `pnpm test:db`: default in-process `PGlite` suite backed by the cached
   schema snapshot. Runs the full `*.db.test.ts` set, or a single file with
   `pnpm test:db <archivo>`. It is also part of `pnpm test`.
-- `pnpm test:db:postgres`: high-fidelity path that resets and pushes schema
-  through `TEST_DATABASE_URL` against real Postgres. Reserved for the CI gate
+- `pnpm test:db:postgres`: high-fidelity path that resets and migrates the
+  schema through `TEST_DATABASE_URL` against real Postgres. Reserved for the CI gate
   on the PR (#305) and manual fidelity checks. Focus a file with
   `pnpm test:db:postgres <archivo>`.
 
@@ -125,7 +125,7 @@ start the app:
 ```sh
 pnpm install
 docker compose up -d postgres
-pnpm db:push
+pnpm db:migrate
 pnpm dev
 ```
 
