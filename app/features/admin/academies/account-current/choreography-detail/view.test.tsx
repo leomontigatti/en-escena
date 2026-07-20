@@ -206,7 +206,9 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       ],
     });
 
-    expect(markup).not.toContain("No existen pagos con saldo suficiente");
+    expect(markup).not.toContain(
+      "saldo suficiente para cubrir la seña completa",
+    );
   });
 
   test("warns when no payment covers the stage total of its own date", () => {
@@ -217,7 +219,18 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       ],
     });
 
-    expect(markup).toContain("No existen pagos con saldo suficiente");
+    expect(markup).toContain("saldo suficiente para cubrir la seña completa");
+  });
+
+  test("warns about the saldo when no payment covers the balance stage", () => {
+    const markup = renderDetail({
+      stage: "balance",
+      payments: [
+        paymentFixture({ availableAmount: 2400, stageTotalAmount: 3000 }),
+      ],
+    });
+
+    expect(markup).toContain("saldo suficiente para cubrir el saldo completo");
   });
 
   test("warns when the stage total is unknown because that date has no price", () => {
@@ -226,7 +239,7 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       payments: [paymentFixture({ stageTotalAmount: null })],
     });
 
-    expect(markup).toContain("No existen pagos con saldo suficiente");
+    expect(markup).toContain("saldo suficiente para cubrir la seña completa");
   });
 
   test("blames the missing price instead of the payments when the deposit has no configured price", () => {
@@ -243,7 +256,9 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     });
 
     expect(markup).toContain("no tiene un precio configurado");
-    expect(markup).not.toContain("No existen pagos con saldo suficiente");
+    expect(markup).not.toContain(
+      "saldo suficiente para cubrir la seña completa",
+    );
   });
 });
 
