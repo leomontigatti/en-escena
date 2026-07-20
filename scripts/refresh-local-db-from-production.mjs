@@ -145,7 +145,14 @@ async function main() {
       ]);
     }
 
-    await run("pnpm", ["db:push"]);
+    // El dump ya trae el schema `public` completo; solo falta el estado de
+    // migraciones (vive en el schema `drizzle`, fuera del dump). `db:baseline`
+    // registra el baseline como aplicado para que un futuro `db:migrate` corra
+    // únicamente las migraciones posteriores. Es también el paso previo al gate
+    // zero-diff (refresh → generate debe dar vacío). Nota: cuando existan
+    // migraciones post-baseline ya desplegadas en prod, este paso necesitará
+    // marcar como aplicadas todas las migraciones hasta HEAD, no solo el 0000.
+    await run("pnpm", ["db:baseline"]);
 
     await run("docker", [
       "exec",

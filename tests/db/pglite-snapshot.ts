@@ -3,35 +3,35 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
 
-import { runPgliteSchemaPush } from "./pglite-schema-runner";
+import { runPgliteSchemaMigrate } from "./pglite-schema-runner";
 
 const snapshotStateKey = Symbol.for("en-escena.db-test.pglite-snapshot");
 const snapshotCacheDirectory = path.join(
   tmpdir(),
   "en-escena-pglite-snapshots",
 );
-const snapshotInputs = [
-  new URL("../../app/db/schema.ts", import.meta.url),
-  new URL("../../app/db/schema/access.ts", import.meta.url),
-  new URL("../../app/db/schema/academies.ts", import.meta.url),
-  new URL("../../app/db/schema/audit.ts", import.meta.url),
-  new URL("../../app/db/schema/choreographies.ts", import.meta.url),
-  new URL("../../app/db/schema/core.ts", import.meta.url),
-  new URL("../../app/db/schema/events.ts", import.meta.url),
-  new URL("../../app/db/schema/finances.ts", import.meta.url),
-  new URL("../../app/db/schema/roster.ts", import.meta.url),
+// El schema se aplica ahora vía `migrate` sobre app/db/migrations, así que la
+// cache-key del snapshot cuelga de la carpeta de migraciones (todos sus
+// archivos) más los scripts que la aplican. Regenerar/agregar una migración
+// invalida el snapshot; editar solo el schema TS sin generar migración, no.
+const migrationsDirectory = fileURLToPath(
+  new URL("../../app/db/migrations", import.meta.url),
+);
+const snapshotScriptInputs = [
   new URL("./pglite-schema.ts", import.meta.url),
   new URL("./pglite-schema-runner.ts", import.meta.url),
-  new URL("./push-pglite-schema.ts", import.meta.url),
+  new URL("./migrate-pglite-schema.ts", import.meta.url),
 ];
 
 type SnapshotState = {
@@ -74,11 +74,35 @@ async function createSnapshotBlob() {
 async function buildSnapshotKey() {
   const hash = createHash("sha256");
 
-  for (const snapshotInput of snapshotInputs) {
-    hash.update(await readFile(snapshotInput));
+  for (const migrationFile of await listMigrationFiles()) {
+    hash.update(migrationFile.relativePath);
+    hash.update(await readFile(migrationFile.absolutePath));
+  }
+
+  for (const scriptInput of snapshotScriptInputs) {
+    hash.update(await readFile(scriptInput));
   }
 
   return hash.digest("hex").slice(0, 16);
+}
+
+async function listMigrationFiles() {
+  const entries = await readdir(migrationsDirectory, {
+    recursive: true,
+    withFileTypes: true,
+  });
+
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const absolutePath = path.join(entry.parentPath, entry.name);
+
+      return {
+        absolutePath,
+        relativePath: path.relative(migrationsDirectory, absolutePath),
+      };
+    })
+    .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
 async function buildSnapshotArchive(snapshotPath: string) {
@@ -88,7 +112,7 @@ async function buildSnapshotArchive(snapshotPath: string) {
   const temporarySnapshotPath = `${snapshotPath}.${process.pid}.${randomUUID()}.tmp`;
 
   try {
-    runPgliteSchemaPush(dataDir);
+    runPgliteSchemaMigrate(dataDir);
     const client = new PGlite(dataDir);
 
     try {

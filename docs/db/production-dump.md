@@ -10,9 +10,10 @@ pnpm db:refresh:prod
 ```
 
 The script prompts for the production Postgres URL, creates a temporary dump,
-replaces the local `en-escena` database, runs `pnpm db:push`, verifies basic
-row counts, and removes the temporary dump. Pass `-- --keep-dump` when you need
-to inspect the dump after the restore.
+replaces the local `en-escena` database, runs `pnpm db:baseline` to register the
+restored schema's migration state, verifies basic row counts, and removes the
+temporary dump. Pass `-- --keep-dump` when you need to inspect the dump after
+the restore.
 
 The manual commands below are kept as a fallback and as documentation of what
 the script does.
@@ -31,9 +32,8 @@ Use the Supabase dashboard Postgres connection string, not `SUPABASE_URL`. The
 direct connection or session pooler is the best fit for `pg_dump`. Avoid the
 transaction pooler for dumps.
 
-For production schema changes, use versioned Supabase SQL migrations in
-[Production Schema Migrations](production-schema-push.md). Do not use the local
-Drizzle schema push path against production.
+For production schema changes, use versioned Drizzle migrations applied with
+`pnpm db:migrate`; see [Database Migrations](migrations.md).
 
 ## Create a Dump
 
@@ -87,10 +87,11 @@ docker exec en-escena-postgres pg_restore --no-owner --no-acl -U postgres -d en-
 docker exec en-escena-postgres rm -f /tmp/en-escena-prod.dump
 ```
 
-After restoring, align the restored schema with the current Drizzle schema:
+After restoring, register the restored schema's migration state so future
+`pnpm db:migrate` runs only apply newer migrations:
 
 ```sh
-pnpm db:push
+pnpm db:baseline
 ```
 
 ## Verify
