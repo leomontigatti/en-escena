@@ -19,4 +19,9 @@ describe("formatFileSize", () => {
     expect(formatFileSize(1300)).toBe("1.3 KB");
     expect(formatFileSize(1331)).toBe("1.3 KB");
   });
+
+  test("keeps the B unit for sub-1-byte fractional inputs", () => {
+    expect(formatFileSize(0.5)).toBe("0.5 B");
+    expect(formatFileSize(0.25)).toBe("0.3 B");
+  });
 });

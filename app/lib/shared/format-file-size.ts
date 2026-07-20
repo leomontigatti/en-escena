@@ -15,9 +15,9 @@ export function formatFileSize(bytes: number): string {
     return "0 B";
   }
 
-  const exponent = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
+  const exponent = Math.max(
+    0,
+    Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1),
   );
 
   const value = bytes / 1024 ** exponent;
