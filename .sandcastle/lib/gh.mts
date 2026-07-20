@@ -15,8 +15,15 @@ import { execFileSync } from "node:child_process";
 
 /**
  * Signals in a `gh`/network error that mark it safely retryable. Matched
- * against the error's message *and* its captured stderr — `gh` writes "HTTP
- * 503" and friends to stderr, not to the thrown `Error.message`.
+ * against the error's captured `stderr`/`stdout` and its `code` — `gh` writes
+ * "HTTP 503" and friends to stderr, and node reports system-level failures
+ * (ENOENT, ECONNRESET) via `error.code`.
+ *
+ * Deliberately NOT matched against `Error.message`: `execFileSync` sets it to
+ * "Command failed: <full argv>", so a jq/graphql argument that happens to
+ * contain "timeout" or "HTTP 503" would make a genuinely non-transient failure
+ * (e.g. a 404) look retryable and trigger pointless backoff. The real transient
+ * signal always lands in stderr (gh) or `code` (node), never solely in message.
  */
 const TRANSIENT_PATTERNS: readonly RegExp[] = [
   /No server is currently available/i,
@@ -26,17 +33,16 @@ const TRANSIENT_PATTERNS: readonly RegExp[] = [
   /\b(?:timed out|timeout)\b/i,
 ];
 
-/** Flatten every text-bearing field of a thrown error into one searchable blob. */
+/** Flatten the signal-bearing fields of a thrown error into one searchable blob. */
 function errorText(error: unknown): string {
   if (typeof error === "string") return error;
   if (error && typeof error === "object") {
     const e = error as {
-      message?: unknown;
       stderr?: unknown;
       stdout?: unknown;
       code?: unknown;
     };
-    return [e.message, e.stderr, e.stdout, e.code]
+    return [e.stderr, e.stdout, e.code]
       .map((part) => (part == null ? "" : String(part)))
       .join("\n");
   }

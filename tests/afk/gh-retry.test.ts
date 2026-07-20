@@ -67,6 +67,26 @@ describe("isTransientGhError", () => {
       isTransientGhError(ghError("gh: Validation Failed (HTTP 422)")),
     ).toBe(false);
   });
+
+  it("classifies from stderr/code, not the echoed command line", () => {
+    // `execFileSync` sets Error.message to "Command failed: <full argv>", so a
+    // jq/graphql arg carrying transient-looking words must NOT make a genuinely
+    // non-transient failure (this 404) look retryable.
+    const misleadingMessage = Object.assign(
+      new Error(
+        'Command failed: gh api repos/x/issues --jq [.[]|select(.title|contains("timeout"))]',
+      ),
+      { stderr: "gh: Not Found (HTTP 404)", status: 1 },
+    );
+    expect(isTransientGhError(misleadingMessage)).toBe(false);
+  });
+
+  it("does not retry a missing `gh` binary (spawn ENOENT)", () => {
+    const enoent = Object.assign(new Error("spawn gh ENOENT"), {
+      code: "ENOENT",
+    });
+    expect(isTransientGhError(enoent)).toBe(false);
+  });
 });
 
 describe("ghWithRetry", () => {
