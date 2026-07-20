@@ -31,6 +31,20 @@ jobs:
       - run: pnpm format:check
       - run: pnpm check:repo-styles
       - run: pnpm check:file-tokens
+      # Drift-check (diferido desde #391): `db:generate` es offline (compara
+      # `schema.ts` contra los snapshots de `app/db/migrations/meta/`, sin DB) y
+      # debe reportar "No schema changes". Si emite una migración, `schema.ts`
+      # derivó respecto del baseline versionado y quedó sin commitear → falla.
+      # El fix va en `schema.ts` + regenerar el baseline, nunca editando el .sql.
+      - name: drift-check (db:generate sin migraciones sin commitear)
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain app/db/migrations)" ]; then
+            echo "::error::Drift de schema: db:generate produjo una migración sin commitear. Corregí schema.ts y regenerá el baseline (ver docs/db/migrations.md)."
+            git status --porcelain app/db/migrations
+            git --no-pager diff -- app/db/migrations
+            exit 1
+          fi
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
@@ -64,5 +78,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Aplica el schema (drizzle-kit push) y corre la suite DB completa contra Postgres real.
+      # Aplica el schema vía `drizzle-kit migrate` (path de #305/#391; `db:test:push`
+      # corre `migrate`, no `push`) y corre la suite DB completa contra Postgres real.
       - run: pnpm test:db:postgres

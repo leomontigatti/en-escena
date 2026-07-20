@@ -84,4 +84,7 @@ nothing reads it anymore.
   applied through HEAD, not just the baseline — otherwise `db:migrate` would try
   to re-apply migrations already present in the restored dump.
 - A CI drift-check (fails when `db:generate` produces an uncommitted migration)
-  is tracked separately in issue #305.
+  runs in the `checks` job of `.github/workflows/ci.yml`. `db:generate` is
+  offline — it diffs `schema.ts` against `app/db/migrations/meta/` without a
+  database — so it needs no Postgres service. Decided in #305; deferred here
+  from the Fase 0 baseline (#391).
