@@ -44,7 +44,7 @@ describe("choreography music storage", () => {
     );
     expect(uploads).toEqual([
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         file,
         key: "academies/academy-1/choreographies/choreography-1/music.mp3",
         options: {
@@ -148,13 +148,13 @@ describe("choreography music storage", () => {
 
     expect(calls).toEqual([
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         expiresInSeconds: 300,
         key: "academies/academy-1/choreographies/choreography-1/music.mp3",
         type: "signed-url",
       },
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         keys: ["academies/academy-1/choreographies/choreography-1/music.mp3"],
         type: "remove",
       },
@@ -213,7 +213,7 @@ describe("choreography music storage", () => {
 
     expect(calls).toEqual([
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         file: uploadedFile,
         key: "academies/academy-1/choreographies/choreography-1/music.ogg",
         options: {
@@ -223,13 +223,13 @@ describe("choreography music storage", () => {
         type: "upload",
       },
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         expiresInSeconds: 300,
         key: "academies/academy-1/choreographies/choreography-1/music.ogg",
         type: "signed-url",
       },
       {
-        bucket: "choreography-music",
+        bucket: "en-escena-choreography-music",
         keys: ["academies/academy-1/choreographies/choreography-1/music.ogg"],
         type: "remove",
       },
