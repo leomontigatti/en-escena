@@ -115,7 +115,7 @@ jobs:
 
       - name: Run to-issues runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
         env:
           # No GH_TOKEN: the runner is token-less (§3.9); PRD_BODY is prefetched.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

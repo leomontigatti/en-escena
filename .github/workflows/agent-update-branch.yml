@@ -83,7 +83,7 @@ jobs:
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
       - name: Run update-branch runner
-        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
         env:
           # Read-only prefetch (`gh pr view`) uses this; the agent holds no token.
           GH_TOKEN: ${{ github.token }}
