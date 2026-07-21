@@ -98,6 +98,42 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
+  test("renders an editable submodality select for admins", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only when the choreography has a presentation", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ hasPresentation: true }),
+      }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only when the modality has no submodalities", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ submodalityOptions: [] }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only for auditors", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ canEdit: false }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
   test("opens the delete dialog from the resource actions menu", async () => {
     await renderDetailIntoDocument();
 
