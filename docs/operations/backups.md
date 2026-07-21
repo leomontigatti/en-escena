@@ -120,16 +120,23 @@ local staging copy.
 Use a daily schedule outside the request-serving runtime. In Coolify, configure
 a scheduled task on the production application:
 
-- Command: `pnpm backup:db:b2`
+- Command: `sh scripts/backup-database-to-b2.sh`
 - Schedule: `20 3 * * *`
 - Environment: use the production variables configured in Coolify.
 
 Add a scheduled task for Storage. Its base cadence is twice a day, raised during
 an event window to shrink the RPO:
 
-- Command: `pnpm backup:storage:b2`
+- Command: `sh scripts/backup-storage-to-b2.sh`
 - Schedule: `0 3,15 * * *`
 - Environment: use the production variables configured in Coolify.
+
+Invoke the scripts with `sh`, not `pnpm`, in scheduled tasks. The production
+image is pruned with `pnpm prune --prod`, so it has no `husky`; a `pnpm <script>`
+call triggers the `prepare` lifecycle and fails with `husky: not found` before
+the script runs (and re-downloads pnpm through corepack each time). Calling the
+script directly skips all of that — it only needs `sh` and the AWS CLI, both in
+the image. The container's WORKDIR is `/app`, so the relative path resolves.
 
 The scheduled task should inherit the app environment. If it does not, define
 the backup variables directly on the scheduled task.
@@ -190,6 +197,9 @@ restores zero files, a count does not match, or a restored object is empty — s
 it can gate a scheduled check.
 
 Run it monthly, at minimum. A backup that has not been restored is unproven.
+Schedule it as a Coolify scheduled task with `sh scripts/restore-drill-from-b2.sh`
+(not `pnpm` — see the Daily Schedule note above); Coolify's non-zero exit code
+then drives the failure notification.
 
 For a real recovery, run the drill with `RESTORE_KEEP=1` (or point
 `RESTORE_TARGET_DIR` at a scratch dir), then copy the verified tree back onto the

@@ -17,7 +17,7 @@
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "db:generate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate",
     "db:baseline": "node --env-file-if-exists=.env --import tsx scripts/baseline-migrations.ts",
