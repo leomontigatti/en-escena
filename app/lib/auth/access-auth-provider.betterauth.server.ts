@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 
 import { db } from "@/db";
@@ -145,6 +145,116 @@ export async function readLatestBetterAuthResetToken(
   }
 
   return row.identifier.slice(RESET_PASSWORD_IDENTIFIER_PREFIX.length);
+}
+
+// `provider_id` de Better Auth para credenciales locales (email + contraseña).
+export const CREDENTIAL_PROVIDER_ID = "credential";
+
+// Hasher scrypt nativo de Better Auth (`auth.$context.password`). Devuelve el hash
+// en el formato que Better Auth verifica al iniciar sesión, así el usuario creado
+// con estos helpers puede autenticarse con `auth.api.signInEmail`.
+export async function hashBetterAuthPassword(
+  password: string,
+): Promise<string> {
+  const ctx = await auth.$context;
+  return ctx.password.hash(password);
+}
+
+// Crea o actualiza la credencial email+contraseña de un usuario, hasheando con
+// Better Auth. Reemplaza a `upsertLocalAccessPassword` del provider de test
+// retirado (#422); lo usan el alta de internos y la invitación.
+export async function upsertBetterAuthCredentialPassword(input: {
+  password: string;
+  userId: string;
+}): Promise<void> {
+  const passwordHash = await hashBetterAuthPassword(input.password);
+  const existingCredential = await db.query.account.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(account.userId, input.userId),
+      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+    ),
+  });
+
+  if (existingCredential?.id) {
+    await db
+      .update(account)
+      .set({ password: passwordHash, updatedAt: new Date() })
+      .where(eq(account.id, existingCredential.id));
+    return;
+  }
+
+  await db.insert(account).values({
+    accountId: input.userId,
+    providerId: CREDENTIAL_PROVIDER_ID,
+    password: passwordHash,
+    userId: input.userId,
+  });
+}
+
+// Verifica una credencial email+contraseña contra el hash guardado, usando el
+// verificador de Better Auth. Reemplaza a `verifyLocalAccessPassword` (#422).
+export async function verifyBetterAuthCredentialPassword(input: {
+  email: string;
+  password: string;
+}): Promise<boolean> {
+  const savedUser = await db.query.user.findFirst({
+    columns: { id: true },
+    where: eq(user.email, input.email),
+  });
+
+  if (!savedUser?.id) {
+    return false;
+  }
+
+  const savedCredential = await db.query.account.findFirst({
+    columns: { password: true },
+    where: and(
+      eq(account.userId, savedUser.id),
+      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+    ),
+  });
+
+  if (!savedCredential?.password) {
+    return false;
+  }
+
+  const ctx = await auth.$context;
+  return ctx.password.verify({
+    hash: savedCredential.password,
+    password: input.password,
+  });
+}
+
+// Alta de un usuario interno con email ya confirmado (parity con el
+// `email_confirm: true` del admin de Supabase): inserta el usuario + su
+// credencial sin abrir sesión. Reemplaza a `createLocalAccessUser` para las ramas
+// de test de `internal-user-auth.server.ts` (#422).
+export async function createBetterAuthInternalUser(input: {
+  email: string;
+  name: string;
+  password: string;
+}): Promise<{ userId: string }> {
+  const savedUser = await db
+    .insert(user)
+    .values({
+      email: input.email,
+      emailVerified: true,
+      name: input.name,
+    })
+    .returning({ id: user.id })
+    .then((rows) => rows[0]);
+
+  if (!savedUser?.id) {
+    throw new Error("Expected internal access user to be created.");
+  }
+
+  await upsertBetterAuthCredentialPassword({
+    password: input.password,
+    userId: savedUser.id,
+  });
+
+  return { userId: savedUser.id };
 }
 
 // Cookie firmada que transporta el token de reset de Better Auth entre el

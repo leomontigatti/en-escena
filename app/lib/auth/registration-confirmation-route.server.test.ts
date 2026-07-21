@@ -26,7 +26,7 @@ describe("registro confirm loader", () => {
     confirmEmailOtp.mockResolvedValue({
       headers: new Headers({
         "cache-control": "no-store",
-        "set-cookie": "sb-access-token=confirmado; Path=/; HttpOnly",
+        "set-cookie": "better-auth.session_token=confirmado; Path=/; HttpOnly",
       }),
       userId: "academy-user",
     });
@@ -46,7 +46,9 @@ describe("registro confirm loader", () => {
       PUBLIC_ACADEMY_ONBOARDING_PATH,
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token",
+    );
   });
 
   test("redirects invalid or expired confirmation links to the access error path", async () => {

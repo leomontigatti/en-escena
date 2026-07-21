@@ -9,7 +9,7 @@ import {
   createRequestCookie,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
@@ -187,7 +187,7 @@ async function createAcademyRequest(requestUrl: string) {
 }
 
 async function createInternalRequest(requestUrl: string) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: "admin@example.com",
     name: "admin@example.com",
     password: "password-segura",

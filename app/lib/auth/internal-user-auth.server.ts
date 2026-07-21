@@ -4,10 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { db } from "@/db";
 import { accessSession } from "@/db/schema";
 import {
-  createLocalAccessUser,
-  upsertLocalAccessPassword,
-  verifyLocalAccessPassword,
-} from "@/lib/auth/access-test-auth.server";
+  createBetterAuthInternalUser,
+  upsertBetterAuthCredentialPassword,
+  verifyBetterAuthCredentialPassword,
+} from "@/lib/auth/access-auth-provider.betterauth.server";
 import { createSupabaseServerClientForRequest } from "@/lib/auth/supabase-auth-ssr.server";
 
 type InternalCredentialUserInput = {
@@ -36,13 +36,11 @@ export async function createInternalCredentialUser(
   input: InternalCredentialUserInput,
 ) {
   if (isTestAccessAuthMode()) {
-    const result = await createLocalAccessUser({
+    return createBetterAuthInternalUser({
       email: input.email,
       name: input.name,
       password: input.password,
     });
-
-    return { userId: result.response.user.id };
   }
 
   const client = createSupabaseAdminClient();
@@ -79,7 +77,7 @@ export async function setInternalCredentialPassword(
   input: InternalCredentialPasswordInput,
 ) {
   if (isTestAccessAuthMode()) {
-    await upsertLocalAccessPassword(input);
+    await upsertBetterAuthCredentialPassword(input);
     return;
   }
 
@@ -97,7 +95,7 @@ export async function verifyInternalCredentialPassword(
   input: VerifyInternalCredentialPasswordInput,
 ) {
   if (isTestAccessAuthMode()) {
-    return verifyLocalAccessPassword(input);
+    return verifyBetterAuthCredentialPassword(input);
   }
 
   const client = createStatelessSupabaseAuthClient();

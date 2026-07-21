@@ -65,7 +65,8 @@ describe("access UI validation", () => {
     signInCredentialUser.mockResolvedValue({
       userId: "user_123",
       headers: new Headers({
-        "set-cookie": "sb-access-token=signed.token; Path=/; HttpOnly",
+        "set-cookie":
+          "better-auth.session_token=signed.token; Path=/; HttpOnly",
       }),
     });
     getPostLoginPathForUserId.mockResolvedValue("/administracion");
@@ -101,7 +102,8 @@ describe("access UI validation", () => {
     signInCredentialUser.mockResolvedValue({
       userId: "supabase_user_123",
       headers: new Headers({
-        "set-cookie": "sb-access-token=signed.token; Path=/; HttpOnly",
+        "set-cookie":
+          "better-auth.session_token=signed.token; Path=/; HttpOnly",
       }),
     });
     getPostLoginPathForUserId.mockResolvedValue("/registro/academia");

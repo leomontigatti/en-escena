@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as logoutAction, loader as logoutLoader } from "@/routes/salir";
 import { action as signInAction } from "@/routes/ingresar";
@@ -47,7 +47,9 @@ describe("logout route", () => {
     );
 
     expect(response.headers.get("location")).toBe("/ingresar?sesion=cerrada");
-    expect(response.headers.get("set-cookie")).toContain("sb-access-token=");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token=",
+    );
 
     const savedSessions = await db.query.accessSession.findMany({
       where: eq(accessSession.userId, userId),
@@ -88,7 +90,7 @@ describe("logout route", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email,
     name: email,
     password: "password-segura",
@@ -109,7 +111,7 @@ async function createVerifiedCredentialUser(email: string) {
 }
 
 function createRequestCookie(headers: Headers) {
-  return `sb-access-token=${extractSignedSessionCookie(headers)}`;
+  return `better-auth.session_token=${extractSignedSessionCookie(headers)}`;
 }
 
 function extractDatabaseSessionToken(headers: Headers) {
@@ -118,7 +120,7 @@ function extractDatabaseSessionToken(headers: Headers) {
 
 function extractSignedSessionCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie?.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error(

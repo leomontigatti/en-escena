@@ -6,7 +6,7 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   createChoreographyRecord,
@@ -69,7 +69,7 @@ export async function createSignedInRequest(input: {
   role: "academy" | "admin" | "auditor" | "judge";
   requestUrl: string;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: "password-segura",

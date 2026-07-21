@@ -49,7 +49,7 @@ describe("academy onboarding route", () => {
     getVerifiedAccessIdentity.mockResolvedValue({
       headers: new Headers({
         "cache-control": "no-store",
-        "set-cookie": "sb-access-token=confirmado; Path=/; HttpOnly",
+        "set-cookie": "better-auth.session_token=confirmado; Path=/; HttpOnly",
       }),
       session: {
         id: "session-token",
@@ -75,7 +75,9 @@ describe("academy onboarding route", () => {
 
     expect(response.headers.get("location")).toBe("/portal");
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token",
+    );
     await expect(
       db.query.user.findFirst({
         columns: {
@@ -121,7 +123,7 @@ describe("academy onboarding route", () => {
 
     getVerifiedAccessIdentity.mockResolvedValue({
       headers: new Headers({
-        "set-cookie": "sb-access-token=confirmado; Path=/; HttpOnly",
+        "set-cookie": "better-auth.session_token=confirmado; Path=/; HttpOnly",
       }),
       session: {
         id: "session-token",
@@ -170,7 +172,7 @@ describe("academy onboarding route", () => {
   test("validates academy onboarding phone input without creating domain records", async () => {
     getVerifiedAccessIdentity.mockResolvedValue({
       headers: new Headers({
-        "set-cookie": "sb-access-token=confirmado; Path=/; HttpOnly",
+        "set-cookie": "better-auth.session_token=confirmado; Path=/; HttpOnly",
       }),
       session: {
         id: "session-token",
