@@ -8,6 +8,12 @@ import { parse, serialize } from "cookie";
 
 import { db } from "@/db";
 import { account, accessSession, user, verification } from "@/db/schema";
+import {
+  buildAccessRecoveryLink,
+  buildAcademySignUpConfirmationLink,
+  sendAccessRecoveryEmail,
+  sendAcademySignUpConfirmationEmail,
+} from "@/lib/auth/access-auth-emails.server";
 
 import type {
   AccessAuthProvider,
@@ -43,9 +49,9 @@ export const SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 // (`internal-user-auth.server.ts`). El estado `banned` se mapea a la columna
 // `suspended` del dominio (misma noción); `defaultRole` es un rol válido del
 // enum (`academy`) porque `createUser` lo escribe antes de que el alta de
-// internos re-asigne el rol real. Los emails reales (Resend, en español) llegan
-// en #424: por ahora las callbacks son no-op y los tokens de verificación/reset
-// se leen de la tabla `verification` para los tests.
+// internos re-asigne el rol real. `sendResetPassword` envía el email real de
+// recuperación en español (Resend, #424); el token también queda en la tabla
+// `verification`, de donde los tests lo leen sin depender del envío.
 export const auth = betterAuth({
   appName: "En Escena",
   secret: getBetterAuthSecret(),
@@ -67,13 +73,20 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    // #424 reemplaza esto por el envío real vía Resend. El token queda en la
-    // tabla `verification`; `readLatestBetterAuthVerificationValue` lo expone.
-    sendResetPassword: async () => {},
-  },
-  emailVerification: {
-    // #424: envío real. Ídem: el token vive en `verification`.
-    sendVerificationEmail: async () => {},
+    // Envío real del email de recuperación (Resend, en español). `url` trae el
+    // `callbackURL` (`/cambiar-contrasena`); el link lleva `?code=<token>`, que
+    // el loader de esa página intercambia por la sesión de recuperación. El
+    // token también vive en `verification`, así los tests lo leen sin email.
+    sendResetPassword: async ({ user: resetUser, url, token }) => {
+      await sendAccessRecoveryEmail({
+        to: resetUser.email,
+        recoveryUrl: buildAccessRecoveryLink({
+          resetUrl: url,
+          fallbackBaseUrl: getBetterAuthBaseUrl(),
+          token,
+        }),
+      });
+    },
   },
   session: {
     expiresIn: SESSION_EXPIRES_IN_SECONDS,
@@ -318,6 +331,17 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       pendingEmailSignUps.set(tokenHash, {
         email: input.email,
         password: input.password,
+      });
+
+      // Alta pública app-owned (ADR-0001): el usuario se materializa recién en
+      // `confirmEmailOtp`. Enviamos el email de confirmación en español (Resend)
+      // con el link a `/registro/confirmar?token_hash=...&type=signup`.
+      await sendAcademySignUpConfirmationEmail({
+        to: input.email,
+        confirmationUrl: buildAcademySignUpConfirmationLink({
+          redirectTo: input.redirectTo,
+          tokenHash,
+        }),
       });
 
       return {

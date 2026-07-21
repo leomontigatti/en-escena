@@ -21,6 +21,7 @@
     "db:generate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate",
     "db:baseline": "node --env-file-if-exists=.env --import tsx scripts/baseline-migrations.ts",
+    "auth:reconcile-supabase-users": "node --env-file-if-exists=.env --import tsx scripts/reconcile-supabase-users.ts",
     "backup:db:b2": "sh scripts/backup-database-to-b2.sh",
     "backup:storage:b2": "sh scripts/backup-storage-to-b2.sh",
     "restore:storage:drill": "sh scripts/restore-drill-from-b2.sh",
