@@ -215,6 +215,7 @@ function buildLoaderData(
       blockers: [],
     },
     selectedEventId: "event_1",
+    submodalityOptions: [{ id: "submodality_1", name: "Lyrical" }],
     ...overrides,
   };
 }
@@ -243,6 +244,7 @@ function buildChoreography(
     groupType: "solo",
     hasPresentation: false,
     id: "choreo_1",
+    modalityId: "modality_1",
     modalityName: "Jazz",
     musicDownloadUrl: null,
     musicStorageKey: null,
@@ -261,6 +263,7 @@ function buildChoreography(
     ],
     scheduleCapacityId: "schedule_capacity_1",
     scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",
+    submodalityId: "submodality_1",
     submodalityName: "Lyrical",
     ...overrides,
   };

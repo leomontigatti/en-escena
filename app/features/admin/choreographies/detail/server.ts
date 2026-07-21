@@ -22,6 +22,7 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
+import { validateSubmodalitySelection } from "@/lib/choreographies/registration-resolution.server";
 import {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
@@ -46,9 +47,11 @@ import {
   renameAdministrativeChoreographyIntent,
   resolveAdministrativeChoreographyRosterIntent,
   updateAdministrativeChoreographyRosterIntent,
+  updateAdministrativeChoreographySubmodalityIntent,
   type AdministrativeChoreographyActionData,
   type AdministrativeChoreographyDeleteBlocker,
   type AdministrativeChoreographyRosterErrorData,
+  type AdministrativeChoreographySubmodalityErrorData,
 } from "./shared";
 
 type AdministrativeChoreographyDetailRow = {
@@ -61,6 +64,7 @@ type AdministrativeChoreographyDetailRow = {
   groupType: ChoreographyGroupType;
   hasPresentation: boolean;
   id: string;
+  modalityId: string;
   modalityName: string;
   musicStorageKey: string | null;
   name: string;
@@ -69,6 +73,7 @@ type AdministrativeChoreographyDetailRow = {
   scheduleId: string;
   scheduleName: string;
   scheduleTime: string;
+  submodalityId: string | null;
   submodalityName: string | null;
 };
 
@@ -83,6 +88,7 @@ export type AdministrativeChoreographyDetailLoaderData = {
     canDelete: boolean;
   };
   selectedEventId: string | null;
+  submodalityOptions: Array<{ id: string; name: string }>;
 };
 
 export type AdministrativeChoreographyDetail = {
@@ -102,6 +108,7 @@ export type AdministrativeChoreographyDetail = {
   groupType: ChoreographyGroupType;
   hasPresentation: boolean;
   id: string;
+  modalityId: string;
   modalityName: string;
   musicDownloadUrl: string | null;
   musicStorageKey: string | null;
@@ -115,6 +122,7 @@ export type AdministrativeChoreographyDetail = {
   }>;
   scheduleCapacityId: string;
   scheduleLabel: string;
+  submodalityId: string | null;
   submodalityName: string | null;
 };
 
@@ -150,17 +158,19 @@ export async function loadAdministrativeChoreographyDetailRouteData(input: {
     });
   }
 
-  const [blockers, availableDancers, availableProfessors] = await Promise.all([
-    getAdministrativeChoreographyDeleteBlockers(choreography),
-    listDancerOptionsForChoreography(
-      choreography.academyId,
-      choreography.dancers.map((dancer) => dancer.id),
-    ),
-    listProfessorOptionsForChoreography(
-      choreography.academyId,
-      choreography.professors.map((professor) => professor.id),
-    ),
-  ]);
+  const [blockers, availableDancers, availableProfessors, submodalityOptions] =
+    await Promise.all([
+      getAdministrativeChoreographyDeleteBlockers(choreography),
+      listDancerOptionsForChoreography(
+        choreography.academyId,
+        choreography.dancers.map((dancer) => dancer.id),
+      ),
+      listProfessorOptionsForChoreography(
+        choreography.academyId,
+        choreography.professors.map((professor) => professor.id),
+      ),
+      listSubmodalitiesForModality(choreography.modalityId),
+    ]);
 
   return {
     availableDancers,
@@ -173,6 +183,7 @@ export async function loadAdministrativeChoreographyDetailRouteData(input: {
       canDelete: blockers.length === 0,
     },
     selectedEventId,
+    submodalityOptions,
   };
 }
 
@@ -184,7 +195,8 @@ export type AdministrativeChoreographyRosterResolutionData = {
 export type AdministrativeChoreographyDetailActionData =
   | AdministrativeChoreographyActionData
   | AdministrativeChoreographyRosterErrorData
-  | AdministrativeChoreographyRosterResolutionData;
+  | AdministrativeChoreographyRosterResolutionData
+  | AdministrativeChoreographySubmodalityErrorData;
 
 export async function handleAdministrativeChoreographyDetailAction(input: {
   request: Request;
@@ -256,6 +268,14 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
     });
   }
 
+  if (intent === updateAdministrativeChoreographySubmodalityIntent) {
+    return await updateAdministrativeChoreographySubmodality({
+      choreography,
+      formData,
+      requestUrl: input.request.url,
+    });
+  }
+
   throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
@@ -274,6 +294,7 @@ async function findAdministrativeChoreographyDetail(input: {
       groupType: choreographies.groupType,
       hasPresentation: choreographies.hasPresentation,
       id: choreographies.id,
+      modalityId: choreographies.modalityId,
       modalityName: modalities.name,
       musicStorageKey: choreographies.musicStorageKey,
       name: choreographies.name,
@@ -282,6 +303,7 @@ async function findAdministrativeChoreographyDetail(input: {
       scheduleId: schedules.id,
       scheduleName: schedules.name,
       scheduleTime: schedules.startTime,
+      submodalityId: choreographies.submodalityId,
       submodalityName: submodalities.name,
     })
     .from(choreographies)
@@ -329,6 +351,7 @@ async function findAdministrativeChoreographyDetail(input: {
     groupType: row.groupType,
     hasPresentation: row.hasPresentation,
     id: row.id,
+    modalityId: row.modalityId,
     modalityName: row.modalityName,
     musicDownloadUrl,
     musicStorageKey: row.musicStorageKey,
@@ -351,8 +374,20 @@ async function findAdministrativeChoreographyDetail(input: {
       scheduledDate: row.scheduleDate,
       startTime: row.scheduleTime,
     }),
+    submodalityId: row.submodalityId,
     submodalityName: row.submodalityName,
   };
+}
+
+async function listSubmodalitiesForModality(modalityId: string) {
+  return await db
+    .select({
+      id: submodalities.id,
+      name: submodalities.name,
+    })
+    .from(submodalities)
+    .where(eq(submodalities.modalityId, modalityId))
+    .orderBy(asc(submodalities.name));
 }
 
 async function listAdministrativeChoreographyDancers(choreographyId: string) {
@@ -423,6 +458,54 @@ async function renameAdministrativeChoreography(input: {
     buildDetailNotificationHref(
       input.requestUrl,
       input.choreographyId,
+      "coreografia-guardada",
+    ),
+  );
+}
+
+async function updateAdministrativeChoreographySubmodality(input: {
+  choreography: AdministrativeChoreographyDetail;
+  formData: FormData;
+  requestUrl: string;
+}): Promise<AdministrativeChoreographySubmodalityErrorData | Response> {
+  // Una coreografía con presentación mantiene la submodalidad en solo lectura,
+  // igual que el roster: el intent la rechaza aunque el form la mande.
+  if (input.choreography.hasPresentation) {
+    return {
+      message:
+        "No se puede cambiar la submodalidad: la coreografía ya tiene presentación.",
+      status: "error",
+    };
+  }
+
+  const availableSubmodalities = await listSubmodalitiesForModality(
+    input.choreography.modalityId,
+  );
+  const submodalityId = readOptionalFormString(input.formData, "submodalityId");
+  const validation = validateSubmodalitySelection({
+    availableSubmodalities,
+    submodalityId,
+  });
+
+  if (!validation.ok) {
+    return {
+      message: validation.failure.error,
+      status: "error",
+    };
+  }
+
+  await db
+    .update(choreographies)
+    .set({
+      submodalityId,
+      updatedAt: new Date(),
+    })
+    .where(eq(choreographies.id, input.choreography.id));
+
+  return redirect(
+    buildDetailNotificationHref(
+      input.requestUrl,
+      input.choreography.id,
       "coreografia-guardada",
     ),
   );
