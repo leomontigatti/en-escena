@@ -1,6 +1,19 @@
 #!/usr/bin/env sh
 set -eu
 
+# Backs up the live storage volume (local disk on the São Paulo VPS) to
+# Backblaze B2, where B2 now serves only as a backup destination. The live byte
+# store is the local Coolify volume; this cron is the volume's backup, separate
+# from Coolify's native Scheduled Backup which only covers Postgres.
+#
+# Keys are copied intact (`academies/...`), so a restore is a plain copy back
+# onto the volume with no key rewriting.
+#
+# Cadence is driven by the scheduler, not this script. Base cadence is 2x/day;
+# during an event window the scheduler can invoke this far more often (down to
+# every N minutes) to shrink the RPO. Set BACKUP_SYNC_MODE=mirror to prune
+# objects deleted from the volume so the backup tracks it exactly.
+
 require_env() {
   name="$1"
   eval "value=\${$name:-}"
@@ -23,25 +36,16 @@ require_command() {
 require_env B2_S3_ENDPOINT
 require_env AWS_ACCESS_KEY_ID
 require_env AWS_SECRET_ACCESS_KEY
-require_env SUPABASE_STORAGE_S3_ACCESS_KEY_ID
-require_env SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY
-require_env SUPABASE_STORAGE_S3_ENDPOINT
-require_env SUPABASE_STORAGE_S3_REGION
+require_env STORAGE_VOLUME_DIR
 
 require_command aws
-require_command date
 require_command mkdir
-require_command rm
-require_command tr
 
-APP_NAME="${APP_NAME:-en-escena}"
 B2_FILESTORE_BUCKET="${B2_FILESTORE_BUCKET:-${B2_BUCKET:-}}"
 B2_FILESTORE_PREFIX="${B2_FILESTORE_PREFIX:-filestore}"
-BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-tmp/storage-backups}"
-STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-dancer-documents}"
+STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music}"
+BACKUP_SYNC_MODE="${BACKUP_SYNC_MODE:-copy}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
-TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
-RUN_TMP_DIR="${BACKUP_TMP_DIR}/${APP_NAME}-${TIMESTAMP}"
 
 export AWS_DEFAULT_REGION
 
@@ -50,36 +54,36 @@ if [ -z "$B2_FILESTORE_BUCKET" ]; then
   exit 1
 fi
 
-mkdir -p "$RUN_TMP_DIR"
+if [ ! -d "$STORAGE_VOLUME_DIR" ]; then
+  echo "Storage volume directory not found: $STORAGE_VOLUME_DIR" >&2
+  exit 1
+fi
 
-cleanup() {
-  rm -rf "$RUN_TMP_DIR"
-}
-
-trap cleanup EXIT INT TERM
+SYNC_EXTRA_ARGS=""
+if [ "$BACKUP_SYNC_MODE" = "mirror" ]; then
+  SYNC_EXTRA_ARGS="--delete"
+elif [ "$BACKUP_SYNC_MODE" != "copy" ]; then
+  echo "Invalid BACKUP_SYNC_MODE: $BACKUP_SYNC_MODE (expected copy or mirror)" >&2
+  exit 1
+fi
 
 for bucket in $(printf "%s" "$STORAGE_BACKUP_BUCKETS" | tr "," " "); do
   if [ -z "$bucket" ]; then
     continue
   fi
 
-  LOCAL_BUCKET_DIR="${RUN_TMP_DIR}/${bucket}"
+  LOCAL_BUCKET_DIR="${STORAGE_VOLUME_DIR}/${bucket}"
   B2_URI="s3://${B2_FILESTORE_BUCKET}/${B2_FILESTORE_PREFIX}/${bucket}"
 
+  # A bucket the app has not written to yet has no directory. Create it so the
+  # sync is a no-op instead of an error.
   mkdir -p "$LOCAL_BUCKET_DIR"
 
-  echo "Downloading Supabase Storage bucket: $bucket"
-  AWS_ACCESS_KEY_ID="$SUPABASE_STORAGE_S3_ACCESS_KEY_ID" \
-    AWS_SECRET_ACCESS_KEY="$SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY" \
-    AWS_DEFAULT_REGION="$SUPABASE_STORAGE_S3_REGION" \
-    aws s3 sync "s3://${bucket}" "$LOCAL_BUCKET_DIR" \
-      --endpoint-url "$SUPABASE_STORAGE_S3_ENDPOINT" \
-      --only-show-errors
-
-  echo "Uploading bucket backup to $B2_URI"
+  echo "Backing up volume bucket $LOCAL_BUCKET_DIR to $B2_URI"
   aws s3 sync "$LOCAL_BUCKET_DIR" "$B2_URI" \
     --endpoint-url "$B2_S3_ENDPOINT" \
-    --only-show-errors
+    --only-show-errors \
+    $SYNC_EXTRA_ARGS
 done
 
 echo "Storage backup completed for buckets: $STORAGE_BACKUP_BUCKETS"

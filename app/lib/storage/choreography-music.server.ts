@@ -4,9 +4,15 @@ import {
   b2CreateSignedUrl,
   b2Remove,
   b2Upload,
-  createDefaultB2S3Client,
   defaultB2PresignSignedUrl,
 } from "@/lib/storage/b2-client.server";
+import {
+  createFilesystemSignedUrl,
+  fsRemove,
+  fsUpload,
+  getDefaultStorageUrlSigningSecret,
+  getDefaultStorageVolumeDir,
+} from "@/lib/storage/filesystem-client.server";
 
 const CHOREOGRAPHY_MUSIC_BUCKET = "en-escena-choreography-music";
 const CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = 300;
@@ -70,8 +76,15 @@ type SupabaseStorageClient = {
   };
 };
 
-export function createDefaultChoreographyMusicStorage() {
-  return createB2ChoreographyMusicStorage(createDefaultB2S3Client());
+// Live storage is the local Coolify volume in São Paulo. B2 (`createB2*`) is
+// kept only as a backup destination; it is no longer the default live store.
+export function createDefaultChoreographyMusicStorage(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  return createFilesystemChoreographyMusicStorage({
+    baseDir: getDefaultStorageVolumeDir(env),
+    secret: getDefaultStorageUrlSigningSecret(env),
+  });
 }
 
 export function createChoreographyMusicStorage(
@@ -154,6 +167,38 @@ export function createSupabaseChoreographyMusicStorage(
         throw new Error(`Could not upload music: ${error.message}`);
       }
     },
+  });
+}
+
+export function createFilesystemChoreographyMusicStorage(deps: {
+  baseDir: string;
+  now?: () => number;
+  secret: string;
+}) {
+  const now = deps.now ?? Date.now;
+
+  return createChoreographyMusicStorage({
+    createSignedUrl: async (input) =>
+      createFilesystemSignedUrl({
+        bucket: input.bucket,
+        expiresInSeconds: input.expiresInSeconds,
+        key: input.key,
+        now: now(),
+        secret: deps.secret,
+      }),
+    remove: (input) =>
+      fsRemove({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        keys: input.keys,
+      }),
+    upload: (input) =>
+      fsUpload({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        file: input.file,
+        key: input.key,
+      }),
   });
 }
 

@@ -5,9 +5,16 @@ import {
   b2List,
   b2Remove,
   b2Upload,
-  createDefaultB2S3Client,
   defaultB2PresignSignedUrl,
 } from "@/lib/storage/b2-client.server";
+import {
+  createFilesystemSignedUrl,
+  fsList,
+  fsRemove,
+  fsUpload,
+  getDefaultStorageUrlSigningSecret,
+  getDefaultStorageVolumeDir,
+} from "@/lib/storage/filesystem-client.server";
 
 const DANCER_DOCUMENTS_BUCKET = "en-escena-dancer-documents";
 const DOCUMENT_IMAGE_SIGNED_URL_EXPIRES_IN_SECONDS = 300;
@@ -80,8 +87,15 @@ type SupabaseStorageClient = {
   };
 };
 
-export function createDefaultDancerDocumentStorage() {
-  return createB2DancerDocumentStorage(createDefaultB2S3Client());
+// Live storage is the local Coolify volume in São Paulo. B2 (`createB2*`) is
+// kept only as a backup destination; it is no longer the default live store.
+export function createDefaultDancerDocumentStorage(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  return createFilesystemDancerDocumentStorage({
+    baseDir: getDefaultStorageVolumeDir(env),
+    secret: getDefaultStorageUrlSigningSecret(env),
+  });
 }
 
 export function createDancerDocumentStorage(
@@ -182,6 +196,44 @@ export function createSupabaseDancerDocumentStorage(
         throw new Error(`Could not upload document image: ${error.message}`);
       }
     },
+  });
+}
+
+export function createFilesystemDancerDocumentStorage(deps: {
+  baseDir: string;
+  now?: () => number;
+  secret: string;
+}) {
+  const now = deps.now ?? Date.now;
+
+  return createDancerDocumentStorage({
+    createSignedUrl: async (input) =>
+      createFilesystemSignedUrl({
+        bucket: input.bucket,
+        expiresInSeconds: input.expiresInSeconds,
+        key: input.key,
+        now: now(),
+        secret: deps.secret,
+      }),
+    list: (input) =>
+      fsList({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        prefix: input.prefix,
+      }),
+    remove: (input) =>
+      fsRemove({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        keys: input.keys,
+      }),
+    upload: (input) =>
+      fsUpload({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        file: input.file,
+        key: input.key,
+      }),
   });
 }
 
