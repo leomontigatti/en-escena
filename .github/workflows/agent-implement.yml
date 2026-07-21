@@ -105,7 +105,7 @@ jobs:
 
       - name: Checkout master
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: master
           fetch-depth: 0
@@ -127,10 +127,10 @@ jobs:
 
       - name: Setup pnpm
         if: steps.preflight.outputs.proceed == 'true'
-        uses: pnpm/action-setup@v4 # versión desde `packageManager` (pnpm 11.9.0)
+        uses: pnpm/action-setup@v5 # versión desde `packageManager` (pnpm 11.9.0)
       - name: Setup Node
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -148,11 +148,31 @@ jobs:
 
       - name: Run implement runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: pnpm exec tsx .sandcastle/agent-implement/implement.mts
+
+      # --- On runner failure (e.g. the runner timeout): bank any green commits
+      # the agent banked locally to the branch, so a timeout doesn't discard the
+      # work. This only PUSHES — it does not open a PR (partial state) nor resume
+      # the run (a retry still branches fresh from master). It makes the progress
+      # recoverable for a human, and is surfaced in the failure comment below. ---
+      - name: Bank partial work on runner failure
+        if: failure() && steps.preflight.outputs.proceed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          count=$(git rev-list --count master..HEAD)
+          if [ "$count" -eq 0 ]; then
+            echo "No commits to bank."
+            exit 0
+          fi
+          git push --force origin "$BRANCH"
+          echo "Banked $count commit(s) to $BRANCH."
+          echo "BANKED_BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
       - name: Assert at least one commit
         if: steps.preflight.outputs.proceed == 'true'
@@ -226,8 +246,12 @@ jobs:
         run: |
           set -euo pipefail
           reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          banked=""
+          if [ -n "${BANKED_BRANCH:-}" ]; then
+            banked=$(printf '\n\n**Partial work preserved** on branch `%s` (%s/%s/tree/%s): green commits the agent banked before the failure. A retry branches fresh from master and does NOT resume this branch — inspect or continue it by hand.' "$BANKED_BRANCH" "$GITHUB_SERVER_URL" "$GH_REPO" "$BANKED_BRANCH")
+          fi
           gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
-          gh issue comment "$ISSUE_NUMBER" --body "$(printf '`agent:implement` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:implement` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
+          gh issue comment "$ISSUE_NUMBER" --body "$(printf '`agent:implement` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s%s\n\nRe-add `agent:implement` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID" "$banked")"
 
       # --- Always: release the lock. ---
       - name: Always — remove in-progress
