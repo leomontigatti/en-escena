@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import * as schema from "@/db/schema";
 
 const schemaExportNames = [
-  "accessCredential",
+  "account",
   "accessSession",
   "academies",
   "administrativeAuditAction",
@@ -36,6 +36,7 @@ const schemaExportNames = [
   "submodalities",
   "user",
   "userRole",
+  "verification",
 ] as const;
 
 describe("schema export surface", () => {

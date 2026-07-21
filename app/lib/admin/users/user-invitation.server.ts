@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { accessCredential, internalUserInvitations, user } from "@/db/schema";
+import { account, internalUserInvitations, user } from "@/db/schema";
 import {
   createInternalUserInvitationToken,
   hashInternalUserInvitationToken,
@@ -10,7 +10,10 @@ import {
   accessAuthProvider,
   type AccessCredentialUser,
 } from "@/lib/auth/access-auth-provider.server";
-import { createLocalAccessPasswordHash } from "@/lib/auth/access-test-auth.server";
+import {
+  CREDENTIAL_PROVIDER_ID,
+  createLocalAccessPasswordHash,
+} from "@/lib/auth/access-test-auth.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import {
@@ -200,21 +203,26 @@ async function createCredentialAccessUser(input: {
 
 async function setExistingUserPassword(userId: string, password: string) {
   const passwordHash = createLocalAccessPasswordHash(password);
-  const credentialAccount = await db.query.accessCredential.findFirst({
+  const credentialAccount = await db.query.account.findFirst({
     columns: { id: true },
-    where: eq(accessCredential.userId, userId),
+    where: and(
+      eq(account.userId, userId),
+      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+    ),
   });
 
   if (credentialAccount) {
     await db
-      .update(accessCredential)
-      .set({ passwordHash, updatedAt: new Date() })
-      .where(eq(accessCredential.id, credentialAccount.id));
+      .update(account)
+      .set({ password: passwordHash, updatedAt: new Date() })
+      .where(eq(account.id, credentialAccount.id));
     return;
   }
 
-  await db.insert(accessCredential).values({
+  await db.insert(account).values({
+    accountId: userId,
+    providerId: CREDENTIAL_PROVIDER_ID,
     userId,
-    passwordHash,
+    password: passwordHash,
   });
 }

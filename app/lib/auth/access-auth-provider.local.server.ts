@@ -1,12 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 
 import { db } from "@/db";
-import { accessCredential, accessSession, user } from "@/db/schema";
+import { account, accessSession, user } from "@/db/schema";
 import {
   buildLocalAccessSessionHeaders,
+  CREDENTIAL_PROVIDER_ID,
   createLocalAccessPasswordHash,
   createLocalAccessUser,
   readLocalAccessSession,
@@ -169,11 +170,17 @@ export function createLocalTestAccessAuthProvider(): AccessAuthProvider {
 
       await db.transaction(async (tx) => {
         await tx
-          .update(accessCredential)
+          .update(account)
           .set({
-            passwordHash: createLocalAccessPasswordHash(input.newPassword),
+            password: createLocalAccessPasswordHash(input.newPassword),
+            updatedAt: new Date(),
           })
-          .where(eq(accessCredential.userId, recoveryUserId));
+          .where(
+            and(
+              eq(account.userId, recoveryUserId),
+              eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+            ),
+          );
 
         await tx
           .delete(accessSession)

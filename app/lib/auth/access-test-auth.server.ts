@@ -9,11 +9,14 @@ import { and, eq, gt } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 
 import { db } from "@/db";
-import { accessCredential, accessSession, user } from "@/db/schema";
+import { account, accessSession, user } from "@/db/schema";
 
 export const ACCESS_SESSION_EXPIRES_IN_SECONDS = 8 * 60 * 60;
 export const ACCESS_SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 export const TEST_ACCESS_SESSION_COOKIE_NAME = "sb-access-token";
+
+// `provider_id` de Better Auth para credenciales locales (email + contraseña).
+export const CREDENTIAL_PROVIDER_ID = "credential";
 
 const ACCESS_SESSION_TTL_MS = ACCESS_SESSION_EXPIRES_IN_SECONDS * 1000;
 const ACCESS_SESSION_REFRESH_WINDOW_MS =
@@ -172,21 +175,26 @@ export async function upsertLocalAccessPassword(input: {
   userId: string;
 }) {
   const passwordHash = createLocalAccessPasswordHash(input.password);
-  const existingCredential = await db.query.accessCredential.findFirst({
+  const existingCredential = await db.query.account.findFirst({
     columns: { id: true },
-    where: eq(accessCredential.userId, input.userId),
+    where: and(
+      eq(account.userId, input.userId),
+      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+    ),
   });
 
   if (existingCredential?.id) {
     await db
-      .update(accessCredential)
-      .set({ passwordHash, updatedAt: new Date() })
-      .where(eq(accessCredential.id, existingCredential.id));
+      .update(account)
+      .set({ password: passwordHash, updatedAt: new Date() })
+      .where(eq(account.id, existingCredential.id));
     return;
   }
 
-  await db.insert(accessCredential).values({
-    passwordHash,
+  await db.insert(account).values({
+    accountId: input.userId,
+    providerId: CREDENTIAL_PROVIDER_ID,
+    password: passwordHash,
     userId: input.userId,
   });
 }
@@ -204,17 +212,20 @@ export async function verifyLocalAccessPassword(input: {
     return false;
   }
 
-  const savedCredential = await db.query.accessCredential.findFirst({
-    columns: { passwordHash: true },
-    where: eq(accessCredential.userId, savedUser.id),
+  const savedCredential = await db.query.account.findFirst({
+    columns: { password: true },
+    where: and(
+      eq(account.userId, savedUser.id),
+      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
+    ),
   });
 
-  if (!savedCredential?.passwordHash) {
+  if (!savedCredential?.password) {
     return false;
   }
 
   return verifyLocalAccessPasswordHash({
-    hash: savedCredential.passwordHash,
+    hash: savedCredential.password,
     password: input.password,
   });
 }
