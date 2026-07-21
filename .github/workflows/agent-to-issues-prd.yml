@@ -93,17 +93,17 @@ jobs:
 
       - name: Checkout master
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: master
           fetch-depth: 1
 
       - name: Setup pnpm
         if: steps.preflight.outputs.proceed == 'true'
-        uses: pnpm/action-setup@v4 # versión desde `packageManager` (pnpm 11.9.0)
+        uses: pnpm/action-setup@v5 # versión desde `packageManager` (pnpm 11.9.0)
       - name: Setup Node
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
