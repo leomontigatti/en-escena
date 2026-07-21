@@ -7,7 +7,10 @@ import type {
   findAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+import {
+  routeNotificationToasts,
+  type RouteNotificationKey,
+} from "@/lib/shared/route-notification-toasts";
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
@@ -48,6 +51,15 @@ export type ProfessorActionError = {
   fieldErrors: AdministrativeProfessorFieldErrors;
   values: AdministrativeProfessorUpdateInput | ProfessorReasonFormValues;
 };
+
+export type ProfessorActionSuccess = {
+  status: "success";
+  message: string;
+};
+
+export type ProfessorDetailActionData =
+  | ProfessorActionError
+  | ProfessorActionSuccess;
 
 export type ProfessorRouteNotification = Extract<
   RouteNotificationKey,
@@ -167,20 +179,16 @@ export function buildModeHref(url: URL, mode: "editar" | null) {
   }`;
 }
 
-export function buildDetailNotificationHref(
-  requestUrl: string,
-  professorId: string,
+// La edición en el lugar del detalle no redirige: retorna
+// `{ status: "success", message }`, el loader revalida y la vista dispara el
+// toast directo desde `actionData`. Ver docs/agents/form-feedback.md.
+export function buildProfessorActionSuccess(
   notification: ProfessorRouteNotification,
-) {
-  const url = new URL(requestUrl);
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("modo");
-  searchParams.delete("evento");
-  searchParams.delete("notificacion");
-  searchParams.set("notificacion", notification);
-
-  return `/administracion/profesores/${professorId}?${searchParams.toString()}`;
+): ProfessorActionSuccess {
+  return {
+    status: "success",
+    message: routeNotificationToasts[notification].message,
+  };
 }
 
 export function readProfessorReasonValues(

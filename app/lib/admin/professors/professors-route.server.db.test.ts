@@ -19,10 +19,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
-import {
-  expectPersistedProfessor,
-  expectPersonDetailRedirect,
-} from "@/lib/test-support/person-detail-db-assertions";
+import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -621,27 +618,24 @@ describe("administracion/profesores route", () => {
       requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
     });
 
-    const response = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "update-professor",
-            firstName: "  maría del carmen ",
-            lastName: " de la cruz ",
-            documentType: "dni",
-            documentNumber: "12.345-678",
-            correctionReason: "",
-          }),
-          professor.id,
-        ),
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "  maría del carmen ",
+          lastName: " de la cruz ",
+          documentType: "dni",
+          documentNumber: "12.345-678",
+          correctionReason: "",
+        }),
+        professor.id,
       ),
-      302,
     );
 
-    expectPersonDetailRedirect(
-      response,
-      `/administracion/profesores/${professor.id}?notificacion=profesor-guardado`,
-    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Profesor guardado.",
+    });
     await expectPersistedProfessor(professor.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
@@ -889,23 +883,20 @@ describe("administracion/profesores route", () => {
       requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
     });
 
-    const archiveResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "archive-professor",
-            correctionReason: "Corrección manual por soporte.",
-          }),
-          professor.id,
-        ),
+    const archiveResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "archive-professor",
+          correctionReason: "Corrección manual por soporte.",
+        }),
+        professor.id,
       ),
-      302,
     );
 
-    expectPersonDetailRedirect(
-      archiveResponse,
-      `/administracion/profesores/${professor.id}?notificacion=profesor-archivado`,
-    );
+    expect(archiveResult).toMatchObject({
+      status: "success",
+      message: "Profesor archivado.",
+    });
     await expectPersistedProfessor(professor.id, { active: false });
 
     const archivedDetail = await detailLoader(
@@ -924,23 +915,24 @@ describe("administracion/profesores route", () => {
         .where(eq(choreographyProfessors.professorId, professor.id)),
     ).resolves.toHaveLength(1);
 
-    await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
-            request.headers.get("cookie") ?? "",
-            {
-              intent: "reactivate-professor",
-              correctionReason: "Reactivación operativa por soporte.",
-            },
-          ),
-          professor.id,
+    const reactivateResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+          request.headers.get("cookie") ?? "",
+          {
+            intent: "reactivate-professor",
+            correctionReason: "Reactivación operativa por soporte.",
+          },
         ),
+        professor.id,
       ),
-      302,
     );
 
+    expect(reactivateResult).toMatchObject({
+      status: "success",
+      message: "Profesor reactivado.",
+    });
     await expectPersistedProfessor(professor.id, { active: true });
     await expect(
       db

@@ -6,7 +6,7 @@ import {
   loadAdministrativeProfessorDetail,
 } from "@/features/admin/professors/detail/server";
 import type {
-  ProfessorActionError,
+  ProfessorDetailActionData,
   ProfessorDetailLoaderData,
 } from "@/features/admin/professors/detail/shared";
 import { AdministracionProfesorDetalleRouteView as ProfesorDetalleView } from "@/features/admin/professors/detail/view";
@@ -48,17 +48,14 @@ export async function loader({
 export async function action({
   request,
   params,
-}: Route.ActionArgs): Promise<ProfessorActionError | never> {
+}: Route.ActionArgs): Promise<ProfessorDetailActionData> {
   return await handleAdministrativeProfessorDetailAction({ request, params });
 }
 
 export function AdministracionProfesorDetalleRouteView({
   loaderData,
-  actionData: actionDataOverride,
+  actionData,
 }: AdministracionProfesorDetalleRouteProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-
   return (
     <ProfesorDetalleView actionData={actionData} loaderData={loaderData} />
   );
