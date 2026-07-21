@@ -3,25 +3,29 @@
 This runbook covers production backups to Backblaze B2:
 
 - daily logical PostgreSQL dumps;
-- daily Supabase Storage object backups.
+- storage-volume object backups.
 
 ## Scope
 
 - Database source: the production `DATABASE_URL` for Supabase Postgres.
-- Storage source: configured Supabase Storage buckets through the S3-compatible
-  API.
+- Storage source: the local storage volume (`STORAGE_VOLUME_DIR`) on the São
+  Paulo VPS, which is the live byte store after the cutover in #399. B2 is only a
+  backup destination now, not the live store.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint.
 - Database format: compressed custom-format `pg_dump` archive.
-- Storage format: copied objects under a B2 prefix.
-- Frequency: daily.
+- Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
+- Frequency: database daily; storage on the cadence configured for its scheduled
+  task (base 2x/day, raised during an event window to shrink the RPO).
 - Retention: managed in B2 with lifecycle rules, not by the app script.
 
 The backup script creates a logical dump. It is not PITR and can only restore to
 the moment when the dump started.
 
-The storage backup copies current Supabase Storage objects into B2. It does not
-delete B2 objects that are no longer present in Supabase Storage, so accidental
-deletes in Supabase do not immediately remove the backup copy.
+The storage backup syncs the local volume into B2. In the default `copy` mode it
+does not delete B2 objects that are no longer present on the volume, so
+accidental deletes on the volume do not immediately remove the backup copy. Set
+`BACKUP_SYNC_MODE=mirror` to prune deleted objects so the backup tracks the
+volume exactly.
 
 ## Backblaze B2 Setup
 
@@ -54,13 +58,11 @@ AWS_ACCESS_KEY_ID="your-b2-application-key-id"
 AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
-STORAGE_BACKUP_BUCKETS="dancer-documents"
+STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music"
+BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
-SUPABASE_STORAGE_S3_ENDPOINT="https://your-project-ref.storage.supabase.co/storage/v1/s3"
-SUPABASE_STORAGE_S3_REGION="your-supabase-project-region"
-SUPABASE_STORAGE_S3_ACCESS_KEY_ID="your-supabase-storage-s3-access-key-id"
-SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY="your-supabase-storage-s3-secret-access-key"
 ```
 
 `DATABASE_URL` should use the Supabase direct connection or session pooler.
@@ -71,10 +73,10 @@ database script still accepts the legacy `B2_BUCKET` and `B2_PREFIX` variables
 as fallbacks, but new production configuration should use the explicit bucket
 and prefix variables.
 
-Generate the Supabase Storage S3 credentials from the project's Storage S3
-settings. Supabase says S3 access keys are server-side credentials that provide
-full S3 access across buckets and bypass RLS, so keep them only in Coolify
-environment variables.
+`STORAGE_BACKUP_BUCKETS` names the on-disk bucket directories under
+`STORAGE_VOLUME_DIR` (which are also the prefixes under `B2_FILESTORE_PREFIX` in
+B2). The storage backup no longer reads from Supabase Storage, so no
+`SUPABASE_STORAGE_S3_*` credentials are needed for it.
 
 ## Runtime Requirements
 
@@ -109,24 +111,32 @@ pnpm backup:storage:b2
 ```
 
 The database script writes a temporary file under `tmp/db-backups/`, uploads it
-to B2, and removes the local file on exit. The storage script downloads each
-configured bucket under `tmp/storage-backups/`, uploads the objects to B2, and
-removes the local copy on exit.
+to B2, and removes the local file on exit. The storage script syncs each bucket
+directory under `STORAGE_VOLUME_DIR` straight to B2, keys intact; there is no
+local staging copy.
 
 ## Daily Schedule
 
 Use a daily schedule outside the request-serving runtime. In Coolify, configure
 a scheduled task on the production application:
 
-- Command: `pnpm backup:db:b2`
+- Command: `sh scripts/backup-database-to-b2.sh`
 - Schedule: `20 3 * * *`
 - Environment: use the production variables configured in Coolify.
 
-Add a second scheduled task for Storage:
+Add a scheduled task for Storage. Its base cadence is twice a day, raised during
+an event window to shrink the RPO:
 
-- Command: `pnpm backup:storage:b2`
-- Schedule: `40 3 * * *`
+- Command: `sh scripts/backup-storage-to-b2.sh`
+- Schedule: `0 3,15 * * *`
 - Environment: use the production variables configured in Coolify.
+
+Invoke the scripts with `sh`, not `pnpm`, in scheduled tasks. The production
+image is pruned with `pnpm prune --prod`, so it has no `husky`; a `pnpm <script>`
+call triggers the `prepare` lifecycle and fails with `husky: not found` before
+the script runs (and re-downloads pnpm through corepack each time). Calling the
+script directly skips all of that — it only needs `sh` and the AWS CLI, both in
+the image. The container's WORKDIR is `/app`, so the relative path resolves.
 
 The scheduled task should inherit the app environment. If it does not, define
 the backup variables directly on the scheduled task.
@@ -135,8 +145,13 @@ For a host-level cron fallback, use:
 
 ```cron
 20 3 * * * cd /path/to/en-escena && pnpm backup:db:b2 >> /var/log/en-escena-db-backup.log 2>&1
-40 3 * * * cd /path/to/en-escena && pnpm backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
+0 3,15 * * * cd /path/to/en-escena && pnpm backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
 ```
+
+The storage scripts only need the AWS CLI (no `pg_dump`). If the runtime where
+they run does not have it — the São Paulo VPS host does not — run the AWS CLI
+from the `amazon/aws-cli` Docker image with the volume bind-mounted, instead of
+installing it on the host.
 
 ## Restore Check
 
@@ -162,30 +177,38 @@ pg_restore --no-owner --no-acl --dbname "$RESTORE_DATABASE_URL" \
 
 Run a restore test monthly. A backup that has not been restored is unproven.
 
-## Storage Restore Check
+## Storage Restore Drill
 
-List the copied objects in B2:
-
-```sh
-aws s3 ls "s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents/" \
-  --recursive \
-  --endpoint-url "$B2_S3_ENDPOINT"
-```
-
-To restore one bucket into Supabase Storage, copy from B2 into a temporary
-directory and then sync it to the Supabase Storage bucket:
+Prove the storage backup is restorable, not just that it exists. The drill
+restores every backed-up bucket from B2 into a throwaway staging dir (never the
+live volume), then checks that the restore is non-empty, that its file count
+matches the object count in the backup, and that a sample object reads back
+intact. Point `STORAGE_VOLUME_DIR` at the live volume to also report drift
+(backup vs live), which is expected up to the backup cadence (RPO).
 
 ```sh
-aws s3 sync \
-  "s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/dancer-documents" \
-  "tmp/storage-restore/dancer-documents" \
-  --endpoint-url "$B2_S3_ENDPOINT"
-
-AWS_ACCESS_KEY_ID="$SUPABASE_STORAGE_S3_ACCESS_KEY_ID" \
-  AWS_SECRET_ACCESS_KEY="$SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY" \
-  AWS_DEFAULT_REGION="$SUPABASE_STORAGE_S3_REGION" \
-  aws s3 sync \
-    "tmp/storage-restore/dancer-documents" \
-    "s3://dancer-documents" \
-    --endpoint-url "$SUPABASE_STORAGE_S3_ENDPOINT"
+pnpm restore:storage:drill
 ```
+
+The drill is non-destructive: it only reads from B2 and wipes its staging dir on
+exit. Set `RESTORE_KEEP=1` to keep the restored tree for inspection, and
+`RESTORE_TARGET_DIR` to choose where it stages. It exits non-zero if any bucket
+restores zero files, a count does not match, or a restored object is empty — so
+it can gate a scheduled check.
+
+Run it monthly, at minimum. A backup that has not been restored is unproven.
+Schedule it as a Coolify scheduled task with `sh scripts/restore-drill-from-b2.sh`
+(not `pnpm` — see the Daily Schedule note above); Coolify's non-zero exit code
+then drives the failure notification.
+
+For a real recovery, run the drill with `RESTORE_KEEP=1` (or point
+`RESTORE_TARGET_DIR` at a scratch dir), then copy the verified tree back onto the
+volume — keys are intact, so no rewriting is needed:
+
+```sh
+cp -a "$RESTORE_TARGET_DIR/en-escena-dancer-documents/." \
+  "$STORAGE_VOLUME_DIR/en-escena-dancer-documents/"
+```
+
+On the São Paulo VPS host, run the AWS CLI steps from the `amazon/aws-cli` Docker
+image with the relevant directories bind-mounted, since the host has no `aws`.
