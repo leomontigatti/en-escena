@@ -1,13 +1,9 @@
-import { useSearchParams } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeChoreographyFinanceAction,
   loadAdministrativeChoreographyFinanceDetail,
 } from "@/features/admin/academies/account-current/choreography-detail/server";
 import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/academies/account-current/choreography-detail/view";
-// PROTOTIPO #339 (throwaway): renderiza las variantes cuando hay ?variant= en la URL.
-import { DetailPrototype } from "@/features/admin/_prototype-339/detail-variants";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
@@ -57,12 +53,6 @@ export async function action({ request, params }: Route.ActionArgs) {
 function AdministracionCoreografiaFinancieraDetalleRouteView({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  // PROTOTIPO #339: con ?variant en la URL se muestra el prototipo de diseño en
-  // vez de la vista real. Sin el search param, la vista real queda intacta.
-  const [params] = useSearchParams();
-  if (!import.meta.env.PROD && params.has("variant")) {
-    return <DetailPrototype />;
-  }
   return (
     <AdministracionCoreografiaFinancieraDetalleView loaderData={loaderData} />
   );

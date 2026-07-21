@@ -14,7 +14,6 @@ import {
   Music2,
   ClipboardList,
   HandCoins,
-  FileText,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -161,16 +160,6 @@ const financeNavigationItems = [
     to: "/administracion/pagos",
     icon: HandCoins,
   },
-  // PROTOTIPO #339 (throwaway): lista global de comprobantes, sólo en dev.
-  ...(import.meta.env.PROD
-    ? []
-    : [
-        {
-          label: "Comprobantes",
-          to: "/administracion/comprobantes",
-          icon: FileText,
-        },
-      ]),
 ] satisfies SidebarNavigationItem[];
 
 const navigationGroups = [
