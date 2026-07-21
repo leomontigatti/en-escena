@@ -196,6 +196,31 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: pnpm exec tsx .sandcastle/agent-implement-prd/implement-prd.mts
 
+      # --- On runner failure (e.g. the 25-min timeout): bank the green commits
+      # the agent added this run to the shared branch, so a timeout doesn't
+      # discard the in-flight sub-issue's progress. Plain push (never force) —
+      # it only appends to the accumulating branch. Because the branch RESUMES,
+      # a retry of the same sub-issue continues from this partial progress
+      # instead of redoing it. Surfaced in the failure comment below. ---
+      - name: Bank partial work on runner failure
+        if: failure() && steps.preflight.outputs.proceed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          # Commits added this run sit on top of the branch's prior remote state
+          # (origin/$BRANCH on resume; a fresh first sub-issue has none → master).
+          base="origin/$BRANCH"
+          git rev-parse --verify "$base" >/dev/null 2>&1 || base="master"
+          new=$(git rev-list --count "$base..HEAD")
+          if [ "$new" -eq 0 ]; then
+            echo "No new commits to bank."
+            exit 0
+          fi
+          git push origin "$BRANCH"
+          echo "Banked $new new commit(s) to $BRANCH."
+          echo "BANKED_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
       # No commit assertion (§4.3): zero new commits is legitimate if the
       # sub-issue was already satisfied by earlier work on the branch.
       - name: Push branch (plain, never force)
@@ -304,7 +329,11 @@ jobs:
         run: |
           set -euo pipefail
           reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
-          body=$(printf '`agent:implement` (PRD) run failed on sub-issue #%s.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRemove `agent:blocked` and re-add `agent:implement` to the PRD to retry; the run recomputes the first open sub-issue.' "$SUB_NUMBER" "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")
+          banked=""
+          if [ -n "${BANKED_BRANCH:-}" ]; then
+            banked=$(printf '\n\n**Partial work preserved** on the shared branch `%s`: green commits the agent added before the failure. A retry resumes this branch and continues the sub-issue from here.' "$BANKED_BRANCH")
+          fi
+          body=$(printf '`agent:implement` (PRD) run failed on sub-issue #%s.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s%s\n\nRemove `agent:blocked` and re-add `agent:implement` to the PRD to retry; the run recomputes the first open sub-issue.' "$SUB_NUMBER" "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID" "$banked")
           gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
           gh issue comment "$ISSUE_NUMBER" --body "$body"
           gh issue comment "$SUB_NUMBER" --body "$body" || true
