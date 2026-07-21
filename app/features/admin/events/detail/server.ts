@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
@@ -19,9 +18,11 @@ import {
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
-import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 import {
-  eventActionPath,
+  routeNotificationToasts,
+  type RouteNotificationKey,
+} from "@/lib/shared/route-notification-toasts";
+import {
   type AdministrativeEventDetailActionData,
   type AdministrativeEventDetailLoaderData,
 } from "./shared";
@@ -76,22 +77,14 @@ export async function updateAdministrativeEvent(
       return updateEventAction(eventId, formData);
 
     case "activate":
-      return redirectOrError(
-        eventId,
-        activateEvent(eventId),
-        "evento-activado",
-      );
+      return successOrError(activateEvent(eventId), "evento-activado");
 
     case "deactivate":
       if (formData.get("confirmDeactivation") !== eventId) {
         return actionError("Confirmá la desactivación del evento.");
       }
 
-      return redirectOrError(
-        eventId,
-        deactivateEvent(eventId),
-        "evento-desactivado",
-      );
+      return successOrError(deactivateEvent(eventId), "evento-desactivado");
 
     case "delete":
       if (formData.get("confirmDeletion") !== eventId) {
@@ -155,7 +148,7 @@ async function updateEventAction(eventId: string, formData: FormData) {
     };
   }
 
-  throw redirect(savedEventPath(eventId));
+  return actionSuccess("evento-guardado");
 }
 
 function updateVisibility(
@@ -163,11 +156,7 @@ function updateVisibility(
   visibility: Parameters<typeof setEventVisibility>[1],
   notification: EventRouteNotification,
 ) {
-  return redirectOrError(
-    eventId,
-    setEventVisibility(eventId, visibility),
-    notification,
-  );
+  return successOrError(setEventVisibility(eventId, visibility), notification);
 }
 
 async function redirectAfterDeletion(
@@ -183,18 +172,20 @@ async function redirectAfterDeletion(
   );
 }
 
-async function redirectOrError(
-  eventId: string,
+// Las ediciones en el lugar del detalle no redirigen: retornan
+// `{ status: "success" }`, el loader revalida y la vista dispara el toast
+// directo. Ver docs/agents/form-feedback.md.
+async function successOrError(
   resultPromise: Promise<EventMutationResult>,
   notification: EventRouteNotification,
-) {
+): Promise<AdministrativeEventDetailActionData> {
   const result = await resultPromise;
 
   if (!result.ok) {
     return actionError(result.error);
   }
 
-  throw redirect(eventNotificationPath(eventId, notification));
+  return actionSuccess(notification);
 }
 
 function actionError(message: string): AdministrativeEventDetailActionData {
@@ -206,15 +197,13 @@ function actionError(message: string): AdministrativeEventDetailActionData {
   };
 }
 
-function savedEventPath(eventId: string) {
-  return eventNotificationPath(eventId, "evento-guardado");
-}
-
-function eventNotificationPath(
-  eventId: string,
+function actionSuccess(
   notification: EventRouteNotification,
-) {
-  return `${eventActionPath(eventId)}?notificacion=${notification}`;
+): AdministrativeEventDetailActionData {
+  return {
+    status: "success",
+    message: routeNotificationToasts[notification].message,
+  };
 }
 
 async function loadEvent(eventId: string) {

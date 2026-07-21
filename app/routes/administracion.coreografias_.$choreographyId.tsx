@@ -69,7 +69,8 @@ function AdministracionCoreografiaDetalleRouteView({
   const actionData =
     actionDataOverride &&
     "status" in actionDataOverride &&
-    actionDataOverride.status === "error"
+    (actionDataOverride.status === "error" ||
+      actionDataOverride.status === "success")
       ? actionDataOverride
       : undefined;
 

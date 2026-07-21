@@ -153,14 +153,11 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(response).toBeInstanceOf(Response);
-    if (!(response instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `/administracion/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
     await expect(
       db.query.choreographies.findFirst({
         columns: { name: true },
@@ -333,14 +330,11 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(response).toBeInstanceOf(Response);
-    if (!(response instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `/administracion/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
 
     const stored = await db.query.choreographies.findFirst({
       columns: { submodalityId: true, updatedAt: true },

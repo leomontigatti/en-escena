@@ -69,10 +69,10 @@ describe("administracion/eventos/:eventId route", () => {
       }),
     });
 
-    const response = await expectThrownResponse(
-      action(routeArgs(request, event.id)),
-      302,
-    );
+    await expect(action(routeArgs(request, event.id))).resolves.toMatchObject({
+      status: "success",
+      message: "Evento guardado.",
+    });
 
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
@@ -86,9 +86,6 @@ describe("administracion/eventos/:eventId route", () => {
 
     expect(savedEvent?.startsAt.toISOString()).toBe("2027-05-01T03:00:00.000Z");
     expect(savedEvent?.endsAt.toISOString()).toBe("2027-05-03T03:00:00.000Z");
-    expect(response.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=evento-guardado`,
-    );
   });
 
   test("returns the field error message when the Evento detail form fails validation", async () => {
@@ -169,13 +166,11 @@ describe("administracion/eventos/:eventId route", () => {
       body: formData({ intent: "deactivate", confirmDeactivation: event.id }),
     });
 
-    await expectThrownResponse(
+    await expect(
       action(routeArgs(confirmedRequest.request, event.id)),
-      302,
-    ).then((response) => {
-      expect(response.headers.get("location")).toBe(
-        `/administracion/eventos/${event.id}?notificacion=evento-desactivado`,
-      );
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Evento desactivado.",
     });
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
@@ -197,21 +192,18 @@ describe("administracion/eventos/:eventId route", () => {
       body: formData({ intent: "set-results-visibility", value: "true" }),
     });
 
-    const programResponse = await expectThrownResponse(
+    await expect(
       action(routeArgs(programRequest.request, event.id)),
-      302,
-    );
-    const resultsResponse = await expectThrownResponse(
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Programa visible.",
+    });
+    await expect(
       action(routeArgs(resultsRequest.request, event.id)),
-      302,
-    );
-
-    expect(programResponse.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=programa-visible`,
-    );
-    expect(resultsResponse.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=resultados-visibles`,
-    );
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Resultados visibles.",
+    });
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toMatchObject({

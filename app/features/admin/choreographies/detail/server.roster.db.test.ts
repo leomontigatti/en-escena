@@ -65,11 +65,11 @@ describe("administrative choreography roster editing", () => {
       dancerIds: [dancerA.id, dancerB.id, dancerC.id],
     });
 
-    expect(response).toBeInstanceOf(Response);
-    if (!(response instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(response.status).toBe(302);
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
 
     const updated = await db.query.choreographies.findFirst({
       columns: { groupType: true },
@@ -152,7 +152,8 @@ describe("administrative choreography roster editing", () => {
       dancerIds: [dancerB.id],
     });
 
-    expect(response).toBeInstanceOf(Response);
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({ status: "success" });
 
     const inscriptions = await db.query.choreographyDancers.findMany({
       where: eq(choreographyDancers.choreographyId, choreography.id),
@@ -211,7 +212,8 @@ describe("administrative choreography roster editing", () => {
       dancerIds: [dancerA.id, dancerB.id, dancerC.id],
     });
 
-    expect(response).toBeInstanceOf(Response);
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({ status: "success" });
 
     const inscriptions = await db.query.choreographyDancers.findMany({
       where: eq(choreographyDancers.choreographyId, choreography.id),
@@ -304,7 +306,8 @@ describe("administrative choreography roster editing", () => {
       scheduleCapacityId: catalog.duoScheduleCapacity.id,
     });
 
-    expect(response).toBeInstanceOf(Response);
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({ status: "success" });
 
     const saved = await db.query.choreographies.findFirst({
       where: eq(choreographies.id, choreography.id),

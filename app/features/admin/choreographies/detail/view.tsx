@@ -90,8 +90,14 @@ export function AdministracionCoreografiaDetalleRouteView({
   initialDeleteDialogOpen = false,
   loaderData,
 }: AdministracionCoreografiaDetalleRouteViewProps) {
-  useServerActionToast(actionData, {
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
+  useServerActionToast(errorData, {
     toastId: "admin-choreography-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "admin-choreography-detail:success",
   });
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
