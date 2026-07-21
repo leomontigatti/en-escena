@@ -38,6 +38,7 @@ import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 import {
@@ -242,8 +243,9 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
 
   if (intent === deleteAdministrativeChoreographyIntent) {
     await deleteAdministrativeChoreography(choreography);
-    return redirect(
-      "/administracion/coreografias?notificacion=coreografia-eliminada",
+    return redirectWithFlashNotification(
+      "/administracion/coreografias",
+      "coreografia-eliminada",
     );
   }
 

@@ -205,7 +205,7 @@ function buildModalityRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-modality") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(modalityBasePath, null),
       modalityDeletedNotification,
     );

@@ -200,7 +200,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expectPriceDeletedRedirect(deleteResponse);
+    await expectPriceDeletedRedirect(deleteResponse);
   });
 
   test("shows a frozen inscription validation when structural changes or deletion are blocked", async () => {
@@ -374,7 +374,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expectPriceDeletedRedirect(deletePriceResponse);
+    await expectPriceDeletedRedirect(deletePriceResponse);
     await expect(findSavedPriceById(price?.id ?? "")).resolves.toBeUndefined();
   });
 });

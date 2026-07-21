@@ -363,9 +363,11 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deleteRequest.request)),
       302,
     );
-    expect(deleteResponse.headers.get("location")).toContain(
-      "notificacion=categoria-eliminada",
-    );
+    await expectFlashRedirect(deleteResponse, "/administracion/categorias", {
+      id: "route-notification:categoria-eliminada",
+      message: "Categoría eliminada.",
+      variant: "success",
+    });
     await expect(
       db.query.categories.findFirst({
         where: eq(categories.id, createdCategoryId),
@@ -629,9 +631,11 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(modalities.id, modality.id),
       }),
     ).resolves.toBeUndefined();
-    expect(response.headers.get("location")).toBe(
-      "/administracion/modalidades?notificacion=modalidad-eliminada",
-    );
+    await expectFlashRedirect(response, "/administracion/modalidades", {
+      id: "route-notification:modalidad-eliminada",
+      message: "Modalidad eliminada.",
+      variant: "success",
+    });
   });
 });
 

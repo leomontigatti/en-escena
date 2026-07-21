@@ -126,7 +126,7 @@ function buildCategoryRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-category") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(categoryBasePath, null),
       categoryDeletedNotification,
     );

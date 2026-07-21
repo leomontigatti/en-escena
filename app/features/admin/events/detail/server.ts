@@ -18,6 +18,7 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
 import {
   eventActionPath,
@@ -169,14 +170,17 @@ function updateVisibility(
   );
 }
 
-function redirectAfterDeletion(
+async function redirectAfterDeletion(
   result: Awaited<ReturnType<typeof deleteEvent>>,
 ) {
   if (!result.ok) {
     return actionError(result.error);
   }
 
-  throw redirect("/administracion/eventos?notificacion=evento-eliminado");
+  throw await redirectWithFlashNotification(
+    "/administracion/eventos",
+    "evento-eliminado",
+  );
 }
 
 async function redirectOrError(

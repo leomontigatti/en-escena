@@ -238,7 +238,7 @@ function buildScheduleRedirectUrl(
 
   switch (input.intent) {
     case "delete-schedule":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         buildListPath(scheduleBasePath, null),
         scheduleDeletedNotification,
       );

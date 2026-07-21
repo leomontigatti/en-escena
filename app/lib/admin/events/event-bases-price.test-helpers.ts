@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { prices } from "@/db/schema";
 import type { GroupType } from "@/lib/events/group-types";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import {
   action,
@@ -158,10 +159,12 @@ export async function expectPriceSavedRedirect(response: Response) {
   });
 }
 
-export function expectPriceDeletedRedirect(response: Response) {
-  expect(response.headers.get("location")).toBe(
-    "/administracion/precios?notificacion=precio-eliminado",
-  );
+export async function expectPriceDeletedRedirect(response: Response) {
+  await expectFlashRedirect(response, "/administracion/precios", {
+    id: "route-notification:precio-eliminado",
+    message: "Precio eliminado.",
+    variant: "success",
+  });
 }
 
 function formDataWithPrice(

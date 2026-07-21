@@ -11,6 +11,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   action,
@@ -250,9 +251,11 @@ describe("administracion/eventos/:eventId route", () => {
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toBeUndefined();
-    expect(response.headers.get("location")).toBe(
-      "/administracion/eventos?notificacion=evento-eliminado",
-    );
+    await expectFlashRedirect(response, "/administracion/eventos", {
+      id: "route-notification:evento-eliminado",
+      message: "Evento eliminado.",
+      variant: "success",
+    });
   });
 
   test("posts event mutations to the clean event URL when a previous notification is present", async () => {

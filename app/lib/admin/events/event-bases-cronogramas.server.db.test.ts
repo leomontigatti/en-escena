@@ -229,8 +229,14 @@ describe.sequential(
         action(routeArgs(deleteScheduleRequest.request)),
         302,
       );
-      expect(deleteScheduleResponse.headers.get("location")).toBe(
-        "/administracion/cronogramas?notificacion=cronograma-eliminado",
+      await expectFlashRedirect(
+        deleteScheduleResponse,
+        "/administracion/cronogramas",
+        {
+          id: "route-notification:cronograma-eliminado",
+          message: "Cronograma eliminado.",
+          variant: "success",
+        },
       );
       await expect(
         findSavedScheduleById(schedule?.id ?? ""),

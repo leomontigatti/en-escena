@@ -147,7 +147,7 @@ function buildPriceRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-price") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(priceBasePath, null),
       priceDeletedNotification,
     );

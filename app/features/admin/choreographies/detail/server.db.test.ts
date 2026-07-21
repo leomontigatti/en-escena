@@ -31,6 +31,7 @@ import {
   createSignedInAdminRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -234,9 +235,11 @@ describe("administrative choreography detail server", () => {
       throw new Error("Expected redirect response.");
     }
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/administracion/coreografias?notificacion=coreografia-eliminada",
-    );
+    await expectFlashRedirect(response, "/administracion/coreografias", {
+      id: "route-notification:coreografia-eliminada",
+      message: "Coreografía eliminada.",
+      variant: "success",
+    });
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
