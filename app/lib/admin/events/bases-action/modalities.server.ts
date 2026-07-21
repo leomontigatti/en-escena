@@ -15,6 +15,8 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
   withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
@@ -214,7 +216,7 @@ function buildModalityRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(modalityBasePath, result.record.id, null),
       modalitySavedNotification,
     );
@@ -227,7 +229,7 @@ function buildModalityRedirectUrl(
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function isModalityMutationIntent(intent: string) {

@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { categories, modalities, submodalities } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   createModality,
   createSubmodality,
@@ -279,9 +280,6 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(createRequest.request)),
       302,
     );
-    expect(createResponse.headers.get("location")).toContain(
-      "notificacion=categoria-guardada",
-    );
 
     const createdCategory = expectFound(
       await db.query.categories.findFirst({
@@ -289,6 +287,16 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     );
     const createdCategoryId = createdCategory.id;
+
+    await expectFlashRedirect(
+      createResponse,
+      `/administracion/categorias/${createdCategoryId}`,
+      {
+        id: "route-notification:categoria-guardada",
+        message: "Categoría guardada.",
+        variant: "success",
+      },
+    );
 
     expect(createdCategory).toMatchObject({ eventId: event.id });
 

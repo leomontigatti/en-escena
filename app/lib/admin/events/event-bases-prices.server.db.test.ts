@@ -111,7 +111,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       paymentDeadline: "2026-05-31",
       scheduleId: schedule.id,
     });
-    expectPriceSavedRedirect(createResponse);
+    await expectPriceSavedRedirect(createResponse);
 
     const createData = await loader(
       routeArgs(
@@ -302,7 +302,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(createPriceRequest.request)),
       302,
     );
-    expectPriceSavedRedirect(createPriceResponse);
+    await expectPriceSavedRedirect(createPriceResponse);
 
     const price = await findSavedPriceByScope({
       groupType: "solo",

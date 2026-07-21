@@ -4,6 +4,7 @@ import { expect } from "vitest";
 import { db } from "@/db";
 import { prices } from "@/db/schema";
 import type { GroupType } from "@/lib/events/group-types";
+import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 
 import {
   action,
@@ -133,10 +134,28 @@ export async function findSavedPriceByScope(input: {
   });
 }
 
-export function expectPriceSavedRedirect(response: Response) {
-  expect(response.headers.get("location")).toMatch(
-    /\/administracion\/precios\/[^?]+\?notificacion=precio-guardado/,
+export async function expectPriceSavedRedirect(response: Response) {
+  const location = response.headers.get("location");
+
+  expect(location).toMatch(/^\/administracion\/precios\/[^?]+$/);
+  expect(location).not.toContain("notificacion=");
+
+  const setCookie = response.headers.get("set-cookie");
+
+  if (!setCookie) {
+    throw new Error("Expected a Set-Cookie header carrying the flash message.");
+  }
+
+  const [cookiePair] = setCookie.split(";");
+  const flash = await readFlashNotification(
+    new Request("http://localhost/", { headers: { cookie: cookiePair } }),
   );
+
+  expect(flash?.toast).toEqual({
+    id: "route-notification:precio-guardado",
+    message: "Precio guardado.",
+    variant: "success",
+  });
 }
 
 export function expectPriceDeletedRedirect(response: Response) {

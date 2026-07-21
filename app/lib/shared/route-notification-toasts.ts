@@ -32,6 +32,7 @@ export const routeNotificationToastIds = {
   "cupo-cronograma-eliminado": "route-notification:cupo-cronograma-eliminado",
   "precio-guardado": "route-notification:precio-guardado",
   "precio-eliminado": "route-notification:precio-eliminado",
+  "pago-registrado": "route-notification:pago-registrado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
   "resultados-visibles": "route-notification:resultados-visibles",
@@ -173,6 +174,11 @@ export const routeNotificationToasts = {
   "precio-eliminado": {
     id: routeNotificationToastIds["precio-eliminado"],
     message: "Precio eliminado.",
+    variant: "success",
+  },
+  "pago-registrado": {
+    id: routeNotificationToastIds["pago-registrado"],
+    message: "Pago registrado.",
     variant: "success",
   },
   "programa-visible": {

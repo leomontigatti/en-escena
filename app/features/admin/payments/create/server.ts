@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
-import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
 import { listAdminPaymentAcademyOptions } from "../academy-options.server";
@@ -82,7 +82,8 @@ export async function handleAdminPaymentCreateAction(
     reference: parsed.data.reference || null,
   });
 
-  throw redirect(
+  throw await redirectWithFlashNotification(
     `/administracion/pagos?evento=${eventContext.selectedEventId}`,
+    "pago-registrado",
   );
 }

@@ -11,6 +11,8 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
   withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
@@ -135,7 +137,7 @@ function buildCategoryRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(categoryBasePath, result.record.id, null),
       categorySavedNotification,
     );
@@ -148,7 +150,7 @@ function buildCategoryRedirectUrl(
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function readCategoryActionInput(

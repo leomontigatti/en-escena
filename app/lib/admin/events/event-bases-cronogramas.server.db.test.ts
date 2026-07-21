@@ -8,6 +8,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -145,11 +146,18 @@ describe.sequential(
         action(routeArgs(scheduleRequest.request)),
         302,
       );
-      expect(createScheduleResponse.headers.get("location")).toMatch(
-        /\/administracion\/cronogramas\/[^?]+\?notificacion=cronograma-guardado/,
-      );
 
       const schedule = await findSavedScheduleByName("Sábado Mañana");
+      await expectFlashRedirect(
+        createScheduleResponse,
+        `/administracion/cronogramas/${schedule?.id}`,
+        {
+          id: "route-notification:cronograma-guardado",
+          message: "Cronograma guardado.",
+          variant: "success",
+        },
+      );
+
       expect(schedule).toMatchObject({
         eventId: event.id,
         scheduledDate: "2026-05-02",

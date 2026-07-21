@@ -17,6 +17,8 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
   withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
@@ -247,7 +249,7 @@ function buildScheduleRedirectUrl(
       );
     case "create-schedule":
       if (result.ok && hasEventBaseRecord(result)) {
-        return withEventBasesNotification(
+        return withEventBasesFlashNotification(
           buildDetailPath(scheduleBasePath, result.record.id, null),
           scheduleSavedNotification,
         );
@@ -263,7 +265,7 @@ function buildScheduleRedirectUrl(
         scheduleCapacitySavedNotification,
       );
     default:
-      return currentPath;
+      return plainEventBasesRedirect(currentPath);
   }
 }
 

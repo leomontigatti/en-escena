@@ -14,6 +14,8 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
   withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
@@ -156,7 +158,7 @@ function buildPriceRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(priceBasePath, result.record.id, null),
       priceSavedNotification,
     );
@@ -169,7 +171,7 @@ function buildPriceRedirectUrl(
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function readPriceActionInput(

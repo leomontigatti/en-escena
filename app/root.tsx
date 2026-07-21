@@ -1,4 +1,5 @@
 import {
+  data,
   isRouteErrorResponse,
   Links,
   Meta,
@@ -13,7 +14,9 @@ import { Toaster } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
+import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
 export const links: Route.LinksFunction = () => [
   {
@@ -61,14 +64,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
+export async function loader({ request }: Route.LoaderArgs) {
+  const flash = await readFlashNotification(request);
+
+  if (!flash) {
+    return data({ flashToast: null });
+  }
+
+  // Consumir la cookie flash (one-time): el `Set-Cookie` que devuelve el lector
+  // la limpia, así el toast aparece una sola vez y no reaparece al recargar.
+  return data(
+    { flashToast: flash.toast },
+    { headers: { "set-cookie": flash.setCookieHeader } },
+  );
+}
+
+export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <Toaster richColors position="top-center" />
       <Outlet />
       <RouteToasts />
+      <FlashToast toast={loaderData.flashToast} />
     </>
   );
+}
+
+function FlashToast({ toast }: { toast: ToastMessage | null }) {
+  const toastId = toast?.id;
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      showToastMessage(toast);
+    }, 0);
+    // Se dispara una sola vez por mensaje flash: la cookie ya se consumió en el
+    // loader, así que una revalidación posterior devuelve `flashToast: null`.
+  }, [toast, toastId]);
+
+  return null;
 }
 
 function RouteToasts() {

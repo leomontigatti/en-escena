@@ -14,6 +14,7 @@ import {
   createAdminSavedEvent as createSavedEvent,
   testEventDate as date,
 } from "@/lib/events/saved-event-test-support.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   AdministracionRouteView,
   loader as adminLoader,
@@ -196,8 +197,14 @@ describe("administracion/eventos route", () => {
     });
     expect(savedEvent?.startsAt.toISOString()).toBe("2027-05-01T03:00:00.000Z");
     expect(savedEvent?.endsAt.toISOString()).toBe("2027-05-03T03:00:00.000Z");
-    expect(response.headers.get("location")).toBe(
-      `/administracion/eventos/${savedEvent?.id}?notificacion=evento-guardado`,
+    await expectFlashRedirect(
+      response,
+      `/administracion/eventos/${savedEvent?.id}`,
+      {
+        id: "route-notification:evento-guardado",
+        message: "Evento guardado.",
+        variant: "success",
+      },
     );
   });
 
