@@ -1,7 +1,6 @@
-import { redirect } from "react-router";
-
 import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
@@ -47,16 +46,18 @@ export async function handlePortalDancerDetailAction(input: {
 
   if (intent === "archive-dancer") {
     await archiveDancerForAcademy(academy.id, dancerId);
-    throw redirect(
-      `/portal/bailarines/${dancerId}?notificacion=bailarin-archivado`,
-    );
+    return {
+      status: "success" as const,
+      message: routeNotificationToasts["bailarin-archivado"].message,
+    };
   }
 
   if (intent === "reactivate-dancer") {
     await reactivateDancerForAcademy(academy.id, dancerId);
-    throw redirect(
-      `/portal/bailarines/${dancerId}?notificacion=bailarin-reactivado`,
-    );
+    return {
+      status: "success" as const,
+      message: routeNotificationToasts["bailarin-reactivado"].message,
+    };
   }
 
   if (intent !== "" && intent !== "update-dancer") {
@@ -107,9 +108,10 @@ export async function handlePortalDancerDetailAction(input: {
     };
   }
 
-  throw redirect(
-    `/portal/bailarines/${dancerId}?notificacion=bailarin-guardado`,
-  );
+  return {
+    status: "success" as const,
+    message: routeNotificationToasts["bailarin-guardado"].message,
+  };
 }
 
 async function requirePortalDancer(academyId: string, dancerId: string) {

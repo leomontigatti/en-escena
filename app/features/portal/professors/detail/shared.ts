@@ -57,4 +57,8 @@ export type PortalProfessorDetailActionData =
       fieldErrors: ProfessorFieldErrors;
       values: ProfessorFormValues;
     }
+  | {
+      status: "success";
+      message: string;
+    }
   | undefined;

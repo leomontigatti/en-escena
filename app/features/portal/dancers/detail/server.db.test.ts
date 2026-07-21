@@ -18,10 +18,7 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import {
-  expectPersistedDancer,
-  expectPersonDetailRedirect,
-} from "@/lib/test-support/person-detail-db-assertions";
+import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -87,28 +84,25 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       })
       .returning();
 
-    const response = await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${dancer.id}`,
-          session.cookie,
-          dancerEditFormData({
-            firstName: "  ana maría ",
-            lastName: " de la CRUZ ",
-            birthDate: "2014-05-06",
-            documentType: "dni",
-            documentNumber: "12.345 678-9",
-          }),
-        ),
-        params: { dancerId: dancer.id },
-      }),
-      302,
-    );
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "  ana maría ",
+          lastName: " de la CRUZ ",
+          birthDate: "2014-05-06",
+          documentType: "dni",
+          documentNumber: "12.345 678-9",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
 
-    expectPersonDetailRedirect(
-      response,
-      `/portal/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
-    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Bailarín guardado.",
+    });
     await expectPersistedDancer(dancer.id, {
       firstName: "Ana María",
       lastName: "De la Cruz",
@@ -181,24 +175,22 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       ageAtEventStart: 12,
     });
 
-    await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${dancer.id}`,
-          session.cookie,
-          dancerEditFormData({
-            firstName: "Ana",
-            lastName: "Recálculo",
-            birthDate: "2011-05-01",
-            documentType: "",
-            documentNumber: "",
-          }),
-        ),
-        params: { dancerId: dancer.id },
-      }),
-      302,
-    );
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Recálculo",
+          birthDate: "2011-05-01",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
 
+    expect(result).toMatchObject({ status: "success" });
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
@@ -251,18 +243,16 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       new File(["back"], "dorso.jpg", { type: "image/jpeg" }),
     );
 
-    await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${dancer.id}`,
-          session.cookie,
-          formData,
-        ),
-        params: { dancerId: dancer.id },
-      }),
-      302,
-    );
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        formData,
+      ),
+      params: { dancerId: dancer.id },
+    });
 
+    expect(result).toMatchObject({ status: "success" });
     expect(uploadDocumentImageMock).toHaveBeenCalledWith({
       academyId: session.academyId,
       dancerId: dancer.id,
@@ -597,26 +587,24 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       })
       .returning();
 
-    await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${dancer.id}`,
-          session.cookie,
-          dancerEditFormData({
-            firstName: "Mora",
-            lastName: "Documento",
-            birthDate: "2012-04-01",
-            documentType: "",
-            documentNumber: "",
-            documentFrontImageStorageKey: "dancers/mora-front.jpg",
-            documentBackImageStorageKey: "dancers/mora-back.jpg",
-          }),
-        ),
-        params: { dancerId: dancer.id },
-      }),
-      302,
-    );
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Mora",
+          lastName: "Documento",
+          birthDate: "2012-04-01",
+          documentType: "",
+          documentNumber: "",
+          documentFrontImageStorageKey: "dancers/mora-front.jpg",
+          documentBackImageStorageKey: "dancers/mora-back.jpg",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
 
+    expect(result).toMatchObject({ status: "success" });
     await expectPersistedDancer(dancer.id, {
       documentType: null,
       documentNumber: null,
@@ -734,28 +722,25 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       documentNumber: null,
     });
 
-    const crossAcademyResponse = await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${otherEditable.id}`,
-          otherSession.cookie,
-          dancerEditFormData({
-            firstName: "Clara",
-            lastName: "Paz",
-            birthDate: "2012-04-01",
-            documentType: "passport",
-            documentNumber: "AB 123",
-          }),
-        ),
-        params: { dancerId: otherEditable.id },
-      }),
-      302,
-    );
+    const crossAcademyResult = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${otherEditable.id}`,
+        otherSession.cookie,
+        dancerEditFormData({
+          firstName: "Clara",
+          lastName: "Paz",
+          birthDate: "2012-04-01",
+          documentType: "passport",
+          documentNumber: "AB 123",
+        }),
+      ),
+      params: { dancerId: otherEditable.id },
+    });
 
-    expectPersonDetailRedirect(
-      crossAcademyResponse,
-      `/portal/bailarines/${otherEditable.id}?notificacion=bailarin-guardado`,
-    );
+    expect(crossAcademyResult).toMatchObject({
+      status: "success",
+      message: "Bailarín guardado.",
+    });
     await expectPersistedDancer(otherEditable.id, {
       documentType: "passport",
       documentNumber: "AB 123",
@@ -838,22 +823,19 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       ])
       .returning();
 
-    const archiveResponse = await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${activeDancer.id}`,
-          session.cookie,
-          createFormData({ intent: "archive-dancer" }),
-        ),
-        params: { dancerId: activeDancer.id },
-      }),
-      302,
-    );
+    const archiveResult = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${activeDancer.id}`,
+        session.cookie,
+        createFormData({ intent: "archive-dancer" }),
+      ),
+      params: { dancerId: activeDancer.id },
+    });
 
-    expectPersonDetailRedirect(
-      archiveResponse,
-      `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-archivado`,
-    );
+    expect(archiveResult).toMatchObject({
+      status: "success",
+      message: "Bailarín archivado.",
+    });
     await expectPersistedDancer(activeDancer.id, { active: false });
 
     const listData = await loadPortalDancersList(
@@ -880,22 +862,19 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       active: false,
     });
 
-    const reactivateResponse = await expectThrownResponse(
-      handlePortalDancerDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/bailarines/${activeDancer.id}`,
-          session.cookie,
-          createFormData({ intent: "reactivate-dancer" }),
-        ),
-        params: { dancerId: activeDancer.id },
-      }),
-      302,
-    );
+    const reactivateResult = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${activeDancer.id}`,
+        session.cookie,
+        createFormData({ intent: "reactivate-dancer" }),
+      ),
+      params: { dancerId: activeDancer.id },
+    });
 
-    expectPersonDetailRedirect(
-      reactivateResponse,
-      `/portal/bailarines/${activeDancer.id}?notificacion=bailarin-reactivado`,
-    );
+    expect(reactivateResult).toMatchObject({
+      status: "success",
+      message: "Bailarín reactivado.",
+    });
     await expectPersistedDancer(activeDancer.id, { active: true });
   });
 });

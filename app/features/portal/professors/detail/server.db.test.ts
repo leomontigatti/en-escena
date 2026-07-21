@@ -12,10 +12,7 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import {
-  expectPersistedProfessor,
-  expectPersonDetailRedirect,
-} from "@/lib/test-support/person-detail-db-assertions";
+import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -37,27 +34,24 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       })
       .returning();
 
-    const response = await expectThrownResponse(
-      handlePortalProfessorDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/profesores/${professor.id}`,
-          owner.cookie,
-          createFormData({
-            firstName: "  maría del carmen ",
-            lastName: " de la cruz ",
-            documentType: "dni",
-            documentNumber: "12.345-678",
-          }),
-        ),
-        params: { professorId: professor.id },
-      }),
-      302,
-    );
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "  maría del carmen ",
+          lastName: " de la cruz ",
+          documentType: "dni",
+          documentNumber: "12.345-678",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
 
-    expectPersonDetailRedirect(
-      response,
-      `/portal/profesores/${professor.id}?notificacion=profesor-guardado`,
-    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Profesor guardado.",
+    });
     await expectPersistedProfessor(professor.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
@@ -193,23 +187,21 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       })
       .returning();
 
-    await expectThrownResponse(
-      handlePortalProfessorDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/profesores/${professor.id}`,
-          owner.cookie,
-          createFormData({
-            firstName: "Propia",
-            lastName: "Profesora",
-            documentType: "passport",
-            documentNumber: "AR 123",
-          }),
-        ),
-        params: { professorId: professor.id },
-      }),
-      302,
-    );
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "Propia",
+          lastName: "Profesora",
+          documentType: "passport",
+          documentNumber: "AR 123",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
 
+    expect(result).toMatchObject({ status: "success" });
     await expectPersistedProfessor(professor.id, {
       documentType: "passport",
       documentNumber: "AR 123",
@@ -238,23 +230,21 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       })
       .returning();
 
-    await expectThrownResponse(
-      handlePortalProfessorDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/profesores/${professor.id}`,
-          owner.cookie,
-          createFormData({
-            firstName: "Profesora",
-            lastName: "Dual",
-            documentType: "other",
-            documentNumber: "AB 123",
-          }),
-        ),
-        params: { professorId: professor.id },
-      }),
-      302,
-    );
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "Profesora",
+          lastName: "Dual",
+          documentType: "other",
+          documentNumber: "AB 123",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
 
+    expect(result).toMatchObject({ status: "success" });
     await expectPersistedProfessor(professor.id, {
       documentType: "other",
       documentNumber: "AB 123",
@@ -332,22 +322,19 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       ])
       .returning();
 
-    const archiveResponse = await expectThrownResponse(
-      handlePortalProfessorDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/profesores/${activeProfessor.id}`,
-          owner.cookie,
-          createFormData({ intent: "archive-professor" }),
-        ),
-        params: { professorId: activeProfessor.id },
-      }),
-      302,
-    );
+    const archiveResult = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${activeProfessor.id}`,
+        owner.cookie,
+        createFormData({ intent: "archive-professor" }),
+      ),
+      params: { professorId: activeProfessor.id },
+    });
 
-    expectPersonDetailRedirect(
-      archiveResponse,
-      `/portal/profesores/${activeProfessor.id}?notificacion=profesor-archivado`,
-    );
+    expect(archiveResult).toMatchObject({
+      status: "success",
+      message: "Profesor archivado.",
+    });
     await expectPersistedProfessor(activeProfessor.id, { active: false });
 
     const baseListData = await loadPortalProfessorsList(
@@ -374,22 +361,19 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
       active: false,
     });
 
-    const reactivateResponse = await expectThrownResponse(
-      handlePortalProfessorDetailAction({
-        request: createPortalPostRequest(
-          `http://localhost/portal/profesores/${activeProfessor.id}`,
-          owner.cookie,
-          createFormData({ intent: "reactivate-professor" }),
-        ),
-        params: { professorId: activeProfessor.id },
-      }),
-      302,
-    );
+    const reactivateResult = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${activeProfessor.id}`,
+        owner.cookie,
+        createFormData({ intent: "reactivate-professor" }),
+      ),
+      params: { professorId: activeProfessor.id },
+    });
 
-    expectPersonDetailRedirect(
-      reactivateResponse,
-      `/portal/profesores/${activeProfessor.id}?notificacion=profesor-reactivado`,
-    );
+    expect(reactivateResult).toMatchObject({
+      status: "success",
+      message: "Profesor reactivado.",
+    });
     await expectPersistedProfessor(activeProfessor.id, { active: true });
   });
 });

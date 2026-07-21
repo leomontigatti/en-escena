@@ -121,8 +121,14 @@ export function PortalProfessorDetailRouteView({
   });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
 
+  const successData =
+    actionDataOverride?.status === "success" ? actionDataOverride : undefined;
+
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "portal-profesor-detail:success",
   });
 
   return (

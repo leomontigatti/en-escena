@@ -57,12 +57,17 @@ export type PortalDancerDetailLoaderData = {
   documentImageUrls: PortalDancerDocumentImageUrls;
 };
 
-export type PortalDancerDetailActionData = {
-  status: "error";
-  message: string;
-  fieldErrors: Partial<Record<UpdateDancerField, string>>;
-  values: PortalDancerFormValues;
-};
+export type PortalDancerDetailActionData =
+  | {
+      status: "error";
+      message: string;
+      fieldErrors: Partial<Record<UpdateDancerField, string>>;
+      values: PortalDancerFormValues;
+    }
+  | {
+      status: "success";
+      message: string;
+    };
 
 export type PortalDancerFormValues = z.infer<typeof dancerSchema>;
 export type PortalDancerDocumentImageUrls = {
@@ -158,9 +163,11 @@ export function getPortalDancerFormValues(input: {
   dancer: PortalDancerDetailLoaderData["dancer"];
 }): PortalDancerFormValues {
   const { actionData, dancer } = input;
+  const submittedValues =
+    actionData?.status === "error" ? actionData.values : undefined;
 
   return (
-    actionData?.values ?? {
+    submittedValues ?? {
       firstName: dancer.firstName,
       lastName: dancer.lastName,
       birthDate: dancer.birthDate,
@@ -193,7 +200,7 @@ export function getClientDocumentImageValidationMessage(formData: FormData) {
 export function getGeneralActionError(
   actionData?: PortalDancerDetailActionData,
 ) {
-  if (!actionData) {
+  if (actionData?.status !== "error") {
     return null;
   }
 

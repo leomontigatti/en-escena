@@ -1,6 +1,5 @@
-import { redirect } from "react-router";
-
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
 import {
   archiveAcademyProfessor,
   findAcademyProfessor,
@@ -46,16 +45,18 @@ export async function handlePortalProfessorDetailAction({
 
   if (intent === archiveProfessorIntent) {
     await archiveAcademyProfessor(academy.id, professorId);
-    throw redirect(
-      `/portal/profesores/${professorId}?notificacion=profesor-archivado`,
-    );
+    return {
+      status: "success" as const,
+      message: routeNotificationToasts["profesor-archivado"].message,
+    };
   }
 
   if (intent === reactivateProfessorIntent) {
     await reactivateAcademyProfessor(academy.id, professorId);
-    throw redirect(
-      `/portal/profesores/${professorId}?notificacion=profesor-reactivado`,
-    );
+    return {
+      status: "success" as const,
+      message: routeNotificationToasts["profesor-reactivado"].message,
+    };
   }
 
   if (intent !== "" && intent !== updateProfessorIntent) {
@@ -78,9 +79,10 @@ export async function handlePortalProfessorDetailAction({
     };
   }
 
-  throw redirect(
-    `/portal/profesores/${professorId}?notificacion=profesor-guardado`,
-  );
+  return {
+    status: "success" as const,
+    message: routeNotificationToasts["profesor-guardado"].message,
+  };
 }
 
 function readProfessorId(params: { professorId?: string }) {

@@ -56,7 +56,7 @@ export function PortalProfileRouteView({
 }) {
   const actionData =
     actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-  const passwordRecoveryResult =
+  const successResult =
     actionDataOverride?.status === "success" ? actionDataOverride : undefined;
   const values = actionData?.values ?? {
     name: loaderData.academy.name,
@@ -72,8 +72,8 @@ export function PortalProfileRouteView({
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-perfil:error",
   });
-  useServerActionToast(passwordRecoveryResult, {
-    toastId: "portal-perfil:password-recovery",
+  useServerActionToast(successResult, {
+    toastId: "portal-perfil:success",
   });
 
   return (
