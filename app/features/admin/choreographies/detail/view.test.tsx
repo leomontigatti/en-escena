@@ -98,6 +98,42 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
+  test("renders an editable submodality select for admins", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only when the choreography has a presentation", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ hasPresentation: true }),
+      }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only when the modality has no submodalities", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ submodalityOptions: [] }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
+  test("keeps the submodality read-only for auditors", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ canEdit: false }),
+    });
+
+    expect(markup).toContain("Submodalidad");
+    expect(markup).not.toContain('name="submodalityId"');
+  });
+
   test("opens the delete dialog from the resource actions menu", async () => {
     await renderDetailIntoDocument();
 
@@ -215,6 +251,7 @@ function buildLoaderData(
       blockers: [],
     },
     selectedEventId: "event_1",
+    submodalityOptions: [{ id: "submodality_1", name: "Lyrical" }],
     ...overrides,
   };
 }
@@ -243,6 +280,7 @@ function buildChoreography(
     groupType: "solo",
     hasPresentation: false,
     id: "choreo_1",
+    modalityId: "modality_1",
     modalityName: "Jazz",
     musicDownloadUrl: null,
     musicStorageKey: null,
@@ -261,6 +299,7 @@ function buildChoreography(
     ],
     scheduleCapacityId: "schedule_capacity_1",
     scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",
+    submodalityId: "submodality_1",
     submodalityName: "Lyrical",
     ...overrides,
   };

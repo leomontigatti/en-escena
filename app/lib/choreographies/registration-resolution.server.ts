@@ -138,7 +138,7 @@ export type ChoreographyRegistrationOperationFailureCode =
   | "invalid-submodality"
   | "invalid-dancers";
 
-type OperationFailure = {
+export type OperationFailure = {
   ok: false;
   code: ChoreographyRegistrationOperationFailureCode;
   error: string;
@@ -383,8 +383,8 @@ export function deriveGroupType(dancerCount: number): GroupType {
   return "grupal";
 }
 
-function validateSubmodalitySelection(input: {
-  availableSubmodalities: EventBases["submodalities"];
+export function validateSubmodalitySelection(input: {
+  availableSubmodalities: Array<{ id: string }>;
   submodalityId: string | null;
 }): { ok: true } | { ok: false; failure: OperationFailure } {
   if (input.availableSubmodalities.length > 0 && input.submodalityId === null) {

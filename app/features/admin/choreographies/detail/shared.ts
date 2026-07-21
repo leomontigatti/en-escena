@@ -4,6 +4,8 @@ export const renameAdministrativeChoreographyIntent = "rename-choreography";
 export const deleteAdministrativeChoreographyIntent = "delete-choreography";
 export const resolveAdministrativeChoreographyRosterIntent = "resolve-roster";
 export const updateAdministrativeChoreographyRosterIntent = "update-roster";
+export const updateAdministrativeChoreographySubmodalityIntent =
+  "update-submodality";
 
 export const administrativeChoreographyNotFoundMessage =
   "No encontramos esa coreografía.";
@@ -40,6 +42,15 @@ export type AdministrativeChoreographyActionData = {
     name: string;
   };
 };
+
+export type AdministrativeChoreographySubmodalityErrorData = {
+  message: string;
+  status: "error";
+};
+
+export type AdministrativeChoreographyViewActionData =
+  | AdministrativeChoreographyActionData
+  | AdministrativeChoreographySubmodalityErrorData;
 
 export type AdministrativeChoreographyRosterErrorData = {
   fieldErrors?: {

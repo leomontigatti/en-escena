@@ -45,14 +45,15 @@ import {
   deleteAdministrativeChoreographyIntent,
   renameAdministrativeChoreographyIntent,
   updateAdministrativeChoreographyRosterIntent,
+  updateAdministrativeChoreographySubmodalityIntent,
   type AdministrativeChoreographyDeleteBlocker,
-  type AdministrativeChoreographyActionData,
+  type AdministrativeChoreographyViewActionData,
 } from "./shared";
 import { useAdministrativeRosterForm } from "./use-roster-form";
 import type { AdministrativeChoreographyDetailLoaderData } from "./server";
 
 type AdministracionCoreografiaDetalleRouteViewProps = {
-  actionData?: AdministrativeChoreographyActionData;
+  actionData?: AdministrativeChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
   loaderData: AdministrativeChoreographyDetailLoaderData;
 };
@@ -156,7 +157,7 @@ function AdministrativeChoreographyDetailForm({
   actionData,
   loaderData,
 }: {
-  actionData?: AdministrativeChoreographyActionData;
+  actionData?: AdministrativeChoreographyViewActionData;
   loaderData: AdministrativeChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
@@ -306,10 +307,7 @@ function AdministrativeChoreographyDetailForm({
               label="Modalidad"
               value={choreography.modalityName}
             />
-            <ReadOnlyField
-              label="Submodalidad"
-              value={choreography.submodalityName ?? ""}
-            />
+            <SubmodalityField loaderData={loaderData} />
             <ReadOnlyField
               label="Categoría"
               value={roster.derivedResolution.categoryName ?? "Sin asignar"}
@@ -423,6 +421,60 @@ function AdministrativeChoreographyDetailForm({
   );
 }
 
+function SubmodalityField({
+  loaderData,
+}: {
+  loaderData: AdministrativeChoreographyDetailLoaderData;
+}) {
+  const choreography = loaderData.choreography;
+  const submit = useSubmit();
+  const submodalityForm = useForm<{ submodalityId: string }>({
+    defaultValues: { submodalityId: choreography.submodalityId ?? "" },
+  });
+
+  // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
+  // coreografía todavía no tiene presentación. La modalidad es inmutable.
+  const isEditable =
+    loaderData.canEdit &&
+    !choreography.hasPresentation &&
+    loaderData.submodalityOptions.length > 0;
+
+  if (!isEditable) {
+    return (
+      <ReadOnlyField
+        label="Submodalidad"
+        value={choreography.submodalityName ?? ""}
+      />
+    );
+  }
+
+  return (
+    <SelectField
+      control={submodalityForm.control}
+      label="Submodalidad"
+      name="submodalityId"
+      onValueChange={(value) => {
+        if (!value || value === (choreography.submodalityId ?? "")) {
+          return;
+        }
+
+        const formData = new FormData();
+        formData.set(
+          "intent",
+          updateAdministrativeChoreographySubmodalityIntent,
+        );
+        formData.set("submodalityId", value);
+        submit(formData, { method: "post" });
+      }}
+      options={loaderData.submodalityOptions.map((option) => ({
+        label: option.name,
+        value: option.id,
+      }))}
+      placeholder="Elegí la submodalidad"
+    />
+  );
+}
+
 function FormActions({
   backToList,
   canEdit,
@@ -462,7 +514,7 @@ function FormActions({
 
 function getAdministrativeChoreographyFormValues(
   loaderData: AdministrativeChoreographyDetailLoaderData,
-  actionData?: AdministrativeChoreographyActionData,
+  actionData?: AdministrativeChoreographyViewActionData,
 ): AdministrativeChoreographyFormValues {
   const choreography = loaderData.choreography;
 
@@ -470,7 +522,10 @@ function getAdministrativeChoreographyFormValues(
     dancerIds: choreography.dancers.map((dancer) => dancer.id),
     experienceLevelId: choreography.experienceLevelId ?? "",
     musicStorageKey: choreography.musicStorageKey ?? "",
-    name: actionData?.values.name ?? choreography.name,
+    name:
+      (actionData && "values" in actionData
+        ? actionData.values.name
+        : undefined) ?? choreography.name,
     professorIds: choreography.professors.map((professor) => professor.id),
     scheduleCapacityId: "",
   };

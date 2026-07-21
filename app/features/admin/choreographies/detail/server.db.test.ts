@@ -6,6 +6,8 @@ import {
   choreographies,
   choreographyDancers,
   choreographyProfessors,
+  modalities,
+  submodalities,
 } from "@/db/schema";
 import {
   handleAdministrativeChoreographyDetailAction,
@@ -14,6 +16,7 @@ import {
 import {
   deleteAdministrativeChoreographyIntent,
   renameAdministrativeChoreographyIntent,
+  updateAdministrativeChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import {
   createAcademySession,
@@ -291,7 +294,266 @@ describe("administrative choreography detail server", () => {
       }),
     ).resolves.toBeDefined();
   });
+
+  test("updates the submodality within the same modality for admins and bumps updatedAt", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Submodalidad",
+      email: "admin.coreografias.submodalidad.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const otherSubmodality = await createSubmodalityRecord({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Contemporáneo",
+    });
+    const staleUpdatedAt = date("2026-01-01T12:00:00Z");
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Con submodalidad",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+      updatedAt: staleUpdatedAt,
+    });
+
+    const response = await submitDetailAction({
+      body: submodalityFormData(otherSubmodality.id),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.submodalidad@example.com",
+      role: "admin",
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    if (!(response instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `/administracion/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
+    );
+
+    const stored = await db.query.choreographies.findFirst({
+      columns: { submodalityId: true, updatedAt: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored?.submodalityId).toBe(otherSubmodality.id);
+    expect(stored?.updatedAt.getTime()).toBeGreaterThan(
+      staleUpdatedAt.getTime(),
+    );
+  });
+
+  test("rejects a submodality that does not belong to the choreography's modality", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Submodalidad Ajena",
+      email: "admin.coreografias.submodalidad.ajena.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const foreignModality = await createModalityRecord({
+      eventId: event.id,
+      name: "Urbano",
+    });
+    const foreignSubmodality = await createSubmodalityRecord({
+      eventId: event.id,
+      modalityId: foreignModality.id,
+      name: "Hip Hop",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Submodalidad ajena",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    const result = await submitDetailAction({
+      body: submodalityFormData(foreignSubmodality.id),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.submodalidad.ajena@example.com",
+      role: "admin",
+    });
+
+    expect(result).not.toBeInstanceOf(Response);
+    expect(result).toMatchObject({ status: "error" });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { submodalityId: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ submodalityId: catalog.submodality.id });
+  });
+
+  test("rejects leaving the submodality blank when the modality has submodalities", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Submodalidad Vacía",
+      email: "admin.coreografias.submodalidad.vacia.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Submodalidad vacía",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    const result = await submitDetailAction({
+      body: submodalityFormData(""),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.submodalidad.vacia@example.com",
+      role: "admin",
+    });
+
+    expect(result).not.toBeInstanceOf(Response);
+    expect(result).toMatchObject({ status: "error" });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { submodalityId: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ submodalityId: catalog.submodality.id });
+  });
+
+  test("keeps the submodality read-only when the choreography has a presentation", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Submodalidad Presentada",
+      email: "admin.coreografias.submodalidad.presentada.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const otherSubmodality = await createSubmodalityRecord({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Contemporáneo",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      hasPresentation: true,
+      modalityId: catalog.modality.id,
+      name: "Presentada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    const result = await submitDetailAction({
+      body: submodalityFormData(otherSubmodality.id),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.submodalidad.presentada@example.com",
+      role: "admin",
+    });
+
+    expect(result).not.toBeInstanceOf(Response);
+    expect(result).toMatchObject({ status: "error" });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { submodalityId: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ submodalityId: catalog.submodality.id });
+  });
+
+  test("blocks auditors from updating the submodality", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Submodalidad Auditor",
+      email: "admin.coreografias.submodalidad.auditor.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const otherSubmodality = await createSubmodalityRecord({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Contemporáneo",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Auditor",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await expectThrownResponse(
+      submitDetailAction({
+        body: submodalityFormData(otherSubmodality.id),
+        choreographyId: choreography.id,
+        email: "auditor.coreografias.submodalidad@example.com",
+        role: "auditor",
+      }),
+      403,
+    );
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { submodalityId: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ submodalityId: catalog.submodality.id });
+  });
 });
+
+async function createModalityRecord(input: { eventId: string; name: string }) {
+  const [modality] = await db
+    .insert(modalities)
+    .values({ eventId: input.eventId, name: input.name })
+    .returning();
+
+  return modality;
+}
+
+async function createSubmodalityRecord(input: {
+  eventId: string;
+  modalityId: string;
+  name: string;
+}) {
+  const [submodality] = await db
+    .insert(submodalities)
+    .values({
+      eventId: input.eventId,
+      modalityId: input.modalityId,
+      name: input.name,
+    })
+    .returning();
+
+  return submodality;
+}
+
+function submodalityFormData(submodalityId: string) {
+  const formData = new FormData();
+  formData.set("intent", updateAdministrativeChoreographySubmodalityIntent);
+  formData.set("submodalityId", submodalityId);
+  return formData;
+}
 
 async function loadDeleteBlockers(choreographyId: string) {
   const data = await loadDetail({
