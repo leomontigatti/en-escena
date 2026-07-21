@@ -20,6 +20,10 @@ export const emptyDancerValues: CreateDancerFormValues = {
 
 export type CreateDancerActionData =
   | {
+      status: "success";
+      message: string;
+    }
+  | {
       status: "error";
       fieldErrors: Partial<Record<keyof CreateDancerFormValues, string>>;
       values: CreateDancerFormValues;

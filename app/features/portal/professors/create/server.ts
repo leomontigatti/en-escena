@@ -1,13 +1,9 @@
-import { redirect } from "react-router";
-
 import {
   createAcademyProfessor,
   type CreateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
 import { createProfessorSchema } from "@/features/portal/professors/create/shared";
-
-const createProfessorSuccessRedirect =
-  "/portal/profesores?notificacion=profesor-creado";
 
 export async function handleCreateProfessorAction({
   academyId,
@@ -45,7 +41,10 @@ export async function handleCreateProfessorAction({
     };
   }
 
-  throw redirect(createProfessorSuccessRedirect);
+  return {
+    status: "success" as const,
+    message: routeNotificationToasts["profesor-creado"].message,
+  };
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateProfessorInput) {

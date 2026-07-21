@@ -15,7 +15,6 @@ import {
   createAcademyRecord,
   createAcademySession,
   createPortalPostRequest,
-  expectThrownResponse,
 } from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -40,34 +39,30 @@ describe.sequential("loadPortalDancersList", () => {
       active: false,
     });
 
-    const createResponse = await expectThrownResponse(
-      handlePortalDancersListAction(
-        createPortalPostRequest(
-          "http://localhost/portal/bailarines",
-          ownerSession.cookie,
-          dancerFormData({
-            firstName: "  juan manuel ",
-            lastName: " cruz de la torre ",
-            birthDate: "2015-04-03",
-          }),
-        ),
+    const createResult = await handlePortalDancersListAction(
+      createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        ownerSession.cookie,
+        dancerFormData({
+          firstName: "  juan manuel ",
+          lastName: " cruz de la torre ",
+          birthDate: "2015-04-03",
+        }),
       ),
-      302,
     );
-    expect(createResponse.headers.get("location")).toBe(
-      "/portal/bailarines?notificacion=bailarin-creado",
-    );
-    await expectThrownResponse(
-      handlePortalDancersListAction(
-        createPortalPostRequest(
-          "http://localhost/portal/bailarines",
-          ownerSession.cookie,
-          dancerFormData({
-            firstName: "ana",
-            lastName: "ALVAREZ",
-            birthDate: "2014-02-01",
-          }),
-        ),
+    expect(createResult).toEqual({
+      status: "success",
+      message: "Bailarín creado.",
+    });
+    await handlePortalDancersListAction(
+      createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        ownerSession.cookie,
+        dancerFormData({
+          firstName: "ana",
+          lastName: "ALVAREZ",
+          birthDate: "2014-02-01",
+        }),
       ),
     );
     await db.insert(dancers).values({

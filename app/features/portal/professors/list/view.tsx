@@ -10,6 +10,8 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateProfessorDialog } from "@/features/portal/professors/create/dialog";
 import { type CreateProfessorActionData } from "@/features/portal/professors/create/shared";
@@ -40,7 +42,9 @@ export function PortalProfessorsListRouteView({
   const actionData =
     createProfessorFetcher.data?.status === "error"
       ? createProfessorFetcher.data
-      : providedActionData;
+      : providedActionData?.status === "error"
+        ? providedActionData
+        : undefined;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -73,6 +77,13 @@ export function PortalProfessorsListRouteView({
   }, [createProfessorFetcher.data, createProfessorFetcher.state]);
 
   const visibleActionData = dismissServerState ? undefined : actionData;
+
+  useServerActionToast(
+    createProfessorFetcher.data?.status === "success"
+      ? createProfessorFetcher.data
+      : undefined,
+    { toastId: routeNotificationToasts["profesor-creado"].id },
+  );
 
   return (
     <>

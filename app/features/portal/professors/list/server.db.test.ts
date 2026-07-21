@@ -6,10 +6,7 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
-import {
-  createAcademySession,
-  expectThrownResponse,
-} from "@/features/portal/test-support/db";
+import { createAcademySession } from "@/features/portal/test-support/db";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
@@ -52,24 +49,22 @@ describe.sequential("loadPortalProfessorsList", () => {
       lastName: "Alvarez",
     });
 
-    const createResponse = await expectThrownResponse(
-      handlePortalProfessorsListAction(
-        new Request("http://localhost/portal/profesores", {
-          method: "POST",
-          headers: { cookie: owner.cookie },
-          body: createFormData({
-            intent: "create-professor",
-            firstName: "  jOSÉ  luis ",
-            lastName: " de la CRUZ ",
-          }),
+    const createResult = await handlePortalProfessorsListAction(
+      new Request("http://localhost/portal/profesores", {
+        method: "POST",
+        headers: { cookie: owner.cookie },
+        body: createFormData({
+          intent: "create-professor",
+          firstName: "  jOSÉ  luis ",
+          lastName: " de la CRUZ ",
         }),
-      ),
-      302,
+      }),
     );
 
-    expect(createResponse.headers.get("location")).toBe(
-      "/portal/profesores?notificacion=profesor-creado",
-    );
+    expect(createResult).toEqual({
+      status: "success",
+      message: "Profesor creado.",
+    });
 
     const loaderData = await loadPortalProfessorsList(
       new Request("http://localhost/portal/profesores", {
