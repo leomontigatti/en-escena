@@ -212,3 +212,31 @@ cp -a "$RESTORE_TARGET_DIR/en-escena-dancer-documents/." \
 
 On the São Paulo VPS host, run the AWS CLI steps from the `amazon/aws-cli` Docker
 image with the relevant directories bind-mounted, since the host has no `aws`.
+
+## Encryption at Rest (accepted debt)
+
+The storage volume (`/var/lib/en-escena/storage`) holds dancer documents — PII
+such as ID scans and medical certificates — as plaintext files on the VPS disk.
+Encryption at rest would protect those bytes only against disk-level access
+without the key: a decommissioned or stolen physical disk, or a leaked
+block-level provider snapshot. It does not protect against an attacker with root
+on the running box (the key is loaded and the volume mounted) or against the
+hypervisor.
+
+**Decision: accepted as documented debt, not implemented.**
+
+- **Owner:** Leo Monti (@leomontigatti).
+- **Date:** 2026-07-21.
+- **Why deferred:** Hostinger offers no customer-facing at-rest encryption for
+  VPS volumes — the "Disk Encryption" control in their Trust Center covers their
+  own corporate devices, databases, and backups, not a toggle on your VPS block
+  storage. The remaining option is self-managed LUKS inside the guest, whose
+  auto-unlock keyfile would live on the same server, so it only raises the bar
+  against disk-only leaks while adding boot/operational risk. Judged not worth it
+  for the current threat model.
+- **Accepted threat:** if the disk or a provider snapshot leaks, the PII in the
+  volume is readable.
+- **Revisit trigger:** a compliance requirement (e.g. a data-protection audit or
+  a client/regulatory obligation), a move off Hostinger to a provider with
+  encrypted block storage, or splitting the volume onto a dedicated device. See
+  #401 and the note in `.env.example`.
