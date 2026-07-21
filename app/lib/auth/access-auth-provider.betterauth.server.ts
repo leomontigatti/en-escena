@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin } from "better-auth/plugins";
 import { and, desc, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 
@@ -37,10 +38,14 @@ export const SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 // Hashing scrypt nativo de Better Auth; `advanced.database.generateId: "uuid"`
 // para que los IDs se generen con `gen_random_uuid()` en Postgres (research #364).
 //
-// El plugin `admin` del server (y sus columnas de baneo) llega en #423; acá solo
-// se monta el credential provider + sesiones. Los emails reales (Resend, en
-// español) llegan en #424: por ahora las callbacks son no-op y los tokens de
-// verificación/reset se leen de la tabla `verification` para los tests.
+// Plugin `admin` montado (#423): habilita `createUser`/`setUserPassword`/
+// `banUser`/`unbanUser`/`removeUser` para el ciclo de vida de los internos
+// (`internal-user-auth.server.ts`). El estado `banned` se mapea a la columna
+// `suspended` del dominio (misma noción); `defaultRole` es un rol válido del
+// enum (`academy`) porque `createUser` lo escribe antes de que el alta de
+// internos re-asigne el rol real. Los emails reales (Resend, en español) llegan
+// en #424: por ahora las callbacks son no-op y los tokens de verificación/reset
+// se leen de la tabla `verification` para los tests.
 export const auth = betterAuth({
   appName: "En Escena",
   secret: getBetterAuthSecret(),
@@ -74,6 +79,19 @@ export const auth = betterAuth({
     expiresIn: SESSION_EXPIRES_IN_SECONDS,
     updateAge: SESSION_UPDATE_AGE_SECONDS,
   },
+  plugins: [
+    admin({
+      defaultRole: "academy",
+      schema: {
+        user: {
+          fields: {
+            // El baneo del admin plugin ES la suspensión del dominio.
+            banned: "suspended",
+          },
+        },
+      },
+    }),
+  ],
 });
 
 // Lado server-side que necesitan los loaders. El resto de los flujos
@@ -224,37 +242,6 @@ export async function verifyBetterAuthCredentialPassword(input: {
     hash: savedCredential.password,
     password: input.password,
   });
-}
-
-// Alta de un usuario interno con email ya confirmado (parity con el
-// `email_confirm: true` del admin de Supabase): inserta el usuario + su
-// credencial sin abrir sesión. Reemplaza a `createLocalAccessUser` para las ramas
-// de test de `internal-user-auth.server.ts` (#422).
-export async function createBetterAuthInternalUser(input: {
-  email: string;
-  name: string;
-  password: string;
-}): Promise<{ userId: string }> {
-  const savedUser = await db
-    .insert(user)
-    .values({
-      email: input.email,
-      emailVerified: true,
-      name: input.name,
-    })
-    .returning({ id: user.id })
-    .then((rows) => rows[0]);
-
-  if (!savedUser?.id) {
-    throw new Error("Expected internal access user to be created.");
-  }
-
-  await upsertBetterAuthCredentialPassword({
-    password: input.password,
-    userId: savedUser.id,
-  });
-
-  return { userId: savedUser.id };
 }
 
 // Cookie firmada que transporta el token de reset de Better Auth entre el

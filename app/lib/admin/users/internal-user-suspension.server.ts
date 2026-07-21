@@ -13,6 +13,7 @@ type SetInternalUserSuspendedStateInput = {
   action: "suspend" | "reactivate";
   targetUserId: string;
   updatedByUserId: string;
+  adminHeaders: Headers;
 };
 
 type SetInternalUserSuspendedStateResult =
@@ -120,10 +121,13 @@ export async function setInternalUserSuspendedState(
     : existingUser.sessionInvalidBefore;
 
   try {
-    await setInternalCredentialSuspendedState({
-      suspended: nextSuspended,
-      userId: existingUser.id,
-    });
+    await setInternalCredentialSuspendedState(
+      {
+        suspended: nextSuspended,
+        userId: existingUser.id,
+      },
+      input.adminHeaders,
+    );
   } catch {
     return {
       ok: false,

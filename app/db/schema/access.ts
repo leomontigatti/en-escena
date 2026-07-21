@@ -25,6 +25,14 @@ export const user = createTable("user", {
     .notNull()
     .default(false),
   suspended: boolean("suspended").notNull().default(false),
+  // Metadata del baneo del admin plugin de Better Auth (#423). El estado
+  // `banned` se mapea a la columna `suspended` (misma noción de dominio); acá
+  // solo viven la razón y el vencimiento que `banUser`/`unbanUser` escriben.
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", {
+    mode: "date",
+    withTimezone: true,
+  }),
   sessionInvalidBefore: timestamp("session_invalid_before", {
     mode: "date",
     withTimezone: true,
