@@ -1,4 +1,4 @@
-import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import type {
   EventBasesDeleteResult,
   EventBasesMutationResult,
@@ -202,37 +202,23 @@ export function getRequiredArrayErrors(
  * Destino de un `action` de Bases del evento que redirige. El transporte del
  * toast depende del caso de la matriz (ver docs/agents/form-feedback.md):
  *
- * - `param`: mecanismo legacy `?notificacion=` (updates/deletes que todavía no
- *   migraron; se retiran en el ticket de contract #416).
- * - `flash`: cookie de un solo uso para los creates en ruta dedicada, que
- *   redirigen al detalle del nuevo recurso sin ensuciar la URL (PRD #409).
+ * - `plain`: redirect sin mensaje de feedback.
+ * - `flash`: cookie de un solo uso que transporta el toast sin ensuciar la URL
+ *   con un query param (PRD #409).
  */
 export type EventBasesRedirect =
-  | { transport: "param"; url: string }
-  | { transport: "flash"; url: string; notification: RouteNotificationKey };
-
-export function withEventBasesNotification(
-  pathname: string,
-  notification: string,
-): EventBasesRedirect {
-  const redirectUrl = new URL(`http://localhost${pathname}`);
-  redirectUrl.searchParams.set("notificacion", notification);
-
-  return {
-    transport: "param",
-    url: `${redirectUrl.pathname}${redirectUrl.search}`,
-  };
-}
+  | { transport: "plain"; url: string }
+  | { transport: "flash"; url: string; notification: NotificationKey };
 
 export function withEventBasesFlashNotification(
   pathname: string,
-  notification: RouteNotificationKey,
+  notification: NotificationKey,
 ): EventBasesRedirect {
   return { transport: "flash", url: pathname, notification };
 }
 
 export function plainEventBasesRedirect(pathname: string): EventBasesRedirect {
-  return { transport: "param", url: pathname };
+  return { transport: "plain", url: pathname };
 }
 
 export function hasEventBaseRecord(

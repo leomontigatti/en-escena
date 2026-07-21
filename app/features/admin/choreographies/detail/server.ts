@@ -39,7 +39,7 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 import {
@@ -654,7 +654,7 @@ function readOptionalFormString(formData: FormData, key: string) {
 // directo. Ver docs/agents/form-feedback.md.
 function choreographySavedSuccess(): AdministrativeChoreographySuccessData {
   return {
-    message: routeNotificationToasts["coreografia-guardada"].message,
+    message: notificationToasts["coreografia-guardada"].message,
     status: "success",
   };
 }

@@ -85,13 +85,15 @@ mayoría de los casos); para los redirects reales el transporte correcto es la f
 session, **no** un param en la URL. La URL nunca debe mostrar un parámetro técnico de
 notificación.
 
-### Legacy en transición: `?notificacion=`
+### Transporte del feedback
 
-El query param `?notificacion=<clave>` y su lector `RouteToasts` en `root.tsx`
-(catálogo `app/lib/shared/route-notification-toasts.ts`) son **legacy**. Se mantienen
-funcionando durante la migración expand–contract y se **eliminan** en el ticket de
-contract (#416), una vez que ningún `action` los use. No agregues formularios nuevos
-sobre este mecanismo: usá flash session (redirect) o `actionData` directo (se queda).
+El único transporte de un mensaje a través de un `redirect` es la **flash session**
+(`app/lib/shared/flash-notification.server.ts`). No existe ya el query param
+`?notificacion=` ni el lector `RouteToasts` en `root.tsx`: se eliminaron en el ticket
+de contract (#416). El catálogo compartido de mensajes/variantes con IDs estables vive
+en `app/lib/shared/notification-toasts.ts` y alimenta tanto el flujo flash como el
+`actionData` directo. Para un formulario nuevo: usá flash session (redirect) o
+`actionData` directo (se queda), nunca un param en la URL.
 
 ## Fuera de la matriz: flujos de auth
 

@@ -3,7 +3,7 @@ import { data } from "react-router";
 import { updateAcademyProfile } from "@/features/portal/profile/academy-profile.server";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   academyProfileSchema,
   requestPasswordRecoveryIntent,
@@ -84,7 +84,7 @@ export async function handlePortalProfileAction(request: Request) {
 
   return {
     status: "success" as const,
-    message: routeNotificationToasts["perfil-guardado"].message,
+    message: notificationToasts["perfil-guardado"].message,
   };
 }
 

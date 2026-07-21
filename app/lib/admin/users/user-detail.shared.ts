@@ -7,11 +7,10 @@ import {
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 import {
-  routeNotificationToasts,
-  type RouteNotificationKey,
-} from "@/lib/shared/route-notification-toasts";
+  notificationToasts,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 
-const routeNotificationSearchParam = "notificacion";
 const temporaryPasswordMinLength = 8;
 
 const updateInternalUserFieldNames = ["name", "email", "role"] as const;
@@ -169,7 +168,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export type UserRouteNotification = Extract<
-  RouteNotificationKey,
+  NotificationKey,
   | "usuario-interno-actualizado"
   | "usuario-interno-reactivado"
   | "usuario-interno-restablecido"
@@ -224,7 +223,7 @@ export function buildDetailActionSuccess(
 ): DetailSuccessData {
   return {
     status: "success",
-    message: routeNotificationToasts[notification].message,
+    message: notificationToasts[notification].message,
   };
 }
 
@@ -232,7 +231,6 @@ function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
   const nextSearchParams = new URLSearchParams(searchParams);
 
   nextSearchParams.delete("modo");
-  nextSearchParams.delete(routeNotificationSearchParam);
   nextSearchParams.delete("guardado");
   nextSearchParams.delete("tipoGuardado");
 

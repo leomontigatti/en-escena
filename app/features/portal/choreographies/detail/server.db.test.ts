@@ -17,6 +17,7 @@ import {
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
 import { musicUpdateFormData } from "@/features/portal/choreographies/test-support/forms";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -172,8 +173,14 @@ describe.sequential("portal choreographies music-only editing", () => {
       throw new Error("Expected a redirect Response.");
     }
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe(
-      `/portal/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
+    await expectFlashRedirect(
+      response,
+      `/portal/coreografias/${choreography.id}`,
+      {
+        id: "route-notification:coreografia-guardada",
+        message: "Coreografía guardada.",
+        variant: "success",
+      },
     );
 
     const linkedDancerIds = await db

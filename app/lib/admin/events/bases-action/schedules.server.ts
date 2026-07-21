@@ -19,7 +19,6 @@ import {
   invalidEventBasesActionResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
-  withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createScheduleCapacity,
@@ -243,7 +242,7 @@ function buildScheduleRedirectUrl(
         scheduleDeletedNotification,
       );
     case "delete-schedule-capacity":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         currentPath,
         scheduleCapacityDeletedNotification,
       );
@@ -255,12 +254,18 @@ function buildScheduleRedirectUrl(
         );
       }
 
-      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+      return withEventBasesFlashNotification(
+        currentPath,
+        scheduleSavedNotification,
+      );
     case "update-schedule":
-      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+      return withEventBasesFlashNotification(
+        currentPath,
+        scheduleSavedNotification,
+      );
     case "create-schedule-capacity":
     case "update-schedule-capacity":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         currentPath,
         scheduleCapacitySavedNotification,
       );

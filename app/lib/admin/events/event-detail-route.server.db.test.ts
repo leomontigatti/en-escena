@@ -250,24 +250,19 @@ describe("administracion/eventos/:eventId route", () => {
     });
   });
 
-  test("posts event mutations to the clean event URL when a previous notification is present", async () => {
+  test("posts event mutations to the clean event URL", async () => {
     const event = await createSavedEvent({ name: "Activo" });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
-      email: "admin.evento.notificacion@example.com",
+      email: "admin.evento.accion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}?notificacion=evento-guardado`,
+      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
     });
 
     const data = await loader(routeArgs(request, event.id));
-    const markup = renderRoute(
-      data,
-      undefined,
-      `/administracion/eventos/${event.id}?notificacion=evento-guardado`,
-    );
+    const markup = renderRoute(data);
 
     expect(markup).toContain(`action="/administracion/eventos/${event.id}"`);
-    expect(markup).not.toContain("notificacion=evento-guardado");
   });
 });
 

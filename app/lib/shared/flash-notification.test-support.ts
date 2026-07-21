@@ -5,7 +5,7 @@ import { type ToastMessage } from "@/lib/shared/toasts";
 
 /**
  * Afirma que una respuesta de `redirect` transporta el mensaje flash esperado
- * hacia `expectedLocation`, sin recurrir al query param legacy `?notificacion=`.
+ * hacia `expectedLocation` (una URL limpia, sin query param de feedback).
  * Reconstruye el request destino a partir del `Set-Cookie` y consume la cookie
  * para verificar el toast que verá la ruta destino.
  */
@@ -15,7 +15,6 @@ export async function expectFlashRedirect(
   expectedToast: ToastMessage,
 ) {
   expect(response.headers.get("location")).toBe(expectedLocation);
-  expect(response.headers.get("location")).not.toContain("notificacion=");
 
   const setCookie = response.headers.get("set-cookie");
 

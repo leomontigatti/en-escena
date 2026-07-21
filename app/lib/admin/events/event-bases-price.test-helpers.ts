@@ -139,7 +139,6 @@ export async function expectPriceSavedRedirect(response: Response) {
   const location = response.headers.get("location");
 
   expect(location).toMatch(/^\/administracion\/precios\/[^?]+$/);
-  expect(location).not.toContain("notificacion=");
 
   const setCookie = response.headers.get("set-cookie");
 

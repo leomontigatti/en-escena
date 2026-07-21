@@ -8,7 +8,7 @@ import {
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { Button } from "@/components/ui/button";
 import { defaultEventFormValues } from "@/lib/admin/events/form-values";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { AdministrativeEventCreateActionData } from "./shared";
@@ -27,7 +27,7 @@ export function AdministrativeEventCreateView({
   });
 
   useServerActionToast(actionData, {
-    toastId: routeNotificationToastIds["event-form-error"],
+    toastId: notificationToastIds["event-form-error"],
   });
 
   return (

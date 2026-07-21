@@ -1,5 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   archiveAcademyProfessor,
   findAcademyProfessor,
@@ -47,7 +47,7 @@ export async function handlePortalProfessorDetailAction({
     await archiveAcademyProfessor(academy.id, professorId);
     return {
       status: "success" as const,
-      message: routeNotificationToasts["profesor-archivado"].message,
+      message: notificationToasts["profesor-archivado"].message,
     };
   }
 
@@ -55,7 +55,7 @@ export async function handlePortalProfessorDetailAction({
     await reactivateAcademyProfessor(academy.id, professorId);
     return {
       status: "success" as const,
-      message: routeNotificationToasts["profesor-reactivado"].message,
+      message: notificationToasts["profesor-reactivado"].message,
     };
   }
 
@@ -81,7 +81,7 @@ export async function handlePortalProfessorDetailAction({
 
   return {
     status: "success" as const,
-    message: routeNotificationToasts["profesor-guardado"].message,
+    message: notificationToasts["profesor-guardado"].message,
   };
 }
 

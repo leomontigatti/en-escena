@@ -10,7 +10,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateProfessorDialog } from "@/features/portal/professors/create/dialog";
@@ -82,7 +82,7 @@ export function PortalProfessorsListRouteView({
     createProfessorFetcher.data?.status === "success"
       ? createProfessorFetcher.data
       : undefined,
-    { toastId: routeNotificationToasts["profesor-creado"].id },
+    { toastId: notificationToasts["profesor-creado"].id },
   );
 
   return (

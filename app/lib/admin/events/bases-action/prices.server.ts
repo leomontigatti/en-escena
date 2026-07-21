@@ -16,7 +16,6 @@ import {
   invalidEventBasesActionResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
-  withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createPrice,
@@ -165,7 +164,7 @@ function buildPriceRedirectUrl(
   }
 
   if (input.intent === "create-price" || input.intent === "update-price") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       currentUrl.pathname,
       priceSavedNotification,
     );

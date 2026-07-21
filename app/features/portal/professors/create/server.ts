@@ -2,7 +2,7 @@ import {
   createAcademyProfessor,
   type CreateProfessorInput,
 } from "@/lib/portal/professors.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createProfessorSchema } from "@/features/portal/professors/create/shared";
 
 export async function handleCreateProfessorAction({
@@ -43,7 +43,7 @@ export async function handleCreateProfessorAction({
 
   return {
     status: "success" as const,
-    message: routeNotificationToasts["profesor-creado"].message,
+    message: notificationToasts["profesor-creado"].message,
   };
 }
 

@@ -6,8 +6,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLocation,
-  useNavigate,
 } from "react-router";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
@@ -15,7 +13,6 @@ import { Toaster } from "sonner";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
-import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
 export const links: Route.LinksFunction = () => [
@@ -84,7 +81,6 @@ export default function App({ loaderData }: Route.ComponentProps) {
     <>
       <Toaster richColors position="top-center" />
       <Outlet />
-      <RouteToasts />
       <FlashToast toast={loaderData.flashToast} />
     </>
   );
@@ -104,33 +100,6 @@ function FlashToast({ toast }: { toast: ToastMessage | null }) {
     // Se dispara una sola vez por mensaje flash: la cookie ya se consumió en el
     // loader, así que una revalidación posterior devuelve `flashToast: null`.
   }, [toast, toastId]);
-
-  return null;
-}
-
-function RouteToasts() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const notification = searchParams.get("notificacion");
-
-    if (!notification) {
-      return;
-    }
-
-    window.setTimeout(() => {
-      showRouteNotificationToast(notification);
-    }, 0);
-
-    searchParams.delete("notificacion");
-    const nextSearch = searchParams.toString();
-    navigate(
-      `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
-      { replace: true },
-    );
-  }, [location.hash, location.pathname, location.search, navigate]);
 
   return null;
 }

@@ -18,7 +18,7 @@ import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
 } from "@/lib/shared/forms";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
@@ -65,7 +65,7 @@ export function AdministracionUsuariosNuevoRouteView({
   ]);
 
   useServerActionToast(actionData, {
-    toastId: routeNotificationToastIds["user-form-error"],
+    toastId: notificationToastIds["user-form-error"],
   });
 
   const submit = useSubmit();

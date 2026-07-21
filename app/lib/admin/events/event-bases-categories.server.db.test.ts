@@ -339,8 +339,14 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(updateRequest.request)),
       302,
     );
-    expect(updateResponse.headers.get("location")).toContain(
-      "notificacion=categoria-guardada",
+    await expectFlashRedirect(
+      updateResponse,
+      `/administracion/categorias/${createdCategoryId}`,
+      {
+        id: "route-notification:categoria-guardada",
+        message: "Categoría guardada.",
+        variant: "success",
+      },
     );
     await expect(
       db.query.categories.findFirst({

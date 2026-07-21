@@ -10,7 +10,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
@@ -81,7 +81,7 @@ export function PortalDancersListRouteView({
     createDancerFetcher.data?.status === "success"
       ? createDancerFetcher.data
       : undefined,
-    { toastId: routeNotificationToasts["bailarin-creado"].id },
+    { toastId: notificationToasts["bailarin-creado"].id },
   );
 
   return (

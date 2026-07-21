@@ -1,10 +1,10 @@
-import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
+import { type ToastMessage } from "@/lib/shared/toasts";
 
-type RouteNotificationToast = ToastMessage & {
+type NotificationToast = ToastMessage & {
   id: string;
 };
 
-export const routeNotificationToastIds = {
+export const notificationToastIds = {
   "event-form-error": "route-notification:event-form-error",
   "perfil-guardado": "route-notification:perfil-guardado",
   "profesor-creado": "route-notification:profesor-creado",
@@ -50,233 +50,218 @@ export const routeNotificationToastIds = {
   "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
 } as const;
 
-type RouteNotificationToastKey = Exclude<
-  keyof typeof routeNotificationToastIds,
+type NotificationToastKey = Exclude<
+  keyof typeof notificationToastIds,
   "event-form-error" | "user-form-error"
 >;
 
-export const routeNotificationToasts = {
+export const notificationToasts = {
   "perfil-guardado": {
-    id: routeNotificationToastIds["perfil-guardado"],
+    id: notificationToastIds["perfil-guardado"],
     message: "Perfil guardado.",
     variant: "success",
   },
   "profesor-creado": {
-    id: routeNotificationToastIds["profesor-creado"],
+    id: notificationToastIds["profesor-creado"],
     message: "Profesor creado.",
     variant: "success",
   },
   "profesor-guardado": {
-    id: routeNotificationToastIds["profesor-guardado"],
+    id: notificationToastIds["profesor-guardado"],
     message: "Profesor guardado.",
     variant: "success",
   },
   "profesor-archivado": {
-    id: routeNotificationToastIds["profesor-archivado"],
+    id: notificationToastIds["profesor-archivado"],
     message: "Profesor archivado.",
     variant: "success",
   },
   "profesor-reactivado": {
-    id: routeNotificationToastIds["profesor-reactivado"],
+    id: notificationToastIds["profesor-reactivado"],
     message: "Profesor reactivado.",
     variant: "success",
   },
   "bailarin-creado": {
-    id: routeNotificationToastIds["bailarin-creado"],
+    id: notificationToastIds["bailarin-creado"],
     message: "Bailarín creado.",
     variant: "success",
   },
   "bailarin-guardado": {
-    id: routeNotificationToastIds["bailarin-guardado"],
+    id: notificationToastIds["bailarin-guardado"],
     message: "Bailarín guardado.",
     variant: "success",
   },
   "bailarin-guardado-requiere-verificacion": {
-    id: routeNotificationToastIds["bailarin-guardado-requiere-verificacion"],
+    id: notificationToastIds["bailarin-guardado-requiere-verificacion"],
     message: "Bailarín guardado. La identidad volvió a no verificado.",
     variant: "success",
   },
   "bailarin-archivado": {
-    id: routeNotificationToastIds["bailarin-archivado"],
+    id: notificationToastIds["bailarin-archivado"],
     message: "Bailarín archivado.",
     variant: "success",
   },
   "bailarin-reactivado": {
-    id: routeNotificationToastIds["bailarin-reactivado"],
+    id: notificationToastIds["bailarin-reactivado"],
     message: "Bailarín reactivado.",
     variant: "success",
   },
   "bailarin-verificado": {
-    id: routeNotificationToastIds["bailarin-verificado"],
+    id: notificationToastIds["bailarin-verificado"],
     message: "Bailarín verificado.",
     variant: "success",
   },
   "coreografia-creada": {
-    id: routeNotificationToastIds["coreografia-creada"],
+    id: notificationToastIds["coreografia-creada"],
     message: "Coreografía creada.",
     variant: "success",
   },
   "coreografia-guardada": {
-    id: routeNotificationToastIds["coreografia-guardada"],
+    id: notificationToastIds["coreografia-guardada"],
     message: "Coreografía guardada.",
     variant: "success",
   },
   "coreografia-eliminada": {
-    id: routeNotificationToastIds["coreografia-eliminada"],
+    id: notificationToastIds["coreografia-eliminada"],
     message: "Coreografía eliminada.",
     variant: "success",
   },
   "evento-activado": {
-    id: routeNotificationToastIds["evento-activado"],
+    id: notificationToastIds["evento-activado"],
     message: "Evento activado.",
     variant: "success",
   },
   "evento-desactivado": {
-    id: routeNotificationToastIds["evento-desactivado"],
+    id: notificationToastIds["evento-desactivado"],
     message: "Evento desactivado.",
     variant: "success",
   },
   "evento-guardado": {
-    id: routeNotificationToastIds["evento-guardado"],
+    id: notificationToastIds["evento-guardado"],
     message: "Evento guardado.",
     variant: "success",
   },
   "evento-eliminado": {
-    id: routeNotificationToastIds["evento-eliminado"],
+    id: notificationToastIds["evento-eliminado"],
     message: "Evento eliminado.",
     variant: "success",
   },
   "cronograma-guardado": {
-    id: routeNotificationToastIds["cronograma-guardado"],
+    id: notificationToastIds["cronograma-guardado"],
     message: "Cronograma guardado.",
     variant: "success",
   },
   "cronograma-eliminado": {
-    id: routeNotificationToastIds["cronograma-eliminado"],
+    id: notificationToastIds["cronograma-eliminado"],
     message: "Cronograma eliminado.",
     variant: "success",
   },
   "cupo-cronograma-guardado": {
-    id: routeNotificationToastIds["cupo-cronograma-guardado"],
+    id: notificationToastIds["cupo-cronograma-guardado"],
     message: "Cupo de cronograma guardado.",
     variant: "success",
   },
   "cupo-cronograma-eliminado": {
-    id: routeNotificationToastIds["cupo-cronograma-eliminado"],
+    id: notificationToastIds["cupo-cronograma-eliminado"],
     message: "Cupo de cronograma eliminado.",
     variant: "success",
   },
   "precio-guardado": {
-    id: routeNotificationToastIds["precio-guardado"],
+    id: notificationToastIds["precio-guardado"],
     message: "Precio guardado.",
     variant: "success",
   },
   "precio-eliminado": {
-    id: routeNotificationToastIds["precio-eliminado"],
+    id: notificationToastIds["precio-eliminado"],
     message: "Precio eliminado.",
     variant: "success",
   },
   "pago-registrado": {
-    id: routeNotificationToastIds["pago-registrado"],
+    id: notificationToastIds["pago-registrado"],
     message: "Pago registrado.",
     variant: "success",
   },
   "programa-visible": {
-    id: routeNotificationToastIds["programa-visible"],
+    id: notificationToastIds["programa-visible"],
     message: "Programa visible.",
     variant: "success",
   },
   "programa-oculto": {
-    id: routeNotificationToastIds["programa-oculto"],
+    id: notificationToastIds["programa-oculto"],
     message: "Programa oculto.",
     variant: "success",
   },
   "resultados-visibles": {
-    id: routeNotificationToastIds["resultados-visibles"],
+    id: notificationToastIds["resultados-visibles"],
     message: "Resultados visibles.",
     variant: "success",
   },
   "resultados-ocultos": {
-    id: routeNotificationToastIds["resultados-ocultos"],
+    id: notificationToastIds["resultados-ocultos"],
     message: "Resultados ocultos.",
     variant: "success",
   },
   "categoria-guardada": {
-    id: routeNotificationToastIds["categoria-guardada"],
+    id: notificationToastIds["categoria-guardada"],
     message: "Categoría guardada.",
     variant: "success",
   },
   "categoria-eliminada": {
-    id: routeNotificationToastIds["categoria-eliminada"],
+    id: notificationToastIds["categoria-eliminada"],
     message: "Categoría eliminada.",
     variant: "success",
   },
   "modalidad-guardada": {
-    id: routeNotificationToastIds["modalidad-guardada"],
+    id: notificationToastIds["modalidad-guardada"],
     message: "Modalidad guardada.",
     variant: "success",
   },
   "modalidad-eliminada": {
-    id: routeNotificationToastIds["modalidad-eliminada"],
+    id: notificationToastIds["modalidad-eliminada"],
     message: "Modalidad eliminada.",
     variant: "success",
   },
   "usuario-interno-creado": {
-    id: routeNotificationToastIds["usuario-interno-creado"],
+    id: notificationToastIds["usuario-interno-creado"],
     message: "Usuario interno creado.",
     variant: "success",
   },
   "usuario-interno-actualizado": {
-    id: routeNotificationToastIds["usuario-interno-actualizado"],
+    id: notificationToastIds["usuario-interno-actualizado"],
     message: "Usuario interno actualizado.",
     variant: "success",
   },
   "usuario-interno-restablecido": {
-    id: routeNotificationToastIds["usuario-interno-restablecido"],
+    id: notificationToastIds["usuario-interno-restablecido"],
     message: "Contraseña temporal guardada.",
     variant: "success",
   },
   "usuario-interno-suspendido": {
-    id: routeNotificationToastIds["usuario-interno-suspendido"],
+    id: notificationToastIds["usuario-interno-suspendido"],
     message: "Usuario suspendido.",
     variant: "success",
   },
   "usuario-interno-reactivado": {
-    id: routeNotificationToastIds["usuario-interno-reactivado"],
+    id: notificationToastIds["usuario-interno-reactivado"],
     message: "Usuario reactivado.",
     variant: "success",
   },
-} as const satisfies Record<RouteNotificationToastKey, RouteNotificationToast>;
+} as const satisfies Record<NotificationToastKey, NotificationToast>;
 
-export type RouteNotificationKey = keyof typeof routeNotificationToasts;
+export type NotificationKey = keyof typeof notificationToasts;
 
-export function getRouteNotificationToast(
+export function getNotificationToast(
   notification: string,
-): RouteNotificationToast | undefined {
-  if (!isRouteNotificationKey(notification)) {
+): NotificationToast | undefined {
+  if (!isNotificationKey(notification)) {
     return undefined;
   }
 
-  return routeNotificationToasts[notification];
+  return notificationToasts[notification];
 }
 
-export function showRouteNotificationToast(notification: string) {
-  const toastMessage = getRouteNotificationToast(notification);
-
-  if (!toastMessage) {
-    return false;
-  }
-
-  showToastMessage(toastMessage);
-
-  return true;
-}
-
-function isRouteNotificationKey(
+function isNotificationKey(
   notification: string,
-): notification is RouteNotificationKey {
-  return Object.prototype.hasOwnProperty.call(
-    routeNotificationToasts,
-    notification,
-  );
+): notification is NotificationKey {
+  return Object.prototype.hasOwnProperty.call(notificationToasts, notification);
 }

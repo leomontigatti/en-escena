@@ -4,7 +4,7 @@ import {
   createDancerForAcademy,
   type CreateDancerInput,
 } from "@/lib/portal/dancers.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   createDancerSchema,
   type CreateDancerFormValues,
@@ -46,7 +46,7 @@ export async function handleCreateDancerAction({
 
   return {
     status: "success" as const,
-    message: routeNotificationToasts["bailarin-creado"].message,
+    message: notificationToasts["bailarin-creado"].message,
   };
 }
 

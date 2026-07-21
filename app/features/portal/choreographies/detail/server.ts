@@ -1,5 +1,3 @@
-import { redirect } from "react-router";
-
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
   choreographyMusicInvalidTypeMessage,
@@ -16,8 +14,8 @@ import {
   updateChoreographyMusic,
 } from "@/lib/portal/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
-const routeNotificationSearchParam = "notificacion";
 const choreographySavedNotification = "coreografia-guardada";
 const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 const readOnlyEventMessage = "Este evento es de solo lectura.";
@@ -161,8 +159,9 @@ async function executeMusicUpdateAction(
     return buildUpdateError(action, getMusicUploadErrorMessage(error));
   }
 
-  return redirect(
-    `/portal/coreografias/${action.choreographyId}?${routeNotificationSearchParam}=${choreographySavedNotification}`,
+  return redirectWithFlashNotification(
+    `/portal/coreografias/${action.choreographyId}`,
+    choreographySavedNotification,
   );
 }
 

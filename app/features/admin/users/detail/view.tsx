@@ -19,7 +19,7 @@ import {
   type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 type AdministracionUsuarioDetalleRouteViewProps = {
@@ -41,7 +41,7 @@ export function AdministracionUsuarioDetalleRouteView({
     (loaderData.isResettingPassword || errorData?.form === "reset-password");
 
   useServerActionToast(errorData, {
-    toastId: routeNotificationToastIds["user-form-error"],
+    toastId: notificationToastIds["user-form-error"],
   });
   useServerActionToast(successData, {
     toastId: "admin-user-detail:success",

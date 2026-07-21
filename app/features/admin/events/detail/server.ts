@@ -19,16 +19,16 @@ import {
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import {
-  routeNotificationToasts,
-  type RouteNotificationKey,
-} from "@/lib/shared/route-notification-toasts";
+  notificationToasts,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 import {
   type AdministrativeEventDetailActionData,
   type AdministrativeEventDetailLoaderData,
 } from "./shared";
 
 type EventRouteNotification = Extract<
-  RouteNotificationKey,
+  NotificationKey,
   | "evento-activado"
   | "evento-desactivado"
   | "evento-guardado"
@@ -202,7 +202,7 @@ function actionSuccess(
 ): AdministrativeEventDetailActionData {
   return {
     status: "success",
-    message: routeNotificationToasts[notification].message,
+    message: notificationToasts[notification].message,
   };
 }
 

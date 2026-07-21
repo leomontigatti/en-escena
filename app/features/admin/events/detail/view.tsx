@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { eventFormValues } from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
@@ -56,7 +56,7 @@ export function AdministrativeEventDetailView({
   const successData = actionData?.status === "success" ? actionData : undefined;
 
   useServerActionToast(errorData, {
-    toastId: routeNotificationToastIds["event-form-error"],
+    toastId: notificationToastIds["event-form-error"],
   });
   useServerActionToast(successData, {
     toastId: "admin-evento-detail:success",

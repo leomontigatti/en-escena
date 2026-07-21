@@ -10,9 +10,9 @@ import type {
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
-  routeNotificationToasts,
-  type RouteNotificationKey,
-} from "@/lib/shared/route-notification-toasts";
+  notificationToasts,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
@@ -63,7 +63,7 @@ export type DancerActionSuccess = {
 export type DancerDetailActionData = DancerActionError | DancerActionSuccess;
 
 export type DancerRouteNotification = Extract<
-  RouteNotificationKey,
+  NotificationKey,
   | "bailarin-archivado"
   | "bailarin-guardado"
   | "bailarin-guardado-requiere-verificacion"
@@ -141,7 +141,6 @@ export function buildBackToListHref(requestUrl: string) {
 
   searchParams.delete("modo");
   searchParams.delete("evento");
-  searchParams.delete("notificacion");
   const search = searchParams.toString();
 
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
@@ -155,7 +154,6 @@ export function buildModeHref(
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete("evento");
-  searchParams.delete("notificacion");
 
   if (mode === null) {
     searchParams.delete("modo");
@@ -178,7 +176,7 @@ export function buildDancerActionSuccess(
 ): DancerActionSuccess {
   return {
     status: "success",
-    message: routeNotificationToasts[notification].message,
+    message: notificationToasts[notification].message,
   };
 }
 

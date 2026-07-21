@@ -660,7 +660,7 @@ describe("administracion/usuarios/:userId route", () => {
       email: "admin.ruta.detalle@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&notificacion=usuario-interno-actualizado&guardado=si&tipoGuardado=manual`,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&guardado=si&tipoGuardado=manual`,
       userName: "Ada Ruta",
       internalUsername: "ada.ruta",
     });

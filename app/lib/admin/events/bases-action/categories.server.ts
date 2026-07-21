@@ -13,7 +13,6 @@ import {
   invalidEventBasesActionResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
-  withEventBasesNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createCategory,
@@ -144,7 +143,7 @@ function buildCategoryRedirectUrl(
   }
 
   if (isCategoryMutationIntent(input.intent)) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       currentUrl.pathname,
       categorySavedNotification,
     );

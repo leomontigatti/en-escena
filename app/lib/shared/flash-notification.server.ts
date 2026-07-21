@@ -1,19 +1,19 @@
 import { createCookieSessionStorage, redirect } from "react-router";
 
 import {
-  getRouteNotificationToast,
-  type RouteNotificationKey,
-} from "@/lib/shared/route-notification-toasts";
+  getNotificationToast,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 import { type ToastMessage } from "@/lib/shared/toasts";
 
 /**
  * Único helper de flash session para transportar un mensaje de feedback a través
- * de un `redirect` sin ensuciar la URL con un query param. Convive con el
- * mecanismo legacy `?notificacion=` durante la migración expand–contract
- * (ver docs/agents/form-feedback.md y el PRD #409).
+ * de un `redirect` sin ensuciar la URL con un query param. Es el único
+ * transporte de feedback a través de redirects (ver docs/agents/form-feedback.md
+ * y el PRD #409).
  *
  * El mensaje viaja como una **clave** del catálogo centralizado
- * (`route-notification-toasts`), así el copy/variante se comparte con el flujo
+ * (`notification-toasts`), así el copy/variante se comparte con el flujo
  * directo de `actionData`. La cookie es de un solo uso (semántica `flash`): al
  * leerla en el destino se consume, así el toast aparece una sola vez y no
  * reaparece al recargar o navegar hacia atrás.
@@ -22,7 +22,7 @@ import { type ToastMessage } from "@/lib/shared/toasts";
 const FLASH_NOTIFICATION_KEY = "notification";
 
 const flashSessionStorage = createCookieSessionStorage<{
-  [FLASH_NOTIFICATION_KEY]: RouteNotificationKey;
+  [FLASH_NOTIFICATION_KEY]: NotificationKey;
 }>({
   cookie: {
     name: "ee-flash",
@@ -44,7 +44,7 @@ const flashSessionStorage = createCookieSessionStorage<{
  */
 export async function redirectWithFlashNotification(
   url: string,
-  notification: RouteNotificationKey,
+  notification: NotificationKey,
   init: number | ResponseInit = {},
 ): Promise<Response> {
   const session = await flashSessionStorage.getSession();
@@ -67,8 +67,7 @@ export async function redirectWithFlashNotification(
  * Lee-y-limpia (one-time) el mensaje flash en el `loader`/root de la ruta
  * destino. Devuelve el toast resuelto desde el catálogo compartido y el
  * `Set-Cookie` que consume la cookie; el disparo del toast lo hace el cliente
- * con `showToastMessage`/`showRouteNotificationToast`. Una segunda lectura no
- * devuelve nada.
+ * con `showToastMessage`. Una segunda lectura no devuelve nada.
  */
 export async function readFlashNotification(
   request: Request,
@@ -82,9 +81,7 @@ export async function readFlashNotification(
   const session = await flashSessionStorage.getSession(cookieHeader);
   // `get` sobre un valor `flash` lo consume: el commit posterior lo elimina.
   const notification = session.get(FLASH_NOTIFICATION_KEY);
-  const toast = notification
-    ? getRouteNotificationToast(notification)
-    : undefined;
+  const toast = notification ? getNotificationToast(notification) : undefined;
 
   if (!toast) {
     return null;

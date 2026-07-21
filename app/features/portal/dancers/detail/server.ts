@@ -1,6 +1,6 @@
 import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { routeNotificationToasts } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   archiveDancerForAcademy,
   findDancerForAcademy,
@@ -48,7 +48,7 @@ export async function handlePortalDancerDetailAction(input: {
     await archiveDancerForAcademy(academy.id, dancerId);
     return {
       status: "success" as const,
-      message: routeNotificationToasts["bailarin-archivado"].message,
+      message: notificationToasts["bailarin-archivado"].message,
     };
   }
 
@@ -56,7 +56,7 @@ export async function handlePortalDancerDetailAction(input: {
     await reactivateDancerForAcademy(academy.id, dancerId);
     return {
       status: "success" as const,
-      message: routeNotificationToasts["bailarin-reactivado"].message,
+      message: notificationToasts["bailarin-reactivado"].message,
     };
   }
 
@@ -110,7 +110,7 @@ export async function handlePortalDancerDetailAction(input: {
 
   return {
     status: "success" as const,
-    message: routeNotificationToasts["bailarin-guardado"].message,
+    message: notificationToasts["bailarin-guardado"].message,
   };
 }
 
