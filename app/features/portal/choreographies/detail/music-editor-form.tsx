@@ -19,6 +19,7 @@ import {
   choreographyMusicInvalidTypeMessage,
   choreographyMusicMaxFileSizeBytes,
   choreographyMusicMaxFileSizeMessage,
+  choreographyMusicSavedToastId,
   choreographyMusicUploadErrorToastId,
   updateChoreographyIntent,
   type PortalChoreographyMusicActionData,
@@ -40,7 +41,11 @@ export function ChoreographyMusicEditorForm({
     string | null
   >(null);
   const selectedMusicStorageKey =
-    actionData?.selectedMusicStorageKey ?? choreography.musicStorageKey ?? "";
+    (actionData?.status === "update-error"
+      ? actionData.selectedMusicStorageKey
+      : undefined) ??
+    choreography.musicStorageKey ??
+    "";
   const [musicStorageKey, setMusicStorageKey] = useState(
     selectedMusicStorageKey,
   );
@@ -53,6 +58,12 @@ export function ChoreographyMusicEditorForm({
     if (actionData?.status === "update-error") {
       toast.error(actionData.message, {
         id: choreographyMusicUploadErrorToastId,
+      });
+    }
+
+    if (actionData?.status === "success") {
+      toast.success(actionData.message, {
+        id: choreographyMusicSavedToastId,
       });
     }
   }, [actionData?.message, actionData?.status]);

@@ -64,8 +64,14 @@ export function AdministracionPagoDetalleRouteView({
     initialDeleteDialogOpen || actionData?.intent === deleteAdminPaymentIntent,
   );
 
-  useServerActionToast(actionData, {
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
+  useServerActionToast(errorData, {
     toastId: "admin-payment-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "admin-payment-detail:success",
   });
 
   useEffect(() => {
@@ -184,7 +190,8 @@ function EditablePaymentDetailForm({
     intent: updateAdminPaymentIntent,
   });
   const values =
-    actionData?.intent === updateAdminPaymentIntent
+    actionData?.status === "error" &&
+    actionData.intent === updateAdminPaymentIntent
       ? actionData.values
       : loaderData.values;
   const form = useForm<

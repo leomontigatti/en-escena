@@ -33,6 +33,7 @@ export const notificationToastIds = {
   "precio-guardado": "route-notification:precio-guardado",
   "precio-eliminado": "route-notification:precio-eliminado",
   "pago-registrado": "route-notification:pago-registrado",
+  "pago-guardado": "route-notification:pago-guardado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
   "resultados-visibles": "route-notification:resultados-visibles",
@@ -179,6 +180,11 @@ export const notificationToasts = {
   "pago-registrado": {
     id: notificationToastIds["pago-registrado"],
     message: "Pago registrado.",
+    variant: "success",
+  },
+  "pago-guardado": {
+    id: notificationToastIds["pago-guardado"],
+    message: "Pago guardado.",
     variant: "success",
   },
   "programa-visible": {

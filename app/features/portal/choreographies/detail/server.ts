@@ -14,9 +14,10 @@ import {
   updateChoreographyMusic,
 } from "@/lib/portal/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
-import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 
-const choreographySavedNotification = "coreografia-guardada";
+const choreographySavedMessage =
+  notificationToasts["coreografia-guardada"].message;
 const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 const readOnlyEventMessage = "Este evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
@@ -134,7 +135,7 @@ function parsePortalChoreographyDetailAction(input: {
 
 async function executeMusicUpdateAction(
   action: ParsedMusicUpdateAction,
-): Promise<PortalChoreographyMusicActionData | Response> {
+): Promise<PortalChoreographyMusicActionData> {
   if (action.musicValidationError) {
     return buildUpdateError(action, action.musicValidationError);
   }
@@ -159,10 +160,10 @@ async function executeMusicUpdateAction(
     return buildUpdateError(action, getMusicUploadErrorMessage(error));
   }
 
-  return redirectWithFlashNotification(
-    `/portal/coreografias/${action.choreographyId}`,
-    choreographySavedNotification,
-  );
+  return {
+    status: "success",
+    message: choreographySavedMessage,
+  };
 }
 
 function buildUpdateError(
