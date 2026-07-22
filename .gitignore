@@ -7,3 +7,7 @@ build
 .firecrawl
 tmp/
 .fallow/
+
+# ARCA: cache de Ticket de Acceso y output del spike (#428)
+.arca-ta/
+scripts/.arca-spike-output/
