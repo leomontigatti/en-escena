@@ -7,10 +7,10 @@ import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import {
   ACCESS_SESSION_EXPIRES_IN_SECONDS,
   ACCESS_SESSION_UPDATE_AGE_SECONDS,
-  createLocalAccessRequestCookie,
-  createLocalAccessUser,
-  readLocalAccessSession,
-} from "@/lib/auth/access-test-auth.server";
+  createAccessRequestCookie,
+  createAccessUser,
+  readAccessSession,
+} from "@/lib/auth/access-auth.test-support";
 import {
   completeInternalUserInvitation,
   requestInternalUserInvitation,
@@ -28,7 +28,7 @@ describe("access session policy", () => {
   test("creates access sessions with an 8-hour inactivity lifetime", async () => {
     const beforeSignUp = Date.now();
 
-    const signUpResult = await createLocalAccessUser({
+    const signUpResult = await createAccessUser({
       email: "sesion@example.com",
       name: "sesion@example.com",
       password: "password-segura",
@@ -56,8 +56,8 @@ describe("access session policy", () => {
       .set({ expiresAt: justBeforeThreshold })
       .where(eq(accessSession.token, sessionToken));
 
-    await readLocalAccessSession(
-      new Headers({ cookie: createLocalAccessRequestCookie(headers) }),
+    await readAccessSession(
+      new Headers({ cookie: createAccessRequestCookie(headers) }),
     );
 
     const unrefreshedSession = await findSessionByToken(sessionToken);
@@ -73,8 +73,8 @@ describe("access session policy", () => {
       .set({ expiresAt: justAfterThreshold })
       .where(eq(accessSession.token, sessionToken));
 
-    await readLocalAccessSession(
-      new Headers({ cookie: createLocalAccessRequestCookie(headers) }),
+    await readAccessSession(
+      new Headers({ cookie: createAccessRequestCookie(headers) }),
     );
 
     const refreshedSession = await findSessionByToken(sessionToken);
@@ -217,7 +217,7 @@ describe("access session policy", () => {
 });
 
 async function createVerifiedCredentialUser(email: string) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email,
     name: email,
     password: "password-segura",
@@ -306,7 +306,7 @@ function expectResponseToSetSessionCookie(response: Response) {
 }
 
 function expectHeadersToSetSessionCookie(headers: Headers) {
-  expect(headers.get("set-cookie")).toContain("sb-access-token");
+  expect(headers.get("set-cookie")).toContain("better-auth.session_token");
 }
 
 async function findSessionByUserId(userId: string) {

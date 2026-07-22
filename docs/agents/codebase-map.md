@@ -52,8 +52,8 @@ onboarding.
 - Local operation: `docs/local-auth.md`
 - Routes: `app/routes/registro.tsx`, `app/routes/registro_.confirmar.tsx`, `app/routes/registro_.academia.tsx`, `app/routes/registro_.error-confirmacion.tsx`
 - Server modules: `app/lib/academies/registration.server.ts`, `app/lib/academies/registration-auth.server.ts`, `app/lib/academies/onboarding.server.ts`, `app/lib/academies/onboarding-maintenance.server.ts`
-- Auth modules: `app/lib/auth/send-email-hook.server.ts`, `app/lib/auth/supabase-auth-ssr.server.ts`, `app/lib/auth/internal-navigation.server.ts`
-- Tests: `app/lib/academies/registration.server.db.test.ts`, `app/lib/academies/onboarding.server.db.test.ts`, `app/lib/academies/onboarding-maintenance.server.db.test.ts`, `app/lib/auth/registration-confirmation-route.server.test.ts`, `app/lib/auth/send-email-hook.server.test.ts`
+- Auth modules: `app/lib/auth/access-auth-emails.server.ts`, `app/lib/auth/supabase-auth-ssr.server.ts`, `app/lib/auth/internal-navigation.server.ts`
+- Tests: `app/lib/academies/registration.server.db.test.ts`, `app/lib/academies/onboarding.server.db.test.ts`, `app/lib/academies/onboarding-maintenance.server.db.test.ts`, `app/lib/auth/registration-confirmation-route.server.test.ts`, `app/lib/auth/access-auth-emails.server.test.ts`
 
 ## Access And Internal Users
 

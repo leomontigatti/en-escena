@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { accessCredential, internalUserInvitations, user } from "@/db/schema";
+import { internalUserInvitations, user } from "@/db/schema";
 import {
   createInternalUserInvitationToken,
   hashInternalUserInvitationToken,
@@ -10,7 +10,7 @@ import {
   accessAuthProvider,
   type AccessCredentialUser,
 } from "@/lib/auth/access-auth-provider.server";
-import { createLocalAccessPasswordHash } from "@/lib/auth/access-test-auth.server";
+import { upsertBetterAuthCredentialPassword } from "@/lib/auth/access-auth-provider.betterauth.server";
 import { sendEmail, type SendEmailInput } from "@/lib/shared/email.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import {
@@ -199,22 +199,5 @@ async function createCredentialAccessUser(input: {
 }
 
 async function setExistingUserPassword(userId: string, password: string) {
-  const passwordHash = createLocalAccessPasswordHash(password);
-  const credentialAccount = await db.query.accessCredential.findFirst({
-    columns: { id: true },
-    where: eq(accessCredential.userId, userId),
-  });
-
-  if (credentialAccount) {
-    await db
-      .update(accessCredential)
-      .set({ passwordHash, updatedAt: new Date() })
-      .where(eq(accessCredential.id, credentialAccount.id));
-    return;
-  }
-
-  await db.insert(accessCredential).values({
-    userId,
-    passwordHash,
-  });
+  await upsertBetterAuthCredentialPassword({ password, userId });
 }

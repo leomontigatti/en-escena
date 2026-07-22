@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import {
-  createLocalAccessUser,
-  readLocalAccessSession,
-  signInLocalAccessUser,
-} from "@/lib/auth/access-test-auth.server";
+  createAccessUser,
+  readAccessSession,
+  signInAccessUser,
+} from "@/lib/auth/access-auth.test-support";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import {
   action as changePasswordAction,
@@ -45,7 +45,7 @@ describe("access recovery", () => {
   });
 
   test("requests a Supabase reset only for eligible academy users", async () => {
-    const signUpResult = await createLocalAccessUser({
+    const signUpResult = await createAccessUser({
       email: "usuario@example.com",
       name: "Usuario",
       password: OLD_PASSWORD,
@@ -87,12 +87,12 @@ describe("access recovery", () => {
   });
 
   test("returns the generic response without triggering reset for internal, suspended or missing emails", async () => {
-    const internalUser = await createLocalAccessUser({
+    const internalUser = await createAccessUser({
       email: "interno@example.com",
       name: "Interno",
       password: OLD_PASSWORD,
     });
-    const suspendedUser = await createLocalAccessUser({
+    const suspendedUser = await createAccessUser({
       email: "suspendido@example.com",
       name: "Suspendido",
       password: OLD_PASSWORD,
@@ -195,10 +195,10 @@ describe("access recovery", () => {
     expect(response.headers.get("location")).toBe("/ingresar?recuperacion=ok");
     await expect(findSessionsByUserId(userId)).resolves.toEqual([]);
     await expect(
-      readLocalAccessSession(new Headers({ cookie: sessionCookie })),
+      readAccessSession(new Headers({ cookie: sessionCookie })),
     ).resolves.toBeNull();
     await expect(
-      signInLocalAccessUser({
+      signInAccessUser({
         email: "revocar-sesiones@example.com",
         password: NEW_PASSWORD,
       }),
@@ -209,7 +209,7 @@ describe("access recovery", () => {
 });
 
 async function createRecoverySessionState(email: string) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email,
     name: email,
     password: OLD_PASSWORD,
@@ -284,19 +284,22 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
 }
 
 function createRequestCookie(headers: Headers) {
-  const sessionCookie = readSetCookieValue(headers, /sb-access-token=([^;]+)/);
+  const sessionCookie = readSetCookieValue(
+    headers,
+    /better-auth.session_token=([^;]+)/,
+  );
 
   if (!sessionCookie) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  return `sb-access-token=${sessionCookie}`;
+  return `better-auth.session_token=${sessionCookie}`;
 }
 
 function createRecoveryCookie(headers: Headers) {
   const recoveryCookie = readSetCookieValue(
     headers,
-    /sb-recovery-user=([^;]+)/,
+    /en_escena\.recovery_token=([^;]+)/,
   );
 
   if (!recoveryCookie) {
@@ -305,7 +308,7 @@ function createRecoveryCookie(headers: Headers) {
     );
   }
 
-  return `sb-recovery-user=${recoveryCookie}`;
+  return `en_escena.recovery_token=${recoveryCookie}`;
 }
 
 function readSetCookieValue(headers: Headers, pattern: RegExp) {

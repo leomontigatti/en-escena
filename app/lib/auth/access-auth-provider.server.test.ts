@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-const createLocalTestAccessAuthProvider = vi.hoisted(() => vi.fn());
-const createSupabaseAccessAuthProvider = vi.hoisted(() => vi.fn());
+const createBetterAuthAccessAuthProvider = vi.hoisted(() => vi.fn());
 
-const localAdapter = {
+const betterAuthAdapter = {
   confirmEmailOtp: vi.fn(),
   deleteAccessUser: vi.fn(),
   exchangePasswordRecoveryCode: vi.fn(),
@@ -18,63 +17,27 @@ const localAdapter = {
   verifyPasswordRecoveryOtp: vi.fn(),
 };
 
-const supabaseAdapter = {
-  confirmEmailOtp: vi.fn(),
-  deleteAccessUser: vi.fn(),
-  exchangePasswordRecoveryCode: vi.fn(),
-  getAccessSession: vi.fn(),
-  getVerifiedAccessIdentity: vi.fn(),
-  requestPasswordReset: vi.fn(),
-  signInCredentialUser: vi.fn(),
-  signOutCurrentSession: vi.fn(),
-  signUpCredentialUser: vi.fn(),
-  startEmailSignUp: vi.fn(),
-  updatePasswordForRecovery: vi.fn(),
-  verifyPasswordRecoveryOtp: vi.fn(),
-};
-
-vi.mock("@/lib/auth/access-auth-provider.local.server", () => ({
-  createLocalTestAccessAuthProvider,
-}));
-
-vi.mock("@/lib/auth/access-auth-provider.supabase.server", () => ({
-  createSupabaseAccessAuthProvider,
+vi.mock("@/lib/auth/access-auth-provider.betterauth.server", () => ({
+  createBetterAuthAccessAuthProvider,
 }));
 
 describe("accessAuthProvider", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.unstubAllEnvs();
-    createLocalTestAccessAuthProvider.mockReset();
-    createSupabaseAccessAuthProvider.mockReset();
+    createBetterAuthAccessAuthProvider.mockReset();
   });
 
-  test("selects the local test adapter once in test auth mode", async () => {
-    vi.stubEnv("NODE_ENV", "test");
-    vi.stubEnv("VITEST", "true");
-    createLocalTestAccessAuthProvider.mockReturnValue(localAdapter);
-    createSupabaseAccessAuthProvider.mockReturnValue(supabaseAdapter);
+  // Forward-only, sin flag (#266/#422): el selector resuelve a Better Auth
+  // siempre, sin ramificar por modo de test. Las ramas Supabase de los internos
+  // se retiran en #423.
+  test("uses the Better Auth adapter once, without branching on test mode", async () => {
+    createBetterAuthAccessAuthProvider.mockReturnValue(betterAuthAdapter);
 
     const { accessAuthProvider } =
       await import("@/lib/auth/access-auth-provider.server");
 
-    expect(accessAuthProvider).toBe(localAdapter);
-    expect(createLocalTestAccessAuthProvider).toHaveBeenCalledTimes(1);
-    expect(createSupabaseAccessAuthProvider).not.toHaveBeenCalled();
-  });
-
-  test("selects the Supabase adapter once outside test auth mode", async () => {
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("VITEST", "false");
-    createLocalTestAccessAuthProvider.mockReturnValue(localAdapter);
-    createSupabaseAccessAuthProvider.mockReturnValue(supabaseAdapter);
-
-    const { accessAuthProvider } =
-      await import("@/lib/auth/access-auth-provider.server");
-
-    expect(accessAuthProvider).toBe(supabaseAdapter);
-    expect(createSupabaseAccessAuthProvider).toHaveBeenCalledTimes(1);
-    expect(createLocalTestAccessAuthProvider).not.toHaveBeenCalled();
+    expect(accessAuthProvider).toBe(betterAuthAdapter);
+    expect(createBetterAuthAccessAuthProvider).toHaveBeenCalledTimes(1);
   });
 });

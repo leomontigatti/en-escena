@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import {
   getLandingPathForSignedInUser,
   requireAdminPanelUser,
@@ -86,7 +86,9 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe("/administracion");
-    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token",
+    );
   });
 
   test("authenticates internal users with nombre de usuario interno and redirects mandatory changes", async () => {
@@ -112,11 +114,13 @@ describe("internal navigation", () => {
     );
 
     expect(response.headers.get("location")).toBe("/cambiar-contrasena");
-    expect(response.headers.get("set-cookie")).toContain("sb-access-token");
+    expect(response.headers.get("set-cookie")).toContain(
+      "better-auth.session_token",
+    );
   });
 
   test("rejects unverified users with the generic login error", async () => {
-    await createLocalAccessUser({
+    await createAccessUser({
       email: "sin-verificar@example.com",
       name: "sin-verificar@example.com",
       password: "password-segura",
@@ -410,7 +414,7 @@ async function createCredentialUser(input: {
   internalUsername?: string;
   requiresPasswordChange?: boolean;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: "password-segura",
@@ -454,7 +458,7 @@ function createRequestCookie(headers: Headers) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error(
@@ -462,5 +466,5 @@ function createRequestCookie(headers: Headers) {
     );
   }
 
-  return `sb-access-token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie[1]}`;
 }

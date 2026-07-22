@@ -105,7 +105,3 @@ export type AccessAuthProvider = {
     userId: string;
   }>;
 };
-
-export function isTestAccessAuthMode() {
-  return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
-}

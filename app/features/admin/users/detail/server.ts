@@ -87,6 +87,7 @@ export async function action({
       action: parsedIntent.data === "suspend-user" ? "suspend" : "reactivate",
       targetUserId: userId,
       updatedByUserId: appUser.id,
+      adminHeaders: request.headers,
     });
 
     if (!result.ok) {
@@ -122,6 +123,7 @@ export async function action({
       targetUserId: userId,
       temporaryPassword: parsedResetPassword.data.temporaryPassword,
       updatedByUserId: appUser.id,
+      adminHeaders: request.headers,
     });
 
     if (!result.ok) {

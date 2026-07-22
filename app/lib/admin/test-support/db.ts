@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import {
-  createLocalAccessRequestCookie,
-  createLocalAccessUser,
-} from "@/lib/auth/access-test-auth.server";
+  createAccessRequestCookie,
+  createAccessUser,
+} from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 
 type AdminTestRole = "academy" | "admin" | "auditor" | "judge";
@@ -16,7 +16,7 @@ async function createSignedInAdminRequest(input: {
   requestUrl: string;
   role: AdminTestRole;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: "password-segura",
@@ -35,7 +35,7 @@ async function createSignedInAdminRequest(input: {
       method: input.body ? "POST" : "GET",
       body: input.body,
       headers: {
-        cookie: createLocalAccessRequestCookie(signUpResult.headers),
+        cookie: createAccessRequestCookie(signUpResult.headers),
       },
     }),
   };

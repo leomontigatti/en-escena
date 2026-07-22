@@ -15,7 +15,7 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { activateEvent } from "@/lib/events/management.server";
@@ -224,7 +224,7 @@ export function choreographyMusicUpdateFormData(input: {
 
 async function createInternalSession(role: "admin" | "auditor") {
   const identity = nextEmailSlug();
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: `${identity}@example.com`,
     name: `${identity}@example.com`,
     password: "password-segura",
@@ -364,13 +364,13 @@ function createRequestCookie(headers: Headers) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  return `sb-access-token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 function toUrl(path: string) {
