@@ -16,13 +16,14 @@ import {
   getDetailDescription,
   type DetailActionData,
   type DetailUser,
+  type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 type AdministracionUsuarioDetalleRouteViewProps = {
-  actionData?: DetailActionData;
+  actionData?: DetailViewActionData;
   loaderData: UserDetailLoaderData;
 };
 
@@ -33,12 +34,17 @@ export function AdministracionUsuarioDetalleRouteView({
   const savedUser = loaderData.user;
   const canManageInternalUser =
     loaderData.canManage && savedUser.userType === "internal";
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
   const isResettingPassword =
     canManageInternalUser &&
-    (loaderData.isResettingPassword || actionData?.form === "reset-password");
+    (loaderData.isResettingPassword || errorData?.form === "reset-password");
 
-  useServerActionToast(actionData, {
-    toastId: routeNotificationToastIds["user-form-error"],
+  useServerActionToast(errorData, {
+    toastId: notificationToastIds["user-form-error"],
+  });
+  useServerActionToast(successData, {
+    toastId: "admin-user-detail:success",
   });
 
   return (
@@ -59,7 +65,7 @@ export function AdministracionUsuarioDetalleRouteView({
       requireSelectedEvent={false}
     >
       <UserDetailBody
-        actionData={actionData}
+        actionData={errorData}
         backToList={loaderData.backToList}
         canManageInternalUser={canManageInternalUser}
         cancelHref={loaderData.cancelHref}

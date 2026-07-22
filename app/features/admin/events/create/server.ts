@@ -1,5 +1,3 @@
-import { redirect } from "react-router";
-
 import {
   getEventFormErrorMessage,
   parseEventFormValues,
@@ -7,6 +5,7 @@ import {
 } from "@/lib/admin/events/form-values";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createEvent } from "@/lib/events/management.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 export async function createAdministrativeEvent(request: Request) {
   await requireAdminPanelUser(request);
@@ -37,7 +36,8 @@ export async function createAdministrativeEvent(request: Request) {
     };
   }
 
-  throw redirect(
-    `/administracion/eventos/${result.event.id}?notificacion=evento-guardado`,
+  throw await redirectWithFlashNotification(
+    `/administracion/eventos/${result.event.id}`,
+    "evento-guardado",
   );
 }

@@ -1,7 +1,6 @@
 import { LoaderCircle, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import {
@@ -32,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { eventFormValues } from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
-import { routeNotificationToastIds } from "@/lib/shared/route-notification-toasts";
+import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
@@ -53,17 +52,15 @@ export function AdministrativeEventDetailView({
   loaderData,
   actionData,
 }: AdministrativeEventDetailViewProps) {
-  useServerActionToast(actionData, {
-    toastId: routeNotificationToastIds["event-form-error"],
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
+  useServerActionToast(errorData, {
+    toastId: notificationToastIds["event-form-error"],
   });
-
-  useEffect(() => {
-    if (!actionData) {
-      return;
-    }
-
-    toast.dismiss(routeNotificationToastIds["evento-guardado"]);
-  }, [actionData]);
+  useServerActionToast(successData, {
+    toastId: "admin-evento-detail:success",
+  });
 
   return (
     <AdminResourceLayout
@@ -79,7 +76,7 @@ export function AdministrativeEventDetailView({
           />
         ) : null}
       </AlertStack>
-      <EditEventPanel event={loaderData.event} actionData={actionData} />
+      <EditEventPanel event={loaderData.event} actionData={errorData} />
     </AdminResourceLayout>
   );
 }
@@ -136,7 +133,10 @@ function EditEventPanel({
   actionData,
 }: {
   event: AdministrativeEventDetailLoaderData["event"];
-  actionData?: AdministrativeEventDetailActionData;
+  actionData?: Extract<
+    AdministrativeEventDetailActionData,
+    { status: "error" }
+  >;
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({

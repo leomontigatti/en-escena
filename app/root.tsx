@@ -1,19 +1,19 @@
 import {
+  data,
   isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLocation,
-  useNavigate,
 } from "react-router";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
-import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
+import { readFlashNotification } from "@/lib/shared/flash-notification.server";
+import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
 export const links: Route.LinksFunction = () => [
   {
@@ -61,39 +61,45 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
+export async function loader({ request }: Route.LoaderArgs) {
+  const flash = await readFlashNotification(request);
+
+  if (!flash) {
+    return data({ flashToast: null });
+  }
+
+  // Consumir la cookie flash (one-time): el `Set-Cookie` que devuelve el lector
+  // la limpia, así el toast aparece una sola vez y no reaparece al recargar.
+  return data(
+    { flashToast: flash.toast },
+    { headers: { "set-cookie": flash.setCookieHeader } },
+  );
+}
+
+export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <Toaster richColors position="top-center" />
       <Outlet />
-      <RouteToasts />
+      <FlashToast toast={loaderData.flashToast} />
     </>
   );
 }
 
-function RouteToasts() {
-  const location = useLocation();
-  const navigate = useNavigate();
+function FlashToast({ toast }: { toast: ToastMessage | null }) {
+  const toastId = toast?.id;
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const notification = searchParams.get("notificacion");
-
-    if (!notification) {
+    if (!toast) {
       return;
     }
 
     window.setTimeout(() => {
-      showRouteNotificationToast(notification);
+      showToastMessage(toast);
     }, 0);
-
-    searchParams.delete("notificacion");
-    const nextSearch = searchParams.toString();
-    navigate(
-      `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
-      { replace: true },
-    );
-  }, [location.hash, location.pathname, location.search, navigate]);
+    // Se dispara una sola vez por mensaje flash: la cookie ya se consumió en el
+    // loader, así que una revalidación posterior devuelve `flashToast: null`.
+  }, [toast, toastId]);
 
   return null;
 }

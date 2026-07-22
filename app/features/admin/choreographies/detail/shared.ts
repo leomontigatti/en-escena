@@ -48,9 +48,15 @@ export type AdministrativeChoreographySubmodalityErrorData = {
   status: "error";
 };
 
+export type AdministrativeChoreographySuccessData = {
+  message: string;
+  status: "success";
+};
+
 export type AdministrativeChoreographyViewActionData =
   | AdministrativeChoreographyActionData
-  | AdministrativeChoreographySubmodalityErrorData;
+  | AdministrativeChoreographySubmodalityErrorData
+  | AdministrativeChoreographySuccessData;
 
 export type AdministrativeChoreographyRosterErrorData = {
   fieldErrors?: {

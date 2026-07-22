@@ -10,6 +10,7 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   AdministracionUsuariosNuevoRouteView,
   action,
@@ -49,7 +50,7 @@ describe("administracion/usuarios/nuevo route", () => {
     expect(markup).not.toContain("Usuario interno creado");
   });
 
-  test("creates an internal judge user and redirects with a toast notification without revealing the temporary password", async () => {
+  test("creates an internal judge user and redirects to the new user's detail with a flash toast without revealing the temporary password", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.crea.usuario@example.com",
       role: "admin",
@@ -76,8 +77,14 @@ describe("administracion/usuarios/nuevo route", () => {
       role: "judge",
       requiresPasswordChange: true,
     });
-    expect(response.headers.get("location")).toBe(
-      "/administracion/usuarios/nuevo?notificacion=usuario-interno-creado",
+    await expectFlashRedirect(
+      response,
+      `/administracion/usuarios/${savedUser?.id}`,
+      {
+        id: "route-notification:usuario-interno-creado",
+        message: "Usuario interno creado.",
+        variant: "success",
+      },
     );
     expect(response.headers.get("location")).not.toContain("temporal-segura");
   });

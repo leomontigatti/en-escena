@@ -38,6 +38,8 @@ import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 import {
@@ -52,6 +54,7 @@ import {
   type AdministrativeChoreographyDeleteBlocker,
   type AdministrativeChoreographyRosterErrorData,
   type AdministrativeChoreographySubmodalityErrorData,
+  type AdministrativeChoreographySuccessData,
 } from "./shared";
 
 type AdministrativeChoreographyDetailRow = {
@@ -196,7 +199,8 @@ export type AdministrativeChoreographyDetailActionData =
   | AdministrativeChoreographyActionData
   | AdministrativeChoreographyRosterErrorData
   | AdministrativeChoreographyRosterResolutionData
-  | AdministrativeChoreographySubmodalityErrorData;
+  | AdministrativeChoreographySubmodalityErrorData
+  | AdministrativeChoreographySuccessData;
 
 export async function handleAdministrativeChoreographyDetailAction(input: {
   request: Request;
@@ -236,14 +240,14 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
     return await renameAdministrativeChoreography({
       choreographyId,
       formData,
-      requestUrl: input.request.url,
     });
   }
 
   if (intent === deleteAdministrativeChoreographyIntent) {
     await deleteAdministrativeChoreography(choreography);
-    return redirect(
-      "/administracion/coreografias?notificacion=coreografia-eliminada",
+    return redirectWithFlashNotification(
+      "/administracion/coreografias",
+      "coreografia-eliminada",
     );
   }
 
@@ -264,7 +268,6 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
       choreography,
       eventId: selectedEventId,
       formData,
-      requestUrl: input.request.url,
     });
   }
 
@@ -272,7 +275,6 @@ export async function handleAdministrativeChoreographyDetailAction(input: {
     return await updateAdministrativeChoreographySubmodality({
       choreography,
       formData,
-      requestUrl: input.request.url,
     });
   }
 
@@ -427,8 +429,9 @@ async function listAdministrativeChoreographyProfessors(
 async function renameAdministrativeChoreography(input: {
   choreographyId: string;
   formData: FormData;
-  requestUrl: string;
-}) {
+}): Promise<
+  AdministrativeChoreographyActionData | AdministrativeChoreographySuccessData
+> {
   const values = {
     name: readFormString(input.formData, "name"),
   };
@@ -454,20 +457,16 @@ async function renameAdministrativeChoreography(input: {
     })
     .where(eq(choreographies.id, input.choreographyId));
 
-  return redirect(
-    buildDetailNotificationHref(
-      input.requestUrl,
-      input.choreographyId,
-      "coreografia-guardada",
-    ),
-  );
+  return choreographySavedSuccess();
 }
 
 async function updateAdministrativeChoreographySubmodality(input: {
   choreography: AdministrativeChoreographyDetail;
   formData: FormData;
-  requestUrl: string;
-}): Promise<AdministrativeChoreographySubmodalityErrorData | Response> {
+}): Promise<
+  | AdministrativeChoreographySubmodalityErrorData
+  | AdministrativeChoreographySuccessData
+> {
   // Una coreografía con presentación mantiene la submodalidad en solo lectura,
   // igual que el roster: el intent la rechaza aunque el form la mande.
   if (input.choreography.hasPresentation) {
@@ -502,24 +501,17 @@ async function updateAdministrativeChoreographySubmodality(input: {
     })
     .where(eq(choreographies.id, input.choreography.id));
 
-  return redirect(
-    buildDetailNotificationHref(
-      input.requestUrl,
-      input.choreography.id,
-      "coreografia-guardada",
-    ),
-  );
+  return choreographySavedSuccess();
 }
 
 async function updateAdministrativeChoreographyRosterAction(input: {
   choreography: AdministrativeChoreographyDetail;
   eventId: string;
   formData: FormData;
-  requestUrl: string;
 }): Promise<
   | AdministrativeChoreographyActionData
   | AdministrativeChoreographyRosterErrorData
-  | Response
+  | AdministrativeChoreographySuccessData
 > {
   // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
   // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
@@ -571,13 +563,7 @@ async function updateAdministrativeChoreographyRosterAction(input: {
     };
   }
 
-  return redirect(
-    buildDetailNotificationHref(
-      input.requestUrl,
-      input.choreography.id,
-      "coreografia-guardada",
-    ),
-  );
+  return choreographySavedSuccess();
 }
 
 async function deleteAdministrativeChoreography(
@@ -663,18 +649,14 @@ function readOptionalFormString(formData: FormData, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function buildDetailNotificationHref(
-  requestUrl: string,
-  choreographyId: string,
-  notification: string,
-) {
-  const url = new URL(requestUrl);
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("notificacion");
-  searchParams.set("notificacion", notification);
-
-  return `/administracion/coreografias/${choreographyId}?${searchParams.toString()}`;
+// La edición en el lugar del detalle no redirige: retorna
+// `{ status: "success" }`, el loader revalida y la vista dispara el toast
+// directo. Ver docs/agents/form-feedback.md.
+function choreographySavedSuccess(): AdministrativeChoreographySuccessData {
+  return {
+    message: notificationToasts["coreografia-guardada"].message,
+    status: "success",
+  };
 }
 
 function formatExperienceLevelName(experienceLevelId: string | null) {

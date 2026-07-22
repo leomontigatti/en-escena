@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { categories, modalities, submodalities } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   createModality,
   createSubmodality,
@@ -279,9 +280,6 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(createRequest.request)),
       302,
     );
-    expect(createResponse.headers.get("location")).toContain(
-      "notificacion=categoria-guardada",
-    );
 
     const createdCategory = expectFound(
       await db.query.categories.findFirst({
@@ -289,6 +287,16 @@ describe.sequential("administracion Bases del evento routes", () => {
       }),
     );
     const createdCategoryId = createdCategory.id;
+
+    await expectFlashRedirect(
+      createResponse,
+      `/administracion/categorias/${createdCategoryId}`,
+      {
+        id: "route-notification:categoria-guardada",
+        message: "Categoría guardada.",
+        variant: "success",
+      },
+    );
 
     expect(createdCategory).toMatchObject({ eventId: event.id });
 
@@ -331,8 +339,14 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(updateRequest.request)),
       302,
     );
-    expect(updateResponse.headers.get("location")).toContain(
-      "notificacion=categoria-guardada",
+    await expectFlashRedirect(
+      updateResponse,
+      `/administracion/categorias/${createdCategoryId}`,
+      {
+        id: "route-notification:categoria-guardada",
+        message: "Categoría guardada.",
+        variant: "success",
+      },
     );
     await expect(
       db.query.categories.findFirst({
@@ -355,9 +369,11 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deleteRequest.request)),
       302,
     );
-    expect(deleteResponse.headers.get("location")).toContain(
-      "notificacion=categoria-eliminada",
-    );
+    await expectFlashRedirect(deleteResponse, "/administracion/categorias", {
+      id: "route-notification:categoria-eliminada",
+      message: "Categoría eliminada.",
+      variant: "success",
+    });
     await expect(
       db.query.categories.findFirst({
         where: eq(categories.id, createdCategoryId),
@@ -621,9 +637,11 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(modalities.id, modality.id),
       }),
     ).resolves.toBeUndefined();
-    expect(response.headers.get("location")).toBe(
-      "/administracion/modalidades?notificacion=modalidad-eliminada",
-    );
+    await expectFlashRedirect(response, "/administracion/modalidades", {
+      id: "route-notification:modalidad-eliminada",
+      message: "Modalidad eliminada.",
+      variant: "success",
+    });
   });
 });
 

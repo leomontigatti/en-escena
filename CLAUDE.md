@@ -11,6 +11,8 @@
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
   (canónico). Guía de todo el repo, no solo de Sandcastle.
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
+- **Feedback y redirección de formularios** (matriz quedarse/redirigir, flash session
+  vs. `actionData` directo): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
 - **Issue tracker** (GitHub Issues vía `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
 - **Domain docs** (layout de contexto único): [docs/agents/domain.md](docs/agents/domain.md).

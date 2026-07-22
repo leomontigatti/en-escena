@@ -15,9 +15,9 @@ import {
 
 import {
   buildBackToListHref,
-  buildDetailNotificationHref,
   buildModeHref,
   buildProfessorActionError,
+  buildProfessorActionSuccess,
   buildProfessorReasonSchema,
   buildProfessorUpdateSchema,
   professorFieldNames,
@@ -113,13 +113,10 @@ export async function handleAdministrativeProfessorDetailAction(input: {
       );
     }
 
-    const notification =
+    return buildProfessorActionSuccess(
       intent === "archive-professor"
         ? "profesor-archivado"
-        : "profesor-reactivado";
-
-    throw redirect(
-      buildDetailNotificationHref(input.request.url, professorId, notification),
+        : "profesor-reactivado",
     );
   }
 
@@ -151,13 +148,7 @@ export async function handleAdministrativeProfessorDetailAction(input: {
     );
   }
 
-  throw redirect(
-    buildDetailNotificationHref(
-      input.request.url,
-      professorId,
-      "profesor-guardado",
-    ),
-  );
+  return buildProfessorActionSuccess("profesor-guardado");
 }
 
 function readProfessorId(params: { professorId?: string }) {

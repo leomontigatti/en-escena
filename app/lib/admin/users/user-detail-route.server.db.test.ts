@@ -71,23 +71,21 @@ describe("administracion/usuarios/:userId route", () => {
         .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
-    const suspendResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            adminRequest.url,
-            adminRequest.headers.get("cookie") ?? "",
-            { intent: "suspend-user" },
-          ),
-          targetUser.userId,
+    const suspendResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          adminRequest.url,
+          adminRequest.headers.get("cookie") ?? "",
+          { intent: "suspend-user" },
         ),
+        targetUser.userId,
       ),
-      302,
     );
 
-    expect(suspendResponse.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-suspendido`,
-    );
+    expect(suspendResult).toEqual({
+      status: "success",
+      message: "Usuario suspendido.",
+    });
     await expect(
       db.query.user.findFirst({
         columns: { suspended: true },
@@ -104,7 +102,7 @@ describe("administracion/usuarios/:userId route", () => {
     const suspendedDetail = await detailLoader(
       detailRouteArgs(
         new Request(
-          `http://localhost${suspendResponse.headers.get("location")!}`,
+          `http://localhost/administracion/usuarios/${targetUser.userId}`,
           {
             headers: {
               cookie: adminRequest.headers.get("cookie") ?? "",
@@ -125,23 +123,21 @@ describe("administracion/usuarios/:userId route", () => {
     expect(suspendedDetailMarkup).toContain("Acciones");
     expect(suspendedDetailMarkup).not.toContain("Suspender usuario");
 
-    const reactivateResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            adminRequest.url,
-            adminRequest.headers.get("cookie") ?? "",
-            { intent: "reactivate-user" },
-          ),
-          targetUser.userId,
+    const reactivateResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          adminRequest.url,
+          adminRequest.headers.get("cookie") ?? "",
+          { intent: "reactivate-user" },
         ),
+        targetUser.userId,
       ),
-      302,
     );
 
-    expect(reactivateResponse.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-reactivado`,
-    );
+    expect(reactivateResult).toEqual({
+      status: "success",
+      message: "Usuario reactivado.",
+    });
     await expect(
       db.query.user.findFirst({
         columns: { suspended: true },
@@ -220,27 +216,25 @@ describe("administracion/usuarios/:userId route", () => {
         .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
-    const response = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            adminRequest.url,
-            adminRequest.headers.get("cookie") ?? "",
-            {
-              name: "  Julia Actualizada  ",
-              email: " Julia.Actualizada@Example.COM ",
-              role: "auditor",
-            },
-          ),
-          targetUser.userId,
+    const updateResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          adminRequest.url,
+          adminRequest.headers.get("cookie") ?? "",
+          {
+            name: "  Julia Actualizada  ",
+            email: " Julia.Actualizada@Example.COM ",
+            role: "auditor",
+          },
         ),
+        targetUser.userId,
       ),
-      302,
     );
 
-    expect(response.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-actualizado`,
-    );
+    expect(updateResult).toEqual({
+      status: "success",
+      message: "Usuario interno actualizado.",
+    });
     await expect(
       db.query.user.findFirst({
         where: eq(user.id, targetUser.userId),
@@ -314,26 +308,24 @@ describe("administracion/usuarios/:userId route", () => {
         .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toHaveLength(1);
 
-    const response = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            adminRequest.url,
-            adminRequest.headers.get("cookie") ?? "",
-            {
-              intent: "reset-password",
-              temporaryPassword: "temporal-nueva",
-            },
-          ),
-          targetUser.userId,
+    const resetResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          adminRequest.url,
+          adminRequest.headers.get("cookie") ?? "",
+          {
+            intent: "reset-password",
+            temporaryPassword: "temporal-nueva",
+          },
         ),
+        targetUser.userId,
       ),
-      302,
     );
 
-    expect(response.headers.get("location")).toBe(
-      `/administracion/usuarios/${targetUser.userId}?notificacion=usuario-interno-restablecido`,
-    );
+    expect(resetResult).toEqual({
+      status: "success",
+      message: "Contraseña temporal guardada.",
+    });
     await expect(
       db.query.user.findFirst({
         columns: { requiresPasswordChange: true },
@@ -668,7 +660,7 @@ describe("administracion/usuarios/:userId route", () => {
       email: "admin.ruta.detalle@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&notificacion=usuario-interno-actualizado&guardado=si&tipoGuardado=manual`,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&guardado=si&tipoGuardado=manual`,
       userName: "Ada Ruta",
       internalUsername: "ada.ruta",
     });

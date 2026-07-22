@@ -8,6 +8,7 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -212,8 +213,14 @@ describe.sequential("administracion Bases del evento routes", () => {
         where: eq(events.id, event.id),
       }),
     ).resolves.toMatchObject({ registrationReadinessDirty: true });
-    expect(response.headers.get("location")).toBe(
-      `/administracion/modalidades/${modality?.id}?notificacion=modalidad-guardada`,
+    await expectFlashRedirect(
+      response,
+      `/administracion/modalidades/${modality?.id}`,
+      {
+        id: "route-notification:modalidad-guardada",
+        message: "Modalidad guardada.",
+        variant: "success",
+      },
     );
 
     const data = await loader(

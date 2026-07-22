@@ -99,8 +99,13 @@ export function PortalDancerDetailRouteView({
     listHref: "/portal/bailarines",
   });
 
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-bailarin-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "portal-bailarin-detail:success",
   });
 
   return (

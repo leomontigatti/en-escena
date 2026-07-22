@@ -14,7 +14,8 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
-  withEventBasesNotification,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createPrice,
@@ -145,7 +146,7 @@ function buildPriceRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-price") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(priceBasePath, null),
       priceDeletedNotification,
     );
@@ -156,20 +157,20 @@ function buildPriceRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(priceBasePath, result.record.id, null),
       priceSavedNotification,
     );
   }
 
   if (input.intent === "create-price" || input.intent === "update-price") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       currentUrl.pathname,
       priceSavedNotification,
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function readPriceActionInput(

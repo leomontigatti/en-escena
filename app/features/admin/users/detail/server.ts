@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
@@ -8,9 +7,9 @@ import { setInternalUserSuspendedState } from "@/lib/admin/users/internal-user-s
 import {
   buildBackToListHref,
   buildDetailActionError,
+  buildDetailActionSuccess,
   buildDetailUser,
   buildModeHref,
-  buildNotificationDetailHref,
   getResetPasswordFieldErrors,
   getUpdateInternalUserFieldErrors,
   getUpdateInternalUserServerFieldErrors,
@@ -21,6 +20,7 @@ import {
   updateInternalUserSchema,
   userStatusIntentSchema,
   type DetailActionData,
+  type DetailSuccessData,
   type DetailUserRow,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
@@ -74,7 +74,7 @@ export async function loader({
 export async function action({
   request,
   params,
-}: ActionArgs): Promise<DetailActionData | never> {
+}: ActionArgs): Promise<DetailActionData | DetailSuccessData> {
   const appUser = await requireAdminUser(request);
   await requireAdminPanelUser(request);
   const userId = requireUserId(params.userId);
@@ -97,14 +97,10 @@ export async function action({
       });
     }
 
-    throw redirect(
-      buildNotificationDetailHref(
-        request.url,
-        userId,
-        parsedIntent.data === "suspend-user"
-          ? "usuario-interno-suspendido"
-          : "usuario-interno-reactivado",
-      ),
+    return buildDetailActionSuccess(
+      parsedIntent.data === "suspend-user"
+        ? "usuario-interno-suspendido"
+        : "usuario-interno-reactivado",
     );
   }
 
@@ -137,13 +133,7 @@ export async function action({
       });
     }
 
-    throw redirect(
-      buildNotificationDetailHref(
-        request.url,
-        userId,
-        "usuario-interno-restablecido",
-      ),
-    );
+    return buildDetailActionSuccess("usuario-interno-restablecido");
   }
 
   const values = readUpdateInternalUserFormValues(formData);
@@ -175,13 +165,7 @@ export async function action({
     });
   }
 
-  throw redirect(
-    buildNotificationDetailHref(
-      request.url,
-      userId,
-      "usuario-interno-actualizado",
-    ),
-  );
+  return buildDetailActionSuccess("usuario-interno-actualizado");
 }
 
 async function findDetailUserRow(

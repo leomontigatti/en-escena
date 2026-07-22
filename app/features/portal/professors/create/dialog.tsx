@@ -34,7 +34,7 @@ export function CreateProfessorDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: CreateProfessorActionData;
+  actionData?: Extract<CreateProfessorActionData, { status: "error" }>;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;

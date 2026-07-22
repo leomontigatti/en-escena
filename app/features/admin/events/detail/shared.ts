@@ -15,12 +15,17 @@ export type AdministrativeEventDetailLoaderData = {
   registrationReadiness: EventRegistrationReadiness;
 };
 
-export type AdministrativeEventDetailActionData = {
-  status: "error";
-  message: string;
-  fieldErrors: FieldErrors;
-  values: EventFormValues | null;
-};
+export type AdministrativeEventDetailActionData =
+  | {
+      status: "error";
+      message: string;
+      fieldErrors: FieldErrors;
+      values: EventFormValues | null;
+    }
+  | {
+      status: "success";
+      message: string;
+    };
 
 export function getMissingItemAdminPath(code: EventRegistrationMissingCode) {
   switch (code) {

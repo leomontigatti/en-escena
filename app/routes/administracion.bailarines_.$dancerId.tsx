@@ -1,7 +1,10 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { type DancerDetailLoaderData } from "@/features/admin/dancers/detail/shared";
+import {
+  type DancerDetailActionData,
+  type DancerDetailLoaderData,
+} from "@/features/admin/dancers/detail/shared";
 import {
   handleAdministrativeDancerDetailAction,
   loadAdministrativeDancerDetail,
@@ -43,17 +46,17 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadAdministrativeDancerDetail({ request, params });
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({
+  request,
+  params,
+}: Route.ActionArgs): Promise<DancerDetailActionData> {
   return await handleAdministrativeDancerDetailAction({ request, params });
 }
 
 export function AdministracionBailarinDetalleRouteView({
   loaderData,
-  actionData: actionDataOverride,
+  actionData,
 }: AdministracionBailarinDetalleRouteProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-
   return (
     <BailarinDetalleView actionData={actionData} loaderData={loaderData} />
   );

@@ -15,7 +15,8 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
-  withEventBasesNotification,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createModality,
@@ -203,7 +204,7 @@ function buildModalityRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-modality") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(modalityBasePath, null),
       modalityDeletedNotification,
     );
@@ -214,20 +215,20 @@ function buildModalityRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(modalityBasePath, result.record.id, null),
       modalitySavedNotification,
     );
   }
 
   if (isModalityMutationIntent(input.intent)) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       currentUrl.pathname,
       modalitySavedNotification,
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function isModalityMutationIntent(intent: string) {

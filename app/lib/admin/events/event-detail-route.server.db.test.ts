@@ -11,6 +11,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   action,
@@ -68,10 +69,10 @@ describe("administracion/eventos/:eventId route", () => {
       }),
     });
 
-    const response = await expectThrownResponse(
-      action(routeArgs(request, event.id)),
-      302,
-    );
+    await expect(action(routeArgs(request, event.id))).resolves.toMatchObject({
+      status: "success",
+      message: "Evento guardado.",
+    });
 
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
@@ -85,9 +86,6 @@ describe("administracion/eventos/:eventId route", () => {
 
     expect(savedEvent?.startsAt.toISOString()).toBe("2027-05-01T03:00:00.000Z");
     expect(savedEvent?.endsAt.toISOString()).toBe("2027-05-03T03:00:00.000Z");
-    expect(response.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=evento-guardado`,
-    );
   });
 
   test("returns the field error message when the Evento detail form fails validation", async () => {
@@ -168,13 +166,11 @@ describe("administracion/eventos/:eventId route", () => {
       body: formData({ intent: "deactivate", confirmDeactivation: event.id }),
     });
 
-    await expectThrownResponse(
+    await expect(
       action(routeArgs(confirmedRequest.request, event.id)),
-      302,
-    ).then((response) => {
-      expect(response.headers.get("location")).toBe(
-        `/administracion/eventos/${event.id}?notificacion=evento-desactivado`,
-      );
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Evento desactivado.",
     });
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
@@ -196,21 +192,18 @@ describe("administracion/eventos/:eventId route", () => {
       body: formData({ intent: "set-results-visibility", value: "true" }),
     });
 
-    const programResponse = await expectThrownResponse(
+    await expect(
       action(routeArgs(programRequest.request, event.id)),
-      302,
-    );
-    const resultsResponse = await expectThrownResponse(
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Programa visible.",
+    });
+    await expect(
       action(routeArgs(resultsRequest.request, event.id)),
-      302,
-    );
-
-    expect(programResponse.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=programa-visible`,
-    );
-    expect(resultsResponse.headers.get("location")).toBe(
-      `/administracion/eventos/${event.id}?notificacion=resultados-visibles`,
-    );
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Resultados visibles.",
+    });
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toMatchObject({
@@ -250,29 +243,26 @@ describe("administracion/eventos/:eventId route", () => {
     await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toBeUndefined();
-    expect(response.headers.get("location")).toBe(
-      "/administracion/eventos?notificacion=evento-eliminado",
-    );
+    await expectFlashRedirect(response, "/administracion/eventos", {
+      id: "route-notification:evento-eliminado",
+      message: "Evento eliminado.",
+      variant: "success",
+    });
   });
 
-  test("posts event mutations to the clean event URL when a previous notification is present", async () => {
+  test("posts event mutations to the clean event URL", async () => {
     const event = await createSavedEvent({ name: "Activo" });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
-      email: "admin.evento.notificacion@example.com",
+      email: "admin.evento.accion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}?notificacion=evento-guardado`,
+      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
     });
 
     const data = await loader(routeArgs(request, event.id));
-    const markup = renderRoute(
-      data,
-      undefined,
-      `/administracion/eventos/${event.id}?notificacion=evento-guardado`,
-    );
+    const markup = renderRoute(data);
 
     expect(markup).toContain(`action="/administracion/eventos/${event.id}"`);
-    expect(markup).not.toContain("notificacion=evento-guardado");
   });
 });
 

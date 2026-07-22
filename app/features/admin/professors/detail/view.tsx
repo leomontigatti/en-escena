@@ -16,7 +16,7 @@ import {
   getProfessorEditValues,
   getProfessorReasonValues,
   getSubmittedProfessorUpdateValues,
-  type ProfessorActionError,
+  type ProfessorDetailActionData,
   type ProfessorDetailLoaderData,
   type ProfessorDialogIntent,
   type ProfessorEditFormValues,
@@ -24,7 +24,7 @@ import {
 } from "./shared";
 
 export type AdministracionProfesorDetalleRouteViewProps = {
-  actionData?: ProfessorActionError;
+  actionData?: ProfessorDetailActionData;
   loaderData: ProfessorDetailLoaderData;
 };
 
@@ -32,16 +32,25 @@ export function AdministracionProfesorDetalleRouteView({
   actionData,
   loaderData,
 }: AdministracionProfesorDetalleRouteViewProps) {
-  useServerActionToast(actionData, {
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
+  useServerActionToast(errorData, {
     toastId: "admin-professor-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "admin-professor-detail:success",
   });
 
   const professor = loaderData.professor;
   const isEditing =
-    loaderData.canEdit && (loaderData.isEditing || Boolean(actionData));
-  const submittedUpdateValues = getSubmittedProfessorUpdateValues(actionData);
-  const editValues = getProfessorEditValues({ actionData, professor });
-  const reasonValues = getProfessorReasonValues(actionData);
+    loaderData.canEdit && (loaderData.isEditing || Boolean(errorData));
+  const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
+  const editValues = getProfessorEditValues({
+    actionData: errorData,
+    professor,
+  });
+  const reasonValues = getProfessorReasonValues(errorData);
   const editForm = useProfessorEditForm({ values: editValues });
   const reasonForm = useProfessorReasonForm({
     correctionReasonRequired: professor.correctionReasonRequired,
@@ -49,7 +58,7 @@ export function AdministracionProfesorDetalleRouteView({
   });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
-      getInitialDialogIntent(actionData, professor.correctionReasonRequired),
+      getInitialDialogIntent(errorData, professor.correctionReasonRequired),
     );
   const [pendingUpdateValues, setPendingUpdateValues] =
     useState<ProfessorEditFormValues | null>(
@@ -60,7 +69,7 @@ export function AdministracionProfesorDetalleRouteView({
 
   useEffect(() => {
     const nextIntent = getInitialDialogIntent(
-      actionData,
+      errorData,
       professor.correctionReasonRequired,
     );
     if (!nextIntent) {
@@ -72,7 +81,7 @@ export function AdministracionProfesorDetalleRouteView({
     if (submittedUpdateValues) {
       setPendingUpdateValues(toProfessorEditValues(submittedUpdateValues));
     }
-  }, [actionData, professor.correctionReasonRequired, submittedUpdateValues]);
+  }, [errorData, professor.correctionReasonRequired, submittedUpdateValues]);
 
   const confirmationAction = getProfessorConfirmationAction({
     active: professor.active,
@@ -103,7 +112,7 @@ export function AdministracionProfesorDetalleRouteView({
     intent: "archive-professor" | "reactivate-professor",
   ) {
     reasonForm.form.reset({
-      correctionReason: actionData?.values.correctionReason ?? "",
+      correctionReason: errorData?.values.correctionReason ?? "",
       statusIntent: intent,
     });
     setDialogIntent(intent);

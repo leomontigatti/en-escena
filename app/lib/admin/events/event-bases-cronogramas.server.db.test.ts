@@ -8,6 +8,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -145,11 +146,18 @@ describe.sequential(
         action(routeArgs(scheduleRequest.request)),
         302,
       );
-      expect(createScheduleResponse.headers.get("location")).toMatch(
-        /\/administracion\/cronogramas\/[^?]+\?notificacion=cronograma-guardado/,
-      );
 
       const schedule = await findSavedScheduleByName("Sábado Mañana");
+      await expectFlashRedirect(
+        createScheduleResponse,
+        `/administracion/cronogramas/${schedule?.id}`,
+        {
+          id: "route-notification:cronograma-guardado",
+          message: "Cronograma guardado.",
+          variant: "success",
+        },
+      );
+
       expect(schedule).toMatchObject({
         eventId: event.id,
         scheduledDate: "2026-05-02",
@@ -199,8 +207,14 @@ describe.sequential(
         action(routeArgs(editScheduleRequest.request)),
         302,
       );
-      expect(updateScheduleResponse.headers.get("location")).toContain(
-        "notificacion=cronograma-guardado",
+      await expectFlashRedirect(
+        updateScheduleResponse,
+        "/administracion/cronogramas",
+        {
+          id: "route-notification:cronograma-guardado",
+          message: "Cronograma guardado.",
+          variant: "success",
+        },
       );
       await expect(
         findSavedScheduleById(schedule?.id ?? ""),
@@ -221,8 +235,14 @@ describe.sequential(
         action(routeArgs(deleteScheduleRequest.request)),
         302,
       );
-      expect(deleteScheduleResponse.headers.get("location")).toBe(
-        "/administracion/cronogramas?notificacion=cronograma-eliminado",
+      await expectFlashRedirect(
+        deleteScheduleResponse,
+        "/administracion/cronogramas",
+        {
+          id: "route-notification:cronograma-eliminado",
+          message: "Cronograma eliminado.",
+          variant: "success",
+        },
       );
       await expect(
         findSavedScheduleById(schedule?.id ?? ""),
@@ -245,8 +265,14 @@ describe.sequential(
         action(routeArgs(createScheduleCapacityRequest.request)),
         302,
       );
-      expect(createScheduleCapacityResponse.headers.get("location")).toContain(
-        "notificacion=cupo-cronograma-guardado",
+      await expectFlashRedirect(
+        createScheduleCapacityResponse,
+        `/administracion/cronogramas/${schedule.id}`,
+        {
+          id: "route-notification:cupo-cronograma-guardado",
+          message: "Cupo de cronograma guardado.",
+          variant: "success",
+        },
       );
 
       const [scheduleCapacity] = await listSavedScheduleCapacities(schedule.id);
@@ -303,8 +329,14 @@ describe.sequential(
         action(routeArgs(editScheduleCapacityRequest.request)),
         302,
       );
-      expect(updateScheduleCapacityResponse.headers.get("location")).toContain(
-        "notificacion=cupo-cronograma-guardado",
+      await expectFlashRedirect(
+        updateScheduleCapacityResponse,
+        `/administracion/cronogramas/${schedule.id}`,
+        {
+          id: "route-notification:cupo-cronograma-guardado",
+          message: "Cupo de cronograma guardado.",
+          variant: "success",
+        },
       );
       await expect(
         db.query.scheduleCapacities.findFirst({
@@ -336,8 +368,14 @@ describe.sequential(
         action(routeArgs(deleteScheduleCapacityRequest.request)),
         302,
       );
-      expect(deleteScheduleCapacityResponse.headers.get("location")).toContain(
-        "notificacion=cupo-cronograma-eliminado",
+      await expectFlashRedirect(
+        deleteScheduleCapacityResponse,
+        `/administracion/cronogramas/${schedule.id}`,
+        {
+          id: "route-notification:cupo-cronograma-eliminado",
+          message: "Cupo de cronograma eliminado.",
+          variant: "success",
+        },
       );
       await expect(listSavedScheduleCapacities(schedule.id)).resolves.toEqual(
         [],

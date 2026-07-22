@@ -17,7 +17,8 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
-  withEventBasesNotification,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createScheduleCapacity,
@@ -236,34 +237,40 @@ function buildScheduleRedirectUrl(
 
   switch (input.intent) {
     case "delete-schedule":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         buildListPath(scheduleBasePath, null),
         scheduleDeletedNotification,
       );
     case "delete-schedule-capacity":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         currentPath,
         scheduleCapacityDeletedNotification,
       );
     case "create-schedule":
       if (result.ok && hasEventBaseRecord(result)) {
-        return withEventBasesNotification(
+        return withEventBasesFlashNotification(
           buildDetailPath(scheduleBasePath, result.record.id, null),
           scheduleSavedNotification,
         );
       }
 
-      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+      return withEventBasesFlashNotification(
+        currentPath,
+        scheduleSavedNotification,
+      );
     case "update-schedule":
-      return withEventBasesNotification(currentPath, scheduleSavedNotification);
+      return withEventBasesFlashNotification(
+        currentPath,
+        scheduleSavedNotification,
+      );
     case "create-schedule-capacity":
     case "update-schedule-capacity":
-      return withEventBasesNotification(
+      return withEventBasesFlashNotification(
         currentPath,
         scheduleCapacitySavedNotification,
       );
     default:
-      return currentPath;
+      return plainEventBasesRedirect(currentPath);
   }
 }
 

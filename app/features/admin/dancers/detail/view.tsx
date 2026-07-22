@@ -11,7 +11,7 @@ import {
   getDancerStatusValues,
   getInitialDialogIntent,
   getSubmittedDancerUpdateValues,
-  type DancerActionError,
+  type DancerDetailActionData,
   type DancerDetailLoaderData,
   type DancerDialogIntent,
 } from "./shared";
@@ -24,7 +24,7 @@ import {
 } from "./sections";
 
 type AdministracionBailarinDetalleRouteViewProps = {
-  actionData?: DancerActionError;
+  actionData?: DancerDetailActionData;
   loaderData: DancerDetailLoaderData;
 };
 
@@ -35,23 +35,29 @@ export function AdministracionBailarinDetalleRouteView({
   actionData,
   loaderData,
 }: AdministracionBailarinDetalleRouteViewProps) {
-  useServerActionToast(actionData, {
+  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const successData = actionData?.status === "success" ? actionData : undefined;
+
+  useServerActionToast(errorData, {
     toastId: "admin-dancer-detail:error",
+  });
+  useServerActionToast(successData, {
+    toastId: "admin-dancer-detail:success",
   });
 
   const dancer = loaderData.dancer;
-  const submittedEditValues = getSubmittedDancerUpdateValues(actionData);
+  const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const editForm = useDancerEditForm({
     correctionReasonRequired: dancer.correctionReasonRequired,
-    values: getDancerEditValues({ actionData, dancer }),
+    values: getDancerEditValues({ actionData: errorData, dancer }),
   });
   const statusForm = useDancerStatusForm({
     correctionReasonRequired: dancer.correctionReasonRequired,
-    values: getDancerStatusValues(actionData),
+    values: getDancerStatusValues(errorData),
   });
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
     getInitialDialogIntent({
-      actionData,
+      actionData: errorData,
       correctionReasonRequired: dancer.correctionReasonRequired,
       statusIntent: dancer.active ? "archive-dancer" : "reactivate-dancer",
     }),
@@ -61,7 +67,7 @@ export function AdministracionBailarinDetalleRouteView({
   const verifyFormId = "admin-dancer-verify-form";
   const watchedBirthDate = editForm.form.watch("birthDate");
   const viewState = buildDancerDetailViewState({
-    actionData,
+    actionData: errorData,
     canEdit: loaderData.canEdit,
     dancer,
     requestedEditMode: loaderData.isEditing,
@@ -70,7 +76,7 @@ export function AdministracionBailarinDetalleRouteView({
 
   useEffect(() => {
     const nextIntent = getInitialDialogIntent({
-      actionData,
+      actionData: errorData,
       correctionReasonRequired: dancer.correctionReasonRequired,
       statusIntent: viewState.statusAction.intent,
     });
@@ -81,7 +87,7 @@ export function AdministracionBailarinDetalleRouteView({
 
     setDialogIntent(nextIntent);
   }, [
-    actionData,
+    errorData,
     dancer.correctionReasonRequired,
     submittedEditValues,
     viewState.statusAction.intent,

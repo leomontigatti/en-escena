@@ -10,6 +10,8 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
 import { type CreateDancerActionData } from "@/features/portal/dancers/create/shared";
@@ -41,7 +43,9 @@ export function PortalDancersListRouteView({
   const actionData =
     createDancerFetcher.data?.status === "error"
       ? createDancerFetcher.data
-      : providedActionData;
+      : providedActionData?.status === "error"
+        ? providedActionData
+        : undefined;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -72,6 +76,13 @@ export function PortalDancersListRouteView({
   }, [createDancerFetcher.data, createDancerFetcher.state]);
 
   const visibleActionData = dismissServerState ? undefined : actionData;
+
+  useServerActionToast(
+    createDancerFetcher.data?.status === "success"
+      ? createDancerFetcher.data
+      : undefined,
+    { toastId: notificationToasts["bailarin-creado"].id },
+  );
 
   return (
     <>

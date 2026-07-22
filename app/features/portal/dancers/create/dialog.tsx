@@ -35,7 +35,7 @@ export function CreateDancerDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: CreateDancerActionData;
+  actionData?: Extract<CreateDancerActionData, { status: "error" }>;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;

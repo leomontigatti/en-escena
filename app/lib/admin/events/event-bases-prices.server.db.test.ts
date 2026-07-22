@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
 import { createAccountCurrentChoreographyFixture } from "@/lib/admin/academies/account-current-route.test-support";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createDeletePriceAdminRequest,
@@ -111,7 +112,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       paymentDeadline: "2026-05-31",
       scheduleId: schedule.id,
     });
-    expectPriceSavedRedirect(createResponse);
+    await expectPriceSavedRedirect(createResponse);
 
     const createData = await loader(
       routeArgs(
@@ -200,7 +201,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expectPriceDeletedRedirect(deleteResponse);
+    await expectPriceDeletedRedirect(deleteResponse);
   });
 
   test("shows a frozen inscription validation when structural changes or deletion are blocked", async () => {
@@ -302,7 +303,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(createPriceRequest.request)),
       302,
     );
-    expectPriceSavedRedirect(createPriceResponse);
+    await expectPriceSavedRedirect(createPriceResponse);
 
     const price = await findSavedPriceByScope({
       groupType: "solo",
@@ -353,9 +354,11 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(editPriceRequest.request)),
       302,
     );
-    expect(updatePriceResponse.headers.get("location")).toContain(
-      "notificacion=precio-guardado",
-    );
+    await expectFlashRedirect(updatePriceResponse, "/administracion/precios", {
+      id: "route-notification:precio-guardado",
+      message: "Precio guardado.",
+      variant: "success",
+    });
     await expect(findSavedPriceById(price?.id ?? "")).resolves.toMatchObject({
       name: "Precio actualizado",
       amount: 12000,
@@ -374,7 +377,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       action(routeArgs(deletePriceRequest.request)),
       302,
     );
-    expectPriceDeletedRedirect(deletePriceResponse);
+    await expectPriceDeletedRedirect(deletePriceResponse);
     await expect(findSavedPriceById(price?.id ?? "")).resolves.toBeUndefined();
   });
 });

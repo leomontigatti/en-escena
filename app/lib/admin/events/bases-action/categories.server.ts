@@ -11,7 +11,8 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
-  withEventBasesNotification,
+  plainEventBasesRedirect,
+  withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createCategory,
@@ -124,7 +125,7 @@ function buildCategoryRedirectUrl(
   const currentUrl = new URL(requestUrl);
 
   if (input.intent === "delete-category") {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildListPath(categoryBasePath, null),
       categoryDeletedNotification,
     );
@@ -135,20 +136,20 @@ function buildCategoryRedirectUrl(
     result.ok &&
     hasEventBaseRecord(result)
   ) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       buildDetailPath(categoryBasePath, result.record.id, null),
       categorySavedNotification,
     );
   }
 
   if (isCategoryMutationIntent(input.intent)) {
-    return withEventBasesNotification(
+    return withEventBasesFlashNotification(
       currentUrl.pathname,
       categorySavedNotification,
     );
   }
 
-  return currentUrl.pathname;
+  return plainEventBasesRedirect(currentUrl.pathname);
 }
 
 function readCategoryActionInput(

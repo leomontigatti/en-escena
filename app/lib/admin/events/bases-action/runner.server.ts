@@ -6,8 +6,10 @@ import {
   type ActionData,
   type EventBasesActionBaseInput,
   type EventBasesActionResult,
+  type EventBasesRedirect,
 } from "@/lib/admin/events/bases-action/shared.server";
 import { markEventRegistrationReadinessDirty } from "@/lib/events/registration-readiness.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 type EventBasesActionHandler<
   TInput extends EventBasesActionBaseInput = EventBasesActionBaseInput,
@@ -21,7 +23,7 @@ type EventBasesActionHandler<
     requestUrl: string,
     input: TInput,
     result: EventBasesActionResult,
-  ) => string;
+  ) => EventBasesRedirect;
   getConfirmationError: (
     requestUrl: string,
     input: TInput,
@@ -86,7 +88,13 @@ async function runEventBasesActionWithHandler<
     );
   }
 
-  throw redirect(handler.buildRedirectUrl(request.url, input, result));
+  const target = handler.buildRedirectUrl(request.url, input, result);
+
+  if (target.transport === "flash") {
+    throw await redirectWithFlashNotification(target.url, target.notification);
+  }
+
+  throw redirect(target.url);
 }
 
 function readSubmittedEventBasesActionInput<

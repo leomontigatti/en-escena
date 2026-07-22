@@ -18,9 +18,9 @@ import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documen
 import {
   buildBackToListHref,
   buildDancerActionError,
+  buildDancerActionSuccess,
   buildDancerStatusSchema,
   buildDancerUpdateSchema,
-  buildDetailNotificationHref,
   buildModeHref,
   dancerFieldNames,
   readDancerStatusValues,
@@ -112,14 +112,10 @@ export async function handleAdministrativeDancerDetailAction(input: {
       return buildDancerActionError(result.message, result.fieldErrors, values);
     }
 
-    throw redirect(
-      buildDetailNotificationHref(
-        input.request.url,
-        dancerId,
-        intent === "archive-dancer"
-          ? "bailarin-archivado"
-          : "bailarin-reactivado",
-      ),
+    return buildDancerActionSuccess(
+      intent === "archive-dancer"
+        ? "bailarin-archivado"
+        : "bailarin-reactivado",
     );
   }
 
@@ -130,13 +126,7 @@ export async function handleAdministrativeDancerDetailAction(input: {
       selectedEventId: eventContext.selectedEventId,
     });
 
-    throw redirect(
-      buildDetailNotificationHref(
-        input.request.url,
-        dancerId,
-        "bailarin-verificado",
-      ),
-    );
+    return buildDancerActionSuccess("bailarin-verificado");
   }
 
   const submittedValues = readDancerUpdateValues(formData);
@@ -172,14 +162,10 @@ export async function handleAdministrativeDancerDetailAction(input: {
     );
   }
 
-  throw redirect(
-    buildDetailNotificationHref(
-      input.request.url,
-      dancerId,
-      result.verificationInvalidated
-        ? "bailarin-guardado-requiere-verificacion"
-        : "bailarin-guardado",
-    ),
+  return buildDancerActionSuccess(
+    result.verificationInvalidated
+      ? "bailarin-guardado-requiere-verificacion"
+      : "bailarin-guardado",
   );
 }
 

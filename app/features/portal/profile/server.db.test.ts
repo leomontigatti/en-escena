@@ -10,7 +10,6 @@ import {
 import {
   createAcademySession,
   createPortalPostRequest,
-  expectThrownResponse,
 } from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -41,30 +40,28 @@ describe.sequential("portal profile server", () => {
     });
   });
 
-  test("updates the current academy contact profile and redirects with notification", async () => {
+  test("updates the current academy contact profile and stays with a success toast", async () => {
     const session = await createAcademySession({
       email: "perfil.update@example.com",
       academyName: "Academia Original",
     });
 
-    const response = await expectThrownResponse(
-      handlePortalProfileAction(
-        createPortalPostRequest(
-          "http://localhost/portal/perfil",
-          session.cookie,
-          academyProfileFormData({
-            name: " Academia Manipulada ",
-            contactName: " responsable nueva ",
-            phone: "1199990000",
-          }),
-        ),
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: " Academia Manipulada ",
+          contactName: " responsable nueva ",
+          phone: "1199990000",
+        }),
       ),
-      302,
     );
 
-    expect(response.headers.get("Location")).toBe(
-      "/portal/perfil?notificacion=perfil-guardado",
-    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Perfil guardado.",
+    });
 
     await expect(
       db.query.academies.findFirst({

@@ -18,6 +18,10 @@ export const emptyProfessorValues: CreateProfessorFormValues = {
 
 export type CreateProfessorActionData =
   | {
+      status: "success";
+      message: string;
+    }
+  | {
       status: "error";
       fieldErrors: Partial<Record<keyof CreateProfessorFormValues, string>>;
       values: CreateProfessorFormValues;

@@ -1,17 +1,14 @@
-import { redirect } from "react-router";
 import { z } from "zod";
 
 import {
   createDancerForAcademy,
   type CreateDancerInput,
 } from "@/lib/portal/dancers.server";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   createDancerSchema,
   type CreateDancerFormValues,
 } from "@/features/portal/dancers/create/shared";
-
-const createDancerSuccessRedirect =
-  "/portal/bailarines?notificacion=bailarin-creado";
 
 export async function handleCreateDancerAction({
   academyId,
@@ -47,7 +44,10 @@ export async function handleCreateDancerAction({
     };
   }
 
-  throw redirect(createDancerSuccessRedirect);
+  return {
+    status: "success" as const,
+    message: notificationToasts["bailarin-creado"].message,
+  };
 }
 
 function formValue(formData: FormData, fieldName: keyof CreateDancerInput) {

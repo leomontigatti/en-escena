@@ -31,6 +31,7 @@ import {
   createSignedInAdminRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -152,14 +153,11 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(response).toBeInstanceOf(Response);
-    if (!(response instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `/administracion/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
     await expect(
       db.query.choreographies.findFirst({
         columns: { name: true },
@@ -234,9 +232,11 @@ describe("administrative choreography detail server", () => {
       throw new Error("Expected redirect response.");
     }
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/administracion/coreografias?notificacion=coreografia-eliminada",
-    );
+    await expectFlashRedirect(response, "/administracion/coreografias", {
+      id: "route-notification:coreografia-eliminada",
+      message: "Coreografía eliminada.",
+      variant: "success",
+    });
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
@@ -330,14 +330,11 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(response).toBeInstanceOf(Response);
-    if (!(response instanceof Response)) {
-      throw new Error("Expected redirect response.");
-    }
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `/administracion/coreografias/${choreography.id}?notificacion=coreografia-guardada`,
-    );
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
 
     const stored = await db.query.choreographies.findFirst({
       columns: { submodalityId: true, updatedAt: true },

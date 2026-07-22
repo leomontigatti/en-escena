@@ -6,9 +6,11 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
-import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+import {
+  notificationToasts,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 
-const routeNotificationSearchParam = "notificacion";
 const temporaryPasswordMinLength = 8;
 
 const updateInternalUserFieldNames = ["name", "email", "role"] as const;
@@ -104,6 +106,13 @@ export type DetailActionData = {
   resetPasswordValues: ResetPasswordFormValues;
 };
 
+export type DetailSuccessData = {
+  status: "success";
+  message: string;
+};
+
+export type DetailViewActionData = DetailActionData | DetailSuccessData;
+
 const emptyEditValues: UpdateInternalUserFormValues = {
   name: "",
   email: "",
@@ -159,7 +168,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export type UserRouteNotification = Extract<
-  RouteNotificationKey,
+  NotificationKey,
   | "usuario-interno-actualizado"
   | "usuario-interno-reactivado"
   | "usuario-interno-restablecido"
@@ -206,24 +215,22 @@ export function buildModeHref(
   return buildUserDetailPath(userId, nextSearchParams);
 }
 
-export function buildNotificationDetailHref(
-  requestUrl: string,
-  userId: string,
+// La edición en el lugar del detalle no redirige: retorna
+// `{ status: "success", message }`, el loader revalida y la vista dispara el
+// toast directo desde `actionData`. Ver docs/agents/form-feedback.md.
+export function buildDetailActionSuccess(
   notification: UserRouteNotification,
-) {
-  const url = new URL(requestUrl);
-  const searchParams = sanitizeUserDetailSearchParams(url.searchParams);
-
-  searchParams.set(routeNotificationSearchParam, notification);
-
-  return buildUserDetailPath(userId, searchParams);
+): DetailSuccessData {
+  return {
+    status: "success",
+    message: notificationToasts[notification].message,
+  };
 }
 
 function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
   const nextSearchParams = new URLSearchParams(searchParams);
 
   nextSearchParams.delete("modo");
-  nextSearchParams.delete(routeNotificationSearchParam);
   nextSearchParams.delete("guardado");
   nextSearchParams.delete("tipoGuardado");
 

@@ -33,10 +33,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
-import {
-  expectPersistedDancer,
-  expectPersonDetailRedirect,
-} from "@/lib/test-support/person-detail-db-assertions";
+import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -748,28 +745,25 @@ describe.sequential("administracion/bailarines route", () => {
       requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
     });
 
-    const response = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "update-dancer",
-            firstName: "  maría del carmen ",
-            lastName: " de la cruz ",
-            birthDate: "2012-05-06",
-            documentType: "dni",
-            documentNumber: "12.345-678",
-            correctionReason: "",
-          }),
-          dancer.id,
-        ),
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "  maría del carmen ",
+          lastName: " de la cruz ",
+          birthDate: "2012-05-06",
+          documentType: "dni",
+          documentNumber: "12.345-678",
+          correctionReason: "",
+        }),
+        dancer.id,
       ),
-      302,
     );
 
-    expectPersonDetailRedirect(
-      response,
-      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado`,
-    );
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Bailarín guardado.",
+    });
     await expectPersistedDancer(dancer.id, {
       firstName: "María del Carmen",
       lastName: "de la Cruz",
@@ -1078,23 +1072,22 @@ describe.sequential("administracion/bailarines route", () => {
       requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
     });
 
-    await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "update-dancer",
-            firstName: "Nina",
-            lastName: "Fecha",
-            birthDate: "2011-05-01",
-            documentType: "",
-            documentNumber: "",
-            correctionReason: "Corrección manual para alinear el legajo.",
-          }),
-          dancer.id,
-        ),
+    const ninaResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Nina",
+          lastName: "Fecha",
+          birthDate: "2011-05-01",
+          documentType: "",
+          documentNumber: "",
+          correctionReason: "Corrección manual para alinear el legajo.",
+        }),
+        dancer.id,
       ),
-      302,
     );
+
+    expect(ninaResult).toMatchObject({ status: "success" });
 
     await expect(
       db.query.choreographyDancers.findFirst({
@@ -1220,24 +1213,23 @@ describe.sequential("administracion/bailarines route", () => {
       requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
     });
 
-    await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "update-dancer",
-            firstName: "Lila",
-            lastName: "Umbral",
-            birthDate: "2014-02-20",
-            documentType: "",
-            documentNumber: "",
-            correctionReason:
-              "Corrección administrativa sin impacto competitivo.",
-          }),
-          dancer.id,
-        ),
+    const lilaResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Lila",
+          lastName: "Umbral",
+          birthDate: "2014-02-20",
+          documentType: "",
+          documentNumber: "",
+          correctionReason:
+            "Corrección administrativa sin impacto competitivo.",
+        }),
+        dancer.id,
       ),
-      302,
     );
+
+    expect(lilaResult).toMatchObject({ status: "success" });
 
     await expect(
       db.query.choreographies.findFirst({
@@ -1322,22 +1314,19 @@ describe.sequential("administracion/bailarines route", () => {
     expect(readOnlyMarkup).not.toContain("Para verificar");
     expect(readOnlyMarkup).toContain("Verificar");
 
-    const verifyResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "verify-dancer-identity",
-          }),
-          dancer.id,
-        ),
+    const verifyResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "verify-dancer-identity",
+        }),
+        dancer.id,
       ),
-      302,
     );
 
-    expectPersonDetailRedirect(
-      verifyResponse,
-      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-verificado`,
-    );
+    expect(verifyResult).toMatchObject({
+      status: "success",
+      message: "Bailarín verificado.",
+    });
     await expectPersistedDancer(dancer.id, {
       identityVerifiedAt: expect.any(Date),
     });
@@ -1397,34 +1386,31 @@ describe.sequential("administracion/bailarines route", () => {
       },
     });
 
-    const editResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            verifiedRequestUrl,
-            request.headers.get("cookie") ?? "",
-            {
-              intent: "update-dancer",
-              firstName: "Paula",
-              lastName: "Pendiente",
-              birthDate: "2012-06-12",
-              documentType: "dni",
-              documentNumber: "12345678",
-              documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
-              documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
-              correctionReason:
-                "Corrección administrativa de datos del documento.",
-            },
-          ),
-          dancer.id,
+    const editResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          verifiedRequestUrl,
+          request.headers.get("cookie") ?? "",
+          {
+            intent: "update-dancer",
+            firstName: "Paula",
+            lastName: "Pendiente",
+            birthDate: "2012-06-12",
+            documentType: "dni",
+            documentNumber: "12345678",
+            documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
+            documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
+            correctionReason:
+              "Corrección administrativa de datos del documento.",
+          },
         ),
+        dancer.id,
       ),
-      302,
     );
-    expectPersonDetailRedirect(
-      editResponse,
-      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-guardado-requiere-verificacion`,
-    );
+    expect(editResult).toMatchObject({
+      status: "success",
+      message: "Bailarín guardado. La identidad volvió a no verificado.",
+    });
 
     await expectPersistedDancer(dancer.id, {
       documentFrontImageStorageKey: "dancers/paula-front.jpg",
@@ -1497,23 +1483,20 @@ describe.sequential("administracion/bailarines route", () => {
       requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
     });
 
-    const archiveResponse = await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-            intent: "archive-dancer",
-            correctionReason: "Corrección manual por soporte.",
-          }),
-          dancer.id,
-        ),
+    const archiveResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "archive-dancer",
+          correctionReason: "Corrección manual por soporte.",
+        }),
+        dancer.id,
       ),
-      302,
     );
 
-    expectPersonDetailRedirect(
-      archiveResponse,
-      `/administracion/bailarines/${dancer.id}?notificacion=bailarin-archivado`,
-    );
+    expect(archiveResult).toMatchObject({
+      status: "success",
+      message: "Bailarín archivado.",
+    });
     await expectPersistedDancer(dancer.id, { active: false });
 
     const archivedDetail = await detailLoader(
@@ -1530,23 +1513,24 @@ describe.sequential("administracion/bailarines route", () => {
         .where(eq(choreographyDancers.dancerId, dancer.id)),
     ).resolves.toHaveLength(1);
 
-    await expectThrownResponse(
-      detailAction(
-        detailActionArgs(
-          createPostRequest(
-            `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
-            request.headers.get("cookie") ?? "",
-            {
-              intent: "reactivate-dancer",
-              correctionReason: "Reactivación operativa por soporte.",
-            },
-          ),
-          dancer.id,
+    const reactivateResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+          request.headers.get("cookie") ?? "",
+          {
+            intent: "reactivate-dancer",
+            correctionReason: "Reactivación operativa por soporte.",
+          },
         ),
+        dancer.id,
       ),
-      302,
     );
 
+    expect(reactivateResult).toMatchObject({
+      status: "success",
+      message: "Bailarín reactivado.",
+    });
     await expectPersistedDancer(dancer.id, { active: true });
     await expect(
       db

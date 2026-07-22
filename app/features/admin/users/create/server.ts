@@ -1,7 +1,6 @@
-import { redirect } from "react-router";
-
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 import {
   createInternalUserSchema,
@@ -53,7 +52,8 @@ export async function action({ request }: { request: Request }) {
     };
   }
 
-  throw redirect(
-    "/administracion/usuarios/nuevo?notificacion=usuario-interno-creado",
+  throw await redirectWithFlashNotification(
+    `/administracion/usuarios/${result.userId}`,
+    "usuario-interno-creado",
   );
 }

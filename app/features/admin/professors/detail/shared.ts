@@ -7,7 +7,10 @@ import type {
   findAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import type { RouteNotificationKey } from "@/lib/shared/route-notification-toasts";
+import {
+  notificationToasts,
+  type NotificationKey,
+} from "@/lib/shared/notification-toasts";
 
 const correctionReasonMaxLength = 500;
 const correctionReasonMinLength = 10;
@@ -49,8 +52,17 @@ export type ProfessorActionError = {
   values: AdministrativeProfessorUpdateInput | ProfessorReasonFormValues;
 };
 
+export type ProfessorActionSuccess = {
+  status: "success";
+  message: string;
+};
+
+export type ProfessorDetailActionData =
+  | ProfessorActionError
+  | ProfessorActionSuccess;
+
 export type ProfessorRouteNotification = Extract<
-  RouteNotificationKey,
+  NotificationKey,
   "profesor-archivado" | "profesor-guardado" | "profesor-reactivado"
 >;
 
@@ -142,7 +154,6 @@ export function buildBackToListHref(requestUrl: string) {
 
   searchParams.delete("modo");
   searchParams.delete("evento");
-  searchParams.delete("notificacion");
   const search = searchParams.toString();
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
@@ -152,7 +163,6 @@ export function buildModeHref(url: URL, mode: "editar" | null) {
   const searchParams = new URLSearchParams(url.search);
 
   searchParams.delete("evento");
-  searchParams.delete("notificacion");
 
   if (mode === null) {
     searchParams.delete("modo");
@@ -167,20 +177,16 @@ export function buildModeHref(url: URL, mode: "editar" | null) {
   }`;
 }
 
-export function buildDetailNotificationHref(
-  requestUrl: string,
-  professorId: string,
+// La edición en el lugar del detalle no redirige: retorna
+// `{ status: "success", message }`, el loader revalida y la vista dispara el
+// toast directo desde `actionData`. Ver docs/agents/form-feedback.md.
+export function buildProfessorActionSuccess(
   notification: ProfessorRouteNotification,
-) {
-  const url = new URL(requestUrl);
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("modo");
-  searchParams.delete("evento");
-  searchParams.delete("notificacion");
-  searchParams.set("notificacion", notification);
-
-  return `/administracion/profesores/${professorId}?${searchParams.toString()}`;
+): ProfessorActionSuccess {
+  return {
+    status: "success",
+    message: notificationToasts[notification].message,
+  };
 }
 
 export function readProfessorReasonValues(

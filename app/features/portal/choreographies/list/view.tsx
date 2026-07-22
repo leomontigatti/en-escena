@@ -23,7 +23,8 @@ import {
   formatOperationalStatusLabel,
   type ChoreographyListItem,
 } from "@/lib/portal/choreographies";
-import { showRouteNotificationToast } from "@/lib/shared/route-notification-toasts";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { showToastMessage } from "@/lib/shared/toasts";
 
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
@@ -50,7 +51,7 @@ export function PortalChoreographiesListRouteView({
 
   useEffect(() => {
     if (created) {
-      showRouteNotificationToast("coreografia-creada");
+      showToastMessage(notificationToasts["coreografia-creada"]);
     }
   }, [created]);
 
