@@ -187,7 +187,7 @@ jobs:
 
       - name: Run implement-prd runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 25 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
         env:
           # No GH_TOKEN: the runner is token-less (§3.9); bodies are prefetched.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -196,7 +196,7 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: pnpm exec tsx .sandcastle/agent-implement-prd/implement-prd.mts
 
-      # --- On runner failure (e.g. the 25-min timeout): bank the green commits
+      # --- On runner failure (e.g. the runner timeout): bank the green commits
       # the agent added this run to the shared branch, so a timeout doesn't
       # discard the in-flight sub-issue's progress. Plain push (never force) —
       # it only appends to the accumulating branch. Because the branch RESUMES,
