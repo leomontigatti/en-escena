@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import {
-  createLocalAccessRequestCookie,
-  createLocalAccessUser,
-} from "@/lib/auth/access-test-auth.server";
+  createAccessRequestCookie,
+  createAccessUser,
+} from "@/lib/auth/access-auth.test-support";
 
 async function createAcademyUser(input: {
   academyName: string;
@@ -14,7 +14,7 @@ async function createAcademyUser(input: {
   phone?: string;
   suspended?: boolean;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: "password-segura",
@@ -42,7 +42,7 @@ async function createAcademyUser(input: {
   return {
     academy,
     academyId: academy.id,
-    cookie: createLocalAccessRequestCookie(signUpResult.headers),
+    cookie: createAccessRequestCookie(signUpResult.headers),
     headers: signUpResult.headers,
     userId: signUpResult.response.user.id,
   };

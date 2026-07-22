@@ -4,10 +4,10 @@ import { redirect } from "react-router";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { upsertBetterAuthCredentialPassword } from "@/lib/auth/access-auth-provider.betterauth.server";
 import { MANDATORY_PASSWORD_CHANGE_PATH } from "@/lib/auth/access-paths.shared";
 import {
   revokeOtherAccessSessions,
-  setInternalCredentialPassword,
   verifyInternalCredentialPassword,
 } from "@/lib/auth/internal-user-auth.server";
 import { getLandingPathForUserId } from "@/lib/auth/internal-navigation.server";
@@ -48,7 +48,10 @@ export async function completeMandatoryPasswordChange(input: {
     };
   }
 
-  await setInternalCredentialPassword({
+  // Cambio de contraseña propio (no es una operación de admin): actualiza la
+  // credencial directamente con el hasher de Better Auth, sin pasar por el admin
+  // plugin (que exige una sesión de admin).
+  await upsertBetterAuthCredentialPassword({
     password: input.newPassword,
     userId: appUser.id,
   });
@@ -62,7 +65,6 @@ export async function completeMandatoryPasswordChange(input: {
 
   await revokeOtherAccessSessions({
     currentSessionId: currentSession.id,
-    request: input.request,
     userId: appUser.id,
   });
 

@@ -25,6 +25,14 @@ export const user = createTable("user", {
     .notNull()
     .default(false),
   suspended: boolean("suspended").notNull().default(false),
+  // Metadata del baneo del admin plugin de Better Auth (#423). El estado
+  // `banned` se mapea a la columna `suspended` (misma noción de dominio); acá
+  // solo viven la razón y el vencimiento que `banUser`/`unbanUser` escriben.
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", {
+    mode: "date",
+    withTimezone: true,
+  }),
   sessionInvalidBefore: timestamp("session_invalid_before", {
     mode: "date",
     withTimezone: true,
@@ -76,17 +84,35 @@ export const accessSession = createTable(
   (table) => [index("access_session_user_id_idx").on(table.userId)],
 ).enableRLS();
 
-export const accessCredential = createTable(
-  "access_credential",
+// Tabla `account` con la forma canónica de Better Auth. Reemplaza a
+// `access_credential`: para credenciales locales, `provider_id = 'credential'`,
+// `account_id = user_id` y `password` guarda el hash. Las columnas OAuth se
+// incluyen de una para no re-migrar cuando lleguen providers externos (#297).
+export const account = createTable(
+  "account",
   {
     id: varchar("id", { length: 255 })
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    passwordHash: text("password_hash").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -100,7 +126,38 @@ export const accessCredential = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("access_credential_user_id_unique").on(table.userId)],
+  (table) => [index("account_user_id_idx").on(table.userId)],
+).enableRLS();
+
+// Tabla `verification` de Better Auth: tokens de verificación de email y de
+// reset de contraseña (`identifier` → `value`, con expiración).
+export const verification = createTable(
+  "verification",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
 ).enableRLS();
 
 export const internalUserInvitations = createTable(

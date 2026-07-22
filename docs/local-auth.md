@@ -19,9 +19,10 @@ SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
 SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
 APP_URL="http://localhost:5173"
-SEND_EMAIL_HOOK_SECRET="v1,whsec_your-supabase-send-email-hook-secret"
+BETTER_AUTH_SECRET="<a-long-random-better-auth-secret>"
+BETTER_AUTH_URL="http://localhost:5173"
 EMAIL_FROM="En Escena <acceso@example.com>"
-EMAIL_PROVIDER="brevo"
+EMAIL_PROVIDER="resend"
 BREVO_API_KEY=""
 RESEND_API_KEY=""
 ```
@@ -36,10 +37,12 @@ RESEND_API_KEY=""
 - `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
   create or delete access users and other server-side Supabase Auth operations.
   Keep it server-only.
-- `APP_URL` is the canonical app origin used by auth emails when Supabase does
-  not include an explicit redirect URL in the hook payload.
-- `SEND_EMAIL_HOOK_SECRET` verifies the Supabase Send Email Auth Hook request
-  signature.
+- `APP_URL` is the canonical app origin, used as the fallback base URL for auth
+  email links when a request URL is not available.
+- `BETTER_AUTH_SECRET` signs Better Auth sessions and the recovery-token cookie.
+  Use a long random value per environment.
+- `BETTER_AUTH_URL` is the `baseURL` Better Auth uses to build its endpoints and
+  email links. It defaults to `APP_URL` when unset.
 - `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
   required when `NODE_ENV=production`. Leave provider keys empty for local
   development.
@@ -132,14 +135,14 @@ pnpm dev
 The main local auth routes are:
 
 - `/registro`: start a public academy registration with email and password.
-- `/registro/confirmar?token_hash=...&type=signup`: verify the Supabase email
+- `/registro/confirmar?token_hash=...&type=signup`: verify the academy email
   confirmation link and start the academy onboarding session.
 - `/registro/academia`: complete academy onboarding after the email was
   confirmed.
 - `/ingresar`: sign in with email and password.
 - `/recuperar-acceso`: request an access recovery email.
-- `/cambiar-contrasena?code=...`: complete the Supabase Auth academy recovery
-  flow after following the emailed link.
+- `/cambiar-contrasena?code=...`: complete the academy recovery flow after
+  following the emailed link.
 - `/invitacion/:token`: complete an internal user invitation.
 
 ## Local Email
@@ -149,16 +152,18 @@ server console with an `[email:dev]` prefix and does not require provider
 credentials.
 
 Invitation links are built from the incoming request URL. Public academy
-registration confirmation and recovery emails are sent by Supabase Auth, so
-local verification of those flows depends on the target Supabase project and
-its configured redirect URLs. With the default dev server, test registration
-locally with this flow:
+registration confirmation and recovery emails are now app-owned through Better
+Auth (#420): the app builds the Spanish content and sends it via
+`app/lib/shared/email.server.ts`, so in non-production the link is printed to the
+server console with the `[email:dev]` prefix. Test registration locally with this
+flow:
 
 1. Run `pnpm dev`.
 2. Open `http://localhost:5173/registro`.
 3. Submit an email address plus password.
-4. Open the Supabase confirmation email for that project.
-5. Follow the `/registro/confirmar?...` link and complete the academy form.
+4. Copy the `/registro/confirmar?token_hash=...&type=signup` link from the
+   `[email:dev]` console log.
+5. Follow that link and complete the academy form.
 
 The same console logging pattern still applies to internal invitation emails.
 
@@ -189,34 +194,33 @@ RESEND_API_KEY="re_..."
 EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 ```
 
-`EMAIL_FROM` must use an address on the verified Resend sending domain.
-Internal invitation emails use this sender.
+`EMAIL_FROM` must use an address on the verified Resend sending domain. Both the
+internal invitation emails and the Better Auth registration/recovery emails use
+this sender.
 
-Supabase Auth registration and recovery emails should use the app-owned Send
-Email Auth Hook instead of Supabase Custom SMTP. Configure Supabase Auth Hooks:
+Registration and recovery emails are app-owned through Better Auth (#420): the
+app builds the Spanish content and sends it through the email boundary. The
+Supabase `Send Email` Auth Hook and its `SEND_EMAIL_HOOK_SECRET` are retired.
+The emails link to:
 
-- Hook: `Send Email`
-- Method: HTTPS
-- URL: `<deployed-app-origin>/auth/hooks/send-email`
-- Secret: copy the generated hook secret into `SEND_EMAIL_HOOK_SECRET`
-- Keep `EMAIL_PROVIDER`, `EMAIL_FROM`, and the selected provider API key
-  configured in the app environment.
+- signup confirmation: `/registro/confirmar?token_hash=...&type=signup`
+- recovery: `/cambiar-contrasena?code=...`
 
-The hook verifies the Standard Webhooks signature from Supabase and sends
-registration/recovery email through the app email boundary. It currently handles:
+## Supabase user reconciliation
 
-- `signup`: sends `/registro/confirmar?token_hash=...&type=signup`
-- `recovery`: sends `/cambiar-contrasena?token_hash=...&type=recovery`
+During the auth cutover, `user.id` already mirrors the Supabase `auth.users`
+UUIDs (populated lazily). To backfill any confirmed Supabase identity that never
+got a `user` row, run the one-off reconciliation against the cutover database
+(where both schemas still coexist):
 
-Configure these Supabase Auth dashboard values for academy registration and
-recovery:
+```sh
+pnpm auth:reconcile-supabase-users
+```
 
-- Redirect URLs must include each deployed `/cambiar-contrasena` URL that can
-  receive password recovery links, plus `http://localhost:5173/cambiar-contrasena`
-  for local development.
-- Redirect URLs must include each deployed `/registro/confirmar` URL that can
-  receive public academy signup confirmation links, plus
-  `http://localhost:5173/registro/confirmar` for local development.
+It compares `count(auth.users)` with `count(user)` and inserts a `user` row for
+each `auth.users` email missing in `user`, reusing the Supabase UUID as `user.id`.
+It does **not** reimport passwords or pre-create `account` rows — credentials
+migrate through reactive password reset (research #364). The script is idempotent.
 
 ## Access Auth Scope
 

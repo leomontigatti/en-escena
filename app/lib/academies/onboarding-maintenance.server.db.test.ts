@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { listIncompleteAcademyOnboardingUsers } from "@/lib/academies/onboarding-maintenance.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -12,12 +12,12 @@ installDatabaseTestHooks();
 
 describe("academy onboarding maintenance", () => {
   test("lists confirmed academy users without an Academia and skips completed onboarding", async () => {
-    const pending = await createLocalAccessUser({
+    const pending = await createAccessUser({
       email: "pendiente.mantenimiento@example.com",
       name: "pendiente.mantenimiento@example.com",
       password: "password-segura",
     });
-    const completed = await createLocalAccessUser({
+    const completed = await createAccessUser({
       email: "completa.mantenimiento@example.com",
       name: "completa.mantenimiento@example.com",
       password: "password-segura",
@@ -49,12 +49,12 @@ describe("academy onboarding maintenance", () => {
   });
 
   test("can limit incomplete onboarding users to older confirmed identities", async () => {
-    const older = await createLocalAccessUser({
+    const older = await createAccessUser({
       email: "antigua.mantenimiento@example.com",
       name: "antigua.mantenimiento@example.com",
       password: "password-segura",
     });
-    const recent = await createLocalAccessUser({
+    const recent = await createAccessUser({
       email: "reciente.mantenimiento@example.com",
       name: "reciente.mantenimiento@example.com",
       password: "password-segura",

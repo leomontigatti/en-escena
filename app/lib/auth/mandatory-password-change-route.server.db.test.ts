@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as changePasswordAction } from "@/routes/cambiar-contrasena";
 import { action as signInAction } from "@/routes/ingresar";
@@ -92,7 +92,7 @@ async function createInternalSessionState(input: {
   internalUsername: string;
   password: string;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: input.password,
@@ -162,7 +162,7 @@ function createSignInRequest(input: { identifier: string; password: string }) {
 }
 
 function createRequestCookie(headers: Headers) {
-  return `sb-access-token=${extractSignedSessionCookie(headers)}`;
+  return `better-auth.session_token=${extractSignedSessionCookie(headers)}`;
 }
 
 function extractDatabaseSessionToken(headers: Headers) {
@@ -171,7 +171,7 @@ function extractDatabaseSessionToken(headers: Headers) {
 
 function extractSignedSessionCookie(headers: Headers) {
   const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie?.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error(

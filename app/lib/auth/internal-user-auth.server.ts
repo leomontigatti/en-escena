@@ -1,14 +1,11 @@
 import { and, eq, ne } from "drizzle-orm";
-import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { accessSession } from "@/db/schema";
 import {
-  createLocalAccessUser,
-  upsertLocalAccessPassword,
-  verifyLocalAccessPassword,
-} from "@/lib/auth/access-test-auth.server";
-import { createSupabaseServerClientForRequest } from "@/lib/auth/supabase-auth-ssr.server";
+  auth,
+  verifyBetterAuthCredentialPassword,
+} from "@/lib/auth/access-auth-provider.betterauth.server";
 
 type InternalCredentialUserInput = {
   email: string;
@@ -27,188 +24,98 @@ type VerifyInternalCredentialPasswordInput = {
 };
 
 type RevokeOtherAccessSessionsInput = {
-  request: Request;
   userId: string;
   currentSessionId: string;
 };
 
+// Alta server-side de un interno vía el admin plugin de Better Auth (#423). Sin
+// sesión: `createUser` corre en el servidor con el email ya confirmado
+// (`data.emailVerified`, parity con el `email_confirm: true` de Supabase). El
+// rol real lo asigna el alta de internos (`internal-user-create.server.ts`); acá
+// queda el `defaultRole` del plugin.
 export async function createInternalCredentialUser(
   input: InternalCredentialUserInput,
 ) {
-  if (isTestAccessAuthMode()) {
-    const result = await createLocalAccessUser({
+  const { user } = await auth.api.createUser({
+    body: {
       email: input.email,
       name: input.name,
       password: input.password,
-    });
-
-    return { userId: result.response.user.id };
-  }
-
-  const client = createSupabaseAdminClient();
-  const { data, error } = await client.auth.admin.createUser({
-    email: input.email,
-    email_confirm: true,
-    password: input.password,
-    user_metadata: {
-      name: input.name,
+      data: { emailVerified: true },
     },
   });
 
-  if (error || !data.user?.id) {
-    throw error ?? new Error("Supabase internal user creation failed.");
-  }
-
-  return { userId: data.user.id };
+  return { userId: user.id };
 }
 
+// Rollback del alta de internos: borra el usuario (y sus sesiones/cuentas por
+// cascada de FK) usando el `internalAdapter` del contexto de Better Auth. No hay
+// sesión de admin en el camino de rollback, así que no pasa por `removeUser`.
 export async function deleteInternalCredentialUser(userId: string) {
-  if (isTestAccessAuthMode()) {
-    return;
-  }
-
-  const { error } =
-    await createSupabaseAdminClient().auth.admin.deleteUser(userId);
-
-  if (error) {
-    throw error;
-  }
+  const ctx = await auth.$context;
+  await ctx.internalAdapter.deleteUser(userId);
 }
 
+// Reset de contraseña desde el panel: `setUserPassword` del admin plugin con los
+// `headers` de la sesión del admin, que Better Auth exige para autorizar la
+// operación (research #369). El cambio de contraseña propio (obligatorio) no
+// pasa por acá: usa `upsertBetterAuthCredentialPassword` directo.
 export async function setInternalCredentialPassword(
   input: InternalCredentialPasswordInput,
+  adminHeaders: Headers,
 ) {
-  if (isTestAccessAuthMode()) {
-    await upsertLocalAccessPassword(input);
-    return;
-  }
-
-  const { error } = await createSupabaseAdminClient().auth.admin.updateUserById(
-    input.userId,
-    { password: input.password },
-  );
-
-  if (error) {
-    throw error;
-  }
+  await auth.api.setUserPassword({
+    body: {
+      newPassword: input.password,
+      userId: input.userId,
+    },
+    headers: adminHeaders,
+  });
 }
 
 export async function verifyInternalCredentialPassword(
   input: VerifyInternalCredentialPasswordInput,
 ) {
-  if (isTestAccessAuthMode()) {
-    return verifyLocalAccessPassword(input);
-  }
-
-  const client = createStatelessSupabaseAuthClient();
-  const { data, error } = await client.auth.signInWithPassword({
-    email: input.email,
-    password: input.password,
-  });
-
-  if (error || !data.session) {
-    return false;
-  }
-
-  const signOutResult = await client.auth.signOut({ scope: "global" });
-
-  if (signOutResult.error) {
-    throw signOutResult.error;
-  }
-
-  return true;
+  return verifyBetterAuthCredentialPassword(input);
 }
 
 export async function revokeInternalCredentialSessions(userId: string) {
-  if (isTestAccessAuthMode()) {
-    await db.delete(accessSession).where(eq(accessSession.userId, userId));
-  }
+  await db.delete(accessSession).where(eq(accessSession.userId, userId));
 }
 
 export async function revokeOtherAccessSessions(
   input: RevokeOtherAccessSessionsInput,
 ) {
-  if (isTestAccessAuthMode()) {
-    await db
-      .delete(accessSession)
-      .where(
-        and(
-          eq(accessSession.userId, input.userId),
-          ne(accessSession.id, input.currentSessionId),
-        ),
-      );
-    return;
-  }
-
-  const { client } = createSupabaseServerClientForRequest(input.request);
-  const { error } = await client.auth.signOut({ scope: "others" });
-
-  if (error) {
-    throw error;
-  }
+  await db
+    .delete(accessSession)
+    .where(
+      and(
+        eq(accessSession.userId, input.userId),
+        ne(accessSession.id, input.currentSessionId),
+      ),
+    );
 }
 
-export async function setInternalCredentialSuspendedState(input: {
-  suspended: boolean;
-  userId: string;
-}) {
-  if (isTestAccessAuthMode()) {
-    return;
-  }
-
-  const { error } = await createSupabaseAdminClient().auth.admin.updateUserById(
-    input.userId,
-    {
-      ban_duration: input.suspended ? "876000h" : "none",
-    },
-  );
-
-  if (error) {
-    throw error;
-  }
-}
-
-function createSupabaseAdminClient() {
-  return createClient(
-    getRequiredSupabaseEnv("SUPABASE_URL"),
-    getRequiredSupabaseEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    },
-  );
-}
-
-function createStatelessSupabaseAuthClient() {
-  return createClient(
-    getRequiredSupabaseEnv("SUPABASE_URL"),
-    getRequiredSupabaseEnv("SUPABASE_PUBLISHABLE_KEY"),
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    },
-  );
-}
-
-function getRequiredSupabaseEnv(
-  name:
-    | "SUPABASE_PUBLISHABLE_KEY"
-    | "SUPABASE_SERVICE_ROLE_KEY"
-    | "SUPABASE_URL",
+// Suspensión (= `banned` de Better Auth) desde el panel: `banUser`/`unbanUser`
+// del admin plugin con los `headers` de la sesión del admin. `banUser` marca la
+// columna `suspended` y revoca las sesiones del interno; `unbanUser` la limpia.
+export async function setInternalCredentialSuspendedState(
+  input: {
+    suspended: boolean;
+    userId: string;
+  },
+  adminHeaders: Headers,
 ) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is required for Supabase internal auth.`);
+  if (input.suspended) {
+    await auth.api.banUser({
+      body: { userId: input.userId },
+      headers: adminHeaders,
+    });
+    return;
   }
 
-  return value;
-}
-
-function isTestAccessAuthMode() {
-  return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+  await auth.api.unbanUser({
+    body: { userId: input.userId },
+    headers: adminHeaders,
+  });
 }

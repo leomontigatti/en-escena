@@ -77,13 +77,13 @@ export function createRequestCookie(headers: Headers) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  return `sb-access-token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 export async function expectThrownResponse(

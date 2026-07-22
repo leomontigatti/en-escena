@@ -18,6 +18,7 @@ type ResetInternalUserPasswordInput = {
   temporaryPassword: string;
   targetUserId: string;
   updatedByUserId: string;
+  adminHeaders: Headers;
 };
 
 type ResetInternalUserPasswordResult =
@@ -103,10 +104,13 @@ export async function resetInternalUserPassword(
   };
 
   try {
-    await setInternalCredentialPassword({
-      password: input.temporaryPassword,
-      userId: existingUser.id,
-    });
+    await setInternalCredentialPassword(
+      {
+        password: input.temporaryPassword,
+        userId: existingUser.id,
+      },
+      input.adminHeaders,
+    );
   } catch {
     return resetPasswordError(
       "No pudimos actualizar la contraseña de este Usuario.",

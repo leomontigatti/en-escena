@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { createLocalAccessUser } from "@/lib/auth/access-test-auth.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import {
   requireAcademyUser,
   requireAdminUser,
@@ -36,7 +36,7 @@ describe("internal access authorization", () => {
       requireSignedInUser(
         new Request("http://localhost/administracion", {
           headers: {
-            cookie: "sb-access-token=sesion-invalida",
+            cookie: "better-auth.session_token=sesion-invalida",
           },
         }),
       ),
@@ -228,7 +228,7 @@ async function createSignedInRequest(input: {
   role: "academy" | InternalUserRole;
   requiresPasswordChange?: boolean;
 }) {
-  const signUpResult = await createLocalAccessUser({
+  const signUpResult = await createAccessUser({
     email: input.email,
     name: input.email,
     password: "password-segura",
@@ -270,7 +270,7 @@ function createRequestCookie(headers: Headers) {
     throw new Error("Expected access auth to return a session cookie.");
   }
 
-  const sessionCookie = setCookie.match(/sb-access-token=([^;]+)/);
+  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
 
   if (!sessionCookie?.[1]) {
     throw new Error(
@@ -278,7 +278,7 @@ function createRequestCookie(headers: Headers) {
     );
   }
 
-  return `sb-access-token=${sessionCookie[1]}`;
+  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {
