@@ -24,13 +24,6 @@ type PersistedProfessor = {
   lastName?: string;
 };
 
-export function expectPersonDetailRedirect(
-  response: Response,
-  location: string,
-) {
-  expect(response.headers.get("location")).toBe(location);
-}
-
 export async function expectPersistedDancer(
   dancerId: string,
   expected: PersistedDancer,
