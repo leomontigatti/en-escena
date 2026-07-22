@@ -9,11 +9,12 @@ ticket [Vendorizar el spec AFK + prompts + skill do-work](https://github.com/leo
 
 ## Qué se trajo
 
-| Asset                                           | Local                                                        | Fuente                                                  |
-| ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| Spec de los 8 workflows                         | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md) | `docs/agents/afk-agent-platform-spec.md`                |
-| Prompts base de los runners (9)                 | [`prompts/`](./prompts/)                                     | `docs/agents/prompts/*.prompt.md`                       |
-| Skill `do-work` (SKILL + DB-TDD + FRONTEND-TDD) | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)   | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
+| Asset                                              | Local                                                                                                                    | Fuente                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Spec de los 8 workflows                            | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)                                                             | `docs/agents/afk-agent-platform-spec.md`                     |
+| Prompts base de los runners (9)                    | [`prompts/`](./prompts/)                                                                                                 | `docs/agents/prompts/*.prompt.md`                            |
+| Skill `do-work` (SKILL + DB-TDD + FRONTEND-TDD)    | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)                                                               | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md`      |
+| Skills `to-prd` / `to-issues` (autoría HITL local) | [`.claude/skills/to-prd/`](../../.claude/skills/to-prd/), [`.claude/skills/to-issues/`](../../.claude/skills/to-issues/) | `.claude/skills/{to-prd-project,to-issues-project}/SKILL.md` |
 
 ## Qué se adaptó vs. la fuente
 
@@ -38,6 +39,18 @@ referencias concretas al repo:
   repo **no** usa esa librería (ni reducers hoy), así que la sección "Reducer choice" quedó
   neutral respecto de la librería, preservando el principio (lógica de estado en un módulo puro
   y testeable).
+- **`to-prd` / `to-issues`**: son las variantes AFK-native de las globales HITL `to-spec` /
+  `to-tickets`. La base es `to-prd-project` / `to-issues-project` de la fuente (modelo
+  PRD-padre + sub-issues nativas ordenadas + `agent:implement`), y se les foldeó el contenido
+  **más reciente** de las globales `to-spec`/`to-tickets`: framing de _seams_ para testear
+  (`to-spec`), guía de _wide refactor / expand→migrate→contract_ (`to-tickets`, reexpresada
+  para el orden de ejecución en lugar de blocking-edges), y `disable-model-invocation: true`.
+  Se descartó de `to-tickets` el modelo de **blocking-edges/frontera** porque
+  `agent-implement-prd.yml` lee **orden de lista**, no dependencias explícitas. Publican con
+  `gh issue create --parent` (convención de [`issue-tracker.md`](./issue-tracker.md)) en vez
+  del baile manual de la API `sub_issues`, y no aplican ningún label `agent:*` (el despacho es
+  humano, ver [`afk-setup.md`](./afk-setup.md)). Producen la **misma forma de sub-issue** que
+  el runner desatendido [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md).
 
 ## Qué **no** se adaptó (a propósito)
 
