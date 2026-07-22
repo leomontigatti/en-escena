@@ -1,18 +1,8 @@
 import { useState, type ReactNode } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { DestroyButton } from "@/components/shared/action-buttons";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -41,12 +31,14 @@ export type AdministrativeEventModalityDetailViewProps = {
   loaderData: AdministrativeEventModalitiesLoaderData;
   actionData?: AdministrativeEventModalityActionData;
   modalityId: string;
+  initialDeleteDialogOpen?: boolean;
 };
 
 export function AdministrativeEventModalityDetailView({
   loaderData,
   actionData,
   modalityId,
+  initialDeleteDialogOpen = false,
 }: AdministrativeEventModalityDetailViewProps) {
   useServerActionToast(actionData);
 
@@ -66,7 +58,14 @@ export function AdministrativeEventModalityDetailView({
           ? "Editá la modalidad y gestioná sus submodalidades."
           : "No encontramos esa modalidad dentro del evento activo."
       }
-      headerAction={modality ? <ModalityActions modality={modality} /> : null}
+      headerAction={
+        modality ? (
+          <ModalityActions
+            modality={modality}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+          />
+        ) : null
+      }
     >
       {modality ? (
         <ModalityFormPanel>
@@ -96,8 +95,16 @@ export function AdministrativeEventModalityDetailView({
   );
 }
 
-function ModalityActions({ modality }: { modality: EventModalityRow }) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+function ModalityActions({
+  modality,
+  initialDeleteDialogOpen = false,
+}: {
+  modality: EventModalityRow;
+  initialDeleteDialogOpen?: boolean;
+}) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(
+    initialDeleteDialogOpen,
+  );
 
   return (
     <>
@@ -111,49 +118,15 @@ function ModalityActions({ modality }: { modality: EventModalityRow }) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </ResourceActionsMenu>
-      <DeleteModalityDialog
-        modality={modality}
+      <DeleteDialog
+        title="Eliminar modalidad"
+        description={`Esta acción borra ${modality.name} si no tiene submodalidades, categorías o cronogramas relacionados. No se puede deshacer.`}
+        intentValue="delete-modality"
+        recordId={modality.id}
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
       />
     </>
-  );
-}
-
-function DeleteModalityDialog({
-  modality,
-  open,
-  onOpenChange,
-}: {
-  modality: EventModalityRow;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Eliminar modalidad</DialogTitle>
-          <DialogDescription>
-            Esta acción borra {modality.name} si no tiene submodalidades,
-            categorías o cronogramas relacionados. No se puede deshacer.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex-row justify-between sm:justify-between">
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancelar
-            </Button>
-          </DialogClose>
-          <form method="post">
-            <input type="hidden" name="intent" value="delete-modality" />
-            <input type="hidden" name="id" value={modality.id} />
-            <input type="hidden" name="confirmDeletion" value={modality.id} />
-            <DestroyButton />
-          </form>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
