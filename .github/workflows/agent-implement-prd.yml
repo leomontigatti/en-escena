@@ -300,15 +300,24 @@ jobs:
           remaining=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" \
             --jq '[.[] | select(.state == "open")] | length')
 
-          add_label() { # <kind: issue|pr> <number> <label>
-            local kind="$1" number="$2" label="$3"
+          # Use the REST labels endpoint, not `gh {issue,pr} edit`: the latter
+          # issues a GraphQL query touching org fields (needs `read:org`), which
+          # the classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose
+          # the PAT-triggered chain (the fallback then labels via GITHUB_TOKEN,
+          # whose events don't fire `labeled` triggers). REST `POST
+          # issues/{n}/labels` needs only `repo` and fires the chain. PRs share
+          # the issues namespace, so the same endpoint covers both kinds.
+          add_label() { # <kind: issue|pr, ignored> <number> <label>
+            local number="$2" label="$3"
             set +e
             if [ -n "$AGENT_PAT" ]; then
-              GH_TOKEN="$AGENT_PAT" gh "$kind" edit "$number" --add-label "$label"
-              if [ $? -eq 0 ]; then return 0; fi
+              GH_TOKEN="$AGENT_PAT" gh api -X POST \
+                "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
+              if [ $? -eq 0 ]; then set -e; return 0; fi
               echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (chain won't auto-start)."
             fi
-            GH_TOKEN="$GITHUB_TOKEN" gh "$kind" edit "$number" --add-label "$label"
+            GH_TOKEN="$GITHUB_TOKEN" gh api -X POST \
+              "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
             set -e
           }
 
