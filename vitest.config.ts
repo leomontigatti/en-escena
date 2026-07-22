@@ -22,7 +22,18 @@ export default mergeConfig(
       setupFiles: ["./tests/setup/react-test-env.ts"],
       server: {
         deps: {
-          inline: [/@opentelemetry\/semantic-conventions/],
+          // `better-auth` arrastra `@opentelemetry/semantic-conventions`, cuyo
+          // `build/esm/index.js` hace `export * from './trace'` (directory-import
+          // que el loader ESM nativo de Node no resuelve). Si `better-auth` queda
+          // externo, Node lo carga nativo y su import de semantic-conventions
+          // esquiva el alias/stub → "Directory import ... is not supported".
+          // Inlinándolo, Vite procesa la cadena y el alias del stub aplica.
+          // (`vitest.db.fast.config.ts` no falla porque usa `inline: true`.)
+          inline: [
+            /@opentelemetry\/semantic-conventions/,
+            /(^|\/)better-auth/,
+            /@better-auth\//,
+          ],
         },
       },
       deps: {
