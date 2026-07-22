@@ -7,7 +7,7 @@ import { sendEmail } from "@/lib/shared/email.server";
 // Auth (`/registro/confirmar` con `token_hash`, `/cambiar-contrasena` con `code`).
 
 // Link de confirmación de alta pública de academia. Apunta a `/registro/confirmar`
-// con el `token_hash` app-owned (mapa en memoria de `startEmailSignUp`) y `type=signup`.
+// con el `token_hash` app-owned (alta pendiente de `startEmailSignUp`) y `type=signup`.
 export function buildAcademySignUpConfirmationLink(input: {
   redirectTo: string;
   tokenHash: string;
