@@ -29,6 +29,13 @@
       "when": 1784676206017,
       "tag": "0003_add_user_ban_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784758706987,
+      "tag": "0004_perpetual_black_cat",
+      "breakpoints": true
     }
   ]
 }
