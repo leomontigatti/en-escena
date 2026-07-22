@@ -326,9 +326,22 @@ function loaderDataFixture(
     canPayInscriptionBalance: false,
     inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ state: "señada" })],
+    invoicing: invoicingFixture(),
     payments: [],
     stage: null,
     selectedEventId: "event_1",
+    ...overrides,
+  };
+}
+
+function invoicingFixture(
+  overrides: Partial<ChoreographyFinanceDetailLoaderData["invoicing"]> = {},
+): ChoreographyFinanceDetailLoaderData["invoicing"] {
+  return {
+    billableAmount: 0,
+    canEmit: false,
+    currency: null,
+    lastComprobante: null,
     ...overrides,
   };
 }

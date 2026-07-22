@@ -92,16 +92,9 @@ export async function emitChoreographyFacturaC(
     };
   }
 
-  const inscriptionRows = await db
-    .select({ id: choreographyDancers.id })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.choreographyId, input.choreographyId));
-
-  const lines = await resolveBillableLines(
+  const { lines, total } = await resolveChoreographyBillable(
     input.choreographyId,
-    inscriptionRows.map((row) => row.id),
   );
-  const total = lines.reduce((sum, line) => sum + line.amount, 0);
 
   if (total <= 0) {
     return {
@@ -155,6 +148,34 @@ export async function emitChoreographyFacturaC(
   });
 
   return { ok: true, comprobante };
+}
+
+export type ChoreographyBillable = {
+  lines: ComprobanteLineInput[];
+  total: number;
+};
+
+/**
+ * Monto facturable de una coreografía: sus líneas internas por inscripción con
+ * remanente positivo y el total. Es lo que la UX de emisión (#447) previsualiza
+ * antes de confirmar y lo que `emitChoreographyFacturaC` factura. No llama a
+ * ARCA: sólo cruza cobros contra facturas vigentes.
+ */
+export async function resolveChoreographyBillable(
+  choreographyId: string,
+): Promise<ChoreographyBillable> {
+  const inscriptionRows = await db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
+
+  const lines = await resolveBillableLines(
+    choreographyId,
+    inscriptionRows.map((row) => row.id),
+  );
+  const total = lines.reduce((sum, line) => sum + line.amount, 0);
+
+  return { lines, total };
 }
 
 /**

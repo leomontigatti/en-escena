@@ -61,6 +61,7 @@ import {
   formatDate,
   formatOperationalAmount,
 } from "../formatters";
+import { ComprobantesSection } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
   formatDancerName,
@@ -156,6 +157,8 @@ export function AdministracionCoreografiaFinancieraDetalleView({
               </FieldGroup>
             </CardContent>
           </Card>
+
+          <ComprobantesSection invoicing={loaderData.invoicing} />
 
           <InscriptionsTable
             canPayInscriptionBalance={loaderData.canPayInscriptionBalance}

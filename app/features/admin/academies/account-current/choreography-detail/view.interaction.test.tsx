@@ -121,6 +121,12 @@ function loaderDataFixture(): ChoreographyFinanceDetailLoaderData {
         undoableAllocation: null,
       },
     ],
+    invoicing: {
+      billableAmount: 0,
+      canEmit: false,
+      currency: null,
+      lastComprobante: null,
+    },
     payments: [],
     stage: null,
     selectedEventId: "event_1",

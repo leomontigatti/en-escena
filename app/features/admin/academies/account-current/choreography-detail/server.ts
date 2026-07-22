@@ -12,6 +12,15 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
+import type { ArcaMessage } from "@/lib/comprobantes/arca/responses";
+import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import {
+  emitChoreographyFacturaC,
+  getFacturaCEmissionDeps,
+  resolveChoreographyBillable,
+  type FacturaCEmissionDeps,
+} from "@/lib/comprobantes/emit-factura-c.server";
 import {
   deletePaymentAllocation,
   payChoreographyBalance,
@@ -31,6 +40,8 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 
 import {
   deleteAllocationIntent,
+  emitComprobanteConfirmValue,
+  emitComprobanteIntent,
   payBalanceIntent,
   payDepositIntent,
   payInscriptionBalanceIntent,
@@ -113,9 +124,11 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     payments: await listAvailablePayments({ academyId, eventId }),
     stage,
   });
+  const invoicing = await readChoreographyInvoicing(choreographyId);
 
   return {
     academy,
+    invoicing,
     choreography: {
       balanceAmount: choreographyFinanceRow.balanceAmount,
       depositAmount: choreographyFinanceRow.depositAmount,
@@ -133,6 +146,76 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
     payments,
     stage,
     selectedEventId: eventId,
+  };
+}
+
+export type ComprobanteCurrency = "vigente" | "desactualizada";
+
+export type ChoreographyInvoicing = {
+  // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
+  // factura exactamente esto (#446); la UX lo previsualiza.
+  billableAmount: number;
+  // Hay algo para facturar: la afordancia de emisión sólo aparece con remanente.
+  canEmit: boolean;
+  // Badge de la última factura frente al monto vigente de la coreografía:
+  // `vigente` si el remanente es 0 (la factura sigue representando el cobro),
+  // `desactualizada` si hay cobro nuevo sin facturar. `null` sin factura vigente.
+  currency: ComprobanteCurrency | null;
+  lastComprobante: {
+    id: string;
+    ptoVta: number;
+    cbteNro: number;
+    cbteFch: string;
+    impTotal: number;
+    cae: string;
+    status: "vigente" | "anulada";
+  } | null;
+};
+
+/**
+ * Cruza los comprobantes de la coreografía con su monto facturable para armar el
+ * eje de emisión del detalle: el badge Vigente/Desactualizada, la última factura
+ * emitida y si queda algo por facturar. El badge deriva del remanente, no de una
+ * columna: es `vigente` cuando la factura vigente ya cubre todo el cobro y
+ * `desactualizada` cuando entró cobro nuevo sin facturar.
+ */
+async function readChoreographyInvoicing(
+  choreographyId: string,
+): Promise<ChoreographyInvoicing> {
+  const [comprobantes, billable] = await Promise.all([
+    listChoreographyComprobantes(choreographyId),
+    resolveChoreographyBillable(choreographyId),
+  ]);
+
+  const facturas = comprobantes.filter(
+    (comprobante) => comprobante.cbteTipo === FACTURA_C_CBTE_TIPO,
+  );
+  const lastFactura = facturas.at(-1) ?? null;
+  const hasVigenteFactura = facturas.some(
+    (comprobante) => comprobante.status === "vigente",
+  );
+
+  const currency: ComprobanteCurrency | null = hasVigenteFactura
+    ? billable.total > 0
+      ? "desactualizada"
+      : "vigente"
+    : null;
+
+  return {
+    billableAmount: billable.total,
+    canEmit: billable.total > 0,
+    currency,
+    lastComprobante: lastFactura
+      ? {
+          id: lastFactura.id,
+          ptoVta: lastFactura.ptoVta,
+          cbteNro: lastFactura.cbteNro,
+          cbteFch: lastFactura.cbteFch,
+          impTotal: lastFactura.impTotal,
+          cae: lastFactura.cae,
+          status: lastFactura.status,
+        }
+      : null,
   };
 }
 
@@ -293,6 +376,9 @@ function resolveUndoableAllocation(
 export async function handleAdministrativeChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
+  // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;
+  // en producción se resuelven desde el entorno (cert+key, punto de venta).
+  resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<ChoreographyFinanceActionData | never> {
   await requireAdminUser(input.request);
 
@@ -408,7 +494,71 @@ export async function handleAdministrativeChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
+  if (intent === emitComprobanteIntent) {
+    return await handleEmitComprobante({
+      academyId,
+      choreographyId,
+      confirm: String(formData.get("confirm") ?? ""),
+      eventId,
+      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+    });
+  }
+
   return { status: "error", message: "No pudimos procesar esa acción." };
+}
+
+/**
+ * Dispara la emisión de la Factura C tras la confirmación irreversible. Un CAE
+ * aprobado recarga el detalle (badge Vigente); un rechazo o contingencia de ARCA
+ * vuelve como `emission-error` con el estado crudo, sin persistir nada ni dejar
+ * la UI inconsistente (la recarga sólo ocurre en el camino feliz).
+ */
+async function handleEmitComprobante(input: {
+  academyId: string;
+  choreographyId: string;
+  confirm: string;
+  eventId: string;
+  resolveEmissionDeps: () => FacturaCEmissionDeps;
+}): Promise<ChoreographyFinanceActionData | never> {
+  if (input.confirm !== emitComprobanteConfirmValue) {
+    return {
+      status: "error",
+      message: "Confirmá la emisión irreversible para continuar.",
+    };
+  }
+
+  const outcome = await emitChoreographyFacturaC(
+    { choreographyId: input.choreographyId, eventId: input.eventId },
+    input.resolveEmissionDeps(),
+  );
+
+  if (outcome.ok) {
+    throw redirectToDetail(
+      input.academyId,
+      input.choreographyId,
+      input.eventId,
+    );
+  }
+
+  if (outcome.reason === "rejected") {
+    return {
+      status: "emission-error",
+      message: outcome.message,
+      contingency: {
+        resultado: outcome.arca?.resultado ?? null,
+        errors: (outcome.arca?.errors ?? []).map(formatArcaMessage),
+        observaciones: (outcome.arca?.observaciones ?? []).map(
+          formatArcaMessage,
+        ),
+      },
+    };
+  }
+
+  return { status: "error", message: outcome.message };
+}
+
+function formatArcaMessage(message: ArcaMessage): string {
+  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
 
 function redirectToDetail(
