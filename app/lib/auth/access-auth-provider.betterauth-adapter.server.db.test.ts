@@ -1,8 +1,10 @@
-import { eq } from "drizzle-orm";
+import { randomBytes, scryptSync } from "node:crypto";
+
+import { and, eq, like } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { accessSession, user } from "@/db/schema";
+import { account, accessSession, user, verification } from "@/db/schema";
 import { createBetterAuthAccessAuthProvider } from "@/lib/auth/access-auth-provider.betterauth.server";
 import {
   createAccessRequestCookie,
@@ -87,6 +89,67 @@ describe("Better Auth AccessAuthProvider adapter", () => {
     const signIn = await provider.signInCredentialUser({
       email: "reset@example.com",
       password: "password-nueva",
+      request: new Request("http://localhost/ingresar"),
+    });
+    expect(signIn.userId).toBe(created.user.id);
+  });
+
+  test("persists the pending sign-up in `verification` without the plaintext password", async () => {
+    const { debugConfirmationTokenHash } = await provider.startEmailSignUp({
+      email: "persistida@example.com",
+      password: "password-en-claro",
+      redirectTo: "http://localhost/registro/confirmar",
+      request: new Request("http://localhost/registro"),
+    });
+
+    const pendingRows = await db.query.verification.findMany({
+      where: like(verification.identifier, "academy-signup:%"),
+    });
+    expect(pendingRows).toHaveLength(1);
+    expect(pendingRows[0]?.identifier).toBe(
+      `academy-signup:${debugConfirmationTokenHash}`,
+    );
+    // El password no queda en claro en reposo (cifrado con el secret de la app).
+    expect(pendingRows[0]?.value).not.toContain("password-en-claro");
+    expect(pendingRows[0]?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+    // Confirmar consume la fila y materializa el usuario.
+    await provider.confirmEmailOtp({
+      request: new Request("http://localhost/registro/confirmar"),
+      tokenHash: debugConfirmationTokenHash!,
+      type: "signup",
+    });
+    expect(
+      await db.query.verification.findMany({
+        where: like(verification.identifier, "academy-signup:%"),
+      }),
+    ).toEqual([]);
+  });
+
+  test("verifies a legacy `scrypt:<salt>:<hash>` credential migrated from access_credential", async () => {
+    const created = await createAccessUser({
+      email: "legacy@example.com",
+      name: "legacy@example.com",
+      password: "irrelevante-se-sobrescribe",
+    });
+
+    // Simula una credencial migrada por 0002: hash en el formato legacy de
+    // `createLocalAccessPasswordHash` (scryptSync por defecto, keylen 64, salt hex).
+    const salt = randomBytes(16).toString("hex");
+    const legacyHash = `scrypt:${salt}:${scryptSync("password-legacy", salt, 64).toString("hex")}`;
+    await db
+      .update(account)
+      .set({ password: legacyHash })
+      .where(
+        and(
+          eq(account.userId, created.user.id),
+          eq(account.providerId, "credential"),
+        ),
+      );
+
+    const signIn = await provider.signInCredentialUser({
+      email: "legacy@example.com",
+      password: "password-legacy",
       request: new Request("http://localhost/ingresar"),
     });
     expect(signIn.userId).toBe(created.user.id);

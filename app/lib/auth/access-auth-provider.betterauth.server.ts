@@ -1,7 +1,12 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  symmetricDecrypt,
+  symmetricEncrypt,
+  verifyPassword,
+} from "better-auth/crypto";
 import { admin } from "better-auth/plugins";
 import { and, desc, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
@@ -73,6 +78,14 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    // Verifica también los hashes legacy migrados de `access_credential` (#433,
+    // formato `scrypt:<salt>:<hash>`). Better Auth verifica con su propio encoding
+    // scrypt, así que sin esto las credenciales migradas nunca validarían y
+    // empujarían un reset silencioso a esos usuarios. Para el formato nativo de
+    // Better Auth delega en su verificador.
+    password: {
+      verify: verifyAccessPassword,
+    },
     // Envío real del email de recuperación (Resend, en español). `url` trae el
     // `callbackURL` (`/cambiar-contrasena`); el link lleva `?code=<token>`, que
     // el loader de esa página intercambia por la sesión de recuperación. El
@@ -266,14 +279,21 @@ const RECOVERY_TOKEN_COOKIE_NAME = "en_escena.recovery_token";
 
 // El alta pública de academias es un flujo app-owned (ADR-0001): la creación del
 // usuario se difiere hasta la confirmación por email. Better Auth crea el usuario
-// de inmediato en `signUpEmail`, así que guardamos el alta pendiente en memoria y
-// recién materializamos el usuario en `confirmEmailOtp`. Los emails reales llegan
-// en #424; acá el token de confirmación se devuelve como `debug*` para los tests.
+// de inmediato en `signUpEmail`, así que guardamos el alta pendiente y recién
+// materializamos el usuario en `confirmEmailOtp`. Los emails reales llegan en #424;
+// acá el token de confirmación se devuelve como `debug*` para los tests.
+//
+// El alta pendiente se persiste en la tabla `verification` (no en memoria del
+// proceso): la confirmación llega minutos u horas después, así que un redeploy,
+// un restart o una segunda instancia no deben perderla. El password va cifrado
+// con el secret de la app (`symmetricEncrypt`), nunca en claro en reposo, y la
+// fila expira a las 24 h.
 type PendingEmailSignUp = {
   email: string;
   password: string;
 };
-const pendingEmailSignUps = new Map<string, PendingEmailSignUp>();
+const PENDING_SIGNUP_IDENTIFIER_PREFIX = "academy-signup:";
+const PENDING_SIGNUP_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Adapter que expone Better Auth con la interfaz `AccessAuthProvider` que usan
 // las rutas y loaders del dominio. Reemplaza el provider de test propio: los
@@ -328,9 +348,18 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
     ): Promise<EmailSignUpResult> {
       const tokenHash = crypto.randomUUID();
 
-      pendingEmailSignUps.set(tokenHash, {
-        email: input.email,
-        password: input.password,
+      const encryptedPassword = await symmetricEncrypt({
+        key: getBetterAuthSecret(),
+        data: input.password,
+      });
+
+      await db.insert(verification).values({
+        identifier: `${PENDING_SIGNUP_IDENTIFIER_PREFIX}${tokenHash}`,
+        value: JSON.stringify({
+          email: input.email,
+          password: encryptedPassword,
+        }),
+        expiresAt: new Date(Date.now() + PENDING_SIGNUP_TTL_MS),
       });
 
       // Alta pública app-owned (ADR-0001): el usuario se materializa recién en
@@ -351,13 +380,11 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
     },
 
     async confirmEmailOtp(input: EmailOtpConfirmationInput) {
-      const pendingSignUp = pendingEmailSignUps.get(input.tokenHash);
+      const pendingSignUp = await consumePendingEmailSignUp(input.tokenHash);
 
       if (!pendingSignUp) {
         throw new Error("Email confirmation failed.");
       }
-
-      pendingEmailSignUps.delete(input.tokenHash);
 
       const { headers, response } = await createBetterAuthCredentialUser({
         email: pendingSignUp.email,
@@ -446,6 +473,45 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       return { headers };
     },
   };
+}
+
+// Lee y consume (borra) el alta pendiente persistida en `verification`. Devuelve
+// null si el token no existe, ya expiró, o su payload no se puede descifrar
+// (p.ej. rotación del secret entre el alta y la confirmación). La fila se borra
+// siempre que exista —válida o no— para no dejar altas colgadas.
+async function consumePendingEmailSignUp(
+  tokenHash: string,
+): Promise<PendingEmailSignUp | null> {
+  const identifier = `${PENDING_SIGNUP_IDENTIFIER_PREFIX}${tokenHash}`;
+  const row = await db.query.verification.findFirst({
+    columns: { id: true, value: true, expiresAt: true },
+    where: eq(verification.identifier, identifier),
+  });
+
+  if (!row) {
+    return null;
+  }
+
+  await db.delete(verification).where(eq(verification.id, row.id));
+
+  if (row.expiresAt.getTime() < Date.now()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(row.value) as {
+      email: string;
+      password: string;
+    };
+    const password = await symmetricDecrypt({
+      key: getBetterAuthSecret(),
+      data: parsed.password,
+    });
+
+    return { email: parsed.email, password };
+  } catch {
+    return null;
+  }
 }
 
 async function createBetterAuthCredentialUser(input: {
@@ -545,12 +611,72 @@ function createRecoveryTokenSignature(token: string) {
     .digest("hex");
 }
 
-function getBetterAuthSecret() {
+// Longitud de clave scrypt del formato legacy `scrypt:<salt>:<hash>` que usaba
+// `createLocalAccessPasswordHash` (retirado en #422): `scryptSync` con los
+// parámetros por defecto de Node y `keylen = 64`, salt en hex.
+const LEGACY_SCRYPT_KEY_LENGTH = 64;
+
+// Verifica un password contra el hash guardado. Detecta el formato legacy
+// migrado de `access_credential` (`scrypt:<salt>:<hash>`) y lo verifica con el
+// algoritmo viejo; para el formato nativo de Better Auth delega en su
+// verificador (`better-auth/crypto`). Es el `password.verify` de la config, así
+// que también lo usa `verifyBetterAuthCredentialPassword` vía `ctx.password`.
+function verifyAccessPassword(input: {
+  hash: string;
+  password: string;
+}): Promise<boolean> {
+  if (isLegacyScryptHash(input.hash)) {
+    return Promise.resolve(verifyLegacyScryptHash(input));
+  }
+
+  return verifyPassword({ hash: input.hash, password: input.password });
+}
+
+// El formato legacy es `scrypt:<salt>:<hash>` (3 segmentos, primero `"scrypt"`);
+// el nativo de Better Auth es `<salt>:<hash>` (2 segmentos), sin el prefijo.
+function isLegacyScryptHash(hash: string): boolean {
+  const segments = hash.split(":");
+  return segments.length === 3 && segments[0] === "scrypt";
+}
+
+function verifyLegacyScryptHash(input: {
+  hash: string;
+  password: string;
+}): boolean {
+  const [, salt, expectedHash] = input.hash.split(":");
+
+  if (!salt || !expectedHash) {
+    return false;
+  }
+
+  const actualHash = scryptSync(input.password, salt, LEGACY_SCRYPT_KEY_LENGTH);
+  const expectedHashBuffer = Buffer.from(expectedHash, "hex");
+
   return (
-    process.env.BETTER_AUTH_SECRET ??
-    process.env.TEST_ACCESS_AUTH_SECRET ??
-    "development-better-auth-secret-development-better-auth-secret"
+    actualHash.length === expectedHashBuffer.length &&
+    timingSafeEqual(actualHash, expectedHashBuffer)
   );
+}
+
+// Secret de Better Auth (firma de sesión + HMAC del token de recuperación).
+// Falla cerrado en producción: si falta `BETTER_AUTH_SECRET`, tirar en vez de
+// caer a un secret público hardcodeado (que permitiría forjar tokens de
+// recuperación). En dev/test se mantiene el fallback para no exigir la env.
+function getBetterAuthSecret() {
+  const secret =
+    process.env.BETTER_AUTH_SECRET ?? process.env.TEST_ACCESS_AUTH_SECRET;
+
+  if (secret) {
+    return secret;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "BETTER_AUTH_SECRET is required in production for session signing and recovery-token HMAC.",
+    );
+  }
+
+  return "development-better-auth-secret-development-better-auth-secret";
 }
 
 function getBetterAuthBaseUrl() {
