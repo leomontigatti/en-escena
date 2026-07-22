@@ -7,9 +7,14 @@ import {
 import {
   buildFacturaCVoucher,
   FACTURA_C_CBTE_TIPO,
+  NOTA_CREDITO_C_CBTE_TIPO,
   type ArcaVoucher,
   type FacturaCVoucherInput,
 } from "./factura-c";
+import {
+  buildNotaCreditoCVoucher,
+  type NotaCreditoCVoucherInput,
+} from "./nota-credito";
 import {
   parseCreateVoucherResult,
   parseLastVoucher,
@@ -52,6 +57,29 @@ export class ArcaClient {
     input: FacturaCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
     const voucher = buildFacturaCVoucher(input);
+    const result = await this.billing.createVoucher(voucher);
+
+    return parseCreateVoucherResult(result);
+  }
+
+  // `FECompUltimoAutorizado` para Nota de crédito C (tipo 13): su correlativo
+  // corre por una serie propia, separada de la de Factura C.
+  async getLastNotaCreditoCNumber(ptoVta: number): Promise<LastVoucherResult> {
+    const result = await this.billing.getLastVoucher(
+      ptoVta,
+      NOTA_CREDITO_C_CBTE_TIPO,
+    );
+
+    return parseLastVoucher(result);
+  }
+
+  // `FECAESolicitar` de una Nota de crédito C: arma el payload espejo con
+  // `CbtesAsoc`, lo autoriza y devuelve CAE/vencimiento junto con
+  // errores/observaciones.
+  async emitNotaCreditoC(
+    input: NotaCreditoCVoucherInput,
+  ): Promise<FacturaCEmissionResult> {
+    const voucher = buildNotaCreditoCVoucher(input);
     const result = await this.billing.createVoucher(voucher);
 
     return parseCreateVoucherResult(result);

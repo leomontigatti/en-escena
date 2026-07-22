@@ -25,7 +25,7 @@ type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
 // El emisor es Proyecciones Artísticas Asociación Civil, EXENTA frente al IVA
 // (#426): siempre emite clase C. El enum del snapshot sólo admite este valor.
-const ISSUER_IVA_CONDITION = "exento" as const;
+export const ISSUER_IVA_CONDITION = "exento" as const;
 
 // Insumos de emisión inyectables: el cliente ARCA (mockeable en tests) y la
 // config del punto de venta y receptor. `cbteFch` es opcional; por defecto se
@@ -249,7 +249,9 @@ function sumByInscription(
   return totals;
 }
 
-function buildRejectionMessage(emission: FacturaCEmissionResult): string {
+export function buildRejectionMessage(
+  emission: FacturaCEmissionResult,
+): string {
   const detail =
     emission.errors[0]?.msg ??
     emission.observaciones[0]?.msg ??
@@ -260,7 +262,7 @@ function buildRejectionMessage(emission: FacturaCEmissionResult): string {
 }
 
 // Fecha de negocio `AAAA-MM-DD` → formato ARCA `AAAAMMDD`.
-function toArcaDate(dateOnly: string): string {
+export function toArcaDate(dateOnly: string): string {
   return dateOnly.replace(/-/g, "");
 }
 

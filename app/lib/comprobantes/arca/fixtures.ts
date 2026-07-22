@@ -119,3 +119,44 @@ export const ultimoAutorizadoVacio: LastVoucherResultDto = {
   cbteTipo: 11,
   ptoVta: 1,
 };
+
+// `FECAESolicitar` aprobado de una Nota de crédito C (tipo 13, #449): ARCA
+// devuelve CAE + vencimiento igual que una factura; sólo cambia `CbteTipo`.
+export const notaCreditoCAprobada: CreateVoucherResultDto = {
+  cae: "41124599990011",
+  caeFchVto: "20260801",
+  response: {
+    FeCabResp: {
+      Cuit: 30717611590,
+      PtoVta: 1,
+      CbteTipo: 13,
+      FchProceso: "20260722100500",
+      CantReg: 1,
+      Resultado: "A",
+      Reproceso: "N",
+    },
+    FeDetResp: {
+      FECAEDetResponse: [
+        {
+          Concepto: 1,
+          DocTipo: 99,
+          DocNro: 0,
+          CbteDesde: 8,
+          CbteHasta: 8,
+          CbteFch: "20260722",
+          Resultado: "A",
+          CAE: "41124599990011",
+          CAEFchVto: "20260801",
+        },
+      ],
+    },
+  },
+};
+
+// `FECompUltimoAutorizado` de la serie de Notas de crédito (tipo 13): corre por
+// un correlativo propio, separado del de las facturas. Acá ya emitió hasta el 7.
+export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
+  cbteNro: 7,
+  cbteTipo: 13,
+  ptoVta: 1,
+};

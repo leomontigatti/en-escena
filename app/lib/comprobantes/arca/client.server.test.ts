@@ -10,7 +10,12 @@ import {
   type ArcaBillingPort,
 } from "./client.server";
 import type { ArcaVoucher } from "./factura-c";
-import { facturaCAprobada, ultimoAutorizado } from "./fixtures";
+import {
+  facturaCAprobada,
+  notaCreditoCAprobada,
+  ultimoAutorizado,
+  ultimoNotaCreditoAutorizado,
+} from "./fixtures";
 
 const CERT_PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
 const KEY_PEM = "-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----";
@@ -80,6 +85,45 @@ describe("ArcaClient", () => {
       client.emitFacturaC({ ...emissionInput, importe: 0 }),
     ).rejects.toThrow(/ImpTotal/);
     expect(billing.createVoucher).not.toHaveBeenCalled();
+  });
+
+  test("consulta el último autorizado para Nota de crédito C (tipo 13)", async () => {
+    const billing = fakeBilling({
+      getLastVoucher: vi.fn(async () => ultimoNotaCreditoAutorizado),
+    });
+    const client = new ArcaClient(billing);
+
+    const result = await client.getLastNotaCreditoCNumber(1);
+
+    expect(billing.getLastVoucher).toHaveBeenCalledWith(1, 13);
+    expect(result.lastCbteNro).toBe(7);
+    expect(result.nextCbteNro).toBe(8);
+  });
+
+  test("emite una Nota de crédito C espejo (tipo 13) con CbtesAsoc y devuelve el CAE", async () => {
+    let sent: ArcaVoucher | undefined;
+    const billing = fakeBilling({
+      createVoucher: vi.fn(async (req: ArcaVoucher) => {
+        sent = req;
+        return notaCreditoCAprobada;
+      }),
+    });
+    const client = new ArcaClient(billing);
+
+    const result = await client.emitNotaCreditoC({
+      ...emissionInput,
+      cbteNro: 8,
+      importe: 7000,
+      emisorCuit: "30717611590",
+      asociado: { cbteTipo: 11, ptoVta: 1, cbteNro: 43 },
+    });
+
+    expect(sent?.CbteTipo).toBe(13);
+    expect(sent?.CbtesAsoc).toEqual([
+      { Tipo: 11, PtoVta: 1, Nro: 43, Cuit: "30717611590" },
+    ]);
+    expect(result.approved).toBe(true);
+    expect(result.cae).toBe("41124599990011");
   });
 });
 

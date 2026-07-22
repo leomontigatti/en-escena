@@ -11,8 +11,9 @@ export type ArcaVoucher = Parameters<
 // Artísticas Asociación Civil (exenta → clase C) y el receptor es consumidor
 // final anónimo.
 export const FACTURA_C_CBTE_TIPO = 11;
-// Nota de crédito C. No se construye acá (es #449); se expone para que la lógica
-// de emisión distinga los tipos al derivar el estado.
+// Nota de crédito C: el comprobante espejo que anula una Factura C (#328/#449).
+// Se construye vía `buildNotaCreditoCVoucher` (nota-credito.ts) reutilizando la
+// base clase C más el array `CbtesAsoc`.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
@@ -34,31 +35,50 @@ export type FacturaCVoucherInput = {
   condicionIvaReceptorId: number;
 };
 
-function assertPositiveInteger(value: number, field: string): void {
+export function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${field} debe ser un entero positivo (recibí ${value}).`);
   }
 }
 
-// Construye el payload `FECAESolicitar` de una Factura C (#320/§3 de la research
-// #321). Sin IVA discriminado: `ImpNeto = ImpTotal`, el resto de los importes en
-// 0, y NO se envía el array `<Iva>`. `CbteHasta = CbteDesde` (validación 10012).
-export function buildFacturaCVoucher(input: FacturaCVoucherInput): ArcaVoucher {
+export function assertArcaDate(value: string, field = "CbteFch"): void {
+  if (!ARCA_DATE_RE.test(value)) {
+    throw new Error(
+      `${field} debe tener formato ARCA AAAAMMDD (recibí "${value}").`,
+    );
+  }
+}
+
+// Base común de un comprobante clase C a consumidor final anónimo (Factura C
+// tipo 11 y Nota de crédito C tipo 13). Ambos comparten emisor exento, receptor
+// consumidor final y la ausencia de IVA discriminado; sólo cambian `CbteTipo` y,
+// en la Nota de crédito, el array `CbtesAsoc` con el comprobante que anula (#449).
+export type ClassCVoucherBase = {
+  ptoVta: number;
+  cbteNro: number;
+  cbteFch: string;
+  importe: number;
+  condicionIvaReceptorId: number;
+};
+
+// Construye el payload `FECAESolicitar` de un comprobante clase C (#320/§3 de la
+// research #321). Sin IVA discriminado: `ImpNeto = ImpTotal`, el resto de los
+// importes en 0, y NO se envía el array `<Iva>`. `CbteHasta = CbteDesde`
+// (validación 10012). `cbtesAsoc`, si viene, arma el vínculo `CbtesAsoc`.
+export function buildClassCVoucher(
+  input: ClassCVoucherBase,
+  extras: { cbteTipo: number; cbtesAsoc?: ArcaVoucher["CbtesAsoc"] },
+): ArcaVoucher {
   assertPositiveInteger(input.ptoVta, "PtoVta");
   assertPositiveInteger(input.cbteNro, "CbteNro");
   assertPositiveInteger(input.importe, "ImpTotal");
   assertPositiveInteger(input.condicionIvaReceptorId, "CondicionIVAReceptorId");
-
-  if (!ARCA_DATE_RE.test(input.cbteFch)) {
-    throw new Error(
-      `CbteFch debe tener formato ARCA AAAAMMDD (recibí "${input.cbteFch}").`,
-    );
-  }
+  assertArcaDate(input.cbteFch);
 
   return {
     CantReg: 1,
     PtoVta: input.ptoVta,
-    CbteTipo: FACTURA_C_CBTE_TIPO,
+    CbteTipo: extras.cbteTipo,
     Concepto: CONCEPTO_PRODUCTOS,
     DocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
     DocNro: DOC_NRO_CONSUMIDOR_FINAL,
@@ -74,5 +94,11 @@ export function buildFacturaCVoucher(input: FacturaCVoucherInput): ArcaVoucher {
     MonId: MONEDA_PESOS,
     MonCotiz: 1,
     CondicionIVAReceptorId: input.condicionIvaReceptorId,
+    ...(extras.cbtesAsoc ? { CbtesAsoc: extras.cbtesAsoc } : {}),
   };
+}
+
+// Construye el payload `FECAESolicitar` de una Factura C (tipo 11).
+export function buildFacturaCVoucher(input: FacturaCVoucherInput): ArcaVoucher {
+  return buildClassCVoucher(input, { cbteTipo: FACTURA_C_CBTE_TIPO });
 }
