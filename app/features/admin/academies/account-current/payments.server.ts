@@ -34,16 +34,19 @@ export async function registerAcademyEventPayment(input: {
 
     const paymentNumber = sequence.nextPaymentNumber;
 
-    await tx.insert(payments).values({
-      academyId: input.academyId,
-      amount: input.amount,
-      eventId: input.eventId,
-      internalNote: input.internalNote,
-      paymentDate: input.paymentDate,
-      paymentMethod: input.paymentMethod,
-      paymentNumber,
-      reference: input.reference,
-    });
+    const [inserted] = await tx
+      .insert(payments)
+      .values({
+        academyId: input.academyId,
+        amount: input.amount,
+        eventId: input.eventId,
+        internalNote: input.internalNote,
+        paymentDate: input.paymentDate,
+        paymentMethod: input.paymentMethod,
+        paymentNumber,
+        reference: input.reference,
+      })
+      .returning({ id: payments.id });
 
     await tx
       .update(eventFinancialSequences)
@@ -52,5 +55,7 @@ export async function registerAcademyEventPayment(input: {
         updatedAt: new Date(),
       })
       .where(eq(eventFinancialSequences.eventId, input.eventId));
+
+    return { paymentId: inserted.id };
   });
 }

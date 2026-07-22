@@ -4,6 +4,7 @@ import type { PortalEventContext } from "@/lib/portal/event-context";
 export const updateChoreographyIntent = "update-choreography";
 export const choreographyMusicUploadErrorToastId =
   "choreography-music-upload-error";
+export const choreographyMusicSavedToastId = "choreography-music-saved";
 export const choreographyMusicAccept =
   "audio/mpeg,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/ogg";
 export const choreographyMusicAllowedMimeTypes = [
@@ -31,6 +32,10 @@ export type PortalChoreographyMusicActionData =
       status: "update-error";
       message: string;
       selectedMusicStorageKey?: string;
+    }
+  | {
+      status: "success";
+      message: string;
     }
   | undefined;
 

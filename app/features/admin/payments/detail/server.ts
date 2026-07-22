@@ -22,6 +22,7 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { deletePaymentWithAllocations } from "@/lib/finances/choreography-cobro.server";
 import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 import { listAdminPaymentAcademyOptions } from "../academy-options.server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
@@ -41,9 +42,16 @@ type UpdatePaymentActionData = {
   values: CreatePaymentFormValues;
 };
 
+type UpdatePaymentSuccessActionData = {
+  intent: typeof updateAdminPaymentIntent;
+  message: string;
+  status: "success";
+};
+
 export type AdminPaymentDetailActionData =
   | DeletePaymentActionData
-  | UpdatePaymentActionData;
+  | UpdatePaymentActionData
+  | UpdatePaymentSuccessActionData;
 
 export async function loadAdminPaymentDetail(
   request: Request,
@@ -190,7 +198,6 @@ export async function handleAdminPaymentDetailAction(
     return await updateAdminPayment({
       formData,
       paymentId,
-      requestUrl: request.url,
     });
   }
 
@@ -207,8 +214,7 @@ export async function handleAdminPaymentDetailAction(
 async function updateAdminPayment(input: {
   formData: FormData;
   paymentId: string;
-  requestUrl: string;
-}): Promise<UpdatePaymentActionData | never> {
+}): Promise<UpdatePaymentActionData | UpdatePaymentSuccessActionData | never> {
   const values = readCreatePaymentValues(input.formData);
   const parsed = createPaymentSchema.safeParse(values);
 
@@ -284,7 +290,11 @@ async function updateAdminPayment(input: {
     })
     .where(eq(payments.id, payment.id));
 
-  throw redirect(input.requestUrl);
+  return {
+    status: "success",
+    intent: updateAdminPaymentIntent,
+    message: notificationToasts["pago-guardado"].message,
+  };
 }
 
 async function deleteAdminPayment(input: {
