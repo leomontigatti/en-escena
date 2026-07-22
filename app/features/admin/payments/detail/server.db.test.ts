@@ -66,8 +66,10 @@ describe.sequential("admin payment detail", () => {
 
     await expect(
       handleAdminPaymentDetailAction(request, payment.id),
-    ).rejects.toMatchObject({
-      status: 302,
+    ).resolves.toMatchObject({
+      status: "success",
+      intent: updateAdminPaymentIntent,
+      message: "Pago guardado.",
     });
 
     await expect(findPaymentById(payment.id)).resolves.toMatchObject({

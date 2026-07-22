@@ -17,7 +17,7 @@ import { handleAdminPaymentCreateAction } from "./server";
 installDatabaseTestHooks();
 
 describe.sequential("admin payment create", () => {
-  test("registers a payment and redirects to the list with a flash toast", async () => {
+  test("registers a payment and redirects to its detail with a flash toast", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "academia.pago.nuevo@example.com",
@@ -46,7 +46,7 @@ describe.sequential("admin payment create", () => {
     });
     await expectFlashRedirect(
       response,
-      `/administracion/pagos?evento=${event.id}`,
+      `/administracion/pagos/${payment?.id}`,
       {
         id: "route-notification:pago-registrado",
         message: "Pago registrado.",

@@ -72,7 +72,7 @@ export async function handleAdminPaymentCreateAction(
     };
   }
 
-  await registerAcademyEventPayment({
+  const { paymentId } = await registerAcademyEventPayment({
     academyId: parsed.data.academyId,
     amount: Number(parsed.data.amount),
     eventId: eventContext.selectedEventId,
@@ -83,7 +83,7 @@ export async function handleAdminPaymentCreateAction(
   });
 
   throw await redirectWithFlashNotification(
-    `/administracion/pagos?evento=${eventContext.selectedEventId}`,
+    `/administracion/pagos/${paymentId}`,
     "pago-registrado",
   );
 }
