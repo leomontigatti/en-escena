@@ -397,6 +397,87 @@ describe.sequential(
       expect(loaderData.invoicing.canEmit).toBe(true);
     });
 
+    test("keeps canEmit aligned with the server gate: a positive remainder with no derivable porción stays non-emitible", async () => {
+      // Una línea facturada huérfana (su asignación se borró después de emitir)
+      // puede dejar `billed >= cobrado` agregado mientras otra inscripción sigue
+      // con remanente: ahí `billableAmount > 0` pero `porcion === null`. El botón
+      // no debe habilitarse, porque el server rechazaría la emisión.
+      const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+      const { academy, choreography } =
+        await createAccountCurrentChoreographyFixture({
+          academyName: "Academia Huérfana",
+          choreographyName: "Coreografía huérfana",
+          email: "academia.huerfana@example.com",
+          event,
+        });
+      const [dancerA, dancerB] = await Promise.all([
+        createDancer(academy.academy.id, {
+          firstName: "Ana",
+          lastName: "López",
+        }),
+        createDancer(academy.academy.id, {
+          firstName: "Bruno",
+          lastName: "Díaz",
+        }),
+      ]);
+      const [inscriptionA] = await db
+        .insert(choreographyDancers)
+        .values({
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: dancerA.id,
+        })
+        .returning();
+      const [inscriptionB] = await db
+        .insert(choreographyDancers)
+        .values({
+          ageAtEventStart: 15,
+          choreographyId: choreography.id,
+          dancerId: dancerB.id,
+        })
+        .returning();
+
+      // A cobra 3000 y se factura entera (línea facturada de 3000).
+      await seedAllocation({
+        academyId: academy.academy.id,
+        amount: 3000,
+        eventId: event.id,
+        inscriptionId: inscriptionA.id,
+      });
+      await recordVigenteFactura({
+        choreographyId: choreography.id,
+        eventId: event.id,
+        inscriptionId: inscriptionA.id,
+        amount: 3000,
+        cbteNro: 7,
+        porcion: "seña",
+      });
+      // B cobra sólo 1000 (menos que la línea facturada de A).
+      await seedAllocation({
+        academyId: academy.academy.id,
+        amount: 1000,
+        eventId: event.id,
+        inscriptionId: inscriptionB.id,
+      });
+      // Se borra la asignación de A: su línea facturada queda huérfana y el
+      // agregado facturado (3000) supera al cobrado (1000).
+      await db
+        .delete(paymentAllocations)
+        .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
+
+      const loaderData = await loadDetail({
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        eventId: event.id,
+      });
+
+      // El remanente de B es positivo pero no hay porción derivable.
+      expect(loaderData.invoicing.billableAmount).toBe(1000);
+      expect(loaderData.invoicing.porcion).toBeNull();
+      // El botón espeja la precondición del server: sin porción, no se habilita.
+      expect(loaderData.invoicing.canEmit).toBe(false);
+    });
+
     test("emits and redirects back to the detail on an approved CAE", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Emite",

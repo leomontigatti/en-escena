@@ -208,7 +208,13 @@ async function readChoreographyInvoicing(
   return {
     billableAmount: billable.total,
     porcion: billable.porcion,
-    canEmit: billable.total > 0,
+    // Espeja la precondición de emisión del server (`emitChoreographyFacturaC`):
+    // exige remanente Y porción derivable. Pueden divergir si una asignación de
+    // pago se borra después de emitir y deja una línea facturada huérfana que
+    // hace `billed >= cobrado` agregado mientras otra inscripción todavía tiene
+    // remanente: ahí `total > 0` pero `porcion === null`. Sin este `&&`, el botón
+    // quedaría habilitado y la confirmación fallaría con un error genérico.
+    canEmit: billable.total > 0 && billable.porcion !== null,
     sena: resolvePortionCoverage(
       vigentesFacturas,
       "seña",
