@@ -1,4 +1,5 @@
 import type { dancers } from "@/db/schema";
+import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   AdminDancerIdentificationStatus,
   AdminDancerParticipationStatus,
@@ -48,7 +49,7 @@ export type AdministrativeDancerDetail = {
   participationStatus: AdminDancerParticipationStatus;
   identificationStatus: AdminDancerIdentificationStatus;
   participatedInAnyEvent: boolean;
-  correctionReasonRequired: boolean;
+  editConsequence: DancerEditConsequence;
   inscriptions: AdministrativeDancerInscription[];
   choreographyNames: string[];
 };
@@ -70,7 +71,6 @@ export type AdministrativeDancerUpdateInput = {
   documentNumber: string;
   documentFrontImageStorageKey: string;
   documentBackImageStorageKey: string;
-  correctionReason: string;
 };
 
 export type AdministrativeDancerStatusInput = {

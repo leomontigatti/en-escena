@@ -754,7 +754,6 @@ describe.sequential("administracion/bailarines route", () => {
           birthDate: "2012-05-06",
           documentType: "dni",
           documentNumber: "12.345-678",
-          correctionReason: "",
         }),
         dancer.id,
       ),
@@ -836,7 +835,6 @@ describe.sequential("administracion/bailarines route", () => {
                 birthDate: "2013-03-03",
                 documentType: "",
                 documentNumber: "",
-                correctionReason: "",
               },
             ),
             dancer.id,
@@ -847,7 +845,7 @@ describe.sequential("administracion/bailarines route", () => {
     }
   });
 
-  test("requires a correction reason when the Bailarín participates in the Evento activo", async () => {
+  test("saves a participating Bailarín without a correction reason and still writes the audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.bailarines.academia@example.com",
@@ -877,27 +875,38 @@ describe.sequential("administracion/bailarines route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-dancer",
-          firstName: "Lia",
+          firstName: "Liana",
           lastName: "Participa",
           birthDate: "2012-04-08",
           documentType: "",
           documentNumber: "",
-          correctionReason: "",
         }),
         dancer.id,
       ),
     );
 
     expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        correctionReason:
-          "Ingresá un motivo de corrección para guardar este cambio.",
-      },
+      status: "success",
+      message: "Bailarín guardado.",
     });
+    await expectPersistedDancer(dancer.id, {
+      firstName: "Liana",
+      lastName: "Participa",
+    });
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "dancer",
+          entityId: dancer.id,
+          eventId: event.id,
+          action: "update",
+          reason: null,
+        }),
+      ],
+    );
   });
 
-  test("requires a correction reason without Evento activo when the Bailarín participated in any Evento", async () => {
+  test("saves a Bailarín who participated in any Evento without a correction reason and still writes the audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.bailarines.academia@example.com",
@@ -927,24 +936,34 @@ describe.sequential("administracion/bailarines route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-dancer",
-          firstName: "Lola",
+          firstName: "Lolita",
           lastName: "Historial",
           birthDate: "2011-11-11",
           documentType: "",
           documentNumber: "",
-          correctionReason: "",
         }),
         dancer.id,
       ),
     );
 
     expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        correctionReason:
-          "Ingresá un motivo de corrección para guardar este cambio.",
-      },
+      status: "success",
+      message: "Bailarín guardado.",
     });
+    await expectPersistedDancer(dancer.id, {
+      firstName: "Lolita",
+      lastName: "Historial",
+    });
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "dancer",
+          entityId: dancer.id,
+          action: "update",
+          reason: null,
+        }),
+      ],
+    );
   });
 
   test("rejects a duplicate document within the same academy", async () => {
@@ -983,7 +1002,6 @@ describe.sequential("administracion/bailarines route", () => {
           birthDate: "2011-02-02",
           documentType: "dni",
           documentNumber: "12 345 678",
-          correctionReason: "",
         }),
         dancer.id,
       ),
@@ -1081,7 +1099,6 @@ describe.sequential("administracion/bailarines route", () => {
           birthDate: "2011-05-01",
           documentType: "",
           documentNumber: "",
-          correctionReason: "Corrección manual para alinear el legajo.",
         }),
         dancer.id,
       ),
@@ -1136,7 +1153,7 @@ describe.sequential("administracion/bailarines route", () => {
         entityType: "dancer",
         entityId: dancer.id,
         eventId: event.id,
-        reason: "Corrección manual para alinear el legajo.",
+        reason: null,
         beforeValues: expect.objectContaining({ birthDate: "2014-05-01" }),
         afterValues: expect.objectContaining({ birthDate: "2011-05-01" }),
       }),
@@ -1145,7 +1162,7 @@ describe.sequential("administracion/bailarines route", () => {
         entityType: "choreography",
         entityId: choreography.id,
         eventId: event.id,
-        reason: "Corrección manual para alinear el legajo.",
+        reason: null,
         beforeValues: expect.objectContaining({
           sourceDancer: expect.objectContaining({
             id: dancer.id,
@@ -1222,8 +1239,6 @@ describe.sequential("administracion/bailarines route", () => {
           birthDate: "2014-02-20",
           documentType: "",
           documentNumber: "",
-          correctionReason:
-            "Corrección administrativa sin impacto competitivo.",
         }),
         dancer.id,
       ),
@@ -1273,7 +1288,7 @@ describe.sequential("administracion/bailarines route", () => {
         action: "update",
         entityType: "dancer",
         entityId: dancer.id,
-        reason: "Corrección administrativa sin impacto competitivo.",
+        reason: null,
         beforeValues: expect.objectContaining({ birthDate: "2014-01-10" }),
         afterValues: expect.objectContaining({ birthDate: "2014-02-20" }),
       }),
@@ -1357,35 +1372,6 @@ describe.sequential("administracion/bailarines route", () => {
     );
     expect(verifiedMarkup).toContain("Abrir imagen");
 
-    const missingReasonResult = await detailAction(
-      detailActionArgs(
-        createPostRequest(
-          verifiedRequestUrl,
-          request.headers.get("cookie") ?? "",
-          {
-            intent: "update-dancer",
-            firstName: "Paula",
-            lastName: "Pendiente",
-            birthDate: "2012-06-12",
-            documentType: "dni",
-            documentNumber: "12345678",
-            documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
-            documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
-            correctionReason: "",
-          },
-        ),
-        dancer.id,
-      ),
-    );
-
-    expect(missingReasonResult).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        correctionReason:
-          "Ingresá un motivo de corrección para guardar este cambio.",
-      },
-    });
-
     const editResult = await detailAction(
       detailActionArgs(
         createPostRequest(
@@ -1400,8 +1386,6 @@ describe.sequential("administracion/bailarines route", () => {
             documentNumber: "12345678",
             documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
             documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
-            correctionReason:
-              "Corrección administrativa de datos del documento.",
           },
         ),
         dancer.id,
@@ -1411,6 +1395,17 @@ describe.sequential("administracion/bailarines route", () => {
       status: "success",
       message: "Bailarín guardado. La identidad volvió a no verificado.",
     });
+
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityType: "dancer",
+          entityId: dancer.id,
+          action: "update",
+          reason: null,
+        }),
+      ]),
+    );
 
     await expectPersistedDancer(dancer.id, {
       documentFrontImageStorageKey: "dancers/paula-front.jpg",

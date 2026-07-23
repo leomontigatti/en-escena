@@ -15,16 +15,20 @@ import { Button } from "@/components/ui/button";
 
 import {
   DancerCorrectionReasonField,
-  type DancerEditFormController,
   type DancerStatusFormController,
 } from "./form";
-import type { DancerDialogIntent, DancerStatusAction } from "./shared";
+import {
+  getSaveConsequenceMessage,
+  type DancerDialogIntent,
+  type DancerEditConsequence,
+  type DancerStatusAction,
+} from "./shared";
 
 export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation,
   correctionReasonRequired,
   dialogIntent,
-  editForm,
+  editConsequence,
   editFormId,
   onOpenChange,
   statusAction,
@@ -35,7 +39,7 @@ export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation: boolean;
   correctionReasonRequired: boolean;
   dialogIntent: DancerDialogIntent | null;
-  editForm: DancerEditFormController;
+  editConsequence: DancerEditConsequence;
   editFormId: string;
   onOpenChange: (open: boolean) => void;
   statusAction: DancerStatusAction;
@@ -43,22 +47,18 @@ export function DancerConfirmationDialog({
   statusFormId: string;
   verifyFormId: string;
 }) {
+  const saveConsequenceMessage = getSaveConsequenceMessage(editConsequence);
+
   return (
     <>
       <AlertDialog open={dialogIntent === "save"} onOpenChange={onOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Guardar cambios?</AlertDialogTitle>
-            {correctionReasonRequired ? (
-              <AlertDialogDescription>
-                Este bailarín requiere un motivo de corrección para guardar los
-                cambios.
-              </AlertDialogDescription>
-            ) : (
-              <AlertDialogDescription>
-                Confirmá los cambios antes de guardarlos.
-              </AlertDialogDescription>
-            )}
+            <AlertDialogDescription>
+              {saveConsequenceMessage ??
+                "Confirmá los cambios antes de guardarlos."}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {birthDateMayNeedRecalculation ? (
             <Alert variant="warning">
@@ -69,13 +69,6 @@ export function DancerConfirmationDialog({
                 Coreografías.
               </AlertDescription>
             </Alert>
-          ) : null}
-          {correctionReasonRequired ? (
-            <DancerCorrectionReasonField
-              form={editForm.form}
-              formId={editFormId}
-              required={true}
-            />
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

@@ -23,16 +23,14 @@ type DancerEditFormReturn = UseFormReturn<
 >;
 
 export function useDancerEditForm({
-  correctionReasonRequired,
   values,
 }: {
-  correctionReasonRequired: boolean;
   values: DancerEditFormValues;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildDancerUpdateSchema(correctionReasonRequired)),
+    resolver: zodResolver(buildDancerUpdateSchema()),
   });
 
   useEffect(() => {
@@ -40,7 +38,6 @@ export function useDancerEditForm({
   }, [
     form,
     values.birthDate,
-    values.correctionReason,
     values.documentBackImageStorageKey,
     values.documentFrontImageStorageKey,
     values.documentNumber,

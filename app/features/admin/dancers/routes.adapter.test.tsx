@@ -98,7 +98,7 @@ describe("administracion.bailarines route adapters", () => {
         active: true,
         birthDate: "2012-07-12",
         choreographyNames: [],
-        correctionReasonRequired: false,
+        editConsequence: null,
         createdAt: new Date("2026-01-10T12:00:00.000Z"),
         documentBackImageStorageKey: "document-back",
         documentFrontImageStorageKey: "document-front",

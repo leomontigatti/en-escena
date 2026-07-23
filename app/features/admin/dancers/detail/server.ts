@@ -89,7 +89,7 @@ export async function handleAdministrativeDancerDetailAction(input: {
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
     const values = readDancerStatusValues(formData);
     const parsed = buildDancerStatusSchema(
-      dancer.correctionReasonRequired,
+      dancer.editConsequence !== null,
     ).safeParse(values);
 
     if (!parsed.success) {
@@ -135,9 +135,7 @@ export async function handleAdministrativeDancerDetailAction(input: {
     documentBackImageStorageKey: dancer.documentBackImageStorageKey ?? "",
     documentFrontImageStorageKey: dancer.documentFrontImageStorageKey ?? "",
   };
-  const parsed = buildDancerUpdateSchema(
-    dancer.correctionReasonRequired,
-  ).safeParse(values);
+  const parsed = buildDancerUpdateSchema().safeParse(values);
 
   if (!parsed.success) {
     return buildDancerActionError(

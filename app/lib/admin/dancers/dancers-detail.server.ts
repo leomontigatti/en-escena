@@ -93,13 +93,12 @@ export async function findAdministrativeDancer(input: {
       identityVerifiedAt: row.identityVerifiedAt,
     }),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired:
-      getEditConsequence({
-        selectedEventId: input.selectedEventId,
-        isParticipating: row.isParticipating,
-        hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-        isVerified: row.identityVerifiedAt !== null,
-      }) !== null,
+    editConsequence: getEditConsequence({
+      selectedEventId: input.selectedEventId,
+      isParticipating: row.isParticipating,
+      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+      isVerified: row.identityVerifiedAt !== null,
+    }),
     inscriptions,
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,

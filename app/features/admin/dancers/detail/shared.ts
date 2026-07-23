@@ -5,8 +5,11 @@ import type {
   AdministrativeDancerFieldErrors,
   AdministrativeDancerStatusInput,
   AdministrativeDancerUpdateInput,
+  DancerEditConsequence,
   findAdministrativeDancer,
 } from "@/lib/admin/dancers/dancers.server";
+
+export type { DancerEditConsequence };
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -80,6 +83,7 @@ export type DancerStatusAction = {
 export type DancerDetailViewState = {
   birthDateMayNeedRecalculation: boolean;
   canVerifyIdentity: boolean;
+  editConsequence: DancerEditConsequence;
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   isEditing: boolean;
@@ -89,7 +93,7 @@ export type DancerDetailViewState = {
 
 export type DancerEditFormValues = AdministrativeDancerUpdateInput;
 
-export function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
+export function buildDancerUpdateSchema() {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),
@@ -122,7 +126,6 @@ export function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
       documentNumber: z.string().trim(),
       documentFrontImageStorageKey: z.string().trim(),
       documentBackImageStorageKey: z.string().trim(),
-      correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
     })
     .superRefine((values, context) => {
       validateDocumentPair(values.documentType, values.documentNumber, context);
@@ -205,7 +208,6 @@ export function readDancerUpdateValues(
       formData,
       "documentBackImageStorageKey",
     ),
-    correctionReason: readFormString(formData, "correctionReason"),
   };
 }
 
@@ -267,7 +269,6 @@ export function getDancerEditValues({
       submittedValues?.documentBackImageStorageKey ??
       dancer.documentBackImageStorageKey ??
       "",
-    correctionReason: submittedValues?.correctionReason ?? "",
   };
 }
 
@@ -301,18 +302,18 @@ function getDancerStatusAction(active: boolean): DancerStatusAction {
 
 export function getInitialDialogIntent({
   actionData,
-  correctionReasonRequired,
+  shouldConfirmSave,
   statusIntent,
 }: {
   actionData: DancerActionError | undefined;
-  correctionReasonRequired: boolean;
+  shouldConfirmSave: boolean;
   statusIntent: DancerStatusAction["intent"];
 }): DancerDialogIntent | null {
   if (!actionData) {
     return null;
   }
 
-  if (isDancerUpdateValues(actionData.values) && correctionReasonRequired) {
+  if (isDancerUpdateValues(actionData.values) && shouldConfirmSave) {
     return "save";
   }
 
@@ -367,13 +368,29 @@ export function buildDancerDetailViewState({
   return {
     birthDateMayNeedRecalculation,
     canVerifyIdentity,
+    editConsequence: dancer.editConsequence,
     identificationAlert,
     identificationAlertVariant,
     isEditing,
     shouldConfirmSave:
-      dancer.correctionReasonRequired || birthDateMayNeedRecalculation,
+      dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,
   };
+}
+
+export function getSaveConsequenceMessage(
+  editConsequence: DancerEditConsequence,
+): string | null {
+  switch (editConsequence) {
+    case "verified":
+      return "Este bailarín tiene su identidad verificada. Si guardás los cambios, la verificación quedará sin efecto y deberá volver a verificarse.";
+    case "participated":
+      return "Este bailarín ya participó de un evento. Los cambios pueden afectar registros existentes.";
+    case "both":
+      return "Este bailarín tiene su identidad verificada y ya participó de un evento. Al guardar, la verificación quedará sin efecto y los cambios pueden afectar registros existentes.";
+    case null:
+      return null;
+  }
 }
 
 function getIdentificationAlert(

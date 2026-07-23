@@ -1,4 +1,5 @@
 export { findAdministrativeDancer } from "@/lib/admin/dancers/dancers-detail.server";
+export type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 export { readDancerFilters as readAdministrativeDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 export { listDancers as listAdministrativeDancers } from "@/lib/admin/dancers/dancers-list.server";
 export { setAdministrativeDancerActiveState } from "@/lib/admin/dancers/dancers-active-state.server";
