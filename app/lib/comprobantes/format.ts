@@ -32,6 +32,21 @@ export function formatComprobanteTipoLabel(cbteTipo: number): string {
   return `Comprobante ${cbteTipo}`;
 }
 
+// Iniciales del tipo de comprobante para la columna Tipo de la lista: `FC`
+// (Factura C) o `NC` (Nota de crédito C). El label completo queda como `title`
+// para no perder el dato al reducir el badge.
+export function formatComprobanteTipoInitials(cbteTipo: number): string {
+  if (cbteTipo === FACTURA_C_CBTE_TIPO) {
+    return "FC";
+  }
+
+  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
+    return "NC";
+  }
+
+  return `C${cbteTipo}`;
+}
+
 const comprobanteStatusLabels: Record<ComprobanteStatus, string> = {
   vigente: "Vigente",
   anulada: "Anulada",

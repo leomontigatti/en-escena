@@ -5,11 +5,12 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
-  ClientDataTable,
+  ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import type { DataTableFacetedFilterValue } from "@/components/shared/data-table.shared";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount } from "@/features/admin/academies/account-current/formatters";
 import {
@@ -19,8 +20,8 @@ import {
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobantePorcionLabel,
   formatComprobanteStatusLabel,
+  formatComprobanteTipoInitials,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 
@@ -33,12 +34,12 @@ type AdministracionComprobantesRouteViewProps = {
   loaderData: AdminComprobantesListLoaderData;
 };
 
-// Lista global de solo lectura (ADR-0011, #483). Orden fijo:
-// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. El número
-// enlaza al detalle del comprobante y la coreografía a su detalle financiero;
-// no hay columna CAE ni acciones inline (imprimir/anular viven en el detalle).
-// La porción es faceta, no columna: se expone en una columna oculta para
-// alimentar el filtro sin ocupar espacio en la grilla.
+// Lista global de solo lectura, paginada/ordenada/filtrada del lado del servidor
+// (ADR-0011, #483). Orden fijo de columnas:
+// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. Sólo `Comprobante`
+// (número) y `Fecha` son ordenables (`sortValue` habilita el header). El número
+// enlaza al detalle del comprobante y la coreografía a su detalle financiero; no
+// hay columna CAE ni acciones inline (imprimir/anular viven en el detalle).
 export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
   {
     id: "numero",
@@ -49,7 +50,6 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
         {formatComprobanteNumber(row)}
       </DataTableLink>
     ),
-    filterValue: (row) => formatComprobanteNumber(row),
     sortValue: (row) => `${row.ptoVta}-${String(row.cbteNro).padStart(8, "0")}`,
   },
   {
@@ -58,19 +58,17 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     cell: (row) => (
       <Badge
         variant={row.cbteTipo === FACTURA_C_CBTE_TIPO ? "outline" : "info"}
+        title={formatComprobanteTipoLabel(row.cbteTipo)}
       >
-        {formatComprobanteTipoLabel(row.cbteTipo)}
+        {formatComprobanteTipoInitials(row.cbteTipo)}
       </Badge>
     ),
-    filterValue: (row) => formatComprobanteTipoLabel(row.cbteTipo),
   },
   {
     id: "academia",
     header: "Academia",
     className: "text-muted-foreground",
     cell: (row) => row.academyName,
-    filterValue: (row) => row.academyName,
-    sortValue: (row) => row.academyName,
   },
   {
     id: "coreografia",
@@ -83,8 +81,6 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
         {row.choreographyName}
       </DataTableLink>
     ),
-    filterValue: (row) => row.choreographyName,
-    sortValue: (row) => row.choreographyName,
   },
   {
     id: "estado",
@@ -94,7 +90,6 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
         {formatComprobanteStatusLabel(row.status)}
       </Badge>
     ),
-    filterValue: (row) => row.status,
   },
   {
     id: "fecha",
@@ -109,70 +104,47 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     cell: (row) => formatAmount(row.impTotal),
-    sortValue: (row) => row.impTotal,
-  },
-  {
-    id: "porcion",
-    header: "Porción",
-    hidden: true,
-    cell: () => null,
-    filterValue: (row) => formatComprobantePorcionLabel(row.porcion),
   },
 ];
 
-const comprobanteEstadoFacetOptions = [
-  { label: "Vigente", value: "vigente" },
-  { label: "Anulada", value: "anulada" },
-];
-
-const comprobanteTipoFacetOptions = [
+export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   {
-    label: formatComprobanteTipoLabel(FACTURA_C_CBTE_TIPO),
-    value: formatComprobanteTipoLabel(FACTURA_C_CBTE_TIPO),
+    id: "estado",
+    label: "Estado",
+    options: [
+      { label: "Vigente", value: "vigente" },
+      { label: "Anulada", value: "anulada" },
+    ],
   },
   {
-    label: formatComprobanteTipoLabel(NOTA_CREDITO_C_CBTE_TIPO),
-    value: formatComprobanteTipoLabel(NOTA_CREDITO_C_CBTE_TIPO),
+    id: "tipo",
+    label: "Tipo",
+    options: [
+      {
+        label: formatComprobanteTipoLabel(FACTURA_C_CBTE_TIPO),
+        value: "factura_c",
+      },
+      {
+        label: formatComprobanteTipoLabel(NOTA_CREDITO_C_CBTE_TIPO),
+        value: "nota_credito_c",
+      },
+    ],
   },
 ];
-
-const comprobantePorcionFacetOptions = (
-  ["seña", "saldo", "total"] as const
-).map((porcion) => ({
-  label: formatComprobantePorcionLabel(porcion),
-  value: formatComprobantePorcionLabel(porcion),
-}));
-
-export function buildComprobanteFacetedFilters(
-  loaderData: AdminComprobantesListLoaderData,
-): DataTableFacetedFilter[] {
-  return [
-    {
-      id: "estado",
-      label: "Estado",
-      options: comprobanteEstadoFacetOptions,
-    },
-    {
-      id: "tipo",
-      label: "Tipo",
-      options: comprobanteTipoFacetOptions,
-    },
-    {
-      id: "academia",
-      label: "Academia",
-      options: loaderData.academyFacetOptions,
-    },
-    {
-      id: "porcion",
-      label: "Porción",
-      options: comprobantePorcionFacetOptions,
-    },
-  ];
-}
 
 export function AdministracionComprobantesRouteView({
   loaderData,
 }: AdministracionComprobantesRouteViewProps) {
+  const shouldShowTable =
+    loaderData.rows.length > 0 ||
+    loaderData.hasAnyComprobante ||
+    loaderData.filters.query.length > 0 ||
+    loaderData.filters.estado !== null ||
+    loaderData.filters.tipo !== null ||
+    loaderData.filters.page > 1 ||
+    loaderData.filters.order.columnId !== "fecha" ||
+    loaderData.filters.order.direction !== "desc";
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -184,15 +156,25 @@ export function AdministracionComprobantesRouteView({
           "Activá un evento para consultar los comprobantes emitidos por administración.",
       }}
     >
-      {loaderData.rows.length > 0 ? (
-        <ClientDataTable
+      {shouldShowTable ? (
+        <ServerDataTable
           rows={loaderData.rows}
           columns={comprobanteColumns}
+          pageParamName="pagina"
+          searchParamName="busqueda"
+          sortParamName="orden"
+          facetedFilters={comprobanteFacetedFilters}
+          initialFacetedFilterValues={buildInitialFacetedFilterValues(
+            loaderData,
+          )}
+          initialSearchValue={loaderData.filters.query}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar por número, coreografía o academia"
-          facetedFilters={buildComprobanteFacetedFilters(loaderData)}
-          initialSort={{ columnId: "fecha", direction: "desc" }}
+          searchPlaceholder="Buscar por academia, coreografía o número"
+          initialSort={loaderData.filters.order}
           emptyMessage="No hay comprobantes que coincidan con la búsqueda o los filtros."
+          currentPage={loaderData.filters.page}
+          totalPages={loaderData.totalPages}
+          totalRows={loaderData.totalCount}
         />
       ) : (
         <AdminEmptyState
@@ -203,4 +185,22 @@ export function AdministracionComprobantesRouteView({
       )}
     </AdminResourceLayout>
   );
+}
+
+function buildInitialFacetedFilterValues(
+  loaderData: AdminComprobantesListLoaderData,
+): Record<string, DataTableFacetedFilterValue> {
+  const filters: DataTableFacetedFilterValue = {};
+
+  if (loaderData.filters.estado !== null) {
+    filters.estado = loaderData.filters.estado;
+  }
+
+  if (loaderData.filters.tipo !== null) {
+    filters.tipo = loaderData.filters.tipo;
+  }
+
+  return {
+    filters,
+  };
 }

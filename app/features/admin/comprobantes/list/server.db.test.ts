@@ -65,10 +65,10 @@ async function seedChoreography(input: {
   return { academy, choreography };
 }
 
-async function signedInAdminRequest() {
+async function signedInAdminRequest(search = "") {
   const { request } = await createSignedInAdminRequest({
     email: `comprobantes.list.${crypto.randomUUID()}@example.com`,
-    requestUrl: "http://localhost/administracion/comprobantes",
+    requestUrl: `http://localhost/administracion/comprobantes${search}`,
     role: "admin",
   });
 
@@ -154,16 +154,9 @@ describe("loadAdminComprobantesList", () => {
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
-  test("las facetas de academia se limitan a las academias con comprobantes, ordenadas por nombre", async () => {
+  test("filtra por estado derivado: anulada devuelve la factura con Nota de crédito; vigente, el resto", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
-    const beta = await seedChoreography({
-      academyName: "Academia Beta",
-      catalog,
-      email: `beta.${crypto.randomUUID()}@example.com`,
-      eventId: event.id,
-      name: "Coreografía Beta",
-    });
     const alfa = await seedChoreography({
       academyName: "Academia Alfa",
       catalog,
@@ -171,36 +164,172 @@ describe("loadAdminComprobantesList", () => {
       eventId: event.id,
       name: "Coreografía Alfa",
     });
-    // Academia sin comprobantes: no debería aparecer como faceta.
-    await seedChoreography({
-      academyName: "Academia Gamma",
-      catalog,
-      email: `gamma.${crypto.randomUUID()}@example.com`,
-      eventId: event.id,
-      name: "Coreografía Gamma",
-    });
 
-    await recordComprobante(
+    const anulada = await recordComprobante(
       facturaCInput({
-        choreographyId: beta.choreography.id,
+        choreographyId: alfa.choreography.id,
         eventId: event.id,
         cbteNro: 1,
       }),
     );
-    await recordComprobante(
+    const vigente = await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
         cbteNro: 2,
       }),
     );
+    const notaCredito = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteTipo: 13,
+        cbteNro: 3,
+        associatedComprobanteId: anulada.id,
+      }),
+    );
 
-    const data = await loadAdminComprobantesList(await signedInAdminRequest());
+    const anuladas = await loadAdminComprobantesList(
+      await signedInAdminRequest("?estado=anulada"),
+    );
+    expect(anuladas.rows.map((row) => row.id)).toEqual([anulada.id]);
+    expect(anuladas.totalCount).toBe(1);
 
-    expect(data.academyFacetOptions).toEqual([
-      { label: "Academia Alfa", value: "Academia Alfa" },
-      { label: "Academia Beta", value: "Academia Beta" },
-    ]);
+    const vigentes = await loadAdminComprobantesList(
+      await signedInAdminRequest("?estado=vigente"),
+    );
+    expect(new Set(vigentes.rows.map((row) => row.id))).toEqual(
+      new Set([vigente.id, notaCredito.id]),
+    );
+    expect(vigentes.totalCount).toBe(2);
+  });
+
+  test("filtra por tipo de comprobante", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const alfa = await seedChoreography({
+      academyName: "Academia Alfa",
+      catalog,
+      email: `alfa.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Coreografía Alfa",
+    });
+
+    const factura = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteNro: 1,
+      }),
+    );
+    const notaCredito = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteTipo: 13,
+        cbteNro: 2,
+        associatedComprobanteId: factura.id,
+      }),
+    );
+
+    const notas = await loadAdminComprobantesList(
+      await signedInAdminRequest("?tipo=nota_credito_c"),
+    );
+    expect(notas.rows.map((row) => row.id)).toEqual([notaCredito.id]);
+
+    const facturas = await loadAdminComprobantesList(
+      await signedInAdminRequest("?tipo=factura_c"),
+    );
+    expect(facturas.rows.map((row) => row.id)).toEqual([factura.id]);
+  });
+
+  test("busca por academia, coreografía y número de comprobante", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const alfa = await seedChoreography({
+      academyName: "Academia Alfa",
+      catalog,
+      email: `alfa.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Tango",
+    });
+    const beta = await seedChoreography({
+      academyName: "Academia Beta",
+      catalog,
+      email: `beta.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Vals",
+    });
+
+    const facturaAlfa = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        ptoVta: 1,
+        cbteNro: 1,
+      }),
+    );
+    const facturaBeta = await recordComprobante(
+      facturaCInput({
+        choreographyId: beta.choreography.id,
+        eventId: event.id,
+        ptoVta: 1,
+        cbteNro: 2,
+      }),
+    );
+
+    // Por academia.
+    const porAcademia = await loadAdminComprobantesList(
+      await signedInAdminRequest("?busqueda=Academia+Alfa"),
+    );
+    expect(porAcademia.rows.map((row) => row.id)).toEqual([facturaAlfa.id]);
+
+    // Por coreografía (el nombre no coincide con la academia).
+    const porCoreografia = await loadAdminComprobantesList(
+      await signedInAdminRequest("?busqueda=Vals"),
+    );
+    expect(porCoreografia.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
+
+    // Por número fiscal formateado.
+    const porNumero = await loadAdminComprobantesList(
+      await signedInAdminRequest("?busqueda=0001-00000002"),
+    );
+    expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
+  });
+
+  test("ordena por número ascendente cuando se pide", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const alfa = await seedChoreography({
+      academyName: "Academia Alfa",
+      catalog,
+      email: `alfa.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Coreografía Alfa",
+    });
+
+    const primero = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        ptoVta: 1,
+        cbteNro: 1,
+      }),
+    );
+    const segundo = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        ptoVta: 1,
+        cbteNro: 2,
+      }),
+    );
+
+    const data = await loadAdminComprobantesList(
+      await signedInAdminRequest("?orden=numero:asc"),
+    );
+
+    expect(data.rows.map((row) => row.id)).toEqual([primero.id, segundo.id]);
   });
 
   test("acota los comprobantes al evento activo: ignora los de otros eventos", async () => {
@@ -245,13 +374,14 @@ describe("loadAdminComprobantesList", () => {
     expect(data.rows[0]?.academyName).toBe("Academia Evento Activo");
   });
 
-  test("sin evento activo devuelve una lista vacía sin facetas", async () => {
+  test("sin evento activo devuelve una lista vacía", async () => {
     await createEventRecord({ active: false });
 
     const data = await loadAdminComprobantesList(await signedInAdminRequest());
 
     expect(data.selectedEventId).toBeNull();
     expect(data.rows).toEqual([]);
-    expect(data.academyFacetOptions).toEqual([]);
+    expect(data.totalCount).toBe(0);
+    expect(data.hasAnyComprobante).toBe(false);
   });
 });
