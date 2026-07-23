@@ -152,6 +152,16 @@ export async function loadAdministrativeChoreographyFinanceDetail(input: {
 
 export type ComprobanteCurrency = "vigente" | "desactualizada";
 
+// Comprobante VIGENTE que cubre una porción (seña o saldo) de la coreografía:
+// su id (destino del botón de la MetricCard) y su badge frente al cobro actual.
+// `null` cuando ninguna factura vigente cubre esa porción —incluido el caso en
+// que la única que la cubría fue anulada: ahí badge y botón desaparecen, no hay
+// estado `Anulado` (ADR-0011).
+export type PortionCoverage = {
+  comprobanteId: string;
+  currency: ComprobanteCurrency;
+};
+
 export type ChoreographyInvoicing = {
   // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
   // factura exactamente esto (#446); la UX lo previsualiza.
@@ -163,27 +173,20 @@ export type ChoreographyInvoicing = {
   // Hay algo para facturar: la afordancia de emisión sólo se habilita con
   // remanente.
   canEmit: boolean;
-  // Badge de la última factura frente al monto vigente de la coreografía:
-  // `vigente` si el remanente es 0 (la factura sigue representando el cobro),
-  // `desactualizada` si hay cobro nuevo sin facturar. `null` sin factura vigente.
-  currency: ComprobanteCurrency | null;
-  lastComprobante: {
-    id: string;
-    ptoVta: number;
-    cbteNro: number;
-    cbteFch: string;
-    impTotal: number;
-    cae: string;
-    status: "vigente" | "anulada";
-  } | null;
+  // Comprobante vigente que cubre cada porción, para las MetricCards de Seña y
+  // Saldo del detalle (ADR-0011). Una factura `total` cubre ambas, así que las
+  // dos apuntan al mismo comprobante.
+  sena: PortionCoverage | null;
+  saldo: PortionCoverage | null;
 };
 
 /**
  * Cruza los comprobantes de la coreografía con su monto facturable para armar el
- * eje de emisión del detalle: el badge Vigente/Desactualizada, la última factura
- * emitida y si queda algo por facturar. El badge deriva del remanente, no de una
- * columna: es `vigente` cuando la factura vigente ya cubre todo el cobro y
- * `desactualizada` cuando entró cobro nuevo sin facturar.
+ * eje de emisión del detalle: la porción facturable derivada, si queda algo por
+ * facturar, y el comprobante vigente que cubre cada porción (Seña/Saldo). El badge
+ * de cada porción deriva del remanente, no de una columna: es `vigente` cuando la
+ * factura vigente ya cubre todo el cobro de esa porción y `desactualizada` cuando
+ * entró cobro nuevo sin facturar en ella.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
@@ -193,36 +196,56 @@ async function readChoreographyInvoicing(
     resolveChoreographyBillable(choreographyId),
   ]);
 
-  const facturas = comprobantes.filter(
-    (comprobante) => comprobante.cbteTipo === FACTURA_C_CBTE_TIPO,
-  );
-  const lastFactura = facturas.at(-1) ?? null;
-  const hasVigenteFactura = facturas.some(
-    (comprobante) => comprobante.status === "vigente",
+  const vigentesFacturas = comprobantes.filter(
+    (comprobante) =>
+      comprobante.cbteTipo === FACTURA_C_CBTE_TIPO &&
+      comprobante.status === "vigente",
   );
 
-  const currency: ComprobanteCurrency | null = hasVigenteFactura
-    ? billable.total > 0
-      ? "desactualizada"
-      : "vigente"
-    : null;
+  const billableCovers = (porcion: "seña" | "saldo") =>
+    billable.porcion === porcion || billable.porcion === "total";
 
   return {
     billableAmount: billable.total,
     porcion: billable.porcion,
     canEmit: billable.total > 0,
-    currency,
-    lastComprobante: lastFactura
-      ? {
-          id: lastFactura.id,
-          ptoVta: lastFactura.ptoVta,
-          cbteNro: lastFactura.cbteNro,
-          cbteFch: lastFactura.cbteFch,
-          impTotal: lastFactura.impTotal,
-          cae: lastFactura.cae,
-          status: lastFactura.status,
-        }
-      : null,
+    sena: resolvePortionCoverage(
+      vigentesFacturas,
+      "seña",
+      billableCovers("seña"),
+    ),
+    saldo: resolvePortionCoverage(
+      vigentesFacturas,
+      "saldo",
+      billableCovers("saldo"),
+    ),
+  };
+}
+
+/**
+ * Comprobante vigente que cubre una porción: el más reciente cuya `porcion`
+ * coincide o es `total` (una factura total cubre seña y saldo). El badge es
+ * `desactualizada` cuando el remanente facturable incluye esa porción —entró
+ * cobro nuevo sin facturar— y `vigente` cuando la factura ya la cubre entera.
+ */
+function resolvePortionCoverage(
+  vigentesFacturas: { id: string; porcion: ComprobantePorcion }[],
+  porcion: "seña" | "saldo",
+  billableCoversPortion: boolean,
+): PortionCoverage | null {
+  const covering = vigentesFacturas
+    .filter(
+      (factura) => factura.porcion === porcion || factura.porcion === "total",
+    )
+    .at(-1);
+
+  if (!covering) {
+    return null;
+  }
+
+  return {
+    comprobanteId: covering.id,
+    currency: billableCoversPortion ? "desactualizada" : "vigente",
   };
 }
 

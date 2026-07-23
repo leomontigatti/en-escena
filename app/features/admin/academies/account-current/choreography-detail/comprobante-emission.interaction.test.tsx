@@ -9,17 +9,17 @@ import {
   getButton,
 } from "@/lib/test-support/react-dom";
 
-import { ComprobantesSection } from "./comprobante-emission";
+import { EmitComprobanteAction } from "./comprobante-emission";
 import type { ChoreographyInvoicing } from "./server";
 
-describe("ComprobantesSection emission flow", () => {
+describe("EmitComprobanteAction emission flow", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
 
   async function mount(invoicing: ChoreographyInvoicing) {
     const router = createMemoryRouter(
-      [{ path: "/", element: <ComprobantesSection invoicing={invoicing} /> }],
+      [{ path: "/", element: <EmitComprobanteAction invoicing={invoicing} /> }],
       { initialEntries: ["/"] },
     );
 
@@ -31,8 +31,8 @@ describe("ComprobantesSection emission flow", () => {
       billableAmount: 0,
       porcion: null,
       canEmit: false,
-      currency: null,
-      lastComprobante: null,
+      sena: null,
+      saldo: null,
     });
 
     expect(getButton("Emitir factura").disabled).toBe(true);
@@ -44,8 +44,8 @@ describe("ComprobantesSection emission flow", () => {
       billableAmount: 12000,
       porcion: "seña",
       canEmit: true,
-      currency: null,
-      lastComprobante: null,
+      sena: null,
+      saldo: null,
     });
 
     expect(getButton("Emitir factura").disabled).toBe(false);

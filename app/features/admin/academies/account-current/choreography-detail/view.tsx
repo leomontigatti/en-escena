@@ -5,9 +5,10 @@ import {
   Landmark,
   LoaderCircle,
   Receipt,
+  ReceiptText,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -61,7 +62,7 @@ import {
   formatDate,
   formatOperationalAmount,
 } from "../formatters";
-import { ComprobantesSection } from "./comprobante-emission";
+import { EmitComprobanteAction } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
   formatDancerName,
@@ -69,7 +70,10 @@ import {
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import { PaymentSelectItems } from "./payment-select-items";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type {
+  loadAdministrativeChoreographyFinanceDetail,
+  PortionCoverage,
+} from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -106,7 +110,12 @@ export function AdministracionCoreografiaFinancieraDetalleView({
           "Activá un evento para consultar el detalle financiero de una coreografía.",
       }}
       headerAction={
-        choreography ? <CobroActions loaderData={loaderData} /> : undefined
+        choreography ? (
+          <div className="flex items-center gap-2">
+            <EmitComprobanteAction invoicing={loaderData.invoicing} />
+            <CobroActions loaderData={loaderData} />
+          </div>
+        ) : undefined
       }
     >
       {choreography ? (
@@ -118,6 +127,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
               icon={Receipt}
               title="Seña"
               value={formatOperationalAmount(choreography.depositAmount)}
+              slot={portionCoverageSlot(loaderData.invoicing.sena)}
             />
             <MetricCard
               icon={CircleDollarSign}
@@ -128,6 +138,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
               icon={Landmark}
               title="Saldo"
               value={formatOperationalAmount(choreography.balanceAmount)}
+              slot={portionCoverageSlot(loaderData.invoicing.saldo)}
             />
           </section>
 
@@ -158,8 +169,6 @@ export function AdministracionCoreografiaFinancieraDetalleView({
             </CardContent>
           </Card>
 
-          <ComprobantesSection invoicing={loaderData.invoicing} />
-
           <InscriptionsTable
             canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
@@ -174,6 +183,38 @@ export function AdministracionCoreografiaFinancieraDetalleView({
         />
       )}
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * Slot de la MetricCard de una porción (Seña/Saldo): badge Vigente/Desactualizada
+ * más un botón al comprobante que la cubre (ADR-0011). Devuelve `undefined` cuando
+ * ninguna factura vigente cubre la porción —incluido el caso en que la única que
+ * la cubría fue anulada—, así la MetricCard cae en su ícono por defecto y no queda
+ * un estado `Anulado` muerto.
+ */
+function portionCoverageSlot(coverage: PortionCoverage | null) {
+  if (coverage === null) {
+    return undefined;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Badge variant={coverage.currency === "vigente" ? "success" : "warning"}>
+        {coverage.currency === "vigente" ? "Vigente" : "Desactualizada"}
+      </Badge>
+      <Button
+        asChild
+        variant="outline"
+        size="icon-sm"
+        aria-label="Ver comprobante"
+        title="Ver comprobante"
+      >
+        <Link to={`/administracion/comprobantes/${coverage.comprobanteId}`}>
+          <ReceiptText aria-hidden="true" />
+        </Link>
+      </Button>
+    </div>
   );
 }
 

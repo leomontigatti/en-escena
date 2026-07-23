@@ -12,14 +12,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
 
 import { formatAmount } from "../formatters";
-import type { ChoreographyInvoicing, ComprobanteCurrency } from "./server";
+import type { ChoreographyInvoicing } from "./server";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
@@ -27,18 +25,15 @@ import {
   type ChoreographyFinanceActionData,
 } from "./shared";
 
-type LastComprobante = NonNullable<ChoreographyInvoicing["lastComprobante"]>;
-
 /**
- * Eje de emisión del detalle financiero (prototipo B de #339): la última factura
- * emitida con su badge Vigente/Desactualizada frente al monto vigente de la
- * coreografía y la única acción `Emitir factura`, habilitada sólo cuando hay un
- * remanente cobrado sin facturar. La operadora no elige porción ni importe: ambos
- * se derivan de lo cobrado (#480, ADR-0011) y se previsualizan antes de confirmar
- * en un `AlertDialog` cuyo copy dice la verdad (la salida real es una Nota de
- * crédito, no un borrado).
+ * Acción única `Emitir factura` del header del detalle financiero (ADR-0011):
+ * habilitada sólo cuando hay un remanente cobrado sin facturar. La operadora no
+ * elige porción ni importe: ambos se derivan de lo cobrado (#480) y se
+ * previsualizan antes de confirmar en un `AlertDialog` cuyo copy dice la verdad
+ * (la salida real es una Nota de crédito, no un borrado). El estado de facturación
+ * ya no vive en una sección aparte: lo anotan las MetricCards de porción.
  */
-export function ComprobantesSection({
+export function EmitComprobanteAction({
   invoicing,
 }: {
   invoicing: ChoreographyInvoicing;
@@ -46,71 +41,24 @@ export function ComprobantesSection({
   const [open, setOpen] = useState(false);
 
   return (
-    <Card aria-label="Comprobantes">
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Facturación electrónica</span>
-            {invoicing.lastComprobante ? (
-              <LastComprobanteSummary comprobante={invoicing.lastComprobante} />
-            ) : (
-              <span className="text-sm text-muted-foreground">
-                Esta coreografía todavía no tiene comprobantes emitidos.
-              </span>
-            )}
-          </div>
-          {invoicing.currency ? (
-            <CurrencyBadge currency={invoicing.currency} />
-          ) : null}
-        </div>
-
-        <div>
-          <Button
-            type="button"
-            disabled={!invoicing.canEmit}
-            onClick={() => setOpen(true)}
-          >
-            <ReceiptText aria-hidden="true" data-icon="inline-start" />
-            Emitir factura
-          </Button>
-        </div>
-        {invoicing.canEmit ? (
-          <EmissionDialog
-            billableAmount={invoicing.billableAmount}
-            porcion={invoicing.porcion}
-            open={open}
-            onOpenChange={setOpen}
-          />
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function CurrencyBadge({ currency }: { currency: ComprobanteCurrency }) {
-  return currency === "vigente" ? (
-    <Badge variant="success">Vigente</Badge>
-  ) : (
-    <Badge variant="warning">Desactualizada</Badge>
-  );
-}
-
-function LastComprobanteSummary({
-  comprobante,
-}: {
-  comprobante: LastComprobante;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-      <span className="tabular-nums">
-        Factura C {formatComprobanteNumber(comprobante)} ·{" "}
-        {formatAmount(comprobante.impTotal)}
-      </span>
-      <span className="tabular-nums">CAE {comprobante.cae}</span>
-      {comprobante.status === "anulada" ? (
-        <span className="text-destructive">Anulada por nota de crédito.</span>
+    <>
+      <Button
+        type="button"
+        disabled={!invoicing.canEmit}
+        onClick={() => setOpen(true)}
+      >
+        <ReceiptText aria-hidden="true" data-icon="inline-start" />
+        Emitir factura
+      </Button>
+      {invoicing.canEmit ? (
+        <EmissionDialog
+          billableAmount={invoicing.billableAmount}
+          porcion={invoicing.porcion}
+          open={open}
+          onOpenChange={setOpen}
+        />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -292,13 +240,4 @@ export function ContingencyAlert({
       </AlertDescription>
     </Alert>
   );
-}
-
-function formatComprobanteNumber(comprobante: {
-  ptoVta: number;
-  cbteNro: number;
-}): string {
-  const ptoVta = String(comprobante.ptoVta).padStart(4, "0");
-  const cbteNro = String(comprobante.cbteNro).padStart(8, "0");
-  return `${ptoVta}-${cbteNro}`;
 }

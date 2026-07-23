@@ -38,6 +38,78 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).toContain("Ana López");
   });
 
+  test("shows a Vigente badge and a link to the covering comprobante on the Seña card", () => {
+    const markup = renderDetail({
+      invoicing: invoicingFixture({
+        sena: { comprobanteId: "comprobante_sena", currency: "vigente" },
+      }),
+    });
+
+    const card = portionCard(markup, "Seña");
+    expect(card.textContent).toContain("Vigente");
+    expect(
+      card.querySelector(
+        'a[href="/administracion/comprobantes/comprobante_sena"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  test("links Seña and Saldo to the same comprobante when a total factura covers both", () => {
+    const markup = renderDetail({
+      invoicing: invoicingFixture({
+        sena: { comprobanteId: "comprobante_total", currency: "vigente" },
+        saldo: { comprobanteId: "comprobante_total", currency: "vigente" },
+      }),
+    });
+
+    const sena = portionCard(markup, "Seña");
+    const saldo = portionCard(markup, "Saldo");
+    const target = 'a[href="/administracion/comprobantes/comprobante_total"]';
+    expect(sena.querySelector(target)).not.toBeNull();
+    expect(saldo.querySelector(target)).not.toBeNull();
+  });
+
+  test("marks a portion card Desactualizada when new money is unbilled", () => {
+    const markup = renderDetail({
+      invoicing: invoicingFixture({
+        saldo: {
+          comprobanteId: "comprobante_saldo",
+          currency: "desactualizada",
+        },
+      }),
+    });
+
+    const card = portionCard(markup, "Saldo");
+    expect(card.textContent).toContain("Desactualizada");
+    expect(card.textContent).not.toContain("Vigente");
+  });
+
+  test("drops the badge and link from a portion card whose comprobante was annulled", () => {
+    // El loader ya filtra las facturas anuladas: la vista sólo recibe cobertura
+    // `null`, así que la MetricCard no muestra badge ni botón (sin estado Anulado).
+    const markup = renderDetail({
+      invoicing: invoicingFixture({ sena: null, saldo: null }),
+    });
+
+    const card = portionCard(markup, "Seña");
+    expect(card.textContent).not.toContain("Vigente");
+    expect(card.textContent).not.toContain("Desactualizada");
+    expect(markup).not.toContain("/administracion/comprobantes/");
+  });
+
+  test("carries no badge or link on the Pagado card", () => {
+    const markup = renderDetail({
+      invoicing: invoicingFixture({
+        sena: { comprobanteId: "comprobante_sena", currency: "vigente" },
+        saldo: { comprobanteId: "comprobante_saldo", currency: "vigente" },
+      }),
+    });
+
+    const card = portionCard(markup, "Pagado");
+    expect(card.textContent).not.toContain("Vigente");
+    expect(card.querySelector("a")).toBeNull();
+  });
+
   test("renders a clickable name for an orphan impaga in a mixed choreography", () => {
     const markup = renderDetail({
       inscriptionDeposit: {
@@ -289,6 +361,25 @@ function tentativeAmounts(markup: string) {
 }
 
 /**
+ * MetricCard de una porción, ubicada por su título. Se ancla en el texto del
+ * título y no en la posición para que el test hable de "Seña"/"Saldo"/"Pagado".
+ */
+function portionCard(markup: string, title: string): Element {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const card = [...document.querySelectorAll('[data-slot="card"]')].find(
+    (element) =>
+      element.querySelector('[data-slot="card-title"]')?.textContent?.trim() ===
+      title,
+  );
+
+  if (!card) {
+    throw new Error(`No se encontró la MetricCard "${title}".`);
+  }
+
+  return card;
+}
+
+/**
  * Renderiza con un data router porque el diálogo de cobro usa `useFetcher`, que
  * no funciona con un router de memoria a secas.
  */
@@ -341,8 +432,8 @@ function invoicingFixture(
     billableAmount: 0,
     porcion: null,
     canEmit: false,
-    currency: null,
-    lastComprobante: null,
+    sena: null,
+    saldo: null,
     ...overrides,
   };
 }

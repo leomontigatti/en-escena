@@ -17,7 +17,10 @@ import {
   ArcaClient,
   type ArcaBillingPort,
 } from "@/lib/comprobantes/arca/client.server";
-import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
+import {
+  FACTURA_C_CBTE_TIPO,
+  NOTA_CREDITO_C_CBTE_TIPO,
+} from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
   facturaCRechazada,
@@ -148,11 +151,42 @@ async function recordVigenteFactura(input: {
   inscriptionId: string;
   amount: number;
   cbteNro: number;
+  porcion?: "seña" | "saldo" | "total";
 }) {
   return await recordComprobante({
     choreographyId: input.choreographyId,
     eventId: input.eventId,
     cbteTipo: FACTURA_C_CBTE_TIPO,
+    ptoVta: 1,
+    cbteNro: input.cbteNro,
+    cbteFch: "20260722",
+    porcion: input.porcion,
+    impTotal: input.amount,
+    issuerCuit: "30717611590",
+    issuerIvaCondition: "exento",
+    receptorDocTipo: 99,
+    receptorDocNro: "0",
+    receptorIvaConditionId: 5,
+    cae: "74123456789012",
+    caeVto: "20260801",
+    lines: [{ inscriptionId: input.inscriptionId, amount: input.amount }],
+  });
+}
+
+// Nota de crédito que espeja una factura: al referenciarla por
+// `associatedComprobanteId`, el estado derivado de la factura pasa a `anulada`.
+async function recordNotaCredito(input: {
+  choreographyId: string;
+  eventId: string;
+  inscriptionId: string;
+  amount: number;
+  cbteNro: number;
+  associatedComprobanteId: string;
+}) {
+  return await recordComprobante({
+    choreographyId: input.choreographyId,
+    eventId: input.eventId,
+    cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
     ptoVta: 1,
     cbteNro: input.cbteNro,
     cbteFch: "20260722",
@@ -162,8 +196,9 @@ async function recordVigenteFactura(input: {
     receptorDocTipo: 99,
     receptorDocNro: "0",
     receptorIvaConditionId: 5,
-    cae: "74123456789012",
+    cae: "74123456789013",
     caeVto: "20260801",
+    associatedComprobanteId: input.associatedComprobanteId,
     lines: [{ inscriptionId: input.inscriptionId, amount: input.amount }],
   });
 }
@@ -228,7 +263,7 @@ function detailUrl(input: {
 describe.sequential(
   "detalle financiero — eje de emisión de comprobantes",
   () => {
-    test("offers emission with no badge when there is billed money and no comprobante", async () => {
+    test("covers no portion when there is billed money and no comprobante", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Sin Factura",
         choreographyName: "Coreografía sin factura",
@@ -241,24 +276,25 @@ describe.sequential(
       expect(loaderData.invoicing).toMatchObject({
         billableAmount: 3000,
         canEmit: true,
-        currency: null,
-        lastComprobante: null,
+        sena: null,
+        saldo: null,
       });
     });
 
-    test("marks the comprobante Vigente once it covers the whole billed amount", async () => {
+    test("marks the seña portion Vigente once its factura covers the whole cobro", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Vigente",
         choreographyName: "Coreografía vigente",
         email: "academia.vigente@example.com",
         paidAmount: 3000,
       });
-      await recordVigenteFactura({
+      const factura = await recordVigenteFactura({
         choreographyId: seeded.choreographyId,
         eventId: seeded.eventId,
         inscriptionId: seeded.inscriptionId,
         amount: 3000,
         cbteNro: 7,
+        porcion: "seña",
       });
 
       const loaderData = await loadDetail(seeded);
@@ -266,16 +302,38 @@ describe.sequential(
       expect(loaderData.invoicing).toMatchObject({
         billableAmount: 0,
         canEmit: false,
-        currency: "vigente",
-      });
-      expect(loaderData.invoicing.lastComprobante).toMatchObject({
-        cbteNro: 7,
-        impTotal: 3000,
-        status: "vigente",
+        sena: { comprobanteId: factura.id, currency: "vigente" },
+        saldo: null,
       });
     });
 
-    test("marks the comprobante Desactualizada when new money is billed after it", async () => {
+    test("points both portions to a total factura that covers seña and saldo", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Total",
+        choreographyName: "Coreografía total",
+        email: "academia.total@example.com",
+        paidAmount: 3000,
+      });
+      const factura = await recordVigenteFactura({
+        choreographyId: seeded.choreographyId,
+        eventId: seeded.eventId,
+        inscriptionId: seeded.inscriptionId,
+        amount: 3000,
+        cbteNro: 7,
+        porcion: "total",
+      });
+
+      const loaderData = await loadDetail(seeded);
+
+      expect(loaderData.invoicing.sena).toMatchObject({
+        comprobanteId: factura.id,
+      });
+      expect(loaderData.invoicing.saldo).toMatchObject({
+        comprobanteId: factura.id,
+      });
+    });
+
+    test("marks the seña portion Desactualizada when new money is billed after it", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Desactualizada",
         choreographyName: "Coreografía desactualizada",
@@ -288,6 +346,7 @@ describe.sequential(
         inscriptionId: seeded.inscriptionId,
         amount: 3000,
         cbteNro: 7,
+        porcion: "seña",
       });
       await seedAllocation({
         academyId: seeded.academyId,
@@ -301,8 +360,41 @@ describe.sequential(
       expect(loaderData.invoicing).toMatchObject({
         billableAmount: 2000,
         canEmit: true,
-        currency: "desactualizada",
+        sena: { currency: "desactualizada" },
       });
+    });
+
+    test("drops the portion coverage when the covering factura is annulled", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Anulada",
+        choreographyName: "Coreografía anulada",
+        email: "academia.anulada@example.com",
+        paidAmount: 3000,
+      });
+      const factura = await recordVigenteFactura({
+        choreographyId: seeded.choreographyId,
+        eventId: seeded.eventId,
+        inscriptionId: seeded.inscriptionId,
+        amount: 3000,
+        cbteNro: 7,
+        porcion: "seña",
+      });
+      await recordNotaCredito({
+        choreographyId: seeded.choreographyId,
+        eventId: seeded.eventId,
+        inscriptionId: seeded.inscriptionId,
+        amount: 3000,
+        cbteNro: 8,
+        associatedComprobanteId: factura.id,
+      });
+
+      const loaderData = await loadDetail(seeded);
+
+      // Anulada la única factura que cubría la seña, la porción deja de estar
+      // cubierta: badge y botón desaparecen y su monto vuelve a ser facturable.
+      expect(loaderData.invoicing.sena).toBeNull();
+      expect(loaderData.invoicing.saldo).toBeNull();
+      expect(loaderData.invoicing.canEmit).toBe(true);
     });
 
     test("emits and redirects back to the detail on an approved CAE", async () => {
