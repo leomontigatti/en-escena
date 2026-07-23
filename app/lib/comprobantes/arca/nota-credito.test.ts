@@ -12,6 +12,12 @@ const baseInput: NotaCreditoCVoucherInput = {
   cbteFch: "20260722",
   importe: 7000,
   condicionIvaReceptorId: 5,
+  // La Nota de crédito espeja las tres fechas del comprobante que anula: la
+  // lógica de anulación las copia del comprobante original al input. El builder
+  // sigue exigiendo `FchVtoPago >= CbteFch` (WSFEv1) sobre la fecha de la NC.
+  fchServDesde: "20260801",
+  fchServHasta: "20260803",
+  fchVtoPago: "20260722",
   emisorCuit: "30717611590",
   asociado: {
     cbteTipo: 11,
@@ -38,6 +44,21 @@ describe("buildNotaCreditoCVoucher", () => {
     expect(voucher.ImpNeto).toBe(12000);
     expect(voucher.ImpIVA).toBe(0);
     expect(voucher.Iva).toBeUndefined();
+  });
+
+  test("es un servicio (Concepto 2) y espeja las tres fechas del comprobante que anula", () => {
+    const voucher = buildNotaCreditoCVoucher(baseInput);
+
+    expect(voucher.Concepto).toBe(2);
+    expect(voucher.FchServDesde).toBe("20260801");
+    expect(voucher.FchServHasta).toBe("20260803");
+    expect(voucher.FchVtoPago).toBe("20260722");
+  });
+
+  test("hereda las restricciones de fechas de servicio de la base clase C", () => {
+    expect(() =>
+      buildNotaCreditoCVoucher({ ...baseInput, fchVtoPago: "20260721" }),
+    ).toThrow(/FchVtoPago/);
   });
 
   test("referencia al comprobante que anula vía CbtesAsoc", () => {

@@ -17,11 +17,27 @@ export const FACTURA_C_CBTE_TIPO = 11;
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
-export const CONCEPTO_PRODUCTOS = 1;
+// Concepto 2 = Servicios. Una inscripción a un certamen es una prestación, no una
+// venta de cosa mueble (ADR-0011): se factura como servicio y el payload lleva el
+// período de servicio (`FchServDesde`/`FchServHasta`) y el vencimiento de pago
+// (`FchVtoPago`), como exige ARCA para Concepto 2 (Anexo II, RG 1415).
+export const CONCEPTO_SERVICIOS = 2;
 export const MONEDA_PESOS = "PES";
 
 // Formato de fecha ARCA `AAAAMMDD`, tanto para `CbteFch` como para `CAEFchVto`.
 const ARCA_DATE_RE = /^\d{8}$/;
+
+// Período de servicio y vencimiento de pago de un comprobante Concepto 2, en
+// formato ARCA `AAAAMMDD`. Las tres van juntas o ninguna: un payload de servicio
+// las lleva las tres. En la emisión (#479) `FchServDesde`/`FchServHasta` derivan
+// de las fechas del evento y `FchVtoPago` de la fecha del comprobante; la Nota de
+// crédito espeja las tres del comprobante que anula. Son opcionales en el builder
+// porque la lógica de emisión sobre DB todavía no las cablea (sub-issue aparte).
+export type ServiceDates = {
+  fchServDesde: string;
+  fchServHasta: string;
+  fchVtoPago: string;
+};
 
 export type FacturaCVoucherInput = {
   ptoVta: number;
@@ -33,7 +49,7 @@ export type FacturaCVoucherInput = {
   // Importe total en pesos argentinos enteros (sin centavos, ver finanzas.md).
   importe: number;
   condicionIvaReceptorId: number;
-};
+} & Partial<ServiceDates>;
 
 export function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
@@ -59,10 +75,60 @@ export type ClassCVoucherBase = {
   cbteFch: string;
   importe: number;
   condicionIvaReceptorId: number;
-};
+} & Partial<ServiceDates>;
+
+// Resuelve el bloque de fechas de servicio del payload. Las tres fechas van
+// juntas o ninguna (un Concepto 2 real las lleva las tres); si vienen, valida su
+// formato y las restricciones duras de WSFEv1: `FchServHasta >= FchServDesde` y
+// `FchVtoPago >= CbteFch`. La comparación lexicográfica de `AAAAMMDD` (ancho fijo,
+// con ceros a la izquierda) coincide con el orden cronológico.
+function buildServiceDates(
+  input: ClassCVoucherBase,
+): Pick<ArcaVoucher, "FchServDesde" | "FchServHasta" | "FchVtoPago"> {
+  const { fchServDesde, fchServHasta, fchVtoPago } = input;
+  const present = [fchServDesde, fchServHasta, fchVtoPago].filter(
+    (value) => value !== undefined,
+  );
+
+  if (present.length === 0) {
+    return {};
+  }
+
+  if (present.length !== 3) {
+    throw new Error(
+      "Las fechas de servicio (FchServDesde, FchServHasta, FchVtoPago) van " +
+        "las tres juntas o ninguna.",
+    );
+  }
+
+  assertArcaDate(fchServDesde!, "FchServDesde");
+  assertArcaDate(fchServHasta!, "FchServHasta");
+  assertArcaDate(fchVtoPago!, "FchVtoPago");
+
+  if (fchServHasta! < fchServDesde!) {
+    throw new Error(
+      `FchServHasta (${fchServHasta}) debe ser >= FchServDesde ` +
+        `(${fchServDesde}).`,
+    );
+  }
+
+  if (fchVtoPago! < input.cbteFch) {
+    throw new Error(
+      `FchVtoPago (${fchVtoPago}) debe ser >= CbteFch (${input.cbteFch}).`,
+    );
+  }
+
+  return {
+    FchServDesde: fchServDesde,
+    FchServHasta: fchServHasta,
+    FchVtoPago: fchVtoPago,
+  };
+}
 
 // Construye el payload `FECAESolicitar` de un comprobante clase C (#320/§3 de la
-// research #321). Sin IVA discriminado: `ImpNeto = ImpTotal`, el resto de los
+// research #321). `Concepto: 2` (servicios, ADR-0011): si el input trae las
+// fechas de servicio, se emiten en el payload (`FchServDesde`/`FchServHasta`/
+// `FchVtoPago`). Sin IVA discriminado: `ImpNeto = ImpTotal`, el resto de los
 // importes en 0, y NO se envía el array `<Iva>`. `CbteHasta = CbteDesde`
 // (validación 10012). `cbtesAsoc`, si viene, arma el vínculo `CbtesAsoc`.
 export function buildClassCVoucher(
@@ -75,11 +141,14 @@ export function buildClassCVoucher(
   assertPositiveInteger(input.condicionIvaReceptorId, "CondicionIVAReceptorId");
   assertArcaDate(input.cbteFch);
 
+  const serviceDates = buildServiceDates(input);
+
   return {
     CantReg: 1,
     PtoVta: input.ptoVta,
     CbteTipo: extras.cbteTipo,
-    Concepto: CONCEPTO_PRODUCTOS,
+    Concepto: CONCEPTO_SERVICIOS,
+    ...serviceDates,
     DocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
     DocNro: DOC_NRO_CONSUMIDOR_FINAL,
     CbteDesde: input.cbteNro,

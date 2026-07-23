@@ -12,6 +12,9 @@ const baseInput: FacturaCVoucherInput = {
   cbteFch: "20260722",
   importe: 1000,
   condicionIvaReceptorId: 5,
+  fchServDesde: "20260801",
+  fchServHasta: "20260803",
+  fchVtoPago: "20260722",
 };
 
 describe("buildFacturaCVoucher", () => {
@@ -20,11 +23,46 @@ describe("buildFacturaCVoucher", () => {
 
     expect(voucher.CbteTipo).toBe(FACTURA_C_CBTE_TIPO);
     expect(voucher.CantReg).toBe(1);
-    expect(voucher.Concepto).toBe(1);
     expect(voucher.DocTipo).toBe(99);
     expect(voucher.DocNro).toBe(0);
     expect(voucher.CondicionIVAReceptorId).toBe(5);
     expect(voucher.MonCotiz).toBe(1);
+  });
+
+  test("se emite como servicio (Concepto 2) con el período de servicio y el vencimiento de pago", () => {
+    const voucher = buildFacturaCVoucher(baseInput);
+
+    expect(voucher.Concepto).toBe(2);
+    expect(voucher.FchServDesde).toBe("20260801");
+    expect(voucher.FchServHasta).toBe("20260803");
+    expect(voucher.FchVtoPago).toBe("20260722");
+  });
+
+  test("rechaza un período de servicio que termina antes de empezar (FchServHasta < FchServDesde)", () => {
+    expect(() =>
+      buildFacturaCVoucher({
+        ...baseInput,
+        fchServDesde: "20260803",
+        fchServHasta: "20260801",
+      }),
+    ).toThrow(/FchServHasta/);
+  });
+
+  test("rechaza un vencimiento de pago anterior a la fecha del comprobante (FchVtoPago < CbteFch)", () => {
+    expect(() =>
+      buildFacturaCVoucher({ ...baseInput, fchVtoPago: "20260721" }),
+    ).toThrow(/FchVtoPago/);
+  });
+
+  test("exige las tres fechas de servicio juntas o ninguna", () => {
+    const { fchVtoPago: _omitted, ...withoutVto } = baseInput;
+    expect(() => buildFacturaCVoucher(withoutVto)).toThrow(/juntas o ninguna/);
+  });
+
+  test("rechaza una fecha de servicio sin formato ARCA AAAAMMDD", () => {
+    expect(() =>
+      buildFacturaCVoucher({ ...baseInput, fchServDesde: "2026-08-01" }),
+    ).toThrow(/FchServDesde/);
   });
 
   test("no discrimina IVA: ImpNeto = ImpTotal, el resto de los importes en 0 y sin array <Iva>", () => {
