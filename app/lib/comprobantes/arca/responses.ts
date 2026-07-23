@@ -11,6 +11,12 @@ export type ArcaMessage = {
   msg: string;
 };
 
+// Texto de un mensaje de ARCA para la UI de contingencia: el `Msg` crudo con su
+// código cuando lo trae. Emisión (#447) y anulación (#474) lo presentan igual.
+export function formatArcaMessage(message: ArcaMessage): string {
+  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
+}
+
 // Los DTO del SDK usan `Code`/`Msg` (WSFEv1) en unos lugares y `code`/`msg` (los
 // errores ya mapeados de `FECompUltimoAutorizado`) en otros. Normalizamos ambos.
 type RawArcaMessage = {

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
@@ -28,6 +28,7 @@ function comprobanteRow(
     impTotal: 25000,
     cae: "11112222333344",
     status: "vigente",
+    canAnnul: true,
     choreographyId: "choreo_1",
     choreographyName: "Coreografía Alfa",
     academyId: "academy_1",
@@ -51,12 +52,20 @@ function loaderData(
   };
 }
 
+// La celda de anulación usa `useFetcher`, que exige un data router: el
+// `MemoryRouter` declarativo no alcanza.
 function renderView(data: AdminComprobantesListLoaderData) {
-  return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/administracion/comprobantes"]}>
-      <AdministracionComprobantesRouteView loaderData={data} />
-    </MemoryRouter>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/administracion/comprobantes",
+        element: <AdministracionComprobantesRouteView loaderData={data} />,
+      },
+    ],
+    { initialEntries: ["/administracion/comprobantes"] },
   );
+
+  return renderToStaticMarkup(<RouterProvider router={router} />);
 }
 
 /**
@@ -120,6 +129,22 @@ describe("AdministracionComprobantesRouteView", () => {
     expect(markup).toContain(
       'href="/administracion/comprobantes/comprobante_1/imprimir"',
     );
+  });
+
+  test("offers annulment only on a vigente Factura C", () => {
+    const withAnnullable = renderView(
+      loaderData([comprobanteRow({ canAnnul: true })]),
+    );
+    expect(withAnnullable).toContain("Anular");
+
+    // Una factura ya anulada y una nota de crédito no se anulan.
+    const withoutAnnullable = renderView(
+      loaderData([
+        comprobanteRow({ status: "anulada", canAnnul: false }),
+        comprobanteRow({ id: "comprobante_2", cbteTipo: 13, canAnnul: false }),
+      ]),
+    );
+    expect(withoutAnnullable).not.toContain("Anular");
   });
 
   test("renders the empty state when the active event has no comprobantes", () => {

@@ -13,7 +13,7 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import type { ArcaMessage } from "@/lib/comprobantes/arca/responses";
+import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   emitChoreographyFacturaC,
@@ -158,8 +158,10 @@ export type ChoreographyInvoicing = {
   // Hay algo para facturar: la afordancia de emisión sólo aparece con remanente.
   canEmit: boolean;
   // Badge de la última factura frente al monto vigente de la coreografía:
-  // `vigente` si el remanente es 0 (la factura sigue representando el cobro),
-  // `desactualizada` si hay cobro nuevo sin facturar. `null` sin factura vigente.
+  // `vigente` cuando el `impTotal` facturado coincide con lo cobrado hoy por el
+  // roster, `desactualizada` cuando divergió —haya entrado cobro nuevo sin
+  // facturar o haya salido una inscripción ya facturada—. `null` sin factura
+  // vigente.
   currency: ComprobanteCurrency | null;
   lastComprobante: {
     id: string;
@@ -175,9 +177,11 @@ export type ChoreographyInvoicing = {
 /**
  * Cruza los comprobantes de la coreografía con su monto facturable para armar el
  * eje de emisión del detalle: el badge Vigente/Desactualizada, la última factura
- * emitida y si queda algo por facturar. El badge deriva del remanente, no de una
- * columna: es `vigente` cuando la factura vigente ya cubre todo el cobro y
- * `desactualizada` cuando entró cobro nuevo sin facturar.
+ * emitida y si queda algo por facturar. El badge deriva de la divergencia entre
+ * el `impTotal` congelado de las facturas vigentes y lo cobrado hoy por el
+ * roster, no de una columna: cubre tanto el cobro nuevo sin facturar como la
+ * baja de una inscripción ya facturada, donde el remanente por sí solo no alcanza
+ * porque nunca es negativo.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
@@ -191,15 +195,20 @@ async function readChoreographyInvoicing(
     (comprobante) => comprobante.cbteTipo === FACTURA_C_CBTE_TIPO,
   );
   const lastFactura = facturas.at(-1) ?? null;
-  const hasVigenteFactura = facturas.some(
+  const vigentes = facturas.filter(
     (comprobante) => comprobante.status === "vigente",
   );
+  const billedTotal = vigentes.reduce(
+    (sum, comprobante) => sum + comprobante.impTotal,
+    0,
+  );
 
-  const currency: ComprobanteCurrency | null = hasVigenteFactura
-    ? billable.total > 0
-      ? "desactualizada"
-      : "vigente"
-    : null;
+  const currency: ComprobanteCurrency | null =
+    vigentes.length > 0
+      ? billedTotal === billable.paidTotal
+        ? "vigente"
+        : "desactualizada"
+      : null;
 
   return {
     billableAmount: billable.total,
@@ -555,10 +564,6 @@ async function handleEmitComprobante(input: {
   }
 
   return { status: "error", message: outcome.message };
-}
-
-function formatArcaMessage(message: ArcaMessage): string {
-  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
 
 function redirectToDetail(

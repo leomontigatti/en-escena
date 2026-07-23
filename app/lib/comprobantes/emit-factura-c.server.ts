@@ -153,6 +153,10 @@ export async function emitChoreographyFacturaC(
 export type ChoreographyBillable = {
   lines: ComprobanteLineInput[];
   total: number;
+  // Total cobrado por las inscripciones que hoy integran el roster. Es el monto
+  // que una factura vigente debería representar; el badge Vigente/Desactualizada
+  // (#339) lo compara contra el `impTotal` congelado del snapshot.
+  paidTotal: number;
 };
 
 /**
@@ -169,13 +173,13 @@ export async function resolveChoreographyBillable(
     .from(choreographyDancers)
     .where(eq(choreographyDancers.choreographyId, choreographyId));
 
-  const lines = await resolveBillableLines(
+  const { lines, paidTotal } = await resolveBillableLines(
     choreographyId,
     inscriptionRows.map((row) => row.id),
   );
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
 
-  return { lines, total };
+  return { lines, total, paidTotal };
 }
 
 /**
@@ -188,9 +192,9 @@ export async function resolveChoreographyBillable(
 async function resolveBillableLines(
   choreographyId: string,
   inscriptionIds: string[],
-): Promise<ComprobanteLineInput[]> {
+): Promise<{ lines: ComprobanteLineInput[]; paidTotal: number }> {
   if (inscriptionIds.length === 0) {
-    return [];
+    return { lines: [], paidTotal: 0 };
   }
 
   const allocations = await db
@@ -224,16 +228,18 @@ async function resolveBillableLines(
   }
 
   const lines: ComprobanteLineInput[] = [];
+  let paidTotal = 0;
   for (const inscriptionId of inscriptionIds) {
     const paid = paidByInscription.get(inscriptionId) ?? 0;
     const billed = billedByInscription.get(inscriptionId) ?? 0;
     const billable = paid - billed;
+    paidTotal += paid;
     if (billable > 0) {
       lines.push({ inscriptionId, amount: billable });
     }
   }
 
-  return lines;
+  return { lines, paidTotal };
 }
 
 function sumByInscription(

@@ -305,6 +305,77 @@ describe.sequential(
       });
     });
 
+    test("marks the comprobante Desactualizada when a billed inscription leaves the roster", async () => {
+      const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+      const { academy, choreography } =
+        await createAccountCurrentChoreographyFixture({
+          academyName: "Academia Roster",
+          choreographyName: "Coreografía roster",
+          email: "academia.roster@example.com",
+          event,
+        });
+      const seeded = {
+        academyId: academy.academy.id,
+        choreographyId: choreography.id,
+        eventId: event.id,
+      };
+
+      const inscriptionIds: string[] = [];
+      for (const lastName of ["López", "Pérez"]) {
+        const dancer = await createDancer(seeded.academyId, {
+          firstName: "Ana",
+          lastName,
+        });
+        const [inscription] = await db
+          .insert(choreographyDancers)
+          .values({
+            ageAtEventStart: 14,
+            choreographyId: seeded.choreographyId,
+            dancerId: dancer.id,
+          })
+          .returning();
+        inscriptionIds.push(inscription.id);
+        await seedAllocation({
+          academyId: seeded.academyId,
+          amount: 3000,
+          eventId: seeded.eventId,
+          inscriptionId: inscription.id,
+        });
+      }
+
+      // Una sola factura vigente cubre las dos inscripciones del roster.
+      await recordComprobante({
+        choreographyId: seeded.choreographyId,
+        eventId: seeded.eventId,
+        cbteTipo: FACTURA_C_CBTE_TIPO,
+        ptoVta: 1,
+        cbteNro: 9,
+        cbteFch: "20260722",
+        impTotal: 6000,
+        issuerCuit: "30717611590",
+        issuerIvaCondition: "exento",
+        receptorDocTipo: 99,
+        receptorDocNro: "0",
+        receptorIvaConditionId: 5,
+        cae: "74123456789012",
+        caeVto: "20260801",
+        lines: inscriptionIds.map((inscriptionId) => ({
+          inscriptionId,
+          amount: 3000,
+        })),
+      });
+
+      // Cambio de roster: se quita una inscripción ya facturada. El snapshot
+      // `impTotal` de 6000 deja de corresponder al monto vigente (3000).
+      await db
+        .delete(choreographyDancers)
+        .where(eq(choreographyDancers.id, inscriptionIds[1]));
+
+      const loaderData = await loadDetail(seeded);
+
+      expect(loaderData.invoicing.currency).toBe("desactualizada");
+    });
+
     test("emits and redirects back to the detail on an approved CAE", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Emite",

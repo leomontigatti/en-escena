@@ -4,7 +4,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { ComprobantesSection, ContingencyAlert } from "./comprobante-emission";
+import { ContingencyAlert } from "@/features/admin/comprobantes/contingency-alert";
+
+import { ComprobantesSection } from "./comprobante-emission";
 import type { ChoreographyInvoicing } from "./server";
 
 function renderSection(overrides: Partial<ChoreographyInvoicing> = {}) {

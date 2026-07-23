@@ -49,6 +49,7 @@ export const notificationToastIds = {
     "route-notification:usuario-interno-restablecido",
   "usuario-interno-suspendido": "route-notification:usuario-interno-suspendido",
   "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
+  "comprobante-anulado": "route-notification:comprobante-anulado",
 } as const;
 
 type NotificationToastKey = Exclude<
@@ -250,6 +251,11 @@ export const notificationToasts = {
   "usuario-interno-reactivado": {
     id: notificationToastIds["usuario-interno-reactivado"],
     message: "Usuario reactivado.",
+    variant: "success",
+  },
+  "comprobante-anulado": {
+    id: notificationToastIds["comprobante-anulado"],
+    message: "Comprobante anulado con su nota de crédito.",
     variant: "success",
   },
 } as const satisfies Record<NotificationToastKey, NotificationToast>;

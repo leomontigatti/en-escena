@@ -10,14 +10,9 @@ export const emitComprobanteIntent = "emit-comprobante";
 // acuerdan la misma palabra clave para que un submit accidental no pase.
 export const emitComprobanteConfirmValue = "irreversible";
 
-// Estado de contingencia de ARCA superficializado para la UI: el `Resultado`
-// crudo y los mensajes de error/observación ya formateados a texto. Se presenta
-// cuando WSFEv1 no autoriza el comprobante, sin dejar nada persistido.
-export type ArcaContingency = {
-  resultado: string | null;
-  errors: string[];
-  observaciones: string[];
-};
+import type { ArcaContingency } from "@/features/admin/comprobantes/contingency-alert";
+
+export type { ArcaContingency };
 
 export type ChoreographyFinanceActionData =
   | { status: "error"; message: string }

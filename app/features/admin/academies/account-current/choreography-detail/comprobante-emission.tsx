@@ -16,13 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ContingencyAlert } from "@/features/admin/comprobantes/contingency-alert";
 
 import { formatAmount } from "../formatters";
 import type { ChoreographyInvoicing, ComprobanteCurrency } from "./server";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
-  type ArcaContingency,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
@@ -244,36 +244,6 @@ function PreviewRow({
         {value}
       </span>
     </div>
-  );
-}
-
-/**
- * Estado de contingencia de ARCA. Presenta el mensaje general y cada error u
- * observación crudos: la emisión no se completó y no se persistió nada, así que
- * la operadora puede reintentar sin que la UI quede en un estado inconsistente.
- */
-export function ContingencyAlert({
-  contingency,
-  message,
-}: {
-  contingency: ArcaContingency;
-  message: string;
-}) {
-  return (
-    <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
-      <AlertDescription>
-        <div className="flex flex-col gap-1">
-          <span>{message}</span>
-          {contingency.errors.map((error) => (
-            <span key={error}>{error}</span>
-          ))}
-          {contingency.observaciones.map((observacion) => (
-            <span key={observacion}>{observacion}</span>
-          ))}
-        </div>
-      </AlertDescription>
-    </Alert>
   );
 }
 

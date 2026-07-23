@@ -1,5 +1,8 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminComprobantesList } from "@/features/admin/comprobantes/list/server";
+import {
+  handleAdminComprobantesListAction,
+  loadAdminComprobantesList,
+} from "@/features/admin/comprobantes/list/server";
 import { AdministracionComprobantesRouteView } from "@/features/admin/comprobantes/list/view";
 
 import type { Route } from "./+types/administracion.comprobantes";
@@ -20,6 +23,10 @@ export const handle = {
 
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadAdminComprobantesList(request);
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  return await handleAdminComprobantesListAction({ request });
 }
 
 export { AdministracionComprobantesRouteView };

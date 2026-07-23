@@ -1,4 +1,6 @@
-import { ReceiptText } from "lucide-react";
+import { AlertTriangle, Ban, LoaderCircle, ReceiptText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -10,8 +12,21 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatAmount } from "@/features/admin/academies/account-current/formatters";
+import { ContingencyAlert } from "@/features/admin/comprobantes/contingency-alert";
 import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
@@ -22,11 +37,18 @@ import {
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type {
   AdminComprobanteRow,
   AdminComprobantesListLoaderData,
 } from "./server";
+import {
+  annulComprobanteConfirmValue,
+  annulComprobanteIntent,
+  type AdminComprobantesListActionData,
+} from "./shared";
 
 type AdministracionComprobantesRouteViewProps = {
   loaderData: AdminComprobantesListLoaderData;
@@ -126,7 +148,188 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
       </a>
     ),
   },
+  {
+    id: "anular",
+    header: "",
+    className: "text-right",
+    headerClassName: "text-right",
+    // Anulación por Nota de crédito (#339). Es la única mutación de la pantalla
+    // y vive por fila porque cada anulación tiene su propio diálogo y su propia
+    // contingencia de ARCA.
+    cell: (row) => <AnnulComprobanteCell row={row} />,
+  },
 ];
+
+/**
+ * Afordancia de anulación de una fila. Sólo aparece sobre una Factura C vigente:
+ * la Nota de crédito es ella misma la anulación y una factura ya anulada no se
+ * vuelve a anular. La anulación pasa siempre por un diálogo con confirmación
+ * irreversible, igual que la emisión.
+ */
+function AnnulComprobanteCell({ row }: { row: AdminComprobanteRow }) {
+  const [open, setOpen] = useState(false);
+  const fetcher = useFetcher<AdminComprobantesListActionData>();
+  const [confirmed, setConfirmed] = useState(false);
+  const isSaving = fetcher.state !== "idle";
+  const contingency =
+    fetcher.data?.status === "annul-error" ? fetcher.data : null;
+  const genericError =
+    fetcher.data?.status === "error" ? fetcher.data.message : null;
+
+  useServerActionToast(
+    fetcher.data?.status === "success" ? fetcher.data : undefined,
+    { toastId: notificationToasts["comprobante-anulado"].id },
+  );
+
+  // El camino feliz no redirige (matriz de feedback: mutación inline sobre una
+  // lista). La lista revalida sola y la fila pasa a `Anulada`; acá sólo hay que
+  // cerrar el diálogo.
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.status === "success") {
+      setOpen(false);
+      setConfirmed(false);
+    }
+  }, [fetcher.data, fetcher.state]);
+
+  if (!row.canAnnul) {
+    return null;
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (isSaving) {
+      return;
+    }
+    if (!next) {
+      setConfirmed(false);
+    }
+    setOpen(next);
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setOpen(true)}
+      >
+        <Ban aria-hidden="true" data-icon="inline-start" />
+        Anular
+      </Button>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent overlayClassName="backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle>Anular comprobante</DialogTitle>
+            <DialogDescription>
+              Se emite una nota de crédito por el total del comprobante. La
+              anulación es irreversible.
+            </DialogDescription>
+          </DialogHeader>
+
+          <fetcher.Form method="post" className="flex flex-col gap-4">
+            <input type="hidden" name="intent" value={annulComprobanteIntent} />
+            <input type="hidden" name="comprobanteId" value={row.id} />
+
+            <div className="flex flex-col gap-2 rounded-md border bg-muted/50 px-3 py-2">
+              <AnnulPreviewRow
+                label="Comprobante"
+                value={`${formatComprobanteTipoLabel(row.cbteTipo)} ${formatComprobanteNumber(row)}`}
+              />
+              <AnnulPreviewRow
+                label="Coreografía"
+                value={row.choreographyName}
+              />
+              <AnnulPreviewRow label="Academia" value={row.academyName} />
+              <AnnulPreviewRow
+                label="Importe a anular"
+                strong
+                value={formatAmount(row.impTotal)}
+              />
+            </div>
+
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                className="mt-0.5"
+                name="confirm"
+                value={annulComprobanteConfirmValue}
+                aria-label="Confirmo que la anulación es irreversible"
+                checked={confirmed}
+                onCheckedChange={(value) => setConfirmed(value === true)}
+                disabled={isSaving}
+              />
+              <span>
+                Confirmo que la anulación del comprobante es irreversible y no
+                puede deshacerse.
+              </span>
+            </label>
+
+            {contingency ? (
+              <ContingencyAlert
+                message={contingency.message}
+                contingency={contingency.contingency}
+              />
+            ) : null}
+
+            {genericError ? (
+              <Alert variant="destructive">
+                <AlertTriangle aria-hidden="true" />
+                <AlertDescription>{genericError}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" disabled={isSaving}>
+                  Cancelar
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={!confirmed || isSaving}
+              >
+                {isSaving ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                ) : (
+                  <Ban aria-hidden="true" data-icon="inline-start" />
+                )}
+                Confirmar anulación
+              </Button>
+            </DialogFooter>
+          </fetcher.Form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function AnnulPreviewRow({
+  label,
+  strong = false,
+  value,
+}: {
+  label: string;
+  strong?: boolean;
+  value: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span
+        className={
+          strong ? "text-sm font-medium tabular-nums" : "text-sm tabular-nums"
+        }
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 const comprobanteEstadoFacetOptions = [
   { label: "Vigente", value: "vigente" },
