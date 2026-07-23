@@ -19,6 +19,7 @@ import {
   emitChoreographyFacturaC,
   getFacturaCEmissionDeps,
   resolveChoreographyBillable,
+  type ComprobantePorcion,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import {
@@ -155,7 +156,12 @@ export type ChoreographyInvoicing = {
   // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
   // factura exactamente esto (#446); la UX lo previsualiza.
   billableAmount: number;
-  // Hay algo para facturar: la afordancia de emisión sólo aparece con remanente.
+  // Porción que cubriría la emisión, DERIVADA de lo cobrado (#480, ADR-0011): la
+  // UX la previsualiza junto con el importe para que la operadora vea qué va a
+  // emitir sin poder elegirla. `null` cuando no hay remanente por facturar.
+  porcion: ComprobantePorcion | null;
+  // Hay algo para facturar: la afordancia de emisión sólo se habilita con
+  // remanente.
   canEmit: boolean;
   // Badge de la última factura frente al monto vigente de la coreografía:
   // `vigente` si el remanente es 0 (la factura sigue representando el cobro),
@@ -203,6 +209,7 @@ async function readChoreographyInvoicing(
 
   return {
     billableAmount: billable.total,
+    porcion: billable.porcion,
     canEmit: billable.total > 0,
     currency,
     lastComprobante: lastFactura

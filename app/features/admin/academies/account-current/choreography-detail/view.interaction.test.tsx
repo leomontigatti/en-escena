@@ -123,6 +123,7 @@ function loaderDataFixture(): ChoreographyFinanceDetailLoaderData {
     ],
     invoicing: {
       billableAmount: 0,
+      porcion: null,
       canEmit: false,
       currency: null,
       lastComprobante: null,

@@ -10,6 +10,7 @@ import type { ChoreographyInvoicing } from "./server";
 function renderSection(overrides: Partial<ChoreographyInvoicing> = {}) {
   const invoicing: ChoreographyInvoicing = {
     billableAmount: 0,
+    porcion: null,
     canEmit: false,
     currency: null,
     lastComprobante: null,
@@ -34,13 +35,19 @@ describe("ComprobantesSection", () => {
     const markup = renderSection();
 
     expect(markup).toContain("todavía no tiene comprobantes emitidos");
-    expect(markup).not.toContain("Emitir comprobante");
+    // La única acción se rotula siempre; el estado deshabilitado (sin remanente)
+    // se cubre en el interaction test.
+    expect(markup).toContain("Emitir factura");
   });
 
   test("shows the emit affordance when there is a billable remainder", () => {
-    const markup = renderSection({ billableAmount: 12000, canEmit: true });
+    const markup = renderSection({
+      billableAmount: 12000,
+      porcion: "seña",
+      canEmit: true,
+    });
 
-    expect(markup).toContain("Emitir comprobante");
+    expect(markup).toContain("Emitir factura");
   });
 
   test("marks the last comprobante as Vigente when nothing new is billable", () => {

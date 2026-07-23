@@ -339,6 +339,7 @@ function invoicingFixture(
 ): ChoreographyFinanceDetailLoaderData["invoicing"] {
   return {
     billableAmount: 0,
+    porcion: null,
     canEmit: false,
     currency: null,
     lastComprobante: null,

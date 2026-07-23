@@ -26,28 +26,46 @@ describe("ComprobantesSection emission flow", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("opens a preview and gates the action behind the irreversible confirmation", async () => {
+  test("disables the single action when there is no billable remainder", async () => {
+    await mount({
+      billableAmount: 0,
+      porcion: null,
+      canEmit: false,
+      currency: null,
+      lastComprobante: null,
+    });
+
+    expect(getButton("Emitir factura").disabled).toBe(true);
+    expect(document.body.textContent).not.toContain("Total a facturar");
+  });
+
+  test("enables the single action and previews the computed portion and amount", async () => {
     await mount({
       billableAmount: 12000,
+      porcion: "seña",
       canEmit: true,
       currency: null,
       lastComprobante: null,
     });
 
+    expect(getButton("Emitir factura").disabled).toBe(false);
     expect(document.body.textContent).not.toContain("Total a facturar");
 
-    await clickReactDomButton("Emitir comprobante");
+    await clickReactDomButton("Emitir factura");
 
-    // El diálogo previsualiza el detalle a facturar y las reglas de dominio.
+    // La confirmación es un AlertDialog: foco atrapado y anunciable por lectores.
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+
+    // Previsualiza la porción derivada y el importe, sin dejar elegir ninguno.
+    expect(document.body.textContent).toContain("Seña");
     expect(document.body.textContent).toContain("Total a facturar");
-    expect(document.body.textContent).toContain("Consumidor final");
-    expect(document.body.textContent).toContain("Exento de IVA");
+    expect(document.body.textContent).toContain("12.000");
 
-    // La emisión arranca deshabilitada hasta confirmar la irreversibilidad.
-    expect(getButton("Confirmar emisión").disabled).toBe(true);
+    // El copy nombra importe, porción y la salida real (Nota de crédito).
+    expect(document.body.textContent).toContain("Nota de crédito");
 
-    await clickReactDomButton("Confirmo que la emisión es irreversible");
-
+    // Sin checkbox: la confirmación queda habilitada de entrada.
+    expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();
     expect(getButton("Confirmar emisión").disabled).toBe(false);
   });
 });
