@@ -43,6 +43,7 @@ export function ProfessorConfirmationDialog({
   const isUpdateIntent = intent === "update-professor";
   const canSubmitUpdate = !isUpdateIntent || pendingUpdateValues !== null;
   const pendingUpdateFields = isUpdateIntent ? pendingUpdateValues : null;
+  const usesReasonForm = !isUpdateIntent && correctionReasonRequired;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -58,9 +59,7 @@ export function ProfessorConfirmationDialog({
             id={formId}
             method="post"
             noValidate
-            onSubmit={
-              correctionReasonRequired ? reasonForm.handleSubmit : undefined
-            }
+            onSubmit={usesReasonForm ? reasonForm.handleSubmit : undefined}
             className="grid gap-4"
           >
             <input type="hidden" name="intent" value={action.intent} />
@@ -88,7 +87,7 @@ export function ProfessorConfirmationDialog({
                 />
               </>
             ) : null}
-            {correctionReasonRequired ? (
+            {usesReasonForm ? (
               <ProfessorCorrectionReasonField
                 form={reasonForm.form}
                 required={correctionReasonRequired}

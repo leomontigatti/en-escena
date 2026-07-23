@@ -67,7 +67,7 @@ export type AdministrativeProfessorDetail = {
   };
   participationStatus: AdminProfessorParticipationStatus;
   participatedInAnyEvent: boolean;
-  correctionReasonRequired: boolean;
+  editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
 };
 
@@ -76,7 +76,6 @@ export type AdministrativeProfessorUpdateInput = {
   lastName: string;
   documentType: string;
   documentNumber: string;
-  correctionReason: string;
 };
 
 export type AdministrativeProfessorFieldErrors = Partial<
@@ -331,12 +330,11 @@ export async function findAdministrativeProfessor(input: {
       row.isParticipating,
     ),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired:
-      getEditConsequence({
-        selectedEventId: input.selectedEventId,
-        isParticipating: row.isParticipating,
-        hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-      }) !== null,
+    editConsequence: getEditConsequence({
+      selectedEventId: input.selectedEventId,
+      isParticipating: row.isParticipating,
+      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+    }),
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
@@ -359,10 +357,7 @@ export async function updateAdministrativeProfessor(input: {
   }
 
   const fieldErrors: AdministrativeProfessorFieldErrors = {};
-  const values = {
-    ...input.values,
-    correctionReason: input.values.correctionReason,
-  };
+  const values = { ...input.values };
   const normalizedNames = normalizeProfessorNames(input.values);
 
   Object.assign(fieldErrors, normalizedNames.fieldErrors);
@@ -374,18 +369,6 @@ export async function updateAdministrativeProfessor(input: {
 
   if (!normalizedDocument.ok) {
     Object.assign(fieldErrors, normalizedDocument.fieldErrors);
-  }
-
-  const normalizedReason = validateAdministrativeProfessorCorrectionReason({
-    correctionReason: input.values.correctionReason,
-    required: existingProfessor.correctionReasonRequired,
-  });
-  const correctionReason = normalizedReason.ok
-    ? normalizedReason.correctionReason
-    : null;
-
-  if (!normalizedReason.ok) {
-    fieldErrors.correctionReason = normalizedReason.fieldError;
   }
 
   if (!normalizedDocument.ok) {
@@ -451,8 +434,7 @@ export async function updateAdministrativeProfessor(input: {
     beforeValues,
     eventId: input.selectedEventId,
     professorId: existingProfessor.id,
-    reason:
-      correctionReason && correctionReason.length > 0 ? correctionReason : null,
+    reason: null,
   });
 
   return {

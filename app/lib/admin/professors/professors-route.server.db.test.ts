@@ -579,15 +579,13 @@ describe("administracion/profesores route", () => {
         status: "error",
         message: "Revisá los campos marcados.",
         fieldErrors: {
-          correctionReason:
-            "Ingresá un motivo de corrección para guardar este cambio.",
+          documentNumber: "Ingresá el número de documento.",
         },
         values: {
           firstName: "Mora",
           lastName: "Dialogo",
           documentType: "",
           documentNumber: "",
-          correctionReason: "",
         },
       },
     });
@@ -714,7 +712,7 @@ describe("administracion/profesores route", () => {
     }
   });
 
-  test("requires a correction reason when the Profesor participates in the Evento activo", async () => {
+  test("saves a participating Profesor without a correction reason and still writes the audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.academia@example.com",
@@ -743,26 +741,33 @@ describe("administracion/profesores route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
-          firstName: "Lia",
+          firstName: "Lia Mariel",
           lastName: "Participa",
           documentType: "",
           documentNumber: "",
-          correctionReason: "",
         }),
         professor.id,
       ),
     );
 
     expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        correctionReason:
-          "Ingresá un motivo de corrección para guardar este cambio.",
-      },
+      status: "success",
+      message: "Profesor guardado.",
     });
+    await expectPersistedProfessor(professor.id, { firstName: "Lia Mariel" });
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "professor",
+          entityId: professor.id,
+          action: "update",
+          reason: null,
+        }),
+      ],
+    );
   });
 
-  test("requires a correction reason without Evento activo when the Profesor participated in any Evento", async () => {
+  test("saves a Profesor who participated in any Evento without a correction reason and still writes the audit entry", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.academia@example.com",
@@ -791,23 +796,30 @@ describe("administracion/profesores route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
-          firstName: "Lola",
+          firstName: "Lola Beatriz",
           lastName: "Historial",
           documentType: "",
           documentNumber: "",
-          correctionReason: "",
         }),
         professor.id,
       ),
     );
 
     expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        correctionReason:
-          "Ingresá un motivo de corrección para guardar este cambio.",
-      },
+      status: "success",
+      message: "Profesor guardado.",
     });
+    await expectPersistedProfessor(professor.id, { firstName: "Lola Beatriz" });
+    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
+      [
+        expect.objectContaining({
+          entityType: "professor",
+          entityId: professor.id,
+          action: "update",
+          reason: null,
+        }),
+      ],
+    );
   });
 
   test("rejects a duplicate document within the same academy", async () => {

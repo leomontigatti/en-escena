@@ -43,6 +43,7 @@ export function AdministracionProfesorDetalleRouteView({
   });
 
   const professor = loaderData.professor;
+  const isConsequential = professor.editConsequence !== null;
   const isEditing =
     loaderData.canEdit && (loaderData.isEditing || Boolean(errorData));
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
@@ -53,12 +54,12 @@ export function AdministracionProfesorDetalleRouteView({
   const reasonValues = getProfessorReasonValues(errorData);
   const editForm = useProfessorEditForm({ values: editValues });
   const reasonForm = useProfessorReasonForm({
-    correctionReasonRequired: professor.correctionReasonRequired,
+    correctionReasonRequired: isConsequential,
     values: reasonValues,
   });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
-      getInitialDialogIntent(errorData, professor.correctionReasonRequired),
+      getInitialDialogIntent(errorData, isConsequential),
     );
   const [pendingUpdateValues, setPendingUpdateValues] =
     useState<ProfessorEditFormValues | null>(
@@ -68,10 +69,7 @@ export function AdministracionProfesorDetalleRouteView({
     );
 
   useEffect(() => {
-    const nextIntent = getInitialDialogIntent(
-      errorData,
-      professor.correctionReasonRequired,
-    );
+    const nextIntent = getInitialDialogIntent(errorData, isConsequential);
     if (!nextIntent) {
       return;
     }
@@ -81,7 +79,7 @@ export function AdministracionProfesorDetalleRouteView({
     if (submittedUpdateValues) {
       setPendingUpdateValues(toProfessorEditValues(submittedUpdateValues));
     }
-  }, [errorData, professor.correctionReasonRequired, submittedUpdateValues]);
+  }, [errorData, isConsequential, submittedUpdateValues]);
 
   const confirmationAction = getProfessorConfirmationAction({
     active: professor.active,
@@ -100,7 +98,7 @@ export function AdministracionProfesorDetalleRouteView({
       setDialogIntent("update-professor");
     };
 
-    if (!professor.correctionReasonRequired) {
+    if (!isConsequential) {
       void editForm.form.handleSubmit(submitNative)(event);
       return;
     }
@@ -112,7 +110,7 @@ export function AdministracionProfesorDetalleRouteView({
     intent: "archive-professor" | "reactivate-professor",
   ) {
     reasonForm.form.reset({
-      correctionReason: errorData?.values.correctionReason ?? "",
+      correctionReason: reasonValues.correctionReason,
       statusIntent: intent,
     });
     setDialogIntent(intent);
@@ -155,10 +153,7 @@ export function AdministracionProfesorDetalleRouteView({
 
       <ProfessorConfirmationDialog
         action={confirmationAction}
-        correctionReasonRequired={
-          dialogIntent === "update-professor" ||
-          professor.correctionReasonRequired
-        }
+        correctionReasonRequired={isConsequential}
         intent={dialogIntent}
         onOpenChange={(open) => {
           if (!open) {

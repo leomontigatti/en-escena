@@ -35,10 +35,7 @@ export type ProfessorDetailLoaderData = {
   selectedEventId: string | null;
 };
 
-export type ProfessorEditFormValues = Omit<
-  AdministrativeProfessorUpdateInput,
-  "correctionReason"
->;
+export type ProfessorEditFormValues = AdministrativeProfessorUpdateInput;
 
 export type ProfessorReasonFormValues = {
   correctionReason: string;
@@ -89,9 +86,9 @@ export function getProfessorConfirmationAction({
   if (intent === "update-professor") {
     return {
       confirmLabel: "Guardar",
-      confirmTitle: "Confirmar guardado",
+      confirmTitle: "¿Guardar cambios?",
       description:
-        "Este profesor tiene participación actual o histórica. Ingresá el motivo de corrección para guardar los cambios.",
+        "Este profesor ya participó de un evento. Los cambios pueden afectar registros existentes.",
       intent: "update-professor",
       variant: "default",
     };
@@ -129,12 +126,6 @@ export function buildProfessorEditSchema() {
     .superRefine((values, context) => {
       validateDocumentPair(values.documentType, values.documentNumber, context);
     });
-}
-
-export function buildProfessorUpdateSchema(correctionReasonRequired: boolean) {
-  return buildProfessorEditSchema().extend({
-    correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
-  });
 }
 
 export function buildProfessorReasonSchema(correctionReasonRequired: boolean) {
@@ -206,7 +197,6 @@ export function readProfessorUpdateValues(
     lastName: readFormString(formData, "lastName"),
     documentType: readFormString(formData, "documentType"),
     documentNumber: readFormString(formData, "documentNumber"),
-    correctionReason: readFormString(formData, "correctionReason"),
   };
 }
 
@@ -291,7 +281,7 @@ export function getProfessorReasonValues(
 
 export function getInitialDialogIntent(
   actionData: ProfessorActionError | undefined,
-  correctionReasonRequired: boolean,
+  shouldConfirmSave: boolean,
 ): ProfessorDialogIntent | null {
   if (!actionData) {
     return null;
@@ -304,11 +294,7 @@ export function getInitialDialogIntent(
     return actionData.values.statusIntent;
   }
 
-  if (
-    correctionReasonRequired &&
-    isProfessorUpdateValues(actionData.values) &&
-    actionData.fieldErrors.correctionReason
-  ) {
+  if (shouldConfirmSave && isProfessorUpdateValues(actionData.values)) {
     return "update-professor";
   }
 

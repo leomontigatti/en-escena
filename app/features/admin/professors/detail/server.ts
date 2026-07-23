@@ -18,8 +18,8 @@ import {
   buildModeHref,
   buildProfessorActionError,
   buildProfessorActionSuccess,
+  buildProfessorEditSchema,
   buildProfessorReasonSchema,
-  buildProfessorUpdateSchema,
   professorFieldNames,
   readProfessorReasonValues,
   readProfessorUpdateValues,
@@ -86,7 +86,7 @@ export async function handleAdministrativeProfessorDetailAction(input: {
   if (intent === "archive-professor" || intent === "reactivate-professor") {
     const values = readProfessorReasonValues(formData);
     const parsed = buildProfessorReasonSchema(
-      professor.correctionReasonRequired,
+      professor.editConsequence !== null,
     ).safeParse(values);
 
     if (!parsed.success) {
@@ -121,9 +121,7 @@ export async function handleAdministrativeProfessorDetailAction(input: {
   }
 
   const values = readProfessorUpdateValues(formData);
-  const parsed = buildProfessorUpdateSchema(
-    professor.correctionReasonRequired,
-  ).safeParse(values);
+  const parsed = buildProfessorEditSchema().safeParse(values);
 
   if (!parsed.success) {
     return buildProfessorActionError(
