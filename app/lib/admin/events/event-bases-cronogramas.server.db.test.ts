@@ -600,6 +600,87 @@ describe.sequential(
         },
       });
     });
+
+    test("rejects duplicate cupo group types server-side on cronograma creation", async () => {
+      const event = await createSavedEvent("Regional 2026");
+      const modality = await expectCreated(
+        createModality(event.id, { name: "Jazz" }),
+      );
+      const request = await createScheduleAdminRequest({
+        email: "admin.crea.cronograma.cupo.duplicado@example.com",
+        role: "admin",
+        requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
+          name: "Domingo tarde",
+          scheduledDate: "2026-05-03",
+          startTime: "15:00",
+          totalCapacity: "12",
+          modalityIds: [modality.id],
+          scheduleCapacities: [
+            buildScheduleCapacityDraft({ groupType: "solo", capacity: "5" }),
+            buildScheduleCapacityDraft({ groupType: "solo", capacity: "7" }),
+          ],
+        }),
+      });
+
+      const result = await action(routeArgs(request.request));
+
+      expect(result).toMatchObject({
+        status: "error",
+        message: "Revisá los datos del cronograma.",
+        scope: { intent: "create-schedule" },
+      });
+      expect(result?.fieldErrors).toHaveProperty(
+        "scheduleCapacities.1.groupType",
+      );
+      expect(result?.values).toMatchObject({
+        scheduleCapacities: [
+          { groupType: "solo", capacity: "5" },
+          { groupType: "solo", capacity: "7" },
+        ],
+      });
+      await expect(
+        findSavedScheduleByName("Domingo Tarde"),
+      ).resolves.toBeUndefined();
+    });
+
+    test("rejects invalid cupo rows server-side when the client is bypassed", async () => {
+      const event = await createSavedEvent("Regional 2026");
+      const modality = await expectCreated(
+        createModality(event.id, { name: "Jazz" }),
+      );
+      const request = await createScheduleAdminRequest({
+        email: "admin.crea.cronograma.cupo.invalido@example.com",
+        role: "admin",
+        requestUrl: `http://localhost/administracion/cronogramas/nuevo?evento=${event.id}`,
+        intent: "create-schedule",
+        schedule: buildScheduleDraft({
+          name: "Domingo tarde",
+          scheduledDate: "2026-05-03",
+          startTime: "15:00",
+          totalCapacity: "12",
+          modalityIds: [modality.id],
+          scheduleCapacities: [
+            buildScheduleCapacityDraft({ groupType: "solo", capacity: "0" }),
+          ],
+        }),
+      });
+
+      const result = await action(routeArgs(request.request));
+
+      expect(result).toMatchObject({
+        status: "error",
+        message: "Revisá los datos del cronograma.",
+        scope: { intent: "create-schedule" },
+      });
+      expect(result?.fieldErrors).toHaveProperty(
+        "scheduleCapacities.0.capacity",
+      );
+      await expect(
+        findSavedScheduleByName("Domingo Tarde"),
+      ).resolves.toBeUndefined();
+    });
   },
 );
 
