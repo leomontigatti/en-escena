@@ -331,11 +331,12 @@ export async function findAdministrativeProfessor(input: {
       row.isParticipating,
     ),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired: isCorrectionReasonRequired({
-      selectedEventId: input.selectedEventId,
-      isParticipating: row.isParticipating,
-      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    }),
+    correctionReasonRequired:
+      getEditConsequence({
+        selectedEventId: input.selectedEventId,
+        isParticipating: row.isParticipating,
+        hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+      }) !== null,
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,
     ),
@@ -614,25 +615,29 @@ async function findAdministrativeProfessorForMutation(input: {
 
       return {
         ...row,
-        correctionReasonRequired: isCorrectionReasonRequired({
-          selectedEventId: input.selectedEventId,
-          isParticipating: row.isParticipating,
-          hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-        }),
+        correctionReasonRequired:
+          getEditConsequence({
+            selectedEventId: input.selectedEventId,
+            isParticipating: row.isParticipating,
+            hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+          }) !== null,
       };
     });
 }
 
-function isCorrectionReasonRequired(input: {
+export type ProfessorEditConsequence = "participated" | null;
+
+export function getEditConsequence(input: {
   selectedEventId: string | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-}) {
-  if (input.selectedEventId !== null) {
-    return input.isParticipating || input.hasParticipatedInAnyEvent;
-  }
+}): ProfessorEditConsequence {
+  const participated =
+    input.selectedEventId !== null
+      ? input.isParticipating || input.hasParticipatedInAnyEvent
+      : input.hasParticipatedInAnyEvent;
 
-  return input.hasParticipatedInAnyEvent;
+  return participated ? "participated" : null;
 }
 
 function isCorrectionReasonLengthValid(reason: string) {
