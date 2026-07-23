@@ -50,10 +50,10 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
 
     const card = portionCard(markup, "Seña");
     expect(card.textContent).toContain("Vigente");
+    // La card entera es el link al comprobante (no un botón interno): el `<a>`
+    // es ancestro de la card.
     expect(
-      card.querySelector(
-        'a[href="/administracion/comprobantes/comprobante_sena"]',
-      ),
+      card.closest('a[href="/administracion/comprobantes/comprobante_sena"]'),
     ).not.toBeNull();
   });
 
@@ -68,8 +68,8 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     const sena = portionCard(markup, "Seña");
     const saldo = portionCard(markup, "Saldo");
     const target = 'a[href="/administracion/comprobantes/comprobante_total"]';
-    expect(sena.querySelector(target)).not.toBeNull();
-    expect(saldo.querySelector(target)).not.toBeNull();
+    expect(sena.closest(target)).not.toBeNull();
+    expect(saldo.closest(target)).not.toBeNull();
   });
 
   test("marks a portion card Desactualizada when new money is unbilled", () => {

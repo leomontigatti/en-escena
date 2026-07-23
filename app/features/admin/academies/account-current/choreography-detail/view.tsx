@@ -1,12 +1,6 @@
-import {
-  AlertTriangle,
-  Check,
-  ExternalLink,
-  LoaderCircle,
-  Receipt,
-} from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -120,15 +114,18 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 
           <section className="grid gap-4 md:grid-cols-3">
             <MetricCard
-              icon={Receipt}
               title="Seña"
               value={formatOperationalAmount(choreography.depositAmount)}
-              slot={portionCoverageSlot(loaderData.invoicing.sena)}
+              slot={portionCoverageBadge(loaderData.invoicing.sena)}
+              to={portionCoverageHref(loaderData.invoicing.sena)}
+              linkLabel="Ver comprobante que cubre la seña"
             />
             <MetricCard
               title="Saldo"
               value={formatOperationalAmount(choreography.balanceAmount)}
-              slot={portionCoverageSlot(loaderData.invoicing.saldo)}
+              slot={portionCoverageBadge(loaderData.invoicing.saldo)}
+              to={portionCoverageHref(loaderData.invoicing.saldo)}
+              linkLabel="Ver comprobante que cubre el saldo"
             />
             <MetricCard
               title="Total"
@@ -184,35 +181,32 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 }
 
 /**
- * Slot de la MetricCard de una porción (Seña/Saldo): badge Vigente/Desactualizada
- * más un botón al comprobante que la cubre (ADR-0011). Devuelve `undefined` cuando
- * ninguna factura vigente cubre la porción —incluido el caso en que la única que
- * la cubría fue anulada—, así la MetricCard cae en su ícono por defecto y no queda
- * un estado `Anulado` muerto.
+ * Badge de vigencia de la porción (Seña/Saldo): `Vigente` o `Desactualizada`
+ * (ADR-0011). Devuelve `undefined` cuando ninguna factura vigente cubre la porción
+ * —incluido el caso en que la única que la cubría fue anulada—, así la MetricCard
+ * cae en su ícono por defecto y no queda un estado `Anulado` muerto. El link al
+ * comprobante ya no es un botón aparte: lo lleva la card entera vía `to`.
  */
-function portionCoverageSlot(coverage: PortionCoverage | null) {
+function portionCoverageBadge(coverage: PortionCoverage | null) {
   if (coverage === null) {
     return undefined;
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Badge variant={coverage.currency === "vigente" ? "success" : "warning"}>
-        {coverage.currency === "vigente" ? "Vigente" : "Desactualizada"}
-      </Badge>
-      <Button
-        asChild
-        variant="link"
-        size="icon-sm"
-        aria-label="Ver comprobante"
-        title="Ver comprobante"
-      >
-        <Link to={`/administracion/comprobantes/${coverage.comprobanteId}`}>
-          <ExternalLink aria-hidden="true" />
-        </Link>
-      </Button>
-    </div>
+    <Badge variant={coverage.currency === "vigente" ? "success" : "warning"}>
+      {coverage.currency === "vigente" ? "Vigente" : "Desactualizada"}
+    </Badge>
   );
+}
+
+/**
+ * Destino de la card de una porción: el comprobante vigente que la cubre. `null`
+ * cuando no hay cobertura, y entonces la card no es un link.
+ */
+function portionCoverageHref(coverage: PortionCoverage | null) {
+  return coverage === null
+    ? undefined
+    : `/administracion/comprobantes/${coverage.comprobanteId}`;
 }
 
 function ChoreographyAlerts({
