@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
+import { lowercaseFirst } from "@/lib/shared/utils";
 
 import { formatAmount } from "../formatters";
 import {
@@ -66,9 +67,9 @@ export function EmissionDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Emitir Factura C</AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a emitir una Factura C por {formatAmount(billableAmount)} (
-            {porcionLabel(porcion)}). Una vez emitida, sólo puede revertirse con
-            una Nota de crédito.
+            Vas a emitir una factura C por {formatAmount(billableAmount)} (
+            {lowercaseFirst(porcionLabel(porcion))}). Una vez emitida, sólo
+            puede revertirse con una nota de crédito.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

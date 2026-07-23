@@ -28,6 +28,7 @@ import {
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import { lowercaseFirst } from "@/lib/shared/utils";
 
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 import {
@@ -250,11 +251,12 @@ function AnnulDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Anular comprobante</AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a anular la {formatComprobanteTipoLabel(comprobante.cbteTipo)}{" "}
+            Vas a anular la{" "}
+            {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
             {formatComprobanteNumber(comprobante)} por{" "}
             {formatAmount(comprobante.impTotal)} (
-            {formatComprobantePorcionLabel(comprobante.porcion)}). La anulación
-            se materializa emitiendo una Nota de crédito espejo.
+            {lowercaseFirst(formatComprobantePorcionLabel(comprobante.porcion))}
+            ). La anulación se materializa emitiendo una nota de crédito espejo.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

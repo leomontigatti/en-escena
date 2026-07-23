@@ -58,8 +58,9 @@ describe("EmissionDialog", () => {
     expect(document.body.textContent).toContain("Total a facturar");
     expect(document.body.textContent).toContain("12.000");
 
-    // El copy nombra la salida real (Nota de crédito).
-    expect(document.body.textContent).toContain("Nota de crédito");
+    // El copy nombra la salida real (nota de crédito, en minúscula dentro de la
+    // frase por ser término de dominio).
+    expect(document.body.textContent).toMatch(/nota de crédito/i);
 
     // Sin checkbox: la confirmación queda habilitada de entrada.
     expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();

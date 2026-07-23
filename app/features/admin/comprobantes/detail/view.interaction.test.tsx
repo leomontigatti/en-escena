@@ -86,7 +86,7 @@ describe("AdministracionComprobanteDetalleRouteView", () => {
     // El copy dice qué se anula, por cuánto, y la salida real (Nota de crédito).
     expect(document.body.textContent).toContain("0001-00000041");
     expect(document.body.textContent).toContain("7.000");
-    expect(document.body.textContent).toContain("Nota de crédito");
+    expect(document.body.textContent).toMatch(/nota de crédito/i);
 
     // Sin checkbox: la confirmación es el diálogo mismo.
     expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();
