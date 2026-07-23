@@ -31,6 +31,10 @@ import {
   createSignedInAdminRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import {
+  recordComprobante,
+  type RecordComprobanteInput,
+} from "@/lib/comprobantes/comprobantes.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -291,6 +295,75 @@ describe("administrative choreography detail server", () => {
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, presentationBlocked.id),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  test("blocks admin deletion of a choreography with ARCA comprobantes, even once annulled by a credit note", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Fiscal",
+      email: "admin.coreografias.fiscal.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const invoiced = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Facturada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    const factura = await recordComprobante(
+      facturaCInput({ choreographyId: invoiced.id, eventId: event.id }),
+    );
+
+    // Sólo la existencia de la Factura C ya bloquea el borrado físico.
+    await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([
+      "comprobantes",
+    ]);
+    await expectThrownResponse(
+      submitDetailAction({
+        body: deleteFormData(),
+        choreographyId: invoiced.id,
+        email: "admin.coreografias.bloqueo.comprobantes@example.com",
+        role: "admin",
+      }),
+      409,
+    );
+
+    // Anular con una Nota de crédito no libera el bloqueo: la historia fiscal
+    // persiste (la factura anulada + la NC siguen ancladas a la coreografía).
+    await recordComprobante(
+      facturaCInput({
+        choreographyId: invoiced.id,
+        eventId: event.id,
+        cbteTipo: 13,
+        cbteNro: 1,
+        associatedComprobanteId: factura.id,
+      }),
+    );
+
+    await expectThrownResponse(
+      submitDetailAction({
+        body: deleteFormData(),
+        choreographyId: invoiced.id,
+        email: "admin.coreografias.bloqueo.comprobantes.nc@example.com",
+        role: "admin",
+      }),
+      409,
+    );
+
+    // La coreografía nunca se borró pese a los dos intentos.
+    await expect(
+      db.query.choreographies.findFirst({
+        where: eq(choreographies.id, invoiced.id),
       }),
     ).resolves.toBeDefined();
   });
@@ -609,4 +682,30 @@ function deleteFormData() {
   const formData = new FormData();
   formData.set("intent", deleteAdministrativeChoreographyIntent);
   return formData;
+}
+
+// Snapshot de Factura C a consumidor final anónimo del emisor exento; los
+// overrides permiten derivar la NC espejo (cbteTipo 13 + associatedComprobanteId).
+function facturaCInput(
+  overrides: Partial<RecordComprobanteInput> & {
+    choreographyId: string;
+    eventId: string;
+  },
+): RecordComprobanteInput {
+  return {
+    cbteTipo: 11,
+    ptoVta: 1,
+    cbteNro: 1,
+    cbteFch: "20260722",
+    impTotal: 10000,
+    issuerCuit: "30717611590",
+    issuerIvaCondition: "exento",
+    receptorDocTipo: 99,
+    receptorDocNro: "0",
+    receptorIvaConditionId: 5,
+    cae: "75123456789012",
+    caeVto: "20260801",
+    lines: [],
+    ...overrides,
+  };
 }

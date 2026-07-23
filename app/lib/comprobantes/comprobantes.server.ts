@@ -82,6 +82,22 @@ export async function recordComprobante(
   });
 }
 
+// ¿La coreografía tiene historia fiscal? Cuenta cualquier comprobante asociado
+// —Factura C o Nota de crédito, vigente o anulada— porque la existencia de una
+// sola fila ya bloquea el borrado físico (#340) y nunca se libera. Chequeo liviano
+// (LIMIT 1) para la guarda server-side, independiente de la UI.
+export async function choreographyHasComprobantes(
+  choreographyId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: comprobantes.id })
+    .from(comprobantes)
+    .where(eq(comprobantes.choreographyId, choreographyId))
+    .limit(1);
+
+  return rows.length > 0;
+}
+
 // Todos los comprobantes de una coreografía, con su estado derivado y sus líneas
 // internas. La Nota de crédito espejo se ancla a la misma coreografía, así que
 // el conjunto por coreografía es autocontenido para derivar `vigente`/`anulada`.
