@@ -63,6 +63,8 @@ const printStyles = `
   th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
   td.importe, th.importe { text-align: right; }
   .total { text-align: right; font-size: 18px; font-weight: 700; margin-top: 12px; }
+  .servicio { margin-top: 12px; font-size: 13px; color: #374151; }
+  .servicio p { margin: 2px 0; }
   .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; gap: 24px; }
   .qr svg { width: 140px; height: 140px; }
   .cae { text-align: right; }
@@ -109,6 +111,7 @@ export function ComprobantePrintDocument({
               <p className="fecha">
                 <strong>Fecha de emisión:</strong> {model.fechaEmision}
               </p>
+              <p className="codigo">Evento: {model.eventName}</p>
             </div>
             <div className="letra" aria-hidden="true">
               {model.header.letra}
@@ -130,7 +133,6 @@ export function ComprobantePrintDocument({
             <p>
               {model.academyName} — {model.choreographyName}
             </p>
-            <p className="codigo">Evento: {model.eventName}</p>
           </div>
 
           <div className="block">
@@ -152,6 +154,22 @@ export function ComprobantePrintDocument({
               </tbody>
             </table>
             <p className="total">Total: {model.importeTotal}</p>
+            {(model.periodoDesde || model.vencimientoPago) && (
+              <div className="servicio">
+                {model.periodoDesde && model.periodoHasta && (
+                  <p>
+                    <strong>Período facturado:</strong> {model.periodoDesde} —{" "}
+                    {model.periodoHasta}
+                  </p>
+                )}
+                {model.vencimientoPago && (
+                  <p>
+                    <strong>Vencimiento de pago:</strong>{" "}
+                    {model.vencimientoPago}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="footer">

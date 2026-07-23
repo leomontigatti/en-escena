@@ -5,6 +5,7 @@ import type { ComprobanteWithLines } from "@/lib/comprobantes/comprobantes.serve
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
+  formatComprobantePorcionLabel,
   formatComprobanteStatusLabel,
 } from "@/lib/comprobantes/format";
 import {
@@ -28,7 +29,9 @@ export type ComprobantePrintContext = {
 export type ComprobantePrintRecord = ComprobanteWithLines &
   ComprobantePrintContext;
 
-// Fila de detalle del impreso: una por línea interna del comprobante (#326).
+// Línea de detalle del impreso. Desde ADR-0011 el impreso lleva UNA sola línea
+// por comprobante —`{Porción} — {Coreografía}`, sin cantidad ni renglón por
+// bailarín— para entregar a la academia un documento legible.
 export type ComprobantePrintLine = {
   descripcion: string;
   importe: string;
@@ -49,6 +52,12 @@ export type ComprobantePrintViewModel = {
   eventName: string;
   lines: ComprobantePrintLine[];
   importeTotal: string;
+  // Período de servicio facturado y vencimiento de pago (Concepto 2, RG 1415)
+  // ya formateados a `DD/MM/AAAA`. `null` cuando el snapshot no los lleva (la
+  // fila preexistente emitida como Concepto 1 nunca cargó fechas de servicio).
+  periodoDesde: string | null;
+  periodoHasta: string | null;
+  vencimientoPago: string | null;
   cae: string;
   caeVto: string;
   estado: ComprobanteStatus;
@@ -74,11 +83,16 @@ export function buildComprobantePrintViewModel(
     academyName: record.academyName,
     choreographyName: record.choreographyName,
     eventName: record.eventName,
-    lines: record.lines.map((line) => ({
-      descripcion: `Inscripción — ${record.choreographyName}`,
-      importe: formatAmount(line.amount),
-    })),
+    lines: [
+      {
+        descripcion: `${formatComprobantePorcionLabel(record.porcion)} — ${record.choreographyName}`,
+        importe: formatAmount(record.impTotal),
+      },
+    ],
     importeTotal: formatAmount(record.impTotal),
+    periodoDesde: formatArcaDateOrNull(record.fchServDesde),
+    periodoHasta: formatArcaDateOrNull(record.fchServHasta),
+    vencimientoPago: formatArcaDateOrNull(record.fchVtoPago),
     cae: record.cae,
     caeVto: formatComprobanteArcaDate(record.caeVto),
     estado: record.status,
@@ -86,4 +100,10 @@ export function buildComprobantePrintViewModel(
     comprobanteAutorizadoLabel: COMPROBANTE_AUTORIZADO_LABEL,
     qrUrl: buildComprobanteQrUrl(record),
   };
+}
+
+// Formatea una fecha ARCA `AAAAMMDD` nullable a `DD/MM/AAAA`, preservando el
+// `null` cuando el snapshot no la lleva.
+function formatArcaDateOrNull(value: string | null): string | null {
+  return value === null ? null : formatComprobanteArcaDate(value);
 }

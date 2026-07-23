@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
+import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
 
 import { formatAmount } from "../formatters";
 import type { ChoreographyInvoicing, ComprobanteCurrency } from "./server";
@@ -237,16 +238,7 @@ function EmissionPreview({
  * diálogo sólo se monta con remanente por facturar), pero se rotula defensivo.
  */
 function porcionLabel(porcion: ComprobantePorcion | null): string {
-  switch (porcion) {
-    case "seña":
-      return "Seña";
-    case "saldo":
-      return "Saldo";
-    case "total":
-      return "Total";
-    default:
-      return "—";
-  }
+  return porcion ? formatComprobantePorcionLabel(porcion) : "—";
 }
 
 function PreviewRow({

@@ -70,8 +70,41 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.fechaEmision).toBe("22/07/2026");
     expect(model.caeVto).toBe("01/08/2026");
     expect(model.cae).toBe("11112222333344");
-    expect(model.lines).toHaveLength(2);
     expect(model.estadoLabel).toBe("Vigente");
+  });
+
+  test("proyecta una sola línea `{Porción} — {Coreografía}` con el total (ADR-0011)", () => {
+    const model = buildComprobantePrintViewModel(
+      printRecord({ porcion: "seña", impTotal: 25000 }),
+    );
+
+    expect(model.lines).toHaveLength(1);
+    expect(model.lines[0].descripcion).toBe("Seña — Coreografía Alfa");
+    expect(model.lines[0].importe).toBe(model.importeTotal);
+    // La línea única no repite un renglón por bailarín ni el nombre del evento.
+    expect(model.lines[0].descripcion).not.toContain("Certamen 2026");
+  });
+
+  test("expone el período facturado y el vencimiento de pago del snapshot", () => {
+    const model = buildComprobantePrintViewModel(
+      printRecord({
+        fchServDesde: "20260801",
+        fchServHasta: "20260803",
+        fchVtoPago: "20260722",
+      }),
+    );
+
+    expect(model.periodoDesde).toBe("01/08/2026");
+    expect(model.periodoHasta).toBe("03/08/2026");
+    expect(model.vencimientoPago).toBe("22/07/2026");
+  });
+
+  test("preserva null en las fechas de servicio cuando el snapshot no las lleva", () => {
+    const model = buildComprobantePrintViewModel(printRecord());
+
+    expect(model.periodoDesde).toBeNull();
+    expect(model.periodoHasta).toBeNull();
+    expect(model.vencimientoPago).toBeNull();
   });
 
   test("refleja al emisor exento (no monotributista)", () => {
@@ -111,6 +144,23 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("11112222333344");
     expect(html).toContain(QR_SVG_STUB);
     expect(html).toContain("Comprobante Autorizado");
+  });
+
+  test("muestra el período facturado y el vencimiento de pago cuando existen", () => {
+    const html = renderComprobantePrintDocument({
+      model: buildComprobantePrintViewModel(
+        printRecord({
+          fchServDesde: "20260801",
+          fchServHasta: "20260803",
+          fchVtoPago: "20260722",
+        }),
+      ),
+      qrCodeSvg: QR_SVG_STUB,
+    });
+
+    expect(html).toContain("Período facturado:");
+    expect(html).toContain("01/08/2026 — 03/08/2026");
+    expect(html).toContain("Vencimiento de pago:");
   });
 
   test("coincide con el snapshot del impreso", () => {

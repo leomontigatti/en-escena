@@ -4,6 +4,7 @@ import {
 } from "@/lib/comprobantes/arca/factura-c";
 
 import type { ComprobanteStatus } from "./comprobante-status.server";
+import type { ComprobantePorcion } from "./emit-factura-c.server";
 
 // Formato de numeración fiscal `PPPP-NNNNNNNN`: punto de venta a 4 dígitos y
 // correlativo a 8, con ceros a la izquierda (numeración de #334).
@@ -40,6 +41,20 @@ export function formatComprobanteStatusLabel(
   status: ComprobanteStatus,
 ): string {
   return comprobanteStatusLabels[status];
+}
+
+const comprobantePorcionLabels: Record<ComprobantePorcion, string> = {
+  seña: "Seña",
+  saldo: "Saldo",
+  total: "Total",
+};
+
+// Etiqueta legible de la porción congelada del comprobante (ADR-0011). Es la
+// misma superficie en el impreso, el preview de emisión y el detalle.
+export function formatComprobantePorcionLabel(
+  porcion: ComprobantePorcion,
+): string {
+  return comprobantePorcionLabels[porcion];
 }
 
 // Convierte una fecha ARCA `AAAAMMDD` (`CbteFch`/`CAEFchVto`) a `DD/MM/AAAA`.
