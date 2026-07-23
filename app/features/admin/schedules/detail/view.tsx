@@ -13,12 +13,14 @@ export type AdministrativeEventScheduleDetailViewProps = {
   actionData?: AdministrativeEventScheduleActionData;
   loaderData: AdministrativeEventScheduleDetailLoaderData;
   scheduleId: string;
+  initialDeleteDialogOpen?: boolean;
 };
 
 export function AdministrativeEventScheduleDetailView({
   loaderData,
   actionData,
   scheduleId,
+  initialDeleteDialogOpen = false,
 }: AdministrativeEventScheduleDetailViewProps) {
   useServerActionToast(actionData);
 
@@ -36,7 +38,14 @@ export function AdministrativeEventScheduleDetailView({
           ? "Editá fecha, hora, cupo total y modalidades aceptadas."
           : "No encontramos ese cronograma para este Evento."
       }
-      headerAction={schedule ? <ScheduleActions schedule={schedule} /> : null}
+      headerAction={
+        schedule ? (
+          <ScheduleActions
+            schedule={schedule}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+          />
+        ) : null
+      }
     >
       {schedule ? (
         <ScheduleFormPanel>
