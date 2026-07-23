@@ -2,10 +2,10 @@ import {
   AlertTriangle,
   Check,
   CircleDollarSign,
+  ExternalLink,
   Landmark,
   LoaderCircle,
   Receipt,
-  ReceiptText,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useFetcher } from "react-router";
@@ -61,8 +61,9 @@ import {
   formatAmount,
   formatDate,
   formatOperationalAmount,
+  formatTotalAmount,
 } from "../formatters";
-import { EmitComprobanteAction } from "./comprobante-emission";
+import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
   formatDancerName,
@@ -111,10 +112,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
       }}
       headerAction={
         choreography ? (
-          <div className="flex items-center gap-2">
-            <EmitComprobanteAction invoicing={loaderData.invoicing} />
-            <CobroActions loaderData={loaderData} />
-          </div>
+          <ChoreographyActions loaderData={loaderData} />
         ) : undefined
       }
     >
@@ -130,15 +128,18 @@ export function AdministracionCoreografiaFinancieraDetalleView({
               slot={portionCoverageSlot(loaderData.invoicing.sena)}
             />
             <MetricCard
-              icon={CircleDollarSign}
-              title="Pagado"
-              value={formatAmount(choreography.paidAmount)}
-            />
-            <MetricCard
               icon={Landmark}
               title="Saldo"
               value={formatOperationalAmount(choreography.balanceAmount)}
               slot={portionCoverageSlot(loaderData.invoicing.saldo)}
+            />
+            <MetricCard
+              icon={CircleDollarSign}
+              title="Total"
+              value={formatTotalAmount(
+                choreography.depositAmount,
+                choreography.balanceAmount,
+              )}
             />
           </section>
 
@@ -205,13 +206,13 @@ function portionCoverageSlot(coverage: PortionCoverage | null) {
       </Badge>
       <Button
         asChild
-        variant="outline"
+        variant="link"
         size="icon-sm"
         aria-label="Ver comprobante"
         title="Ver comprobante"
       >
         <Link to={`/administracion/comprobantes/${coverage.comprobanteId}`}>
-          <ReceiptText aria-hidden="true" />
+          <ExternalLink aria-hidden="true" />
         </Link>
       </Button>
     </div>
@@ -270,35 +271,68 @@ function ChoreographyAlerts({
   );
 }
 
-function CobroActions({
+/**
+ * Menú único de acciones del header (`...`, ADR-0011): reúne `Emitir factura` y el
+ * cobro de la etapa vigente en un solo `ResourceActionsMenu`, en lugar de botones
+ * sueltos. Cada item abre su propio diálogo, montado como hermano del menú para que
+ * no se desmonte al cerrarse el dropdown. Si no hay ninguna acción disponible el
+ * menú no se muestra.
+ */
+function ChoreographyActions({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleViewProps) {
+  const invoicing = loaderData.invoicing;
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
-  const [open, setOpen] = useState(false);
+  const canEmit = invoicing?.canEmit ?? false;
+  const canCobro = stage !== null && eligible.length > 0;
+  const [emitOpen, setEmitOpen] = useState(false);
+  const [cobroOpen, setCobroOpen] = useState(false);
 
-  if (stage === null || eligible.length === 0) {
+  if (!canEmit && !canCobro) {
     return null;
   }
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setOpen(true);
-          }}
-        >
-          {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-        </DropdownMenuItem>
+        {canEmit ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setEmitOpen(true);
+            }}
+          >
+            Emitir factura
+          </DropdownMenuItem>
+        ) : null}
+        {canCobro ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setCobroOpen(true);
+            }}
+          >
+            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
+          </DropdownMenuItem>
+        ) : null}
       </ResourceActionsMenu>
-      <CobroDialog
-        eligiblePayments={eligible}
-        open={open}
-        onOpenChange={setOpen}
-        stage={stage}
-      />
+      {invoicing?.canEmit ? (
+        <EmissionDialog
+          billableAmount={invoicing.billableAmount}
+          porcion={invoicing.porcion}
+          open={emitOpen}
+          onOpenChange={setEmitOpen}
+        />
+      ) : null}
+      {stage !== null && eligible.length > 0 ? (
+        <CobroDialog
+          eligiblePayments={eligible}
+          open={cobroOpen}
+          onOpenChange={setCobroOpen}
+          stage={stage}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,5 +1,4 @@
-import { AlertTriangle, Check, LoaderCircle, ReceiptText } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
 import { useFetcher } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,7 +16,6 @@ import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.serve
 import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
 
 import { formatAmount } from "../formatters";
-import type { ChoreographyInvoicing } from "./server";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
@@ -26,51 +24,18 @@ import {
 } from "./shared";
 
 /**
- * Acción única `Emitir factura` del header del detalle financiero (ADR-0011):
- * habilitada sólo cuando hay un remanente cobrado sin facturar. La operadora no
- * elige porción ni importe: ambos se derivan de lo cobrado (#480) y se
- * previsualizan antes de confirmar en un `AlertDialog` cuyo copy dice la verdad
- * (la salida real es una Nota de crédito, no un borrado). El estado de facturación
- * ya no vive en una sección aparte: lo anotan las MetricCards de porción.
- */
-export function EmitComprobanteAction({
-  invoicing,
-}: {
-  invoicing: ChoreographyInvoicing;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button
-        type="button"
-        disabled={!invoicing.canEmit}
-        onClick={() => setOpen(true)}
-      >
-        <ReceiptText aria-hidden="true" data-icon="inline-start" />
-        Emitir factura
-      </Button>
-      {invoicing.canEmit ? (
-        <EmissionDialog
-          billableAmount={invoicing.billableAmount}
-          porcion={invoicing.porcion}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      ) : null}
-    </>
-  );
-}
-
-/**
  * Confirmación de emisión como `AlertDialog` (#480, ADR-0011): foco atrapado, no
  * se cierra al clickear afuera y expone `role="alertdialog"`. Sin checkbox: la
  * confirmación es el diálogo mismo. La porción y el importe llegan derivados de
  * lo cobrado, así que la operadora no puede emitir por otro monto ni elegir otra
  * porción; sólo previsualiza y confirma o cancela. El `confirm` viaja como campo
  * oculto —palabra clave de submit deliberado que el server exige— no como tilde.
+ *
+ * Controlado desde el menú de acciones del header (ADR-0011): la afordancia
+ * `Emitir factura` es un item del `ResourceActionsMenu`, no un botón aparte, y sólo
+ * se monta con remanente por facturar.
  */
-function EmissionDialog({
+export function EmissionDialog({
   billableAmount,
   porcion,
   open,

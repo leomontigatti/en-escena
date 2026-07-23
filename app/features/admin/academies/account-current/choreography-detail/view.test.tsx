@@ -1,8 +1,11 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
+
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
@@ -97,7 +100,7 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
     expect(markup).not.toContain("/administracion/comprobantes/");
   });
 
-  test("carries no badge or link on the Pagado card", () => {
+  test("carries no badge or link on the Total card", () => {
     const markup = renderDetail({
       invoicing: invoicingFixture({
         sena: { comprobanteId: "comprobante_sena", currency: "vigente" },
@@ -105,9 +108,17 @@ describe("AdministracionCoreografiaFinancieraDetalleView", () => {
       }),
     });
 
-    const card = portionCard(markup, "Pagado");
+    const card = portionCard(markup, "Total");
     expect(card.textContent).not.toContain("Vigente");
     expect(card.querySelector("a")).toBeNull();
+  });
+
+  test("sums the deposit and balance into the Total card", () => {
+    // depositAmount 3000 + balanceAmount 7000 = 10.000 (ambas porciones completas).
+    const markup = renderDetail();
+
+    const card = portionCard(markup, "Total");
+    expect(card.textContent).toContain("10.000");
   });
 
   test("renders a clickable name for an orphan impaga in a mixed choreography", () => {
@@ -362,7 +373,7 @@ function tentativeAmounts(markup: string) {
 
 /**
  * MetricCard de una porción, ubicada por su título. Se ancla en el texto del
- * título y no en la posición para que el test hable de "Seña"/"Saldo"/"Pagado".
+ * título y no en la posición para que el test hable de "Seña"/"Saldo"/"Total".
  */
 function portionCard(markup: string, title: string): Element {
   const document = new DOMParser().parseFromString(markup, "text/html");
@@ -484,4 +495,86 @@ function inscriptionFixture(
     undoableAllocation: null,
     ...overrides,
   };
+}
+
+describe("AdministracionCoreografiaFinancieraDetalleView actions menu", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  async function mount(
+    overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
+  ) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: (
+            <AdministracionCoreografiaFinancieraDetalleView
+              loaderData={loaderDataFixture(overrides)}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
+  test("omits the actions menu when there is nothing to emit or charge", async () => {
+    await mount();
+
+    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+  });
+
+  test("offers Emitir factura inside the actions menu, not as a standalone button", async () => {
+    await mount({
+      invoicing: invoicingFixture({
+        billableAmount: 12000,
+        porcion: "seña",
+        canEmit: true,
+      }),
+    });
+
+    // Cerrado, la afordancia no es un botón suelto: vive detrás del menú `...`.
+    expect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    const item = Array.from(
+      document.querySelectorAll('[role="menuitem"]'),
+    ).find((candidate) => candidate.textContent?.includes("Emitir factura"));
+    expect(item).not.toBeUndefined();
+  });
+});
+
+async function openActionsMenu() {
+  const button = document.querySelector('button[aria-label="Acciones"]');
+
+  if (!button) {
+    throw new Error("Expected the actions menu button to be rendered.");
+  }
+
+  const pointerDown = new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+    ctrlKey: false,
+  });
+  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+  await act(async () => {
+    button.dispatchEvent(pointerDown);
+    button.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+      }),
+    );
+    await Promise.resolve();
+  });
 }
