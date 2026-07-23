@@ -13,10 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-import {
-  DancerCorrectionReasonField,
-  type DancerStatusFormController,
-} from "./form";
+import { type DancerStatusFormController } from "./form";
 import {
   getSaveConsequenceMessage,
   type DancerDialogIntent,
@@ -26,7 +23,6 @@ import {
 
 export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation,
-  correctionReasonRequired,
   dialogIntent,
   editConsequence,
   editFormId,
@@ -37,7 +33,6 @@ export function DancerConfirmationDialog({
   verifyFormId,
 }: {
   birthDateMayNeedRecalculation: boolean;
-  correctionReasonRequired: boolean;
   dialogIntent: DancerDialogIntent | null;
   editConsequence: DancerEditConsequence;
   editFormId: string;
@@ -101,13 +96,6 @@ export function DancerConfirmationDialog({
             onSubmit={statusForm.handleSubmit}
           >
             <input type="hidden" name="intent" value={statusAction.intent} />
-            {correctionReasonRequired ? (
-              <DancerCorrectionReasonField
-                form={statusForm.form}
-                formId={statusFormId}
-                required={true}
-              />
-            ) : null}
           </form>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

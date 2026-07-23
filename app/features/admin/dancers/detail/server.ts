@@ -88,9 +88,7 @@ export async function handleAdministrativeDancerDetailAction(input: {
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
     const values = readDancerStatusValues(formData);
-    const parsed = buildDancerStatusSchema(
-      dancer.editConsequence !== null,
-    ).safeParse(values);
+    const parsed = buildDancerStatusSchema().safeParse(values);
 
     if (!parsed.success) {
       return buildDancerActionError(

@@ -50,10 +50,8 @@ export function useDancerEditForm({
 }
 
 export function useDancerStatusForm({
-  correctionReasonRequired,
   values,
 }: {
-  correctionReasonRequired: boolean;
   values: AdministrativeDancerStatusInput;
 }) {
   const form = useForm<
@@ -63,7 +61,7 @@ export function useDancerStatusForm({
   >({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildDancerStatusSchema(correctionReasonRequired)),
+    resolver: zodResolver(buildDancerStatusSchema()),
   });
 
   useEffect(() => {

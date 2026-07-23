@@ -132,9 +132,9 @@ export function buildDancerUpdateSchema() {
     });
 }
 
-export function buildDancerStatusSchema(correctionReasonRequired: boolean) {
+export function buildDancerStatusSchema() {
   return z.object({
-    correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
+    correctionReason: buildCorrectionReasonSchema(false),
   });
 }
 

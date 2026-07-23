@@ -51,7 +51,6 @@ export function AdministracionBailarinDetalleRouteView({
     values: getDancerEditValues({ actionData: errorData, dancer }),
   });
   const statusForm = useDancerStatusForm({
-    correctionReasonRequired: dancer.editConsequence !== null,
     values: getDancerStatusValues(errorData),
   });
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
@@ -139,7 +138,6 @@ export function AdministracionBailarinDetalleRouteView({
           birthDateMayNeedRecalculation={
             viewState.birthDateMayNeedRecalculation
           }
-          correctionReasonRequired={dancer.editConsequence !== null}
           dialogIntent={dialogIntent}
           editConsequence={dancer.editConsequence}
           editFormId={editFormId}

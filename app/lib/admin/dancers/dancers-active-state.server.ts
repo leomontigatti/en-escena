@@ -31,7 +31,7 @@ export async function setAdministrativeDancerActiveState(input: {
 
   const normalizedReason = validateAdministrativeDancerCorrectionReason({
     correctionReason: input.correctionReason,
-    required: existingDancer.correctionReasonRequired,
+    required: false,
   });
 
   if (!normalizedReason.ok) {

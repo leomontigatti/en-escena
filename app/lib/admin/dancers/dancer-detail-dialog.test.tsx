@@ -54,6 +54,26 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
   });
 
+  test("changing a Bailarín's status confirms without a correction reason field", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData({
+            active: false,
+            editConsequence: "participated",
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).not.toContain("¿Reactivar bailarín?");
+
+    await clickReactDomButton("Reactivar", { exact: true });
+
+    expect(document.body.textContent).toContain("¿Reactivar bailarín?");
+    expect(document.body.textContent).not.toContain("Motivo de corrección");
+  });
+
   test("editing a non-consequential Bailarín saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
@@ -116,9 +136,11 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
 });
 
 function createLoaderData({
+  active = true,
   editConsequence = null,
   isEditing = false,
 }: {
+  active?: boolean;
   editConsequence?: DancerEditConsequence;
   isEditing?: boolean;
 } = {}): AdministracionBailarinDetalleRouteViewProps["loaderData"] {
@@ -134,7 +156,7 @@ function createLoaderData({
         name: "Academia Test",
         phone: "1234-5678",
       },
-      active: true,
+      active,
       birthDate: "2012-07-12",
       choreographyNames: [],
       editConsequence,

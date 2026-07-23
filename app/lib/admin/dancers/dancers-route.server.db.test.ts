@@ -1452,7 +1452,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("archives and reactivates a participating Bailarín without unlinking coreografias and persists audit entries", async () => {
+  test("archives and reactivates a participating Bailarín without a correction reason and persists audit entries", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.bailarines.academia@example.com",
@@ -1482,7 +1482,6 @@ describe.sequential("administracion/bailarines route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "archive-dancer",
-          correctionReason: "Corrección manual por soporte.",
         }),
         dancer.id,
       ),
@@ -1515,7 +1514,6 @@ describe.sequential("administracion/bailarines route", () => {
           request.headers.get("cookie") ?? "",
           {
             intent: "reactivate-dancer",
-            correctionReason: "Reactivación operativa por soporte.",
           },
         ),
         dancer.id,
@@ -1536,14 +1534,14 @@ describe.sequential("administracion/bailarines route", () => {
       expect.objectContaining({
         action: "archive",
         entityId: dancer.id,
-        reason: "Corrección manual por soporte.",
+        reason: null,
         beforeValues: expect.objectContaining({ active: true }),
         afterValues: expect.objectContaining({ active: false }),
       }),
       expect.objectContaining({
         action: "reactivate",
         entityId: dancer.id,
-        reason: "Reactivación operativa por soporte.",
+        reason: null,
         beforeValues: expect.objectContaining({ active: false }),
         afterValues: expect.objectContaining({ active: true }),
       }),
