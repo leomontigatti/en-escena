@@ -1,20 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ExternalLink, Lock } from "lucide-react";
 import { useEffect, useId } from "react";
-import { type FieldPath, useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { TextareaField } from "@/components/shared/textarea-field";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import type { AdministrativeDancerStatusInput } from "@/lib/admin/dancers/dancers.server";
 import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
-import {
-  buildDancerStatusSchema,
-  buildDancerUpdateSchema,
-  type DancerEditFormValues,
-} from "./shared";
+import { buildDancerUpdateSchema, type DancerEditFormValues } from "./shared";
 
 type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues,
@@ -23,16 +17,14 @@ type DancerEditFormReturn = UseFormReturn<
 >;
 
 export function useDancerEditForm({
-  correctionReasonRequired,
   values,
 }: {
-  correctionReasonRequired: boolean;
   values: DancerEditFormValues;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildDancerUpdateSchema(correctionReasonRequired)),
+    resolver: zodResolver(buildDancerUpdateSchema()),
   });
 
   useEffect(() => {
@@ -40,7 +32,6 @@ export function useDancerEditForm({
   }, [
     form,
     values.birthDate,
-    values.correctionReason,
     values.documentBackImageStorageKey,
     values.documentFrontImageStorageKey,
     values.documentNumber,
@@ -48,30 +39,6 @@ export function useDancerEditForm({
     values.firstName,
     values.lastName,
   ]);
-
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
-}
-
-export function useDancerStatusForm({
-  correctionReasonRequired,
-  values,
-}: {
-  correctionReasonRequired: boolean;
-  values: AdministrativeDancerStatusInput;
-}) {
-  const form = useForm<
-    AdministrativeDancerStatusInput,
-    unknown,
-    AdministrativeDancerStatusInput
-  >({
-    defaultValues: values,
-    mode: "onSubmit",
-    resolver: zodResolver(buildDancerStatusSchema(correctionReasonRequired)),
-  });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [form, values.correctionReason]);
 
   return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
@@ -116,32 +83,6 @@ export function DancerBirthDateField({
       className={className}
       id={id}
       label="Fecha de nacimiento"
-    />
-  );
-}
-
-export function DancerCorrectionReasonField<
-  TFieldValues extends AdministrativeDancerStatusInput,
->({
-  form,
-  formId,
-  required,
-}: {
-  form: UseFormReturn<TFieldValues, unknown, TFieldValues>;
-  formId?: string;
-  required: boolean;
-}) {
-  return (
-    <TextareaField
-      control={form.control}
-      name={"correctionReason" as FieldPath<TFieldValues>}
-      label="Motivo de corrección"
-      description={
-        required
-          ? "Obligatorio entre 10 y 500 caracteres para este Bailarín."
-          : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."
-      }
-      form={formId}
     />
   );
 }
@@ -199,4 +140,3 @@ export function ReadOnlyDocumentImageField({
 }
 
 export type DancerEditFormController = ReturnType<typeof useDancerEditForm>;
-export type DancerStatusFormController = ReturnType<typeof useDancerStatusForm>;

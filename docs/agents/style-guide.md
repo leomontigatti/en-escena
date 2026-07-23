@@ -334,6 +334,25 @@ Reglas:
 - Migrar destructivas existentes con checkbox cuando se toque el archivo o en
   una pasada dedicada.
 
+### `AlertDialog` vs. `Dialog`
+
+Regla única y explícita para elegir el componente:
+
+- **`AlertDialog`**: confirmaciones sí/no y acciones consecuentes (borrar,
+  archivar, verificar, guardar cambios sobre un registro consecuente). Expone
+  `role="alertdialog"`, atrapa el foco y **no** se cierra al clickear afuera ni
+  con Escape. Su look es más chico, con header centrado y footer con barra: ese
+  es el look de "confirmación".
+- **`Dialog`**: formularios y vistas (crear/editar recursos, paneles de detalle).
+  Se cierra por overlay/Escape y tiene botón X.
+
+Para confirmaciones de borrado usar el componente compartido
+`DeleteDialog` (`app/components/shared/delete-dialog.tsx`), montado sobre
+`AlertDialog`: centraliza `isPending` (deshabilita + spinner en el botón
+destructivo), el modo `isBlocked` (oculta el botón destructivo y muestra
+título/descripción de bloqueo) y el slot `details`. No duplicar esa lógica ni
+armar un `Dialog` a mano para borrar.
+
 ## Navegación
 
 Cada contexto usa un shell acorde a su intensidad operativa.

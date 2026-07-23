@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, dancers, user } from "@/db/schema";
 import {
-  isCorrectionReasonRequired,
+  getEditConsequence,
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
@@ -93,7 +93,7 @@ export async function findAdministrativeDancer(input: {
       identityVerifiedAt: row.identityVerifiedAt,
     }),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired: isCorrectionReasonRequired({
+    editConsequence: getEditConsequence({
       selectedEventId: input.selectedEventId,
       isParticipating: row.isParticipating,
       hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,

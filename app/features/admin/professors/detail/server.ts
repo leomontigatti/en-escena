@@ -18,10 +18,8 @@ import {
   buildModeHref,
   buildProfessorActionError,
   buildProfessorActionSuccess,
-  buildProfessorReasonSchema,
-  buildProfessorUpdateSchema,
+  buildProfessorEditSchema,
   professorFieldNames,
-  readProfessorReasonValues,
   readProfessorUpdateValues,
 } from "./shared";
 
@@ -84,34 +82,12 @@ export async function handleAdministrativeProfessorDetailAction(input: {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    const values = readProfessorReasonValues(formData);
-    const parsed = buildProfessorReasonSchema(
-      professor.correctionReasonRequired,
-    ).safeParse(values);
-
-    if (!parsed.success) {
-      return buildProfessorActionError(
-        "Revisá los campos marcados.",
-        getFieldErrors(parsed.error, professorFieldNames),
-        values,
-      );
-    }
-
-    const result = await setAdministrativeProfessorActiveState({
+    await setAdministrativeProfessorActiveState({
       action: intent === "archive-professor" ? "archive" : "reactivate",
       adminUserId: adminUser.id,
       professorId,
       selectedEventId: eventContext.selectedEventId,
-      correctionReason: parsed.data.correctionReason,
     });
-
-    if (!result.ok) {
-      return buildProfessorActionError(
-        result.message,
-        result.fieldErrors,
-        values,
-      );
-    }
 
     return buildProfessorActionSuccess(
       intent === "archive-professor"
@@ -121,9 +97,7 @@ export async function handleAdministrativeProfessorDetailAction(input: {
   }
 
   const values = readProfessorUpdateValues(formData);
-  const parsed = buildProfessorUpdateSchema(
-    professor.correctionReasonRequired,
-  ).safeParse(values);
+  const parsed = buildProfessorEditSchema().safeParse(values);
 
   if (!parsed.success) {
     return buildProfessorActionError(

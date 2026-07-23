@@ -1,10 +1,9 @@
 import { z } from "zod";
 
-import { adminDancerCorrectionReasonMessage } from "@/lib/admin/dancers/dancers.shared";
 import type {
   AdministrativeDancerFieldErrors,
-  AdministrativeDancerStatusInput,
   AdministrativeDancerUpdateInput,
+  DancerEditConsequence,
   findAdministrativeDancer,
 } from "@/lib/admin/dancers/dancers.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
@@ -14,8 +13,7 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 
-const correctionReasonMaxLength = 500;
-const correctionReasonMinLength = 10;
+export type { DancerEditConsequence };
 
 export const dancerFieldNames = [
   "firstName",
@@ -25,7 +23,6 @@ export const dancerFieldNames = [
   "documentNumber",
   "documentFrontImageStorageKey",
   "documentBackImageStorageKey",
-  "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeDancerFieldErrors>;
 
 export type DancerDetailLoaderData = {
@@ -46,7 +43,7 @@ export type DancerActionError = {
   status: "error";
   message: string;
   fieldErrors: AdministrativeDancerFieldErrors;
-  values: AdministrativeDancerUpdateInput | AdministrativeDancerStatusInput;
+  values: AdministrativeDancerUpdateInput;
 };
 
 export type DancerDialogIntent =
@@ -80,6 +77,7 @@ export type DancerStatusAction = {
 export type DancerDetailViewState = {
   birthDateMayNeedRecalculation: boolean;
   canVerifyIdentity: boolean;
+  editConsequence: DancerEditConsequence;
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   isEditing: boolean;
@@ -89,7 +87,7 @@ export type DancerDetailViewState = {
 
 export type DancerEditFormValues = AdministrativeDancerUpdateInput;
 
-export function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
+export function buildDancerUpdateSchema() {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),
@@ -122,17 +120,10 @@ export function buildDancerUpdateSchema(correctionReasonRequired: boolean) {
       documentNumber: z.string().trim(),
       documentFrontImageStorageKey: z.string().trim(),
       documentBackImageStorageKey: z.string().trim(),
-      correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
     })
     .superRefine((values, context) => {
       validateDocumentPair(values.documentType, values.documentNumber, context);
     });
-}
-
-export function buildDancerStatusSchema(correctionReasonRequired: boolean) {
-  return z.object({
-    correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
-  });
 }
 
 export function buildBackToListHref(requestUrl: string) {
@@ -180,14 +171,6 @@ export function buildDancerActionSuccess(
   };
 }
 
-export function readDancerStatusValues(
-  formData: FormData,
-): AdministrativeDancerStatusInput {
-  return {
-    correctionReason: readFormString(formData, "correctionReason"),
-  };
-}
-
 export function readDancerUpdateValues(
   formData: FormData,
 ): AdministrativeDancerUpdateInput {
@@ -205,7 +188,6 @@ export function readDancerUpdateValues(
       formData,
       "documentBackImageStorageKey",
     ),
-    correctionReason: readFormString(formData, "correctionReason"),
   };
 }
 
@@ -267,19 +249,6 @@ export function getDancerEditValues({
       submittedValues?.documentBackImageStorageKey ??
       dancer.documentBackImageStorageKey ??
       "",
-    correctionReason: submittedValues?.correctionReason ?? "",
-  };
-}
-
-export function getDancerStatusValues(
-  actionData: DancerActionError | undefined,
-): AdministrativeDancerStatusInput {
-  if (isDancerUpdateValues(actionData?.values)) {
-    return { correctionReason: "" };
-  }
-
-  return {
-    correctionReason: actionData?.values.correctionReason ?? "",
   };
 }
 
@@ -301,18 +270,18 @@ function getDancerStatusAction(active: boolean): DancerStatusAction {
 
 export function getInitialDialogIntent({
   actionData,
-  correctionReasonRequired,
+  shouldConfirmSave,
   statusIntent,
 }: {
   actionData: DancerActionError | undefined;
-  correctionReasonRequired: boolean;
+  shouldConfirmSave: boolean;
   statusIntent: DancerStatusAction["intent"];
 }): DancerDialogIntent | null {
   if (!actionData) {
     return null;
   }
 
-  if (isDancerUpdateValues(actionData.values) && correctionReasonRequired) {
+  if (isDancerUpdateValues(actionData.values) && shouldConfirmSave) {
     return "save";
   }
 
@@ -367,13 +336,29 @@ export function buildDancerDetailViewState({
   return {
     birthDateMayNeedRecalculation,
     canVerifyIdentity,
+    editConsequence: dancer.editConsequence,
     identificationAlert,
     identificationAlertVariant,
     isEditing,
     shouldConfirmSave:
-      dancer.correctionReasonRequired || birthDateMayNeedRecalculation,
+      dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,
   };
+}
+
+export function getSaveConsequenceMessage(
+  editConsequence: DancerEditConsequence,
+): string | null {
+  switch (editConsequence) {
+    case "verified":
+      return "Este bailarín tiene su identidad verificada. Si guardás los cambios, la verificación quedará sin efecto y deberá volver a verificarse.";
+    case "participated":
+      return "Este bailarín ya participó de un evento. Los cambios pueden afectar registros existentes.";
+    case "both":
+      return "Este bailarín tiene su identidad verificada y ya participó de un evento. Al guardar, la verificación quedará sin efecto y los cambios pueden afectar registros existentes.";
+    case null:
+      return null;
+  }
 }
 
 function getIdentificationAlert(
@@ -387,34 +372,6 @@ function getIdentificationAlert(
     case "verified":
       return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
   }
-}
-
-function buildCorrectionReasonSchema(required: boolean) {
-  return z
-    .string()
-    .trim()
-    .superRefine((value, context) => {
-      if (value.length === 0) {
-        if (required) {
-          context.addIssue({
-            code: "custom",
-            message: adminDancerCorrectionReasonMessage,
-          });
-        }
-
-        return;
-      }
-
-      if (
-        value.length < correctionReasonMinLength ||
-        value.length > correctionReasonMaxLength
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: adminDancerCorrectionReasonMessage,
-        });
-      }
-    });
 }
 
 function validateDocumentPair(

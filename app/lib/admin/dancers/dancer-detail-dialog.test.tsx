@@ -6,7 +6,11 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  getButton,
 } from "@/lib/test-support/react-dom";
+
+type DancerEditConsequence =
+  AdministracionBailarinDetalleRouteViewProps["loaderData"]["dancer"]["editConsequence"];
 
 type AdministracionBailarinDetalleRouteViewComponent =
   typeof import("@/routes/administracion.bailarines_.$dancerId").AdministracionBailarinDetalleRouteView;
@@ -49,9 +53,97 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
   });
+
+  test("changing a Bailarín's status confirms without a correction reason field", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData({
+            active: false,
+            editConsequence: "participated",
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).not.toContain("¿Reactivar bailarín?");
+
+    await clickReactDomButton("Reactivar", { exact: true });
+
+    expect(document.body.textContent).toContain("¿Reactivar bailarín?");
+    expect(document.body.textContent).not.toContain("Motivo de corrección");
+  });
+
+  test("editing a non-consequential Bailarín saves without a confirmation dialog", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData({
+            editConsequence: null,
+            isEditing: true,
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    const saveButton = getButton("Guardar");
+
+    expect(saveButton.getAttribute("type")).toBe("submit");
+    expect(saveButton.getAttribute("form")).toBe("admin-dancer-edit-form");
+    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+  });
+
+  test("editing a verified Bailarín confirms with the verified message before saving", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData({
+            editConsequence: "verified",
+            isEditing: true,
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+    expect(getButton("Guardar").getAttribute("type")).toBe("button");
+
+    await clickReactDomButton("Guardar", { exact: true });
+
+    expect(document.body.textContent).toContain("¿Guardar cambios?");
+    expect(document.body.textContent).toContain("identidad verificada");
+    expect(document.body.textContent).not.toContain("Motivo de corrección");
+  });
+
+  test("editing a participating Bailarín confirms with the participation message", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+        <AdministracionBailarinDetalleRouteView
+          loaderData={createLoaderData({
+            editConsequence: "participated",
+            isEditing: true,
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    await clickReactDomButton("Guardar", { exact: true });
+
+    expect(document.body.textContent).toContain("¿Guardar cambios?");
+    expect(document.body.textContent).toContain("ya participó de un evento");
+    expect(document.body.textContent).not.toContain("Motivo de corrección");
+  });
 });
 
-function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loaderData"] {
+function createLoaderData({
+  active = true,
+  editConsequence = null,
+  isEditing = false,
+}: {
+  active?: boolean;
+  editConsequence?: DancerEditConsequence;
+  isEditing?: boolean;
+} = {}): AdministracionBailarinDetalleRouteViewProps["loaderData"] {
   return {
     backToList: "/administracion/bailarines",
     cancelHref: "/administracion/bailarines/dancer-1",
@@ -64,10 +156,10 @@ function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loader
         name: "Academia Test",
         phone: "1234-5678",
       },
-      active: true,
+      active,
       birthDate: "2012-07-12",
       choreographyNames: [],
-      correctionReasonRequired: false,
+      editConsequence,
       createdAt: new Date("2026-01-10T12:00:00.000Z"),
       documentBackImageStorageKey: "document-back",
       documentFrontImageStorageKey: "document-front",
@@ -88,7 +180,7 @@ function createLoaderData(): AdministracionBailarinDetalleRouteViewProps["loader
       front: null,
     },
     editHref: "/administracion/bailarines/dancer-1?modo=editar",
-    isEditing: false,
+    isEditing,
     selectedEventId: null,
   };
 }

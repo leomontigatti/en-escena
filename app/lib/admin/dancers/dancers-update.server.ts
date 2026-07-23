@@ -18,10 +18,6 @@ import type {
   AdministrativeDancerUpdateInput,
 } from "@/lib/admin/dancers/dancers.server.types";
 import {
-  toOptionalCorrectionReason,
-  validateAdministrativeDancerCorrectionReason,
-} from "@/lib/admin/dancers/dancers-mutation-helpers.server";
-import {
   findDuplicateDancerDocument,
   normalizeDancerDocumentPair,
   normalizeDancerValues,
@@ -56,20 +52,7 @@ export async function updateAdministrativeDancer(input: {
     Object.assign(fieldErrors, normalizedDocument.fieldErrors);
   }
 
-  const normalizedReason = validateAdministrativeDancerCorrectionReason({
-    correctionReason: input.values.correctionReason,
-    required: existingDancer.correctionReasonRequired,
-  });
-
-  if (!normalizedReason.ok) {
-    fieldErrors.correctionReason = normalizedReason.fieldError;
-  }
-
-  if (
-    !normalizedDocument.ok ||
-    !normalizedReason.ok ||
-    Object.keys(fieldErrors).length > 0
-  ) {
+  if (!normalizedDocument.ok || Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
       message: "Revisá los campos marcados.",
@@ -143,7 +126,7 @@ export async function updateAdministrativeDancer(input: {
           choreographyId: choreographyChange.choreographyId,
           eventId: choreographyChange.eventId,
           adminUserId: input.adminUserId,
-          reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+          reason: null,
           beforeValues: choreographyChange.beforeValues,
           afterValues: choreographyChange.afterValues,
           executor: tx,
@@ -159,7 +142,7 @@ export async function updateAdministrativeDancer(input: {
       dancerId: existingDancer.id,
       eventId: input.selectedEventId,
       executor: tx,
-      reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+      reason: null,
     });
 
     return savedDancer;
