@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, dancers, user } from "@/db/schema";
 import {
-  isCorrectionReasonRequired,
+  getEditConsequence,
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
@@ -93,12 +93,13 @@ export async function findAdministrativeDancer(input: {
       identityVerifiedAt: row.identityVerifiedAt,
     }),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired: isCorrectionReasonRequired({
-      selectedEventId: input.selectedEventId,
-      isParticipating: row.isParticipating,
-      hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-      isVerified: row.identityVerifiedAt !== null,
-    }),
+    correctionReasonRequired:
+      getEditConsequence({
+        selectedEventId: input.selectedEventId,
+        isParticipating: row.isParticipating,
+        hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+        isVerified: row.identityVerifiedAt !== null,
+      }) !== null,
     inscriptions,
     choreographyNames: choreographyRows.map(
       (choreography) => choreography.name,

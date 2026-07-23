@@ -83,21 +83,32 @@ export function toIdentificationStatus(input: {
   }
 }
 
-export function isCorrectionReasonRequired(input: {
+export type DancerEditConsequence = "verified" | "participated" | "both" | null;
+
+export function getEditConsequence(input: {
   selectedEventId: string | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
   isVerified: boolean;
-}) {
+}): DancerEditConsequence {
+  const participated =
+    input.selectedEventId !== null
+      ? input.isParticipating || input.hasParticipatedInAnyEvent
+      : input.hasParticipatedInAnyEvent;
+
+  if (input.isVerified && participated) {
+    return "both";
+  }
+
   if (input.isVerified) {
-    return true;
+    return "verified";
   }
 
-  if (input.selectedEventId !== null) {
-    return input.isParticipating || input.hasParticipatedInAnyEvent;
+  if (participated) {
+    return "participated";
   }
 
-  return input.hasParticipatedInAnyEvent;
+  return null;
 }
 
 export function toDancerSnapshot(
@@ -163,12 +174,13 @@ export async function findAdministrativeDancerForMutation(input: {
 
       return {
         ...row,
-        correctionReasonRequired: isCorrectionReasonRequired({
-          selectedEventId: input.selectedEventId,
-          isParticipating: row.isParticipating,
-          hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-          isVerified: row.identityVerifiedAt !== null,
-        }),
+        correctionReasonRequired:
+          getEditConsequence({
+            selectedEventId: input.selectedEventId,
+            isParticipating: row.isParticipating,
+            hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
+            isVerified: row.identityVerifiedAt !== null,
+          }) !== null,
         identificationStatus: toIdentificationStatus(row),
       };
     });
