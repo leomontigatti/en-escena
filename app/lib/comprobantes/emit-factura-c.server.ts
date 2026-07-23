@@ -4,6 +4,8 @@ import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
+  comprobantePorcion,
+  events,
   paymentAllocations,
 } from "@/db/schema";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -14,6 +16,7 @@ import {
   DOC_TIPO_CONSUMIDOR_FINAL,
   FACTURA_C_CBTE_TIPO,
 } from "./arca/factura-c";
+import type { ServiceDates } from "./arca/factura-c";
 import type { ArcaMessage, FacturaCEmissionResult } from "./arca/responses";
 import {
   listChoreographyComprobantes,
@@ -80,8 +83,14 @@ export async function emitChoreographyFacturaC(
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
   const [choreography] = await db
-    .select({ id: choreographies.id, eventId: choreographies.eventId })
+    .select({
+      id: choreographies.id,
+      eventId: choreographies.eventId,
+      eventStartsAt: events.startsAt,
+      eventEndsAt: events.endsAt,
+    })
     .from(choreographies)
+    .innerJoin(events, eq(events.id, choreographies.eventId))
     .where(eq(choreographies.id, input.choreographyId));
 
   if (!choreography || choreography.eventId !== input.eventId) {
@@ -92,11 +101,11 @@ export async function emitChoreographyFacturaC(
     };
   }
 
-  const { lines, total } = await resolveChoreographyBillable(
+  const { lines, total, porcion } = await resolveChoreographyBillable(
     input.choreographyId,
   );
 
-  if (total <= 0) {
+  if (total <= 0 || porcion === null) {
     return {
       ok: false,
       reason: "nothing-to-bill",
@@ -108,12 +117,22 @@ export async function emitChoreographyFacturaC(
   const last = await deps.client.getLastFacturaCNumber(deps.ptoVta);
   const cbteFch = deps.cbteFch ?? toArcaDate(getBusinessDateOnly());
 
+  // Fechas de servicio (Concepto 2, ADR-0011): el período es el del evento y el
+  // vencimiento de pago es la fecha del comprobante (se factura lo ya cobrado, así
+  // que el pago no vence en el futuro). Congeladas junto con la porción.
+  const serviceDates: ServiceDates = {
+    fchServDesde: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
+    fchServHasta: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
+    fchVtoPago: cbteFch,
+  };
+
   const emission = await deps.client.emitFacturaC({
     ptoVta: deps.ptoVta,
     cbteNro: last.nextCbteNro,
     cbteFch,
     importe: total,
     condicionIvaReceptorId: deps.receptorIvaConditionId,
+    ...serviceDates,
   });
 
   if (!emission.approved || !emission.cae || !emission.caeVto) {
@@ -136,6 +155,10 @@ export async function emitChoreographyFacturaC(
     ptoVta: deps.ptoVta,
     cbteNro: emission.cbteNro ?? last.nextCbteNro,
     cbteFch: emission.cbteFch ?? cbteFch,
+    // Porción y fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago
+    // después de emitir no altera lo que dice este comprobante (ADR-0011, #479).
+    porcion,
+    ...serviceDates,
     impTotal: total,
     issuerCuit: deps.issuerCuit,
     issuerIvaCondition: ISSUER_IVA_CONDITION,
@@ -150,16 +173,22 @@ export async function emitChoreographyFacturaC(
   return { ok: true, comprobante };
 }
 
+export type ComprobantePorcion = (typeof comprobantePorcion.enumValues)[number];
+
 export type ChoreographyBillable = {
   lines: ComprobanteLineInput[];
   total: number;
+  // Porción que cubre el remanente facturable, DERIVADA de los tipos de
+  // asignación (#479, ADR-0011). `null` cuando no hay nada por facturar.
+  porcion: ComprobantePorcion | null;
 };
 
 /**
  * Monto facturable de una coreografía: sus líneas internas por inscripción con
- * remanente positivo y el total. Es lo que la UX de emisión (#447) previsualiza
- * antes de confirmar y lo que `emitChoreographyFacturaC` factura. No llama a
- * ARCA: sólo cruza cobros contra facturas vigentes.
+ * remanente positivo, el total y la PORCIÓN que ese remanente cubre. Es lo que la
+ * UX de emisión (#447) previsualiza antes de confirmar y lo que
+ * `emitChoreographyFacturaC` factura. No llama a ARCA: sólo cruza cobros contra
+ * facturas vigentes.
  */
 export async function resolveChoreographyBillable(
   choreographyId: string,
@@ -169,39 +198,92 @@ export async function resolveChoreographyBillable(
     .from(choreographyDancers)
     .where(eq(choreographyDancers.choreographyId, choreographyId));
 
-  const lines = await resolveBillableLines(
+  const { lines, depositPaid, balancePaid, billed } = await resolveBillable(
     choreographyId,
     inscriptionRows.map((row) => row.id),
   );
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
+  const porcion = derivePorcion({ depositPaid, balancePaid, billed });
 
-  return { lines, total };
+  return { lines, total, porcion };
 }
+
+/**
+ * Deriva la porción del remanente facturable a partir de lo cobrado por tipo de
+ * asignación y lo ya facturado. El cobro es atómico a nivel coreografía (para
+ * señar, todas las inscripciones impagas; para saldar, todas señadas) y la seña
+ * se factura antes que el saldo, así que lo facturado cubre primero el depósito:
+ * el remanente nunca es mixto y `{seña, saldo, total}` cubre el espacio real.
+ */
+function derivePorcion(input: {
+  depositPaid: number;
+  balancePaid: number;
+  billed: number;
+}): ComprobantePorcion | null {
+  const { depositPaid, balancePaid, billed } = input;
+  const uncoveredDeposit = Math.max(0, depositPaid - billed);
+  const uncoveredBalance = Math.max(
+    0,
+    balancePaid - Math.max(0, billed - depositPaid),
+  );
+
+  if (uncoveredDeposit > 0 && uncoveredBalance > 0) {
+    return "total";
+  }
+  if (uncoveredDeposit > 0) {
+    return "seña";
+  }
+  if (uncoveredBalance > 0) {
+    return "saldo";
+  }
+  return null;
+}
+
+type BillableResolution = {
+  lines: ComprobanteLineInput[];
+  // Cobrado por tipo de asignación, agregado a nivel coreografía: insumos de la
+  // derivación de porción.
+  depositPaid: number;
+  balancePaid: number;
+  // Total ya facturado por facturas tipo 11 vigentes.
+  billed: number;
+};
 
 /**
  * Porción facturable de cada inscripción: lo cobrado (asignaciones de pago) menos
  * lo ya cubierto por facturas tipo 11 VIGENTES de la coreografía. Sólo entran las
  * inscripciones con remanente positivo. Una factura anulada deja de contar como
  * facturada (su estado deriva de la Nota de crédito), así que su monto vuelve a
- * ser facturable.
+ * ser facturable. Además agrega lo cobrado por tipo (`deposit`/`balance`) y el
+ * total facturado, insumos de los que se deriva la porción del remanente.
  */
-async function resolveBillableLines(
+async function resolveBillable(
   choreographyId: string,
   inscriptionIds: string[],
-): Promise<ComprobanteLineInput[]> {
+): Promise<BillableResolution> {
   if (inscriptionIds.length === 0) {
-    return [];
+    return { lines: [], depositPaid: 0, balancePaid: 0, billed: 0 };
   }
 
   const allocations = await db
     .select({
       inscriptionId: paymentAllocations.inscriptionId,
+      allocationType: paymentAllocations.allocationType,
       amount: paymentAllocations.amount,
     })
     .from(paymentAllocations)
     .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
 
   const paidByInscription = sumByInscription(allocations);
+  let depositPaid = 0;
+  let balancePaid = 0;
+  for (const allocation of allocations) {
+    if (allocation.allocationType === "deposit") {
+      depositPaid += allocation.amount;
+    } else {
+      balancePaid += allocation.amount;
+    }
+  }
 
   const existing = await listChoreographyComprobantes(choreographyId);
   const billedByInscription = new Map<string, number>();
@@ -224,16 +306,18 @@ async function resolveBillableLines(
   }
 
   const lines: ComprobanteLineInput[] = [];
+  let billed = 0;
   for (const inscriptionId of inscriptionIds) {
     const paid = paidByInscription.get(inscriptionId) ?? 0;
-    const billed = billedByInscription.get(inscriptionId) ?? 0;
-    const billable = paid - billed;
+    const inscriptionBilled = billedByInscription.get(inscriptionId) ?? 0;
+    billed += inscriptionBilled;
+    const billable = paid - inscriptionBilled;
     if (billable > 0) {
       lines.push({ inscriptionId, amount: billable });
     }
   }
 
-  return lines;
+  return { lines, depositPaid, balancePaid, billed };
 }
 
 function sumByInscription(

@@ -125,6 +125,9 @@ export async function annulComprobante(
     cbteFch: emission.cbteFch ?? cbteFch,
     // Espejo total-only: mismo importe que el comprobante anulado.
     impTotal: target.impTotal,
+    // La Nota de crédito espeja la porción del comprobante que anula (ADR-0011),
+    // igual que el backfill de la migración 0005.
+    porcion: target.porcion,
     issuerCuit: deps.issuerCuit,
     issuerIvaCondition: ISSUER_IVA_CONDITION,
     receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,

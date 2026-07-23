@@ -6,7 +6,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
+import {
+  choreographyDancers,
+  comprobantes,
+  paymentAllocations,
+  payments,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -111,6 +116,7 @@ async function allocatePayment(input: {
   eventId: string;
   inscriptionId: string;
   amount: number;
+  allocationType?: "deposit" | "balance";
 }) {
   paymentNumber += 1;
   const [payment] = await db
@@ -130,7 +136,7 @@ async function allocatePayment(input: {
     inscriptionId: input.inscriptionId,
     academyId: input.academyId,
     eventId: input.eventId,
-    allocationType: "deposit",
+    allocationType: input.allocationType ?? "deposit",
     amount: input.amount,
   });
 }
@@ -394,6 +400,185 @@ describe("emitChoreographyFacturaC", () => {
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
     expect(sent.ImpTotal).toBe(7000);
+  });
+
+  test("deriva porción `seña` y congela las fechas de servicio del evento", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `sena.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 3000,
+      allocationType: "deposit",
+    });
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    // El builder recibe Concepto 2 con el período del evento y el vencimiento en
+    // la fecha del comprobante.
+    const sent = vi.mocked(deps.billing.createVoucher).mock
+      .calls[0][0] as ArcaVoucher;
+    expect(sent.Concepto).toBe(2);
+    expect(sent.FchServDesde).toBe("20260501");
+    expect(sent.FchServHasta).toBe("20260503");
+    expect(sent.FchVtoPago).toBe("20260722");
+
+    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    expect(persisted).toMatchObject({
+      porcion: "seña",
+      fchServDesde: "20260501",
+      fchServHasta: "20260503",
+      fchVtoPago: "20260722",
+    });
+  });
+
+  test("una coreografía cobrada completa y nunca facturada emite un solo comprobante con porción `total`", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `total.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 3000,
+      allocationType: "deposit",
+    });
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 7000,
+      allocationType: "balance",
+    });
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    const comprobantes = await listChoreographyComprobantes(choreography.id);
+    expect(comprobantes).toHaveLength(1);
+    expect(comprobantes[0]).toMatchObject({
+      porcion: "total",
+      impTotal: 10000,
+    });
+  });
+
+  test("cuando la seña ya está facturada, el remanente de saldo deriva porción `saldo`", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `saldo.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    const inscription = inscriptions[0];
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      allocationType: "deposit",
+    });
+    // La seña ya fue facturada por una Factura C vigente que cubrió el depósito.
+    await recordComprobante({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      cbteTipo: 11,
+      ptoVta: 1,
+      cbteNro: 40,
+      cbteFch: "20260701",
+      porcion: "seña",
+      impTotal: 3000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      receptorDocTipo: 99,
+      receptorDocNro: "0",
+      receptorIvaConditionId: 5,
+      cae: "40000000000000",
+      caeVto: "20260710",
+      lines: [{ inscriptionId: inscription.id, amount: 3000 }],
+    });
+    // Entra el cobro del saldo.
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 7000,
+      allocationType: "balance",
+    });
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
+      (row) => row.cbteNro === 43,
+    );
+    expect(nuevo).toMatchObject({ porcion: "saldo", impTotal: 7000 });
+  });
+
+  test("reimputar un pago después de emitir no altera la porción ni las fechas congeladas", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `congela.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 3000,
+      allocationType: "deposit",
+    });
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+    expect(outcome.ok).toBe(true);
+    const emitted = outcome.ok ? outcome.comprobante : null;
+
+    // Meses después entra un cobro de saldo (una reimputación posible): el
+    // comprobante ya emitido no debe cambiar su porción ni sus fechas.
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 7000,
+      allocationType: "balance",
+    });
+
+    const [reloaded] = await db
+      .select({
+        porcion: comprobantes.porcion,
+        fchServDesde: comprobantes.fchServDesde,
+        fchServHasta: comprobantes.fchServHasta,
+        fchVtoPago: comprobantes.fchVtoPago,
+      })
+      .from(comprobantes)
+      .where(eq(comprobantes.id, emitted!.id));
+    expect(reloaded).toEqual({
+      porcion: "seña",
+      fchServDesde: "20260501",
+      fchServHasta: "20260503",
+      fchVtoPago: "20260722",
+    });
   });
 
   test("rechaza una coreografía inexistente o de otro evento", async () => {
