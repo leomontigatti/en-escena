@@ -413,4 +413,151 @@ describe.sequential("administracion Bases del evento routes", () => {
       ]),
     );
   });
+
+  test("renders the Agregar submodalidad editor on the Modalidad alta route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    const request = await createSignedInRequest({
+      email: "admin.alta.submodalidades@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+    });
+    const data = await loader(routeArgs(request.request));
+    const markup = renderNuevaModalidadRoute(data);
+
+    expect(markup).toContain('aria-label="Agregar submodalidad"');
+    expect(markup).toContain('name="submodalitiesMode" value="replace"');
+  });
+
+  test("creates a Modalidad with its Submodalidades from the alta route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const createRequest = await createSignedInRequest({
+      email: "admin.crea.modalidad.submodalidades@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-modality",
+        name: "Jazz",
+        submodalitiesMode: "replace",
+        "submodalities.0.name": "Commercial jazz",
+        "submodalities.1.name": "Lyrical jazz",
+      }),
+    });
+
+    const response = await expectThrownResponse(
+      action(routeArgs(createRequest.request)),
+      302,
+    );
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.name, "Jazz"),
+    });
+
+    expect(modality).toMatchObject({ eventId: event.id });
+    await expectFlashRedirect(
+      response,
+      `/administracion/modalidades/${modality?.id}`,
+      {
+        id: "route-notification:modalidad-guardada",
+        message: "Modalidad guardada.",
+        variant: "success",
+      },
+    );
+
+    const savedSubmodalities = await db.query.submodalities.findMany({
+      where: eq(submodalities.modalityId, modality?.id ?? ""),
+    });
+
+    expect(savedSubmodalities).toHaveLength(2);
+    expect(savedSubmodalities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ eventId: event.id, name: "Commercial Jazz" }),
+        expect.objectContaining({ eventId: event.id, name: "Lyrical Jazz" }),
+      ]),
+    );
+  });
+
+  test("creates a Modalidad with zero Submodalidades from the alta route", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const createRequest = await createSignedInRequest({
+      email: "admin.crea.modalidad.sin.submodalidades@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-modality",
+        name: "Jazz",
+        submodalitiesMode: "replace",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(createRequest.request)), 302);
+
+    const modality = await db.query.modalities.findFirst({
+      where: eq(modalities.name, "Jazz"),
+    });
+
+    expect(modality).toMatchObject({ eventId: event.id });
+    await expect(
+      db.query.submodalities.findMany({
+        where: eq(submodalities.modalityId, modality?.id ?? ""),
+      }),
+    ).resolves.toHaveLength(0);
+  });
+
+  test("rejects duplicate Submodalidad names server-side on Modalidad creation", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const createRequest = await createSignedInRequest({
+      email: "admin.crea.modalidad.duplicada@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-modality",
+        name: "Jazz",
+        submodalitiesMode: "replace",
+        "submodalities.0.name": "Commercial jazz",
+        "submodalities.1.name": "Commercial jazz",
+      }),
+    });
+
+    const result = await action(routeArgs(createRequest.request));
+
+    expect(result).toMatchObject({
+      status: "error",
+      scope: { intent: "create-modality" },
+    });
+    expect(result?.fieldErrors).toHaveProperty("submodalities.1.name");
+    expect(result?.values).toMatchObject({
+      name: "Jazz",
+      submodalities: [{ name: "Commercial jazz" }, { name: "Commercial jazz" }],
+    });
+    await expect(
+      db.query.modalities.findFirst({ where: eq(modalities.name, "Jazz") }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("rejects invalid Submodalidad rows server-side when the client is bypassed", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const createRequest = await createSignedInRequest({
+      email: "admin.crea.modalidad.invalida@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades/nueva?evento=${event.id}`,
+      body: formData({
+        intent: "create-modality",
+        name: "Jazz",
+        submodalitiesMode: "replace",
+        "submodalities.0.name": "Commercial jazz",
+        "submodalities.1.name": "   ",
+      }),
+    });
+
+    const result = await action(routeArgs(createRequest.request));
+
+    expect(result).toMatchObject({
+      status: "error",
+      scope: { intent: "create-modality" },
+    });
+    expect(result?.fieldErrors).toHaveProperty("submodalities.1.name");
+    await expect(
+      db.query.modalities.findFirst({ where: eq(modalities.name, "Jazz") }),
+    ).resolves.toBeUndefined();
+  });
 });
