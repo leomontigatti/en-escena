@@ -4,11 +4,10 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { DancerConfirmationDialog } from "./confirmation-dialog";
-import { useDancerEditForm, useDancerStatusForm } from "./form";
+import { useDancerEditForm } from "./form";
 import {
   buildDancerDetailViewState,
   getDancerEditValues,
-  getDancerStatusValues,
   getInitialDialogIntent,
   getSubmittedDancerUpdateValues,
   type DancerDetailActionData,
@@ -49,9 +48,6 @@ export function AdministracionBailarinDetalleRouteView({
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const editForm = useDancerEditForm({
     values: getDancerEditValues({ actionData: errorData, dancer }),
-  });
-  const statusForm = useDancerStatusForm({
-    values: getDancerStatusValues(errorData),
   });
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
     getInitialDialogIntent({
@@ -147,7 +143,6 @@ export function AdministracionBailarinDetalleRouteView({
             }
           }}
           statusAction={viewState.statusAction}
-          statusForm={statusForm}
           statusFormId={statusFormId}
           verifyFormId={verifyFormId}
         />

@@ -127,7 +127,13 @@ describe("administracion.bailarines route adapters", () => {
       message: "Revisá los campos marcados.",
       status: "error" as const,
       values: {
-        correctionReason: "",
+        birthDate: "2000-01-01",
+        documentBackImageStorageKey: "document-back",
+        documentFrontImageStorageKey: "document-front",
+        documentNumber: "12345678",
+        documentType: "dni",
+        firstName: "Julia",
+        lastName: "Diaz",
       },
     };
 

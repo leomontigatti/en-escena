@@ -11,6 +11,5 @@ export type {
   AdministrativeDancerListItem,
   AdministrativeDancerListResult,
   AdministrativeDancerMutationResult,
-  AdministrativeDancerStatusInput,
   AdministrativeDancerUpdateInput,
 } from "@/lib/admin/dancers/dancers.server.types";

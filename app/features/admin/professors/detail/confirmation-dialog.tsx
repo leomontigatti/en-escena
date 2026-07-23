@@ -16,34 +16,23 @@ import {
   type ProfessorDialogIntent,
   type ProfessorEditFormValues,
 } from "./shared";
-import {
-  ProfessorCorrectionReasonField,
-  type useProfessorReasonForm,
-} from "./form";
-
-type ProfessorReasonFormController = ReturnType<typeof useProfessorReasonForm>;
 
 export function ProfessorConfirmationDialog({
   action,
-  correctionReasonRequired,
   intent,
   onOpenChange,
   pendingUpdateValues,
-  reasonForm,
 }: {
   action: ProfessorConfirmationAction;
-  correctionReasonRequired: boolean;
   intent: ProfessorDialogIntent | null;
   onOpenChange: (open: boolean) => void;
   pendingUpdateValues: ProfessorEditFormValues | null;
-  reasonForm: ProfessorReasonFormController;
 }) {
   const isOpen = intent !== null;
   const formId = getProfessorDialogFormId(intent);
   const isUpdateIntent = intent === "update-professor";
   const canSubmitUpdate = !isUpdateIntent || pendingUpdateValues !== null;
   const pendingUpdateFields = isUpdateIntent ? pendingUpdateValues : null;
-  const usesReasonForm = !isUpdateIntent && correctionReasonRequired;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -55,13 +44,7 @@ export function ProfessorConfirmationDialog({
               {action.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form
-            id={formId}
-            method="post"
-            noValidate
-            onSubmit={usesReasonForm ? reasonForm.handleSubmit : undefined}
-            className="grid gap-4"
-          >
+          <form id={formId} method="post" noValidate className="grid gap-4">
             <input type="hidden" name="intent" value={action.intent} />
             {pendingUpdateFields ? (
               <>
@@ -86,12 +69,6 @@ export function ProfessorConfirmationDialog({
                   value={pendingUpdateFields.documentNumber}
                 />
               </>
-            ) : null}
-            {usesReasonForm ? (
-              <ProfessorCorrectionReasonField
-                form={reasonForm.form}
-                required={correctionReasonRequired}
-              />
             ) : null}
           </form>
           <AlertDialogFooter>

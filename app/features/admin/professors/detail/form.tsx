@@ -4,27 +4,17 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { TextareaField } from "@/components/shared/textarea-field";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import {
   buildProfessorEditSchema,
-  buildProfessorReasonSchema,
   type ProfessorEditFormValues,
-  type ProfessorReasonFormValues,
 } from "./shared";
 
 type ProfessorEditFormReturn = UseFormReturn<
   ProfessorEditFormValues,
   unknown,
   ProfessorEditFormValues
->;
-
-type ProfessorReasonFormReturn = UseFormReturn<
-  ProfessorReasonFormValues,
-  unknown,
-  ProfessorReasonFormValues
 >;
 
 export type ProfessorEditFormController = {
@@ -57,30 +47,6 @@ export function useProfessorEditForm({
   ]);
 
   return { form };
-}
-
-export function useProfessorReasonForm({
-  correctionReasonRequired,
-  values,
-}: {
-  correctionReasonRequired: boolean;
-  values: ProfessorReasonFormValues;
-}) {
-  const form = useForm<
-    ProfessorReasonFormValues,
-    unknown,
-    ProfessorReasonFormValues
-  >({
-    defaultValues: values,
-    mode: "onSubmit",
-    resolver: zodResolver(buildProfessorReasonSchema(correctionReasonRequired)),
-  });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [form, values.correctionReason, values.statusIntent]);
-
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
 }
 
 export function ProfessorActionsMenu({
@@ -121,33 +87,5 @@ export function ProfessorTextField({
       label={label}
       name={name}
     />
-  );
-}
-
-export function ProfessorCorrectionReasonField({
-  form,
-  required,
-}: {
-  form: ProfessorReasonFormReturn;
-  required: boolean;
-}) {
-  return (
-    <>
-      <TextareaField
-        control={form.control}
-        name="correctionReason"
-        label="Motivo de corrección"
-        description={
-          required
-            ? "Obligatorio entre 10 y 500 caracteres para este profesor."
-            : "Opcional. Si lo completás, usá entre 10 y 500 caracteres."
-        }
-      />
-      <input
-        type="hidden"
-        name="statusIntent"
-        value={form.getValues("statusIntent") ?? ""}
-      />
-    </>
   );
 }

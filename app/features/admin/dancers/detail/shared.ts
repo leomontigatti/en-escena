@@ -1,9 +1,7 @@
 import { z } from "zod";
 
-import { adminDancerCorrectionReasonMessage } from "@/lib/admin/dancers/dancers.shared";
 import type {
   AdministrativeDancerFieldErrors,
-  AdministrativeDancerStatusInput,
   AdministrativeDancerUpdateInput,
   DancerEditConsequence,
   findAdministrativeDancer,
@@ -17,9 +15,6 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 
-const correctionReasonMaxLength = 500;
-const correctionReasonMinLength = 10;
-
 export const dancerFieldNames = [
   "firstName",
   "lastName",
@@ -28,7 +23,6 @@ export const dancerFieldNames = [
   "documentNumber",
   "documentFrontImageStorageKey",
   "documentBackImageStorageKey",
-  "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeDancerFieldErrors>;
 
 export type DancerDetailLoaderData = {
@@ -49,7 +43,7 @@ export type DancerActionError = {
   status: "error";
   message: string;
   fieldErrors: AdministrativeDancerFieldErrors;
-  values: AdministrativeDancerUpdateInput | AdministrativeDancerStatusInput;
+  values: AdministrativeDancerUpdateInput;
 };
 
 export type DancerDialogIntent =
@@ -132,12 +126,6 @@ export function buildDancerUpdateSchema() {
     });
 }
 
-export function buildDancerStatusSchema() {
-  return z.object({
-    correctionReason: buildCorrectionReasonSchema(false),
-  });
-}
-
 export function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
@@ -180,14 +168,6 @@ export function buildDancerActionSuccess(
   return {
     status: "success",
     message: notificationToasts[notification].message,
-  };
-}
-
-export function readDancerStatusValues(
-  formData: FormData,
-): AdministrativeDancerStatusInput {
-  return {
-    correctionReason: readFormString(formData, "correctionReason"),
   };
 }
 
@@ -269,18 +249,6 @@ export function getDancerEditValues({
       submittedValues?.documentBackImageStorageKey ??
       dancer.documentBackImageStorageKey ??
       "",
-  };
-}
-
-export function getDancerStatusValues(
-  actionData: DancerActionError | undefined,
-): AdministrativeDancerStatusInput {
-  if (isDancerUpdateValues(actionData?.values)) {
-    return { correctionReason: "" };
-  }
-
-  return {
-    correctionReason: actionData?.values.correctionReason ?? "",
   };
 }
 
@@ -404,34 +372,6 @@ function getIdentificationAlert(
     case "verified":
       return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
   }
-}
-
-function buildCorrectionReasonSchema(required: boolean) {
-  return z
-    .string()
-    .trim()
-    .superRefine((value, context) => {
-      if (value.length === 0) {
-        if (required) {
-          context.addIssue({
-            code: "custom",
-            message: adminDancerCorrectionReasonMessage,
-          });
-        }
-
-        return;
-      }
-
-      if (
-        value.length < correctionReasonMinLength ||
-        value.length > correctionReasonMaxLength
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: adminDancerCorrectionReasonMessage,
-        });
-      }
-    });
 }
 
 function validateDocumentPair(

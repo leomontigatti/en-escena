@@ -19,11 +19,9 @@ import {
   buildBackToListHref,
   buildDancerActionError,
   buildDancerActionSuccess,
-  buildDancerStatusSchema,
   buildDancerUpdateSchema,
   buildModeHref,
   dancerFieldNames,
-  readDancerStatusValues,
   readDancerUpdateValues,
 } from "./shared";
 
@@ -87,28 +85,12 @@ export async function handleAdministrativeDancerDetailAction(input: {
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
-    const values = readDancerStatusValues(formData);
-    const parsed = buildDancerStatusSchema().safeParse(values);
-
-    if (!parsed.success) {
-      return buildDancerActionError(
-        "Revisá los campos marcados.",
-        getFieldErrors(parsed.error, dancerFieldNames),
-        values,
-      );
-    }
-
-    const result = await setAdministrativeDancerActiveState({
+    await setAdministrativeDancerActiveState({
       action: intent === "archive-dancer" ? "archive" : "reactivate",
       adminUserId: adminUser.id,
       dancerId,
       selectedEventId: eventContext.selectedEventId,
-      correctionReason: parsed.data.correctionReason,
     });
-
-    if (!result.ok) {
-      return buildDancerActionError(result.message, result.fieldErrors, values);
-    }
 
     return buildDancerActionSuccess(
       intent === "archive-dancer"

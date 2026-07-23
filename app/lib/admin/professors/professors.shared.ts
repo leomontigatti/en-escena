@@ -1,7 +1,5 @@
 export const adminProfessorPageSize = 50;
 export const adminProfessorNotFoundMessage = "No encontramos ese Profesor.";
-export const adminProfessorCorrectionReasonMessage =
-  "Ingresá un motivo de corrección para guardar este cambio.";
 
 export type AdminProfessorParticipationFilter = "yes" | "no" | "all";
 export type AdminProfessorStatusFilter = "active" | "archived" | "all";

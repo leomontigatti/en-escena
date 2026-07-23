@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { adminProfessorCorrectionReasonMessage } from "@/lib/admin/professors/professors.shared";
 import type {
   AdministrativeProfessorFieldErrors,
   AdministrativeProfessorUpdateInput,
@@ -12,15 +11,11 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 
-const correctionReasonMaxLength = 500;
-const correctionReasonMinLength = 10;
-
 export const professorFieldNames = [
   "firstName",
   "lastName",
   "documentType",
   "documentNumber",
-  "correctionReason",
 ] as const satisfies ReadonlyArray<keyof AdministrativeProfessorFieldErrors>;
 
 export type ProfessorDetailLoaderData = {
@@ -37,16 +32,11 @@ export type ProfessorDetailLoaderData = {
 
 export type ProfessorEditFormValues = AdministrativeProfessorUpdateInput;
 
-export type ProfessorReasonFormValues = {
-  correctionReason: string;
-  statusIntent: "" | "archive-professor" | "reactivate-professor";
-};
-
 export type ProfessorActionError = {
   status: "error";
   message: string;
   fieldErrors: AdministrativeProfessorFieldErrors;
-  values: AdministrativeProfessorUpdateInput | ProfessorReasonFormValues;
+  values: AdministrativeProfessorUpdateInput;
 };
 
 export type ProfessorActionSuccess = {
@@ -128,17 +118,6 @@ export function buildProfessorEditSchema() {
     });
 }
 
-export function buildProfessorReasonSchema(correctionReasonRequired: boolean) {
-  return z.object({
-    correctionReason: buildCorrectionReasonSchema(correctionReasonRequired),
-    statusIntent: z.union([
-      z.literal(""),
-      z.literal("archive-professor"),
-      z.literal("reactivate-professor"),
-    ]),
-  });
-}
-
 export function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
@@ -180,15 +159,6 @@ export function buildProfessorActionSuccess(
   };
 }
 
-export function readProfessorReasonValues(
-  formData: FormData,
-): ProfessorReasonFormValues {
-  return {
-    correctionReason: readFormString(formData, "correctionReason"),
-    statusIntent: readProfessorStatusIntent(formData),
-  };
-}
-
 export function readProfessorUpdateValues(
   formData: FormData,
 ): AdministrativeProfessorUpdateInput {
@@ -223,12 +193,6 @@ function isProfessorUpdateValues(
     "documentType" in values &&
     "documentNumber" in values
   );
-}
-
-function isProfessorStatusValues(
-  values: ProfessorActionError["values"] | undefined,
-): values is ProfessorReasonFormValues {
-  return values !== undefined && "statusIntent" in values;
 }
 
 export function getSubmittedProfessorUpdateValues(
@@ -266,32 +230,12 @@ export function getProfessorEditValues(input: {
   };
 }
 
-export function getProfessorReasonValues(
-  actionData?: ProfessorActionError,
-): ProfessorReasonFormValues {
-  if (isProfessorStatusValues(actionData?.values)) {
-    return actionData.values;
-  }
-
-  return {
-    correctionReason: "",
-    statusIntent: "",
-  };
-}
-
 export function getInitialDialogIntent(
   actionData: ProfessorActionError | undefined,
   shouldConfirmSave: boolean,
 ): ProfessorDialogIntent | null {
   if (!actionData) {
     return null;
-  }
-
-  if (
-    isProfessorStatusValues(actionData.values) &&
-    actionData.values.statusIntent !== ""
-  ) {
-    return actionData.values.statusIntent;
   }
 
   if (shouldConfirmSave && isProfessorUpdateValues(actionData.values)) {
@@ -312,38 +256,6 @@ export function getProfessorDialogFormId(intent: ProfessorDialogIntent | null) {
     case null:
       return "administracion-profesor-dialog-form";
   }
-}
-
-function buildCorrectionReasonSchema(required: boolean) {
-  return z
-    .string()
-    .trim()
-    .superRefine((value, context) => {
-      if (value.length === 0) {
-        if (required) {
-          context.addIssue({
-            code: "custom",
-            message: adminProfessorCorrectionReasonMessage,
-          });
-        }
-
-        return;
-      }
-
-      if (value.length < correctionReasonMinLength) {
-        context.addIssue({
-          code: "custom",
-          message: `Ingresá al menos ${correctionReasonMinLength} caracteres.`,
-        });
-      }
-
-      if (value.length > correctionReasonMaxLength) {
-        context.addIssue({
-          code: "custom",
-          message: `Usá hasta ${correctionReasonMaxLength} caracteres.`,
-        });
-      }
-    });
 }
 
 function validateDocumentPair(
@@ -385,20 +297,4 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
-}
-
-function readProfessorStatusIntent(
-  formData: FormData,
-): ProfessorReasonFormValues["statusIntent"] {
-  const value = formData.get("statusIntent");
-
-  if (
-    value === "archive-professor" ||
-    value === "reactivate-professor" ||
-    value === ""
-  ) {
-    return value;
-  }
-
-  return "";
 }

@@ -28,7 +28,6 @@ export type AdministrativeDancerMutationRecord = {
   identityVerifiedAt: Date | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-  correctionReasonRequired: boolean;
   identificationStatus: AdminDancerIdentificationStatus;
 };
 
@@ -174,13 +173,6 @@ export async function findAdministrativeDancerForMutation(input: {
 
       return {
         ...row,
-        correctionReasonRequired:
-          getEditConsequence({
-            selectedEventId: input.selectedEventId,
-            isParticipating: row.isParticipating,
-            hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-            isVerified: row.identityVerifiedAt !== null,
-          }) !== null,
         identificationStatus: toIdentificationStatus(row),
       };
     });

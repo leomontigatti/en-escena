@@ -624,7 +624,6 @@ describe("administracion/profesores route", () => {
           lastName: " de la cruz ",
           documentType: "dni",
           documentNumber: "12.345-678",
-          correctionReason: "",
         }),
         professor.id,
       ),
@@ -701,7 +700,6 @@ describe("administracion/profesores route", () => {
                 lastName: "Roles",
                 documentType: "",
                 documentNumber: "",
-                correctionReason: "",
               },
             ),
             professor.id,
@@ -855,7 +853,6 @@ describe("administracion/profesores route", () => {
           lastName: "Nueva",
           documentType: "dni",
           documentNumber: "12 345 678",
-          correctionReason: "",
         }),
         professor.id,
       ),
@@ -899,7 +896,6 @@ describe("administracion/profesores route", () => {
       detailActionArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "archive-professor",
-          correctionReason: "Corrección manual por soporte.",
         }),
         professor.id,
       ),
@@ -934,7 +930,6 @@ describe("administracion/profesores route", () => {
           request.headers.get("cookie") ?? "",
           {
             intent: "reactivate-professor",
-            correctionReason: "Reactivación operativa por soporte.",
           },
         ),
         professor.id,
@@ -955,14 +950,14 @@ describe("administracion/profesores route", () => {
       expect.objectContaining({
         action: "archive",
         entityId: professor.id,
-        reason: "Corrección manual por soporte.",
+        reason: null,
         beforeValues: expect.objectContaining({ active: true }),
         afterValues: expect.objectContaining({ active: false }),
       }),
       expect.objectContaining({
         action: "reactivate",
         entityId: professor.id,
-        reason: "Reactivación operativa por soporte.",
+        reason: null,
         beforeValues: expect.objectContaining({ active: false }),
         afterValues: expect.objectContaining({ active: true }),
       }),

@@ -4,7 +4,7 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ProfessorConfirmationDialog } from "./confirmation-dialog";
-import { useProfessorEditForm, useProfessorReasonForm } from "./form";
+import { useProfessorEditForm } from "./form";
 import {
   ProfessorDetailAlerts,
   ProfessorDetailCard,
@@ -14,7 +14,6 @@ import {
   getInitialDialogIntent,
   getProfessorConfirmationAction,
   getProfessorEditValues,
-  getProfessorReasonValues,
   getSubmittedProfessorUpdateValues,
   type ProfessorDetailActionData,
   type ProfessorDetailLoaderData,
@@ -51,12 +50,7 @@ export function AdministracionProfesorDetalleRouteView({
     actionData: errorData,
     professor,
   });
-  const reasonValues = getProfessorReasonValues(errorData);
   const editForm = useProfessorEditForm({ values: editValues });
-  const reasonForm = useProfessorReasonForm({
-    correctionReasonRequired: isConsequential,
-    values: reasonValues,
-  });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
       getInitialDialogIntent(errorData, isConsequential),
@@ -109,10 +103,6 @@ export function AdministracionProfesorDetalleRouteView({
   function openStatusDialog(
     intent: "archive-professor" | "reactivate-professor",
   ) {
-    reasonForm.form.reset({
-      correctionReason: reasonValues.correctionReason,
-      statusIntent: intent,
-    });
     setDialogIntent(intent);
   }
 
@@ -153,7 +143,6 @@ export function AdministracionProfesorDetalleRouteView({
 
       <ProfessorConfirmationDialog
         action={confirmationAction}
-        correctionReasonRequired={isConsequential}
         intent={dialogIntent}
         onOpenChange={(open) => {
           if (!open) {
@@ -161,7 +150,6 @@ export function AdministracionProfesorDetalleRouteView({
           }
         }}
         pendingUpdateValues={pendingUpdateValues}
-        reasonForm={reasonForm}
       />
     </AdminResourceLayout>
   );

@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-import { type DancerStatusFormController } from "./form";
 import {
   getSaveConsequenceMessage,
   type DancerDialogIntent,
@@ -28,7 +27,6 @@ export function DancerConfirmationDialog({
   editFormId,
   onOpenChange,
   statusAction,
-  statusForm,
   statusFormId,
   verifyFormId,
 }: {
@@ -38,7 +36,6 @@ export function DancerConfirmationDialog({
   editFormId: string;
   onOpenChange: (open: boolean) => void;
   statusAction: DancerStatusAction;
-  statusForm: DancerStatusFormController;
   statusFormId: string;
   verifyFormId: string;
 }) {
@@ -89,12 +86,7 @@ export function DancerConfirmationDialog({
               {statusAction.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form
-            id={statusFormId}
-            method="post"
-            noValidate
-            onSubmit={statusForm.handleSubmit}
-          >
+          <form id={statusFormId} method="post">
             <input type="hidden" name="intent" value={statusAction.intent} />
           </form>
           <AlertDialogFooter>

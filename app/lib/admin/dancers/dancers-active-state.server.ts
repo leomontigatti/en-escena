@@ -7,10 +7,6 @@ import {
   findAdministrativeDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import {
-  toOptionalCorrectionReason,
-  validateAdministrativeDancerCorrectionReason,
-} from "@/lib/admin/dancers/dancers-mutation-helpers.server";
 import type { AdministrativeDancerStatusMutationResult } from "@/lib/admin/dancers/dancers.server.types";
 
 export async function setAdministrativeDancerActiveState(input: {
@@ -18,7 +14,6 @@ export async function setAdministrativeDancerActiveState(input: {
   adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
-  correctionReason: string;
 }): Promise<AdministrativeDancerStatusMutationResult> {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
@@ -27,24 +22,6 @@ export async function setAdministrativeDancerActiveState(input: {
 
   if (!existingDancer) {
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
-  }
-
-  const normalizedReason = validateAdministrativeDancerCorrectionReason({
-    correctionReason: input.correctionReason,
-    required: false,
-  });
-
-  if (!normalizedReason.ok) {
-    return {
-      ok: false,
-      message: "Revisá los campos marcados.",
-      fieldErrors: {
-        correctionReason: normalizedReason.fieldError,
-      },
-      values: {
-        correctionReason: input.correctionReason,
-      },
-    };
   }
 
   const nextActive = input.action === "reactivate";
@@ -66,11 +43,10 @@ export async function setAdministrativeDancerActiveState(input: {
     beforeValues,
     dancerId: existingDancer.id,
     eventId: input.selectedEventId,
-    reason: toOptionalCorrectionReason(normalizedReason.correctionReason),
+    reason: null,
   });
 
   return {
-    ok: true,
     dancer: afterValues,
   };
 }
