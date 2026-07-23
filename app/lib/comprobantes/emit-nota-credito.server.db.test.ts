@@ -314,6 +314,89 @@ describe("annulComprobante", () => {
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
+  // La guarda `already-annulled` del test anterior es a nivel aplicación: lee
+  // estado derivado y recién después hace el round-trip a ARCA, que no es
+  // transaccional. Dos anulaciones concurrentes podrían pasar ambas la guarda.
+  // El índice único sobre `associated_comprobante_id` es la red de contención:
+  // la segunda escritura falla en vez de dejar dos Notas de crédito espejo
+  // válidas y el estado derivado ambiguo.
+  test("la base rechaza una segunda Nota de crédito contra el mismo comprobante", async () => {
+    const { academy, choreography, inscription } =
+      await seedChoreographyWithInscription(
+        `carrera.${crypto.randomUUID()}@example.com`,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+    });
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 3000,
+      cbteNro: 60,
+    });
+
+    expectOk(
+      await annulComprobante(
+        { comprobanteId: factura.id },
+        annulDeps(fakeBilling()),
+      ),
+    );
+
+    // Escritura directa, saltando la guarda de aplicación: simula el perdedor de
+    // la carrera, que ya emitió su Nota de crédito en ARCA (correlativo distinto,
+    // así que no choca con el índice de numeración) y llega a persistirla.
+    await expect(
+      recordComprobante({
+        choreographyId: choreography.id,
+        eventId: choreography.eventId,
+        cbteTipo: 13,
+        ptoVta: 1,
+        cbteNro: 999,
+        cbteFch: "20260722",
+        impTotal: 3000,
+        issuerCuit: "30717611590",
+        issuerIvaCondition: "exento",
+        receptorDocTipo: 99,
+        receptorDocNro: "0",
+        receptorIvaConditionId: 5,
+        cae: "41124599990999",
+        caeVto: "20260801",
+        associatedComprobanteId: factura.id,
+        lines: [{ inscriptionId: inscription.id, amount: 3000 }],
+      }),
+    ).rejects.toThrow();
+
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
+  });
+
+  // Contracara del test anterior: el índice es único pero la columna es
+  // nullable, y Postgres trata los NULL como distintos. Varias facturas vigentes
+  // (todas con `associatedComprobanteId` null) conviven sin colisionar.
+  test("varias facturas vigentes conviven bajo el índice único", async () => {
+    const { choreography, inscription } = await seedChoreographyWithInscription(
+      `vigentes.${crypto.randomUUID()}@example.com`,
+    );
+
+    for (const cbteNro of [70, 71, 72]) {
+      await recordFactura({
+        choreographyId: choreography.id,
+        eventId: choreography.eventId,
+        inscriptionId: inscription.id,
+        amount: 1000,
+        cbteNro,
+      });
+    }
+
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => row.status === "vigente")).toBe(true);
+  });
+
   test("un rechazo de ARCA no persiste la Nota de crédito ni anula el original", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(

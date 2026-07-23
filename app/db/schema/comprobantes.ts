@@ -107,7 +107,17 @@ export const comprobantes = createTable(
       table.createdAt,
     ),
     index("comprobante_event_idx").on(table.eventId, table.createdAt),
-    index("comprobante_associated_idx").on(table.associatedComprobanteId),
+    // Único, no un índice común: garantiza a nivel de base que un comprobante
+    // tenga como máximo UNA Nota de crédito asociada. La columna es nullable y
+    // Postgres trata los NULL como distintos, así que las facturas vigentes
+    // (todas NULL) no colisionan entre sí. Cierra la carrera de dos anulaciones
+    // concurrentes del mismo comprobante: sin esto, el chequeo `already-annulled`
+    // de `annulComprobante` lee estado derivado y hace un round-trip a ARCA no
+    // transaccional antes de persistir, así que ambas podrían insertar su Nota de
+    // crédito espejo y dejar el estado derivado ambiguo.
+    uniqueIndex("comprobante_associated_unique").on(
+      table.associatedComprobanteId,
+    ),
   ],
 ).enableRLS();
 

@@ -1,5 +1,5 @@
 {
-  "id": "9e0fc474-b20f-4bbb-bb35-bbd981095cca",
+  "id": "dba305a0-b0d2-485d-8a95-37d9c7cb33f0",
   "prevId": "50bf17f2-a3ab-4f03-9e4d-545dc81a6de1",
   "version": "7",
   "dialect": "postgresql",
@@ -3202,8 +3202,8 @@
           "method": "btree",
           "with": {}
         },
-        "comprobante_associated_idx": {
-          "name": "comprobante_associated_idx",
+        "comprobante_associated_unique": {
+          "name": "comprobante_associated_unique",
           "columns": [
             {
               "expression": "associated_comprobante_id",
@@ -3212,7 +3212,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}

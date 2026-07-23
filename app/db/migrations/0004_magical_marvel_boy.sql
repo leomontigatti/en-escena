@@ -38,4 +38,4 @@ CREATE INDEX "comprobante_inscription_inscription_idx" ON "en_escena_comprobante
 CREATE UNIQUE INDEX "comprobante_ptovta_tipo_nro_unique" ON "en_escena_comprobante" USING btree ("pto_vta","cbte_tipo","cbte_nro");--> statement-breakpoint
 CREATE INDEX "comprobante_choreography_idx" ON "en_escena_comprobante" USING btree ("choreography_id","created_at");--> statement-breakpoint
 CREATE INDEX "comprobante_event_idx" ON "en_escena_comprobante" USING btree ("event_id","created_at");--> statement-breakpoint
-CREATE INDEX "comprobante_associated_idx" ON "en_escena_comprobante" USING btree ("associated_comprobante_id");
+CREATE UNIQUE INDEX "comprobante_associated_unique" ON "en_escena_comprobante" USING btree ("associated_comprobante_id");
