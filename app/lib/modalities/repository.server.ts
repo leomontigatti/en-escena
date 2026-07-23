@@ -8,6 +8,7 @@ import {
 
 export {
   createModality,
+  createModalityWithSubmodalities,
   createSubmodality,
   deleteModality,
   deleteSubmodality,

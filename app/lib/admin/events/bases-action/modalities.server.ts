@@ -1,3 +1,4 @@
+import { modalityFormSchema } from "@/features/admin/modalities/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
 import type {
   ActionErrorScope,
@@ -15,11 +16,13 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  invalidEventBasesFormResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createModality,
+  createModalityWithSubmodalities,
   createSubmodality,
   deleteModality,
   deleteSubmodality,
@@ -166,10 +169,30 @@ async function runModalityIntent(
   input: ModalityActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
-    case "create-modality":
+    case "create-modality": {
+      if (isModalityFormMutation(input)) {
+        const validationError = revalidateModalityForm(input);
+
+        if (validationError) {
+          return validationError;
+        }
+
+        return createModalityWithSubmodalities(input.eventId, {
+          name: input.name,
+          submodalities: input.submodalities,
+        });
+      }
+
       return createModality(input.eventId, { name: input.name });
+    }
     case "update-modality":
       if (isModalityFormMutation(input)) {
+        const validationError = revalidateModalityForm(input);
+
+        if (validationError) {
+          return validationError;
+        }
+
         return updateModalityWithSubmodalities(input.id, {
           name: input.name,
           submodalities: input.submodalities,
@@ -242,7 +265,37 @@ function isModalityMutationIntent(intent: string) {
 
 function isModalityFormMutation(input: ModalityActionInput) {
   return (
-    input.intent === "update-modality" && input.submodalitiesMode === "replace"
+    (input.intent === "create-modality" ||
+      input.intent === "update-modality") &&
+    input.submodalitiesMode === "replace"
+  );
+}
+
+/**
+ * Re-valida en el servidor las filas anidadas con el **mismo** esquema Zod que
+ * usa el cliente (`modalityFormSchema`), cerrando la asimetría cliente/servidor
+ * de los formularios de bases (PRD #465). Ante fallo devuelve el error por el
+ * canal de `EventBasesActionResult`, que el runner convierte en el round-trip
+ * de `submittedValues`/`ActionData` que repuebla el formulario y sus filas.
+ */
+function revalidateModalityForm(
+  input: ModalityActionInput,
+): EventBasesActionResult | null {
+  const result = modalityFormSchema.safeParse({
+    name: input.name,
+    submodalities: input.submodalities.map((submodality) => ({
+      id: submodality.id,
+      name: submodality.name,
+    })),
+  });
+
+  if (result.success) {
+    return null;
+  }
+
+  return invalidEventBasesFormResult(
+    result.error,
+    "Revisá los datos de la modalidad.",
   );
 }
 
