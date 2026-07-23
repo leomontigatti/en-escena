@@ -6,14 +6,14 @@ import type {
   DancerEditConsequence,
   findAdministrativeDancer,
 } from "@/lib/admin/dancers/dancers.server";
-
-export type { DancerEditConsequence };
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
+
+export type { DancerEditConsequence };
 
 export const dancerFieldNames = [
   "firstName",
