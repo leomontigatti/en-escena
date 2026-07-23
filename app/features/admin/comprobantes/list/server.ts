@@ -8,6 +8,7 @@ import {
   deriveComprobanteStatus,
   type ComprobanteStatus,
 } from "@/lib/comprobantes/comprobante-status.server";
+import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 
 // Fila de la lista global de comprobantes (#339 variante A). Es de sólo lectura:
 // expone el snapshot fiscal ya emitido (numeración, CAE, importe, fecha) junto a
@@ -20,6 +21,7 @@ export type AdminComprobanteRow = {
   cbteFch: string;
   impTotal: number;
   cae: string;
+  porcion: ComprobantePorcion;
   status: ComprobanteStatus;
   choreographyId: string;
   choreographyName: string;
@@ -68,6 +70,7 @@ export async function loadAdminComprobantesList(
       cbteFch: comprobantes.cbteFch,
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
+      porcion: comprobantes.porcion,
       associatedComprobanteId: comprobantes.associatedComprobanteId,
       choreographyId: comprobantes.choreographyId,
       choreographyName: choreographies.name,
@@ -91,6 +94,7 @@ export async function loadAdminComprobantesList(
     cbteFch: row.cbteFch,
     impTotal: row.impTotal,
     cae: row.cae,
+    porcion: row.porcion,
     status: deriveComprobanteStatus(row, comprobanteRows),
     choreographyId: row.choreographyId,
     choreographyName: row.choreographyName,

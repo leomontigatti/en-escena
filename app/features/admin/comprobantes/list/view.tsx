@@ -19,6 +19,7 @@ import {
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
+  formatComprobantePorcionLabel,
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
@@ -32,15 +33,19 @@ type AdministracionComprobantesRouteViewProps = {
   loaderData: AdminComprobantesListLoaderData;
 };
 
+// Lista global de solo lectura (ADR-0011, #483). Orden fijo:
+// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. El número
+// enlaza al detalle del comprobante y la coreografía a su detalle financiero;
+// no hay columna CAE ni acciones inline (imprimir/anular viven en el detalle).
+// La porción es faceta, no columna: se expone en una columna oculta para
+// alimentar el filtro sin ocupar espacio en la grilla.
 export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
     className: "font-medium tabular-nums",
     cell: (row) => (
-      <DataTableLink
-        to={`/administracion/finanzas/${row.academyId}/coreografias/${row.choreographyId}`}
-      >
+      <DataTableLink to={`/administracion/comprobantes/${row.id}`}>
         {formatComprobanteNumber(row)}
       </DataTableLink>
     ),
@@ -60,14 +65,6 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     filterValue: (row) => formatComprobanteTipoLabel(row.cbteTipo),
   },
   {
-    id: "coreografia",
-    header: "Coreografía",
-    className: "text-muted-foreground",
-    cell: (row) => row.choreographyName,
-    filterValue: (row) => row.choreographyName,
-    sortValue: (row) => row.choreographyName,
-  },
-  {
     id: "academia",
     header: "Academia",
     className: "text-muted-foreground",
@@ -76,11 +73,28 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     sortValue: (row) => row.academyName,
   },
   {
-    id: "cae",
-    header: "CAE",
-    className: "text-muted-foreground tabular-nums",
-    cell: (row) => row.cae,
-    filterValue: (row) => row.cae,
+    id: "coreografia",
+    header: "Coreografía",
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <DataTableLink
+        to={`/administracion/finanzas/${row.academyId}/coreografias/${row.choreographyId}`}
+      >
+        {row.choreographyName}
+      </DataTableLink>
+    ),
+    filterValue: (row) => row.choreographyName,
+    sortValue: (row) => row.choreographyName,
+  },
+  {
+    id: "estado",
+    header: "Estado",
+    cell: (row) => (
+      <Badge variant={row.status === "vigente" ? "success" : "destructive"}>
+        {formatComprobanteStatusLabel(row.status)}
+      </Badge>
+    ),
+    filterValue: (row) => row.status,
   },
   {
     id: "fecha",
@@ -98,33 +112,11 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     sortValue: (row) => row.impTotal,
   },
   {
-    id: "estado",
-    header: "Estado",
-    cell: (row) => (
-      <Badge variant={row.status === "vigente" ? "success" : "destructive"}>
-        {formatComprobanteStatusLabel(row.status)}
-      </Badge>
-    ),
-    filterValue: (row) => row.status,
-  },
-  {
-    id: "imprimir",
-    header: "",
-    className: "text-right",
-    headerClassName: "text-right",
-    // Enlaza al impreso on-demand del comprobante (#329/#334). Abre en una
-    // pestaña nueva porque el loader devuelve un documento HTML suelto, sin
-    // chrome de administración, listo para imprimir.
-    cell: (row) => (
-      <a
-        href={`/administracion/comprobantes/${row.id}/imprimir`}
-        target="_blank"
-        rel="noreferrer"
-        className="text-primary underline-offset-4 hover:underline"
-      >
-        Imprimir
-      </a>
-    ),
+    id: "porcion",
+    header: "Porción",
+    hidden: true,
+    cell: () => null,
+    filterValue: (row) => formatComprobantePorcionLabel(row.porcion),
   },
 ];
 
@@ -144,6 +136,13 @@ const comprobanteTipoFacetOptions = [
   },
 ];
 
+const comprobantePorcionFacetOptions = (
+  ["seña", "saldo", "total"] as const
+).map((porcion) => ({
+  label: formatComprobantePorcionLabel(porcion),
+  value: formatComprobantePorcionLabel(porcion),
+}));
+
 export function buildComprobanteFacetedFilters(
   loaderData: AdminComprobantesListLoaderData,
 ): DataTableFacetedFilter[] {
@@ -162,6 +161,11 @@ export function buildComprobanteFacetedFilters(
       id: "academia",
       label: "Academia",
       options: loaderData.academyFacetOptions,
+    },
+    {
+      id: "porcion",
+      label: "Porción",
+      options: comprobantePorcionFacetOptions,
     },
   ];
 }
@@ -185,7 +189,7 @@ export function AdministracionComprobantesRouteView({
           rows={loaderData.rows}
           columns={comprobanteColumns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar por número, coreografía, academia o CAE"
+          searchPlaceholder="Buscar por número, coreografía o academia"
           facetedFilters={buildComprobanteFacetedFilters(loaderData)}
           initialSort={{ columnId: "fecha", direction: "desc" }}
           emptyMessage="No hay comprobantes que coincidan con la búsqueda o los filtros."

@@ -102,6 +102,7 @@ describe("loadAdminComprobantesList", () => {
         cbteNro: 7,
         cae: "11112222333344",
         impTotal: 25000,
+        porcion: "seña",
       }),
     );
     await recordComprobante(
@@ -138,6 +139,7 @@ describe("loadAdminComprobantesList", () => {
       cbteNro: 7,
       cbteTipo: 11,
       impTotal: 25000,
+      porcion: "seña",
       choreographyName: "Coreografía Alfa",
       academyName: "Academia Alfa",
     });

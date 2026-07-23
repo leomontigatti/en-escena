@@ -27,6 +27,7 @@ function comprobanteRow(
     cbteFch: "20260722",
     impTotal: 25000,
     cae: "11112222333344",
+    porcion: "seña",
     status: "vigente",
     choreographyId: "choreo_1",
     choreographyName: "Coreografía Alfa",
@@ -91,7 +92,7 @@ function filterByFacets(
 }
 
 describe("AdministracionComprobantesRouteView", () => {
-  test("renders each comprobante with its number, type, CAE and derived status", () => {
+  test("renders each comprobante with its number, type and derived status", () => {
     const markup = renderView(
       loaderData([
         comprobanteRow({ status: "anulada" }),
@@ -108,18 +109,55 @@ describe("AdministracionComprobantesRouteView", () => {
     expect(markup).toContain("0003-00000007");
     expect(markup).toContain("Factura C");
     expect(markup).toContain("Nota de crédito C");
-    expect(markup).toContain("11112222333344");
     expect(markup).toContain("Anulada");
     expect(markup).toContain("22/07/2026");
     expect(markup).toContain("Academia Alfa");
-    // Enlaza al detalle financiero de la coreografía ancla.
+    // El número enlaza al detalle del comprobante (superficie de solo lectura).
+    expect(markup).toContain(
+      'href="/administracion/comprobantes/comprobante_1"',
+    );
+    // La coreografía enlaza a su detalle financiero.
     expect(markup).toContain(
       'href="/administracion/finanzas/academy_1/coreografias/choreo_1"',
     );
-    // Enlaza al impreso on-demand del comprobante.
-    expect(markup).toContain(
+  });
+
+  test("is read-only: no CAE column and no inline imprimir/anular actions", () => {
+    const markup = renderView(loaderData([comprobanteRow()]));
+
+    // La lista es de solo lectura: sin CAE ni acciones inline.
+    expect(markup).not.toContain("11112222333344");
+    expect(markup).not.toContain("Imprimir");
+    expect(markup).not.toContain("Anular");
+    expect(markup).not.toContain(
       'href="/administracion/comprobantes/comprobante_1/imprimir"',
     );
+  });
+
+  test("orders the columns as número, tipo, academia, coreografía, estado, fecha, importe", () => {
+    expect(comprobanteColumns.map((column) => column.id)).toEqual([
+      "numero",
+      "tipo",
+      "academia",
+      "coreografia",
+      "estado",
+      "fecha",
+      "importe",
+      "porcion",
+    ]);
+
+    const headers = comprobanteColumns
+      .filter((column) => !column.hidden)
+      .map((column) => column.header);
+    expect(headers).toEqual([
+      "Comprobante",
+      "Tipo",
+      "Academia",
+      "Coreografía",
+      "Estado",
+      "Fecha",
+      "Importe",
+    ]);
   });
 
   test("renders the empty state when the active event has no comprobantes", () => {
@@ -128,7 +166,7 @@ describe("AdministracionComprobantesRouteView", () => {
     expect(markup).toContain("Todavía no hay comprobantes emitidos.");
   });
 
-  test("exposes estado, tipo and academia faceted filters", () => {
+  test("exposes estado, tipo, academia and porción faceted filters", () => {
     const filters = buildComprobanteFacetedFilters(
       loaderData([comprobanteRow(), comprobanteRow({ academyName: "Beta" })]),
     );
@@ -137,12 +175,31 @@ describe("AdministracionComprobantesRouteView", () => {
       "Estado",
       "Tipo",
       "Academia",
+      "Porción",
     ]);
     const academiaFilter = filters.find((filter) => filter.id === "academia");
     expect(academiaFilter?.options.map((option) => option.value)).toEqual([
       "Academia Alfa",
       "Beta",
     ]);
+    const porcionFilter = filters.find((filter) => filter.id === "porcion");
+    expect(porcionFilter?.options.map((option) => option.value)).toEqual([
+      "Seña",
+      "Saldo",
+      "Total",
+    ]);
+  });
+
+  test("porción facet keeps only comprobantes of the selected porción", () => {
+    const rows = [
+      comprobanteRow({ id: "sena_1", porcion: "seña" }),
+      comprobanteRow({ id: "saldo_1", porcion: "saldo" }),
+      comprobanteRow({ id: "total_1", porcion: "total" }),
+    ];
+
+    expect(
+      filterByFacets(rows, { porcion: "Saldo" }).map((row) => row.id),
+    ).toEqual(["saldo_1"]);
   });
 
   test("estado facet keeps only comprobantes with the selected derived status", () => {
