@@ -24,6 +24,7 @@ import type {
   SubmodalityInput,
   ValidInlineSubmodalityInput,
 } from "@/lib/events/bases-repository/shared.server";
+import { readErrorProperty } from "@/lib/shared/error-properties.server";
 
 export async function createModality(
   eventId: string,
@@ -45,6 +46,65 @@ export async function createModality(
     .returning();
 
   return created(record);
+}
+
+const SUBMODALITY_NAME_UNIQUE_CONSTRAINT = "submodality_modality_name_unique";
+
+export async function createModalityWithSubmodalities(
+  eventId: string,
+  input: ModalityWithSubmodalitiesInput,
+): Promise<EventBasesMutationResult> {
+  const validation = await validateEventBaseName({
+    eventId,
+    name: input.name,
+    kind: "modality",
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  try {
+    return await db.transaction(
+      async (tx): Promise<EventBasesMutationResult> => {
+        const [record] = await tx
+          .insert(modalities)
+          .values({ eventId, name: toTitleCase(input.name) })
+          .returning();
+
+        if (!record) {
+          return {
+            ok: false,
+            code: "invalid-event-bases",
+            error: "No se pudo guardar la modalidad.",
+          };
+        }
+
+        if (input.submodalities.length > 0) {
+          await tx.insert(submodalities).values(
+            input.submodalities.map((entry) => ({
+              eventId,
+              modalityId: record.id,
+              name: toTitleCase(entry.name),
+            })),
+          );
+        }
+
+        return created(record);
+      },
+    );
+  } catch (error) {
+    if (isSubmodalityNameConflict(error)) {
+      return {
+        ok: false,
+        code: "duplicate-name",
+        error: eventBaseCopy.submodality.duplicateError,
+        fieldErrors: { name: eventBaseCopy.submodality.duplicateFieldError },
+      };
+    }
+
+    throw error;
+  }
 }
 
 export async function listChoreographyRegistrationBaseOptionsData(
@@ -402,6 +462,14 @@ function validateInlineSubmodalitiesInput({
   }
 
   return { ok: true, entries };
+}
+
+function isSubmodalityNameConflict(error: unknown) {
+  return (
+    readErrorProperty(error, "code") === "23505" &&
+    readErrorProperty(error, "constraint_name") ===
+      SUBMODALITY_NAME_UNIQUE_CONSTRAINT
+  );
 }
 
 async function findDuplicateSubmodalityName(input: {
