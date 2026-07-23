@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type MetricCardProps = {
-  icon: LucideIcon;
+  // Ícono opcional: sin `icon` ni `slot` la card no muestra indicador (sólo
+  // título y valor).
+  icon?: LucideIcon;
   title: string;
   value: string;
   // Slot opcional (badge + botón) que REEMPLAZA al ícono cuando se provee
@@ -18,15 +20,19 @@ export function MetricCard({
   value,
   slot,
 }: MetricCardProps) {
+  const indicator =
+    slot ??
+    (Icon ? (
+      <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+    ) : null);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        {slot ?? (
-          <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-        )}
+        {indicator}
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-semibold tracking-tight">{value}</p>

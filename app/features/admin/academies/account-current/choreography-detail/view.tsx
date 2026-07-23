@@ -1,9 +1,7 @@
 import {
   AlertTriangle,
   Check,
-  CircleDollarSign,
   ExternalLink,
-  Landmark,
   LoaderCircle,
   Receipt,
 } from "lucide-react";
@@ -128,13 +126,11 @@ export function AdministracionCoreografiaFinancieraDetalleView({
               slot={portionCoverageSlot(loaderData.invoicing.sena)}
             />
             <MetricCard
-              icon={Landmark}
               title="Saldo"
               value={formatOperationalAmount(choreography.balanceAmount)}
               slot={portionCoverageSlot(loaderData.invoicing.saldo)}
             />
             <MetricCard
-              icon={CircleDollarSign}
               title="Total"
               value={formatTotalAmount(
                 choreography.depositAmount,
