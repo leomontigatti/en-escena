@@ -425,9 +425,50 @@ describe.sequential("handleAdminComprobantesListAction — anulación", () => {
     });
 
     expect(result).toMatchObject({ status: "annul-error" });
-    if (result.status === "annul-error") {
+    if (
+      result.status === "annul-error" &&
+      result.contingency.kind === "rejected"
+    ) {
       expect(result.contingency.resultado).toBe("R");
       expect(result.contingency.errors.length).toBeGreaterThan(0);
+    } else {
+      throw new Error("Expected a rejection contingency.");
+    }
+
+    const stored = await db
+      .select()
+      .from(comprobantes)
+      .where(eq(comprobantes.choreographyId, choreographyId));
+    expect(stored).toHaveLength(1);
+  });
+
+  test("superficializa un timeout de ARCA como contingencia propia, con su fase", async () => {
+    const { choreographyId, factura } = await seedVigenteFactura();
+
+    const result = await handleAdminComprobantesListAction({
+      request: await annulRequest({
+        intent: annulComprobanteIntent,
+        confirm: annulComprobanteConfirmValue,
+        comprobanteId: factura.id,
+      }),
+      resolveEmissionDeps: () =>
+        emissionDeps(
+          fakeBilling({
+            createVoucher: vi.fn(async () => {
+              throw new Error("ETIMEDOUT");
+            }),
+          }),
+        ),
+    });
+
+    expect(result).toMatchObject({ status: "annul-error" });
+    if (
+      result.status === "annul-error" &&
+      result.contingency.kind === "unreachable"
+    ) {
+      expect(result.contingency.stage).toBe("authorization");
+    } else {
+      throw new Error("Expected an unreachable contingency.");
     }
 
     const stored = await db

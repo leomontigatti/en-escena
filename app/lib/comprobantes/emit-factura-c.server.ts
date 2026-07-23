@@ -16,6 +16,11 @@ import {
 } from "./arca/factura-c";
 import type { ArcaMessage, FacturaCEmissionResult } from "./arca/responses";
 import {
+  attemptArca,
+  buildUnreachableMessage,
+  type ArcaUnreachable,
+} from "./arca/unreachable";
+import {
   listChoreographyComprobantes,
   recordComprobante,
   type ComprobanteLineInput,
@@ -47,7 +52,10 @@ export type FacturaCEmissionInput = {
 export type FacturaCEmissionFailureReason =
   | "not-found"
   | "nothing-to-bill"
-  | "rejected";
+  | "rejected"
+  // ARCA no respondió (red, timeout, servicio caído): no hay `Resultado` que
+  // interpretar. Distinto del rechazo, y con otro riesgo según la fase.
+  | "unreachable";
 
 export type FacturaCEmissionOutcome =
   | { ok: true; comprobante: ComprobanteRow }
@@ -55,12 +63,14 @@ export type FacturaCEmissionOutcome =
       ok: false;
       reason: FacturaCEmissionFailureReason;
       message: string;
-      // Presente sólo en un rechazo/contingencia de ARCA.
+      // Presente sólo en un rechazo de ARCA.
       arca?: {
         resultado: string | null;
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
+      // Presente sólo cuando ARCA no respondió.
+      unreachable?: ArcaUnreachable;
     };
 
 /**
@@ -105,16 +115,32 @@ export async function emitChoreographyFacturaC(
     };
   }
 
-  const last = await deps.client.getLastFacturaCNumber(deps.ptoVta);
+  const lastAttempt = await attemptArca("lookup", () =>
+    deps.client.getLastFacturaCNumber(deps.ptoVta),
+  );
+
+  if (!lastAttempt.ok) {
+    return buildUnreachableOutcome(lastAttempt.unreachable);
+  }
+
+  const last = lastAttempt.value;
   const cbteFch = deps.cbteFch ?? toArcaDate(getBusinessDateOnly());
 
-  const emission = await deps.client.emitFacturaC({
-    ptoVta: deps.ptoVta,
-    cbteNro: last.nextCbteNro,
-    cbteFch,
-    importe: total,
-    condicionIvaReceptorId: deps.receptorIvaConditionId,
-  });
+  const emissionAttempt = await attemptArca("authorization", () =>
+    deps.client.emitFacturaC({
+      ptoVta: deps.ptoVta,
+      cbteNro: last.nextCbteNro,
+      cbteFch,
+      importe: total,
+      condicionIvaReceptorId: deps.receptorIvaConditionId,
+    }),
+  );
+
+  if (!emissionAttempt.ok) {
+    return buildUnreachableOutcome(emissionAttempt.unreachable);
+  }
+
+  const emission = emissionAttempt.value;
 
   if (!emission.approved || !emission.cae || !emission.caeVto) {
     return {
@@ -253,6 +279,17 @@ function sumByInscription(
     );
   }
   return totals;
+}
+
+// Contingencia sin respuesta de ARCA, compartida por emisión y anulación: el
+// mensaje depende de la fase y nunca se persiste nada.
+export function buildUnreachableOutcome(unreachable: ArcaUnreachable) {
+  return {
+    ok: false as const,
+    reason: "unreachable" as const,
+    message: buildUnreachableMessage(unreachable),
+    unreachable,
+  };
 }
 
 export function buildRejectionMessage(

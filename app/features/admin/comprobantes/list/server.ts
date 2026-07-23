@@ -182,12 +182,21 @@ export async function handleAdminComprobantesListAction(input: {
       status: "annul-error",
       message: outcome.message,
       contingency: {
+        kind: "rejected",
         resultado: outcome.arca?.resultado ?? null,
         errors: (outcome.arca?.errors ?? []).map(formatArcaMessage),
         observaciones: (outcome.arca?.observaciones ?? []).map(
           formatArcaMessage,
         ),
       },
+    };
+  }
+
+  if (outcome.reason === "unreachable" && outcome.unreachable) {
+    return {
+      status: "annul-error",
+      message: outcome.message,
+      contingency: { kind: "unreachable", ...outcome.unreachable },
     };
   }
 

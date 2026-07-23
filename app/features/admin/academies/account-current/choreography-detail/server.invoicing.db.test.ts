@@ -443,9 +443,14 @@ describe.sequential(
       });
 
       expect(result).toMatchObject({ status: "emission-error" });
-      if (result.status === "emission-error") {
+      if (
+        result.status === "emission-error" &&
+        result.contingency.kind === "rejected"
+      ) {
         expect(result.contingency.resultado).toBe("R");
         expect(result.contingency.errors.length).toBeGreaterThan(0);
+      } else {
+        throw new Error("Expected a rejection contingency.");
       }
 
       const stored = await db
@@ -453,6 +458,97 @@ describe.sequential(
         .from(comprobantes)
         .where(eq(comprobantes.choreographyId, seeded.choreographyId));
       expect(stored).toHaveLength(0);
+    });
+
+    test("surfaces an ARCA timeout as its own contingency, tagged by phase", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Timeout",
+        choreographyName: "Coreografía timeout",
+        email: "academia.timeout@example.com",
+        paidAmount: 3000,
+      });
+
+      // El corte durante `FECAESolicitar` es el caso peligroso: no se sabe si
+      // ARCA autorizó, así que reintentar a ciegas podría duplicar.
+      const result = await handleAdministrativeChoreographyFinanceAction({
+        params: {
+          academyId: seeded.academyId,
+          choreographyId: seeded.choreographyId,
+        },
+        request: await buildActionRequest({
+          ...seeded,
+          formData: {
+            intent: emitComprobanteIntent,
+            confirm: emitComprobanteConfirmValue,
+          },
+        }),
+        resolveEmissionDeps: () =>
+          emissionDeps(
+            fakeBilling({
+              createVoucher: vi.fn(async () => {
+                throw new Error("ETIMEDOUT");
+              }),
+            }),
+          ),
+      });
+
+      expect(result).toMatchObject({ status: "emission-error" });
+      if (
+        result.status === "emission-error" &&
+        result.contingency.kind === "unreachable"
+      ) {
+        expect(result.contingency.stage).toBe("authorization");
+      } else {
+        throw new Error("Expected an unreachable contingency.");
+      }
+
+      const stored = await db
+        .select()
+        .from(comprobantes)
+        .where(eq(comprobantes.choreographyId, seeded.choreographyId));
+      expect(stored).toHaveLength(0);
+    });
+
+    test("tags a timeout while reading the correlativo as a lookup contingency", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Timeout Lookup",
+        choreographyName: "Coreografía timeout lookup",
+        email: "academia.timeout.lookup@example.com",
+        paidAmount: 3000,
+      });
+
+      const billing = fakeBilling({
+        getLastVoucher: vi.fn(async () => {
+          throw new Error("socket hang up");
+        }),
+      });
+
+      const result = await handleAdministrativeChoreographyFinanceAction({
+        params: {
+          academyId: seeded.academyId,
+          choreographyId: seeded.choreographyId,
+        },
+        request: await buildActionRequest({
+          ...seeded,
+          formData: {
+            intent: emitComprobanteIntent,
+            confirm: emitComprobanteConfirmValue,
+          },
+        }),
+        resolveEmissionDeps: () => emissionDeps(billing),
+      });
+
+      if (
+        result.status === "emission-error" &&
+        result.contingency.kind === "unreachable"
+      ) {
+        expect(result.contingency.stage).toBe("lookup");
+      } else {
+        throw new Error("Expected an unreachable contingency.");
+      }
+
+      // No se llegó a pedir autorización: con certeza no se emitió nada.
+      expect(billing.createVoucher).not.toHaveBeenCalled();
     });
 
     test("refuses to emit without the irreversible confirmation", async () => {

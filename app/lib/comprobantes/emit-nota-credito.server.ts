@@ -10,8 +10,10 @@ import {
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "./arca/factura-c";
 import type { ArcaMessage } from "./arca/responses";
+import { attemptArca, type ArcaUnreachable } from "./arca/unreachable";
 import {
   buildRejectionMessage,
+  buildUnreachableOutcome,
   ISSUER_IVA_CONDITION,
   toArcaDate,
   type FacturaCEmissionDeps,
@@ -34,7 +36,10 @@ export type NotaCreditoEmissionInput = {
 export type NotaCreditoEmissionFailureReason =
   | "not-found"
   | "already-annulled"
-  | "rejected";
+  | "rejected"
+  // ARCA no respondió (red, timeout, servicio caído): no hay `Resultado` que
+  // interpretar. Distinto del rechazo, y con otro riesgo según la fase.
+  | "unreachable";
 
 export type NotaCreditoEmissionOutcome =
   | { ok: true; notaCredito: ComprobanteRow }
@@ -42,12 +47,14 @@ export type NotaCreditoEmissionOutcome =
       ok: false;
       reason: NotaCreditoEmissionFailureReason;
       message: string;
-      // Presente sólo en un rechazo/contingencia de ARCA.
+      // Presente sólo en un rechazo de ARCA.
       arca?: {
         resultado: string | null;
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
+      // Presente sólo cuando ARCA no respondió.
+      unreachable?: ArcaUnreachable;
     };
 
 /**
@@ -85,23 +92,39 @@ export async function annulComprobante(
     };
   }
 
-  const last = await deps.client.getLastNotaCreditoCNumber(deps.ptoVta);
+  const lastAttempt = await attemptArca("lookup", () =>
+    deps.client.getLastNotaCreditoCNumber(deps.ptoVta),
+  );
+
+  if (!lastAttempt.ok) {
+    return buildUnreachableOutcome(lastAttempt.unreachable);
+  }
+
+  const last = lastAttempt.value;
   const cbteFch = deps.cbteFch ?? toArcaDate(getBusinessDateOnly());
 
-  const emission = await deps.client.emitNotaCreditoC({
-    ptoVta: deps.ptoVta,
-    cbteNro: last.nextCbteNro,
-    cbteFch,
-    importe: target.impTotal,
-    condicionIvaReceptorId: deps.receptorIvaConditionId,
-    emisorCuit: deps.issuerCuit,
-    asociado: {
-      cbteTipo: target.cbteTipo,
-      ptoVta: target.ptoVta,
-      cbteNro: target.cbteNro,
-      cbteFch: target.cbteFch,
-    },
-  });
+  const emissionAttempt = await attemptArca("authorization", () =>
+    deps.client.emitNotaCreditoC({
+      ptoVta: deps.ptoVta,
+      cbteNro: last.nextCbteNro,
+      cbteFch,
+      importe: target.impTotal,
+      condicionIvaReceptorId: deps.receptorIvaConditionId,
+      emisorCuit: deps.issuerCuit,
+      asociado: {
+        cbteTipo: target.cbteTipo,
+        ptoVta: target.ptoVta,
+        cbteNro: target.cbteNro,
+        cbteFch: target.cbteFch,
+      },
+    }),
+  );
+
+  if (!emissionAttempt.ok) {
+    return buildUnreachableOutcome(emissionAttempt.unreachable);
+  }
+
+  const emission = emissionAttempt.value;
 
   if (!emission.approved || !emission.cae || !emission.caeVto) {
     return {

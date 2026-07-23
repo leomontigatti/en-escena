@@ -79,11 +79,12 @@ describe("ComprobantesSection", () => {
 });
 
 describe("ContingencyAlert", () => {
-  test("presents the ARCA contingency message and each error", () => {
+  test("presents a rejection with each ARCA message and the retry-is-safe copy", () => {
     const markup = renderToStaticMarkup(
       <ContingencyAlert
         message="ARCA no autorizó el comprobante (CUIT sin habilitar)."
         contingency={{
+          kind: "rejected",
           resultado: "R",
           errors: ["CUIT sin habilitar (código 10016)"],
           observaciones: ["Punto de venta no registrado (código 10015)"],
@@ -94,6 +95,40 @@ describe("ContingencyAlert", () => {
     expect(markup).toContain("ARCA no autorizó el comprobante");
     expect(markup).toContain("CUIT sin habilitar (código 10016)");
     expect(markup).toContain("Punto de venta no registrado (código 10015)");
+    expect(markup).toContain("No se generó ningún comprobante");
+    expect(markup).toContain("sin riesgo de duplicar");
+  });
+
+  test("distinguishes a lookup timeout, where nothing could have been issued", () => {
+    const markup = renderToStaticMarkup(
+      <ContingencyAlert
+        message="No pudimos comunicarnos con ARCA."
+        contingency={{
+          kind: "unreachable",
+          stage: "lookup",
+          detail: "socket hang up",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("No se generó ningún comprobante.");
+    expect(markup).not.toContain("sin riesgo de duplicar");
+  });
+
+  test("warns against a blind retry when the authorization call timed out", () => {
+    const markup = renderToStaticMarkup(
+      <ContingencyAlert
+        message="Se cortó la comunicación con ARCA."
+        contingency={{
+          kind: "unreachable",
+          stage: "authorization",
+          detail: "ETIMEDOUT",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("No reintentes sin verificar antes en ARCA");
+    expect(markup).not.toContain("No se generó ningún comprobante");
   });
 });
 
