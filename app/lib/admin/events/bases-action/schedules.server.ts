@@ -18,6 +18,7 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  invalidEventBasesFormResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
@@ -347,22 +348,10 @@ function revalidateScheduleForm(
     return null;
   }
 
-  const fieldErrors: Record<string, string> = {};
-
-  for (const issue of result.error.issues) {
-    const fieldName = issue.path.join(".");
-
-    if (fieldName && !fieldErrors[fieldName]) {
-      fieldErrors[fieldName] = issue.message;
-    }
-  }
-
-  return {
-    ok: false,
-    code: "invalid-event-bases",
-    error: "Revisá los datos del cronograma.",
-    fieldErrors,
-  };
+  return invalidEventBasesFormResult(
+    result.error,
+    "Revisá los datos del cronograma.",
+  );
 }
 
 function getScheduleMutationRequiredFieldErrors(

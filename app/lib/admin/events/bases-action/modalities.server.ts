@@ -16,6 +16,7 @@ import {
   buildRecordActionScope,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  invalidEventBasesFormResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
@@ -292,22 +293,10 @@ function revalidateModalityForm(
     return null;
   }
 
-  const fieldErrors: Record<string, string> = {};
-
-  for (const issue of result.error.issues) {
-    const fieldName = issue.path.join(".");
-
-    if (fieldName && !fieldErrors[fieldName]) {
-      fieldErrors[fieldName] = issue.message;
-    }
-  }
-
-  return {
-    ok: false,
-    code: "invalid-event-bases",
-    error: "Revisá los datos de la modalidad.",
-    fieldErrors,
-  };
+  return invalidEventBasesFormResult(
+    result.error,
+    "Revisá los datos de la modalidad.",
+  );
 }
 
 function readModalityActionValues(formData: FormData): ModalityActionValues {
