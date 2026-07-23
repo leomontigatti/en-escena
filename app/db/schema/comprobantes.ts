@@ -24,6 +24,16 @@ export const comprobanteIssuerIvaCondition = pgEnum(
   ["exento"],
 );
 
+// Porción de la coreografía que cubre el comprobante (#323/#326, ADR-0011).
+// DERIVADA de lo cobrado y CONGELADA en el snapshot al emitir: `seña` cubre el
+// remanente de asignaciones tipo depósito, `saldo` el de tipo saldo, y `total`
+// ambos en un mismo comprobante. Reimputar un pago después de emitir no la altera.
+export const comprobantePorcion = pgEnum("en_escena_comprobante_porcion", [
+  "seña",
+  "saldo",
+  "total",
+]);
+
 // `Comprobante` — comprobante fiscal electrónico ARCA (Factura C, `CbteTipo` 11;
 // Nota de crédito C, tipo 13). Es un documento DERIVADO e INMUTABLE (#320/#326):
 // nunca gobierna el estado financiero y, una vez emitido con CAE, no se edita ni
@@ -46,8 +56,22 @@ export const comprobantes = createTable(
     cbteTipo: integer("cbte_tipo").notNull(),
     ptoVta: integer("pto_vta").notNull(),
     cbteNro: integer("cbte_nro").notNull(),
+    // Porción cubierta, congelada al emitir (ADR-0011). Not-null: todo
+    // comprobante clasifica en `seña`/`saldo`/`total`. La única fila preexistente
+    // se backfillea derivándola de sus asignaciones de pago (ver migración). El
+    // default `total` (superset de lo cobrado) es una red transitoria para que la
+    // emisión previa a #479 —que todavía no calcula la porción— inserte filas
+    // válidas; la emisión real la deriva y la sobrescribe, no la deja al default.
+    porcion: comprobantePorcion("porcion").notNull().default("total"),
     // Fecha del comprobante en formato ARCA `AAAAMMDD`.
     cbteFch: text("cbte_fch").notNull(),
+    // Período de servicio y vencimiento de pago (Concepto 2, RG 1415) en formato
+    // ARCA `AAAAMMDD`. Nullable: sólo los comprobantes emitidos a partir de
+    // ADR-0011 los llevan; la fila preexistente se emitió como Concepto 1 (venta
+    // de producto) y nunca cargó fechas de servicio (justificación en ADR §3).
+    fchServDesde: text("fch_serv_desde"),
+    fchServHasta: text("fch_serv_hasta"),
+    fchVtoPago: text("fch_vto_pago"),
     // Importe total en pesos argentinos enteros (sin centavos, ver finanzas.md).
     impTotal: integer("imp_total").notNull(),
     // Snapshot del emisor. El CUIT se guarda como texto: 30717611590 excede el
