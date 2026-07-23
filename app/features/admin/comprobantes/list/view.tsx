@@ -107,6 +107,25 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     ),
     filterValue: (row) => row.status,
   },
+  {
+    id: "imprimir",
+    header: "",
+    className: "text-right",
+    headerClassName: "text-right",
+    // Enlaza al impreso on-demand del comprobante (#329/#334). Abre en una
+    // pestaña nueva porque el loader devuelve un documento HTML suelto, sin
+    // chrome de administración, listo para imprimir.
+    cell: (row) => (
+      <a
+        href={`/administracion/comprobantes/${row.id}/imprimir`}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary underline-offset-4 hover:underline"
+      >
+        Imprimir
+      </a>
+    ),
+  },
 ];
 
 const comprobanteEstadoFacetOptions = [

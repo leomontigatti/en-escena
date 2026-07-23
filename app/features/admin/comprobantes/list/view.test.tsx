@@ -116,6 +116,10 @@ describe("AdministracionComprobantesRouteView", () => {
     expect(markup).toContain(
       'href="/administracion/finanzas/academy_1/coreografias/choreo_1"',
     );
+    // Enlaza al impreso on-demand del comprobante.
+    expect(markup).toContain(
+      'href="/administracion/comprobantes/comprobante_1/imprimir"',
+    );
   });
 
   test("renders the empty state when the active event has no comprobantes", () => {
