@@ -36,6 +36,24 @@ export const loginNotices = {
   },
 } satisfies Record<LoginRedirectReason, LoginNotice>;
 
+/**
+ * Aviso para quien existe como usuario pero todavía no tiene una credencial con
+ * la que ingresar (#491). Pasa con las cuentas que venían de Supabase Auth: la
+ * migración no trajo las contraseñas, así que hay que elegir una nueva. El
+ * mensaje evita hablar de la migración a propósito — envejece mal y al usuario
+ * le sirve más saber qué hacer que por qué pasó.
+ */
+export const passwordResetRequiredMessage =
+  "Necesitás crear una contraseña nueva para ingresar. Usá «Recuperala» acá abajo.";
+
+/**
+ * Los usuarios internos no tienen recuperación self-service: el gate de
+ * `isEligibleAcademyRecoveryEmail` sólo deja pasar academias, así que mandarlos
+ * a «Recuperala» los deja golpeando una puerta cerrada.
+ */
+export const internalPasswordResetRequiredMessage =
+  "Necesitás una contraseña nueva para ingresar. Pedile a un administrador que te la restablezca.";
+
 export const recoverySuccessNotice = {
   id: authToastIds.loginRecoveryNotice,
   variant: "success",

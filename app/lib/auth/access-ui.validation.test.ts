@@ -1,10 +1,11 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { expectThrownResponse } from "@/lib/test-support/http";
 
 const signInCredentialUser = vi.hoisted(() => vi.fn());
 const findCredentialUserForIdentifier = vi.hoisted(() => vi.fn());
+const hasCredentialAccount = vi.hoisted(() => vi.fn());
 const getPostLoginPathForUserId = vi.hoisted(() => vi.fn());
 const redirectSignedInUserFromPublicRoute = vi.hoisted(() => vi.fn());
 
@@ -16,6 +17,7 @@ vi.mock("@/lib/auth/access-auth-provider.server", () => ({
 
 vi.mock("@/lib/auth/internal-login.server", () => ({
   findCredentialUserForIdentifier,
+  hasCredentialAccount,
 }));
 
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
@@ -132,6 +134,128 @@ describe("access UI validation", () => {
       request: expect.any(Request),
     });
     expect(response.headers.get("location")).toBe("/registro/academia");
+  });
+
+  describe("failed logins", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    async function submitLogin(identifier: string) {
+      const formData = new FormData();
+      formData.set("identifier", identifier);
+      formData.set("password", "password-vieja");
+
+      return loginAction({
+        request: new Request("http://localhost:3000/ingresar", {
+          method: "POST",
+          body: formData,
+        }),
+        params: {},
+        context: {},
+        url: new URL("http://localhost:3000/ingresar"),
+        pattern: "/ingresar",
+      });
+    }
+
+    test("tells an academy without a credential to create a new password", async () => {
+      findCredentialUserForIdentifier.mockResolvedValue({
+        id: "user_123",
+        email: "academia@example.com",
+        emailVerified: true,
+        role: "academy",
+        suspended: false,
+        match: "email",
+      });
+      hasCredentialAccount.mockResolvedValue(false);
+      signInCredentialUser.mockRejectedValue(
+        new Error("INVALID_EMAIL_OR_PASSWORD"),
+      );
+
+      await expect(submitLogin("academia@example.com")).resolves.toMatchObject({
+        status: "warning",
+        message:
+          "Necesitás crear una contraseña nueva para ingresar. Usá «Recuperala» acá abajo.",
+      });
+    });
+
+    test("sends an internal user to an administrator instead of self-service recovery", async () => {
+      findCredentialUserForIdentifier.mockResolvedValue({
+        id: "user_admin",
+        email: "admin@example.com",
+        emailVerified: true,
+        role: "admin",
+        suspended: false,
+        match: "internalUsername",
+      });
+      hasCredentialAccount.mockResolvedValue(false);
+      signInCredentialUser.mockRejectedValue(
+        new Error("INVALID_EMAIL_OR_PASSWORD"),
+      );
+
+      await expect(submitLogin("admin")).resolves.toMatchObject({
+        status: "warning",
+        message:
+          "Necesitás una contraseña nueva para ingresar. Pedile a un administrador que te la restablezca.",
+      });
+    });
+
+    test("keeps the generic error when the user does have a credential", async () => {
+      findCredentialUserForIdentifier.mockResolvedValue({
+        id: "user_123",
+        email: "academia@example.com",
+        emailVerified: true,
+        role: "academy",
+        suspended: false,
+        match: "email",
+      });
+      hasCredentialAccount.mockResolvedValue(true);
+      signInCredentialUser.mockRejectedValue(
+        new Error("INVALID_EMAIL_OR_PASSWORD"),
+      );
+
+      await expect(submitLogin("academia@example.com")).resolves.toMatchObject({
+        status: "error",
+        message: "No pudimos ingresar con esos datos.",
+      });
+    });
+
+    test("does not reveal anything for an identifier without a user", async () => {
+      findCredentialUserForIdentifier.mockResolvedValue(null);
+      hasCredentialAccount.mockResolvedValue(false);
+      signInCredentialUser.mockRejectedValue(
+        new Error("INVALID_EMAIL_OR_PASSWORD"),
+      );
+
+      await expect(
+        submitLogin("desconocido@example.com"),
+      ).resolves.toMatchObject({
+        status: "error",
+        message: "No pudimos ingresar con esos datos.",
+      });
+
+      expect(hasCredentialAccount).not.toHaveBeenCalled();
+    });
+
+    test("falls back to the generic error when the credential lookup fails", async () => {
+      findCredentialUserForIdentifier.mockResolvedValue({
+        id: "user_123",
+        email: "academia@example.com",
+        emailVerified: true,
+        role: "academy",
+        suspended: false,
+        match: "email",
+      });
+      hasCredentialAccount.mockRejectedValue(new Error("database is down"));
+      signInCredentialUser.mockRejectedValue(
+        new Error("INVALID_EMAIL_OR_PASSWORD"),
+      );
+
+      await expect(submitLogin("academia@example.com")).resolves.toMatchObject({
+        status: "error",
+        message: "No pudimos ingresar con esos datos.",
+      });
+    });
   });
 
   test("returns the logout completion notice for login", () => {
