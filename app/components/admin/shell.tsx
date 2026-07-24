@@ -14,6 +14,7 @@ import {
   Music2,
   ClipboardList,
   HandCoins,
+  ReceiptText,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -159,6 +160,11 @@ const financeNavigationItems = [
     label: "Pagos",
     to: "/administracion/pagos",
     icon: HandCoins,
+  },
+  {
+    label: "Comprobantes",
+    to: "/administracion/comprobantes",
+    icon: ReceiptText,
   },
 ] satisfies SidebarNavigationItem[];
 

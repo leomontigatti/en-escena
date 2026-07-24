@@ -11,7 +11,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Database test strategy: `0007-db-test-isolation-model.md`
 - Uploaded assets: `0008-use-supabase-storage-for-uploaded-assets.md`
 - Choreography music storage: `0010-choreography-music-storage-contract.md`
-- Finances: `0009-inscription-based-finances.md`
+- Finances: `0009-inscription-based-finances.md`, `0011-invoicing-concept-portion-and-surfaces.md`
 
 ## Decisions
 
@@ -25,3 +25,4 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0008: Supabase Storage for uploaded assets](./0008-use-supabase-storage-for-uploaded-assets.md) - current object storage boundary for uploaded assets.
 - [ADR-0009: Inscription-based finances](./0009-inscription-based-finances.md) - models finances around inscriptions and payment assignments as the single operational source of truth.
 - [ADR-0010: Choreography music storage contract](./0010-choreography-music-storage-contract.md) - current bucket, file type and replacement contract for choreography music.
+- [ADR-0011: Invoicing concept, derived portion, and comprobante surfaces](./0011-invoicing-concept-portion-and-surfaces.md) - fixes Concepto to services, derives portion from collection, and lays out the comprobante list/detail/print surfaces (supersedes the granularity of #323, refines #326).

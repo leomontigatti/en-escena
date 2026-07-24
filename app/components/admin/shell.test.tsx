@@ -36,6 +36,8 @@ describe("AdminShell", () => {
     expect(markup).toContain("/administracion/finanzas");
     expect(markup).toContain("Pagos");
     expect(markup).toContain("/administracion/pagos");
+    expect(markup).toContain("Comprobantes");
+    expect(markup).toContain("/administracion/comprobantes");
     expect(markup).not.toContain("Facturas");
     expect(markup).not.toContain('href="/administracion/facturas"');
     expect(markup.indexOf("Coreografías")).toBeLessThan(

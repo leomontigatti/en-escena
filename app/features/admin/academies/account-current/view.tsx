@@ -1,5 +1,3 @@
-import { CircleDollarSign, Landmark, Receipt } from "lucide-react";
-
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
   ClientDataTable,
@@ -54,19 +52,16 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
         <section className="grid gap-4 md:grid-cols-3">
           <MetricCard
             title="Seña adeudada"
-            icon={Receipt}
             value={formatOperationalAmount(
               loaderData.summary.owedDepositAmount,
             )}
           />
           <MetricCard
             title="Saldo disponible"
-            icon={CircleDollarSign}
             value={formatAmount(loaderData.summary.availableBalanceAmount)}
           />
           <MetricCard
             title="Saldo adeudado"
-            icon={Landmark}
             value={formatOperationalAmount(
               loaderData.summary.owedBalanceAmount,
             )}

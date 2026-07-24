@@ -1,4 +1,4 @@
-import { CircleDollarSign, Landmark, Receipt, WalletCards } from "lucide-react";
+import { WalletCards } from "lucide-react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -115,17 +115,14 @@ export function PortalAcademyFinancesRouteView({
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
           title="Seña adeudada"
-          icon={Receipt}
           value={formatOperationalAmount(loaderData.summary.owedDepositAmount)}
         />
         <MetricCard
           title="Saldo disponible"
-          icon={CircleDollarSign}
           value={formatAmount(loaderData.summary.availableBalanceAmount)}
         />
         <MetricCard
           title="Saldo adeudado"
-          icon={Landmark}
           value={formatOperationalAmount(loaderData.summary.owedBalanceAmount)}
         />
       </section>

@@ -1,4 +1,4 @@
-import { ChevronLeft, CircleDollarSign, Landmark, Receipt } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Link } from "react-router";
 
 import { MetricCard } from "@/components/shared/metric-card";
@@ -62,17 +62,14 @@ export function PortalChoreographyFinanceDetailRouteView({
 
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          icon={Receipt}
           title="Seña"
           value={formatOperationalAmount(choreography.depositAmount)}
         />
         <MetricCard
-          icon={CircleDollarSign}
           title="Pagado"
           value={formatAmount(choreography.paidAmount)}
         />
         <MetricCard
-          icon={Landmark}
           title="Saldo"
           value={formatOperationalAmount(choreography.balanceAmount)}
         />

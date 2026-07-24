@@ -69,6 +69,7 @@ export type AdministrativeChoreographyRosterErrorData = {
 };
 
 export type AdministrativeChoreographyDeleteBlockerCode =
+  | "comprobantes"
   | "presentation"
   | "scores";
 

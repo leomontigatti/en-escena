@@ -1,11 +1,4 @@
-import {
-  AlertTriangle,
-  Check,
-  CircleDollarSign,
-  Landmark,
-  LoaderCircle,
-  Receipt,
-} from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -60,7 +53,9 @@ import {
   formatAmount,
   formatDate,
   formatOperationalAmount,
+  formatTotalAmount,
 } from "../formatters";
+import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
   formatDancerName,
@@ -68,7 +63,10 @@ import {
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import { PaymentSelectItems } from "./payment-select-items";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type {
+  loadAdministrativeChoreographyFinanceDetail,
+  PortionCoverage,
+} from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -105,7 +103,9 @@ export function AdministracionCoreografiaFinancieraDetalleView({
           "Activá un evento para consultar el detalle financiero de una coreografía.",
       }}
       headerAction={
-        choreography ? <CobroActions loaderData={loaderData} /> : undefined
+        choreography ? (
+          <ChoreographyActions loaderData={loaderData} />
+        ) : undefined
       }
     >
       {choreography ? (
@@ -114,19 +114,25 @@ export function AdministracionCoreografiaFinancieraDetalleView({
 
           <section className="grid gap-4 md:grid-cols-3">
             <MetricCard
-              icon={Receipt}
               title="Seña"
               value={formatOperationalAmount(choreography.depositAmount)}
+              slot={portionCoverageBadge(loaderData.invoicing.sena)}
+              to={portionCoverageHref(loaderData.invoicing.sena)}
+              linkLabel="Ver comprobante que cubre la seña"
             />
             <MetricCard
-              icon={CircleDollarSign}
-              title="Pagado"
-              value={formatAmount(choreography.paidAmount)}
-            />
-            <MetricCard
-              icon={Landmark}
               title="Saldo"
               value={formatOperationalAmount(choreography.balanceAmount)}
+              slot={portionCoverageBadge(loaderData.invoicing.saldo)}
+              to={portionCoverageHref(loaderData.invoicing.saldo)}
+              linkLabel="Ver comprobante que cubre el saldo"
+            />
+            <MetricCard
+              title="Total"
+              value={formatTotalAmount(
+                choreography.depositAmount,
+                choreography.balanceAmount,
+              )}
             />
           </section>
 
@@ -172,6 +178,35 @@ export function AdministracionCoreografiaFinancieraDetalleView({
       )}
     </AdminResourceLayout>
   );
+}
+
+/**
+ * Badge de vigencia de la porción (Seña/Saldo): `Vigente` o `Desactualizada`
+ * (ADR-0011). Devuelve `undefined` cuando ninguna factura vigente cubre la porción
+ * —incluido el caso en que la única que la cubría fue anulada—, así la MetricCard
+ * cae en su ícono por defecto y no queda un estado `Anulado` muerto. El link al
+ * comprobante ya no es un botón aparte: lo lleva la card entera vía `to`.
+ */
+function portionCoverageBadge(coverage: PortionCoverage | null) {
+  if (coverage === null) {
+    return undefined;
+  }
+
+  return (
+    <Badge variant={coverage.currency === "vigente" ? "success" : "warning"}>
+      {coverage.currency === "vigente" ? "Vigente" : "Desactualizada"}
+    </Badge>
+  );
+}
+
+/**
+ * Destino de la card de una porción: el comprobante vigente que la cubre. `null`
+ * cuando no hay cobertura, y entonces la card no es un link.
+ */
+function portionCoverageHref(coverage: PortionCoverage | null) {
+  return coverage === null
+    ? undefined
+    : `/administracion/comprobantes/${coverage.comprobanteId}`;
 }
 
 function ChoreographyAlerts({
@@ -226,35 +261,68 @@ function ChoreographyAlerts({
   );
 }
 
-function CobroActions({
+/**
+ * Menú único de acciones del header (`...`, ADR-0011): reúne `Emitir factura` y el
+ * cobro de la etapa vigente en un solo `ResourceActionsMenu`, en lugar de botones
+ * sueltos. Cada item abre su propio diálogo, montado como hermano del menú para que
+ * no se desmonte al cerrarse el dropdown. Si no hay ninguna acción disponible el
+ * menú no se muestra.
+ */
+function ChoreographyActions({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleViewProps) {
+  const invoicing = loaderData.invoicing;
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
-  const [open, setOpen] = useState(false);
+  const canEmit = invoicing?.canEmit ?? false;
+  const canCobro = stage !== null && eligible.length > 0;
+  const [emitOpen, setEmitOpen] = useState(false);
+  const [cobroOpen, setCobroOpen] = useState(false);
 
-  if (stage === null || eligible.length === 0) {
+  if (!canEmit && !canCobro) {
     return null;
   }
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setOpen(true);
-          }}
-        >
-          {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-        </DropdownMenuItem>
+        {canEmit ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setEmitOpen(true);
+            }}
+          >
+            Emitir factura
+          </DropdownMenuItem>
+        ) : null}
+        {canCobro ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setCobroOpen(true);
+            }}
+          >
+            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
+          </DropdownMenuItem>
+        ) : null}
       </ResourceActionsMenu>
-      <CobroDialog
-        eligiblePayments={eligible}
-        open={open}
-        onOpenChange={setOpen}
-        stage={stage}
-      />
+      {invoicing?.canEmit ? (
+        <EmissionDialog
+          billableAmount={invoicing.billableAmount}
+          porcion={invoicing.porcion}
+          open={emitOpen}
+          onOpenChange={setEmitOpen}
+        />
+      ) : null}
+      {stage !== null && eligible.length > 0 ? (
+        <CobroDialog
+          eligiblePayments={eligible}
+          open={cobroOpen}
+          onOpenChange={setCobroOpen}
+          stage={stage}
+        />
+      ) : null}
     </>
   );
 }
