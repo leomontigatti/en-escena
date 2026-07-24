@@ -4,11 +4,10 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { DancerConfirmationDialog } from "./confirmation-dialog";
-import { useDancerEditForm, useDancerStatusForm } from "./form";
+import { useDancerEditForm } from "./form";
 import {
   buildDancerDetailViewState,
   getDancerEditValues,
-  getDancerStatusValues,
   getInitialDialogIntent,
   getSubmittedDancerUpdateValues,
   type DancerDetailActionData,
@@ -48,17 +47,12 @@ export function AdministracionBailarinDetalleRouteView({
   const dancer = loaderData.dancer;
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const editForm = useDancerEditForm({
-    correctionReasonRequired: dancer.correctionReasonRequired,
     values: getDancerEditValues({ actionData: errorData, dancer }),
-  });
-  const statusForm = useDancerStatusForm({
-    correctionReasonRequired: dancer.correctionReasonRequired,
-    values: getDancerStatusValues(errorData),
   });
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
     getInitialDialogIntent({
       actionData: errorData,
-      correctionReasonRequired: dancer.correctionReasonRequired,
+      shouldConfirmSave: dancer.editConsequence !== null,
       statusIntent: dancer.active ? "archive-dancer" : "reactivate-dancer",
     }),
   );
@@ -77,7 +71,7 @@ export function AdministracionBailarinDetalleRouteView({
   useEffect(() => {
     const nextIntent = getInitialDialogIntent({
       actionData: errorData,
-      correctionReasonRequired: dancer.correctionReasonRequired,
+      shouldConfirmSave: viewState.shouldConfirmSave,
       statusIntent: viewState.statusAction.intent,
     });
 
@@ -88,7 +82,7 @@ export function AdministracionBailarinDetalleRouteView({
     setDialogIntent(nextIntent);
   }, [
     errorData,
-    dancer.correctionReasonRequired,
+    viewState.shouldConfirmSave,
     submittedEditValues,
     viewState.statusAction.intent,
   ]);
@@ -140,9 +134,8 @@ export function AdministracionBailarinDetalleRouteView({
           birthDateMayNeedRecalculation={
             viewState.birthDateMayNeedRecalculation
           }
-          correctionReasonRequired={dancer.correctionReasonRequired}
           dialogIntent={dialogIntent}
-          editForm={editForm}
+          editConsequence={dancer.editConsequence}
           editFormId={editFormId}
           onOpenChange={(open) => {
             if (!open) {
@@ -150,7 +143,6 @@ export function AdministracionBailarinDetalleRouteView({
             }
           }}
           statusAction={viewState.statusAction}
-          statusForm={statusForm}
           statusFormId={statusFormId}
           verifyFormId={verifyFormId}
         />

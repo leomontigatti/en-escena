@@ -10,7 +10,6 @@ import {
   user,
 } from "@/db/schema";
 import {
-  adminProfessorCorrectionReasonMessage,
   adminProfessorPageSize,
   type AdministrativeProfessorAuditAction,
   type AdminProfessorNameOrder,
@@ -67,7 +66,7 @@ export type AdministrativeProfessorDetail = {
   };
   participationStatus: AdminProfessorParticipationStatus;
   participatedInAnyEvent: boolean;
-  correctionReasonRequired: boolean;
+  editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
 };
 
@@ -76,18 +75,10 @@ export type AdministrativeProfessorUpdateInput = {
   lastName: string;
   documentType: string;
   documentNumber: string;
-  correctionReason: string;
 };
 
 export type AdministrativeProfessorFieldErrors = Partial<
-  Record<
-    | "firstName"
-    | "lastName"
-    | "documentType"
-    | "documentNumber"
-    | "correctionReason",
-    string
-  >
+  Record<"firstName" | "lastName" | "documentType" | "documentNumber", string>
 >;
 
 export type AdministrativeProfessorMutationResult =
@@ -102,16 +93,9 @@ export type AdministrativeProfessorMutationResult =
       values: AdministrativeProfessorUpdateInput;
     };
 
-type AdministrativeProfessorStatusMutationResult =
-  | {
-      ok: true;
-      professor: ProfessorEditableSnapshot;
-    }
-  | {
-      ok: false;
-      message: string;
-      fieldErrors: Pick<AdministrativeProfessorFieldErrors, "correctionReason">;
-    };
+type AdministrativeProfessorStatusMutationResult = {
+  professor: ProfessorEditableSnapshot;
+};
 
 export function readAdministrativeProfessorFilters(
   searchParams: URLSearchParams,
@@ -331,7 +315,7 @@ export async function findAdministrativeProfessor(input: {
       row.isParticipating,
     ),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    correctionReasonRequired: isCorrectionReasonRequired({
+    editConsequence: getEditConsequence({
       selectedEventId: input.selectedEventId,
       isParticipating: row.isParticipating,
       hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
@@ -358,10 +342,7 @@ export async function updateAdministrativeProfessor(input: {
   }
 
   const fieldErrors: AdministrativeProfessorFieldErrors = {};
-  const values = {
-    ...input.values,
-    correctionReason: input.values.correctionReason,
-  };
+  const values = { ...input.values };
   const normalizedNames = normalizeProfessorNames(input.values);
 
   Object.assign(fieldErrors, normalizedNames.fieldErrors);
@@ -373,18 +354,6 @@ export async function updateAdministrativeProfessor(input: {
 
   if (!normalizedDocument.ok) {
     Object.assign(fieldErrors, normalizedDocument.fieldErrors);
-  }
-
-  const normalizedReason = validateAdministrativeProfessorCorrectionReason({
-    correctionReason: input.values.correctionReason,
-    required: existingProfessor.correctionReasonRequired,
-  });
-  const correctionReason = normalizedReason.ok
-    ? normalizedReason.correctionReason
-    : null;
-
-  if (!normalizedReason.ok) {
-    fieldErrors.correctionReason = normalizedReason.fieldError;
   }
 
   if (!normalizedDocument.ok) {
@@ -450,8 +419,7 @@ export async function updateAdministrativeProfessor(input: {
     beforeValues,
     eventId: input.selectedEventId,
     professorId: existingProfessor.id,
-    reason:
-      correctionReason && correctionReason.length > 0 ? correctionReason : null,
+    reason: null,
   });
 
   return {
@@ -465,7 +433,6 @@ export async function setAdministrativeProfessorActiveState(input: {
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
-  correctionReason: string;
 }): Promise<AdministrativeProfessorStatusMutationResult> {
   const existingProfessor = await findAdministrativeProfessorForMutation({
     professorId: input.professorId,
@@ -474,24 +441,6 @@ export async function setAdministrativeProfessorActiveState(input: {
 
   if (!existingProfessor) {
     throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const normalizedReason = validateAdministrativeProfessorCorrectionReason({
-    correctionReason: input.correctionReason,
-    required: existingProfessor.correctionReasonRequired,
-  });
-  const correctionReason = normalizedReason.ok
-    ? normalizedReason.correctionReason
-    : null;
-
-  if (!normalizedReason.ok) {
-    return {
-      ok: false,
-      message: "Revisá los campos marcados.",
-      fieldErrors: {
-        correctionReason: normalizedReason.fieldError,
-      },
-    };
   }
 
   const nextActive = input.action === "reactivate";
@@ -513,12 +462,10 @@ export async function setAdministrativeProfessorActiveState(input: {
     beforeValues,
     eventId: input.selectedEventId,
     professorId: existingProfessor.id,
-    reason:
-      correctionReason && correctionReason.length > 0 ? correctionReason : null,
+    reason: null,
   });
 
   return {
-    ok: true,
     professor: afterValues,
   };
 }
@@ -612,53 +559,23 @@ async function findAdministrativeProfessorForMutation(input: {
         return null;
       }
 
-      return {
-        ...row,
-        correctionReasonRequired: isCorrectionReasonRequired({
-          selectedEventId: input.selectedEventId,
-          isParticipating: row.isParticipating,
-          hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-        }),
-      };
+      return row;
     });
 }
 
-function isCorrectionReasonRequired(input: {
+export type ProfessorEditConsequence = "participated" | null;
+
+export function getEditConsequence(input: {
   selectedEventId: string | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-}) {
-  if (input.selectedEventId !== null) {
-    return input.isParticipating || input.hasParticipatedInAnyEvent;
-  }
+}): ProfessorEditConsequence {
+  const participated =
+    input.selectedEventId !== null
+      ? input.isParticipating || input.hasParticipatedInAnyEvent
+      : input.hasParticipatedInAnyEvent;
 
-  return input.hasParticipatedInAnyEvent;
-}
-
-function isCorrectionReasonLengthValid(reason: string) {
-  return reason.length >= 10 && reason.length <= 500;
-}
-
-function validateAdministrativeProfessorCorrectionReason(input: {
-  correctionReason: string;
-  required: boolean;
-}) {
-  const correctionReason = input.correctionReason.trim();
-
-  if (
-    !isCorrectionReasonLengthValid(correctionReason) &&
-    (input.required || correctionReason.length > 0)
-  ) {
-    return {
-      ok: false as const,
-      fieldError: adminProfessorCorrectionReasonMessage,
-    };
-  }
-
-  return {
-    ok: true as const,
-    correctionReason,
-  };
+  return participated ? "participated" : null;
 }
 
 function toProfessorSnapshot(

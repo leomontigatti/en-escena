@@ -1,4 +1,5 @@
 import type { dancers } from "@/db/schema";
+import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   AdminDancerIdentificationStatus,
   AdminDancerParticipationStatus,
@@ -48,7 +49,7 @@ export type AdministrativeDancerDetail = {
   participationStatus: AdminDancerParticipationStatus;
   identificationStatus: AdminDancerIdentificationStatus;
   participatedInAnyEvent: boolean;
-  correctionReasonRequired: boolean;
+  editConsequence: DancerEditConsequence;
   inscriptions: AdministrativeDancerInscription[];
   choreographyNames: string[];
 };
@@ -70,11 +71,6 @@ export type AdministrativeDancerUpdateInput = {
   documentNumber: string;
   documentFrontImageStorageKey: string;
   documentBackImageStorageKey: string;
-  correctionReason: string;
-};
-
-export type AdministrativeDancerStatusInput = {
-  correctionReason: string;
 };
 
 export type AdministrativeDancerFieldErrors = Partial<
@@ -85,8 +81,7 @@ export type AdministrativeDancerFieldErrors = Partial<
     | "documentType"
     | "documentNumber"
     | "documentFrontImageStorageKey"
-    | "documentBackImageStorageKey"
-    | "correctionReason",
+    | "documentBackImageStorageKey",
     string
   >
 >;
@@ -104,17 +99,9 @@ export type AdministrativeDancerMutationResult =
       values: AdministrativeDancerUpdateInput;
     };
 
-export type AdministrativeDancerStatusMutationResult =
-  | {
-      ok: true;
-      dancer: DancerEditableSnapshot;
-    }
-  | {
-      ok: false;
-      message: string;
-      fieldErrors: Pick<AdministrativeDancerFieldErrors, "correctionReason">;
-      values: AdministrativeDancerStatusInput;
-    };
+export type AdministrativeDancerStatusMutationResult = {
+  dancer: DancerEditableSnapshot;
+};
 
 export type AdministrativeDancerAuditEntryInput = {
   action: AdministrativeDancerAuditAction;

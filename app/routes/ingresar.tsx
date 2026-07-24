@@ -25,8 +25,10 @@ import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
 import {
   authToastIds,
+  internalPasswordResetRequiredMessage,
   loginNotices,
   logoutSuccessNotice,
+  passwordResetRequiredMessage,
   recoverySuccessNotice,
   requiredTextField,
   type LoginNotice,
@@ -35,7 +37,12 @@ import {
   isPublicAccessFormSubmitting,
   parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
-import { findCredentialUserForIdentifier } from "@/lib/auth/internal-login.server";
+import {
+  findCredentialUserForIdentifier,
+  hasCredentialAccount,
+  type CredentialUser,
+} from "@/lib/auth/internal-login.server";
+import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
 import { getEmptyFieldErrors } from "@/lib/shared/form-validation";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
@@ -78,8 +85,10 @@ export async function action({ request }: Route.ActionArgs) {
     return formResult.response;
   }
 
+  let credentialUser: CredentialUser | null = null;
+
   try {
-    const credentialUser = await findCredentialUserForIdentifier(
+    credentialUser = await findCredentialUserForIdentifier(
       formResult.data.identifier,
     );
     const accessEmail =
@@ -115,13 +124,52 @@ export async function action({ request }: Route.ActionArgs) {
       throw error;
     }
 
-    return {
-      status: "error" as const,
-      message: "No pudimos ingresar con esos datos.",
-      fieldErrors: getEmptyFieldErrors<SignInField>(),
-      values: formResult.values,
-    };
+    const resetRequiredMessage =
+      await getPasswordResetRequiredMessage(credentialUser);
+
+    if (resetRequiredMessage) {
+      return {
+        status: "warning" as const,
+        message: resetRequiredMessage,
+        fieldErrors: getEmptyFieldErrors<SignInField>(),
+        values: formResult.values,
+      };
+    }
+
+    return genericLoginError(formResult.values);
   }
+}
+
+/**
+ * Reemplaza el error genérico cuando el login falló porque el usuario todavía
+ * no tiene credencial, no porque se haya equivocado la contraseña (#491).
+ *
+ * Concede que el correo existe, a diferencia del resto de los rechazos de este
+ * action, que son deliberadamente indistinguibles (no verificado, suspendido,
+ * inexistente). Es un caso acotado y de una sola vez, y sin este aviso el
+ * usuario no tiene forma de enterarse de que su camino es «Recuperala» y no
+ * reintentar la contraseña de siempre. Decidido en #303.
+ */
+async function getPasswordResetRequiredMessage(
+  credentialUser: CredentialUser | null,
+) {
+  if (!credentialUser) {
+    return null;
+  }
+
+  try {
+    if (await hasCredentialAccount(credentialUser.id)) {
+      return null;
+    }
+  } catch {
+    // Si la consulta falla, cae al error genérico: mejor un mensaje impreciso
+    // que un 500 en el login.
+    return null;
+  }
+
+  return isInternalUserRole(credentialUser.role)
+    ? internalPasswordResetRequiredMessage
+    : passwordResetRequiredMessage;
 }
 
 export function getLoginNotice(
