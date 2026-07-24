@@ -34,11 +34,19 @@ cerrada, así que no es necesariamente exhaustiva):
 | `webmail`              | A     | `69.163.136.138`                                                                |
 | `mailboxes`            | A     | `69.163.136.97`                                                                 |
 | `ftp`                  | A     | `75.119.201.215`                                                                |
+| `ssh`                  | A     | `75.119.201.215`                                                                |
+| `mysql`                | A     | `64.90.32.51`                                                                   |
+| `www.mailboxes`        | A     | `69.163.136.97`                                                                 |
+| `www.webmail`          | A     | `69.163.136.138`                                                                |
 | `autoconfig`           | CNAME | `autoconfig.dreamhost.com`                                                      |
 | `_autodiscover._tcp`   | SRV   | `5 0 443 autoconfig.dreamhost.com`                                              |
 | `dreamhost._domainkey` | TXT   | `v=DKIM1; k=rsa; ...`                                                           |
 
 No hay `AAAA`, ni `CAA`, ni `_dmarc`.
+
+Las últimas cuatro filas de A aparecieron en el escaneo automático de Cloudflare
+y no en el sondeo manual, que no probaba esos nombres. Conviene tomar el escaneo
+como fuente y revisarlo entero antes de borrar nada.
 
 Nota para #490: el issue afirma que no hay DKIM porque sondeó el selector
 `mail._domainkey`. Sí lo hay, bajo `dreamhost._domainkey`. No cambia el plan
@@ -56,6 +64,8 @@ los MX de MailChannels y el SPF viejo se descartan.
 | `@`                 | A    | `75.119.201.215`                                 | DNS only |
 | `www`               | A    | `75.119.201.215`                                 | DNS only |
 | `ftp`               | A    | `75.119.201.215`                                 | DNS only |
+| `ssh`               | A    | `75.119.201.215`                                 | DNS only |
+| `mysql`             | A    | `64.90.32.51`                                    | DNS only |
 | `sistema`           | A    | `72.60.59.2`                                     | Proxied  |
 | `@`                 | MX   | los 3 que agrega Email Routing                   | —        |
 | `@`                 | TXT  | `v=spf1 include:_spf.mx.cloudflare.net ~all`     | —        |
@@ -64,7 +74,12 @@ los MX de MailChannels y el SPF viejo se descartan.
 | `resend._domainkey` | TXT  | clave pública que da Resend                      | —        |
 | `_dmarc`            | TXT  | `v=DMARC1; p=none; rua=mailto:<casilla>`         | —        |
 
-`ftp` sólo hace falta mientras la landing siga en DreamHost.
+`ftp`, `ssh` y `mysql` sólo hacen falta mientras la landing siga en DreamHost, y
+los tres tienen que quedar en **DNS only**: el proxy de Cloudflare sólo transporta
+HTTP y HTTPS. `mysql` es el caso delicado, porque es el hostname que DreamHost
+asigna para la base y el que suele llevar el `DB_HOST` del `wp-config.php`. Si
+queda proxeado, resuelve a una IP de Cloudflare y el WordPress pierde la conexión
+a su base en cuanto propaga la delegación.
 
 Sólo puede haber **un** registro SPF en el ápex. El de Email Routing reemplaza al
 de DreamHost; tener los dos da `permerror` y rompe la validación entera.
@@ -95,12 +110,16 @@ se cargue completa antes de tocar la delegación.
 ### 2.1 Crear la zona
 
 1. Add a site → `enescena.com.ar` → plan Free.
-2. Cloudflare escanea y preimporta los registros que encuentra. **Revisar contra
-   la tabla objetivo**: borrar los de correo de DreamHost, confirmar `@`, `www`,
-   `ftp` y `sistema`.
-3. Dejar `sistema` en **DNS only** por ahora. El proxy se activa en el paso 2.4,
+2. Cloudflare escanea y preimporta los registros que encuentra, **todos como
+   Proxied**. Revisar contra la tabla objetivo y borrar los de correo de
+   DreamHost.
+3. **Agregar `sistema` a mano.** El escaneo prueba nombres comunes y no lo
+   detecta; si falta, la app queda inaccesible al propagar la delegación.
+4. Pasar a **DNS only** todo: los servicios no-HTTP porque el proxy los rompe
+   (ver arriba), y `@`, `www` y `sistema` para no mezclar el cambio de
+   delegación con el de proxy. El proxy de `sistema` se activa en el paso 2.4,
    una vez confirmado que la delegación no rompió nada.
-4. Anotar los nameservers asignados y ejecutar el paso 1 (NIC.ar).
+5. Anotar los nameservers asignados y ejecutar el paso 1 (NIC.ar).
 
 Verificar antes de seguir:
 
