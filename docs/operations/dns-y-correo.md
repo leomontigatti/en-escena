@@ -305,6 +305,13 @@ Después:
 
 ## Rollback
 
-Mientras la zona de DreamHost siga existiendo, revertir la delegación en NIC.ar a
-`ns1/2/3.dreamhost.com` restaura el estado anterior en cuanto propaga. Conviene no
-borrar la zona en DreamHost hasta haber corrido la verificación completa.
+Revertir la delegación en NIC.ar a `ns1/2/3.dreamhost.com` restaura el estado
+anterior en cuanto propaga. La zona vieja sigue existiendo en DreamHost —la
+cuenta es de un tercero y no tenemos cómo borrarla— así que el rollback está
+disponible de forma indefinida.
+
+Ese mismo hecho es el motivo de la migración: sin acceso a la cuenta, cada cambio
+de DNS dependía de coordinar con quien la administra. Con la zona en Cloudflare y
+la delegación bajo el CUIT registrante en NIC.ar, los cambios pasan a ser
+self-service. Mientras la landing siga en DreamHost, lo único que sigue en manos
+de esa cuenta es el hosting del WordPress.
