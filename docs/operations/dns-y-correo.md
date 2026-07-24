@@ -59,20 +59,20 @@ Como el correo de DreamHost no se usa, no se replica: los registros `mail`,
 `webmail`, `mailboxes`, `autoconfig`, `_autodiscover._tcp`, `dreamhost._domainkey`,
 los MX de MailChannels y el SPF viejo se descartan.
 
-| Nombre              | Tipo | Valor                                            | Proxy    |
-| ------------------- | ---- | ------------------------------------------------ | -------- |
-| `@`                 | A    | `75.119.201.215`                                 | DNS only |
-| `www`               | A    | `75.119.201.215`                                 | DNS only |
-| `ftp`               | A    | `75.119.201.215`                                 | DNS only |
-| `ssh`               | A    | `75.119.201.215`                                 | DNS only |
-| `mysql`             | A    | `64.90.32.51`                                    | DNS only |
-| `sistema`           | A    | `72.60.59.2`                                     | Proxied  |
-| `@`                 | MX   | los 3 que agrega Email Routing                   | —        |
-| `@`                 | TXT  | `v=spf1 include:_spf.mx.cloudflare.net ~all`     | —        |
-| `send`              | MX   | `feedback-smtp.<region>.amazonses.com` (prio 10) | DNS only |
-| `send`              | TXT  | `v=spf1 include:amazonses.com ~all`              | —        |
-| `resend._domainkey` | TXT  | clave pública que da Resend                      | —        |
-| `_dmarc`            | TXT  | `v=DMARC1; p=none; rua=mailto:<casilla>`         | —        |
+| Nombre              | Tipo | Valor                                                | Proxy    |
+| ------------------- | ---- | ---------------------------------------------------- | -------- |
+| `@`                 | A    | `75.119.201.215`                                     | DNS only |
+| `www`               | A    | `75.119.201.215`                                     | DNS only |
+| `ftp`               | A    | `75.119.201.215`                                     | DNS only |
+| `ssh`               | A    | `75.119.201.215`                                     | DNS only |
+| `mysql`             | A    | `64.90.32.51`                                        | DNS only |
+| `sistema`           | A    | `72.60.59.2`                                         | Proxied  |
+| `@`                 | MX   | los 3 que agrega Email Routing                       | —        |
+| `@`                 | TXT  | `v=spf1 include:_spf.mx.cloudflare.net ~all`         | —        |
+| `send`              | MX   | `feedback-smtp.<region>.amazonses.com` (prio 10)     | DNS only |
+| `send`              | TXT  | `v=spf1 include:amazonses.com ~all`                  | —        |
+| `resend._domainkey` | TXT  | clave pública que da Resend                          | —        |
+| `_dmarc`            | TXT  | `v=DMARC1; p=none; rua=mailto:dmarc@enescena.com.ar` | —        |
 
 `ftp`, `ssh` y `mysql` sólo hacen falta mientras la landing siga en DreamHost, y
 los tres tienen que quedar en **DNS only**: el proxy de Cloudflare sólo transporta
@@ -119,7 +119,14 @@ se cargue completa antes de tocar la delegación.
    (ver arriba), y `@`, `www` y `sistema` para no mezclar el cambio de
    delegación con el de proxy. El proxy de `sistema` se activa en el paso 2.4,
    una vez confirmado que la delegación no rompió nada.
-5. Anotar los nameservers asignados y ejecutar el paso 1 (NIC.ar).
+5. Borrar los MX de MailChannels del ápex antes de activar. Si sobreviven al
+   momento en que Email Routing agrega los suyos, el entrante se reparte entre
+   los dos destinos.
+6. Anotar los nameservers asignados y ejecutar el paso 1 (NIC.ar).
+
+Email Routing (2.2) sólo se puede terminar de configurar con la zona ya activa,
+o sea después de NIC.ar. El orden real es: limpiar la zona → activar → NIC.ar →
+Email Routing.
 
 Verificar antes de seguir:
 
@@ -141,6 +148,7 @@ requiere buzones ni servidor de correo, y es gratis.
    los MX de MailChannels y el SPF de DreamHost.
 4. Rutas:
    - `acceso@enescena.com.ar` → forward a la casilla de Gmail;
+   - `dmarc@enescena.com.ar` → forward a la misma casilla, para los reportes;
    - catch-all → forward a la misma casilla (o `drop` si se prefiere silencio).
 
 Email Routing **sólo reenvía, no envía**. Eso alcanza porque el saliente lo hace
@@ -162,6 +170,17 @@ Password: <RESEND_API_KEY>
    MX nunca se proxean, pero conviene verificarlo en el MX).
 3. Esperar el `verified` en el panel de Resend.
 4. Agregar el DMARC en `p=none` para tener reportes antes de endurecer.
+
+El `rua` tiene que apuntar a una dirección del propio dominio. Un `rua` hacia un
+dominio ajeno —una casilla de Gmail, por ejemplo— exige que ese dominio publique
+una autorización cruzada (`enescena.com.ar._report._dmarc.gmail.com`), que sólo
+podría crear Google; sin ella buena parte de los proveedores no manda los
+reportes. Con `dmarc@enescena.com.ar` reenviado por Email Routing llegan igual a
+Gmail y no hay validación externa que resolver.
+
+Los reportes son XML comprimido y llegan varios por día. Para leerlos sin
+herramientas hay servicios gratuitos de digest (Postmark, dmarcian) que dan una
+dirección para el `rua` y mandan un resumen legible.
 
 ### 2.4 Proxy y WAF sobre `sistema`
 
