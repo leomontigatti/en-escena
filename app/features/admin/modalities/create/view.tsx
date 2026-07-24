@@ -33,6 +33,7 @@ export function AdministrativeEventModalityCreateView({
         <ModalityForm
           formId="create-modality-form"
           intent="create-modality"
+          submodalities={[]}
           submittedValues={getNameSubmittedValues(
             actionData,
             "create-modality",

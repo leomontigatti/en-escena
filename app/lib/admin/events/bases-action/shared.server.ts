@@ -1,3 +1,5 @@
+import type { ZodError } from "zod";
+
 import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import type {
   EventBasesDeleteResult,
@@ -233,5 +235,34 @@ export function invalidEventBasesActionResult(): EventBasesActionResult {
     code: "invalid-event-bases",
     error: "No se pudo interpretar la acción de registro de configuración.",
     fieldErrors: {},
+  };
+}
+
+/**
+ * Convierte los `issues` de una re-validación Zod server-side (PRD #465) en un
+ * `EventBasesActionResult` inválido, quedándose con el primer mensaje por campo
+ * para que el round-trip de `submittedValues`/`ActionData` repueble cada fila
+ * anidada. Compartido por las re-validaciones de modalidad y cronograma para
+ * mantener idéntico el mapeo de `path` → `fieldError`.
+ */
+export function invalidEventBasesFormResult(
+  error: ZodError,
+  message: string,
+): EventBasesActionResult {
+  const fieldErrors: Record<string, string> = {};
+
+  for (const issue of error.issues) {
+    const fieldName = issue.path.join(".");
+
+    if (fieldName && !fieldErrors[fieldName]) {
+      fieldErrors[fieldName] = issue.message;
+    }
+  }
+
+  return {
+    ok: false,
+    code: "invalid-event-bases",
+    error: message,
+    fieldErrors,
   };
 }

@@ -1,3 +1,4 @@
+import { scheduleFormSchema } from "@/features/admin/schedules/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
 import type {
   ActionErrorScope,
@@ -17,6 +18,7 @@ import {
   getRequiredErrors,
   hasEventBaseRecord,
   invalidEventBasesActionResult,
+  invalidEventBasesFormResult,
   plainEventBasesRedirect,
   withEventBasesFlashNotification,
 } from "@/lib/admin/events/bases-action/shared.server";
@@ -48,6 +50,7 @@ const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;
 
 type ScheduleActionInput = EventBasesActionBaseInput & {
   capacity: number;
+  formValues: ScheduleActionValues;
   groupType: string;
   modalityIds: string[];
   name: string;
@@ -76,6 +79,7 @@ function readScheduleActionInput(
   return {
     ...baseInput,
     capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
+    formValues: readScheduleActionValues(formData),
     groupType: String(formData.get("groupType") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
     name: String(formData.get("name") ?? ""),
@@ -201,11 +205,18 @@ async function runScheduleIntent(
   input: ScheduleActionInput,
 ): Promise<EventBasesActionResult> {
   switch (input.intent) {
-    case "create-schedule":
+    case "create-schedule": {
+      const validationError = revalidateScheduleForm(input);
+
+      if (validationError) {
+        return validationError;
+      }
+
       return createScheduleWithEntries(
         input.eventId,
         getScheduleWithEntriesInput(input),
       );
+    }
     case "update-schedule":
       return updateScheduleWithEntries(
         input.id,
@@ -317,6 +328,30 @@ function readScheduleActionValues(formData: FormData): ScheduleActionValues {
     modalityIds: formData.getAll("modalityIds").map(String),
     scheduleCapacities: readScheduleCapacityActionValuesList(formData),
   };
+}
+
+/**
+ * Re-valida en el servidor las filas anidadas del cronograma con el **mismo**
+ * esquema Zod que usa el cliente (`scheduleFormSchema`), incluyendo el
+ * `superRefine` de tipo de grupo duplicado, cerrando la asimetría
+ * cliente/servidor de los formularios de bases (PRD #465). Ante fallo devuelve
+ * el error por el canal de `EventBasesActionResult`, que el runner convierte en
+ * el round-trip de `submittedValues`/`ActionData` que repuebla el formulario y
+ * sus cupos.
+ */
+function revalidateScheduleForm(
+  input: ScheduleActionInput,
+): EventBasesActionResult | null {
+  const result = scheduleFormSchema.safeParse(input.formValues);
+
+  if (result.success) {
+    return null;
+  }
+
+  return invalidEventBasesFormResult(
+    result.error,
+    "Revisá los datos del cronograma.",
+  );
 }
 
 function getScheduleMutationRequiredFieldErrors(

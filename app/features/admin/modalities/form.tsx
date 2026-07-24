@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
-import { z } from "zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -21,7 +20,6 @@ import type {
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createValidatedRouteSubmitHandler,
-  requiredFieldMessage,
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
@@ -29,20 +27,8 @@ import {
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import { basePath, type EventSubmodalityRow } from "./shared";
+import { modalityFormSchema, type ModalityFormValues } from "./view-shared";
 
-const nameFormSchema = z.object({
-  name: z.string().trim().min(1, requiredFieldMessage),
-});
-
-const submodalityFormSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, requiredFieldMessage),
-});
-const modalityFormSchema = nameFormSchema.extend({
-  submodalities: z.array(submodalityFormSchema),
-});
-
-type ModalityFormValues = z.infer<typeof modalityFormSchema>;
 type ModalityFormController = UseFormReturn<ModalityFormValues>;
 
 function ModalityForm({
