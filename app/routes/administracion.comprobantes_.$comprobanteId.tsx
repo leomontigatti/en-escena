@@ -1,5 +1,3 @@
-import { useActionData } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleComprobanteDetailAction,
@@ -12,10 +10,8 @@ import { formatComprobanteNumber } from "@/lib/comprobantes/format";
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId";
 
 type LoaderData = ComprobanteDetailLoaderData;
-type ActionData = Awaited<ReturnType<typeof action>>;
 
 type AdministracionComprobanteDetalleRouteProps = {
-  actionData?: ActionData;
   loaderData: LoaderData;
 };
 
@@ -49,12 +45,5 @@ export async function action({ request, params }: Route.ActionArgs) {
 export default function AdministracionComprobanteDetalleRoute({
   loaderData,
 }: AdministracionComprobanteDetalleRouteProps) {
-  const actionData = useActionData<typeof action>();
-
-  return (
-    <AdministracionComprobanteDetalleRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
-  );
+  return <AdministracionComprobanteDetalleRouteView loaderData={loaderData} />;
 }

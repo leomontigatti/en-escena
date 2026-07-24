@@ -38,7 +38,6 @@ import {
 } from "./shared";
 
 type AdministracionComprobanteDetalleRouteViewProps = {
-  actionData?: ComprobanteDetailActionData;
   // Permite a los tests montar el diálogo de anulación abierto sin depender de
   // abrir el menú de acciones (que vive en un portal), igual que el detalle de
   // pago con su diálogo de borrado.
@@ -54,7 +53,6 @@ type AdministracionComprobanteDetalleRouteViewProps = {
  * cuyo copy dice la verdad: la salida real es una Nota de crédito.
  */
 export function AdministracionComprobanteDetalleRouteView({
-  actionData,
   initialAnnulDialogOpen = false,
   loaderData,
 }: AdministracionComprobanteDetalleRouteViewProps) {
@@ -99,7 +97,6 @@ export function AdministracionComprobanteDetalleRouteView({
 
       {comprobante.canAnnul ? (
         <AnnulDialog
-          actionData={actionData}
           comprobante={comprobante}
           open={isAnnulDialogOpen}
           onOpenChange={setIsAnnulDialogOpen}
@@ -222,18 +219,21 @@ function DetailRow({
  * la anulación se materializa emitiendo una Nota de crédito espejo.
  */
 function AnnulDialog({
-  actionData,
   comprobante,
   open,
   onOpenChange,
 }: {
-  actionData?: ComprobanteDetailActionData;
   comprobante: ComprobanteDetail;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const fetcher = useFetcher();
+  // El feedback del action viaja por `fetcher.data`, no por `useActionData`: el
+  // form se envía con el fetcher, así que la respuesta (rechazo/contingencia de
+  // ARCA) vuelve acá y no al `actionData` de la ruta. El camino feliz redirige y
+  // el fetcher lo sigue, revalidando el detalle (que deja de ser anulable).
+  const fetcher = useFetcher<ComprobanteDetailActionData>();
   const isSaving = fetcher.state !== "idle";
+  const actionData = fetcher.data;
   const contingency = actionData?.status === "annul-error" ? actionData : null;
   const genericError =
     actionData?.status === "error" ? actionData.message : null;
