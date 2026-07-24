@@ -7,23 +7,12 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import {
-  DestroyButton,
-  SubmitButton,
-} from "@/components/shared/action-buttons";
+import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -46,11 +35,13 @@ import {
 export type AdministrativeEventDetailViewProps = {
   actionData?: AdministrativeEventDetailActionData;
   loaderData: AdministrativeEventDetailLoaderData;
+  initialDeleteDialogOpen?: boolean;
 };
 
 export function AdministrativeEventDetailView({
   loaderData,
   actionData,
+  initialDeleteDialogOpen = false,
 }: AdministrativeEventDetailViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
@@ -67,7 +58,12 @@ export function AdministrativeEventDetailView({
       title="Editar evento"
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}
-      headerAction={<EventActions event={loaderData.event} />}
+      headerAction={
+        <EventActions
+          event={loaderData.event}
+          initialDeleteDialogOpen={initialDeleteDialogOpen}
+        />
+      }
     >
       <AlertStack>
         {!loaderData.registrationReadiness.isReady ? (
@@ -170,10 +166,14 @@ function EditEventPanel({
 
 function EventActions({
   event,
+  initialDeleteDialogOpen = false,
 }: {
   event: AdministrativeEventDetailLoaderData["event"];
+  initialDeleteDialogOpen?: boolean;
 }) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(
+    initialDeleteDialogOpen,
+  );
 
   return (
     <>
@@ -216,53 +216,15 @@ function EventActions({
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </ResourceActionsMenu>
-      <DeleteEventDialog
-        event={event}
+      <DeleteDialog
+        title="Eliminar evento"
+        description={`Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`}
+        intentValue="delete"
+        recordId={event.id}
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
       />
     </>
-  );
-}
-
-function DeleteEventDialog({
-  event,
-  open,
-  onOpenChange,
-}: {
-  event: AdministrativeEventDetailLoaderData["event"];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, {
-    intent: "delete",
-    fields: { confirmDeletion: event.id },
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Eliminar evento</DialogTitle>
-          <DialogDescription>
-            Esta acción no se puede deshacer. Se va a eliminar {event.name}.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancelar
-            </Button>
-          </DialogClose>
-          <form method="post" action={eventActionPath(event.id)}>
-            <input type="hidden" name="intent" value="delete" />
-            <input type="hidden" name="confirmDeletion" value={event.id} />
-            <DestroyButton isPending={isPending} />
-          </form>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

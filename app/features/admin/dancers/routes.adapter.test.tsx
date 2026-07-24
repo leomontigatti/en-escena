@@ -98,7 +98,7 @@ describe("administracion.bailarines route adapters", () => {
         active: true,
         birthDate: "2012-07-12",
         choreographyNames: [],
-        correctionReasonRequired: false,
+        editConsequence: null,
         createdAt: new Date("2026-01-10T12:00:00.000Z"),
         documentBackImageStorageKey: "document-back",
         documentFrontImageStorageKey: "document-front",
@@ -127,7 +127,13 @@ describe("administracion.bailarines route adapters", () => {
       message: "Revisá los campos marcados.",
       status: "error" as const,
       values: {
-        correctionReason: "",
+        birthDate: "2000-01-01",
+        documentBackImageStorageKey: "document-back",
+        documentFrontImageStorageKey: "document-front",
+        documentNumber: "12345678",
+        documentType: "dni",
+        firstName: "Julia",
+        lastName: "Diaz",
       },
     };
 

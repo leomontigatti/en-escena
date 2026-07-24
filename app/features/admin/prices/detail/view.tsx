@@ -14,12 +14,14 @@ export type AdministrativeEventPriceDetailViewProps = {
   actionData?: AdministrativeEventPriceActionData;
   loaderData: AdministrativeEventPriceDetailLoaderData;
   priceId: string;
+  initialDeleteDialogOpen?: boolean;
 };
 
 export function AdministrativeEventPriceDetailView({
   loaderData,
   actionData,
   priceId,
+  initialDeleteDialogOpen = false,
 }: AdministrativeEventPriceDetailViewProps) {
   useServerActionToast(actionData);
 
@@ -34,7 +36,14 @@ export function AdministrativeEventPriceDetailView({
           ? "Editá el alcance, importe y fecha límite de pago."
           : "No encontramos ese precio dentro del evento activo."
       }
-      headerAction={price ? <PriceActions price={price} /> : null}
+      headerAction={
+        price ? (
+          <PriceActions
+            price={price}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+          />
+        ) : null
+      }
     >
       {price ? (
         <div className="flex flex-col gap-6">

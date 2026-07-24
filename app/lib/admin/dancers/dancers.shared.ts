@@ -1,7 +1,5 @@
 export const adminDancerPageSize = 50;
 export const adminDancerNotFoundMessage = "No encontramos ese Bailarín.";
-export const adminDancerCorrectionReasonMessage =
-  "Ingresá un motivo de corrección para guardar este cambio.";
 
 export type AdminDancerParticipationFilter = "yes" | "no" | "all";
 export type AdminDancerStatusFilter = "active" | "archived" | "all";
