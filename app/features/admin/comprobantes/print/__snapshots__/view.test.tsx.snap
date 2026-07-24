@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderComprobantePrintDocument > coincide con el snapshot del impreso 1`] = `
+"<!DOCTYPE html><html lang="es"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Factura C 0003-00000007 | En Escena</title><style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111827;
+    margin: 0;
+    padding: 24px;
+    background: #f3f4f6;
+  }
+  .sheet {
+    max-width: 720px;
+    margin: 0 auto;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    padding: 32px;
+  }
+  .toolbar { max-width: 720px; margin: 0 auto 16px; text-align: right; }
+  .toolbar button {
+    font: inherit;
+    padding: 8px 16px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .header .letra {
+    border: 1px solid #111827;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+  }
+  .titulo { font-size: 20px; font-weight: 700; margin: 0; }
+  .codigo { color: #6b7280; font-size: 12px; }
+  .numero, .fecha { margin: 2px 0; }
+  .block { margin-top: 24px; }
+  .block h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin: 0 0 6px;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
+  td.importe, th.importe { text-align: right; }
+  .total { text-align: right; font-size: 18px; font-weight: 700; margin-top: 12px; }
+  .servicio { margin-top: 12px; font-size: 13px; color: #374151; }
+  .servicio p { margin: 2px 0; }
+  .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; gap: 24px; }
+  .qr svg { width: 140px; height: 140px; }
+  .cae { text-align: right; }
+  .estado { display: inline-block; padding: 2px 8px; border: 1px solid #111827; border-radius: 999px; font-size: 12px; }
+  @media print {
+    body { background: #ffffff; padding: 0; }
+    .sheet { border: none; }
+    .no-print { display: none !important; }
+  }
+</style></head><body><div class="toolbar no-print"><button type="button" id="print-button">Imprimir</button></div><div class="sheet"><div class="header"><div><p class="titulo">Factura C</p><p class="codigo">Cód. 011</p><p class="numero"><strong>N°:</strong> 0003-00000007</p><p class="fecha"><strong>Fecha de emisión:</strong> 22/07/2026</p><p class="codigo">Evento: Certamen 2026</p></div><div class="letra" aria-hidden="true">C</div></div><div class="block"><h2>Emisor</h2><p><strong>Proyecciones Artísticas Asociación Civil</strong></p><p>CUIT: 30717611590</p><p>Condición frente al IVA: IVA Exento</p></div><div class="block"><h2>Receptor</h2><p>Condición frente al IVA: Consumidor Final</p><p>Academia Alfa — Coreografía Alfa</p></div><div class="block"><h2>Detalle</h2><table><thead><tr><th>Descripción</th><th class="importe">Importe</th></tr></thead><tbody><tr><td>Total — Coreografía Alfa</td><td class="importe">$ 25.000</td></tr></tbody></table><p class="total">Total: $ 25.000</p></div><div class="footer"><div class="qr"><span aria-label="Código QR de verificación ARCA" data-qr-url="https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNi0wNy0yMiIsImN1aXQiOjMwNzE3NjExNTkwLCJwdG9WdGEiOjMsInRpcG9DbXAiOjExLCJucm9DbXAiOjcsImltcG9ydGUiOjI1MDAwLCJtb25lZGEiOiJQRVMiLCJjdHoiOjEsInRpcG9Eb2NSZWMiOjk5LCJucm9Eb2NSZWMiOjAsInRpcG9Db2RBdXQiOiJFIiwiY29kQXV0IjoxMTExMjIyMjMzMzM0NH0="><svg data-testid="qr-stub"></svg></span><p class="codigo">Comprobante Autorizado</p></div><div class="cae"><p><strong>CAE N°:</strong> 11112222333344</p><p><strong>Vto. CAE:</strong> 01/08/2026</p><p>Estado: <span class="estado">Vigente</span></p></div></div></div><script>document.getElementById('print-button')?.addEventListener('click',function(){window.print();});</script></body></html>"
+`;

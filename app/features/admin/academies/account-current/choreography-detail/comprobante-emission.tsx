@@ -1,0 +1,209 @@
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { useFetcher } from "react-router";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
+import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
+import { lowercaseFirst } from "@/lib/shared/utils";
+
+import { formatAmount } from "../formatters";
+import {
+  emitComprobanteConfirmValue,
+  emitComprobanteIntent,
+  type ArcaContingency,
+  type ChoreographyFinanceActionData,
+} from "./shared";
+
+/**
+ * Confirmación de emisión como `AlertDialog` (#480, ADR-0011): foco atrapado, no
+ * se cierra al clickear afuera y expone `role="alertdialog"`. Sin checkbox: la
+ * confirmación es el diálogo mismo. La porción y el importe llegan derivados de
+ * lo cobrado, así que la operadora no puede emitir por otro monto ni elegir otra
+ * porción; sólo previsualiza y confirma o cancela. El `confirm` viaja como campo
+ * oculto —palabra clave de submit deliberado que el server exige— no como tilde.
+ *
+ * Controlado desde el menú de acciones del header (ADR-0011): la afordancia
+ * `Emitir factura` es un item del `ResourceActionsMenu`, no un botón aparte, y sólo
+ * se monta con remanente por facturar.
+ */
+export function EmissionDialog({
+  billableAmount,
+  porcion,
+  open,
+  onOpenChange,
+}: {
+  billableAmount: number;
+  porcion: ComprobantePorcion | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const fetcher = useFetcher<ChoreographyFinanceActionData>();
+  const isSaving = fetcher.state !== "idle";
+  const contingency =
+    fetcher.data?.status === "emission-error" ? fetcher.data : null;
+  const genericError =
+    fetcher.data?.status === "error" ? fetcher.data.message : null;
+
+  function handleOpenChange(next: boolean) {
+    if (isSaving) {
+      return;
+    }
+    onOpenChange(next);
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Emitir Factura C</AlertDialogTitle>
+          <AlertDialogDescription>
+            Vas a emitir una factura C por {formatAmount(billableAmount)} (
+            {lowercaseFirst(porcionLabel(porcion))}). Una vez emitida, sólo
+            puede revertirse con una nota de crédito.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input type="hidden" name="intent" value={emitComprobanteIntent} />
+          <input
+            type="hidden"
+            name="confirm"
+            value={emitComprobanteConfirmValue}
+          />
+
+          <EmissionPreview billableAmount={billableAmount} porcion={porcion} />
+
+          {contingency ? (
+            <ContingencyAlert
+              message={contingency.message}
+              contingency={contingency.contingency}
+            />
+          ) : null}
+
+          {genericError ? (
+            <Alert variant="destructive">
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>{genericError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button" disabled={isSaving}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? (
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="animate-spin"
+                  data-icon="inline-start"
+                />
+              ) : (
+                <Check aria-hidden="true" data-icon="inline-start" />
+              )}
+              Confirmar emisión
+            </Button>
+          </AlertDialogFooter>
+        </fetcher.Form>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/**
+ * Detalle a facturar. Enuncia la porción derivada y el importe, más las reglas de
+ * dominio congeladas del comprobante (#320): receptor consumidor final anónimo y
+ * emisor exento frente al IVA.
+ */
+function EmissionPreview({
+  billableAmount,
+  porcion,
+}: {
+  billableAmount: number;
+  porcion: ComprobantePorcion | null;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-md border bg-muted/50 px-3 py-2">
+      <PreviewRow label="Comprobante" value="Factura C" />
+      <PreviewRow label="Porción" value={porcionLabel(porcion)} />
+      <PreviewRow label="Receptor" value="Consumidor final" />
+      <PreviewRow label="Emisor" value="Exento de IVA" />
+      <PreviewRow
+        label="Total a facturar"
+        strong
+        value={formatAmount(billableAmount)}
+      />
+    </div>
+  );
+}
+
+/**
+ * Etiqueta legible de la porción derivada. `null` no debería llegar acá (el
+ * diálogo sólo se monta con remanente por facturar), pero se rotula defensivo.
+ */
+function porcionLabel(porcion: ComprobantePorcion | null): string {
+  return porcion ? formatComprobantePorcionLabel(porcion) : "—";
+}
+
+function PreviewRow({
+  label,
+  strong = false,
+  value,
+}: {
+  label: string;
+  strong?: boolean;
+  value: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span
+        className={
+          strong ? "text-sm font-medium tabular-nums" : "text-sm tabular-nums"
+        }
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Estado de contingencia de ARCA. Presenta el mensaje general y cada error u
+ * observación crudos: la emisión no se completó y no se persistió nada, así que
+ * la operadora puede reintentar sin que la UI quede en un estado inconsistente.
+ */
+export function ContingencyAlert({
+  contingency,
+  message,
+}: {
+  contingency: ArcaContingency;
+  message: string;
+}) {
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle aria-hidden="true" />
+      <AlertDescription>
+        <div className="flex flex-col gap-1">
+          <span>{message}</span>
+          {contingency.errors.map((error) => (
+            <span key={error}>{error}</span>
+          ))}
+          {contingency.observaciones.map((observacion) => (
+            <span key={observacion}>{observacion}</span>
+          ))}
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
+}

@@ -39,7 +39,7 @@ describe("AdministracionProfesorDetalleRouteView", () => {
         isEditing: false,
         professor: professorDetail({
           active: false,
-          correctionReasonRequired: true,
+          editConsequence: "participated",
           documentNumber: null,
           documentType: null,
           isIncomplete: true,
@@ -66,11 +66,9 @@ describe("AdministracionProfesorDetalleRouteView", () => {
         status: "error",
         message: "Revisá los campos marcados.",
         fieldErrors: {
-          correctionReason:
-            "Ingresá un motivo de corrección para guardar este cambio.",
+          documentNumber: "Ingresá el número de documento.",
         },
         values: {
-          correctionReason: "",
           documentNumber: "",
           documentType: "",
           firstName: "Mora",
@@ -84,7 +82,7 @@ describe("AdministracionProfesorDetalleRouteView", () => {
         editHref: "/administracion/profesores/profesor_1?modo=editar",
         isEditing: true,
         professor: professorDetail({
-          correctionReasonRequired: true,
+          editConsequence: "participated",
           firstName: "Julia",
           lastName: "Detalle",
         }),
@@ -144,7 +142,7 @@ function professorDetail(
     },
     active: true,
     choreographyNames: ["Raíz"],
-    correctionReasonRequired: false,
+    editConsequence: null,
     createdAt: new Date("2026-01-10T12:00:00Z"),
     documentNumber: "AA123456",
     documentType: "passport" as const,

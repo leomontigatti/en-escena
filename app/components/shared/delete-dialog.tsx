@@ -3,16 +3,15 @@ import { AlertCircleIcon } from "lucide-react";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 function DeleteDialog({
@@ -50,28 +49,32 @@ function DeleteDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader className="gap-3">
-          <DialogTitle>{isBlocked ? blockedTitle : title}</DialogTitle>
-          <Alert variant={isBlocked ? "warning" : "destructive"}>
-            <AlertCircleIcon aria-hidden="true" />
-            <AlertDescription>
-              {isBlocked
-                ? (blockedDescription ??
-                  "Esta acción no está disponible para este registro.")
-                : "Esta acción es irreversible."}
-            </AlertDescription>
-          </Alert>
-          <DialogDescription>{description}</DialogDescription>
-          {details}
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" disabled={isPending}>
-              {isBlocked ? "Cerrar" : "Cancelar"}
-            </Button>
-          </DialogClose>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent
+        onEscapeKeyDown={(event) => {
+          event.preventDefault();
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {isBlocked ? blockedTitle : title}
+          </AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <Alert variant={isBlocked ? "warning" : "destructive"}>
+          <AlertCircleIcon aria-hidden="true" />
+          <AlertDescription>
+            {isBlocked
+              ? (blockedDescription ??
+                "Esta acción no está disponible para este registro.")
+              : "Esta acción es irreversible."}
+          </AlertDescription>
+        </Alert>
+        {details}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>
+            {isBlocked ? "Cerrar" : "Cancelar"}
+          </AlertDialogCancel>
           {isBlocked ? null : (
             <form method="post">
               <input type="hidden" name="intent" value={intentValue} />
@@ -84,9 +87,9 @@ function DeleteDialog({
               <DestroyButton isPending={isPending} />
             </form>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

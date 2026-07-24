@@ -25,6 +25,22 @@ export function formatOperationalAmount(amount: OperationalFinanceAmount) {
   return formatAmount(amount.amount);
 }
 
+/**
+ * Total operativo de la coreografía: seña + saldo. Si alguna porción todavía no
+ * tiene precio (incompleta) el total no es computable, así que se rotula
+ * "Pendiente" igual que cada porción por separado.
+ */
+export function formatTotalAmount(
+  deposit: OperationalFinanceAmount,
+  balance: OperationalFinanceAmount,
+) {
+  if (deposit.status === "incomplete" || balance.status === "incomplete") {
+    return "Pendiente";
+  }
+
+  return formatAmount(deposit.amount + balance.amount);
+}
+
 export function formatDate(value: string) {
   return paymentDateFormatter.format(new Date(`${value}T00:00:00Z`));
 }

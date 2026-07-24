@@ -21,6 +21,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { validateSubmodalitySelection } from "@/lib/choreographies/registration-resolution.server";
 import {
@@ -587,7 +588,10 @@ async function getAdministrativeChoreographyDeleteBlockers(
     "hasPresentation" | "id"
   >,
 ): Promise<AdministrativeChoreographyDeleteBlocker[]> {
-  const hasScores = await hasScoresForChoreography(choreography.id);
+  const [hasScores, hasComprobantes] = await Promise.all([
+    hasScoresForChoreography(choreography.id),
+    choreographyHasComprobantes(choreography.id),
+  ]);
   const blockers: AdministrativeChoreographyDeleteBlocker[] = [];
 
   if (choreography.hasPresentation) {
@@ -596,6 +600,13 @@ async function getAdministrativeChoreographyDeleteBlockers(
 
   if (hasScores) {
     blockers.push({ code: "scores", label: "puntajes" });
+  }
+
+  // Historia fiscal: cualquier comprobante ARCA (vigente, anulado o NC) ancla la
+  // coreografía de forma irreversible. Guarda server-side de #340, evaluada acá
+  // recién antes del borrado por si se emitió entre el render y el click.
+  if (hasComprobantes) {
+    blockers.push({ code: "comprobantes", label: "comprobantes" });
   }
 
   return blockers;
