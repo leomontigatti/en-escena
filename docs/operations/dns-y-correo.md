@@ -193,12 +193,35 @@ dirección para el `rua` y mandan un resumen legible.
 
 ### 2.4 Proxy y WAF sobre `sistema`
 
-Recién con lo anterior estable:
+Sólo se proxea `sistema`. La landing (`@`, `www`) y los servicios no-HTTP
+(`mysql`, `ssh`, `ftp`) quedan en DNS only: la landing vive en un origen de
+DreamHost que no controlamos —no se le puede instalar el Origin Cert— y el proxy
+sólo transporta HTTP/HTTPS.
 
-1. Cambiar `sistema` a **Proxied**.
-2. SSL/TLS → modo **Full (strict)**: Traefik ya sirve un certificado válido de
-   Let's Encrypt.
-3. Cargar las reglas WAF y de rate limiting descritas en #238, acotadas con
+Certificado del origen. El origen ya sirve un Let's Encrypt válido que renueva
+Traefik por ACME HTTP-01. Detrás del proxy, si "Always Use HTTPS" está activo,
+Cloudflare redirige el path `/.well-known/acme-challenge/` a HTTPS antes de que
+llegue al origen y la renovación falla en silencio. Dos salidas:
+
+- **Cloudflare Origin Certificate** (recomendado con el firewall cerrado a
+  Cloudflare, sección 3): SSL/TLS → Origin Server → Create Certificate, RSA 2048,
+  hostname `sistema.enescena.com.ar`, validez 15 años. No es una CA pública, así
+  que sólo sirve a través de Cloudflare; no se renueva. Se instala en el origen
+  como configuración dinámica de Traefik (Coolify → Server → Proxy → Dynamic
+  Configurations), con `tls.certificates` apuntando al `.crt`/`.key` subidos a
+  `/data/coolify/proxy/dynamic`. Coolify 4.1.2 no tiene UI per-app para esto.
+- **Seguir con Let's Encrypt**: agregar una Configuration Rule que desactive
+  "Always Use HTTPS"/"Automatic HTTPS Rewrites" para
+  `/.well-known/acme-challenge/*`, y mantener el puerto 80 accesible a Cloudflare.
+
+Pasos:
+
+1. Instalar el Origin Cert (o dejar la regla ACME).
+2. SSL/TLS → modo **Full (strict)**. Con Origin Cert, Cloudflare confía en su
+   propia CA; con Let's Encrypt, el cert es público y también valida.
+3. Cambiar `sistema` a **Proxied** y verificar el 302 → `/ingresar` con `cf-ray`
+   en los headers.
+4. Cargar las reglas WAF y de rate limiting descritas en #238, acotadas con
    `http.host eq "sistema.enescena.com.ar"`.
 
 Dos consideraciones propias de esta app:
@@ -217,19 +240,26 @@ Dos consideraciones propias de esta app:
 
 ## 3. Hostinger
 
-El firewall de la VPS ya quedó en default-deny con SSH restringido (#238). Con
-Cloudflare delante, el paso siguiente **opcional** es aceptar 80/443 sólo desde
-los rangos de Cloudflare (`https://www.cloudflare.com/ips-v4`), de modo que nadie
-pueda saltear el WAF pegándole directo a `72.60.59.2`.
+El firewall de la VPS ya quedó en default-deny con SSH restringido (#238). El
+paso que hace inescapable al WAF es aceptar el `443` sólo desde los rangos de
+Cloudflare: mientras `443` esté abierto a `0.0.0.0/0`, cualquiera puede pegarle
+directo a `72.60.59.2` con SNI y saltear el WAF.
 
-Antes de hacerlo:
+- **Sacar**: la regla `Accept 443 from 0.0.0.0/0`.
+- **Agregar**: una regla `Accept TCP 443` por cada rango de
+  `https://www.cloudflare.com/ips-v4` (15 rangos IPv4).
+- **Mantener** `Accept 80 from 0.0.0.0/0`: con Origin Cert no hay ACME que
+  proteger, y con el `443` cerrado el `80` no da acceso a la app (todo redirige a
+  HTTPS, que sólo entra por Cloudflare). Dejarlo abierto ahorra 15 reglas.
+- **Mantener** las dos reglas SSH y el `Drop` final.
 
-- son ~15 rangos IPv4 y el firewall de Hostinger tiene un tope de reglas;
-- si `sistema` volviera a DNS only por cualquier motivo, el sitio queda
-  inaccesible hasta reabrir los puertos.
+Cuidados:
 
-No es un prerrequisito de nada: sin esta restricción Cloudflare igual filtra todo
-el tráfico que resuelve por DNS, que es la enorme mayoría.
+- Hacerlo **último**, después de proxear `sistema` y verificar. Cerrar el `443` a
+  Cloudflare con `sistema` todavía en DNS only bloquea el acceso propio.
+- Darle a "Sincronizar" o los cambios no se aplican.
+- Si la IP de origen de SSH es dinámica y cambia, la regla deja afuera. Ya era
+  así antes de esta migración.
 
 ## 4. Coolify
 
@@ -248,32 +278,22 @@ Conviene `acceso@` antes que `no-reply@`: con Email Routing las respuestas de
 usuarios confundidos llegan a alguien, y los remitentes `no-reply` tienen peor
 reputación en los filtros.
 
-### Traefik detrás del proxy
+### Traefik detrás del proxy: no se toca
 
-Con Cloudflare proxeando `sistema`, la IP de origen que ve Traefik pasa a ser la
-de Cloudflare. Eso invalida el middleware de rate limit propuesto en #238, que
-agrupa por IP: todas las requests parecerían venir de un puñado de IPs y el
-límite castigaría a todo el tráfico junto. Hay que agrupar por `CF-Connecting-IP`:
+El middleware de rate limit propuesto en #238 se pensó antes de tener Cloudflare.
+Con el WAF y el rate limiting corriendo en el edge de Cloudflare (sección 2.4) y
+el firewall cerrado a los rangos de Cloudflare (sección 3), ese middleware queda
+como una tercera línea redundante que aporta poco margen y cuesta configurar
+(labels de la app + configuración dinámica). Se omite.
 
-```yaml
-http:
-  middlewares:
-    en-escena-ratelimit:
-      rateLimit:
-        average: 30
-        period: 1s
-        burst: 90
-        sourceCriterion:
-          requestHeaderName: CF-Connecting-IP
-```
+Si alguna vez se lo reintroduce, hay que corregir un error del planteo de #238:
+detrás del proxy la IP de origen que ve Traefik es la de Cloudflare, así que el
+middleware tiene que agrupar por `CF-Connecting-IP`
+(`sourceCriterion.requestHeaderName: CF-Connecting-IP`) o castigaría a todo el
+tráfico junto. Ese header sólo es confiable con el origen cerrado a Cloudflare.
 
-Ese header se lee sin validar su procedencia, así que sólo es confiable si nadie
-puede pegarle directo al origen: es el argumento a favor de restringir 80/443 a
-los rangos de Cloudflare (sección 3).
-
-Conviene además declarar los rangos de Cloudflare en
-`entryPoints.websecure.forwardedHeaders.trustedIPs` para que `X-Forwarded-For` y
-`X-Forwarded-Proto` sean confiables.
+El `forwardedHeaders.trustedIPs` sólo haría falta si la app leyera la IP del
+cliente para logs o lógica; hoy no la lee (sección 5), así que tampoco se toca.
 
 ## 5. Código
 
