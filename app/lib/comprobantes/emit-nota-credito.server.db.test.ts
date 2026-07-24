@@ -159,6 +159,12 @@ async function recordFactura(input: {
   inscriptionId: string;
   amount: number;
   cbteNro: number;
+  // Fechas de servicio opcionales: los comprobantes emitidos post-ADR-0011 las
+  // llevan (Concepto 2); el seed viejo no (Concepto 1). La Nota de crédito espeja
+  // lo que el original tenga.
+  fchServDesde?: string;
+  fchServHasta?: string;
+  fchVtoPago?: string;
 }) {
   return await recordComprobante({
     choreographyId: input.choreographyId,
@@ -168,6 +174,9 @@ async function recordFactura(input: {
     cbteNro: input.cbteNro,
     cbteFch: "20260701",
     impTotal: input.amount,
+    fchServDesde: input.fchServDesde ?? null,
+    fchServHasta: input.fchServHasta ?? null,
+    fchVtoPago: input.fchVtoPago ?? null,
     issuerCuit: "30717611590",
     issuerIvaCondition: "exento",
     receptorDocTipo: 99,
@@ -240,6 +249,42 @@ describe("annulComprobante", () => {
       associatedComprobanteId: factura.id,
       status: "vigente",
     });
+  });
+
+  test("la Nota de crédito reenvía las fechas de servicio del comprobante que anula", async () => {
+    // Regresión (10049): la emisión es siempre Concepto 2, así que la NC debe
+    // reenviar las tres fechas del comprobante que anula. Antes salía Concepto 2
+    // sin fechas y ARCA la rechazaba.
+    const { academy, choreography, inscription } =
+      await seedChoreographyWithInscription(
+        `concepto2.${crypto.randomUUID()}@example.com`,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 8000,
+    });
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 8000,
+      cbteNro: 80,
+      fchServDesde: "20261010",
+      fchServHasta: "20261031",
+      fchVtoPago: "20260723",
+    });
+
+    const deps = annulDeps(fakeBilling());
+    expectOk(await annulComprobante({ comprobanteId: factura.id }, deps));
+
+    const sent = vi.mocked(deps.billing.createVoucher).mock
+      .calls[0][0] as ArcaVoucher;
+    expect(sent.Concepto).toBe(2);
+    expect(sent.FchServDesde).toBe("20261010");
+    expect(sent.FchServHasta).toBe("20261031");
+    expect(sent.FchVtoPago).toBe("20260723");
   });
 
   test("la Nota de crédito replica las líneas internas del comprobante anulado", async () => {

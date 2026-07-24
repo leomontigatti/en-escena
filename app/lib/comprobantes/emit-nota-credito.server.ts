@@ -95,6 +95,14 @@ export async function annulComprobante(
     importe: target.impTotal,
     condicionIvaReceptorId: deps.receptorIvaConditionId,
     emisorCuit: deps.issuerCuit,
+    // La NC reenvía las fechas de servicio del comprobante que anula. La emisión
+    // es siempre Concepto 2 (servicios, regla de negocio), y ARCA exige
+    // `FchServ*`/`FchVtoPago` para Concepto 2: sin reenviarlas la NC salía sin
+    // fechas → rechazo 10049. Los comprobantes reales siempre las tienen; sólo un
+    // seed viejo de la base de test quedó sin fechas (Concepto 1, pre-fix).
+    fchServDesde: target.fchServDesde ?? undefined,
+    fchServHasta: target.fchServHasta ?? undefined,
+    fchVtoPago: target.fchVtoPago ?? undefined,
     asociado: {
       cbteTipo: target.cbteTipo,
       ptoVta: target.ptoVta,
