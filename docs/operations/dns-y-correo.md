@@ -124,9 +124,18 @@ se cargue completa antes de tocar la delegación.
    los dos destinos.
 6. Anotar los nameservers asignados y ejecutar el paso 1 (NIC.ar).
 
-Email Routing (2.2) sólo se puede terminar de configurar con la zona ya activa,
-o sea después de NIC.ar. El orden real es: limpiar la zona → activar → NIC.ar →
-Email Routing.
+Email Routing (2.2) sólo se puede configurar con la zona ya activa, o sea después
+de NIC.ar y de que propague la delegación. Eso incluye su botón "Add missing
+records": tampoco escribe los registros con la zona pendiente. El orden real es:
+limpiar la zona → activar → NIC.ar → esperar la propagación → Email Routing.
+
+La propagación de un `.com.ar` no es inmediata: NIC.ar aplica los cambios de
+delegación por tandas, y los NS del TLD se publican con TTL 7200. Para ver el
+estado real sin el caché de los resolvers, consultar directamente al TLD:
+
+```sh
+dig @c.dns.ar +norecurse +noall +authority enescena.com.ar NS
+```
 
 Verificar antes de seguir:
 
