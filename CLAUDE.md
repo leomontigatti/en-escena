@@ -17,6 +17,8 @@
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
 - **Domain docs** (layout de contexto único): [docs/agents/domain.md](docs/agents/domain.md).
 - **Operación local y auth** (DB, Supabase Auth, email-log): [docs/local-auth.md](docs/local-auth.md).
+- **DNS y correo** (zona en Cloudflare, entrante por Email Routing, saliente por
+  Resend): [docs/operations/dns-y-correo.md](docs/operations/dns-y-correo.md).
 - **Fallow** (auditoría e investigación, no gate de commit): [docs/agents/fallow.md](docs/agents/fallow.md).
 - **Plataforma AFK** (spec de los 8 workflows, fuente de verdad; vendorizado de Matt Pocock):
   [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); qué se
