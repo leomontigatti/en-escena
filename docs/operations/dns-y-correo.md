@@ -198,31 +198,73 @@ Sólo se proxea `sistema`. La landing (`@`, `www`) y los servicios no-HTTP
 DreamHost que no controlamos —no se le puede instalar el Origin Cert— y el proxy
 sólo transporta HTTP/HTTPS.
 
-Certificado del origen. El origen ya sirve un Let's Encrypt válido que renueva
-Traefik por ACME HTTP-01. Detrás del proxy, si "Always Use HTTPS" está activo,
-Cloudflare redirige el path `/.well-known/acme-challenge/` a HTTPS antes de que
-llegue al origen y la renovación falla en silencio. Dos salidas:
+Certificado del origen. El origen sirve un Let's Encrypt válido que renueva
+Traefik por ACME HTTP-01. En este stack **se decidió quedarse con Let's Encrypt**:
+Coolify lo gestiona y renueva nativamente, y la renovación funciona detrás del
+proxy sin configuración extra. Lo que hay que evitar es que Cloudflare redirija
+el path `/.well-known/acme-challenge/` a HTTPS antes de que llegue al origen; se
+verifica que pase:
 
-- **Cloudflare Origin Certificate** (recomendado con el firewall cerrado a
-  Cloudflare, sección 3): SSL/TLS → Origin Server → Create Certificate, RSA 2048,
-  hostname `sistema.enescena.com.ar`, validez 15 años. No es una CA pública, así
-  que sólo sirve a través de Cloudflare; no se renueva. Se instala en el origen
-  como configuración dinámica de Traefik (Coolify → Server → Proxy → Dynamic
-  Configurations), con `tls.certificates` apuntando al `.crt`/`.key` subidos a
-  `/data/coolify/proxy/dynamic`. Coolify 4.1.2 no tiene UI per-app para esto.
-- **Seguir con Let's Encrypt**: agregar una Configuration Rule que desactive
-  "Always Use HTTPS"/"Automatic HTTPS Rewrites" para
-  `/.well-known/acme-challenge/*`, y mantener el puerto 80 accesible a Cloudflare.
+```sh
+curl -sSI http://sistema.enescena.com.ar/.well-known/acme-challenge/test
+```
+
+Un `404` (respondido por el origen) significa que el desafío pasa y la renovación
+va a funcionar. Un `301` a HTTPS significa que "Always Use HTTPS" está redirigiendo
+el path: crear una Page Rule para `*sistema.enescena.com.ar/.well-known/acme-challenge/*`
+con "Always Use HTTPS: Off". En la puesta en marcha dio `404`, así que no hizo
+falta la regla.
+
+Se evaluó un **Cloudflare Origin Certificate** (SSL/TLS → Origin Server, 15 años,
+sin ACME). No se adoptó: el router de la app que genera Coolify trae
+`certResolver: letsencrypt`, y agregar el cert al store de Traefik
+(`tls.certificates` en la Dynamic Configuration) no desactiva ese resolver —
+Traefik sigue sirviendo el Let's Encrypt. Forzar el Origin Cert exigiría editar
+las labels que Coolify regenera en cada deploy, más frágil que dejar el Let's
+Encrypt que ya renueva solo. El Origin Cert, si se generó, queda inofensivo en el
+store como fallback (Full (strict) acepta tanto el Let's Encrypt público como la
+CA de origen de Cloudflare).
 
 Pasos:
 
-1. Instalar el Origin Cert (o dejar la regla ACME).
-2. SSL/TLS → modo **Full (strict)**. Con Origin Cert, Cloudflare confía en su
-   propia CA; con Let's Encrypt, el cert es público y también valida.
-3. Cambiar `sistema` a **Proxied** y verificar el 302 → `/ingresar` con `cf-ray`
+1. SSL/TLS → modo **Full (strict)**.
+2. Cambiar `sistema` a **Proxied** y verificar el 302 → `/ingresar` con `cf-ray`
    en los headers.
-4. Cargar las reglas WAF y de rate limiting descritas en #238, acotadas con
-   `http.host eq "sistema.enescena.com.ar"`.
+3. Verificar el path ACME (arriba); agregar la Page Rule sólo si redirige.
+4. Cargar las reglas WAF y de rate limiting (abajo).
+
+Reglas cargadas en Security → WAF, acotadas al host de la app:
+
+- **Custom rule** (acción **Block**) contra scanners:
+
+  ```
+  (http.host eq "sistema.enescena.com.ar") and (
+    starts_with(http.request.uri.path, "/.env") or
+    starts_with(http.request.uri.path, "/.git") or
+    starts_with(http.request.uri.path, "/wp-") or
+    starts_with(http.request.uri.path, "/wordpress") or
+    starts_with(http.request.uri.path, "/vendor") or
+    starts_with(http.request.uri.path, "/cgi-bin") or
+    http.request.uri.path eq "/xmlrpc.php" or
+    http.request.uri.path eq "/phpinfo.php"
+  )
+  ```
+
+- **Rate limiting rule** sobre las rutas de acceso:
+
+  ```
+  (http.host eq "sistema.enescena.com.ar") and (
+    starts_with(http.request.uri.path, "/ingresar") or
+    starts_with(http.request.uri.path, "/recuperar-acceso") or
+    starts_with(http.request.uri.path, "/auth")
+  )
+  ```
+
+  ~20 requests / 10 s por IP. En el plan Free la única acción es **Block**
+  (Managed Challenge es de pago) y la ventana es fija de 10 s; alcanza para frenar
+  fuerza bruta en el login. Cloudflare cuenta por la IP real del cliente, así que
+  no aplica el problema de agrupación del middleware de Traefik. El umbral se deja
+  holgado porque una academia entera puede salir por una sola IP (NAT).
 
 Dos consideraciones propias de esta app:
 
