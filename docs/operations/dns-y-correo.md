@@ -215,15 +215,15 @@ el path: crear una Page Rule para `*sistema.enescena.com.ar/.well-known/acme-cha
 con "Always Use HTTPS: Off". En la puesta en marcha dio `404`, así que no hizo
 falta la regla.
 
-Se evaluó un **Cloudflare Origin Certificate** (SSL/TLS → Origin Server, 15 años,
-sin ACME). No se adoptó: el router de la app que genera Coolify trae
+Se evaluó y descartó un **Cloudflare Origin Certificate** (SSL/TLS → Origin
+Server, 15 años, sin ACME). El router de la app que genera Coolify trae
 `certResolver: letsencrypt`, y agregar el cert al store de Traefik
 (`tls.certificates` en la Dynamic Configuration) no desactiva ese resolver —
 Traefik sigue sirviendo el Let's Encrypt. Forzar el Origin Cert exigiría editar
 las labels que Coolify regenera en cada deploy, más frágil que dejar el Let's
-Encrypt que ya renueva solo. El Origin Cert, si se generó, queda inofensivo en el
-store como fallback (Full (strict) acepta tanto el Let's Encrypt público como la
-CA de origen de Cloudflare).
+Encrypt que ya renueva solo. El Origin Cert generado se revocó en Cloudflare y se
+quitaron el bloque `tls.certificates` y los archivos `.crt`/`.key` del dynamic
+config; Full (strict) sigue validando contra el Let's Encrypt público.
 
 Pasos:
 
