@@ -66,6 +66,7 @@ describe("drizzle migrations", () => {
       expect(tables).toContain("en_escena_academy");
       expect(tables).toContain("en_escena_choreography");
       expect(tables).toContain("en_escena_payment");
+      expect(tables).toContain("en_escena_comprobante");
     } finally {
       await pglite.close();
     }
