@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatAmount } from "@/features/admin/academies/account-current/formatters";
 import {
+  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
   formatComprobantePorcionLabel,
@@ -124,7 +125,7 @@ function ComprobanteDetailCard({
         <DetailRow
           label="Tipo"
           value={
-            <Badge variant="outline">
+            <Badge variant={comprobanteTipoBadgeVariant(comprobante.cbteTipo)}>
               {formatComprobanteTipoLabel(comprobante.cbteTipo)}
             </Badge>
           }

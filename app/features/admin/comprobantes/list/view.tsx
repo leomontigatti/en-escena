@@ -18,6 +18,7 @@ import {
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "@/lib/comprobantes/arca/factura-c";
 import {
+  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
   formatComprobanteStatusLabel,
@@ -57,7 +58,7 @@ export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
     header: "Tipo",
     cell: (row) => (
       <Badge
-        variant={row.cbteTipo === FACTURA_C_CBTE_TIPO ? "outline" : "info"}
+        variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
         title={formatComprobanteTipoLabel(row.cbteTipo)}
       >
         {formatComprobanteTipoInitials(row.cbteTipo)}

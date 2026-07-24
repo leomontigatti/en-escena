@@ -47,6 +47,24 @@ export function formatComprobanteTipoInitials(cbteTipo: number): string {
   return `C${cbteTipo}`;
 }
 
+// Variante del badge de tipo (columna Tipo de la lista y detalle): Factura C va
+// `info` (azul) y Nota de crédito C va `warning` (amarillo), para distinguir de un
+// vistazo el comprobante original de su anulación. El literal coincide con las
+// variantes del componente Badge sin acoplar el lib a la capa de UI.
+export function comprobanteTipoBadgeVariant(
+  cbteTipo: number,
+): "info" | "warning" | "outline" {
+  if (cbteTipo === FACTURA_C_CBTE_TIPO) {
+    return "info";
+  }
+
+  if (cbteTipo === NOTA_CREDITO_C_CBTE_TIPO) {
+    return "warning";
+  }
+
+  return "outline";
+}
+
 const comprobanteStatusLabels: Record<ComprobanteStatus, string> = {
   vigente: "Vigente",
   anulada: "Anulada",
