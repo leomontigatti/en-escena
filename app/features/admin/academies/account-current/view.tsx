@@ -129,7 +129,6 @@ function buildChoreographyFinanceColumns(
       className: "text-right tabular-nums",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.balanceAmount),
-      sortValue: (row) => row.balanceAmount.amount,
     },
     {
       id: "totalAmount",
@@ -137,7 +136,6 @@ function buildChoreographyFinanceColumns(
       className: "text-right tabular-nums",
       headerClassName: "text-right",
       cell: (row) => formatTotalAmount(row.depositAmount, row.balanceAmount),
-      sortValue: (row) => row.depositAmount.amount + row.balanceAmount.amount,
     },
     {
       id: "financialState",

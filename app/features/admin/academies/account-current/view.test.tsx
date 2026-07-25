@@ -95,12 +95,19 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    const headers = [...document.querySelectorAll("thead th")].map((header) =>
+    const headerCells = [...document.querySelectorAll("thead th")];
+    const headers = headerCells.map((header) =>
       (header.textContent ?? "").trim(),
     );
 
     expect(headers.indexOf("Total")).toBe(headers.indexOf("Saldo") + 1);
     expect(headers.indexOf("Estado")).toBe(headers.indexOf("Total") + 1);
+    expect(
+      headerCells[headers.indexOf("Saldo")]?.querySelector("button"),
+    ).toBeNull();
+    expect(
+      headerCells[headers.indexOf("Total")]?.querySelector("button"),
+    ).toBeNull();
 
     const rowCells = [...document.querySelectorAll("tbody tr")].map((row) =>
       [...row.querySelectorAll("td")].map((cell) =>
