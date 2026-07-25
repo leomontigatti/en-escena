@@ -22,7 +22,7 @@ import {
 import {
   formatAmount,
   formatOperationalAmount,
-} from "@/features/admin/academies/account-current/formatters";
+} from "@/features/admin/finances/academy-detail/formatters";
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
 import {
   formatChoreographyFinancialState,

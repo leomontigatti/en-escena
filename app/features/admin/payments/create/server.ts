@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-detail/payments.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";

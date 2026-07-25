@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { prices } from "@/db/schema";
 import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
 import { createModality } from "@/lib/modalities/repository.server";
-import { createAccountCurrentChoreographyFixture } from "@/lib/admin/academies/account-current-route.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/academy-detail-route.test-support";
 import {
   createPrice,
   deletePrice,
@@ -225,7 +225,7 @@ describe("Bases del evento repository", () => {
   test("blocks structural price changes and deletion when an inscription froze the price", async () => {
     const event = await createSavedEvent("Regional 2026", { activate: true });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Congelado",
         choreographyName: "Coreografía Congelada",
         email: "academia.precio.congelado@example.com",
@@ -267,7 +267,7 @@ describe("Bases del evento repository", () => {
   test("ignores inscriptions that did not freeze the price when changing it", async () => {
     const event = await createSavedEvent("Regional 2027", { activate: true });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Sin Congelar",
         choreographyName: "Coreografía Sin Congelar",
         email: "academia.precio.sin.congelar@example.com",

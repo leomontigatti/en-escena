@@ -9,9 +9,9 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { quoteChoreographyDepositTotals } from "@/lib/finances/choreography-cobro.server";
 import {
-  createAccountCurrentChoreographyFixture,
+  createAcademyFinanceChoreographyFixture,
   createSavedEvent,
-} from "@/lib/admin/academies/account-current-route.test-support";
+} from "@/lib/admin/finances/academy-detail-route.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -30,7 +30,7 @@ describe.sequential(
       const event = await createSavedEvent({ requiredDepositPercentage: 30 });
       const catalog = await createEventCatalog(event.id);
       const { academy, choreography } =
-        await createAccountCurrentChoreographyFixture({
+        await createAcademyFinanceChoreographyFixture({
           academyName: "Academia Cronograma",
           email: `cronograma.${crypto.randomUUID()}@example.com`,
           choreographyName: "Cronograma coreografía",

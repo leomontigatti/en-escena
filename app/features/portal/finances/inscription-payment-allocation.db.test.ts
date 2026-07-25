@@ -15,7 +15,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createSavedEvent,
   registerPaymentForTest,
-} from "../../../lib/admin/academies/account-current-route.test-support";
+} from "../../../lib/admin/finances/academy-detail-route.test-support";
 
 installDatabaseTestHooks();
 

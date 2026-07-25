@@ -35,7 +35,7 @@ import {
   routeArgs,
   renderFinanceAccountsRoute,
   paymentCreateRouteArgs,
-} from "./account-current-route.test-support";
+} from "./academy-detail-route.test-support";
 
 installDatabaseTestHooks();
 

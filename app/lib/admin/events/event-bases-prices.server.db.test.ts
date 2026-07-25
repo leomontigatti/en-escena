@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
-import { createAccountCurrentChoreographyFixture } from "@/lib/admin/academies/account-current-route.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/academy-detail-route.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -207,7 +207,7 @@ describe.sequential("administracion Bases del evento routes", () => {
   test("shows a frozen inscription validation when structural changes or deletion are blocked", async () => {
     const event = await createSavedEvent("Regional 2032");
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Historial",
         choreographyName: "Coreografía Historial",
         email: "admin.precio.historial@example.com",

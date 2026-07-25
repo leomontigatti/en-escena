@@ -12,20 +12,15 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import {
   formatAmount,
   formatOperationalAmount,
-} from "@/features/admin/academies/account-current/formatters";
+} from "@/features/admin/finances/academy-detail/formatters";
 import { cn } from "@/lib/shared/utils";
 
-import type {
-  FinanceAccountRow,
-  loadAdminFinanceAccountCurrentList,
-} from "./server";
+import type { FinanceAccountRow, loadAdminFinancesList } from "./server";
 
-type AccountCurrentLoaderData = Awaited<
-  ReturnType<typeof loadAdminFinanceAccountCurrentList>
->;
+type FinancesListLoaderData = Awaited<ReturnType<typeof loadAdminFinancesList>>;
 
 type AdministracionFinanzasRouteViewProps = {
-  loaderData: AccountCurrentLoaderData;
+  loaderData: FinancesListLoaderData;
 };
 
 const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
@@ -81,7 +76,7 @@ export function AdministracionFinanzasRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Resumen"
-      description="Cuenta corriente por academia con seña adeudada, saldo disponible y saldo adeudado."
+      description="Resumen financiero por academia con seña adeudada, saldo disponible y saldo adeudado."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:

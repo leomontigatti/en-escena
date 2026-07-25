@@ -1,17 +1,17 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademyAccountCurrent } from "@/features/admin/academies/account-current/server";
-import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView } from "@/features/admin/academies/account-current/view";
+import { loadAdministrativeAcademyFinanceDetail } from "@/features/admin/finances/academy-detail/server";
+import { AdministracionAcademiaResumenFinancieroRouteView as ResumenFinancieroView } from "@/features/admin/finances/academy-detail/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionFinanzasCuentaCorrienteRouteProps = {
+type AdministracionAcademiaResumenFinancieroRouteProps = {
   loaderData: LoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Cuenta corriente | Panel de administración | En Escena" },
+  { title: "Resumen financiero | Panel de administración | En Escena" },
 ];
 
 export const handle = {
@@ -25,24 +25,19 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyAccountCurrent({ request, params });
+  return await loadAdministrativeAcademyFinanceDetail({ request, params });
 }
 
-function AdministracionFinanzasCuentaCorrienteRouteView({
+export function AdministracionAcademiaResumenFinancieroRouteView({
   loaderData,
-}: AdministracionFinanzasCuentaCorrienteRouteProps) {
-  return (
-    <CuentaCorrienteView
-      loaderData={loaderData}
-      selectableChoreographyRows={false}
-    />
-  );
+}: AdministracionAcademiaResumenFinancieroRouteProps) {
+  return <ResumenFinancieroView loaderData={loaderData} />;
 }
 
-export default function AdministracionFinanzasCuentaCorrienteRoute({
+export default function AdministracionAcademiaResumenFinancieroRoute({
   loaderData,
-}: AdministracionFinanzasCuentaCorrienteRouteProps) {
+}: AdministracionAcademiaResumenFinancieroRouteProps) {
   return (
-    <AdministracionFinanzasCuentaCorrienteRouteView loaderData={loaderData} />
+    <AdministracionAcademiaResumenFinancieroRouteView loaderData={loaderData} />
   );
 }

@@ -7,7 +7,7 @@ import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextareaField } from "@/components/shared/textarea-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { paymentMethodOptions } from "@/features/admin/academies/account-current/shared";
+import { paymentMethodOptions } from "@/features/admin/finances/academy-detail/shared";
 
 type PaymentFormFieldValues = FieldValues & {
   amount: string;

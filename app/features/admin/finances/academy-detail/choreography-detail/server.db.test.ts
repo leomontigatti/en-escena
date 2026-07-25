@@ -12,10 +12,10 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 import {
-  createAccountCurrentChoreographyFixture,
+  createAcademyFinanceChoreographyFixture,
   createSavedEvent,
   createSignedInRequest,
-} from "../../../../../lib/admin/academies/account-current-route.test-support";
+} from "../../../../../lib/admin/finances/academy-detail-route.test-support";
 
 import { loadAdministrativeChoreographyFinanceDetail } from "./server";
 
@@ -98,7 +98,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Impaga",
         email: "academia.impaga.detalle@example.com",
         choreographyName: "Detalle impaga",
@@ -152,7 +152,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
   test("derives señada state and pending saldo from a deposit snapshot and allocation", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Señada",
         email: "academia.senada.detalle@example.com",
         choreographyName: "Detalle señada",
@@ -229,7 +229,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
   test("derives pagada state and a frozen saldo from a balance snapshot", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Pagada",
         email: "academia.pagada.detalle@example.com",
         choreographyName: "Detalle pagada",
@@ -317,7 +317,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Histórico",
         email: "academia.precio.historico@example.com",
         choreographyName: "Detalle precio histórico",
@@ -372,7 +372,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Bajado",
         email: "academia.precio.bajado@example.com",
         choreographyName: "Detalle precio bajado",
@@ -417,7 +417,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Sin Precio",
         email: "academia.sin.precio.detalle@example.com",
         choreographyName: "Detalle sin precio",

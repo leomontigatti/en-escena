@@ -14,24 +14,24 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
+import { loader as academyFinanceDetailLoader } from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  accountCurrentUrl,
+  academyFinanceDetailUrl,
   buildGlobalPaymentRequest,
   createAcademyUser,
-  createAccountCurrentChoreographyFixture,
+  createAcademyFinanceChoreographyFixture,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
   detailRouteArgs,
   paymentCreateRouteArgs,
   renderAcademiesRoute,
-  renderAccountCurrentRoute,
+  renderAcademyFinanceDetailRoute,
   routeArgs,
-} from "./account-current-route.test-support";
+} from "./academy-detail-route.test-support";
 
 installDatabaseTestHooks();
 
@@ -39,8 +39,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.sequential("administracion academias cuenta corriente", () => {
-  test("renders academies participation without account-current links", async () => {
+describe.sequential("administracion academias resumen financiero", () => {
+  test("renders academies participation without finance detail links", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.finanzas@example.com",
@@ -86,7 +86,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
     expect(markup).not.toMatch(/<button[^>]*>Contacto/);
     expect(markup).not.toMatch(/<button[^>]*>Estado/);
     expect(markup).not.toContain("Finanzas");
-    expect(markup).not.toContain("Cuenta corriente</td>");
+    expect(markup).not.toContain("Resumen financiero</td>");
   });
 
   test("shows academies list without an active event", async () => {
@@ -125,19 +125,19 @@ describe.sequential("administracion academias cuenta corriente", () => {
     const { request } = await createSignedInRequest({
       email: "admin.sin.evento.finanzas@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/academias/${academy.academy.id}`,
+      requestUrl: `http://localhost/administracion/finanzas/${academy.academy.id}`,
     });
 
-    const loaderData = await accountCurrentLoader(
+    const loaderData = await academyFinanceDetailLoader(
       detailRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAccountCurrentRoute({
+    const markup = renderAcademyFinanceDetailRoute({
       loaderData,
     });
 
     expect(loaderData.selectedEventId).toBeNull();
     expect(markup).toContain(
-      "Elegí un evento activo para revisar la cuenta corriente",
+      "Elegí un evento activo para revisar el resumen financiero",
     );
   });
 
@@ -150,7 +150,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
       requiredDepositPercentage: 30,
     });
     const { academy, choreography } =
-      await createAccountCurrentChoreographyFixture({
+      await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Snapshot",
         choreographyName: "Coreografía Snapshot",
         email: "academia.snapshot.cuenta.corriente@example.com",
@@ -174,13 +174,13 @@ describe.sequential("administracion academias cuenta corriente", () => {
     const { request } = await createSignedInRequest({
       email: "admin.snapshot.cuenta.corriente@example.com",
       role: "admin",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await accountCurrentLoader(
+    const loaderData = await academyFinanceDetailLoader(
       detailRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAccountCurrentRoute({ loaderData });
+    const markup = renderAcademyFinanceDetailRoute({ loaderData });
 
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
@@ -214,17 +214,17 @@ describe.sequential("administracion academias cuenta corriente", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.finanzas@example.com",
       role: "auditor",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await accountCurrentLoader(
+    const loaderData = await academyFinanceDetailLoader(
       detailRouteArgs(auditorRequest, academy.academy.id),
     );
-    const markup = renderAccountCurrentRoute({
+    const markup = renderAcademyFinanceDetailRoute({
       loaderData,
     });
 
-    expect(markup).toContain("Cuenta corriente");
+    expect(markup).toContain("Resumen financiero");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
@@ -298,13 +298,13 @@ describe.sequential("administracion academias cuenta corriente", () => {
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.finanzas@example.com",
       role: "admin",
-      requestUrl: accountCurrentUrl(academy.academy.id, event.id),
+      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await accountCurrentLoader(
+    const loaderData = await academyFinanceDetailLoader(
       detailRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAccountCurrentRoute({
+    const markup = renderAcademyFinanceDetailRoute({
       loaderData,
     });
 
@@ -324,9 +324,9 @@ describe.sequential("administracion academias cuenta corriente", () => {
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
-    expect(markup).toContain("Cuenta corriente");
+    expect(markup).toContain("Resumen financiero");
     expect(markup).toContain("Buscar coreografía por nombre");
-    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
+    expect(markup).not.toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toMatch(
@@ -394,9 +394,9 @@ describe.sequential("administracion academias cuenta corriente", () => {
       where: eq(paymentTable.academyId, academy.academy.id),
       orderBy: (table, { asc }) => [asc(table.paymentNumber)],
     });
-    const loaderData = await accountCurrentLoader(
+    const loaderData = await academyFinanceDetailLoader(
       detailRouteArgs(
-        new Request(accountCurrentUrl(academy.academy.id, event.id), {
+        new Request(academyFinanceDetailUrl(academy.academy.id, event.id), {
           headers: {
             cookie:
               secondRequest.headers.get("cookie") ??
@@ -407,7 +407,7 @@ describe.sequential("administracion academias cuenta corriente", () => {
         academy.academy.id,
       ),
     );
-    const markup = renderAccountCurrentRoute({
+    const markup = renderAcademyFinanceDetailRoute({
       loaderData,
     });
 

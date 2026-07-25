@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatAmount,
   formatDate,
-} from "@/features/admin/academies/account-current/formatters";
+} from "@/features/admin/finances/academy-detail/formatters";
 import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,

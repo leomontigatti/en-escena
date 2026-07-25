@@ -2,8 +2,8 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeChoreographyFinanceAction,
   loadAdministrativeChoreographyFinanceDetail,
-} from "@/features/admin/academies/account-current/choreography-detail/server";
-import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/academies/account-current/choreography-detail/view";
+} from "@/features/admin/finances/academy-detail/choreography-detail/server";
+import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-detail/choreography-detail/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 

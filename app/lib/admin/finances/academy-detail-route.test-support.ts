@@ -5,7 +5,7 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { registerAcademyEventPayment } from "@/features/admin/academies/account-current/payments.server";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-detail/payments.server";
 import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -17,9 +17,9 @@ import {
   loader as academiesLoader,
 } from "@/routes/administracion.academias";
 import {
-  AdministracionAcademiaCuentaCorrienteRouteView,
-  loader as accountCurrentLoader,
-} from "@/routes/administracion.academias_.$academyId";
+  AdministracionAcademiaResumenFinancieroRouteView,
+  loader as academyFinanceDetailLoader,
+} from "@/routes/administracion.finanzas_.$academyId";
 import {
   AdministracionFinanzasRouteView,
   loader as financeAccountsLoader,
@@ -125,7 +125,7 @@ export async function createAcademyUser(input: {
   };
 }
 
-export async function createAccountCurrentChoreographyFixture(input: {
+export async function createAcademyFinanceChoreographyFixture(input: {
   academyName: string;
   choreographyName: string;
   email: string;
@@ -235,17 +235,20 @@ export function renderAcademiesRoute(input: {
   );
 }
 
-export function renderAccountCurrentRoute(input: {
-  loaderData: Awaited<ReturnType<typeof accountCurrentLoader>>;
+export function renderAcademyFinanceDetailRoute(input: {
+  loaderData: Awaited<ReturnType<typeof academyFinanceDetailLoader>>;
 }) {
-  const routePath = `/administracion/academias/${input.loaderData.academy.id}`;
+  const routePath = `/administracion/finanzas/${input.loaderData.academy.id}`;
   const router = createMemoryRouter(
     [
       {
-        path: "/administracion/academias/:academyId",
-        element: createElement(AdministracionAcademiaCuentaCorrienteRouteView, {
-          loaderData: input.loaderData,
-        }),
+        path: "/administracion/finanzas/:academyId",
+        element: createElement(
+          AdministracionAcademiaResumenFinancieroRouteView,
+          {
+            loaderData: input.loaderData,
+          },
+        ),
       },
     ],
     {
@@ -276,8 +279,8 @@ export function renderFinanceAccountsRoute(input: {
   );
 }
 
-export function accountCurrentUrl(academyId: string, eventId: string) {
-  return `http://localhost/administracion/academias/${academyId}?evento=${eventId}`;
+export function academyFinanceDetailUrl(academyId: string, eventId: string) {
+  return `http://localhost/administracion/finanzas/${academyId}?evento=${eventId}`;
 }
 
 export function reportUrl(eventId: string) {
@@ -300,7 +303,7 @@ export function detailRouteArgs(request: Request, academyId: string) {
     params: { academyId },
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/academias/:academyId",
+    pattern: "/administracion/finanzas/:academyId",
   };
 }
 

@@ -31,10 +31,10 @@ import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.ser
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 import {
-  createAccountCurrentChoreographyFixture,
+  createAcademyFinanceChoreographyFixture,
   createSavedEvent,
   createSignedInRequest,
-} from "../../../../../lib/admin/academies/account-current-route.test-support";
+} from "../../../../../lib/admin/finances/academy-detail-route.test-support";
 
 import {
   handleAdministrativeChoreographyFinanceAction,
@@ -78,7 +78,7 @@ async function seedChoreographyWithPaidInscription(input: {
 }) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, choreography } =
-    await createAccountCurrentChoreographyFixture({
+    await createAcademyFinanceChoreographyFixture({
       academyName: input.academyName,
       choreographyName: input.choreographyName,
       email: input.email,
@@ -404,7 +404,7 @@ describe.sequential(
       // no debe habilitarse, porque el server rechazaría la emisión.
       const event = await createSavedEvent({ requiredDepositPercentage: 30 });
       const { academy, choreography } =
-        await createAccountCurrentChoreographyFixture({
+        await createAcademyFinanceChoreographyFixture({
           academyName: "Academia Huérfana",
           choreographyName: "Coreografía huérfana",
           email: "academia.huerfana@example.com",

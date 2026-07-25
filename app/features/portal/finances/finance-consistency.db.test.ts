@@ -7,7 +7,7 @@ import {
   paymentAllocations,
   prices,
 } from "@/db/schema";
-import { loadAdministrativeChoreographyFinanceDetail } from "@/features/admin/academies/account-current/choreography-detail/server";
+import { loadAdministrativeChoreographyFinanceDetail } from "@/features/admin/finances/academy-detail/choreography-detail/server";
 import {
   createChoreographyRecord,
   createDancer,
@@ -18,15 +18,15 @@ import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
+import { loader as academyFinanceDetailLoader } from "@/routes/administracion.finanzas_.$academyId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  accountCurrentUrl,
+  academyFinanceDetailUrl,
   createSavedEvent,
   createSignedInRequest,
   detailRouteArgs,
-} from "../../../lib/admin/academies/account-current-route.test-support";
+} from "../../../lib/admin/finances/academy-detail-route.test-support";
 
 installDatabaseTestHooks();
 
@@ -173,9 +173,9 @@ describe.sequential(
       const { request: adminRequest } = await createSignedInRequest({
         email: "admin.portal.consistencia@example.com",
         role: "admin",
-        requestUrl: accountCurrentUrl(owner.academyId, event.id),
+        requestUrl: academyFinanceDetailUrl(owner.academyId, event.id),
       });
-      const adminLoaderData = await accountCurrentLoader(
+      const adminLoaderData = await academyFinanceDetailLoader(
         detailRouteArgs(adminRequest, owner.academyId),
       );
 

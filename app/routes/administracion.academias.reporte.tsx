@@ -6,14 +6,14 @@ import type { Route } from "./+types/administracion.academias.reporte";
 
 export const meta: Route.MetaFunction = () => [
   {
-    title: "Reporte de cuenta corriente | Panel de administración | En Escena",
+    title: "Resumen financiero | Panel de administración | En Escena",
   },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
     { label: "Academias", to: "/administracion/academias" },
-    { label: "Reporte de cuenta corriente" },
+    { label: "Resumen financiero" },
   ],
 } satisfies AdminRouteHandle;
 
