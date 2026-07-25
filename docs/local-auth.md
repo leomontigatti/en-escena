@@ -40,7 +40,11 @@ RESEND_API_KEY=""
 - `APP_URL` is the canonical app origin, used as the fallback base URL for auth
   email links when a request URL is not available.
 - `BETTER_AUTH_SECRET` signs Better Auth sessions and the recovery-token cookie.
-  Use a long random value per environment.
+  It also signs the flash-notification cookie (`ee-flash`) by default. Use a
+  long random value per environment.
+- `SESSION_SECRET` is optional and only overrides the signing secret for the
+  flash-notification cookie. Leave it unset unless that secret must be kept
+  separate from `BETTER_AUTH_SECRET`.
 - `BETTER_AUTH_URL` is the `baseURL` Better Auth uses to build its endpoints and
   email links. It defaults to `APP_URL` when unset.
 - `EMAIL_PROVIDER`, `BREVO_API_KEY`, `RESEND_API_KEY` and `EMAIL_FROM` are only
