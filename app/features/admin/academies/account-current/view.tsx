@@ -14,7 +14,11 @@ import {
 } from "@/lib/finances/choreography-financial-state";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatAmount, formatOperationalAmount } from "./formatters";
+import {
+  formatAmount,
+  formatOperationalAmount,
+  formatTotalAmount,
+} from "./formatters";
 import type { AccountCurrentLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -126,6 +130,14 @@ function buildChoreographyFinanceColumns(
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.balanceAmount),
       sortValue: (row) => row.balanceAmount.amount,
+    },
+    {
+      id: "totalAmount",
+      header: "Total",
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatTotalAmount(row.depositAmount, row.balanceAmount),
+      sortValue: (row) => row.depositAmount.amount + row.balanceAmount.amount,
     },
     {
       id: "financialState",

@@ -57,6 +57,62 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
     expect(text).not.toContain("Movimientos");
   });
 
+  test("shows the total column between balance and state", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/finanzas/:academyId",
+          element: (
+            <AdministracionAcademiaCuentaCorrienteRouteView
+              loaderData={accountCurrentLoaderDataFixture({
+                choreographyFinanceRows: [
+                  choreographyFinanceRowFixture({
+                    depositAmount: { amount: 3000, status: "complete" },
+                    balanceAmount: { amount: 7000, status: "complete" },
+                    id: "choreography_1",
+                    name: "Aire",
+                  }),
+                  choreographyFinanceRowFixture({
+                    balanceAmount: {
+                      amount: 7000,
+                      missingPriceCount: 1,
+                      status: "incomplete",
+                    },
+                    id: "choreography_2",
+                    name: "Tango",
+                  }),
+                ],
+              })}
+              selectableChoreographyRows={false}
+            />
+          ),
+        },
+      ],
+      {
+        initialEntries: ["/administracion/finanzas/academy_1"],
+      },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const headers = [...document.querySelectorAll("thead th")].map((header) =>
+      (header.textContent ?? "").trim(),
+    );
+
+    expect(headers.indexOf("Total")).toBe(headers.indexOf("Saldo") + 1);
+    expect(headers.indexOf("Estado")).toBe(headers.indexOf("Total") + 1);
+
+    const rowCells = [...document.querySelectorAll("tbody tr")].map((row) =>
+      [...row.querySelectorAll("td")].map((cell) =>
+        (cell.textContent ?? "").trim(),
+      ),
+    );
+    const totalColumnIndex = headers.indexOf("Total");
+
+    expect(rowCells[0]?.[totalColumnIndex]).toBe("$ 10.000");
+    expect(rowCells[1]?.[totalColumnIndex]).toBe("Pendiente");
+  });
+
   test("hides the choreography selection column when list actions are disabled", async () => {
     const router = createMemoryRouter(
       [
