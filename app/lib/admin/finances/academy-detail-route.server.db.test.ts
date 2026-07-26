@@ -76,7 +76,7 @@ describe.sequential("administracion academias resumen financiero", () => {
       "Academia Sur",
     ]);
     expect(markup).toContain("Academias");
-    expect(markup).not.toContain(
+    expect(markup).toContain(
       `/administracion/academias/${academyNorth.academy.id}`,
     );
     expect(markup).toContain("Participando");
