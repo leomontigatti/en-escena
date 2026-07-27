@@ -2,6 +2,7 @@ import { expect } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { createSessionRequestCookie } from "@/lib/auth/access-auth.test-support";
 import { createAcademyUser as createAcademyTestUser } from "@/lib/test-support/academies";
 
 export async function createAcademySession({
@@ -71,19 +72,7 @@ export function createPortalPostRequest(
 }
 
 export function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
+  return createSessionRequestCookie(headers);
 }
 
 export async function expectThrownResponse(

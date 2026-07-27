@@ -61,6 +61,41 @@ export async function signInAccessUser(input: {
   return { headers, response: { user: signedIn }, user: signedIn };
 }
 
+// Nombre de la cookie de sesión de Better Auth, con el prefijo `__Secure-`
+// opcional. Con un baseURL https (`useSecureCookies`), Better Auth emite la
+// cookie como `__Secure-better-auth.session_token`; con http, sin prefijo. Los
+// helpers de test deben derivar el nombre real del `set-cookie` en vez de
+// hardcodearlo (#501).
+const SESSION_COOKIE_SET_COOKIE_PATTERN =
+  /(?:^|,\s*)((?:__Secure-)?better-auth\.session_token)=([^;]+)/;
+
+function matchSessionSetCookie(headers: Headers): RegExpMatchArray {
+  const match = headers
+    .get("set-cookie")
+    ?.match(SESSION_COOKIE_SET_COOKIE_PATTERN);
+
+  if (!match?.[1] || !match[2]) {
+    throw new Error("Expected access auth to return a session cookie.");
+  }
+
+  return match;
+}
+
+// Valor (firmado) de la cookie de sesión que Better Auth setea en `headers`,
+// derivando el nombre real (con o sin prefijo `__Secure-`) del `set-cookie`.
+export function extractSessionCookieValue(headers: Headers): string {
+  return matchSessionSetCookie(headers)[2];
+}
+
+// Header `cookie` (`nombre=valor`) para la cookie de sesión de Better Auth,
+// conservando el prefijo `__Secure-` real cuando lo hay. Reemplaza los
+// `createRequestCookie` que hardcodeaban `better-auth.session_token` (#501).
+export function createSessionRequestCookie(headers: Headers): string {
+  const match = matchSessionSetCookie(headers);
+
+  return `${match[1]}=${match[2]}`;
+}
+
 // Reconstruye el header `cookie` de un request a partir de las cookies que
 // Better Auth setea en `headers` (sesión + caché de sesión), para simular al
 // navegador en los tests de rutas.
