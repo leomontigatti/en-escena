@@ -34,7 +34,7 @@ import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
   createSignedInRequest,
-} from "../../../../../lib/admin/finances/academy-detail-route.test-support";
+} from "../../../../../lib/admin/finances/finances.test-support";
 
 import {
   handleAdministrativeChoreographyFinanceAction,

@@ -19,45 +19,42 @@ describe("AdminShell", () => {
     expect(markup).toContain("admin@example.com");
     expect(markup).toContain("Inicio");
     expect(markup).not.toContain("Sesión activa para");
-    expect(markup).toContain("Academias");
-    expect(markup).toContain("/administracion/academias");
-    expect(markup).toContain("Profesores");
-    expect(markup).toContain("/administracion/profesores");
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain("/administracion/bailarines");
-    expect(markup).toContain("Usuarios");
-    expect(markup).toContain("/administracion/usuarios");
     expect(markup).toContain("text-brand");
-    expect(markup).toContain("Bases");
-    expect(markup).toContain('href="/administracion/eventos"');
+    expect(markup).toContain("Academias");
+    expect(markup).toContain("Profesores");
+    expect(markup).toContain("Bailarines");
+    expect(markup).toContain("Usuarios");
     expect(markup).toContain("Coreografías");
-    expect(markup).toContain("/administracion/coreografias");
-    expect(markup).toContain("Resumen");
-    expect(markup).toContain("/administracion/finanzas");
     expect(markup).toContain("Pagos");
-    expect(markup).toContain("/administracion/pagos");
     expect(markup).toContain("Comprobantes");
-    expect(markup).toContain("/administracion/comprobantes");
     expect(markup).not.toContain("Facturas");
     expect(markup).not.toContain('href="/administracion/facturas"');
-    expect(markup.indexOf("Coreografías")).toBeLessThan(
-      markup.indexOf("Profesores"),
+
+    // Cada grupo es un trabajo del administrador.
+    expect(markup).toContain("Operación");
+    expect(markup).toContain("Finanzas");
+    expect(markup).toContain("Bases");
+    expect(markup).toContain("Accesos");
+
+    // El orden se verifica por href porque el label no es único: "Academias"
+    // aparece en Finanzas (su saldo) y en Accesos (la entidad).
+    const orderedHrefs = [
+      "/administracion/eventos",
+      "/administracion/coreografias",
+      "/administracion/profesores",
+      "/administracion/bailarines",
+      "/administracion/finanzas",
+      "/administracion/pagos",
+      "/administracion/comprobantes",
+      "/administracion/usuarios",
+      "/administracion/academias",
+    ];
+    const positions = orderedHrefs.map((href) =>
+      markup.indexOf(`href="${href}"`),
     );
-    expect(markup.indexOf("Profesores")).toBeLessThan(
-      markup.indexOf("Bailarines"),
-    );
-    expect(markup.indexOf("Bailarines")).toBeLessThan(
-      markup.indexOf("Resumen"),
-    );
-    expect(markup.indexOf("Coreografías")).toBeLessThan(
-      markup.indexOf("Resumen"),
-    );
-    expect(markup.indexOf("Resumen")).toBeLessThan(markup.indexOf("Pagos"));
-    expect(markup.indexOf("Pagos")).toBeLessThan(markup.indexOf("Bases"));
-    expect(markup.indexOf("Bases")).toBeLessThan(markup.indexOf("Usuarios"));
-    expect(markup.indexOf("Usuarios")).toBeLessThan(
-      markup.indexOf("Academias"),
-    );
+
+    expect(positions.filter((position) => position < 0)).toEqual([]);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
   test("opens Bases navigation only as a collapsible section", () => {

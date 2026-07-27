@@ -12,7 +12,7 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import {
   formatAmount,
   formatOperationalAmount,
-} from "@/features/admin/finances/academy-detail/formatters";
+} from "@/features/admin/finances/formatters";
 import { cn } from "@/lib/shared/utils";
 
 import type { FinanceAccountRow, loadAdminFinancesList } from "./server";
@@ -75,8 +75,8 @@ export function AdministracionFinanzasRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Resumen"
-      description="Resumen financiero por academia con seña adeudada, saldo disponible y saldo adeudado."
+      title="Finanzas"
+      description="Saldo de cada academia en el evento activo: seña adeudada, saldo disponible y saldo adeudado."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:
@@ -99,7 +99,7 @@ export function AdministracionFinanzasRouteView({
       ) : (
         <AdminEmptyState
           icon={Landmark}
-          title="Todavía no hay resumen financiero."
+          title="Todavía no hay academias con movimientos financieros."
           description="Cuando el evento activo tenga academias con coreografías o movimientos financieros, van a aparecer acá."
         />
       )}

@@ -14,24 +14,26 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as academyFinanceDetailLoader } from "@/routes/administracion.finanzas_.$academyId";
+import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  academyFinanceDetailUrl,
+  academiesRouteArgs,
+  renderAcademiesRoute,
+} from "../academies/academies-route.test-support";
+import {
+  academyFinancesUrl,
   buildGlobalPaymentRequest,
   createAcademyUser,
   createAcademyFinanceChoreographyFixture,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
-  detailRouteArgs,
+  academyFinancesRouteArgs,
   paymentCreateRouteArgs,
-  renderAcademiesRoute,
-  renderAcademyFinanceDetailRoute,
-  routeArgs,
-} from "./academy-detail-route.test-support";
+  renderAcademyFinancesRoute,
+} from "./finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -39,7 +41,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.sequential("administracion academias resumen financiero", () => {
+describe.sequential("administracion finanzas academia", () => {
   test("renders academies participation linking each row to its detail", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
@@ -67,7 +69,7 @@ describe.sequential("administracion academias resumen financiero", () => {
       requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
     });
 
-    const loaderData = await academiesLoader(routeArgs(request));
+    const loaderData = await academiesLoader(academiesRouteArgs(request));
     const markup = renderAcademiesRoute({ loaderData });
 
     expect(loaderData.selectedEventId).toBe(event.id);
@@ -86,7 +88,6 @@ describe.sequential("administracion academias resumen financiero", () => {
     expect(markup).not.toMatch(/<button[^>]*>Contacto/);
     expect(markup).not.toMatch(/<button[^>]*>Estado/);
     expect(markup).not.toContain("Finanzas");
-    expect(markup).not.toContain("Resumen financiero</td>");
   });
 
   test("shows academies list without an active event", async () => {
@@ -100,7 +101,7 @@ describe.sequential("administracion academias resumen financiero", () => {
       requestUrl: "http://localhost/administracion/academias",
     });
 
-    const loaderData = await academiesLoader(routeArgs(request));
+    const loaderData = await academiesLoader(academiesRouteArgs(request));
     const markup = renderAcademiesRoute({ loaderData });
 
     expect(loaderData.selectedEventId).toBeNull();
@@ -128,16 +129,16 @@ describe.sequential("administracion academias resumen financiero", () => {
       requestUrl: `http://localhost/administracion/finanzas/${academy.academy.id}`,
     });
 
-    const loaderData = await academyFinanceDetailLoader(
-      detailRouteArgs(request, academy.academy.id),
+    const loaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAcademyFinanceDetailRoute({
+    const markup = renderAcademyFinancesRoute({
       loaderData,
     });
 
     expect(loaderData.selectedEventId).toBeNull();
     expect(markup).toContain(
-      "Elegí un evento activo para revisar el resumen financiero",
+      "Elegí un evento activo para revisar las finanzas",
     );
   });
 
@@ -174,13 +175,13 @@ describe.sequential("administracion academias resumen financiero", () => {
     const { request } = await createSignedInRequest({
       email: "admin.snapshot.cuenta.corriente@example.com",
       role: "admin",
-      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await academyFinanceDetailLoader(
-      detailRouteArgs(request, academy.academy.id),
+    const loaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAcademyFinanceDetailRoute({ loaderData });
+    const markup = renderAcademyFinancesRoute({ loaderData });
 
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
@@ -214,17 +215,17 @@ describe.sequential("administracion academias resumen financiero", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.finanzas@example.com",
       role: "auditor",
-      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await academyFinanceDetailLoader(
-      detailRouteArgs(auditorRequest, academy.academy.id),
+    const loaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(auditorRequest, academy.academy.id),
     );
-    const markup = renderAcademyFinanceDetailRoute({
+    const markup = renderAcademyFinancesRoute({
       loaderData,
     });
 
-    expect(markup).toContain("Resumen financiero");
+    expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
@@ -298,13 +299,13 @@ describe.sequential("administracion academias resumen financiero", () => {
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.finanzas@example.com",
       role: "admin",
-      requestUrl: academyFinanceDetailUrl(academy.academy.id, event.id),
+      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await academyFinanceDetailLoader(
-      detailRouteArgs(request, academy.academy.id),
+    const loaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(request, academy.academy.id),
     );
-    const markup = renderAcademyFinanceDetailRoute({
+    const markup = renderAcademyFinancesRoute({
       loaderData,
     });
 
@@ -324,7 +325,7 @@ describe.sequential("administracion academias resumen financiero", () => {
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
-    expect(markup).toContain("Resumen financiero");
+    expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Buscar coreografía por nombre");
     expect(markup).not.toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
@@ -394,9 +395,9 @@ describe.sequential("administracion academias resumen financiero", () => {
       where: eq(paymentTable.academyId, academy.academy.id),
       orderBy: (table, { asc }) => [asc(table.paymentNumber)],
     });
-    const loaderData = await academyFinanceDetailLoader(
-      detailRouteArgs(
-        new Request(academyFinanceDetailUrl(academy.academy.id, event.id), {
+    const loaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(
+        new Request(academyFinancesUrl(academy.academy.id, event.id), {
           headers: {
             cookie:
               secondRequest.headers.get("cookie") ??
@@ -407,7 +408,7 @@ describe.sequential("administracion academias resumen financiero", () => {
         academy.academy.id,
       ),
     );
-    const markup = renderAcademyFinanceDetailRoute({
+    const markup = renderAcademyFinancesRoute({
       loaderData,
     });
 

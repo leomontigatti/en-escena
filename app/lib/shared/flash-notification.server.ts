@@ -21,22 +21,54 @@ import { type ToastMessage } from "@/lib/shared/toasts";
 
 const FLASH_NOTIFICATION_KEY = "notification";
 
-const flashSessionStorage = createCookieSessionStorage<{
-  [FLASH_NOTIFICATION_KEY]: NotificationKey;
-}>({
-  cookie: {
-    name: "ee-flash",
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    // El contenido es solo una clave de notificación (no sensible). Si hay un
-    // secreto disponible firmamos la cookie; si no, va sin firmar.
-    ...(process.env.SESSION_SECRET
-      ? { secrets: [process.env.SESSION_SECRET] }
-      : {}),
-  },
-});
+// Secreto de firma de la cookie de flash. El contenido es solo una clave del
+// catálogo de notificaciones (no sensible), pero sin firma cualquiera puede
+// forzar el toast que quiera —incluido un falso "pago registrado"—, así que la
+// cookie se firma siempre. Por defecto reusa `BETTER_AUTH_SECRET`, que ya es
+// obligatoria en producción; `SESSION_SECRET` queda como override opcional para
+// separar los secretos más adelante. En dev/test cae a un valor fijo para no
+// exigir configuración local (ver #492).
+function getFlashSessionSecret() {
+  const secret = process.env.SESSION_SECRET ?? process.env.BETTER_AUTH_SECRET;
+
+  if (secret) {
+    return secret;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SESSION_SECRET or BETTER_AUTH_SECRET is required in production to sign the flash notification cookie.",
+    );
+  }
+
+  return "development-flash-session-secret-development-flash-session-secret";
+}
+
+// Inicialización perezosa: así el fallo en producción por falta de secreto
+// ocurre en el primer uso y no al importar el módulo (que tiraría durante el
+// arranque del server, antes de poder responder nada).
+let flashSessionStorageSingleton: ReturnType<
+  typeof createCookieSessionStorage<{
+    [FLASH_NOTIFICATION_KEY]: NotificationKey;
+  }>
+> | null = null;
+
+function getFlashSessionStorage() {
+  flashSessionStorageSingleton ??= createCookieSessionStorage<{
+    [FLASH_NOTIFICATION_KEY]: NotificationKey;
+  }>({
+    cookie: {
+      name: "ee-flash",
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      secrets: [getFlashSessionSecret()],
+    },
+  });
+
+  return flashSessionStorageSingleton;
+}
 
 /**
  * Adjunta un mensaje flash a una respuesta de `redirect` desde un `action`.
@@ -47,6 +79,7 @@ export async function redirectWithFlashNotification(
   notification: NotificationKey,
   init: number | ResponseInit = {},
 ): Promise<Response> {
+  const flashSessionStorage = getFlashSessionStorage();
   const session = await flashSessionStorage.getSession();
   session.flash(FLASH_NOTIFICATION_KEY, notification);
   const setCookieHeader = await flashSessionStorage.commitSession(session);
@@ -78,6 +111,7 @@ export async function readFlashNotification(
     return null;
   }
 
+  const flashSessionStorage = getFlashSessionStorage();
   const session = await flashSessionStorage.getSession(cookieHeader);
   // `get` sobre un valor `flash` lo consume: el commit posterior lo elimina.
   const notification = session.get(FLASH_NOTIFICATION_KEY);

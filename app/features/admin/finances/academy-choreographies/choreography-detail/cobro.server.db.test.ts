@@ -21,7 +21,7 @@ import {
   createSavedEvent,
   createSignedInRequest,
   registerPaymentForTest,
-} from "../../../../../lib/admin/finances/academy-detail-route.test-support";
+} from "../../../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 

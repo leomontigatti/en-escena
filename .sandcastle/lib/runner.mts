@@ -13,7 +13,7 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { type LoggingOption } from "@ai-hero/sandcastle";
 import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 
-export const AGENT_MODEL = "claude-opus-4-8";
+export const AGENT_MODEL = "claude-opus-5";
 export const AGENT_EFFORT = "medium";
 
 /** The LLM agent every runner drives. Centralised so model/effort live in one place. */

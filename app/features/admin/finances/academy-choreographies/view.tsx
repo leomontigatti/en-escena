@@ -14,11 +14,15 @@ import {
 } from "@/lib/finances/choreography-financial-state";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatAmount, formatOperationalAmount } from "./formatters";
-import type { AcademyFinanceDetailLoaderData } from "./types";
+import {
+  formatAmount,
+  formatOperationalAmount,
+  formatTotalAmount,
+} from "../formatters";
+import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
-  AcademyFinanceDetailLoaderData["choreographyFinanceRows"][number];
+  AcademyFinancesLoaderData["choreographyFinanceRows"][number];
 
 const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
@@ -28,22 +32,22 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-type AdministracionAcademiaResumenFinancieroRouteViewProps = {
-  loaderData: AcademyFinanceDetailLoaderData;
+type AdministracionFinanzasAcademiaRouteViewProps = {
+  loaderData: AcademyFinancesLoaderData;
 };
 
-export function AdministracionAcademiaResumenFinancieroRouteView({
+export function AdministracionFinanzasAcademiaRouteView({
   loaderData,
-}: AdministracionAcademiaResumenFinancieroRouteViewProps) {
+}: AdministracionFinanzasAcademiaRouteViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Resumen financiero"
-      description="Revisá el estado financiero de las coreografías de una academia."
+      title={loaderData.academy.name}
+      description="Lista financiera de las coreografías de esta academia."
       eventRequiredEmptyState={{
-        title: "Elegí un evento activo para revisar el resumen financiero",
+        title: "Elegí un evento activo para revisar las finanzas",
         description:
-          "Activá un evento para consultar el resumen financiero de la academia.",
+          "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
     >
       <div className="flex flex-col gap-6">
@@ -122,7 +126,13 @@ function buildChoreographyFinanceColumns(
       className: "text-right tabular-nums",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.balanceAmount),
-      sortValue: (row) => row.balanceAmount.amount,
+    },
+    {
+      id: "totalAmount",
+      header: "Total",
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatTotalAmount(row.depositAmount, row.balanceAmount),
     },
     {
       id: "financialState",

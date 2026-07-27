@@ -11,7 +11,7 @@ import { quoteChoreographyDepositTotals } from "@/lib/finances/choreography-cobr
 import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
-} from "@/lib/admin/finances/academy-detail-route.test-support";
+} from "@/lib/admin/finances/finances.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

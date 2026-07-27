@@ -1072,8 +1072,10 @@ wanting a concrete starting point.
 
 - **Orchestrator** = GitHub Actions workflows in `.github/workflows/agent-*.yml`.
 - **Agent runner** = TypeScript entry scripts under `.sandcastle/<workflow>/<workflow>.ts`, run
-  with `pnpm exec tsx`, using `@ai-hero/sandcastle` driving `claudeCode("claude-opus-4-6")` in a
-  `noSandbox()` sandbox. `OUTPUT_DIR` = the GitHub Actions `runner.temp`.
+  with `pnpm exec tsx`, using `@ai-hero/sandcastle` driving `claudeCode()` in a `noSandbox()`
+  sandbox. The model and effort are pinned in one place — `AGENT_MODEL` / `AGENT_EFFORT` in
+  [`.sandcastle/lib/runner.mts`](../../.sandcastle/lib/runner.mts) — so this doc deliberately
+  does not restate them. `OUTPUT_DIR` = the GitHub Actions `runner.temp`.
 - **Prompts** = `.sandcastle/<workflow>/prompt.md` (the work) + `extraction.md` (the
   "emit `<output>` now" pass), with `{{VAR}}` interpolation and `` !`cmd` `` command
   substitution for embedding fetched context.

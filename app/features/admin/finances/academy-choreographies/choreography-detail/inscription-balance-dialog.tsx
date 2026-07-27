@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatAmount } from "../formatters";
+import { formatAmount } from "../../formatters";
 import { PaymentField } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { deleteAllocationIntent, payInscriptionBalanceIntent } from "./shared";

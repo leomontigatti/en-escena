@@ -9,7 +9,7 @@ import { academies } from "@/db/schema";
 import {
   createAcademyUser,
   createSignedInRequest,
-} from "@/lib/admin/finances/academy-detail-route.test-support";
+} from "@/lib/admin/finances/finances.test-support";
 import {
   AdministracionAcademiaDetalleRouteView,
   action as detailAction,
