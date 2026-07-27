@@ -9,6 +9,7 @@ import {
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 
 import type { loadAdministrativeAcademiesList } from "./server";
@@ -25,7 +26,11 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
     id: "name",
     header: "Nombre",
     className: "min-w-56 font-medium",
-    cell: (academy) => academy.name,
+    cell: (academy) => (
+      <DataTableLink to={`/administracion/academias/${academy.id}`}>
+        {academy.name}
+      </DataTableLink>
+    ),
     filterValue: (academy) => academy.name,
     sortValue: (academy) => academy.name,
   },
