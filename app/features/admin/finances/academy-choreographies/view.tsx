@@ -18,11 +18,11 @@ import {
   formatAmount,
   formatOperationalAmount,
   formatTotalAmount,
-} from "./formatters";
-import type { AccountCurrentLoaderData } from "./types";
+} from "../formatters";
+import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
-  AccountCurrentLoaderData["choreographyFinanceRows"][number];
+  AcademyFinancesLoaderData["choreographyFinanceRows"][number];
 
 const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
@@ -32,24 +32,22 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-type AdministracionAcademiaCuentaCorrienteRouteViewProps = {
-  loaderData: AccountCurrentLoaderData;
-  selectableChoreographyRows?: boolean;
+type AdministracionFinanzasAcademiaRouteViewProps = {
+  loaderData: AcademyFinancesLoaderData;
 };
 
-export function AdministracionAcademiaCuentaCorrienteRouteView({
+export function AdministracionFinanzasAcademiaRouteView({
   loaderData,
-  selectableChoreographyRows = true,
-}: AdministracionAcademiaCuentaCorrienteRouteViewProps) {
+}: AdministracionFinanzasAcademiaRouteViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Cuenta corriente"
-      description="Revisá el estado financiero de las coreografías de una academia."
+      title={loaderData.academy.name}
+      description="Lista financiera de las coreografías de esta academia."
       eventRequiredEmptyState={{
-        title: "Elegí un evento activo para revisar la cuenta corriente",
+        title: "Elegí un evento activo para revisar las finanzas",
         description:
-          "Activá un evento para consultar la cuenta corriente de la academia.",
+          "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
     >
       <div className="flex flex-col gap-6">
@@ -78,7 +76,6 @@ export function AdministracionAcademiaCuentaCorrienteRouteView({
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por nombre"
-          selectableRows={selectableChoreographyRows}
           textFilterColumnId="name"
           initialSort={{
             columnId: "name",

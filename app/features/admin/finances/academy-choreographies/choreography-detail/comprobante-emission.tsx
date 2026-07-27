@@ -16,7 +16,7 @@ import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.serve
 import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
-import { formatAmount } from "../formatters";
+import { formatAmount } from "../../formatters";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,

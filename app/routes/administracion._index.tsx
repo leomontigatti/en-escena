@@ -122,8 +122,8 @@ export default function AdministracionIndexRoute({
 
 const adminHomeCards = [
   {
-    title: "Resumen",
-    description: "Revisá la cuenta corriente de cada academia.",
+    title: "Finanzas",
+    description: "Revisá los saldos de cada academia.",
     icon: ClipboardList,
     to: "/administracion/finanzas",
   },

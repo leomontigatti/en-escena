@@ -9,7 +9,7 @@ import {
   buildGlobalPaymentRequest,
   createAcademyUser,
   createSavedEvent,
-} from "@/lib/admin/academies/account-current-route.test-support";
+} from "@/lib/admin/finances/finances.test-support";
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 import { handleAdminPaymentCreateAction } from "./server";

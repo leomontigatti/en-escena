@@ -17,18 +17,18 @@ import { action as choreographyDetailAction } from "@/routes/administracion.fina
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 import {
-  createAccountCurrentChoreographyFixture,
+  createAcademyFinanceChoreographyFixture,
   createSavedEvent,
   createSignedInRequest,
   registerPaymentForTest,
-} from "../../../../../lib/admin/academies/account-current-route.test-support";
+} from "../../../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 
 async function seedCobroFixture() {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, choreography } =
-    await createAccountCurrentChoreographyFixture({
+    await createAcademyFinanceChoreographyFixture({
       academyName: "Academia Cobro",
       email: `cobro.${crypto.randomUUID()}@example.com`,
       choreographyName: "Cobro coreografía",

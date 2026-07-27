@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
-import { formatAmount, formatDate } from "../formatters";
+import { formatAmount, formatDate } from "../../formatters";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<

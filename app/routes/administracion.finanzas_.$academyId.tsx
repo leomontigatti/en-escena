@@ -1,22 +1,22 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademyAccountCurrent } from "@/features/admin/academies/account-current/server";
-import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView } from "@/features/admin/academies/account-current/view";
+import { loadAdminAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
+import { AdministracionFinanzasAcademiaRouteView } from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionFinanzasCuentaCorrienteRouteProps = {
+type AdministracionFinanzasAcademiaRouteProps = {
   loaderData: LoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Cuenta corriente | Panel de administración | En Escena" },
+  { title: "Finanzas | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Resumen", to: "/administracion/finanzas" },
+    { label: "Finanzas", to: "/administracion/finanzas" },
     (match) => {
       const data = match.data as LoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
@@ -25,24 +25,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyAccountCurrent({ request, params });
+  return await loadAdminAcademyFinances({ request, params });
 }
 
-function AdministracionFinanzasCuentaCorrienteRouteView({
-  loaderData,
-}: AdministracionFinanzasCuentaCorrienteRouteProps) {
-  return (
-    <CuentaCorrienteView
-      loaderData={loaderData}
-      selectableChoreographyRows={false}
-    />
-  );
-}
+export { AdministracionFinanzasAcademiaRouteView };
 
-export default function AdministracionFinanzasCuentaCorrienteRoute({
+export default function AdministracionFinanzasAcademiaRoute({
   loaderData,
-}: AdministracionFinanzasCuentaCorrienteRouteProps) {
-  return (
-    <AdministracionFinanzasCuentaCorrienteRouteView loaderData={loaderData} />
-  );
+}: AdministracionFinanzasAcademiaRouteProps) {
+  return <AdministracionFinanzasAcademiaRouteView loaderData={loaderData} />;
 }

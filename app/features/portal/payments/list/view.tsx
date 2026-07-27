@@ -7,10 +7,7 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatAmount,
-  formatDate,
-} from "@/features/admin/academies/account-current/formatters";
+import { formatAmount, formatDate } from "@/features/admin/finances/formatters";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import {
   formatPaymentMethodLabel,

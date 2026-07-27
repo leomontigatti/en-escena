@@ -109,7 +109,7 @@ const eventBaseNavigationItems = [
   },
 ] satisfies SidebarNavigationItem[];
 
-const primaryNavigationItems = [
+const contextNavigationItems = [
   {
     label: "Inicio",
     to: "/administracion",
@@ -120,6 +120,9 @@ const primaryNavigationItems = [
     to: "/administracion/eventos",
     icon: CalendarDays,
   },
+] satisfies SidebarNavigationItem[];
+
+const operationNavigationItems = [
   {
     label: "Coreografías",
     to: "/administracion/coreografias",
@@ -137,7 +140,7 @@ const primaryNavigationItems = [
   },
 ] satisfies SidebarNavigationItem[];
 
-const secondaryNavigationItems = [
+const accessNavigationItems = [
   {
     label: "Usuarios",
     to: "/administracion/usuarios",
@@ -152,7 +155,7 @@ const secondaryNavigationItems = [
 
 const financeNavigationItems = [
   {
-    label: "Resumen",
+    label: "Academias",
     to: "/administracion/finanzas",
     icon: ClipboardList,
   },
@@ -168,10 +171,16 @@ const financeNavigationItems = [
   },
 ] satisfies SidebarNavigationItem[];
 
+// Cada grupo es un trabajo del administrador, y sus items son los objetos de ese
+// trabajo. Por eso "Academias" aparece dos veces: en Finanzas se mira su saldo,
+// en Accesos se administra la entidad. El grupo desambigua.
 const navigationGroups = [
   {
-    label: "Administración",
-    items: primaryNavigationItems,
+    items: contextNavigationItems,
+  },
+  {
+    label: "Operación",
+    items: operationNavigationItems,
   },
   {
     label: "Finanzas",
@@ -182,7 +191,8 @@ const navigationGroups = [
     items: eventBaseNavigationItems,
   },
   {
-    items: secondaryNavigationItems,
+    label: "Accesos",
+    items: accessNavigationItems,
   },
 ] satisfies SidebarNavigationGroup[];
 
