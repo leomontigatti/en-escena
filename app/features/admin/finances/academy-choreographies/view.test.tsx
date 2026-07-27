@@ -58,6 +58,68 @@ describe("AdministracionFinanzasAcademiaRouteView", () => {
     expect(text).not.toContain("Movimientos");
   });
 
+  test("shows the total column between balance and state", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/finanzas/:academyId",
+          element: (
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture({
+                choreographyFinanceRows: [
+                  choreographyFinanceRowFixture({
+                    depositAmount: { amount: 3000, status: "complete" },
+                    balanceAmount: { amount: 7000, status: "complete" },
+                    id: "choreography_1",
+                    name: "Aire",
+                  }),
+                  choreographyFinanceRowFixture({
+                    balanceAmount: {
+                      amount: 7000,
+                      missingPriceCount: 1,
+                      status: "incomplete",
+                    },
+                    id: "choreography_2",
+                    name: "Tango",
+                  }),
+                ],
+              })}
+            />
+          ),
+        },
+      ],
+      {
+        initialEntries: ["/administracion/finanzas/academy_1"],
+      },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const headerCells = [...document.querySelectorAll("thead th")];
+    const headers = headerCells.map((header) =>
+      (header.textContent ?? "").trim(),
+    );
+
+    expect(headers.indexOf("Total")).toBe(headers.indexOf("Saldo") + 1);
+    expect(headers.indexOf("Estado")).toBe(headers.indexOf("Total") + 1);
+    expect(
+      headerCells[headers.indexOf("Saldo")]?.querySelector("button"),
+    ).toBeNull();
+    expect(
+      headerCells[headers.indexOf("Total")]?.querySelector("button"),
+    ).toBeNull();
+
+    const rowCells = [...document.querySelectorAll("tbody tr")].map((row) =>
+      [...row.querySelectorAll("td")].map((cell) =>
+        (cell.textContent ?? "").trim(),
+      ),
+    );
+    const totalColumnIndex = headers.indexOf("Total");
+
+    expect(rowCells[0]?.[totalColumnIndex]).toBe("$ 10.000");
+    expect(rowCells[1]?.[totalColumnIndex]).toBe("Pendiente");
+  });
+
   test("never renders a choreography selection column", async () => {
     const router = createMemoryRouter(
       [

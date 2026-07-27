@@ -30,7 +30,7 @@ puede requerir aprobacion elevada aunque no salga de la maquina. Por eso
 `docs/agents/workflows.md` documenta los prefijos persistentes:
 
 - `pnpm test:db:postgres`
-- `pnpm db:test:push`
+- `pnpm db:test:reset`
 - `docker compose up -d postgres`
 
 ## Enmienda operativa 2026-07-18
@@ -103,14 +103,14 @@ Metodologia:
   `collect` y `tests` son tiempos agregados de Vitest y pueden superar el
   tiempo de pared cuando hay trabajo en paralelo.
 - Para los comandos `test:db:file` y `test:db`, el tiempo de pared incluye
-  `pnpm db:test:push`.
+  `pnpm db:test:reset`.
 
 ### Medidas
 
 | Superficie              | Comando                                                                             | Tiempo de pared | Desglose relevante                                                                         |
 | ----------------------- | ----------------------------------------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------ |
 | Suite regular           | `pnpm test`                                                                         |          20.86s | 25 archivos / 120 tests verdes; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
-| Push de schema DB       | `pnpm db:test:push`                                                                 |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
+| Reset de schema DB      | `pnpm db:test:reset`                                                                |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
 | Harness DB enfocado     | `pnpm test:db:file tests/db/harness.db.test.ts`                                     |           4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                           |
 | DB chico                | `pnpm test:db:file app/lib/admin/users/internal-invitation-route.server.db.test.ts` |           5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                            |
 | DB mediano              | `pnpm test:db:file app/lib/events/management.server.db.test.ts`                     |           5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                          |
@@ -141,7 +141,7 @@ del harness.
 
 ### Observaciones de la linea base
 
-- El costo fijo de `db:test:push` ya consume ~2.31s antes de ejecutar Vitest.
+- El costo fijo de `db:test:reset` ya consume ~2.31s antes de ejecutar Vitest.
 - En archivos chicos o medianos, `collect` e importacion pesan mas que la
   ejecucion real de tests.
 - En la suite DB completa, el tiempo dominante ya es la ejecucion de tests
@@ -199,7 +199,7 @@ Issue `#125` cerro la decision pendiente del plan:
 
 - Comparacion decidida:
   - `PGlite con schema snapshots`: gana como siguiente implementacion porque la
-    linea base actual tiene un costo fijo medido de `db:test:push` (~2.31s por
+    linea base actual tiene un costo fijo medido de `db:test:reset` (~2.31s por
     corrida), no hay fallas DB preexistentes, y el POC de `#124` ya cubrio con
     exito schema, FKs, constraints, transacciones, `jsonb` y queries raw
     relevantes.
@@ -319,7 +319,7 @@ Crear una linea base repetible:
      o `app/features/portal/choreographies/detail/server.db.test.ts`.
 4. Medir `pnpm test:db` cuando la suite este verde.
 5. Separar tiempos de:
-   - `db:test:push`;
+   - `db:test:reset`;
    - collect/import de Vitest;
    - ejecucion real de tests.
 
