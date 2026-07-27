@@ -125,6 +125,19 @@ This approval is operational only; it does not change the reliable validation
 target. `pnpm test:db:postgres` must continue to use `TEST_DATABASE_URL`,
 not production or preview data.
 
+### Reset de la base de test
+
+- `pnpm test` / `pnpm test:db` usan **PGlite in-process**: una base efímera por
+  proceso, con el schema derivado de `app/db/migrations` y cacheado por hash como
+  snapshot en `$TMPDIR/en-escena-pglite-snapshots/`. No requieren Postgres ni un
+  reset previo.
+- `pnpm test:db:postgres` usa la base Postgres real de `TEST_DATABASE_URL` y ya
+  corre el reset por sí solo como primer paso, así que tampoco hay que resetear a
+  mano.
+- El reset manual es `pnpm db:test:push` que, **pese al nombre**, corre
+  `drizzle-kit migrate` (dropea tablas/enums `en_escena_%` + el `schema drizzle`
+  y re-aplica las migraciones desde cero), no `drizzle-kit push`.
+
 ## React Router Flat Routes
 
 This repo uses `@react-router/fs-routes` flat route naming. When adding a
