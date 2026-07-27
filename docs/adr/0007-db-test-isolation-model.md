@@ -5,7 +5,7 @@
 En Escena needs a faster DB feedback loop without losing confidence on rules
 persisted in Postgres. The measured baseline from 2026-06-20 was:
 
-- `pnpm db:test:push`: 2.31s fixed cost before every DB run.
+- `pnpm db:test:reset`: 2.31s fixed cost before every DB run.
 - `pnpm test:db:file tests/db/harness.db.test.ts`: 4.90s wall clock.
 - `pnpm test:db`: 80.32s wall clock for 27 files and 238 passing tests.
 - Existing DB failures at decision time: none. Issue `#123` revalidated the
