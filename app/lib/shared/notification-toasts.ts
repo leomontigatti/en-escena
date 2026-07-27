@@ -6,7 +6,6 @@ type NotificationToast = ToastMessage & {
 
 export const notificationToastIds = {
   "event-form-error": "route-notification:event-form-error",
-  "academia-guardada": "route-notification:academia-guardada",
   "perfil-guardado": "route-notification:perfil-guardado",
   "profesor-creado": "route-notification:profesor-creado",
   "profesor-guardado": "route-notification:profesor-guardado",
@@ -58,11 +57,6 @@ type NotificationToastKey = Exclude<
 >;
 
 export const notificationToasts = {
-  "academia-guardada": {
-    id: notificationToastIds["academia-guardada"],
-    message: "Academia guardada.",
-    variant: "success",
-  },
   "perfil-guardado": {
     id: notificationToastIds["perfil-guardado"],
     message: "Perfil guardado.",

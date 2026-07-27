@@ -2,18 +2,19 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeAcademyDetailAction,
-  loadAdministrativeAcademyDetail,
+  handleAdminAcademyDetailAction,
+  loadAdminAcademyDetail,
 } from "@/features/admin/academies/detail/server";
-import type { AcademyDetailActionData } from "@/features/admin/academies/detail/shared";
-import { AdministracionAcademiaDetalleRouteView as AcademiaDetalleView } from "@/features/admin/academies/detail/view";
+import type {
+  AcademyDetailActionData,
+  AcademyDetailLoaderData,
+} from "@/features/admin/academies/detail/shared";
+import { AcademyDetailRouteView as AcademyDetailView } from "@/features/admin/academies/detail/view";
 
 import type { Route } from "./+types/administracion.academias_.$academyId";
 
-type LoaderData = Awaited<ReturnType<typeof loader>>;
-
-type AdministracionAcademiaDetalleRouteProps = {
-  loaderData: LoaderData;
+type AcademyDetailRouteProps = {
+  loaderData: AcademyDetailLoaderData;
   actionData?: AcademyDetailActionData;
 };
 
@@ -25,41 +26,36 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Academias", to: "/administracion/academias" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.data as AcademyDetailLoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
     },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyDetail({ request, params });
+  return await loadAdminAcademyDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<AcademyDetailActionData> {
-  return await handleAdministrativeAcademyDetailAction({ request, params });
+  return await handleAdminAcademyDetailAction({ request, params });
 }
 
-export function AdministracionAcademiaDetalleRouteView({
+export function AcademyDetailRouteView({
   actionData,
   loaderData,
-}: AdministracionAcademiaDetalleRouteProps) {
-  return (
-    <AcademiaDetalleView actionData={actionData} loaderData={loaderData} />
-  );
+}: AcademyDetailRouteProps) {
+  return <AcademyDetailView actionData={actionData} loaderData={loaderData} />;
 }
 
-export default function AdministracionAcademiaDetalleRoute({
+export default function AcademyDetailRoute({
   loaderData,
-}: AdministracionAcademiaDetalleRouteProps) {
+}: AcademyDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionAcademiaDetalleRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
+    <AcademyDetailRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

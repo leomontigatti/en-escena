@@ -11,7 +11,7 @@ import {
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
 import {
-  AdministracionAcademiaDetalleRouteView,
+  AcademyDetailRouteView,
   action as detailAction,
   loader as detailLoader,
 } from "@/routes/administracion.academias_.$academyId";
@@ -41,7 +41,7 @@ function renderDetail(
     [
       {
         path: "/administracion/academias/:academyId",
-        element: createElement(AdministracionAcademiaDetalleRouteView, {
+        element: createElement(AcademyDetailRouteView, {
           actionData,
           loaderData,
         }),
@@ -51,6 +51,20 @@ function renderDetail(
   );
 
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
+}
+
+// Las clases de Tailwind traen variantes `disabled:`, así que el estado real
+// se lee del atributo (`disabled=""` en el markup del servidor).
+function isFieldDisabled(markup: string, fieldName: string) {
+  const tag = markup.match(
+    new RegExp(`<input[^>]*name="${fieldName}"[^>]*>`),
+  )?.[0];
+
+  if (!tag) {
+    throw new Error(`No se encontró el campo "${fieldName}" en el markup.`);
+  }
+
+  return / disabled=""/.test(tag);
 }
 
 async function buildFormRequest(input: {
@@ -109,6 +123,10 @@ describe.sequential("administracion academia detalle", () => {
     expect(markup).toContain("Guardar");
     expect(markup).toContain("Volver");
     expect(markup).toContain('href="/administracion/academias"');
+
+    for (const fieldName of ["name", "contactName", "phone"]) {
+      expect(isFieldDisabled(markup, fieldName)).toBe(false);
+    }
 
     // La vista quedó acotada a los datos de la academia.
     expect(markup).not.toContain("Seña adeudada");
@@ -212,6 +230,11 @@ describe.sequential("administracion academia detalle", () => {
     expect(markup).toContain("Academia Oeste");
     expect(markup).toContain("Volver");
     expect(markup).not.toContain("Guardar");
+
+    // No alcanza con ocultar el botón: los campos también van deshabilitados.
+    for (const fieldName of ["name", "contactName", "phone"]) {
+      expect(isFieldDisabled(markup, fieldName)).toBe(true);
+    }
   });
 
   test("blocks an auditor from submitting the form", async () => {
@@ -242,6 +265,21 @@ describe.sequential("administracion academia detalle", () => {
 
     await expect(
       detailLoader(routeArgs(request, "no-existe")),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  test("responds 404 when submitting for an unknown academy", async () => {
+    const request = await buildFormRequest({
+      academyId: "no-existe",
+      contactName: "Nora Norte",
+      email: "admin.academia.404.post@example.com",
+      name: "Academia Fantasma",
+      phone: "3415551234",
+      role: "admin",
+    });
+
+    await expect(
+      detailAction(routeArgs(request, "no-existe")),
     ).rejects.toMatchObject({ status: 404 });
   });
 });

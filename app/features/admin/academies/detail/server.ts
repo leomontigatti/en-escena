@@ -5,21 +5,23 @@ import { academies, user } from "@/db/schema";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { readFormString } from "@/lib/shared/forms";
 
 import {
   academyDetailSchema,
+  academySavedMessage,
   updateAcademyIntent,
   type AcademyDetailActionData,
+  type AcademyDetailLoaderData,
 } from "./shared";
 
-export async function loadAdministrativeAcademyDetail({
+export async function loadAdminAcademyDetail({
   params,
   request,
 }: {
   params: { academyId?: string };
   request: Request;
-}) {
+}): Promise<AcademyDetailLoaderData> {
   const currentUser = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
   const academy = await readAcademy(params.academyId);
@@ -31,7 +33,7 @@ export async function loadAdministrativeAcademyDetail({
   };
 }
 
-export async function handleAdministrativeAcademyDetailAction({
+export async function handleAdminAcademyDetailAction({
   params,
   request,
 }: {
@@ -59,7 +61,8 @@ export async function handleAdministrativeAcademyDetailAction({
 
     return {
       status: "error",
-      message: "Revisá los campos marcados.",
+      message:
+        "No pudimos guardar los cambios. Revisá los datos e intentá de nuevo.",
       fieldErrors: {
         name: flattened.name?.[0],
         contactName: flattened.contactName?.[0],
@@ -82,7 +85,7 @@ export async function handleAdministrativeAcademyDetailAction({
 
   return {
     status: "success",
-    message: notificationToasts["academia-guardada"].message,
+    message: academySavedMessage,
   };
 }
 
@@ -110,13 +113,3 @@ async function readAcademy(academyId?: string) {
 
   return academy;
 }
-
-function readFormString(formData: FormData, name: string) {
-  const value = formData.get(name);
-
-  return typeof value === "string" ? value : "";
-}
-
-export type AcademyDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdministrativeAcademyDetail>
->;

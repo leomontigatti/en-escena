@@ -6,12 +6,25 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const academyDetailFormId = "administracion-academia-detalle-form";
 export const updateAcademyIntent = "update-academy";
+export const academySavedMessage = "Academia guardada.";
 
 export const academyDetailSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
 });
+
+export type AcademyDetailLoaderData = {
+  academy: {
+    contactName: string;
+    email: string;
+    id: string;
+    name: string;
+    phone: string;
+  };
+  canEdit: boolean;
+  selectedEventId: string | null;
+};
 
 export type AcademyDetailFormValues = z.infer<typeof academyDetailSchema>;
 export type AcademyDetailFieldErrors = Partial<

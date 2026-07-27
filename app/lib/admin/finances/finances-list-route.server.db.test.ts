@@ -15,7 +15,6 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as legacyReportLoader } from "@/routes/administracion.academias.reporte";
 import { loader as financeAccountsLoader } from "@/routes/administracion.finanzas";
 import {
   action as paymentCreateAction,
@@ -526,24 +525,6 @@ describe.sequential("administracion finanzas", () => {
       financeAccountsLoader(financesListRouteArgs(academyRequest)),
     ).rejects.toMatchObject({
       status: 403,
-    });
-  });
-
-  test("redirects the legacy academies report URL to finances", async () => {
-    const event = await createSavedEvent();
-    const { request } = await createSignedInRequest({
-      email: "admin.reporte.legacy@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/academias/reporte?evento=${event.id}`,
-    });
-
-    await expect(
-      legacyReportLoader(financesListRouteArgs(request)),
-    ).rejects.toMatchObject({
-      status: 302,
-      headers: expect.objectContaining({
-        get: expect.any(Function),
-      }),
     });
   });
 });

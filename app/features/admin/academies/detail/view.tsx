@@ -1,14 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
-import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
@@ -23,16 +25,10 @@ import {
   updateAcademyIntent,
   type AcademyDetailActionData,
   type AcademyDetailFormValues,
+  type AcademyDetailLoaderData,
 } from "./shared";
-import type { AcademyDetailLoaderData } from "./server";
 
-type AcademyDetailFormReturn = UseFormReturn<
-  AcademyDetailFormValues,
-  unknown,
-  AcademyDetailFormValues
->;
-
-export function AdministracionAcademiaDetalleRouteView({
+export function AcademyDetailRouteView({
   actionData,
   loaderData,
 }: {
@@ -63,59 +59,60 @@ export function AdministracionAcademiaDetalleRouteView({
       title={academy.name}
       description="Consultá y actualizá los datos de contacto de la academia."
     >
-      <Card>
-        <CardContent>
-          <form
-            id={academyDetailFormId}
-            method="post"
-            noValidate
-            onSubmit={form.handleSubmit}
-          >
-            <input type="hidden" name="intent" value={updateAcademyIntent} />
-            <FieldGroup className="grid gap-5 md:grid-cols-2">
-              <AcademyDetailTextField
-                autoComplete="organization"
-                disabled={!canEdit}
-                form={form.form}
-                label="Nombre de la academia"
-                name="name"
-              />
-              <ReadOnlyField
-                autoComplete="email"
-                label="Email de acceso"
-                type="email"
-                value={academy.email}
-              />
-              <AcademyDetailTextField
-                autoComplete="name"
-                disabled={!canEdit}
-                form={form.form}
-                label="Nombre de contacto"
-                name="contactName"
-              />
-              <AcademyDetailTextField
-                autoComplete="tel"
-                disabled={!canEdit}
-                form={form.form}
-                inputMode="tel"
-                label="Teléfono de contacto"
-                maxLength={10}
-                name="phone"
-                placeholder={argentinePhonePlaceholder}
-                type="tel"
-              />
-            </FieldGroup>
-          </form>
-        </CardContent>
-        <CardFooter className="justify-end gap-2 border-0 bg-transparent pt-0">
-          <Button asChild variant="outline">
-            <Link to="/administracion/academias">Volver</Link>
-          </Button>
-          {canEdit ? (
-            <SubmitButton form={academyDetailFormId} isPending={isSaving} />
-          ) : null}
-        </CardFooter>
-      </Card>
+      <AdminResourceFormCard
+        footer={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/administracion/academias">Volver</Link>
+            </Button>
+            {canEdit ? (
+              <SubmitButton form={academyDetailFormId} isPending={isSaving} />
+            ) : null}
+          </>
+        }
+      >
+        <form
+          id={academyDetailFormId}
+          method="post"
+          noValidate
+          onSubmit={form.handleSubmit}
+        >
+          <input type="hidden" name="intent" value={updateAcademyIntent} />
+          <FieldGroup className="grid gap-5 md:grid-cols-2">
+            <TextInputField
+              autoComplete="organization"
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Nombre de la academia"
+              name="name"
+            />
+            <ReadOnlyField
+              autoComplete="email"
+              label="Email de acceso"
+              type="email"
+              value={academy.email}
+            />
+            <TextInputField
+              autoComplete="name"
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Nombre de contacto"
+              name="contactName"
+            />
+            <TextInputField
+              autoComplete="tel"
+              control={form.form.control}
+              disabled={!canEdit}
+              inputMode="tel"
+              label="Teléfono de contacto"
+              maxLength={10}
+              name="phone"
+              placeholder={argentinePhonePlaceholder}
+              type="tel"
+            />
+          </FieldGroup>
+        </form>
+      </AdminResourceFormCard>
     </AdminResourceLayout>
   );
 }
@@ -141,40 +138,4 @@ function useAcademyDetailForm({ values }: { values: AcademyDetailFormValues }) {
     form,
     handleSubmit: createValidatedRouteSubmitHandler(form, submit),
   };
-}
-
-function AcademyDetailTextField({
-  autoComplete,
-  disabled,
-  form,
-  inputMode,
-  label,
-  maxLength,
-  name,
-  placeholder,
-  type = "text",
-}: {
-  autoComplete: string;
-  disabled?: boolean;
-  form: AcademyDetailFormReturn;
-  inputMode?: "tel";
-  label: string;
-  maxLength?: number;
-  name: FieldPath<AcademyDetailFormValues>;
-  placeholder?: string;
-  type?: "tel" | "text";
-}) {
-  return (
-    <TextInputField
-      autoComplete={autoComplete}
-      control={form.control}
-      disabled={disabled}
-      inputMode={inputMode}
-      label={label}
-      maxLength={maxLength}
-      name={name}
-      placeholder={placeholder}
-      type={type}
-    />
-  );
 }
