@@ -27,7 +27,7 @@ push` and no Supabase SQL migration path anymore.
    command runs in dev, test, CI, and production — only the connection differs.
 
 Test harnesses apply the exact same migrations: the PGlite snapshot builder and
-`pnpm db:test:push` both run `migrate` against `app/db/migrations`. `pushSchema`
+`pnpm db:test:reset` both run `migrate` against `app/db/migrations`. `pushSchema`
 survives only as the equivalence oracle in `app/db/migrations.db.test.ts`, which
 asserts that `migrate` and `pushSchema` produce the same tables.
 

@@ -117,7 +117,7 @@ over TCP on `localhost:5433`. When requesting persistent approval, use these
 scoped prefixes:
 
 - `pnpm test:db:postgres`
-- `pnpm db:test:push`
+- `pnpm db:test:reset`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
@@ -125,18 +125,10 @@ This approval is operational only; it does not change the reliable validation
 target. `pnpm test:db:postgres` must continue to use `TEST_DATABASE_URL`,
 not production or preview data.
 
-### Reset de la base de test
-
-- `pnpm test` / `pnpm test:db` usan **PGlite in-process**: una base efímera por
-  proceso, con el schema derivado de `app/db/migrations` y cacheado por hash como
-  snapshot en `$TMPDIR/en-escena-pglite-snapshots/`. No requieren Postgres ni un
-  reset previo.
-- `pnpm test:db:postgres` usa la base Postgres real de `TEST_DATABASE_URL` y ya
-  corre el reset por sí solo como primer paso, así que tampoco hay que resetear a
-  mano.
-- El reset manual es `pnpm db:test:push` que, **pese al nombre**, corre
-  `drizzle-kit migrate` (dropea tablas/enums `en_escena_%` + el `schema drizzle`
-  y re-aplica las migraciones desde cero), no `drizzle-kit push`.
+To reset the local test database on demand — drop the `en_escena_%` tables and
+enums, wipe the `drizzle` migration state, and re-apply the versioned migrations
+from scratch — run `pnpm db:test:reset`. That is the canonical reset procedure
+for the Postgres-backed test database.
 
 ## React Router Flat Routes
 

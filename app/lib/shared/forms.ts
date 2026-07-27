@@ -14,6 +14,12 @@ import type {
 
 export const requiredFieldMessage = "Este campo es obligatorio.";
 
+export function readFormString(formData: FormData, name: string) {
+  const value = formData.get(name);
+
+  return typeof value === "string" ? value : "";
+}
+
 export function useResetFormValues<TValues>(
   reset: (values: TValues) => void,
   values: TValues,

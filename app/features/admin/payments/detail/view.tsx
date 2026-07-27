@@ -20,7 +20,7 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { formatAmount } from "@/features/admin/academies/account-current/formatters";
+import { formatAmount } from "@/features/admin/finances/formatters";
 import {
   createPaymentSchema,
   type CreatePaymentFormValues,

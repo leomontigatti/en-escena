@@ -1,43 +1,61 @@
+import { useActionData } from "react-router";
+
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademyAccountCurrent } from "@/features/admin/academies/account-current/server";
-import { AdministracionAcademiaCuentaCorrienteRouteView as CuentaCorrienteView } from "@/features/admin/academies/account-current/view";
+import {
+  handleAdminAcademyDetailAction,
+  loadAdminAcademyDetail,
+} from "@/features/admin/academies/detail/server";
+import type {
+  AcademyDetailActionData,
+  AcademyDetailLoaderData,
+} from "@/features/admin/academies/detail/shared";
+import { AcademyDetailRouteView as AcademyDetailView } from "@/features/admin/academies/detail/view";
 
 import type { Route } from "./+types/administracion.academias_.$academyId";
 
-type LoaderData = Awaited<ReturnType<typeof loader>>;
-
-type AdministracionAcademiaCuentaCorrienteRouteProps = {
-  loaderData: LoaderData;
+type AcademyDetailRouteProps = {
+  loaderData: AcademyDetailLoaderData;
+  actionData?: AcademyDetailActionData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Cuenta corriente | Panel de administración | En Escena" },
+  { title: "Detalle de academia | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
     { label: "Academias", to: "/administracion/academias" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.data as AcademyDetailLoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
     },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyAccountCurrent({ request, params });
+  return await loadAdminAcademyDetail({ request, params });
 }
 
-export function AdministracionAcademiaCuentaCorrienteRouteView({
-  loaderData,
-}: AdministracionAcademiaCuentaCorrienteRouteProps) {
-  return <CuentaCorrienteView loaderData={loaderData} />;
+export async function action({
+  request,
+  params,
+}: Route.ActionArgs): Promise<AcademyDetailActionData> {
+  return await handleAdminAcademyDetailAction({ request, params });
 }
 
-export default function AdministracionAcademiaCuentaCorrienteRoute({
+export function AcademyDetailRouteView({
+  actionData,
   loaderData,
-}: AdministracionAcademiaCuentaCorrienteRouteProps) {
+}: AcademyDetailRouteProps) {
+  return <AcademyDetailView actionData={actionData} loaderData={loaderData} />;
+}
+
+export default function AcademyDetailRoute({
+  loaderData,
+}: AcademyDetailRouteProps) {
+  const actionData = useActionData<typeof action>();
+
   return (
-    <AdministracionAcademiaCuentaCorrienteRouteView loaderData={loaderData} />
+    <AcademyDetailRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

@@ -1,4 +1,4 @@
-import { formatAmount } from "@/features/admin/academies/account-current/formatters";
+import { formatAmount } from "@/features/admin/finances/formatters";
 import { buildComprobanteQrUrl } from "@/lib/comprobantes/arca/qr";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import type { ComprobanteWithLines } from "@/lib/comprobantes/comprobantes.server";

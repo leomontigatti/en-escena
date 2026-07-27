@@ -54,7 +54,7 @@ import {
   formatDate,
   formatOperationalAmount,
   formatTotalAmount,
-} from "../formatters";
+} from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
@@ -95,7 +95,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
       description={
         choreography
           ? "Revisá los importes, datos y participaciones vinculadas a esta coreografía."
-          : "No encontramos esa coreografía dentro de la cuenta corriente de la academia."
+          : "No encontramos esa coreografía dentro de la lista financiera de la academia."
       }
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar la coreografía",
@@ -173,7 +173,7 @@ export function AdministracionCoreografiaFinancieraDetalleView({
       ) : (
         <AdminEmptyState
           title="Coreografía no encontrada"
-          description="Volvé a la cuenta corriente y elegí una coreografía de la lista."
+          description="Volvé a la lista financiera y elegí una coreografía."
         />
       )}
     </AdminResourceLayout>

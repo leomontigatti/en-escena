@@ -77,7 +77,7 @@ verification and document image storage.
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0008-use-supabase-storage-for-uploaded-assets.md`
 - Routes: `app/routes/portal.profesores.tsx`, `app/routes/portal.profesores_.$professorId.tsx`, `app/routes/portal.bailarines.tsx`, `app/routes/portal.bailarines_.$dancerId.tsx`, `app/routes/portal.perfil.tsx`
 - Feature modules: `app/features/portal/professors/list/`, `app/features/portal/professors/create/`, `app/features/portal/professors/detail/`, `app/features/portal/dancers/list/`, `app/features/portal/dancers/create/`, `app/features/portal/dancers/detail/`, `app/features/portal/profile/`
-- Server modules: `app/lib/portal/professors.server.ts`, `app/lib/portal/professor-records.server.ts`, `app/features/portal/professors/list/server.ts`, `app/features/portal/professors/create/server.ts`, `app/features/portal/professors/detail/server.ts`, `app/features/portal/dancers/list/server.ts`, `app/features/portal/dancers/create/server.ts`, `app/features/portal/dancers/detail/server.ts`, `app/features/portal/profile/server.ts`, `app/features/portal/profile/academy-profile.server.ts`, `app/lib/portal/dancers.server.ts`, `app/lib/dancers/dancer-records.server.ts`, `app/lib/dancers/verification.ts`, `app/lib/storage/dancer-documents.server.ts`
+- Server modules: `app/lib/portal/professors.server.ts`, `app/lib/portal/professor-records.server.ts`, `app/features/portal/professors/list/server.ts`, `app/features/portal/professors/create/server.ts`, `app/features/portal/professors/detail/server.ts`, `app/features/portal/dancers/list/server.ts`, `app/features/portal/dancers/create/server.ts`, `app/features/portal/dancers/detail/server.ts`, `app/features/portal/profile/server.ts`, `app/lib/academies/academy-profile.server.ts`, `app/lib/portal/dancers.server.ts`, `app/lib/dancers/dancer-records.server.ts`, `app/lib/dancers/verification.ts`, `app/lib/storage/dancer-documents.server.ts`
 - UI modules: `app/features/portal/professors/list/view.tsx`, `app/features/portal/professors/create/dialog.tsx`, `app/features/portal/professors/detail/view.tsx`, `app/features/portal/dancers/list/view.tsx`, `app/features/portal/dancers/create/dialog.tsx`, `app/features/portal/dancers/detail/view.tsx`, `app/features/portal/dancers/detail/form.tsx`, `app/features/portal/profile/view.tsx`
 - Tests: `app/features/portal/roster/view-transitions.render.test.tsx`, `app/features/portal/profile/server.db.test.ts`, `app/features/portal/profile/view.test.tsx`, `app/features/portal/profile/action.test.ts`, `app/features/portal/professors/create/dialog.test.tsx`, `app/features/portal/professors/create/submission.test.tsx`, `app/features/portal/professors/list/server.db.test.ts`, `app/features/portal/professors/list/view.test.tsx`, `app/features/portal/professors/detail/view.test.tsx`, `app/features/portal/dancers/create/dialog.test.tsx`, `app/features/portal/dancers/create/submission.test.tsx`, `app/features/portal/dancers/list/server.db.test.ts`, `app/features/portal/dancers/list/view.test.tsx`, `app/features/portal/dancers/detail/server.db.test.ts`, `app/features/portal/dancers/detail/view.test.tsx`, `app/features/portal/dancers/detail/submission.test.tsx`, `app/features/portal/dancers/detail/server.test.ts`, `app/lib/storage/dancer-documents.server.test.ts`
 
@@ -156,6 +156,19 @@ participation filters, archive/reactivate flows and admin corrections.
 - Feature modules: `app/features/admin/professors/list/`, `app/features/admin/professors/detail/`, `app/features/admin/dancers/list/`, `app/features/admin/dancers/detail/`
 - Shared modules kept in `app/lib` because they encapsulate reusable query, mutation and audit behavior: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/participation/participation.server.ts`
 - Tests: `app/features/admin/dancers/routes.adapter.test.tsx`, `app/features/admin/professors/list/view.test.tsx`, `app/features/admin/professors/detail/view.test.tsx`, `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
+
+## Admin Academies
+
+Use for the administrative academy listing and the academy detail, where an
+admin consults and edits the academy contact data. The per-academy financial
+summary lives in `Admin Finances`, not here.
+
+- Domain: `docs/domain/acceso.md`
+- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/administracion.academias.tsx`, `app/routes/administracion.academias_.$academyId.tsx`
+- Feature modules: `app/features/admin/academies/list/`, `app/features/admin/academies/detail/`
+- Shared modules kept in `app/lib` because the update behavior is reused by the portal profile: `app/lib/academies/academy-profile.server.ts`
+- Tests: `app/lib/admin/academies/academy-detail-route.server.db.test.ts`
 
 ## Admin Events And Bases Del Evento
 

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatAmount } from "../formatters";
+import { formatAmount } from "../../formatters";
 import { PaymentField } from "./payment-select-items";
 import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
 import { payInscriptionDepositIntent } from "./shared";

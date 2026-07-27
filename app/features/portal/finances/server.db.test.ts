@@ -19,16 +19,16 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { PortalAcademyFinancesRouteView } from "@/features/portal/finances/view";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { activateEvent } from "@/lib/events/management.server";
-import { loader as accountCurrentLoader } from "@/routes/administracion.academias_.$academyId";
+import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
 import { loader as portalFinanzasLoader } from "@/routes/portal.finanzas";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  accountCurrentUrl,
+  academyFinancesUrl,
   createSavedEvent,
   createSignedInRequest,
-  detailRouteArgs,
-} from "../../../lib/admin/academies/account-current-route.test-support";
+  academyFinancesRouteArgs,
+} from "../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -336,10 +336,10 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.portal.snapshot@example.com",
       role: "admin",
-      requestUrl: accountCurrentUrl(owner.academyId, event.id),
+      requestUrl: academyFinancesUrl(owner.academyId, event.id),
     });
-    const adminLoaderData = await accountCurrentLoader(
-      detailRouteArgs(adminRequest, owner.academyId),
+    const adminLoaderData = await academyFinancesLoader(
+      academyFinancesRouteArgs(adminRequest, owner.academyId),
     );
 
     expect(portalLoaderData.summary).toEqual({

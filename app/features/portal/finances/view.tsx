@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatAmount,
   formatOperationalAmount,
-} from "@/features/admin/academies/account-current/formatters";
+} from "@/features/admin/finances/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import {
   choreographyFinancialStateOptions,

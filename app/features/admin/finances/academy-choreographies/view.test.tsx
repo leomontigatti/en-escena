@@ -5,10 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionAcademiaCuentaCorrienteRouteView } from "./view";
-import type { AccountCurrentLoaderData } from "./types";
+import { AdministracionFinanzasAcademiaRouteView } from "./view";
+import type { AcademyFinancesLoaderData } from "./types";
 
-describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
+describe("AdministracionFinanzasAcademiaRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -17,10 +17,10 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/academias/:academyId",
+          path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionAcademiaCuentaCorrienteRouteView
-              loaderData={accountCurrentLoaderDataFixture({
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture({
                 summary: {
                   availableBalanceAmount: 5000,
                   owedBalanceAmount: { amount: 10000, status: "complete" },
@@ -33,7 +33,7 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
         },
       ],
       {
-        initialEntries: ["/administracion/academias/academy_1"],
+        initialEntries: ["/administracion/finanzas/academy_1"],
       },
     );
 
@@ -41,7 +41,8 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("Cuenta corriente");
+    expect(text).toContain("Academia Centro");
+    expect(text).toContain("Lista financiera de las coreografías");
     expect(text).toContain("Seña adeudada");
     expect(text).toContain("Saldo disponible");
     expect(text).toContain("Saldo adeudado");
@@ -63,8 +64,8 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionAcademiaCuentaCorrienteRouteView
-              loaderData={accountCurrentLoaderDataFixture({
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture({
                 choreographyFinanceRows: [
                   choreographyFinanceRowFixture({
                     depositAmount: { amount: 3000, status: "complete" },
@@ -83,7 +84,6 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
                   }),
                 ],
               })}
-              selectableChoreographyRows={false}
             />
           ),
         },
@@ -120,15 +120,14 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
     expect(rowCells[1]?.[totalColumnIndex]).toBe("Pendiente");
   });
 
-  test("hides the choreography selection column when list actions are disabled", async () => {
+  test("never renders a choreography selection column", async () => {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionAcademiaCuentaCorrienteRouteView
-              loaderData={accountCurrentLoaderDataFixture()}
-              selectableChoreographyRows={false}
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture()}
             />
           ),
         },
@@ -152,9 +151,9 @@ describe("AdministracionAcademiaCuentaCorrienteRouteView", () => {
   });
 });
 
-function accountCurrentLoaderDataFixture(
-  overrides: Partial<AccountCurrentLoaderData> = {},
-): AccountCurrentLoaderData {
+function academyFinancesLoaderDataFixture(
+  overrides: Partial<AcademyFinancesLoaderData> = {},
+): AcademyFinancesLoaderData {
   return {
     academy: {
       contactName: "Academia Centro",
@@ -185,9 +184,9 @@ function accountCurrentLoaderDataFixture(
 
 function choreographyFinanceRowFixture(
   overrides: Partial<
-    AccountCurrentLoaderData["choreographyFinanceRows"][number]
+    AcademyFinancesLoaderData["choreographyFinanceRows"][number]
   > = {},
-): AccountCurrentLoaderData["choreographyFinanceRows"][number] {
+): AcademyFinancesLoaderData["choreographyFinanceRows"][number] {
   return {
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },

@@ -18,7 +18,7 @@ export type FinanceAccountRow = {
   owedDepositAmount: OperationalFinanceAmount;
 };
 
-export async function loadAdminFinanceAccountCurrentList(request: Request) {
+export async function loadAdminFinancesList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
