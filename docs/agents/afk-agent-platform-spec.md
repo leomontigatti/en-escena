@@ -1072,7 +1072,7 @@ wanting a concrete starting point.
 
 - **Orchestrator** = GitHub Actions workflows in `.github/workflows/agent-*.yml`.
 - **Agent runner** = TypeScript entry scripts under `.sandcastle/<workflow>/<workflow>.ts`, run
-  with `pnpm exec tsx`, using `@ai-hero/sandcastle` driving `claudeCode("claude-opus-4-6")` in a
+  with `pnpm exec tsx`, using `@ai-hero/sandcastle` driving `claudeCode("claude-opus-5")` in a
   `noSandbox()` sandbox. `OUTPUT_DIR` = the GitHub Actions `runner.temp`.
 - **Prompts** = `.sandcastle/<workflow>/prompt.md` (the work) + `extraction.md` (the
   "emit `<output>` now" pass), with `{{VAR}}` interpolation and `` !`cmd` `` command
