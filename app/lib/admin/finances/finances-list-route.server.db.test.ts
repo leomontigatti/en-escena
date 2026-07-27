@@ -529,7 +529,7 @@ describe.sequential("administracion finanzas", () => {
     });
   });
 
-  test("redirects the legacy account-current report URL to finances", async () => {
+  test("redirects the legacy academies report URL to finances", async () => {
     const event = await createSavedEvent();
     const { request } = await createSignedInRequest({
       email: "admin.reporte.legacy@example.com",
