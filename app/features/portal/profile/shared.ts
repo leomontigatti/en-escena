@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { AcademyProfileField } from "@/features/portal/profile/academy-profile.server";
+import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 

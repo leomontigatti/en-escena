@@ -1,6 +1,6 @@
 import { data } from "react-router";
 
-import { updateAcademyProfile } from "@/features/portal/profile/academy-profile.server";
+import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";

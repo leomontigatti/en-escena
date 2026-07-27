@@ -15,7 +15,7 @@ import * as portalChoreographyMusicModule from "@/lib/portal/choreography-music.
 import * as portalDancersModule from "@/lib/portal/dancers.server";
 import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
-import * as portalProfileModule from "@/features/portal/profile/academy-profile.server";
+import * as portalProfileModule from "@/lib/academies/academy-profile.server";
 import * as choreographyRegistrationModule from "@/lib/choreographies/registration-confirmation.server";
 import { loader as adminLayoutLoader } from "@/routes/administracion";
 import { loader as adminDancersLoader } from "@/routes/administracion.bailarines";

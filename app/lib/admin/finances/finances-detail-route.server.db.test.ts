@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 describe.sequential("administracion finanzas academia", () => {
-  test("renders academies participation without finance detail links", async () => {
+  test("renders academies participation linking each row to its detail", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.finanzas@example.com",
@@ -78,7 +78,7 @@ describe.sequential("administracion finanzas academia", () => {
       "Academia Sur",
     ]);
     expect(markup).toContain("Academias");
-    expect(markup).not.toContain(
+    expect(markup).toContain(
       `/administracion/academias/${academyNorth.academy.id}`,
     );
     expect(markup).toContain("Participando");
