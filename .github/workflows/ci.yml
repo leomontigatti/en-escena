@@ -68,7 +68,7 @@ jobs:
           --health-retries 5
     env:
       # El default local es 5433; en CI el service mapea a 5432. `tests/db/config.ts`
-      # respeta esta env var, y `db:test:push` la propaga como DATABASE_URL a drizzle-kit.
+      # respeta esta env var, y `db:test:reset` la propaga como DATABASE_URL a drizzle-kit.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/en-escena-test
     steps:
       - uses: actions/checkout@v5
@@ -78,6 +78,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Aplica el schema vía `drizzle-kit migrate` (path de #305/#391; `db:test:push`
-      # corre `migrate`, no `push`) y corre la suite DB completa contra Postgres real.
+      # Resetea y aplica el schema versionado (path de #305/#391) y corre la suite
+      # DB completa contra Postgres real.
       - run: pnpm test:db:postgres

@@ -117,13 +117,18 @@ over TCP on `localhost:5433`. When requesting persistent approval, use these
 scoped prefixes:
 
 - `pnpm test:db:postgres`
-- `pnpm db:test:push`
+- `pnpm db:test:reset`
 - `docker compose up -d postgres` when the local Postgres container must be
   started for the session
 
 This approval is operational only; it does not change the reliable validation
 target. `pnpm test:db:postgres` must continue to use `TEST_DATABASE_URL`,
 not production or preview data.
+
+To reset the local test database on demand — drop the `en_escena_%` tables and
+enums, wipe the `drizzle` migration state, and re-apply the versioned migrations
+from scratch — run `pnpm db:test:reset`. That is the canonical reset procedure
+for the Postgres-backed test database.
 
 ## React Router Flat Routes
 
