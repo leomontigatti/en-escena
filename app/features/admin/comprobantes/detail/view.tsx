@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { formatAmount } from "@/features/admin/finances/academy-detail/formatters";
+import { formatAmount } from "@/features/admin/finances/formatters";
 import {
   comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,

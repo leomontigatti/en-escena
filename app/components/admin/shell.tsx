@@ -152,7 +152,7 @@ const secondaryNavigationItems = [
 
 const financeNavigationItems = [
   {
-    label: "Resumen",
+    label: "Saldos",
     to: "/administracion/finanzas",
     icon: ClipboardList,
   },

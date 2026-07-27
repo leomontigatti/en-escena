@@ -1,22 +1,22 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademyFinanceDetail } from "@/features/admin/finances/academy-detail/server";
-import { AdministracionAcademiaResumenFinancieroRouteView as ResumenFinancieroView } from "@/features/admin/finances/academy-detail/view";
+import { loadAdminAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
+import { AdministracionFinanzasAcademiaRouteView } from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionAcademiaResumenFinancieroRouteProps = {
+type AdministracionFinanzasAcademiaRouteProps = {
   loaderData: LoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Resumen financiero | Panel de administración | En Escena" },
+  { title: "Finanzas | Panel de administración | En Escena" },
 ];
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Resumen", to: "/administracion/finanzas" },
+    { label: "Finanzas", to: "/administracion/finanzas" },
     (match) => {
       const data = match.data as LoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
@@ -25,19 +25,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademyFinanceDetail({ request, params });
+  return await loadAdminAcademyFinances({ request, params });
 }
 
-export function AdministracionAcademiaResumenFinancieroRouteView({
-  loaderData,
-}: AdministracionAcademiaResumenFinancieroRouteProps) {
-  return <ResumenFinancieroView loaderData={loaderData} />;
-}
+export { AdministracionFinanzasAcademiaRouteView };
 
-export default function AdministracionAcademiaResumenFinancieroRoute({
+export default function AdministracionFinanzasAcademiaRoute({
   loaderData,
-}: AdministracionAcademiaResumenFinancieroRouteProps) {
-  return (
-    <AdministracionAcademiaResumenFinancieroRouteView loaderData={loaderData} />
-  );
+}: AdministracionFinanzasAcademiaRouteProps) {
+  return <AdministracionFinanzasAcademiaRouteView loaderData={loaderData} />;
 }

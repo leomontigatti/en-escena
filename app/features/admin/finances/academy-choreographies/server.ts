@@ -7,7 +7,7 @@ import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summa
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdministrativeAcademyFinanceDetail(input: {
+export async function loadAdminAcademyFinances(input: {
   params: { academyId?: string };
   request: Request;
 }) {

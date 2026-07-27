@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { prices } from "@/db/schema";
 import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
 import { createModality } from "@/lib/modalities/repository.server";
-import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/academy-detail-route.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   createPrice,
   deletePrice,

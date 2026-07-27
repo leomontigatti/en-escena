@@ -7,7 +7,7 @@ import {
   paymentAllocations,
   prices,
 } from "@/db/schema";
-import { loadAdministrativeChoreographyFinanceDetail } from "@/features/admin/finances/academy-detail/choreography-detail/server";
+import { loadAdministrativeChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import {
   createChoreographyRecord,
   createDancer,
@@ -18,15 +18,15 @@ import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-import { loader as academyFinanceDetailLoader } from "@/routes/administracion.finanzas_.$academyId";
+import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
-  academyFinanceDetailUrl,
+  academyFinancesUrl,
   createSavedEvent,
   createSignedInRequest,
-  detailRouteArgs,
-} from "../../../lib/admin/finances/academy-detail-route.test-support";
+  academyFinancesRouteArgs,
+} from "../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -173,10 +173,10 @@ describe.sequential(
       const { request: adminRequest } = await createSignedInRequest({
         email: "admin.portal.consistencia@example.com",
         role: "admin",
-        requestUrl: academyFinanceDetailUrl(owner.academyId, event.id),
+        requestUrl: academyFinancesUrl(owner.academyId, event.id),
       });
-      const adminLoaderData = await academyFinanceDetailLoader(
-        detailRouteArgs(adminRequest, owner.academyId),
+      const adminLoaderData = await academyFinancesLoader(
+        academyFinancesRouteArgs(adminRequest, owner.academyId),
       );
 
       expect(portalLoaderData.summary).toEqual({

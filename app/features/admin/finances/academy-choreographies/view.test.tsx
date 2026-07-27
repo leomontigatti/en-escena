@@ -5,10 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionAcademiaResumenFinancieroRouteView } from "./view";
-import type { AcademyFinanceDetailLoaderData } from "./types";
+import { AdministracionFinanzasAcademiaRouteView } from "./view";
+import type { AcademyFinancesLoaderData } from "./types";
 
-describe("AdministracionAcademiaResumenFinancieroRouteView", () => {
+describe("AdministracionFinanzasAcademiaRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -19,8 +19,8 @@ describe("AdministracionAcademiaResumenFinancieroRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionAcademiaResumenFinancieroRouteView
-              loaderData={academyFinanceDetailLoaderDataFixture({
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture({
                 summary: {
                   availableBalanceAmount: 5000,
                   owedBalanceAmount: { amount: 10000, status: "complete" },
@@ -41,7 +41,8 @@ describe("AdministracionAcademiaResumenFinancieroRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("Resumen financiero");
+    expect(text).toContain("Academia Centro");
+    expect(text).toContain("Lista financiera de las coreografías");
     expect(text).toContain("Seña adeudada");
     expect(text).toContain("Saldo disponible");
     expect(text).toContain("Saldo adeudado");
@@ -63,8 +64,8 @@ describe("AdministracionAcademiaResumenFinancieroRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionAcademiaResumenFinancieroRouteView
-              loaderData={academyFinanceDetailLoaderDataFixture()}
+            <AdministracionFinanzasAcademiaRouteView
+              loaderData={academyFinancesLoaderDataFixture()}
             />
           ),
         },
@@ -88,9 +89,9 @@ describe("AdministracionAcademiaResumenFinancieroRouteView", () => {
   });
 });
 
-function academyFinanceDetailLoaderDataFixture(
-  overrides: Partial<AcademyFinanceDetailLoaderData> = {},
-): AcademyFinanceDetailLoaderData {
+function academyFinancesLoaderDataFixture(
+  overrides: Partial<AcademyFinancesLoaderData> = {},
+): AcademyFinancesLoaderData {
   return {
     academy: {
       contactName: "Academia Centro",
@@ -121,9 +122,9 @@ function academyFinanceDetailLoaderDataFixture(
 
 function choreographyFinanceRowFixture(
   overrides: Partial<
-    AcademyFinanceDetailLoaderData["choreographyFinanceRows"][number]
+    AcademyFinancesLoaderData["choreographyFinanceRows"][number]
   > = {},
-): AcademyFinanceDetailLoaderData["choreographyFinanceRows"][number] {
+): AcademyFinancesLoaderData["choreographyFinanceRows"][number] {
   return {
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },

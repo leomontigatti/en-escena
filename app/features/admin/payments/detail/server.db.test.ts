@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
-import { registerAcademyEventPayment } from "@/features/admin/finances/academy-detail/payments.server";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -15,7 +15,7 @@ import {
   createAcademyUser,
   createSavedEvent,
   createSignedInRequest,
-} from "@/lib/admin/finances/academy-detail-route.test-support";
+} from "@/lib/admin/finances/finances.test-support";
 
 import { handleAdminPaymentDetailAction } from "./server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";

@@ -24,18 +24,20 @@ import {
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
+  academiesRouteArgs,
+  renderAcademiesRoute,
+} from "../academies/academies-route.test-support";
+import {
   buildGlobalPaymentRequest,
   createAcademyUser,
   createInactiveEvent,
   createSavedEvent,
   createSignedInRequest,
-  renderAcademiesRoute,
-  reportRouteArgs,
-  reportUrl,
-  routeArgs,
+  financesListRouteArgs,
+  financesListUrl,
   renderFinanceAccountsRoute,
   paymentCreateRouteArgs,
-} from "./academy-detail-route.test-support";
+} from "./finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -278,7 +280,9 @@ describe.sequential("administracion finanzas", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
     });
-    const academiesLoaderData = await academiesLoader(routeArgs(listRequest));
+    const academiesLoaderData = await academiesLoader(
+      academiesRouteArgs(listRequest),
+    );
     const academiesMarkup = renderAcademiesRoute({
       loaderData: academiesLoaderData,
     });
@@ -288,11 +292,11 @@ describe.sequential("administracion finanzas", () => {
     const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",
       role: "admin",
-      requestUrl: reportUrl(event.id),
+      requestUrl: financesListUrl(event.id),
     });
 
     const loaderData = await financeAccountsLoader(
-      reportRouteArgs(financesRequest),
+      financesListRouteArgs(financesRequest),
     );
     const markup = renderFinanceAccountsRoute({
       loaderData,
@@ -320,7 +324,7 @@ describe.sequential("administracion finanzas", () => {
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
-    expect(markup).toContain("Resumen");
+    expect(markup).toContain("Finanzas");
     expect(markup).toContain(
       `/administracion/finanzas/${academyNorth.academy.id}`,
     );
@@ -369,10 +373,12 @@ describe.sequential("administracion finanzas", () => {
     const { request } = await createSignedInRequest({
       email: "admin.precio.pendiente@example.com",
       role: "admin",
-      requestUrl: reportUrl(event.id),
+      requestUrl: financesListUrl(event.id),
     });
 
-    const loaderData = await financeAccountsLoader(reportRouteArgs(request));
+    const loaderData = await financeAccountsLoader(
+      financesListRouteArgs(request),
+    );
     const markup = renderFinanceAccountsRoute({
       loaderData,
     });
@@ -485,7 +491,9 @@ describe.sequential("administracion finanzas", () => {
       requestUrl: "http://localhost/administracion/finanzas",
     });
 
-    const loaderData = await financeAccountsLoader(reportRouteArgs(request));
+    const loaderData = await financeAccountsLoader(
+      financesListRouteArgs(request),
+    );
     const markup = renderFinanceAccountsRoute({
       loaderData,
     });
@@ -499,11 +507,11 @@ describe.sequential("administracion finanzas", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.reporte.finanzas@example.com",
       role: "auditor",
-      requestUrl: reportUrl(event.id),
+      requestUrl: financesListUrl(event.id),
     });
 
     await expect(
-      financeAccountsLoader(reportRouteArgs(auditorRequest)),
+      financeAccountsLoader(financesListRouteArgs(auditorRequest)),
     ).resolves.toMatchObject({
       selectedEventId: event.id,
     });
@@ -511,11 +519,11 @@ describe.sequential("administracion finanzas", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "academia.reporte.bloqueada@example.com",
       role: "academy",
-      requestUrl: reportUrl(event.id),
+      requestUrl: financesListUrl(event.id),
     });
 
     await expect(
-      financeAccountsLoader(reportRouteArgs(academyRequest)),
+      financeAccountsLoader(financesListRouteArgs(academyRequest)),
     ).rejects.toMatchObject({
       status: 403,
     });
@@ -530,7 +538,7 @@ describe.sequential("administracion finanzas", () => {
     });
 
     await expect(
-      legacyReportLoader(reportRouteArgs(request)),
+      legacyReportLoader(financesListRouteArgs(request)),
     ).rejects.toMatchObject({
       status: 302,
       headers: expect.objectContaining({

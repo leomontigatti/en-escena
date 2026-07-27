@@ -32,7 +32,7 @@ describe("AdminShell", () => {
     expect(markup).toContain('href="/administracion/eventos"');
     expect(markup).toContain("Coreografías");
     expect(markup).toContain("/administracion/coreografias");
-    expect(markup).toContain("Resumen");
+    expect(markup).toContain("Saldos");
     expect(markup).toContain("/administracion/finanzas");
     expect(markup).toContain("Pagos");
     expect(markup).toContain("/administracion/pagos");
@@ -46,13 +46,11 @@ describe("AdminShell", () => {
     expect(markup.indexOf("Profesores")).toBeLessThan(
       markup.indexOf("Bailarines"),
     );
-    expect(markup.indexOf("Bailarines")).toBeLessThan(
-      markup.indexOf("Resumen"),
-    );
+    expect(markup.indexOf("Bailarines")).toBeLessThan(markup.indexOf("Saldos"));
     expect(markup.indexOf("Coreografías")).toBeLessThan(
-      markup.indexOf("Resumen"),
+      markup.indexOf("Saldos"),
     );
-    expect(markup.indexOf("Resumen")).toBeLessThan(markup.indexOf("Pagos"));
+    expect(markup.indexOf("Saldos")).toBeLessThan(markup.indexOf("Pagos"));
     expect(markup.indexOf("Pagos")).toBeLessThan(markup.indexOf("Bases"));
     expect(markup.indexOf("Bases")).toBeLessThan(markup.indexOf("Usuarios"));
     expect(markup.indexOf("Usuarios")).toBeLessThan(

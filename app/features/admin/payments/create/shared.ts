@@ -5,7 +5,7 @@ import {
   paymentFieldNames,
   readRegisterPaymentValues,
   registerPaymentSchema,
-} from "@/features/admin/finances/academy-detail/shared";
+} from "@/features/admin/finances/academy-choreographies/shared";
 
 export const createPaymentIntent = "create-payment";
 

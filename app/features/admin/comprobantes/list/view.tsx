@@ -12,7 +12,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DataTableFacetedFilterValue } from "@/components/shared/data-table.shared";
 import { Badge } from "@/components/ui/badge";
-import { formatAmount } from "@/features/admin/finances/academy-detail/formatters";
+import { formatAmount } from "@/features/admin/finances/formatters";
 import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,

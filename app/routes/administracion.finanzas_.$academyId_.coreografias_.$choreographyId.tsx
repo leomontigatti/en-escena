@@ -2,8 +2,8 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdministrativeChoreographyFinanceAction,
   loadAdministrativeChoreographyFinanceDetail,
-} from "@/features/admin/finances/academy-detail/choreography-detail/server";
-import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-detail/choreography-detail/view";
+} from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
+import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
@@ -19,7 +19,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Resumen", to: "/administracion/finanzas" },
+    { label: "Finanzas", to: "/administracion/finanzas" },
     (match) => {
       const data = match.data as LoaderData | undefined;
       return data?.academy

@@ -10,7 +10,7 @@ import { loadPortalAcademyPayments } from "@/features/portal/payments/list/serve
 import { activateEvent } from "@/lib/events/management.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { createSavedEvent } from "../../../../lib/admin/finances/academy-detail-route.test-support";
+import { createSavedEvent } from "../../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 

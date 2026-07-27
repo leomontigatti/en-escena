@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
-import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/academy-detail-route.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
