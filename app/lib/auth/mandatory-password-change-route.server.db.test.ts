@@ -136,7 +136,7 @@ function createChangePasswordRequest(input: {
     method: "POST",
     body: formData,
     headers: {
-      cookie: createRequestCookie(input.headers),
+      cookie: createSessionRequestCookie(input.headers),
     },
   });
 }
@@ -163,10 +163,6 @@ function createSignInRequest(input: { identifier: string; password: string }) {
     method: "POST",
     body: formData,
   });
-}
-
-function createRequestCookie(headers: Headers) {
-  return createSessionRequestCookie(headers);
 }
 
 function extractDatabaseSessionToken(headers: Headers) {

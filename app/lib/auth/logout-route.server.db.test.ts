@@ -41,7 +41,7 @@ describe("logout route", () => {
         request: new Request("http://localhost/salir", {
           method: "POST",
           headers: {
-            cookie: createRequestCookie(currentSessionResponse.headers),
+            cookie: createSessionRequestCookie(currentSessionResponse.headers),
           },
         }),
         params: {},
@@ -112,10 +112,6 @@ async function createVerifiedCredentialUser(email: string) {
   return {
     userId: signUpResult.response.user.id,
   };
-}
-
-function createRequestCookie(headers: Headers) {
-  return createSessionRequestCookie(headers);
 }
 
 function extractDatabaseSessionToken(headers: Headers) {
