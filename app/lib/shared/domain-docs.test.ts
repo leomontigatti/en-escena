@@ -172,6 +172,16 @@ describe("domain documentation", () => {
     }
   });
 
+  test("keeps every glossary code identifier unique", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+    const identifiers = [...glossary.matchAll(/ — code: `([^`]+)`/g)].map(
+      ([, identifier]) => identifier,
+    );
+
+    expect(identifiers.length).toBeGreaterThan(80);
+    expect(new Set(identifiers).size).toBe(identifiers.length);
+  });
+
   test("documents the code language convention as a coding standard", async () => {
     const standards = await readFile(".sandcastle/CODING_STANDARDS.md", "utf8");
 

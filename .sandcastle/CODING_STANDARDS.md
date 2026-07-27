@@ -83,6 +83,11 @@ Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
 English (`loadAdminAcademyFinances`). That mapping is intentional, not drift.
 
+"Docs" means engineering docs — ADRs, `docs/agents/`, `docs/domain/`. The
+glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and the style guide stay
+Spanish: they describe the product vocabulary to a Spanish-speaking team, so
+they read as product surface, not as code.
+
 `CONTEXT.md` is the mapping table: every glossary term carries the canonical
 code identifier for its Spanish name. Reach for it before inventing a name, and
 cite it in review when a new identifier disagrees with the glossary.
@@ -114,14 +119,21 @@ visible at the directory boundary.
 **Unmarked = admin.** Admin is the primary surface, so its symbols carry no
 prefix; other surfaces are marked:
 
-- `ChoreographyDetailRouteView` (admin)
-- `PortalChoreographyDetailRouteView` (portal)
+- `ChoreographyDetailRouteView` (admin, target)
+- `PortalChoreographyDetailRouteView` (portal, current)
 
 The justification is *default*, not redundancy removal. "`features/admin/`
 already says admin" would argue equally for dropping `Portal`, which we do not
 want; the default argument survives a third surface, the redundancy one does not.
-The prefix also carries real information: 8 of the 11 portal route views collide
-by name with an admin counterpart.
+The prefix also carries real information: under this rule 8 of the 11 portal
+route views would collide by name with an admin counterpart.
+
+Today the portal side already follows the rule; the admin side does not. Admin
+route views are still Spanish and marked (`AdministracionCoreografiaDetalleRouteView`),
+and admin server functions carry an `Admin`/`Administrative` prefix
+(`loadAdminAcademyFinances`, `loadAdministrativeChoreographyDetailRouteData`).
+Those symbols are pending rename, tracked separately — write new admin symbols
+unmarked and English, and do not cite the existing ones as precedent.
 
 ## File Size And Boundaries
 
