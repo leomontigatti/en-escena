@@ -67,6 +67,62 @@ at the call site so the visible label and submitted value can be read together.
 Extract options to a named constant or helper when they are reused, long, dynamic,
 or the name captures meaningful domain intent.
 
+## Code Language
+
+The product is Spanish; the codebase is English.
+
+**Spanish for anything a user reads. English for everything else.**
+
+| Layer                                  | Language                         | Example                                         |
+| -------------------------------------- | -------------------------------- | ----------------------------------------------- |
+| UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
+| Code identifiers, comments, docs, ADRs | English                          | `loadAdminAcademyFinances`                      |
+| External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
+
+Route filenames are URLs, so they stay Spanish
+(`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
+English (`loadAdminAcademyFinances`). That mapping is intentional, not drift.
+
+`CONTEXT.md` is the mapping table: every glossary term carries the canonical
+code identifier for its Spanish name. Reach for it before inventing a name, and
+cite it in review when a new identifier disagrees with the glossary.
+
+### Reserved Spanish Domain Terms
+
+Some domain nouns stay Spanish inside identifiers. The full list:
+
+- **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
+  [ADR-0011](../docs/adr/0011-invoicing-concept-portion-and-surfaces.md)). Every
+  English candidate is worse: `voucher` collides with discount vouchers in an app
+  that has discounts, and `fiscalDocument` is verbose for a term this frequent.
+  The URL stays Spanish regardless, so keeping the Spanish noun carries zero
+  mapping instead of one.
+
+**Growing this list requires an ADR.** An empty reserved list has no escape valve
+and breaks quietly; an unbounded one rots back into a mixed codebase.
+
+### Why Adapters Are Exempt
+
+`app/lib/comprobantes/arca` speaks WSFEv1: `ArcaVoucher`, `createVoucher`,
+`getLastVoucher`, `buildFacturaCVoucher`. Domain term outside the directory,
+protocol term inside — an anti-corruption layer. Adapters keep speaking the
+external system's language so the seam between the two vocabularies stays
+visible at the directory boundary.
+
+### Surface Prefix Rule
+
+**Unmarked = admin.** Admin is the primary surface, so its symbols carry no
+prefix; other surfaces are marked:
+
+- `ChoreographyDetailRouteView` (admin)
+- `PortalChoreographyDetailRouteView` (portal)
+
+The justification is *default*, not redundancy removal. "`features/admin/`
+already says admin" would argue equally for dropping `Portal`, which we do not
+want; the default argument survives a third surface, the redundancy one does not.
+The prefix also carries real information: 8 of the 11 portal route views collide
+by name with an admin counterpart.
+
 ## File Size And Boundaries
 
 Use file size as a maintainability rule that protects module boundaries. The

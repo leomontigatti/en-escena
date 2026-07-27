@@ -4,9 +4,9 @@ import { describe, expect, test } from "vitest";
 
 const glossaryRequirements = [
   "Como máximo puede haber un Evento activo global",
-  "**Evento activo**:",
+  "**Evento activo** — code: `activeEvent`",
   "Es el único contexto de evento para la primera versión",
-  "**Bases del evento**:",
+  "**Bases del evento** — code: `eventBases`",
 ];
 
 const adrRequirements = [
@@ -115,6 +115,23 @@ const adrIndexRequirements = [
   "[ADR-0008: Supabase Storage for uploaded assets]",
 ];
 
+const codeLanguageRequirements = [
+  "## Code Language",
+  "Spanish for anything a user reads. English for everything else.",
+  "UI strings, page titles, URLs",
+  "Code identifiers, comments, docs, ADRs",
+  "External-system adapters",
+  "`loadAdminAcademyFinances`",
+  "`ArcaVoucher`",
+  "administracion.finanzas_.$academyId.tsx",
+  "### Reserved Spanish Domain Terms",
+  "RG 1415",
+  "Growing this list requires an ADR",
+  "### Surface Prefix Rule",
+  "Unmarked = admin",
+  "`PortalChoreographyDetailRouteView`",
+];
+
 const accessPermissionRequirements = [
   "## Permission Matrix",
   "| academia",
@@ -130,6 +147,36 @@ describe("domain documentation", () => {
 
     for (const requirement of glossaryRequirements) {
       expect(glossary).toContain(requirement);
+    }
+  });
+
+  test("gives every glossary term its canonical code identifier", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+    const entryHeadings = glossary
+      .split("\n")
+      .filter((line) => line.startsWith("**"));
+
+    expect(entryHeadings.length).toBeGreaterThan(80);
+
+    for (const heading of entryHeadings) {
+      if (heading.includes("_(término retirado)_")) {
+        expect(heading, heading).toMatch(
+          /^\*\*.+\*\* _\(término retirado\)_ — sin identificador de código$/,
+        );
+        continue;
+      }
+
+      expect(heading, heading).toMatch(
+        /^\*\*.+\*\* — code: `[A-Za-z][A-Za-z0-9]*`$/,
+      );
+    }
+  });
+
+  test("documents the code language convention as a coding standard", async () => {
+    const standards = await readFile(".sandcastle/CODING_STANDARDS.md", "utf8");
+
+    for (const requirement of codeLanguageRequirements) {
+      expect(standards).toContain(requirement);
     }
   });
 
