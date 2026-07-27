@@ -9,7 +9,10 @@
 - **Investigar antes de implementar**: ver la sección homónima en
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
-  (canónico). Guía de todo el repo, no solo de Sandcastle.
+  (canónico). Guía de todo el repo, no solo de Sandcastle. Incluye la convención
+  de idioma del código (español para lo que lee el usuario, inglés para el resto;
+  `comprobante` como único término reservado). El mapeo término → identificador
+  vive en [CONTEXT.md](CONTEXT.md).
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
 - **Feedback y redirección de formularios** (matriz quedarse/redirigir, flash session
   vs. `actionData` directo): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
