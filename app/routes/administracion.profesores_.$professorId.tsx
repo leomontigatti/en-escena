@@ -9,7 +9,7 @@ import type {
   ProfessorDetailActionData,
   ProfessorDetailLoaderData,
 } from "@/features/admin/professors/detail/shared";
-import { ProfessorDetailRouteView as ProfesorDetalleView } from "@/features/admin/professors/detail/view";
+import { ProfessorDetailRouteView as ProfessorDetailView } from "@/features/admin/professors/detail/view";
 
 import type { Route } from "./+types/administracion.profesores_.$professorId";
 
@@ -57,7 +57,7 @@ export function ProfessorDetailRouteView({
   actionData,
 }: ProfessorDetailRouteProps) {
   return (
-    <ProfesorDetalleView actionData={actionData} loaderData={loaderData} />
+    <ProfessorDetailView actionData={actionData} loaderData={loaderData} />
   );
 }
 

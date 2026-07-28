@@ -10,7 +10,7 @@ import {
   loadAdminDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
-  DancerDetailRouteView as BailarinDetalleView,
+  DancerDetailRouteView as DancerDetailView,
   type InscriptionsSectionProps,
   InscriptionsSection,
 } from "@/features/admin/dancers/detail/view";
@@ -57,9 +57,7 @@ export function DancerDetailRouteView({
   loaderData,
   actionData,
 }: DancerDetailRouteProps) {
-  return (
-    <BailarinDetalleView actionData={actionData} loaderData={loaderData} />
-  );
+  return <DancerDetailView actionData={actionData} loaderData={loaderData} />;
 }
 
 export default function DancerDetailRoute({

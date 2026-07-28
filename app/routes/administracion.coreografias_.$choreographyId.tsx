@@ -8,7 +8,7 @@ import {
   type AdministrativeChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
 import { shouldRevalidateAdministrativeChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
-import { ChoreographyDetailRouteView as CoreografiaDetalleView } from "@/features/admin/choreographies/detail/view";
+import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
 
@@ -75,7 +75,7 @@ function ChoreographyDetailRouteView({
       : undefined;
 
   return (
-    <CoreografiaDetalleView actionData={actionData} loaderData={loaderData} />
+    <ChoreographyDetailView actionData={actionData} loaderData={loaderData} />
   );
 }
 
