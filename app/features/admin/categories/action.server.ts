@@ -12,7 +12,7 @@ type HandleCategoryActionOptions = {
   recordId?: string;
 };
 
-export async function handleAdminCategoryAction(
+export async function handleCategoryAction(
   request: Request,
   options: HandleCategoryActionOptions = {},
 ): Promise<ActionData | never> {

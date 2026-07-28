@@ -8,7 +8,7 @@ type HandleEventPriceActionOptions = {
   allowedIntents?: EventPriceIntent[];
 };
 
-export async function handleAdminEventPriceAction(
+export async function handleEventPriceAction(
   request: Request,
   options: HandleEventPriceActionOptions = {},
 ): Promise<ActionData | never> {

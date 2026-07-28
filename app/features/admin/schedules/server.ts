@@ -17,7 +17,7 @@ async function loadEventScheduleContext(request: Request) {
   return eventContext;
 }
 
-export async function loadAdminEventSchedulesListData(request: Request) {
+export async function loadEventSchedulesListData(request: Request) {
   const eventContext = await loadEventScheduleContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -27,7 +27,7 @@ export async function loadAdminEventSchedulesListData(request: Request) {
   };
 }
 
-export async function loadAdminEventScheduleFormOptions(request: Request) {
+export async function loadEventScheduleFormOptions(request: Request) {
   const eventContext = await loadEventScheduleContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -37,7 +37,7 @@ export async function loadAdminEventScheduleFormOptions(request: Request) {
   };
 }
 
-export async function loadAdminEventScheduleDetailData(request: Request) {
+export async function loadEventScheduleDetailData(request: Request) {
   const eventContext = await loadEventScheduleContext(request);
   const selectedEventId = eventContext.selectedEventId;
 

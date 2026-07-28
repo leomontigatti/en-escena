@@ -119,8 +119,8 @@ visible at the directory boundary.
 **Unmarked = admin.** Admin is the primary surface, so its symbols carry no
 prefix; other surfaces are marked:
 
-- `ChoreographyDetailRouteView` (admin)
-- `PortalChoreographyDetailRouteView` (portal)
+- `ChoreographyDetailRouteView` (admin, target)
+- `PortalChoreographyDetailRouteView` (portal, current)
 
 The justification is *default*, not redundancy removal. "`features/admin/`
 already says admin" would argue equally for dropping `Portal`, which we do not
@@ -128,14 +128,12 @@ want; the default argument survives a third surface, the redundancy one does not
 The prefix also carries real information: under this rule 8 of the 11 portal
 route views would collide by name with an admin counterpart.
 
-Both surfaces already follow the rule for route views and their route default
-exports: admin ones are English and unmarked (`ChoreographyDetailRouteView`,
-`ChoreographyDetailRoute`), portal ones keep their `Portal` prefix. Admin server
-functions still carry an `Admin` prefix (`loadAdminAcademyFinances`,
-`loadAdminChoreographyDetailRouteData`), and admin types are still marked
-`Administrative*` (`AdministrativeChoreographyDetailLoaderData`). Those symbols
-are pending rename, tracked separately — write new admin symbols unmarked and
-English, and do not cite the existing ones as precedent.
+Today the portal side already follows the rule; the admin side does not. Admin
+route views are still Spanish and marked (`AdministracionCoreografiaDetalleRouteView`),
+and admin server functions carry an `Admin`/`Administrative` prefix
+(`loadAdminAcademyFinances`, `loadAdministrativeChoreographyDetailRouteData`).
+Those symbols are pending rename, tracked separately — write new admin symbols
+unmarked and English, and do not cite the existing ones as precedent.
 
 ## File Size And Boundaries
 

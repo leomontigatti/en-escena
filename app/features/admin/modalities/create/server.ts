@@ -1,4 +1,4 @@
-import { handleAdminEventModalityAction } from "../action.server";
+import { handleEventModalityAction } from "../action.server";
 import { loadEventModalitiesData } from "../server";
 
 export async function loadAdminEventModalityCreate(request: Request) {
@@ -6,7 +6,7 @@ export async function loadAdminEventModalityCreate(request: Request) {
 }
 
 export async function createAdministrativeEventModality(request: Request) {
-  return handleAdminEventModalityAction(request, {
+  return handleEventModalityAction(request, {
     allowedIntents: ["create-modality"],
   });
 }

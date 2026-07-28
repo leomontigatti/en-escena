@@ -1,5 +1,5 @@
-import { loadAdminEventSchedulesListData } from "../server";
+import { loadEventSchedulesListData } from "../server";
 
 export async function loadAdminEventSchedulesList(request: Request) {
-  return loadAdminEventSchedulesListData(request);
+  return loadEventSchedulesListData(request);
 }

@@ -14,7 +14,7 @@ type HandleEventScheduleActionOptions = {
   allowedIntents?: EventScheduleIntent[];
 };
 
-export async function handleAdminEventScheduleAction(
+export async function handleEventScheduleAction(
   request: Request,
   options: HandleEventScheduleActionOptions = {},
 ): Promise<ActionData | never> {

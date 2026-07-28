@@ -1,12 +1,12 @@
-import { handleAdminCategoryAction } from "../action.server";
+import { handleCategoryAction } from "../action.server";
 import { loadCategoryFormOptions } from "../server";
 
-export async function loadAdminCategoryCreate(request: Request) {
+export async function loadCategoryCreate(request: Request) {
   return loadCategoryFormOptions(request);
 }
 
 export async function createCategory(request: Request) {
-  return handleAdminCategoryAction(request, {
+  return handleCategoryAction(request, {
     allowedIntents: ["create-category"],
   });
 }

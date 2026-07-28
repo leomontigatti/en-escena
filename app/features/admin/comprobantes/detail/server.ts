@@ -58,7 +58,7 @@ export type ComprobanteDetailLoaderData = {
 // Carga un comprobante por id con su contexto ancla y su estado derivado. El
 // estado se deriva sobre el conjunto de su coreografía, que es autocontenido (la
 // Nota de crédito espejo se ancla a la misma coreografía). 404 si no existe.
-export async function loadAdminComprobanteDetail(
+export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
 ): Promise<ComprobanteDetailLoaderData> {
@@ -117,7 +117,7 @@ export async function loadAdminComprobanteDetail(
   };
 }
 
-export async function handleAdminComprobanteDetailAction(input: {
+export async function handleComprobanteDetailAction(input: {
   request: Request;
   comprobanteId: string;
   // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;

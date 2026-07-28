@@ -14,7 +14,7 @@ type HandleEventModalityActionOptions = {
   allowedIntents?: EventModalityIntent[];
 };
 
-export async function handleAdminEventModalityAction(
+export async function handleEventModalityAction(
   request: Request,
   options: HandleEventModalityActionOptions = {},
 ): Promise<ActionData | never> {
