@@ -4,7 +4,10 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+} from "@/lib/auth/access-auth.test-support";
 import {
   requireAcademyUser,
   requireAdminUser,
@@ -246,7 +249,7 @@ async function createSignedInRequest(input: {
   return {
     request: new Request("http://localhost/protected", {
       headers: {
-        cookie: createRequestCookie(
+        cookie: createSessionRequestCookie(
           (
             await accessAuthProvider.signInCredentialUser({
               email: input.email,
@@ -261,24 +264,6 @@ async function createSignedInRequest(input: {
     }),
     userId: signUpResult.response.user.id,
   };
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error(
-      "Expected access auth to return a Supabase session cookie.",
-    );
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {

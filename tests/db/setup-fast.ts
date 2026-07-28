@@ -1,5 +1,7 @@
 import { afterAll } from "vitest";
 
+import "./pin-auth-base-url";
+
 process.env.DB_TEST_BACKEND = "pglite";
 process.env.TEST_ACCESS_AUTH_SECRET ??= "test-access-auth-secret";
 

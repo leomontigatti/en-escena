@@ -6,7 +6,10 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+} from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   AdministracionUsuariosRouteView,
@@ -279,7 +282,7 @@ async function createSignedInRequest(input: {
     userId: signUpResult.response.user.id,
     request: new Request(input.requestUrl, {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createSessionRequestCookie(signUpResult.headers),
       },
     }),
   };
@@ -315,14 +318,4 @@ function routeArgs(request: Request) {
     url: new URL(request.url),
     pattern: "/administracion/usuarios",
   };
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
 }

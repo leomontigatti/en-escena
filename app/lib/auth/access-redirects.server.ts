@@ -7,9 +7,14 @@ const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
 // Cookie de sesión de Better Auth (default, sin `cookiePrefix` custom). Su
 // presencia distingue una sesión vencida (`expirada`) de "nunca ingresó"
-// (`continuar`). El prefijo `sb-` se conserva mientras siga el SSR de Supabase
-// (decommission en #303/#423).
+// (`continuar`). Con un baseURL https, Better Auth activa `useSecureCookies` y
+// emite el nombre con prefijo `__Secure-`, así que hay que reconocer ambos: en
+// producción la cookie real es `__Secure-better-auth.session_token` (#501). El
+// prefijo `sb-` se conserva mientras siga el SSR de Supabase (decommission en
+// #303/#423).
 const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
+const BETTER_AUTH_SECURE_SESSION_COOKIE_NAME =
+  "__Secure-better-auth.session_token";
 const SUPABASE_COOKIE_NAME_PREFIX = "sb-";
 
 export type LoginRedirectReason =
@@ -72,6 +77,7 @@ function hasAccessSessionCookie(request: Request) {
 
       return (
         cookieName === BETTER_AUTH_SESSION_COOKIE_NAME ||
+        cookieName === BETTER_AUTH_SECURE_SESSION_COOKIE_NAME ||
         cookieName.startsWith(SUPABASE_COOKIE_NAME_PREFIX)
       );
     });

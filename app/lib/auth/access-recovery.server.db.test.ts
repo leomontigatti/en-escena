@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import {
   createAccessUser,
+  createSessionRequestCookie,
   readAccessSession,
   signInAccessUser,
 } from "@/lib/auth/access-auth.test-support";
@@ -239,7 +240,7 @@ async function createRecoverySessionState(email: string) {
 
   return {
     recoveryCode: recoveryResult.debugRecoveryCode,
-    sessionCookie: createRequestCookie(signUpResult.headers),
+    sessionCookie: createSessionRequestCookie(signUpResult.headers),
     userId: signUpResult.response.user.id,
   };
 }
@@ -281,19 +282,6 @@ async function expectThrownResponse(resultPromise: Promise<unknown>) {
   }
 
   throw new Error("Expected a response to be thrown.");
-}
-
-function createRequestCookie(headers: Headers) {
-  const sessionCookie = readSetCookieValue(
-    headers,
-    /better-auth.session_token=([^;]+)/,
-  );
-
-  if (!sessionCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie}`;
 }
 
 function createRecoveryCookie(headers: Headers) {

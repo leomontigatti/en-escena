@@ -70,22 +70,6 @@ export function createPortalPostRequest(
   });
 }
 
-export function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
-}
-
 export async function expectThrownResponse(
   promise: Promise<unknown>,
   expectedStatus?: number,

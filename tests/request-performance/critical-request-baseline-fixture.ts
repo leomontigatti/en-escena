@@ -15,7 +15,10 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+} from "@/lib/auth/access-auth.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { activateEvent } from "@/lib/events/management.server";
@@ -239,7 +242,7 @@ async function createInternalSession(role: "admin" | "auditor") {
     .where(eq(user.id, signUpResult.response.user.id));
 
   return {
-    cookie: createRequestCookie(signUpResult.headers),
+    cookie: createSessionRequestCookie(signUpResult.headers),
   };
 }
 
@@ -355,22 +358,6 @@ async function createProfessor(
     .returning();
 
   return professor;
-}
-
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  const sessionCookie = setCookie.match(/better-auth.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return `better-auth.session_token=${sessionCookie[1]}`;
 }
 
 function toUrl(path: string) {

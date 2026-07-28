@@ -3,7 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+  extractSessionCookieValue,
+} from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as logoutAction, loader as logoutLoader } from "@/routes/salir";
 import { action as signInAction } from "@/routes/ingresar";
@@ -37,7 +41,7 @@ describe("logout route", () => {
         request: new Request("http://localhost/salir", {
           method: "POST",
           headers: {
-            cookie: createRequestCookie(currentSessionResponse.headers),
+            cookie: createSessionRequestCookie(currentSessionResponse.headers),
           },
         }),
         params: {},
@@ -110,25 +114,8 @@ async function createVerifiedCredentialUser(email: string) {
   };
 }
 
-function createRequestCookie(headers: Headers) {
-  return `better-auth.session_token=${extractSignedSessionCookie(headers)}`;
-}
-
 function extractDatabaseSessionToken(headers: Headers) {
-  return extractSignedSessionCookie(headers).split(".")[0] ?? "";
-}
-
-function extractSignedSessionCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  const sessionCookie = setCookie?.match(/better-auth.session_token=([^;]+)/);
-
-  if (!sessionCookie?.[1]) {
-    throw new Error(
-      "Expected access auth to return a Supabase session cookie.",
-    );
-  }
-
-  return sessionCookie[1];
+  return extractSessionCookieValue(headers).split(".")[0] ?? "";
 }
 
 function createSignInRequest(email: string) {
