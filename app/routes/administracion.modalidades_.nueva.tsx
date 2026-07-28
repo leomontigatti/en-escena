@@ -10,7 +10,7 @@ import { AdministrativeEventModalityCreateView } from "@/features/admin/modaliti
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
-type AdministracionModalidadNuevaRouteProps = {
+type NewModalityRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: AdministrativeEventModalityActionData;
 };
@@ -33,7 +33,7 @@ export async function action({ request }: Route.ActionArgs) {
 export function NewModalityRouteView({
   loaderData,
   actionData,
-}: AdministracionModalidadNuevaRouteProps) {
+}: NewModalityRouteProps) {
   return (
     <AdministrativeEventModalityCreateView
       loaderData={loaderData}
@@ -42,9 +42,9 @@ export function NewModalityRouteView({
   );
 }
 
-export default function AdministracionModalidadNuevaRoute({
+export default function NewModalityRoute({
   loaderData,
-}: AdministracionModalidadNuevaRouteProps) {
+}: NewModalityRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

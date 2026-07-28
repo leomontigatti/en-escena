@@ -20,7 +20,7 @@ import type { Route } from "./+types/administracion.bailarines_.$dancerId";
 type LoaderData = DancerDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionBailarinDetalleRouteProps = {
+type DancerDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
@@ -56,15 +56,15 @@ export async function action({
 export function DancerDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionBailarinDetalleRouteProps) {
+}: DancerDetailRouteProps) {
   return (
     <BailarinDetalleView actionData={actionData} loaderData={loaderData} />
   );
 }
 
-export default function AdministracionBailarinDetalleRoute({
+export default function DancerDetailRoute({
   loaderData,
-}: AdministracionBailarinDetalleRouteProps) {
+}: DancerDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

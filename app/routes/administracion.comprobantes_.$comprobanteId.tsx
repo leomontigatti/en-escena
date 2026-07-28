@@ -11,7 +11,7 @@ import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId
 
 type LoaderData = ComprobanteDetailLoaderData;
 
-type AdministracionComprobanteDetalleRouteProps = {
+type ComprobanteDetailRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -42,8 +42,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 }
 
-export default function AdministracionComprobanteDetalleRoute({
+export default function ComprobanteDetailRoute({
   loaderData,
-}: AdministracionComprobanteDetalleRouteProps) {
+}: ComprobanteDetailRouteProps) {
   return <ComprobanteDetailRouteView loaderData={loaderData} />;
 }

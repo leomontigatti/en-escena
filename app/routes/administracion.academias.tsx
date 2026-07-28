@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.academias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionAcademiasRouteProps = {
+type AcademiesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -24,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export { AcademiesListRouteView };
 
-export default function AdministracionAcademiasRoute({
+export default function AcademiesListRoute({
   loaderData,
-}: AdministracionAcademiasRouteProps) {
+}: AcademiesListRouteProps) {
   return <AcademiesListRouteView loaderData={loaderData} />;
 }

@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.comprobantes";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionComprobantesRouteProps = {
+type ComprobantesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -24,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export { ComprobantesListRouteView };
 
-export default function AdministracionComprobantesRoute({
+export default function ComprobantesListRoute({
   loaderData,
-}: AdministracionComprobantesRouteProps) {
+}: ComprobantesListRouteProps) {
   return <ComprobantesListRouteView loaderData={loaderData} />;
 }

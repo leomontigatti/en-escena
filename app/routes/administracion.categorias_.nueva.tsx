@@ -34,7 +34,7 @@ export function NewCategoryRouteView({
   return <CategoryCreateView loaderData={loaderData} actionData={actionData} />;
 }
 
-export default function AdminNewCategoryRoute({
+export default function NewCategoryRoute({
   loaderData,
 }: CategoryCreateViewProps) {
   const actionData = useActionData<typeof action>();

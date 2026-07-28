@@ -17,7 +17,7 @@ export const handle = {
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
 
-export default function AdministracionUsuariosInvitacionesRoute() {
+export default function InternalUserInvitationsRoute() {
   return <InternalUserInvitationsRouteView />;
 }
 

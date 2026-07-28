@@ -3,13 +3,13 @@ import {
   handleAdminChoreographyFinanceAction,
   loadAdminChoreographyFinanceDetail,
 } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
-import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
+import { ChoreographyFinanceDetailView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionCoreografiaFinancieraDetalleRouteProps = {
+type ChoreographyFinanceDetailRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -52,14 +52,12 @@ export async function action({ request, params }: Route.ActionArgs) {
 
 function ChoreographyFinanceDetailRouteView({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  return (
-    <AdministracionCoreografiaFinancieraDetalleView loaderData={loaderData} />
-  );
+}: ChoreographyFinanceDetailRouteProps) {
+  return <ChoreographyFinanceDetailView loaderData={loaderData} />;
 }
 
-export default function AdministracionCoreografiaFinancieraDetalleRoute({
+export default function ChoreographyFinanceDetailRoute({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleRouteProps) {
+}: ChoreographyFinanceDetailRouteProps) {
   return <ChoreographyFinanceDetailRouteView loaderData={loaderData} />;
 }

@@ -15,7 +15,7 @@ import type { Route } from "./+types/administracion.pagos_.$paymentId";
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionPagoDetalleRouteProps = {
+type PaymentDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -43,9 +43,9 @@ export async function action({ request, params }: Route.ActionArgs) {
   return await handleAdminPaymentDetailAction(request, params.paymentId ?? "");
 }
 
-export default function AdministracionPagoDetalleRoute({
+export default function PaymentDetailRoute({
   loaderData,
-}: AdministracionPagoDetalleRouteProps) {
+}: PaymentDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

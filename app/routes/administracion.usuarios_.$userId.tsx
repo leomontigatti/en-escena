@@ -10,7 +10,7 @@ import type { Route } from "./+types/administracion.usuarios_.$userId";
 type LoaderData = UserDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionUsuarioDetalleRouteProps = {
+type InternalUserDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -32,9 +32,9 @@ export const handle = {
 
 export { action, loader, InternalUserDetailRouteView };
 
-export default function AdministracionUsuarioDetalleRoute({
+export default function InternalUserDetailRoute({
   loaderData,
-}: AdministracionUsuarioDetalleRouteProps) {
+}: InternalUserDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

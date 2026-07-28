@@ -40,7 +40,7 @@ export function CategoryDetailRouteView({
   return <CategoryDetailView loaderData={loaderData} actionData={actionData} />;
 }
 
-export default function AdminCategoryDetailRoute({
+export default function CategoryDetailRoute({
   loaderData,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();

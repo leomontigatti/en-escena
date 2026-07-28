@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.usuarios";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionUsuariosRouteProps = {
+type InternalUsersListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -21,8 +21,8 @@ export const handle = {
 
 export { loader, InternalUsersListRouteView };
 
-export default function AdministracionUsuariosRoute({
+export default function InternalUsersListRoute({
   loaderData,
-}: AdministracionUsuariosRouteProps) {
+}: InternalUsersListRouteProps) {
   return <InternalUsersListRouteView loaderData={loaderData} />;
 }

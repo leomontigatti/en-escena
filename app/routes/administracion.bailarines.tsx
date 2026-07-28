@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.bailarines";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionBailarinesRouteProps = {
+type DancersListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -24,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export { DancersListRouteView };
 
-export default function AdministracionBailarinesRoute({
+export default function DancersListRoute({
   loaderData,
-}: AdministracionBailarinesRouteProps) {
+}: DancersListRouteProps) {
   return <DancersListRouteView loaderData={loaderData} />;
 }

@@ -25,7 +25,7 @@ export function EventsListRouteView({
   return <AdministrativeEventsListView loaderData={loaderData} />;
 }
 
-export default function AdministracionEventosRoute({
+export default function EventsListRoute({
   loaderData,
 }: AdministrativeEventsListViewProps) {
   return <EventsListRouteView loaderData={loaderData} />;

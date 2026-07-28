@@ -51,7 +51,7 @@ export function PriceDetailRouteView({
   );
 }
 
-export default function AdminPriceDetailRoute({
+export default function PriceDetailRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {

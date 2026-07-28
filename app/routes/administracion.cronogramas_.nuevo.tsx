@@ -20,7 +20,7 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-type AdministracionCronogramaNuevoRouteProps = {
+type NewEventScheduleRouteProps = {
   actionData?: AdministrativeEventScheduleActionData;
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
@@ -45,9 +45,9 @@ export function NewEventScheduleRouteView({
   );
 }
 
-export default function AdministracionCronogramaNuevoRoute({
+export default function NewEventScheduleRoute({
   loaderData,
-}: AdministracionCronogramaNuevoRouteProps) {
+}: NewEventScheduleRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

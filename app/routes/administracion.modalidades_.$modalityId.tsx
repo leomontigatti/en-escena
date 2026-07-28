@@ -49,7 +49,7 @@ export function ModalityDetailRouteView({
   );
 }
 
-export default function AdministracionModalidadDetalleRoute({
+export default function ModalityDetailRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {

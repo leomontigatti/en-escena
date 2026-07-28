@@ -11,7 +11,7 @@ import type { Route } from "./+types/administracion.eventos_.$eventId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionEventoDetalleRouteProps = {
+type EventDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: AdministrativeEventDetailActionData;
 };
@@ -25,7 +25,7 @@ export const handle = {
     { label: "Eventos", to: "/administracion/eventos" },
     (match) => {
       const data = match.data as
-        | AdministracionEventoDetalleRouteProps["loaderData"]
+        | EventDetailRouteProps["loaderData"]
         | undefined;
       return data ? { label: data.event.name } : null;
     },
@@ -43,7 +43,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 export function EventDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionEventoDetalleRouteProps) {
+}: EventDetailRouteProps) {
   return (
     <AdministrativeEventDetailView
       loaderData={loaderData}
@@ -52,9 +52,9 @@ export function EventDetailRouteView({
   );
 }
 
-export default function AdministracionEventoDetalleRoute({
+export default function EventDetailRoute({
   loaderData,
-}: AdministracionEventoDetalleRouteProps) {
+}: EventDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

@@ -21,7 +21,7 @@ export function ModalitiesListRouteView({
   return <AdministrativeEventModalitiesListView loaderData={loaderData} />;
 }
 
-export default function AdministracionModalidadesRoute({
+export default function ModalitiesListRoute({
   loaderData,
 }: AdministrativeEventModalitiesListViewProps) {
   return <ModalitiesListRouteView loaderData={loaderData} />;

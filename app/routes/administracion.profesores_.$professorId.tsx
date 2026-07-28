@@ -16,7 +16,7 @@ import type { Route } from "./+types/administracion.profesores_.$professorId";
 type LoaderData = ProfessorDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionProfesorDetalleRouteProps = {
+type ProfessorDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
@@ -55,15 +55,15 @@ export async function action({
 export function ProfessorDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionProfesorDetalleRouteProps) {
+}: ProfessorDetailRouteProps) {
   return (
     <ProfesorDetalleView actionData={actionData} loaderData={loaderData} />
   );
 }
 
-export default function AdministracionProfesorDetalleRoute({
+export default function ProfessorDetailRoute({
   loaderData,
-}: AdministracionProfesorDetalleRouteProps) {
+}: ProfessorDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

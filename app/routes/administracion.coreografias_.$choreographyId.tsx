@@ -15,7 +15,7 @@ import type { Route } from "./+types/administracion.coreografias_.$choreographyI
 type LoaderData = AdministrativeChoreographyDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionCoreografiaDetalleRouteProps = {
+type ChoreographyDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -65,7 +65,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>
 function ChoreographyDetailRouteView({
   actionData: actionDataOverride,
   loaderData,
-}: AdministracionCoreografiaDetalleRouteProps) {
+}: ChoreographyDetailRouteProps) {
   const actionData =
     actionDataOverride &&
     "status" in actionDataOverride &&
@@ -79,9 +79,9 @@ function ChoreographyDetailRouteView({
   );
 }
 
-export default function AdministracionCoreografiaDetalleRoute({
+export default function ChoreographyDetailRoute({
   loaderData,
-}: AdministracionCoreografiaDetalleRouteProps) {
+}: ChoreographyDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (

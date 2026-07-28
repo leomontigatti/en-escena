@@ -36,7 +36,7 @@ export function PricesListRouteView({
   );
 }
 
-export default function AdminPricesRoute({ loaderData }: Route.ComponentProps) {
+export default function PricesListRoute({ loaderData }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
   return (

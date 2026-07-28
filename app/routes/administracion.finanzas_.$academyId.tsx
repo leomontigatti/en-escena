@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionFinanzasAcademiaRouteProps = {
+type AcademyFinancesRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -30,8 +30,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export { AcademyFinancesRouteView };
 
-export default function AdministracionFinanzasAcademiaRoute({
+export default function AcademyFinancesRoute({
   loaderData,
-}: AdministracionFinanzasAcademiaRouteProps) {
+}: AcademyFinancesRouteProps) {
   return <AcademyFinancesRouteView loaderData={loaderData} />;
 }

@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.finanzas";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionFinanzasRouteProps = {
+type FinancesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -24,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export { FinancesListRouteView };
 
-export default function AdministracionFinanzasRoute({
+export default function FinancesListRoute({
   loaderData,
-}: AdministracionFinanzasRouteProps) {
+}: FinancesListRouteProps) {
   return <FinancesListRouteView loaderData={loaderData} />;
 }

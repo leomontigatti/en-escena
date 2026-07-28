@@ -20,7 +20,7 @@ export const handle = {
 
 export { action, loader, NewInternalUserRouteView };
 
-export default function AdministracionUsuariosNuevoRoute() {
+export default function NewInternalUserRoute() {
   const actionData = useActionData<typeof action>();
 
   return <NewInternalUserRouteView actionData={actionData} />;

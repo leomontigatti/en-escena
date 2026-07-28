@@ -6,7 +6,7 @@ import type { Route } from "./+types/administracion.coreografias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionCoreografiasRouteProps = {
+type ChoreographiesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -24,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export { ChoreographiesListRouteView };
 
-export default function AdministracionCoreografiasRoute({
+export default function ChoreographiesListRoute({
   loaderData,
-}: AdministracionCoreografiasRouteProps) {
+}: ChoreographiesListRouteProps) {
   return <ChoreographiesListRouteView loaderData={loaderData} />;
 }

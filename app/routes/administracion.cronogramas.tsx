@@ -21,7 +21,7 @@ export function EventSchedulesListRouteView({
   return <AdministrativeEventSchedulesListView loaderData={loaderData} />;
 }
 
-export default function AdministracionCronogramasRoute({
+export default function EventSchedulesListRoute({
   loaderData,
 }: AdministrativeEventSchedulesListViewProps) {
   return <EventSchedulesListRouteView loaderData={loaderData} />;

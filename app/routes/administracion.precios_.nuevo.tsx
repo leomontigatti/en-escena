@@ -39,9 +39,7 @@ export function NewPriceRouteView({
   );
 }
 
-export default function AdminNewPriceRoute({
-  loaderData,
-}: Route.ComponentProps) {
+export default function NewPriceRoute({ loaderData }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
   return <NewPriceRouteView loaderData={loaderData} actionData={actionData} />;

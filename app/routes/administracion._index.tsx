@@ -27,13 +27,13 @@ type ActiveEventSummary = {
   name: string;
 };
 
-type AdministracionIndexLoaderData = {
+type DashboardLoaderData = {
   activeEvent: ActiveEventSummary | null;
   activeEventRegistrationReadiness: EventRegistrationReadiness | null;
 };
 
-type AdministracionIndexRouteProps = {
-  loaderData: AdministracionIndexLoaderData;
+type DashboardRouteProps = {
+  loaderData: DashboardLoaderData;
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -56,12 +56,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     activeEventRegistrationReadiness: activeEvent
       ? await getEventRegistrationReadiness(activeEvent.id)
       : null,
-  } satisfies AdministracionIndexLoaderData;
+  } satisfies DashboardLoaderData;
 }
 
-export function DashboardRouteView({
-  loaderData,
-}: AdministracionIndexRouteProps) {
+export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
   const activeEvent = loaderData.activeEvent;
   const readinessAlertEvent =
     activeEvent !== null &&
@@ -114,9 +112,7 @@ export function DashboardRouteView({
   );
 }
 
-export default function AdministracionIndexRoute({
-  loaderData,
-}: AdministracionIndexRouteProps) {
+export default function DashboardRoute({ loaderData }: DashboardRouteProps) {
   return <DashboardRouteView loaderData={loaderData} />;
 }
 

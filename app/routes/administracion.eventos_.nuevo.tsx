@@ -7,7 +7,7 @@ import { AdministrativeEventCreateView } from "@/features/admin/events/create/vi
 
 import type { Route } from "./+types/administracion.eventos_.nuevo";
 
-type AdministracionEventoNuevoRouteProps = {
+type NewEventRouteProps = {
   actionData?: AdministrativeEventCreateActionData;
 };
 
@@ -26,13 +26,11 @@ export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEvent(request);
 }
 
-export function NewEventRouteView({
-  actionData,
-}: AdministracionEventoNuevoRouteProps) {
+export function NewEventRouteView({ actionData }: NewEventRouteProps) {
   return <AdministrativeEventCreateView actionData={actionData} />;
 }
 
-export default function AdministracionEventoNuevoRoute() {
+export default function NewEventRoute() {
   const actionData = useActionData<typeof action>();
 
   return <NewEventRouteView actionData={actionData} />;

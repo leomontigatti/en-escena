@@ -50,7 +50,7 @@ export function EventScheduleDetailRouteView({
   );
 }
 
-export default function AdministracionCronogramaDetalleRoute({
+export default function EventScheduleDetailRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {
