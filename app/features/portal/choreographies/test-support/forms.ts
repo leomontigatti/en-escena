@@ -22,11 +22,3 @@ export function musicUpdateFormData(
 
   return formData;
 }
-
-export function deleteChoreographyFormData(choreographyId: string) {
-  const formData = new FormData();
-  formData.set("intent", "delete-choreography");
-  formData.set("confirmDeletion", choreographyId);
-
-  return formData;
-}

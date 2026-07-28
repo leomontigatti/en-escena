@@ -10,7 +10,6 @@ import {
   createEventCatalog,
   createEventRecord,
 } from "@/features/portal/choreographies/test-support/db";
-import { deleteChoreographyFormData } from "@/features/portal/choreographies/test-support/forms";
 import {
   createPortalPostRequest,
   expectThrownResponse,
@@ -20,8 +19,16 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+function legacyDeleteChoreographyFormData(choreographyId: string) {
+  const formData = new FormData();
+  formData.set("intent", "delete-choreography");
+  formData.set("confirmDeletion", choreographyId);
+
+  return formData;
+}
+
 describe.sequential("portal choreography deletion", () => {
-  test("rejects the legacy academy delete intent and keeps the Coreografía registered", async () => {
+  test("falls back to the generic unsupported-intent rejection and keeps the Coreografía registered", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Sin Eliminación",
       email: "coreografias.detail.delete.removed@example.com",
@@ -48,10 +55,10 @@ describe.sequential("portal choreography deletion", () => {
         request: createPortalPostRequest(
           `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
           owner.cookie,
-          deleteChoreographyFormData(choreography.id),
+          legacyDeleteChoreographyFormData(choreography.id),
         ),
       }),
-      403,
+      400,
     );
 
     await expect(
