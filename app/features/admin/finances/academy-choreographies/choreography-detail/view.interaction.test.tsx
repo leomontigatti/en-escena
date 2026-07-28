@@ -10,10 +10,10 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Extract<
-  Awaited<ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>>,
+  Awaited<ReturnType<typeof loadAdminChoreographyFinanceDetail>>,
   { selectedEventId: string }
 >;
 

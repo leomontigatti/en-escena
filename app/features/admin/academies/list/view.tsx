@@ -12,9 +12,9 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 
-import type { loadAdministrativeAcademiesList } from "./server";
+import type { loadAdminAcademiesList } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdministrativeAcademiesList>>;
+type LoaderData = Awaited<ReturnType<typeof loadAdminAcademiesList>>;
 type AcademyRow = LoaderData["academies"][number];
 
 type AdministracionAcademiasRouteViewProps = {

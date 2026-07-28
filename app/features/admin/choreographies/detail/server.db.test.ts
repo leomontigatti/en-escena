@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import {
   handleAdministrativeChoreographyDetailAction,
-  loadAdministrativeChoreographyDetailRouteData,
+  loadAdminChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
   deleteAdministrativeChoreographyIntent,
@@ -646,7 +646,7 @@ async function loadDetail(input: {
     role: input.role,
   });
 
-  return await loadAdministrativeChoreographyDetailRouteData({
+  return await loadAdminChoreographyDetailRouteData({
     params: { choreographyId: input.choreographyId },
     request,
   });

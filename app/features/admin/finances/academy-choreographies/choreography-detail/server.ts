@@ -59,7 +59,7 @@ type AvailablePayment = Awaited<
 >[number];
 type StagePayment = AvailablePayment & { stageTotalAmount: number | null };
 
-export async function loadAdministrativeChoreographyFinanceDetail(input: {
+export async function loadAdminChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
 }) {

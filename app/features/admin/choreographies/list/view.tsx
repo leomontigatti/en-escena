@@ -15,9 +15,9 @@ import {
 } from "@/lib/choreographies/operational-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import type { loadAdministrativeChoreographies } from "./server";
+import type { loadAdminChoreographies } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdministrativeChoreographies>>;
+type LoaderData = Awaited<ReturnType<typeof loadAdminChoreographies>>;
 type ChoreographyRow = LoaderData["choreographies"][number];
 
 type AdministracionCoreografiasRouteViewProps = {

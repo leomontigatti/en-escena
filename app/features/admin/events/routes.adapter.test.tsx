@@ -2,13 +2,13 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-const loadAdministrativeEvents = vi.fn();
+const loadAdminEvents = vi.fn();
 const AdministrativeEventsListView = vi.fn(() =>
   createElement("div", null, "Eventos view"),
 );
 
 vi.mock("@/features/admin/events/list/server", () => ({
-  loadAdministrativeEvents,
+  loadAdminEvents,
 }));
 
 vi.mock("@/features/admin/events/list/view", () => ({
@@ -21,7 +21,7 @@ describe("administracion.eventos route adapter", () => {
     const request = new Request("http://localhost/administracion/eventos");
     const loaderResult = { events: [] };
 
-    loadAdministrativeEvents.mockResolvedValue(loaderResult);
+    loadAdminEvents.mockResolvedValue(loaderResult);
 
     await expect(
       routeModule.loader({
@@ -37,7 +37,7 @@ describe("administracion.eventos route adapter", () => {
       }),
     );
 
-    expect(loadAdministrativeEvents).toHaveBeenCalledWith(request);
+    expect(loadAdminEvents).toHaveBeenCalledWith(request);
     expect(AdministrativeEventsListView).toHaveBeenCalledWith(
       { loaderData: loaderResult },
       undefined,

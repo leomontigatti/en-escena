@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeProfessorsList } from "@/features/admin/professors/list/server";
+import { loadAdminProfessorsList } from "@/features/admin/professors/list/server";
 import { AdministracionProfesoresRouteView } from "@/features/admin/professors/list/view";
 
 import type { Route } from "./+types/administracion.profesores";
@@ -19,7 +19,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeProfessorsList(request);
+  return await loadAdminProfessorsList(request);
 }
 
 export { AdministracionProfesoresRouteView };

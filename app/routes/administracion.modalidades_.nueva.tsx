@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createAdministrativeEventModality,
-  loadAdministrativeEventModalityCreate,
+  loadAdminEventModalityCreate,
 } from "@/features/admin/modalities/create/server";
 import type { AdministrativeEventModalityActionData } from "@/features/admin/modalities/shared";
 import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
@@ -23,7 +23,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventModalityCreate(request);
+  return loadAdminEventModalityCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

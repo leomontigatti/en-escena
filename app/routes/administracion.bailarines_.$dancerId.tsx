@@ -7,7 +7,7 @@ import {
 } from "@/features/admin/dancers/detail/shared";
 import {
   handleAdministrativeDancerDetailAction,
-  loadAdministrativeDancerDetail,
+  loadAdminDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
   AdministracionBailarinDetalleRouteView as BailarinDetalleView,
@@ -43,7 +43,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeDancerDetail({ request, params });
+  return await loadAdminDancerDetail({ request, params });
 }
 
 export async function action({

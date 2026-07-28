@@ -23,7 +23,7 @@ import {
   readProfessorUpdateValues,
 } from "./shared";
 
-export async function loadAdministrativeProfessorDetail(input: {
+export async function loadAdminProfessorDetail(input: {
   request: Request;
   params: { professorId?: string };
 }) {

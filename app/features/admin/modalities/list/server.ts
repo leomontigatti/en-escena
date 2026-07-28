@@ -1,5 +1,5 @@
 import { loadEventModalitiesData } from "../server";
 
-export async function loadAdministrativeEventModalitiesList(request: Request) {
+export async function loadAdminEventModalitiesList(request: Request) {
   return loadEventModalitiesData(request);
 }

@@ -2,8 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-const loadAdministrativeDancersList = vi.fn();
-const loadAdministrativeDancerDetail = vi.fn();
+const loadAdminDancersList = vi.fn();
+const loadAdminDancerDetail = vi.fn();
 const handleAdministrativeDancerDetailAction = vi.fn();
 const AdministracionBailarinesRouteView = vi.fn(() =>
   createElement("div", null, "Bailarines view"),
@@ -13,7 +13,7 @@ const AdministracionBailarinDetalleRouteView = vi.fn(() =>
 );
 
 vi.mock("@/features/admin/dancers/list/server", () => ({
-  loadAdministrativeDancersList,
+  loadAdminDancersList,
 }));
 
 vi.mock("@/features/admin/dancers/list/view", () => ({
@@ -22,7 +22,7 @@ vi.mock("@/features/admin/dancers/list/view", () => ({
 
 vi.mock("@/features/admin/dancers/detail/server", () => ({
   handleAdministrativeDancerDetailAction,
-  loadAdministrativeDancerDetail,
+  loadAdminDancerDetail,
 }));
 
 vi.mock("@/features/admin/dancers/detail/view", () => ({
@@ -50,7 +50,7 @@ describe("administracion.bailarines route adapters", () => {
       totalPages: 1,
     };
 
-    loadAdministrativeDancersList.mockResolvedValue(loaderResult);
+    loadAdminDancersList.mockResolvedValue(loaderResult);
 
     await expect(
       routeModule.loader({
@@ -66,7 +66,7 @@ describe("administracion.bailarines route adapters", () => {
       }),
     );
 
-    expect(loadAdministrativeDancersList).toHaveBeenCalledWith(request);
+    expect(loadAdminDancersList).toHaveBeenCalledWith(request);
     expect(AdministracionBailarinesRouteView).toHaveBeenCalledWith({
       loaderData: loaderResult,
     });
@@ -137,7 +137,7 @@ describe("administracion.bailarines route adapters", () => {
       },
     };
 
-    loadAdministrativeDancerDetail.mockResolvedValue(loaderResult);
+    loadAdminDancerDetail.mockResolvedValue(loaderResult);
     handleAdministrativeDancerDetailAction.mockResolvedValue(actionResult);
 
     await expect(
@@ -163,7 +163,7 @@ describe("administracion.bailarines route adapters", () => {
       }),
     );
 
-    expect(loadAdministrativeDancerDetail).toHaveBeenCalledWith({
+    expect(loadAdminDancerDetail).toHaveBeenCalledWith({
       params,
       request,
     });

@@ -38,7 +38,7 @@ import {
 
 import {
   handleAdministrativeChoreographyFinanceAction,
-  loadAdministrativeChoreographyFinanceDetail,
+  loadAdminChoreographyFinanceDetail,
 } from "./server";
 import { emitComprobanteConfirmValue, emitComprobanteIntent } from "./shared";
 
@@ -214,7 +214,7 @@ async function loadDetail(input: {
     requestUrl: detailUrl(input),
   });
 
-  const data = await loadAdministrativeChoreographyFinanceDetail({
+  const data = await loadAdminChoreographyFinanceDetail({
     params: {
       academyId: input.academyId,
       choreographyId: input.choreographyId,

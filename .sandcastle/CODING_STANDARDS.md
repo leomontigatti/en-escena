@@ -130,8 +130,8 @@ route views would collide by name with an admin counterpart.
 
 Today the portal side already follows the rule; the admin side does not. Admin
 route views are still Spanish and marked (`AdministracionCoreografiaDetalleRouteView`),
-and admin server functions carry an `Admin`/`Administrative` prefix
-(`loadAdminAcademyFinances`, `loadAdministrativeChoreographyDetailRouteData`).
+and admin server functions carry an `Admin` prefix
+(`loadAdminAcademyFinances`, `loadAdminChoreographyDetailRouteData`).
 Those symbols are pending rename, tracked separately — write new admin symbols
 unmarked and English, and do not cite the existing ones as precedent.
 

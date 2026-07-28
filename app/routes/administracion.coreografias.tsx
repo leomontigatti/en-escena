@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
+import { loadAdminChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
 import { AdministracionCoreografiasRouteView } from "@/features/admin/choreographies/list/view";
 
 import type { Route } from "./+types/administracion.coreografias";
@@ -19,7 +19,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeChoreographyListRouteData(request);
+  return await loadAdminChoreographyListRouteData(request);
 }
 
 export { AdministracionCoreografiasRouteView };

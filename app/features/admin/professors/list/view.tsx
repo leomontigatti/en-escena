@@ -16,9 +16,9 @@ import {
   toAdminProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
 
-import type { loadAdministrativeProfessorsList } from "./server";
+import type { loadAdminProfessorsList } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdministrativeProfessorsList>>;
+type LoaderData = Awaited<ReturnType<typeof loadAdminProfessorsList>>;
 type ProfessorRow = LoaderData["professors"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 

@@ -8,12 +8,12 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 
 // El loader devuelve una unión: sin evento activo no hay coreografía. Las
 // fixtures modelan siempre la rama con evento.
 type ChoreographyFinanceDetailLoaderData = Extract<
-  Awaited<ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>>,
+  Awaited<ReturnType<typeof loadAdminChoreographyFinanceDetail>>,
   { selectedEventId: string }
 >;
 type InscriptionRow =

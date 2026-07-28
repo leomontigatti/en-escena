@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin/dancers/dancers.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdministrativeDancersList(request: Request) {
+export async function loadAdminDancersList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 
