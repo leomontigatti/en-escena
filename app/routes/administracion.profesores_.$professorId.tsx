@@ -9,7 +9,7 @@ import type {
   ProfessorDetailActionData,
   ProfessorDetailLoaderData,
 } from "@/features/admin/professors/detail/shared";
-import { AdministracionProfesorDetalleRouteView as ProfesorDetalleView } from "@/features/admin/professors/detail/view";
+import { ProfessorDetailRouteView as ProfesorDetalleView } from "@/features/admin/professors/detail/view";
 
 import type { Route } from "./+types/administracion.profesores_.$professorId";
 
@@ -52,7 +52,7 @@ export async function action({
   return await handleAdminProfessorDetailAction({ request, params });
 }
 
-export function AdministracionProfesorDetalleRouteView({
+export function ProfessorDetailRouteView({
   loaderData,
   actionData,
 }: AdministracionProfesorDetalleRouteProps) {
@@ -67,9 +67,6 @@ export default function AdministracionProfesorDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionProfesorDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <ProfessorDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

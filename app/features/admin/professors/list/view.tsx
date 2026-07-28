@@ -22,13 +22,13 @@ type LoaderData = Awaited<ReturnType<typeof loadAdminProfessorsList>>;
 type ProfessorRow = LoaderData["professors"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 
-export type AdministracionProfesoresRouteViewProps = {
+export type ProfessorsListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-export function AdministracionProfesoresRouteView({
+export function ProfessorsListRouteView({
   loaderData,
-}: AdministracionProfesoresRouteViewProps) {
+}: ProfessorsListRouteViewProps) {
   const shouldShowTable =
     loaderData.professors.length > 0 ||
     hasActiveListFilters(loaderData) ||

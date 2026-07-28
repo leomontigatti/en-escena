@@ -33,7 +33,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   return updateCategory(request, params.categoryId ?? "");
 }
 
-export function AdministracionCategoriaDetalleRouteView({
+export function CategoryDetailRouteView({
   loaderData,
   actionData,
 }: CategoryDetailViewProps) {
@@ -46,9 +46,6 @@ export default function AdminCategoryDetailRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCategoriaDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <CategoryDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

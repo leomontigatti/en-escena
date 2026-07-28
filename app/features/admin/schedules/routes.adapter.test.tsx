@@ -69,7 +69,7 @@ describe("administracion.cronogramas route adapters", () => {
     );
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionCronogramasRouteView({
+      routeModule.EventSchedulesListRouteView({
         loaderData: loaderResult,
       }),
     );
@@ -109,7 +109,7 @@ describe("administracion.cronogramas route adapters", () => {
     );
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionCronogramaNuevoRouteView({
+      routeModule.NewEventScheduleRouteView({
         loaderData: loaderResult,
         actionData: actionResult,
       }),
@@ -152,7 +152,7 @@ describe("administracion.cronogramas route adapters", () => {
     );
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionCronogramaDetalleRouteView({
+      routeModule.EventScheduleDetailRouteView({
         loaderData: loaderResult,
         actionData: actionResult,
         scheduleId: "schedule_1",

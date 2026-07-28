@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 
-import { AdministracionRouteView } from "@/routes/administracion";
+import { AdminShellRouteView } from "@/routes/administracion";
 
 type AdminParentLoaderData = {
   email: string;
@@ -29,7 +29,7 @@ export function renderAdminChildRoute(input: RenderAdminChildRouteInput) {
     {
       id: "admin",
       path: "/administracion",
-      Component: AdministracionRouteView,
+      Component: AdminShellRouteView,
       children: [
         {
           id: input.childId,

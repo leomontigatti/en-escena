@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
-  AdministracionUsuariosRouteView,
+  InternalUsersListRouteView,
   loader,
 } from "@/routes/administracion.usuarios";
 
@@ -221,13 +221,13 @@ describe("administracion/usuarios route", () => {
 
 function renderRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionUsuariosRouteView>[0]["loaderData"]
+    Parameters<typeof InternalUsersListRouteView>[0]["loaderData"]
   >,
 ) {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios",
-      Component: AdministracionUsuariosRouteView,
+      Component: InternalUsersListRouteView,
     },
   ]);
 

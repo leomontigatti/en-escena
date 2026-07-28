@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminDancersList } from "@/features/admin/dancers/list/server";
-import { AdministracionBailarinesRouteView } from "@/features/admin/dancers/list/view";
+import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 
 import type { Route } from "./+types/administracion.bailarines";
 
@@ -22,10 +22,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadAdminDancersList(request);
 }
 
-export { AdministracionBailarinesRouteView };
+export { DancersListRouteView };
 
 export default function AdministracionBailarinesRoute({
   loaderData,
 }: AdministracionBailarinesRouteProps) {
-  return <AdministracionBailarinesRouteView loaderData={loaderData} />;
+  return <DancersListRouteView loaderData={loaderData} />;
 }

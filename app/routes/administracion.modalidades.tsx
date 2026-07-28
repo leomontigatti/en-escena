@@ -15,7 +15,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadAdminEventModalitiesList(request);
 }
 
-export function AdministracionModalidadesRouteView({
+export function ModalitiesListRouteView({
   loaderData,
 }: AdministrativeEventModalitiesListViewProps) {
   return <AdministrativeEventModalitiesListView loaderData={loaderData} />;
@@ -24,5 +24,5 @@ export function AdministracionModalidadesRouteView({
 export default function AdministracionModalidadesRoute({
   loaderData,
 }: AdministrativeEventModalitiesListViewProps) {
-  return <AdministracionModalidadesRouteView loaderData={loaderData} />;
+  return <ModalitiesListRouteView loaderData={loaderData} />;
 }

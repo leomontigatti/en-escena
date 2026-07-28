@@ -42,12 +42,12 @@ import {
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 import {
-  AdministracionBailarinesRouteView,
+  DancersListRouteView,
   handle as bailarinesHandle,
   loader,
 } from "@/routes/administracion.bailarines";
 import {
-  AdministracionBailarinDetalleRouteView,
+  DancerDetailRouteView,
   action as detailAction,
   handle as bailarinDetalleHandle,
   loader as detailLoader,
@@ -693,7 +693,7 @@ describe.sequential("administracion/bailarines route", () => {
       childId: "bailarines",
       childLoaderData: listLoaderData,
       childPath: "bailarines",
-      childComponent: AdministracionBailarinesRouteView,
+      childComponent: DancersListRouteView,
       childHandle: bailarinesHandle,
       initialEntry: "/administracion/bailarines",
       parentLoaderData: {
@@ -706,7 +706,7 @@ describe.sequential("administracion/bailarines route", () => {
       childId: "bailarin-detalle",
       childLoaderData: detailLoaderData,
       childPath: "bailarines/:dancerId",
-      childComponent: AdministracionBailarinDetalleRouteView,
+      childComponent: DancerDetailRouteView,
       childHandle: bailarinDetalleHandle,
       initialEntry: `/administracion/bailarines/${dancer.id}`,
       parentLoaderData: {
@@ -1550,9 +1550,7 @@ describe.sequential("administracion/bailarines route", () => {
 });
 
 function renderRoute(
-  loaderData: Parameters<
-    typeof AdministracionBailarinesRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof DancersListRouteView>[0]["loaderData"],
 ) {
   return renderToStaticMarkup(
     createElement(
@@ -1560,15 +1558,13 @@ function renderRoute(
       {
         initialEntries: [buildListInitialEntry(loaderData)],
       },
-      createElement(AdministracionBailarinesRouteView, { loaderData }),
+      createElement(DancersListRouteView, { loaderData }),
     ),
   );
 }
 
 function renderDetailRoute(
-  loaderData: Parameters<
-    typeof AdministracionBailarinDetalleRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof DancerDetailRouteView>[0]["loaderData"],
   dancerId: string,
 ) {
   return renderToStaticMarkup(
@@ -1577,7 +1573,7 @@ function renderDetailRoute(
       {
         initialEntries: [`/administracion/bailarines/${dancerId}`],
       },
-      createElement(AdministracionBailarinDetalleRouteView, { loaderData }),
+      createElement(DancerDetailRouteView, { loaderData }),
     ),
   );
 }
@@ -1595,9 +1591,7 @@ function renderRouteInAdminLayout({
   initialEntry,
   parentLoaderData,
 }: {
-  childComponent:
-    | typeof AdministracionBailarinesRouteView
-    | typeof AdministracionBailarinDetalleRouteView;
+  childComponent: typeof DancersListRouteView | typeof DancerDetailRouteView;
   childHandle: unknown;
   childId: string;
   childLoaderData: unknown;
@@ -1621,9 +1615,7 @@ function renderRouteInAdminLayout({
 }
 
 function buildListInitialEntry(
-  loaderData: Parameters<
-    typeof AdministracionBailarinesRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof DancersListRouteView>[0]["loaderData"],
 ) {
   const searchParams = new URLSearchParams();
 

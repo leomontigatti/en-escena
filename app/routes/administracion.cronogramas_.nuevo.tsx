@@ -33,7 +33,7 @@ export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventSchedule(request);
 }
 
-export function AdministracionCronogramaNuevoRouteView({
+export function NewEventScheduleRouteView({
   loaderData,
   actionData,
 }: AdministrativeEventScheduleCreateViewProps) {
@@ -51,7 +51,7 @@ export default function AdministracionCronogramaNuevoRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCronogramaNuevoRouteView
+    <NewEventScheduleRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

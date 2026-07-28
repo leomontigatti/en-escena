@@ -26,7 +26,7 @@ export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEvent(request);
 }
 
-export function AdministracionEventoNuevoRouteView({
+export function NewEventRouteView({
   actionData,
 }: AdministracionEventoNuevoRouteProps) {
   return <AdministrativeEventCreateView actionData={actionData} />;
@@ -35,5 +35,5 @@ export function AdministracionEventoNuevoRouteView({
 export default function AdministracionEventoNuevoRoute() {
   const actionData = useActionData<typeof action>();
 
-  return <AdministracionEventoNuevoRouteView actionData={actionData} />;
+  return <NewEventRouteView actionData={actionData} />;
 }

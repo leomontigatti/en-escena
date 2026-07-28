@@ -16,7 +16,7 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireJudgePanelUser: vi.fn(),
 }));
 
-import { AdministracionRouteView } from "@/routes/administracion";
+import { AdminShellRouteView } from "@/routes/administracion";
 import { AuditoriaRouteView } from "@/routes/auditoria";
 import { JuzgamientoRouteView } from "@/routes/juzgamiento";
 
@@ -170,7 +170,7 @@ function renderAdminRoute() {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion",
-      Component: AdministracionRouteView,
+      Component: AdminShellRouteView,
     },
   ]);
 

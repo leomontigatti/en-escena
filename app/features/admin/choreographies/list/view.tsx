@@ -20,7 +20,7 @@ import type { loadAdminChoreographies } from "./server";
 type LoaderData = Awaited<ReturnType<typeof loadAdminChoreographies>>;
 type ChoreographyRow = LoaderData["choreographies"][number];
 
-type AdministracionCoreografiasRouteViewProps = {
+type ChoreographiesListRouteViewProps = {
   loaderData: LoaderData;
 };
 
@@ -100,9 +100,9 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   },
 ];
 
-export function AdministracionCoreografiasRouteView({
+export function ChoreographiesListRouteView({
   loaderData,
-}: AdministracionCoreografiasRouteViewProps) {
+}: ChoreographiesListRouteViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}

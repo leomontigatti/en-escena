@@ -40,7 +40,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   return updateAdministrativeEvent(request, params.eventId);
 }
 
-export function AdministracionEventoDetalleRouteView({
+export function EventDetailRouteView({
   loaderData,
   actionData,
 }: AdministracionEventoDetalleRouteProps) {
@@ -58,9 +58,6 @@ export default function AdministracionEventoDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionEventoDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

@@ -10,7 +10,7 @@ import {
   loadAdminDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
-  AdministracionBailarinDetalleRouteView as BailarinDetalleView,
+  DancerDetailRouteView as BailarinDetalleView,
   type InscriptionsSectionProps,
   InscriptionsSection,
 } from "@/features/admin/dancers/detail/view";
@@ -53,7 +53,7 @@ export async function action({
   return await handleAdminDancerDetailAction({ request, params });
 }
 
-export function AdministracionBailarinDetalleRouteView({
+export function DancerDetailRouteView({
   loaderData,
   actionData,
 }: AdministracionBailarinDetalleRouteProps) {
@@ -68,10 +68,7 @@ export default function AdministracionBailarinDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionBailarinDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <DancerDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }
 

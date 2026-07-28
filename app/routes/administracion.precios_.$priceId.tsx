@@ -37,7 +37,7 @@ export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventPrice(request);
 }
 
-export function AdministracionPrecioDetalleRouteView({
+export function PriceDetailRouteView({
   loaderData,
   actionData,
   priceId,
@@ -58,7 +58,7 @@ export default function AdminPriceDetailRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionPrecioDetalleRouteView
+    <PriceDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
       priceId={params.priceId ?? ""}

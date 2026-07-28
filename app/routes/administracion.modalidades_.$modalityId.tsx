@@ -35,7 +35,7 @@ export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventModality(request);
 }
 
-export function AdministracionModalidadDetalleRouteView({
+export function ModalityDetailRouteView({
   loaderData,
   actionData,
   modalityId,
@@ -56,7 +56,7 @@ export default function AdministracionModalidadDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionModalidadDetalleRouteView
+    <ModalityDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
       modalityId={params.modalityId ?? ""}

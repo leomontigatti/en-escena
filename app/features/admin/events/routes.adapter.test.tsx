@@ -32,7 +32,7 @@ describe("administracion.eventos route adapter", () => {
     ).resolves.toBe(loaderResult);
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionEventosRouteView({
+      routeModule.EventsListRouteView({
         loaderData: loaderResult,
       }),
     );

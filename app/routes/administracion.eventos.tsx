@@ -19,7 +19,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadAdminEvents(request);
 }
 
-export function AdministracionEventosRouteView({
+export function EventsListRouteView({
   loaderData,
 }: AdministrativeEventsListViewProps) {
   return <AdministrativeEventsListView loaderData={loaderData} />;
@@ -28,5 +28,5 @@ export function AdministracionEventosRouteView({
 export default function AdministracionEventosRoute({
   loaderData,
 }: AdministrativeEventsListViewProps) {
-  return <AdministracionEventosRouteView loaderData={loaderData} />;
+  return <EventsListRouteView loaderData={loaderData} />;
 }

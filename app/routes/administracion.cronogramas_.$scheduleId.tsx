@@ -36,7 +36,7 @@ export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventSchedule(request);
 }
 
-export function AdministracionCronogramaDetalleRouteView({
+export function EventScheduleDetailRouteView({
   loaderData,
   actionData,
   scheduleId,
@@ -57,7 +57,7 @@ export default function AdministracionCronogramaDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCronogramaDetalleRouteView
+    <EventScheduleDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
       scheduleId={params.scheduleId ?? ""}

@@ -4,10 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionFinanzasRouteView } from "./view";
+import { FinancesListRouteView } from "./view";
 import type { FinanceAccountRow } from "./server";
 
-describe("AdministracionFinanzasRouteView", () => {
+describe("FinancesListRouteView", () => {
   test("renders one row per academy with the three primary amounts", () => {
     const markup = renderList([
       accountRowFixture({
@@ -66,7 +66,7 @@ function isAvailableBalanceMuted(markup: string) {
 function renderList(rows: FinanceAccountRow[]) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/administracion/finanzas"]}>
-      <AdministracionFinanzasRouteView
+      <FinancesListRouteView
         loaderData={{ rows, selectedEventId: "event_1" }}
       />
     </MemoryRouter>,

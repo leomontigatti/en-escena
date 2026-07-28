@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionComprobanteDetalleRouteView } from "./view";
+import { ComprobanteDetailRouteView } from "./view";
 import type { ComprobanteDetail } from "./server";
 import { annulComprobanteIntent } from "./shared";
 
@@ -36,7 +36,7 @@ function comprobanteFixture(
   };
 }
 
-describe("AdministracionComprobanteDetalleRouteView", () => {
+describe("ComprobanteDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -46,7 +46,7 @@ describe("AdministracionComprobanteDetalleRouteView", () => {
     initialAnnulDialogOpen?: boolean;
   }) {
     const view = (
-      <AdministracionComprobanteDetalleRouteView
+      <ComprobanteDetailRouteView
         initialAnnulDialogOpen={props.initialAnnulDialogOpen}
         loaderData={{ comprobante: comprobanteFixture(props.comprobante) }}
       />

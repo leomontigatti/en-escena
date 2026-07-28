@@ -32,15 +32,15 @@ import type { loadAdminPaymentCreate } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentCreate>>;
 
-type AdministracionPagosNuevoRouteViewProps = {
+type NewPaymentRouteViewProps = {
   actionData?: CreatePaymentActionData;
   loaderData: LoaderData;
 };
 
-export function AdministracionPagosNuevoRouteView({
+export function NewPaymentRouteView({
   actionData,
   loaderData,
-}: AdministracionPagosNuevoRouteViewProps) {
+}: NewPaymentRouteViewProps) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
     intent: createPaymentIntent,

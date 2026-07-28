@@ -5,10 +5,10 @@ import { describe, expect, test, vi } from "vitest";
 const loadAdminDancersList = vi.fn();
 const loadAdminDancerDetail = vi.fn();
 const handleAdminDancerDetailAction = vi.fn();
-const AdministracionBailarinesRouteView = vi.fn(() =>
+const DancersListRouteView = vi.fn(() =>
   createElement("div", null, "Bailarines view"),
 );
-const AdministracionBailarinDetalleRouteView = vi.fn(() =>
+const DancerDetailRouteView = vi.fn(() =>
   createElement("div", null, "Detalle Bailarin view"),
 );
 
@@ -17,7 +17,7 @@ vi.mock("@/features/admin/dancers/list/server", () => ({
 }));
 
 vi.mock("@/features/admin/dancers/list/view", () => ({
-  AdministracionBailarinesRouteView,
+  DancersListRouteView,
 }));
 
 vi.mock("@/features/admin/dancers/detail/server", () => ({
@@ -26,7 +26,7 @@ vi.mock("@/features/admin/dancers/detail/server", () => ({
 }));
 
 vi.mock("@/features/admin/dancers/detail/view", () => ({
-  AdministracionBailarinDetalleRouteView,
+  DancerDetailRouteView,
   InscriptionsSection: vi.fn(),
 }));
 
@@ -61,13 +61,13 @@ describe("administracion.bailarines route adapters", () => {
     ).resolves.toBe(loaderResult);
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionBailarinesRouteView({
+      routeModule.DancersListRouteView({
         loaderData: loaderResult,
       }),
     );
 
     expect(loadAdminDancersList).toHaveBeenCalledWith(request);
-    expect(AdministracionBailarinesRouteView).toHaveBeenCalledWith({
+    expect(DancersListRouteView).toHaveBeenCalledWith({
       loaderData: loaderResult,
     });
     expect(markup).toContain("Bailarines view");
@@ -157,7 +157,7 @@ describe("administracion.bailarines route adapters", () => {
     ).resolves.toBe(actionResult);
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionBailarinDetalleRouteView({
+      routeModule.DancerDetailRouteView({
         actionData: actionResult,
         loaderData: loaderResult,
       }),
@@ -171,7 +171,7 @@ describe("administracion.bailarines route adapters", () => {
       params,
       request,
     });
-    expect(AdministracionBailarinDetalleRouteView).toHaveBeenCalledWith(
+    expect(DancerDetailRouteView).toHaveBeenCalledWith(
       {
         actionData: actionResult,
         loaderData: loaderResult,

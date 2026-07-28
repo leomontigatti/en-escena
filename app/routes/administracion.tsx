@@ -34,9 +34,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export function AdministracionRouteView({
-  loaderData,
-}: AdministracionRouteProps) {
+export function AdminShellRouteView({ loaderData }: AdministracionRouteProps) {
   const matches = useMatches();
   const shellOptions = getAdminShellOptions(matches);
 
@@ -53,4 +51,4 @@ export function AdministracionRouteView({
   );
 }
 
-export default AdministracionRouteView;
+export default AdminShellRouteView;

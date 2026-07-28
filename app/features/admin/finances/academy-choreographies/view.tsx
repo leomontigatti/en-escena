@@ -32,13 +32,13 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-type AdministracionFinanzasAcademiaRouteViewProps = {
+type AcademyFinancesRouteViewProps = {
   loaderData: AcademyFinancesLoaderData;
 };
 
-export function AdministracionFinanzasAcademiaRouteView({
+export function AcademyFinancesRouteView({
   loaderData,
-}: AdministracionFinanzasAcademiaRouteViewProps) {
+}: AcademyFinancesRouteViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}

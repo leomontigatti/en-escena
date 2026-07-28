@@ -26,13 +26,13 @@ type LoaderData = Awaited<ReturnType<typeof loadAdminDancersList>>;
 type DancerRow = LoaderData["dancers"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 
-export type AdministracionBailarinesRouteViewProps = {
+export type DancersListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-export function AdministracionBailarinesRouteView({
+export function DancersListRouteView({
   loaderData,
-}: AdministracionBailarinesRouteViewProps) {
+}: DancersListRouteViewProps) {
   const shouldShowTable =
     loaderData.dancers.length > 0 ||
     hasActiveListFilters(loaderData) ||

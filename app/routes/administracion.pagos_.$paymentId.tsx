@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  AdministracionPagoDetalleRouteView,
+  PaymentDetailRouteView,
   getAdminPaymentDisplayName,
 } from "@/features/admin/payments/detail/view";
 import {
@@ -49,9 +49,6 @@ export default function AdministracionPagoDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionPagoDetalleRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
+    <PaymentDetailRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

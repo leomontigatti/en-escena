@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 
 import {
-  AdministracionAcademiasRouteView,
+  AcademiesListRouteView,
   loader as academiesLoader,
 } from "@/routes/administracion.academias";
 
@@ -16,7 +16,7 @@ export function renderAcademiesRoute(input: {
       {
         initialEntries: ["/administracion/academias"],
       },
-      createElement(AdministracionAcademiasRouteView, {
+      createElement(AcademiesListRouteView, {
         loaderData: input.loaderData,
       }),
     ),

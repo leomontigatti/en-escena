@@ -15,7 +15,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadAdminEventSchedulesList(request);
 }
 
-export function AdministracionCronogramasRouteView({
+export function EventSchedulesListRouteView({
   loaderData,
 }: AdministrativeEventSchedulesListViewProps) {
   return <AdministrativeEventSchedulesListView loaderData={loaderData} />;
@@ -24,5 +24,5 @@ export function AdministracionCronogramasRouteView({
 export default function AdministracionCronogramasRoute({
   loaderData,
 }: AdministrativeEventSchedulesListViewProps) {
-  return <AdministracionCronogramasRouteView loaderData={loaderData} />;
+  return <EventSchedulesListRouteView loaderData={loaderData} />;
 }

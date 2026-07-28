@@ -30,7 +30,7 @@ export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventModality(request);
 }
 
-export function AdministracionModalidadNuevaRouteView({
+export function NewModalityRouteView({
   loaderData,
   actionData,
 }: AdministracionModalidadNuevaRouteProps) {
@@ -48,9 +48,6 @@ export default function AdministracionModalidadNuevaRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionModalidadNuevaRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <NewModalityRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

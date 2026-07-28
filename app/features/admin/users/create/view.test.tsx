@@ -3,14 +3,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionUsuariosNuevoRouteView } from "@/features/admin/users/create/view";
+import { NewInternalUserRouteView } from "@/features/admin/users/create/view";
 
-describe("AdministracionUsuariosNuevoRouteView", () => {
+describe("NewInternalUserRouteView", () => {
   test("renders the temporary password warning without showing a success toast", () => {
     const RoutesStub = createRoutesStub([
       {
         path: "/administracion/usuarios/nuevo",
-        Component: AdministracionUsuariosNuevoRouteView,
+        Component: NewInternalUserRouteView,
       },
     ]);
 

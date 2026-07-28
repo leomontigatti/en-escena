@@ -16,11 +16,11 @@ import {
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
 import {
-  AdministracionFinanzasAcademiaRouteView,
+  AcademyFinancesRouteView,
   loader as academyFinancesLoader,
 } from "@/routes/administracion.finanzas_.$academyId";
 import {
-  AdministracionFinanzasRouteView,
+  FinancesListRouteView,
   loader as financeAccountsLoader,
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
@@ -226,7 +226,7 @@ export function renderAcademyFinancesRoute(input: {
     [
       {
         path: "/administracion/finanzas/:academyId",
-        element: createElement(AdministracionFinanzasAcademiaRouteView, {
+        element: createElement(AcademyFinancesRouteView, {
           loaderData: input.loaderData,
         }),
       },
@@ -252,7 +252,7 @@ export function renderFinanceAccountsRoute(input: {
       {
         initialEntries: ["/administracion/finanzas"],
       },
-      createElement(AdministracionFinanzasRouteView, {
+      createElement(FinancesListRouteView, {
         loaderData: input.loaderData,
       }),
     ),

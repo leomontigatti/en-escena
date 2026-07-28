@@ -17,7 +17,7 @@ import type { loadAdminAcademiesList } from "./server";
 type LoaderData = Awaited<ReturnType<typeof loadAdminAcademiesList>>;
 type AcademyRow = LoaderData["academies"][number];
 
-type AdministracionAcademiasRouteViewProps = {
+type AcademiesListRouteViewProps = {
   loaderData: LoaderData;
 };
 
@@ -73,9 +73,9 @@ const academyFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-export function AdministracionAcademiasRouteView({
+export function AcademiesListRouteView({
   loaderData,
-}: AdministracionAcademiasRouteViewProps) {
+}: AcademiesListRouteViewProps) {
   return (
     <AdminResourceLayout
       requireSelectedEvent={false}

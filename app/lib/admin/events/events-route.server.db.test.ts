@@ -16,11 +16,11 @@ import {
 } from "@/lib/events/saved-event-test-support.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
-  AdministracionRouteView,
+  AdminShellRouteView,
   loader as adminLoader,
 } from "@/routes/administracion";
 import {
-  AdministracionEventosRouteView,
+  EventsListRouteView,
   handle as eventosHandle,
   loader,
 } from "@/routes/administracion.eventos";
@@ -291,9 +291,7 @@ describe("administracion/eventos route", () => {
 });
 
 function renderRoute(
-  loaderData: Partial<
-    Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
-  >,
+  loaderData: Partial<Parameters<typeof EventsListRouteView>[0]["loaderData"]>,
 ) {
   const eventsLoaderData = {
     events: [],
@@ -303,12 +301,12 @@ function renderRoute(
     {
       id: "admin",
       path: "/administracion",
-      Component: AdministracionRouteView,
+      Component: AdminShellRouteView,
       children: [
         {
           id: "events",
           path: "eventos",
-          Component: AdministracionEventosRouteView,
+          Component: EventsListRouteView,
           handle: eventosHandle,
         },
         {

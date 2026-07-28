@@ -1,3 +1,3 @@
-export function AdministracionUsuariosInvitacionesRouteView() {
+export function InternalUserInvitationsRouteView() {
   return null;
 }

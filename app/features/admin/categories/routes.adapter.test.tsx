@@ -8,8 +8,8 @@ import type {
   CategoryFormLoaderData,
   CategoriesListLoaderData,
 } from "@/features/admin/categories/shared";
-import { AdministracionCategoriaDetalleRouteView } from "../../../routes/administracion.categorias_.$categoryId";
-import { AdministracionCategoriaNuevaRouteView } from "../../../routes/administracion.categorias_.nueva";
+import { CategoryDetailRouteView } from "../../../routes/administracion.categorias_.$categoryId";
+import { NewCategoryRouteView } from "../../../routes/administracion.categorias_.nueva";
 import { CategoriesRouteView } from "../../../routes/administracion.categorias";
 
 describe("administracion.categorias route adapters", () => {
@@ -31,7 +31,7 @@ describe("administracion.categorias route adapters", () => {
 
   test("renders the create feature view from the create route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionCategoriaNuevaRouteView, {
+      createElement(NewCategoryRouteView, {
         loaderData: categoryFormLoaderData(),
         actionData: actionData("Revisá los campos."),
       }),
@@ -46,7 +46,7 @@ describe("administracion.categorias route adapters", () => {
 
   test("renders the detail feature view from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionCategoriaDetalleRouteView, {
+      createElement(CategoryDetailRouteView, {
         loaderData: categoryDetailLoaderData({
           category: category("categoria_1", "Juvenil"),
           modalities: [modality("modalidad_1", "Jazz")],
@@ -65,7 +65,7 @@ describe("administracion.categorias route adapters", () => {
 
   test("renders the not-found detail state from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionCategoriaDetalleRouteView, {
+      createElement(CategoryDetailRouteView, {
         loaderData: categoryDetailLoaderData(),
       }),
       "/administracion/categorias/categoria_inexistente",

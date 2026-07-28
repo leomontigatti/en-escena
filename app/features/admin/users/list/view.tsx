@@ -23,7 +23,7 @@ import type { loader } from "./server";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionUsuariosRouteViewProps = {
+type InternalUsersListRouteViewProps = {
   loaderData: LoaderData;
 };
 
@@ -45,9 +45,9 @@ const roleFilterOptions = [
   { label: "Juez", value: "judge" },
 ] satisfies FilterSelectOption[];
 
-export function AdministracionUsuariosRouteView({
+export function InternalUsersListRouteView({
   loaderData,
-}: AdministracionUsuariosRouteViewProps) {
+}: InternalUsersListRouteViewProps) {
   return (
     <AdminResourceLayout
       requireSelectedEvent={false}

@@ -2,13 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionProfesorDetalleRouteView } from "@/features/admin/professors/detail/view";
+import { ProfessorDetailRouteView } from "@/features/admin/professors/detail/view";
 
-type ProfessorDetailViewProps = Parameters<
-  typeof AdministracionProfesorDetalleRouteView
->[0];
+type ProfessorDetailViewProps = Parameters<typeof ProfessorDetailRouteView>[0];
 
-describe("AdministracionProfesorDetalleRouteView", () => {
+describe("ProfessorDetailRouteView", () => {
   test("renders the readonly ficha for auditors", () => {
     const markup = renderProfessorDetail();
 
@@ -104,7 +102,7 @@ function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
         path: "/administracion/profesores/:professorId",
         action: async () => null,
         element: (
-          <AdministracionProfesorDetalleRouteView
+          <ProfessorDetailRouteView
             loaderData={
               input.loaderData ?? {
                 backToList: "/administracion/profesores?pagina=2",

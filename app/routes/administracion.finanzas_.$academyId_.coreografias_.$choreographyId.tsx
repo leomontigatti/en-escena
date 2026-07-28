@@ -50,7 +50,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 }
 
-function AdministracionCoreografiaFinancieraDetalleRouteView({
+function ChoreographyFinanceDetailRouteView({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleRouteProps) {
   return (
@@ -61,9 +61,5 @@ function AdministracionCoreografiaFinancieraDetalleRouteView({
 export default function AdministracionCoreografiaFinancieraDetalleRoute({
   loaderData,
 }: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  return (
-    <AdministracionCoreografiaFinancieraDetalleRouteView
-      loaderData={loaderData}
-    />
-  );
+  return <ChoreographyFinanceDetailRouteView loaderData={loaderData} />;
 }

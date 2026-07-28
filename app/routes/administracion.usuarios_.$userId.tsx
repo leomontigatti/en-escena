@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { action, loader } from "@/features/admin/users/detail/server";
-import { AdministracionUsuarioDetalleRouteView } from "@/features/admin/users/detail/view";
+import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
 import type { UserDetailLoaderData } from "@/lib/admin/users/user-detail.shared";
 
 import type { Route } from "./+types/administracion.usuarios_.$userId";
@@ -30,7 +30,7 @@ export const handle = {
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
 
-export { action, loader, AdministracionUsuarioDetalleRouteView };
+export { action, loader, InternalUserDetailRouteView };
 
 export default function AdministracionUsuarioDetalleRoute({
   loaderData,
@@ -38,7 +38,7 @@ export default function AdministracionUsuarioDetalleRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionUsuarioDetalleRouteView
+    <InternalUserDetailRouteView
       actionData={actionData}
       loaderData={loaderData}
     />

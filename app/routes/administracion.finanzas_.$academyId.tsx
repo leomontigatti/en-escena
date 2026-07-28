@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
-import { AdministracionFinanzasAcademiaRouteView } from "@/features/admin/finances/academy-choreographies/view";
+import { AcademyFinancesRouteView } from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
@@ -28,10 +28,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadAdminAcademyFinances({ request, params });
 }
 
-export { AdministracionFinanzasAcademiaRouteView };
+export { AcademyFinancesRouteView };
 
 export default function AdministracionFinanzasAcademiaRoute({
   loaderData,
 }: AdministracionFinanzasAcademiaRouteProps) {
-  return <AdministracionFinanzasAcademiaRouteView loaderData={loaderData} />;
+  return <AcademyFinancesRouteView loaderData={loaderData} />;
 }

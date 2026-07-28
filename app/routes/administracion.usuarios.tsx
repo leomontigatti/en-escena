@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loader } from "@/features/admin/users/list/server";
-import { AdministracionUsuariosRouteView } from "@/features/admin/users/list/view";
+import { InternalUsersListRouteView } from "@/features/admin/users/list/view";
 
 import type { Route } from "./+types/administracion.usuarios";
 
@@ -19,10 +19,10 @@ export const handle = {
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
 
-export { loader, AdministracionUsuariosRouteView };
+export { loader, InternalUsersListRouteView };
 
 export default function AdministracionUsuariosRoute({
   loaderData,
 }: AdministracionUsuariosRouteProps) {
-  return <AdministracionUsuariosRouteView loaderData={loaderData} />;
+  return <InternalUsersListRouteView loaderData={loaderData} />;
 }

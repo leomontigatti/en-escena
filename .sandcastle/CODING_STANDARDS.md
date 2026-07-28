@@ -128,12 +128,12 @@ want; the default argument survives a third surface, the redundancy one does not
 The prefix also carries real information: under this rule 8 of the 11 portal
 route views would collide by name with an admin counterpart.
 
-Today the portal side already follows the rule; the admin side does not. Admin
-route views are still Spanish and marked (`AdministracionCoreografiaDetalleRouteView`),
-and admin server functions carry an `Admin` prefix
-(`loadAdminAcademyFinances`, `loadAdminChoreographyDetailRouteData`).
-Those symbols are pending rename, tracked separately — write new admin symbols
-unmarked and English, and do not cite the existing ones as precedent.
+Both surfaces already follow the rule for route views: admin ones are English and
+unmarked (`ChoreographyDetailRouteView`), portal ones keep their `Portal` prefix.
+Admin server functions still carry an `Admin` prefix (`loadAdminAcademyFinances`,
+`loadAdminChoreographyDetailRouteData`), and some route default exports are still
+Spanish. Those symbols are pending rename, tracked separately — write new admin
+symbols unmarked and English, and do not cite the existing ones as precedent.
 
 ## File Size And Boundaries
 

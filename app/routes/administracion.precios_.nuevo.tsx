@@ -27,7 +27,7 @@ export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventPrice(request);
 }
 
-export function AdministracionPrecioNuevoRouteView({
+export function NewPriceRouteView({
   loaderData,
   actionData,
 }: AdministrativeEventPriceCreateViewProps) {
@@ -44,10 +44,5 @@ export default function AdminNewPriceRoute({
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
-  return (
-    <AdministracionPrecioNuevoRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <NewPriceRouteView loaderData={loaderData} actionData={actionData} />;
 }

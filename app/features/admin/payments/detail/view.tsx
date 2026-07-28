@@ -48,17 +48,17 @@ import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentDetail>>;
 
-type AdministracionPagoDetalleRouteViewProps = {
+type PaymentDetailRouteViewProps = {
   actionData?: AdminPaymentDetailActionData;
   initialDeleteDialogOpen?: boolean;
   loaderData: LoaderData;
 };
 
-export function AdministracionPagoDetalleRouteView({
+export function PaymentDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
   loaderData,
-}: AdministracionPagoDetalleRouteViewProps) {
+}: PaymentDetailRouteViewProps) {
   const payment = loaderData.payment;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen || actionData?.intent === deleteAdminPaymentIntent,

@@ -9,15 +9,13 @@ import {
   getButton,
 } from "@/lib/test-support/react-dom";
 
-import { AdministracionProfesorDetalleRouteView } from "./view";
+import { ProfessorDetailRouteView } from "./view";
 
-type ProfessorDetailViewProps = Parameters<
-  typeof AdministracionProfesorDetalleRouteView
->[0];
+type ProfessorDetailViewProps = Parameters<typeof ProfessorDetailRouteView>[0];
 type ProfessorEditConsequence =
   ProfessorDetailViewProps["loaderData"]["professor"]["editConsequence"];
 
-describe("AdministracionProfesorDetalleRouteView dialogs", () => {
+describe("ProfessorDetailRouteView dialogs", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -25,7 +23,7 @@ describe("AdministracionProfesorDetalleRouteView dialogs", () => {
   test("editing a non-consequential Profesor saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
-        <AdministracionProfesorDetalleRouteView
+        <ProfessorDetailRouteView
           loaderData={createLoaderData({
             editConsequence: null,
             isEditing: true,
@@ -43,7 +41,7 @@ describe("AdministracionProfesorDetalleRouteView dialogs", () => {
   test("editing a participating Profesor confirms with the participation message and no reason field", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
-        <AdministracionProfesorDetalleRouteView
+        <ProfessorDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "participated",
             isEditing: true,

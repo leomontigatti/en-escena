@@ -4,7 +4,7 @@ import {
   loadAdminComprobanteDetail,
   type ComprobanteDetailLoaderData,
 } from "@/features/admin/comprobantes/detail/server";
-import { AdministracionComprobanteDetalleRouteView } from "@/features/admin/comprobantes/detail/view";
+import { ComprobanteDetailRouteView } from "@/features/admin/comprobantes/detail/view";
 import { formatComprobanteNumber } from "@/lib/comprobantes/format";
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId";
@@ -45,5 +45,5 @@ export async function action({ request, params }: Route.ActionArgs) {
 export default function AdministracionComprobanteDetalleRoute({
   loaderData,
 }: AdministracionComprobanteDetalleRouteProps) {
-  return <AdministracionComprobanteDetalleRouteView loaderData={loaderData} />;
+  return <ComprobanteDetailRouteView loaderData={loaderData} />;
 }

@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminPaymentsList } from "@/features/admin/payments/list/server";
-import { AdministracionPagosRouteView } from "@/features/admin/payments/list/view";
+import { PaymentsListRouteView } from "@/features/admin/payments/list/view";
 
 import type { Route } from "./+types/administracion.pagos";
 
@@ -22,10 +22,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadAdminPaymentsList(request);
 }
 
-export { AdministracionPagosRouteView };
+export { PaymentsListRouteView };
 
 export default function AdministracionPagosRoute({
   loaderData,
 }: AdministracionPagosRouteProps) {
-  return <AdministracionPagosRouteView loaderData={loaderData} />;
+  return <PaymentsListRouteView loaderData={loaderData} />;
 }

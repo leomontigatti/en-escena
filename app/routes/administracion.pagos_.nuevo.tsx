@@ -5,7 +5,7 @@ import {
   handleAdminPaymentCreateAction,
   loadAdminPaymentCreate,
 } from "@/features/admin/payments/create/server";
-import { AdministracionPagosNuevoRouteView } from "@/features/admin/payments/create/view";
+import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
 
 import type { Route } from "./+types/administracion.pagos_.nuevo";
 
@@ -42,9 +42,6 @@ export default function AdministracionPagosNuevoRoute({
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionPagosNuevoRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
+    <NewPaymentRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

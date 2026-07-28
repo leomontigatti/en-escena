@@ -18,11 +18,11 @@ import {
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   loader as listLoader,
-  AdministracionUsuariosRouteView,
+  InternalUsersListRouteView,
 } from "@/routes/administracion.usuarios";
 import {
   action as detailAction,
-  AdministracionUsuarioDetalleRouteView,
+  InternalUserDetailRouteView,
   loader as detailLoader,
 } from "@/routes/administracion.usuarios_.$userId";
 import { action as signInAction } from "@/routes/ingresar";
@@ -680,13 +680,13 @@ describe("administracion/usuarios/:userId route", () => {
 
 function renderListRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionUsuariosRouteView>[0]["loaderData"]
+    Parameters<typeof InternalUsersListRouteView>[0]["loaderData"]
   >,
 ) {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios",
-      Component: AdministracionUsuariosRouteView,
+      Component: InternalUsersListRouteView,
     },
   ]);
 
@@ -714,14 +714,14 @@ function renderListRoute(
 
 function renderDetailRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionUsuarioDetalleRouteView>[0]["loaderData"]
+    Parameters<typeof InternalUserDetailRouteView>[0]["loaderData"]
   >,
   userId: string,
 ) {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios/:userId",
-      Component: AdministracionUsuarioDetalleRouteView,
+      Component: InternalUserDetailRouteView,
     },
   ]);
 

@@ -59,7 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   } satisfies AdministracionIndexLoaderData;
 }
 
-export function AdministracionIndexRouteView({
+export function DashboardRouteView({
   loaderData,
 }: AdministracionIndexRouteProps) {
   const activeEvent = loaderData.activeEvent;
@@ -117,7 +117,7 @@ export function AdministracionIndexRouteView({
 export default function AdministracionIndexRoute({
   loaderData,
 }: AdministracionIndexRouteProps) {
-  return <AdministracionIndexRouteView loaderData={loaderData} />;
+  return <DashboardRouteView loaderData={loaderData} />;
 }
 
 const adminHomeCards = [

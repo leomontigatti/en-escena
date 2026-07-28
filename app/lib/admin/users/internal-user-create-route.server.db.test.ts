@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin/test-support/db";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
-  AdministracionUsuariosNuevoRouteView,
+  NewInternalUserRouteView,
   action,
   loader,
 } from "@/routes/administracion.usuarios_.nuevo";
@@ -94,7 +94,7 @@ function renderRoute() {
   const RoutesStub = createRoutesStub([
     {
       path: "/administracion/usuarios/nuevo",
-      Component: AdministracionUsuariosNuevoRouteView,
+      Component: NewInternalUserRouteView,
     },
   ]);
 

@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionUsuariosRouteView } from "@/features/admin/users/list/view";
+import { InternalUsersListRouteView } from "@/features/admin/users/list/view";
 
-describe("AdministracionUsuariosRouteView", () => {
+describe("InternalUsersListRouteView", () => {
   test("keeps filtered empty results inside the Usuarios table", () => {
     const markup = renderRoute({
       canManage: true,
@@ -56,14 +56,14 @@ describe("AdministracionUsuariosRouteView", () => {
 
 function renderRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionUsuariosRouteView>[0]["loaderData"]
+    Parameters<typeof InternalUsersListRouteView>[0]["loaderData"]
   > = {},
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       { initialEntries: ["/administracion/usuarios"] },
-      createElement(AdministracionUsuariosRouteView, {
+      createElement(InternalUsersListRouteView, {
         loaderData: {
           canManage: false,
           filters: {
