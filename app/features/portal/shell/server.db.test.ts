@@ -6,10 +6,12 @@ import { user } from "@/db/schema";
 import { loadPortalShell } from "@/features/portal/shell/server";
 import {
   createAcademySession,
-  createRequestCookie,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+} from "@/lib/auth/access-auth.test-support";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
@@ -203,7 +205,7 @@ async function createInternalRequest(requestUrl: string) {
 
   return new Request(requestUrl, {
     headers: {
-      cookie: createRequestCookie(signUpResult.headers),
+      cookie: createSessionRequestCookie(signUpResult.headers),
     },
   });
 }

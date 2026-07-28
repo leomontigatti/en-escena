@@ -6,7 +6,10 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import {
+  createAccessUser,
+  createSessionRequestCookie,
+} from "@/lib/auth/access-auth.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   createChoreographyRecord,
@@ -83,7 +86,7 @@ export async function createSignedInRequest(input: {
     userId: signUpResult.response.user.id,
     request: new Request(input.requestUrl, {
       headers: {
-        cookie: createRequestCookie(signUpResult.headers),
+        cookie: createSessionRequestCookie(signUpResult.headers),
       },
     }),
   };
@@ -292,15 +295,4 @@ export function paymentCreateRouteArgs(request: Request) {
     url: new URL(request.url),
     pattern: "/administracion/pagos/nuevo",
   };
-}
-
-// fallow-ignore-next-line code-duplication
-function createRequestCookie(headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-
-  if (!setCookie) {
-    throw new Error("Expected access auth to return a session cookie.");
-  }
-
-  return setCookie.split(";")[0] ?? "";
 }

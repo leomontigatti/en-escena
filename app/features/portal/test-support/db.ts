@@ -2,7 +2,6 @@ import { expect } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { createSessionRequestCookie } from "@/lib/auth/access-auth.test-support";
 import { createAcademyUser as createAcademyTestUser } from "@/lib/test-support/academies";
 
 export async function createAcademySession({
@@ -69,10 +68,6 @@ export function createPortalPostRequest(
     headers: { cookie },
     body,
   });
-}
-
-export function createRequestCookie(headers: Headers) {
-  return createSessionRequestCookie(headers);
 }
 
 export async function expectThrownResponse(
