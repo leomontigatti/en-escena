@@ -1,12 +1,12 @@
-import { handleEventPriceAction } from "../action.server";
-import { loadEventPriceFormOptions } from "../server";
+import { handleAdminEventPriceAction } from "../action.server";
+import { loadAdminEventPriceFormOptions } from "../server";
 
 export async function loadAdminEventPriceCreate(request: Request) {
-  return loadEventPriceFormOptions(request);
+  return loadAdminEventPriceFormOptions(request);
 }
 
 export async function createAdministrativeEventPrice(request: Request) {
-  return handleEventPriceAction(request, {
+  return handleAdminEventPriceAction(request, {
     allowedIntents: ["create-price"],
   });
 }

@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeProfessorDetailAction,
+  handleAdminProfessorDetailAction,
   loadAdminProfessorDetail,
 } from "@/features/admin/professors/detail/server";
 import type {
@@ -49,7 +49,7 @@ export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<ProfessorDetailActionData> {
-  return await handleAdministrativeProfessorDetailAction({ request, params });
+  return await handleAdminProfessorDetailAction({ request, params });
 }
 
 export function AdministracionProfesorDetalleRouteView({

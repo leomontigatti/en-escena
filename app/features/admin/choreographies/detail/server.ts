@@ -203,7 +203,7 @@ export type AdministrativeChoreographyDetailActionData =
   | AdministrativeChoreographySubmodalityErrorData
   | AdministrativeChoreographySuccessData;
 
-export async function handleAdministrativeChoreographyDetailAction(input: {
+export async function handleAdminChoreographyDetailAction(input: {
   request: Request;
   params: { choreographyId?: string };
 }): Promise<AdministrativeChoreographyDetailActionData | Response> {

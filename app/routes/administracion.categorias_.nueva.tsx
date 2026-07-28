@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createCategory,
-  loadCategoryCreate,
+  loadAdminCategoryCreate,
 } from "@/features/admin/categories/create/server";
 import {
   CategoryCreateView,
@@ -20,7 +20,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadCategoryCreate(request);
+  return loadAdminCategoryCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

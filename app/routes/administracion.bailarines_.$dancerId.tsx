@@ -6,7 +6,7 @@ import {
   type DancerDetailLoaderData,
 } from "@/features/admin/dancers/detail/shared";
 import {
-  handleAdministrativeDancerDetailAction,
+  handleAdminDancerDetailAction,
   loadAdminDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
@@ -50,7 +50,7 @@ export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<DancerDetailActionData> {
-  return await handleAdministrativeDancerDetailAction({ request, params });
+  return await handleAdminDancerDetailAction({ request, params });
 }
 
 export function AdministracionBailarinDetalleRouteView({

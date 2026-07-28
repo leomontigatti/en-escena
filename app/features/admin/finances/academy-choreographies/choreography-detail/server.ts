@@ -409,7 +409,7 @@ function resolveUndoableAllocation(
   return null;
 }
 
-export async function handleAdministrativeChoreographyFinanceAction(input: {
+export async function handleAdminChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
   // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;

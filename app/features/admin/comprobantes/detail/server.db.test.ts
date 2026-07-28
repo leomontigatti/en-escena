@@ -32,7 +32,10 @@ import {
   createSignedInRequest,
 } from "../../../../lib/admin/finances/finances.test-support";
 
-import { handleComprobanteDetailAction, loadComprobanteDetail } from "./server";
+import {
+  handleAdminComprobanteDetailAction,
+  loadAdminComprobanteDetail,
+} from "./server";
 import { annulComprobanteConfirmValue, annulComprobanteIntent } from "./shared";
 
 installDatabaseTestHooks();
@@ -180,7 +183,7 @@ async function annulRequest(input: {
   });
 }
 
-describe.sequential("loadComprobanteDetail", () => {
+describe.sequential("loadAdminComprobanteDetail", () => {
   test("loads the comprobante snapshot with its anchoring context", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Detalle",
@@ -189,7 +192,7 @@ describe.sequential("loadComprobanteDetail", () => {
       porcion: "seña",
     });
 
-    const { comprobante } = await loadComprobanteDetail(
+    const { comprobante } = await loadAdminComprobanteDetail(
       await signedInGetRequest(seeded.facturaId),
       seeded.facturaId,
     );
@@ -209,12 +212,15 @@ describe.sequential("loadComprobanteDetail", () => {
 
   test("404s when the comprobante does not exist", async () => {
     await expect(
-      loadComprobanteDetail(await signedInGetRequest("missing"), "missing"),
+      loadAdminComprobanteDetail(
+        await signedInGetRequest("missing"),
+        "missing",
+      ),
     ).rejects.toMatchObject({ status: 404 });
   });
 });
 
-describe.sequential("handleComprobanteDetailAction — anular", () => {
+describe.sequential("handleAdminComprobanteDetailAction — anular", () => {
   test("emits the mirroring Nota de crédito and redirects to the detail", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Anular",
@@ -223,7 +229,7 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
     });
     const billing = fakeBilling();
 
-    const outcome = await handleComprobanteDetailAction({
+    const outcome = await handleAdminComprobanteDetailAction({
       request: await annulRequest({
         comprobanteId: seeded.facturaId,
         formData: {
@@ -263,7 +269,7 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
     });
     const billing = fakeBilling();
 
-    const result = await handleComprobanteDetailAction({
+    const result = await handleAdminComprobanteDetailAction({
       request: await annulRequest({
         comprobanteId: seeded.facturaId,
         formData: { intent: annulComprobanteIntent, confirm: "" },
@@ -291,7 +297,7 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
       ),
     });
 
-    const result = await handleComprobanteDetailAction({
+    const result = await handleAdminComprobanteDetailAction({
       request: await annulRequest({
         comprobanteId: seeded.facturaId,
         formData: {

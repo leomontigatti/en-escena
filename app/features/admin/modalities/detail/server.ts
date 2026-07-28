@@ -1,4 +1,4 @@
-import { handleEventModalityAction } from "../action.server";
+import { handleAdminEventModalityAction } from "../action.server";
 import { loadEventModalitiesData } from "../server";
 
 export async function loadAdminEventModalityDetail(request: Request) {
@@ -6,7 +6,7 @@ export async function loadAdminEventModalityDetail(request: Request) {
 }
 
 export async function updateAdministrativeEventModality(request: Request) {
-  return handleEventModalityAction(request, {
+  return handleAdminEventModalityAction(request, {
     allowedIntents: ["update-modality", "delete-modality"],
   });
 }

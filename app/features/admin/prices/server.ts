@@ -17,7 +17,7 @@ async function loadEventPriceContext(request: Request) {
   return eventContext;
 }
 
-export async function loadEventPricesListData(request: Request) {
+export async function loadAdminEventPricesListData(request: Request) {
   const eventContext = await loadEventPriceContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -27,7 +27,7 @@ export async function loadEventPricesListData(request: Request) {
   };
 }
 
-export async function loadEventPriceFormOptions(request: Request) {
+export async function loadAdminEventPriceFormOptions(request: Request) {
   const eventContext = await loadEventPriceContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -37,7 +37,7 @@ export async function loadEventPriceFormOptions(request: Request) {
   };
 }
 
-export async function loadEventPriceDetailData(request: Request) {
+export async function loadAdminEventPriceDetailData(request: Request) {
   const eventContext = await loadEventPriceContext(request);
   const selectedEventId = eventContext.selectedEventId;
 

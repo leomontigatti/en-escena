@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeChoreographyFinanceAction,
+  handleAdminChoreographyFinanceAction,
   loadAdminChoreographyFinanceDetail,
 } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
@@ -44,7 +44,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  return await handleAdministrativeChoreographyFinanceAction({
+  return await handleAdminChoreographyFinanceAction({
     request,
     params,
   });

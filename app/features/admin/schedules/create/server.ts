@@ -1,12 +1,12 @@
-import { handleEventScheduleAction } from "../action.server";
-import { loadEventScheduleFormOptions } from "../server";
+import { handleAdminEventScheduleAction } from "../action.server";
+import { loadAdminEventScheduleFormOptions } from "../server";
 
 export async function loadAdminEventScheduleCreate(request: Request) {
-  return loadEventScheduleFormOptions(request);
+  return loadAdminEventScheduleFormOptions(request);
 }
 
 export async function createAdministrativeEventSchedule(request: Request) {
-  return handleEventScheduleAction(request, {
+  return handleAdminEventScheduleAction(request, {
     allowedIntents: ["create-schedule"],
   });
 }

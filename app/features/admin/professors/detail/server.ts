@@ -58,7 +58,7 @@ export async function loadAdminProfessorDetail(input: {
   };
 }
 
-export async function handleAdministrativeProfessorDetailAction(input: {
+export async function handleAdminProfessorDetailAction(input: {
   request: Request;
   params: { professorId?: string };
 }) {

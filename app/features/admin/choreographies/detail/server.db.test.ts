@@ -10,7 +10,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import {
-  handleAdministrativeChoreographyDetailAction,
+  handleAdminChoreographyDetailAction,
   loadAdminChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
@@ -665,7 +665,7 @@ async function submitDetailAction(input: {
     role: input.role,
   });
 
-  return await handleAdministrativeChoreographyDetailAction({
+  return await handleAdminChoreographyDetailAction({
     params: { choreographyId: input.choreographyId },
     request,
   });

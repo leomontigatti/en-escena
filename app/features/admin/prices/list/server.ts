@@ -1,12 +1,12 @@
-import { handleEventPriceAction } from "../action.server";
-import { loadEventPricesListData } from "../server";
+import { handleAdminEventPriceAction } from "../action.server";
+import { loadAdminEventPricesListData } from "../server";
 
 export async function loadAdminEventPricesList(request: Request) {
-  return loadEventPricesListData(request);
+  return loadAdminEventPricesListData(request);
 }
 
 export async function updateAdministrativeEventPricesList(request: Request) {
-  return handleEventPriceAction(request, {
+  return handleAdminEventPriceAction(request, {
     allowedIntents: ["delete-price"],
   });
 }

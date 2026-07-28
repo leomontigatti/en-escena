@@ -61,7 +61,7 @@ export async function loadAdminDancerDetail(input: {
   };
 }
 
-export async function handleAdministrativeDancerDetailAction(input: {
+export async function handleAdminDancerDetailAction(input: {
   request: Request;
   params: { dancerId?: string };
 }) {

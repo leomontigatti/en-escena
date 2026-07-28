@@ -2,7 +2,7 @@ import { useActionData, type ShouldRevalidateFunction } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeChoreographyDetailAction,
+  handleAdminChoreographyDetailAction,
   loadAdminChoreographyDetailRouteData,
   type AdministrativeChoreographyDetailActionData,
   type AdministrativeChoreographyDetailLoaderData,
@@ -50,7 +50,7 @@ export async function action({
 }: Route.ActionArgs): Promise<
   AdministrativeChoreographyDetailActionData | Response
 > {
-  return await handleAdministrativeChoreographyDetailAction({
+  return await handleAdminChoreographyDetailAction({
     request,
     params,
   });

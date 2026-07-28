@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 
 const loadAdminDancersList = vi.fn();
 const loadAdminDancerDetail = vi.fn();
-const handleAdministrativeDancerDetailAction = vi.fn();
+const handleAdminDancerDetailAction = vi.fn();
 const AdministracionBailarinesRouteView = vi.fn(() =>
   createElement("div", null, "Bailarines view"),
 );
@@ -21,7 +21,7 @@ vi.mock("@/features/admin/dancers/list/view", () => ({
 }));
 
 vi.mock("@/features/admin/dancers/detail/server", () => ({
-  handleAdministrativeDancerDetailAction,
+  handleAdminDancerDetailAction,
   loadAdminDancerDetail,
 }));
 
@@ -138,7 +138,7 @@ describe("administracion.bailarines route adapters", () => {
     };
 
     loadAdminDancerDetail.mockResolvedValue(loaderResult);
-    handleAdministrativeDancerDetailAction.mockResolvedValue(actionResult);
+    handleAdminDancerDetailAction.mockResolvedValue(actionResult);
 
     await expect(
       routeModule.loader({
@@ -167,7 +167,7 @@ describe("administracion.bailarines route adapters", () => {
       params,
       request,
     });
-    expect(handleAdministrativeDancerDetailAction).toHaveBeenCalledWith({
+    expect(handleAdminDancerDetailAction).toHaveBeenCalledWith({
       params,
       request,
     });

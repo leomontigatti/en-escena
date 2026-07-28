@@ -1,7 +1,7 @@
 import { getCategory } from "@/lib/categories/repository.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 
-import { handleCategoryAction } from "../action.server";
+import { handleAdminCategoryAction } from "../action.server";
 import { loadCategoryEventContext } from "../server";
 
 async function loadCategoryDetail(request: Request, categoryId: string) {
@@ -29,7 +29,7 @@ async function loadCategoryDetail(request: Request, categoryId: string) {
 }
 
 async function updateCategory(request: Request, categoryId: string) {
-  return handleCategoryAction(request, {
+  return handleAdminCategoryAction(request, {
     allowedIntents: ["update-category", "delete-category"],
     recordId: categoryId,
   });

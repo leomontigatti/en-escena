@@ -1,7 +1,7 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleComprobanteDetailAction,
-  loadComprobanteDetail,
+  handleAdminComprobanteDetailAction,
+  loadAdminComprobanteDetail,
   type ComprobanteDetailLoaderData,
 } from "@/features/admin/comprobantes/detail/server";
 import { AdministracionComprobanteDetalleRouteView } from "@/features/admin/comprobantes/detail/view";
@@ -32,11 +32,11 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadComprobanteDetail(request, params.comprobanteId ?? "");
+  return await loadAdminComprobanteDetail(request, params.comprobanteId ?? "");
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  return await handleComprobanteDetailAction({
+  return await handleAdminComprobanteDetailAction({
     request,
     comprobanteId: params.comprobanteId ?? "",
   });

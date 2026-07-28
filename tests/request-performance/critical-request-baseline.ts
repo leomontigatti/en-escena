@@ -311,7 +311,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventModalitiesActionModule,
-          "handleEventModalityAction",
+          "handleAdminEventModalityAction",
           "actionMs",
         ),
       ],

@@ -56,7 +56,7 @@ async function getComprobantePrintRecord(
 // generación del QR (RG 4291) y render del HTML autocontenido. Devuelve el HTML
 // como respuesta directa; no dispara ninguna emisión. 404 si el comprobante no
 // existe.
-export async function loadComprobantePrint(
+export async function loadAdminComprobantePrint(
   request: Request,
   comprobanteId: string,
 ): Promise<Response> {

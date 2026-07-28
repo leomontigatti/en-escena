@@ -7,17 +7,17 @@ import { expect } from "vitest";
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
 import { CategoryCreateView } from "@/features/admin/categories/create/view";
 import { CategoriesListView } from "@/features/admin/categories/list/view";
-import { handleCategoryAction } from "@/features/admin/categories/action.server";
+import { handleAdminCategoryAction } from "@/features/admin/categories/action.server";
 import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
-import { handleEventModalityAction } from "@/features/admin/modalities/action.server";
+import { handleAdminEventModalityAction } from "@/features/admin/modalities/action.server";
 import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
 import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
 import { AdministrativeEventModalitiesListView } from "@/features/admin/modalities/list/view";
-import { handleEventPriceAction } from "@/features/admin/prices/action.server";
+import { handleAdminEventPriceAction } from "@/features/admin/prices/action.server";
 import { AdministrativeEventPriceCreateView } from "@/features/admin/prices/create/view";
 import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
 import { AdministrativeEventPricesListView } from "@/features/admin/prices/list/view";
-import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
+import { handleAdminEventScheduleAction } from "@/features/admin/schedules/action.server";
 import { AdministrativeEventScheduleCreateView } from "@/features/admin/schedules/create/view";
 import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
@@ -384,36 +384,36 @@ export async function action({ request }: { request: Request }) {
   const pathname = new URL(request.url).pathname;
 
   if (pathname.startsWith("/administracion/categorias")) {
-    return handleCategoryAction(request);
+    return handleAdminCategoryAction(request);
   }
 
   if (pathname.startsWith("/administracion/modalidades")) {
-    return handleEventModalityAction(request);
+    return handleAdminEventModalityAction(request);
   }
 
   if (pathname.startsWith("/administracion/cronogramas")) {
-    return handleEventScheduleAction(request);
+    return handleAdminEventScheduleAction(request);
   }
 
   if (pathname.startsWith("/administracion/precios")) {
-    return handleEventPriceAction(request);
+    return handleAdminEventPriceAction(request);
   }
 
   const intent = await readIntent(request);
 
   if (isCategoryIntent(intent)) {
-    return handleCategoryAction(request);
+    return handleAdminCategoryAction(request);
   }
 
   if (isModalityIntent(intent)) {
-    return handleEventModalityAction(request);
+    return handleAdminEventModalityAction(request);
   }
 
   if (isScheduleIntent(intent)) {
-    return handleEventScheduleAction(request);
+    return handleAdminEventScheduleAction(request);
   }
 
-  return handleEventPriceAction(request);
+  return handleAdminEventPriceAction(request);
 }
 
 export function renderPriceNewErrorRoute(

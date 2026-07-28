@@ -1,4 +1,4 @@
-import { loadComprobantePrint } from "@/features/admin/comprobantes/print/server";
+import { loadAdminComprobantePrint } from "@/features/admin/comprobantes/print/server";
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId.imprimir";
 
@@ -6,5 +6,5 @@ import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId
 // loader devuelve el HTML autocontenido directamente, sin componente ni chrome
 // de administración. No dispara ninguna emisión.
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadComprobantePrint(request, params.comprobanteId);
+  return await loadAdminComprobantePrint(request, params.comprobanteId);
 }

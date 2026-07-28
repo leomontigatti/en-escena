@@ -1,12 +1,12 @@
-import { handleEventScheduleAction } from "../action.server";
-import { loadEventScheduleDetailData } from "../server";
+import { handleAdminEventScheduleAction } from "../action.server";
+import { loadAdminEventScheduleDetailData } from "../server";
 
 export async function loadAdminEventScheduleDetail(request: Request) {
-  return loadEventScheduleDetailData(request);
+  return loadAdminEventScheduleDetailData(request);
 }
 
 export async function updateAdministrativeEventSchedule(request: Request) {
-  return handleEventScheduleAction(request, {
+  return handleAdminEventScheduleAction(request, {
     allowedIntents: ["update-schedule", "delete-schedule"],
   });
 }
