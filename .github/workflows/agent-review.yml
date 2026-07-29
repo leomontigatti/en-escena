@@ -89,7 +89,20 @@ jobs:
           # the agent is instructed not to mutate anything.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Deadline interno, por debajo del `timeout-minutes` del paso: el runner
+          # aborta al agente y falla con una razón de verdad, en vez de que Actions
+          # lo mate sin dejar `failure_reason.txt` (#512).
+          AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-review/review.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Race-safe push (if the agent committed)
         run: |
@@ -141,7 +154,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          # Sin `failure_reason.txt` (p.ej. el paso murió por timeout antes de que
+          # el runner pudiera escribirlo), caer al final del log del agente: es lo
+          # único que sobrevive y evita el "(no reason file written)" a secas.
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
+          if [ -z "$reason" ]; then
+            log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
+              | sort -rn | head -1 | cut -d' ' -f2-)
+            if [ -n "${log:-}" ] && [ -s "$log" ]; then
+              reason=$(printf 'sin `failure_reason.txt` — últimas 30 líneas del log del agente:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+            else
+              reason="(no reason file written — check workflow logs)"
+            fi
+          fi
           gh pr edit "$PR_NUMBER" --add-label "agent:blocked"
           gh pr comment "$PR_NUMBER" --body "$(printf '`agent:review` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:review` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
 

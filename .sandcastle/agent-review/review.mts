@@ -32,7 +32,7 @@ const EXTRACTION_PROMPT = [
   "OUTPUT section of the review prompt described (summary, inlineComments, replies).",
 ].join("\n");
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
   const repo = requireEnv("GH_REPO");
@@ -45,6 +45,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("review"),
+    signal,
     maxIterations: 100,
     promptFile: "./.sandcastle/agent-review/prompt.md",
     promptArgs: {

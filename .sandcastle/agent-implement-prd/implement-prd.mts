@@ -25,7 +25,7 @@ import {
 
 const MAX_ITERATIONS = 100;
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const prdNumber = requireEnv("PRD_NUMBER");
   const prdTitle = requireEnv("PRD_TITLE");
   const subNumber = requireEnv("SUB_ISSUE_NUMBER");
@@ -41,6 +41,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("implement-prd"),
+    signal,
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-implement-prd/prompt.md",
     promptArgs: {

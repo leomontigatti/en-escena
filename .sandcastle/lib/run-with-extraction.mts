@@ -82,6 +82,9 @@ export async function runWithExtraction<T, A extends AgentProvider>(
           resumeSession: lastError.sessionId,
           prompt: buildRetryFeedback(lastError, attempt, maxAttempts),
           output,
+          // The produce pass gets the caller's signal via `...produceInputs`;
+          // this fresh run would escape the wall-clock budget without it.
+          signal: produceInputs.signal,
         } as RunOptions<A> & { output: OutputObjectDefinition<T> });
       }
 

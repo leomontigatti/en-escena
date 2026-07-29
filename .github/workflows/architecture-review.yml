@@ -58,7 +58,19 @@ jobs:
           # Read-only prefetch of prior proposals uses this; the agent holds no token.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Deadline interno, por debajo del `timeout-minutes` del paso (20, §4.8):
+          # el runner aborta y falla con una razón en vez de morir sin dejarla (#512).
+          AGENT_BUDGET_MINUTES: 15
         run: pnpm exec tsx .sandcastle/agent-architecture-review/architecture-review.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-review-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Publish PRD (if proposed)
         id: publish

@@ -20,7 +20,7 @@ import {
 
 const MAX_ITERATIONS = 100;
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const issueNumber = requireEnv("ISSUE_NUMBER");
   const issueTitle = requireEnv("ISSUE_TITLE");
   const branch = requireEnv("BRANCH");
@@ -32,6 +32,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("implement"),
+    signal,
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-implement/prompt.md",
     promptArgs: {

@@ -35,7 +35,7 @@ const EXTRACTION_PROMPT = [
   "the OUTPUT section of the prompt described (the flat, ordered `slices` array).",
 ].join("\n");
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const prdNumber = requireEnv("PRD_NUMBER");
   const prdTitle = requireEnv("PRD_TITLE");
   // Body may legitimately be empty; don't require it.
@@ -46,6 +46,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("to-issues"),
+    signal,
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-to-issues/prompt.md",
     promptArgs: {

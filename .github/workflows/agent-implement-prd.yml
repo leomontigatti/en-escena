@@ -194,7 +194,19 @@ jobs:
           PRD_NUMBER: ${{ github.event.issue.number }}
           PRD_TITLE: ${{ github.event.issue.title }}
           BRANCH: ${{ steps.branch.outputs.branch }}
+          # Deadline interno, por debajo del `timeout-minutes` del paso: el runner
+          # aborta y falla con una razón de verdad en vez de morir sin dejarla (#512).
+          AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-implement-prd/implement-prd.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: implement-prd-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       # --- On runner failure (e.g. the runner timeout): bank the green commits
       # the agent added this run to the shared branch, so a timeout doesn't
@@ -337,7 +349,19 @@ jobs:
           SUB_NUMBER: ${{ steps.preflight.outputs.sub_number }}
         run: |
           set -euo pipefail
-          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          # Sin `failure_reason.txt` (p.ej. el paso murió por timeout antes de que
+          # el runner pudiera escribirlo), caer al final del log del agente: es lo
+          # único que sobrevive y evita el "(no reason file written)" a secas.
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
+          if [ -z "$reason" ]; then
+            log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
+              | sort -rn | head -1 | cut -d' ' -f2-)
+            if [ -n "${log:-}" ] && [ -s "$log" ]; then
+              reason=$(printf 'sin `failure_reason.txt` — últimas 30 líneas del log del agente:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+            else
+              reason="(no reason file written — check workflow logs)"
+            fi
+          fi
           banked=""
           if [ -n "${BANKED_BRANCH:-}" ]; then
             banked=$(printf '\n\n**Partial work preserved** on the shared branch `%s`: green commits the agent added before the failure. A retry resumes this branch and continues the sub-issue from here.' "$BANKED_BRANCH")
