@@ -273,7 +273,7 @@ export async function handleChoreographyDetailAction(input: {
   }
 
   if (intent === updateChoreographySubmodalityIntent) {
-    return await updateAdministrativeChoreographySubmodality({
+    return await updateChoreographySubmodality({
       choreography,
       formData,
     });
@@ -457,7 +457,7 @@ async function renameChoreography(input: {
   return choreographySavedSuccess();
 }
 
-async function updateAdministrativeChoreographySubmodality(input: {
+async function updateChoreographySubmodality(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
 }): Promise<ChoreographySubmodalityErrorData | ChoreographySuccessData> {

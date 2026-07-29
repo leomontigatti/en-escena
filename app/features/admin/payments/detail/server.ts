@@ -192,14 +192,14 @@ export async function handlePaymentDetailAction(
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === updateAdminPaymentIntent) {
-    return await updateAdminPayment({
+    return await updatePayment({
       formData,
       paymentId,
     });
   }
 
   if (intent === deleteAdminPaymentIntent) {
-    return await deleteAdminPayment({
+    return await deletePayment({
       formData,
       paymentId,
     });
@@ -208,7 +208,7 @@ export async function handlePaymentDetailAction(
   throw new Response("Acción no soportada.", { status: 400 });
 }
 
-async function updateAdminPayment(input: {
+async function updatePayment(input: {
   formData: FormData;
   paymentId: string;
 }): Promise<UpdatePaymentActionData | UpdatePaymentSuccessActionData | never> {
@@ -294,7 +294,7 @@ async function updateAdminPayment(input: {
   };
 }
 
-async function deleteAdminPayment(input: {
+async function deletePayment(input: {
   formData: FormData;
   paymentId: string;
 }): Promise<DeletePaymentActionData | never> {
