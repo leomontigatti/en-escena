@@ -1,6 +1,44 @@
 import { describe, expect, test } from "vitest";
 
-import { getEditConsequence } from "@/lib/admin/professors/professors.server";
+import {
+  getEditConsequence,
+  readProfessorFilters,
+} from "@/lib/admin/professors/professors.server";
+
+describe("readProfessorFilters", () => {
+  test("reads participation from 'participando' and status from 'estado'", () => {
+    expect(
+      readProfessorFilters(
+        new URLSearchParams("participando=no&estado=todos"),
+        {
+          hasSelectedEvent: true,
+        },
+      ),
+    ).toMatchObject({ participation: "no", status: "all" });
+  });
+
+  test("ignores participation values inside 'estado'", () => {
+    expect(
+      readProfessorFilters(new URLSearchParams("estado=participando"), {
+        hasSelectedEvent: true,
+      }),
+    ).toMatchObject({ participation: "all", status: "active" });
+
+    expect(
+      readProfessorFilters(new URLSearchParams("estado=no-participando"), {
+        hasSelectedEvent: true,
+      }),
+    ).toMatchObject({ participation: "all", status: "active" });
+  });
+
+  test("keeps 'estado=archivados' as an archived status filter", () => {
+    expect(
+      readProfessorFilters(new URLSearchParams("estado=archivados"), {
+        hasSelectedEvent: true,
+      }),
+    ).toMatchObject({ participation: "all", status: "archived" });
+  });
+});
 
 describe("getEditConsequence (professors)", () => {
   test("returns null when it never participated", () => {
