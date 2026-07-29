@@ -38,6 +38,15 @@ describe("readProfessorFilters", () => {
       }),
     ).toMatchObject({ participation: "all", status: "archived" });
   });
+
+  test("combines 'estado=archivados' with an explicit participation", () => {
+    expect(
+      readProfessorFilters(
+        new URLSearchParams("estado=archivados&participando=si"),
+        { hasSelectedEvent: true },
+      ),
+    ).toMatchObject({ participation: "yes", status: "archived" });
+  });
 });
 
 describe("getEditConsequence (professors)", () => {
