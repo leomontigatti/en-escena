@@ -2,8 +2,8 @@ import { useActionData, type ShouldRevalidateFunction } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdminChoreographyDetailAction,
-  loadAdminChoreographyDetailRouteData,
+  handleChoreographyDetailAction,
+  loadChoreographyDetailRouteData,
   type ChoreographyDetailActionData,
   type ChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
@@ -38,7 +38,7 @@ export async function loader({
   request,
   params,
 }: Route.LoaderArgs): Promise<LoaderData> {
-  return await loadAdminChoreographyDetailRouteData({
+  return await loadChoreographyDetailRouteData({
     request,
     params,
   });
@@ -48,7 +48,7 @@ export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<ChoreographyDetailActionData | Response> {
-  return await handleAdminChoreographyDetailAction({
+  return await handleChoreographyDetailAction({
     request,
     params,
   });

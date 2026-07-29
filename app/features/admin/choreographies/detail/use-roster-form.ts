@@ -19,8 +19,8 @@ import type {
   ChoreographyDetailLoaderData,
 } from "./server";
 import {
-  resolveAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographyRosterIntent,
+  resolveChoreographyRosterIntent,
+  updateChoreographyRosterIntent,
 } from "./shared";
 
 type RosterFormValues = {
@@ -86,7 +86,7 @@ export function useRosterForm({
   const canEditRoster = loaderData.canEdit && !choreography.hasPresentation;
   const isResolving = resolutionFetcher.state !== "idle";
   const isSubmitting = isRouteFormPending(navigation, {
-    intent: updateAdministrativeChoreographyRosterIntent,
+    intent: updateChoreographyRosterIntent,
   });
 
   useEffect(() => {
@@ -113,7 +113,7 @@ export function useRosterForm({
     }
 
     const formData = new FormData();
-    formData.set("intent", resolveAdministrativeChoreographyRosterIntent);
+    formData.set("intent", resolveChoreographyRosterIntent);
     for (const dancerId of watchedDancerIds) {
       formData.append("dancerIds", dancerId);
     }
@@ -137,7 +137,7 @@ export function useRosterForm({
 
     if (
       !data ||
-      data.intent !== resolveAdministrativeChoreographyRosterIntent ||
+      data.intent !== resolveChoreographyRosterIntent ||
       submittedSelectionKeyRef.current === null
     ) {
       return;

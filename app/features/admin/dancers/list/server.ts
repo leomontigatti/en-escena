@@ -1,15 +1,15 @@
 import { redirect } from "react-router";
 
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   listDancers,
   readDancerFilters,
 } from "@/lib/admin/dancers/dancers.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdminDancersList(request: Request) {
+export async function loadDancersList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);

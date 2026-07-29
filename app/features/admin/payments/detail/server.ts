@@ -16,7 +16,7 @@ import {
   type CreatePaymentFieldName,
   type CreatePaymentFormValues,
 } from "@/features/admin/payments/create/shared";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { deletePaymentWithAllocations } from "@/lib/finances/choreography-cobro.server";
@@ -53,12 +53,9 @@ export type AdminPaymentDetailActionData =
   | UpdatePaymentActionData
   | UpdatePaymentSuccessActionData;
 
-export async function loadAdminPaymentDetail(
-  request: Request,
-  paymentId: string,
-) {
+export async function loadPaymentDetail(request: Request, paymentId: string) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   const payment = await db
     .select({
@@ -186,7 +183,7 @@ async function listPaymentAffectedChoreographies(
   );
 }
 
-export async function handleAdminPaymentDetailAction(
+export async function handlePaymentDetailAction(
   request: Request,
   paymentId: string,
 ): Promise<AdminPaymentDetailActionData | never> {

@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventModalityDetail,
+  loadEventModalityDetail,
   updateAdministrativeEventModality,
 } from "@/features/admin/modalities/detail/server";
 import {
@@ -28,7 +28,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventModalityDetail(request);
+  return loadEventModalityDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

@@ -10,7 +10,7 @@ import {
   modalities,
   submodalities,
 } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import {
   deriveChoreographyOperationalStatus,
@@ -90,7 +90,7 @@ export type ChoreographyListResult = {
 };
 
 const administrativeChoreographyPageSize = 50;
-const defaultAdministrativeChoreographyOrder: ChoreographyOrder = {
+const defaultChoreographyOrder: ChoreographyOrder = {
   columnId: "academia",
   direction: "asc",
 };
@@ -109,7 +109,7 @@ function readChoreographyFilters(
   };
 }
 
-export async function loadAdminChoreographies(input: {
+export async function loadChoreographies(input: {
   filters: ChoreographyListFilters;
   selectedEventId: string | null;
 }): Promise<ChoreographyListResult> {
@@ -186,9 +186,9 @@ export async function loadAdminChoreographies(input: {
   };
 }
 
-export async function loadAdminChoreographyListRouteData(request: Request) {
+export async function loadChoreographyListRouteData(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -196,7 +196,7 @@ export async function loadAdminChoreographyListRouteData(request: Request) {
 
   const url = new URL(request.url);
   const filters = readChoreographyFilters(url.searchParams);
-  const listResult = await loadAdminChoreographies({
+  const listResult = await loadChoreographies({
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -225,8 +225,8 @@ function readPage(searchParams: URLSearchParams) {
 
 function isDefaultChoreographyOrder(order: ChoreographyOrder) {
   return (
-    order.columnId === defaultAdministrativeChoreographyOrder.columnId &&
-    order.direction === defaultAdministrativeChoreographyOrder.direction
+    order.columnId === defaultChoreographyOrder.columnId &&
+    order.direction === defaultChoreographyOrder.direction
   );
 }
 
@@ -295,7 +295,7 @@ function readChoreographyOrder(value: string | null): ChoreographyOrder {
     case "nombre:desc":
       return { columnId: "nombre", direction: "desc" };
     default:
-      return defaultAdministrativeChoreographyOrder;
+      return defaultChoreographyOrder;
   }
 }
 

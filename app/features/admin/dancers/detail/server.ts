@@ -1,7 +1,7 @@
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { redirect } from "react-router";
 
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { adminDancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
 import {
   findDancer,
@@ -25,12 +25,12 @@ import {
   readDancerUpdateValues,
 } from "./shared";
 
-export async function loadAdminDancerDetail(input: {
+export async function loadDancerDetail(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -61,12 +61,12 @@ export async function loadAdminDancerDetail(input: {
   };
 }
 
-export async function handleAdminDancerDetailAction(input: {
+export async function handleDancerDetailAction(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
   const adminUser = await requireAdminUser(input.request);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);

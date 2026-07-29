@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminEventSchedulesList } from "@/features/admin/schedules/list/server";
+import { loadEventSchedulesList } from "@/features/admin/schedules/list/server";
 import {
   EventSchedulesListView,
   type EventSchedulesListViewProps,
@@ -12,7 +12,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventSchedulesList(request);
+  return loadEventSchedulesList(request);
 }
 
 export function EventSchedulesListRouteView({

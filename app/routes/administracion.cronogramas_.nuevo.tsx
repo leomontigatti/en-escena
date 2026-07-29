@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createAdministrativeEventSchedule,
-  loadAdminEventScheduleCreate,
+  loadEventScheduleCreate,
 } from "@/features/admin/schedules/create/server";
 import {
   EventScheduleCreateView,
@@ -26,7 +26,7 @@ type NewEventScheduleRouteProps = {
 };
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventScheduleCreate(request);
+  return loadEventScheduleCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

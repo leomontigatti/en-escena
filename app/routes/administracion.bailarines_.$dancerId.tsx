@@ -6,8 +6,8 @@ import {
   type DancerDetailLoaderData,
 } from "@/features/admin/dancers/detail/shared";
 import {
-  handleAdminDancerDetailAction,
-  loadAdminDancerDetail,
+  handleDancerDetailAction,
+  loadDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
   DancerDetailRouteView as DancerDetailView,
@@ -43,14 +43,14 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdminDancerDetail({ request, params });
+  return await loadDancerDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<DancerDetailActionData> {
-  return await handleAdminDancerDetailAction({ request, params });
+  return await handleDancerDetailAction({ request, params });
 }
 
 export function DancerDetailRouteView({

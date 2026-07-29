@@ -17,7 +17,7 @@ import {
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
 
-import { handleAdminPaymentDetailAction } from "./server";
+import { handlePaymentDetailAction } from "./server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
 
 installDatabaseTestHooks();
@@ -65,7 +65,7 @@ describe.sequential("admin payment detail", () => {
     });
 
     await expect(
-      handleAdminPaymentDetailAction(request, payment.id),
+      handlePaymentDetailAction(request, payment.id),
     ).resolves.toMatchObject({
       status: "success",
       intent: updateAdminPaymentIntent,
@@ -142,7 +142,7 @@ describe.sequential("admin payment detail", () => {
     });
 
     await expect(
-      handleAdminPaymentDetailAction(request, payment.id),
+      handlePaymentDetailAction(request, payment.id),
     ).resolves.toMatchObject({
       status: "error",
       intent: updateAdminPaymentIntent,
@@ -194,7 +194,7 @@ describe.sequential("admin payment detail", () => {
     });
 
     await expect(
-      handleAdminPaymentDetailAction(request, payment.id),
+      handlePaymentDetailAction(request, payment.id),
     ).rejects.toMatchObject({
       status: 302,
     });
@@ -252,7 +252,7 @@ describe.sequential("admin payment detail", () => {
     });
 
     await expect(
-      handleAdminPaymentDetailAction(request, payment.id),
+      handlePaymentDetailAction(request, payment.id),
     ).rejects.toMatchObject({
       status: 302,
     });
@@ -358,7 +358,7 @@ describe.sequential("admin payment detail", () => {
     });
 
     await expect(
-      handleAdminPaymentDetailAction(request, depositPayment.id),
+      handlePaymentDetailAction(request, depositPayment.id),
     ).resolves.toMatchObject({
       status: "error",
       intent: deleteAdminPaymentIntent,

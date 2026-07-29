@@ -40,13 +40,10 @@ import {
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type {
-  AdminPaymentDetailActionData,
-  loadAdminPaymentDetail,
-} from "./server";
+import type { AdminPaymentDetailActionData, loadPaymentDetail } from "./server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentDetail>>;
+type LoaderData = Awaited<ReturnType<typeof loadPaymentDetail>>;
 
 type PaymentDetailRouteViewProps = {
   actionData?: AdminPaymentDetailActionData;

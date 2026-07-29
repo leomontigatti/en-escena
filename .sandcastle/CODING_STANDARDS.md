@@ -76,12 +76,12 @@ The product is Spanish; the codebase is English.
 | Layer                                  | Language                         | Example                                         |
 | -------------------------------------- | -------------------------------- | ----------------------------------------------- |
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
-| Code identifiers, comments, docs, ADRs | English                          | `loadAdminAcademyFinances`                      |
+| Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                      |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
 
 Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
-English (`loadAdminAcademyFinances`). That mapping is intentional, not drift.
+English (`loadAcademyFinances`). That mapping is intentional, not drift.
 
 "Docs" means engineering docs — ADRs, `docs/agents/`, `docs/domain/`. The
 glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and the style guide stay
@@ -132,10 +132,11 @@ Route views on both surfaces now follow the rule: admin ones are English and
 unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
 and admin route default exports match their view root (`ChoreographyDetailRoute`).
 Admin types follow it too: they are unmarked (`ChoreographyDetailLoaderData`).
-Admin functions and hooks follow it as well (`findDancer`, `useRosterForm`). The
-loaders and handlers do not yet: they still carry an `Admin` prefix
-(`loadAdminAcademyFinances`), as do the create/update mutations
-(`createAdministrativeEvent`).
+Admin functions and hooks follow it as well (`findDancer`, `useRosterForm`), and
+so do the loaders and handlers (`loadAcademyFinances`,
+`handleAcademyDetailAction`). The only admin symbols still marked are the
+create/update mutations (`createAdministrativeEvent`) and the database
+identifiers, both tracked separately.
 The portal layer is only partly marked too: 174 exports under `app/lib/portal/`
 and `app/features/portal/` still carry no `Portal` prefix. Those symbols are
 pending rename, tracked in #527 — write new admin symbols unmarked and English,

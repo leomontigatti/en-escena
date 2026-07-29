@@ -7,7 +7,7 @@ import {
   payments as paymentTable,
   paymentAllocations,
 } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -59,7 +59,7 @@ type AvailablePayment = Awaited<
 >[number];
 type StagePayment = AvailablePayment & { stageTotalAmount: number | null };
 
-export async function loadAdminChoreographyFinanceDetail(input: {
+export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
 }) {
@@ -69,7 +69,7 @@ export async function loadAdminChoreographyFinanceDetail(input: {
   const choreographyId = readChoreographyId(input.params);
   const [academy, eventContext] = await Promise.all([
     readAcademy(academyId),
-    loadAdminEventContext(input.request),
+    loadEventContext(input.request),
   ]);
 
   if (eventContext.selectedEventId === null) {
@@ -409,7 +409,7 @@ function resolveUndoableAllocation(
   return null;
 }
 
-export async function handleAdminChoreographyFinanceAction(input: {
+export async function handleChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
   // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;
@@ -420,7 +420,7 @@ export async function handleAdminChoreographyFinanceAction(input: {
 
   const academyId = readAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.selectedEventId === null) {
     return {

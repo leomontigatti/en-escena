@@ -63,14 +63,11 @@ import {
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import { PaymentSelectItems } from "./payment-select-items";
-import type {
-  loadAdminChoreographyFinanceDetail,
-  PortionCoverage,
-} from "./server";
+import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdminChoreographyFinanceDetail>
+  ReturnType<typeof loadChoreographyFinanceDetail>
 >;
 
 type InscriptionRow =

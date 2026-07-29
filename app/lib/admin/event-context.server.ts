@@ -19,7 +19,7 @@ export type AdminEventContext = {
   redirectTo: string | null;
 };
 
-export async function loadAdminShellEventContext(): Promise<AdminShellEventContext> {
+export async function loadShellEventContext(): Promise<AdminShellEventContext> {
   const activeEvent = await db.query.events.findFirst({
     columns: {
       id: true,
@@ -36,7 +36,7 @@ export async function loadAdminShellEventContext(): Promise<AdminShellEventConte
   };
 }
 
-export async function loadAdminEventContext(
+export async function loadEventContext(
   _request: Request,
 ): Promise<AdminEventContext> {
   const events = await db.query.events.findMany({

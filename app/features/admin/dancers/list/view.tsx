@@ -20,9 +20,9 @@ import {
   type AdminDancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 
-import type { loadAdminDancersList } from "./server";
+import type { loadDancersList } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminDancersList>>;
+type LoaderData = Awaited<ReturnType<typeof loadDancersList>>;
 type DancerRow = LoaderData["dancers"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 

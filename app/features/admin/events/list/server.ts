@@ -8,7 +8,7 @@ import type { EventsListLoaderData } from "./shared";
 type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState = ReturnType<typeof getTemporalState>;
 
-export async function loadAdminEvents(
+export async function loadEvents(
   request: Request,
 ): Promise<EventsListLoaderData> {
   await requireAdminPanelUser(request);

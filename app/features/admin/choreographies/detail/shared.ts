@@ -1,11 +1,10 @@
 import type { FieldErrors } from "@/lib/shared/form-validation";
 
-export const renameAdministrativeChoreographyIntent = "rename-choreography";
-export const deleteAdministrativeChoreographyIntent = "delete-choreography";
-export const resolveAdministrativeChoreographyRosterIntent = "resolve-roster";
-export const updateAdministrativeChoreographyRosterIntent = "update-roster";
-export const updateAdministrativeChoreographySubmodalityIntent =
-  "update-submodality";
+export const renameChoreographyIntent = "rename-choreography";
+export const deleteChoreographyIntent = "delete-choreography";
+export const resolveChoreographyRosterIntent = "resolve-roster";
+export const updateChoreographyRosterIntent = "update-roster";
+export const updateChoreographySubmodalityIntent = "update-submodality";
 
 export const administrativeChoreographyNotFoundMessage =
   "No encontramos esa coreografía.";
@@ -19,10 +18,7 @@ export function shouldRevalidateChoreographyDetail(input: {
   defaultShouldRevalidate: boolean;
   formData?: FormData;
 }) {
-  if (
-    input.formData?.get("intent") ===
-    resolveAdministrativeChoreographyRosterIntent
-  ) {
+  if (input.formData?.get("intent") === resolveChoreographyRosterIntent) {
     return false;
   }
 

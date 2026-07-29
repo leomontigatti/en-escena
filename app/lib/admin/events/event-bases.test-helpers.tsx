@@ -29,7 +29,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
@@ -347,7 +347,7 @@ export function routeArgs(request: Request) {
 
 export async function loader({ request }: { request: Request }) {
   await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);

@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { paymentNumberDigits } from "@/lib/finances/payment-number";
@@ -46,11 +46,11 @@ const defaultAdminPaymentsOrder: AdminPaymentsListOrder = {
   direction: "desc",
 };
 
-export async function loadAdminPaymentsList(
+export async function loadPaymentsList(
   request: Request,
 ): Promise<AdminPaymentsListLoaderData> {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);
   const filters = readAdminPaymentsListFilters(url.searchParams);

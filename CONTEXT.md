@@ -12,7 +12,7 @@ documentada en [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md
 Reglas de lectura:
 
 - El identificador es la raíz, no la firma exacta: se declina como corresponda
-  (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
+  (`event` → `eventId`, `events`, `loadEvent`, `EventStatusBadge`).
 - `comprobante` es el único término reservado en español dentro del código; sumar
   otro exige un ADR. Ver [ADR-0011](docs/adr/0011-invoicing-concept-portion-and-surfaces.md).
 - Los adaptadores de sistemas externos son la excepción: `app/lib/comprobantes/arca`

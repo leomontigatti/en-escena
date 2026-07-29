@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminEventModalitiesList } from "@/features/admin/modalities/list/server";
+import { loadEventModalitiesList } from "@/features/admin/modalities/list/server";
 import {
   EventModalitiesListView,
   type EventModalitiesListViewProps,
@@ -12,7 +12,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventModalitiesList(request);
+  return loadEventModalitiesList(request);
 }
 
 export function ModalitiesListRouteView({

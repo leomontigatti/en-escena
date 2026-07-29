@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  renameAdministrativeChoreographyIntent,
-  resolveAdministrativeChoreographyRosterIntent,
+  renameChoreographyIntent,
+  resolveChoreographyRosterIntent,
   shouldRevalidateChoreographyDetail,
-  updateAdministrativeChoreographyRosterIntent,
+  updateChoreographyRosterIntent,
 } from "./shared";
 
 describe("shouldRevalidateChoreographyDetail", () => {
@@ -12,7 +12,7 @@ describe("shouldRevalidateChoreographyDetail", () => {
     expect(
       shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(resolveAdministrativeChoreographyRosterIntent),
+        formData: buildFormData(resolveChoreographyRosterIntent),
       }),
     ).toBe(false);
   });
@@ -21,7 +21,7 @@ describe("shouldRevalidateChoreographyDetail", () => {
     expect(
       shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(updateAdministrativeChoreographyRosterIntent),
+        formData: buildFormData(updateChoreographyRosterIntent),
       }),
     ).toBe(true);
   });
@@ -30,7 +30,7 @@ describe("shouldRevalidateChoreographyDetail", () => {
     expect(
       shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(renameAdministrativeChoreographyIntent),
+        formData: buildFormData(renameChoreographyIntent),
       }),
     ).toBe(true);
   });

@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventDetail,
+  loadEventDetail,
   updateAdministrativeEvent,
 } from "@/features/admin/events/detail/server";
 import type { EventDetailActionData } from "@/features/admin/events/detail/shared";
@@ -33,7 +33,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return loadAdminEventDetail(request, params.eventId);
+  return loadEventDetail(request, params.eventId);
 }
 
 export async function action({ request, params }: Route.ActionArgs) {

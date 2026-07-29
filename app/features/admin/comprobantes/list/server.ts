@@ -15,7 +15,7 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
@@ -84,11 +84,11 @@ const defaultAdminComprobantesOrder: AdminComprobantesListOrder = {
  * `associatedComprobanteId`, así el filtro por estado y la paginación operan sobre
  * el estado real y no sobre la página cargada. NO muta nada.
  */
-export async function loadAdminComprobantesList(
+export async function loadComprobantesList(
   request: Request,
 ): Promise<AdminComprobantesListLoaderData> {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);
   const filters = readAdminComprobantesListFilters(url.searchParams);

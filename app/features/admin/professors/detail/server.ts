@@ -1,7 +1,7 @@
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { redirect } from "react-router";
 
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { adminProfessorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
   findProfessor,
@@ -23,12 +23,12 @@ import {
   readProfessorUpdateValues,
 } from "./shared";
 
-export async function loadAdminProfessorDetail(input: {
+export async function loadProfessorDetail(input: {
   request: Request;
   params: { professorId?: string };
 }) {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -58,12 +58,12 @@ export async function loadAdminProfessorDetail(input: {
   };
 }
 
-export async function handleAdminProfessorDetailAction(input: {
+export async function handleProfessorDetailAction(input: {
   request: Request;
   params: { professorId?: string };
 }) {
   const adminUser = await requireAdminUser(input.request);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);

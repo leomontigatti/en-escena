@@ -38,7 +38,7 @@ type EventRouteNotification = Extract<
   | "resultados-ocultos"
 >;
 
-export async function loadAdminEventDetail(
+export async function loadEventDetail(
   request: Request,
   eventId: string | undefined,
 ) {

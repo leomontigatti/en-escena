@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventScheduleDetail,
+  loadEventScheduleDetail,
   updateAdministrativeEventSchedule,
 } from "@/features/admin/schedules/detail/server";
 import {
@@ -29,7 +29,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventScheduleDetail(request);
+  return loadEventScheduleDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

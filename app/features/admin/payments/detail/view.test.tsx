@@ -6,10 +6,10 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import { PaymentDetailRouteView } from "./view";
-import type { loadAdminPaymentDetail } from "./server";
+import type { loadPaymentDetail } from "./server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentDetail>>;
+type LoaderData = Awaited<ReturnType<typeof loadPaymentDetail>>;
 type DetailViewProps = Parameters<typeof PaymentDetailRouteView>[0];
 
 const renderer = createReactDomTestRenderer();

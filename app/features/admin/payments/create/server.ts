@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
@@ -17,9 +17,9 @@ import {
   type CreatePaymentActionData,
 } from "./shared";
 
-export async function loadAdminPaymentCreate(request: Request) {
+export async function loadPaymentCreate(request: Request) {
   await requireAdminUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   return {
     academies: await listAdminPaymentAcademyOptions(),
@@ -28,11 +28,11 @@ export async function loadAdminPaymentCreate(request: Request) {
   };
 }
 
-export async function handleAdminPaymentCreateAction(
+export async function handlePaymentCreateAction(
   request: Request,
 ): Promise<CreatePaymentActionData | never> {
   await requireAdminUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const formData = await request.formData();
   const values = readCreatePaymentValues(formData);
 

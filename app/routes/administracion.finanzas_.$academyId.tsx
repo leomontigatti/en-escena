@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
+import { loadAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
 import { AcademyFinancesRouteView } from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
@@ -25,7 +25,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdminAcademyFinances({ request, params });
+  return await loadAcademyFinances({ request, params });
 }
 
 export { AcademyFinancesRouteView };

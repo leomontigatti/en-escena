@@ -42,10 +42,10 @@ import {
   hasNoCompatibleCategory,
 } from "./roster-form-state";
 import {
-  deleteAdministrativeChoreographyIntent,
-  renameAdministrativeChoreographyIntent,
-  updateAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographySubmodalityIntent,
+  deleteChoreographyIntent,
+  renameChoreographyIntent,
+  updateChoreographyRosterIntent,
+  updateChoreographySubmodalityIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
@@ -129,10 +129,7 @@ export function ChoreographyDetailRouteView({
         ) : null
       }
     >
-      <AdministrativeChoreographyDetailForm
-        actionData={actionData}
-        loaderData={loaderData}
-      />
+      <ChoreographyDetailForm actionData={actionData} loaderData={loaderData} />
 
       {loaderData.canEdit ? (
         <DeleteDialog
@@ -147,7 +144,7 @@ export function ChoreographyDetailRouteView({
               ? "La eliminación es definitiva y libera el cupo de cronograma."
               : "Esta coreografía tiene registros asociados que conservan trazabilidad."
           }
-          intentValue={deleteAdministrativeChoreographyIntent}
+          intentValue={deleteChoreographyIntent}
           isBlocked={!loaderData.deletion.canDelete}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
@@ -159,7 +156,7 @@ export function ChoreographyDetailRouteView({
   );
 }
 
-function AdministrativeChoreographyDetailForm({
+function ChoreographyDetailForm({
   actionData,
   loaderData,
 }: {
@@ -220,8 +217,8 @@ function AdministrativeChoreographyDetailForm({
   // presentación que sí aplica a `update-roster`.
   const intent =
     roster.hasRosterChanged || roster.hasProfessorsChanged
-      ? updateAdministrativeChoreographyRosterIntent
-      : renameAdministrativeChoreographyIntent;
+      ? updateChoreographyRosterIntent
+      : renameChoreographyIntent;
 
   const handleConfirm = form.handleSubmit((values) => {
     setIsConfirmOpen(false);
@@ -230,7 +227,7 @@ function AdministrativeChoreographyDetailForm({
     formData.set("intent", intent);
     formData.set("name", values.name);
 
-    if (intent === updateAdministrativeChoreographyRosterIntent) {
+    if (intent === updateChoreographyRosterIntent) {
       for (const dancerId of values.dancerIds) {
         formData.append("dancerIds", dancerId);
       }
@@ -465,10 +462,7 @@ function SubmodalityField({
         }
 
         const formData = new FormData();
-        formData.set(
-          "intent",
-          updateAdministrativeChoreographySubmodalityIntent,
-        );
+        formData.set("intent", updateChoreographySubmodalityIntent);
         formData.set("submodalityId", value);
         submit(formData, { method: "post" });
       }}

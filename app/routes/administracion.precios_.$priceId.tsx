@@ -7,7 +7,7 @@ import {
   type EventPriceDetailViewProps,
 } from "@/features/admin/prices/detail/view";
 import {
-  loadAdminEventPriceDetail,
+  loadEventPriceDetail,
   updateAdministrativeEventPrice,
 } from "@/features/admin/prices/detail/server";
 import type { EventPricesLoaderData } from "@/features/admin/prices/shared";
@@ -30,7 +30,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventPriceDetail(request);
+  return loadEventPriceDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {

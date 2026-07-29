@@ -13,7 +13,7 @@ vi.mock("@/lib/admin/dancers/dancers-update.server", () => ({
 }));
 
 vi.mock("@/lib/admin/event-context.server", () => ({
-  loadAdminEventContext: vi.fn(),
+  loadEventContext: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/internal-access.server", () => ({

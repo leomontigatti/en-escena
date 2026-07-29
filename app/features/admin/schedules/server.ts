@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 import { listSchedules } from "@/lib/schedules/repository.server";
@@ -8,7 +8,7 @@ import { listSchedules } from "@/lib/schedules/repository.server";
 async function loadEventScheduleContext(request: Request) {
   await requireAdminPanelUser(request);
 
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);

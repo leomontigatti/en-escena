@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createAdministrativeEventPrice,
-  loadAdminEventPriceCreate,
+  loadEventPriceCreate,
 } from "@/features/admin/prices/create/server";
 import {
   EventPriceCreateView,
@@ -20,7 +20,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventPriceCreate(request);
+  return loadEventPriceCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
