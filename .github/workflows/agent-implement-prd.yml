@@ -199,15 +199,6 @@ jobs:
           AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-implement-prd/implement-prd.mts
 
-      - name: Upload agent log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: implement-prd-agent-log
-          path: ${{ env.OUTPUT_DIR }}/*.agent.log
-          if-no-files-found: ignore
-          retention-days: 14
-
       # --- On runner failure (e.g. the runner timeout): bank the green commits
       # the agent added this run to the shared branch, so a timeout doesn't
       # discard the in-flight sub-issue's progress. Plain push (never force) —
@@ -278,12 +269,29 @@ jobs:
 
       - name: Run write-prd-pr runner
         if: steps.preflight.outputs.proceed == 'true' && steps.existing_pr.outputs.number == ''
+        # Sin techo, un cuelgue acá se comía el default del job (6 h). El runner es
+        # de una sola pasada (`maxIterations: 1`) y sin efectos: sólo redacta título
+        # y descripción, así que 10 min es holgado.
+        timeout-minutes: 10
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PRD_NUMBER: ${{ github.event.issue.number }}
           PRD_TITLE: ${{ github.event.issue.title }}
           BRANCH: ${{ steps.branch.outputs.branch }}
+          AGENT_BUDGET_MINUTES: 8
         run: pnpm exec tsx .sandcastle/agent-write-prd-pr/write-prd-pr.mts
+
+      # Después del último runner del job, para que el artefacto incluya también el
+      # log de write-prd-pr. `always()`: si el runner de implement-prd falló, este
+      # paso igual corre y sube lo que haya.
+      - name: Upload agent logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: implement-prd-agent-logs
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Open draft PR
         id: new_pr
