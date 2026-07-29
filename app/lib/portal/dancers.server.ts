@@ -19,7 +19,7 @@ import {
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
-export type DancerListItem = {
+export type PortalDancerListItem = {
   id: string;
   firstName: string;
   lastName: string;
@@ -86,7 +86,7 @@ export async function listDancersForAcademy(
     selectedEventId?: string | null;
     status?: DancerStatusFilter;
   } = {},
-): Promise<DancerListItem[]> {
+): Promise<PortalDancerListItem[]> {
   const status = options.status ?? "active";
   const selectedEventId = options.selectedEventId ?? null;
   const rows = await db

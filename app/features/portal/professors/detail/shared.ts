@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { ProfessorListItem } from "@/lib/portal/professors.server";
+import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const updateProfessorIntent = "update-professor";
@@ -39,7 +39,7 @@ export const professorSchema = z
   });
 
 export type ProfessorFormValues = z.infer<typeof professorSchema>;
-export type ProfessorFieldErrors = Partial<
+export type PortalProfessorFieldErrors = Partial<
   Record<keyof ProfessorFormValues, string>
 >;
 export type ProfessorStatusIntent =
@@ -47,14 +47,14 @@ export type ProfessorStatusIntent =
   | typeof reactivateProfessorIntent;
 
 export type PortalProfessorDetailLoaderData = {
-  professor: ProfessorListItem;
+  professor: PortalProfessorListItem;
 };
 
 export type PortalProfessorDetailActionData =
   | {
       status: "error";
       message: string;
-      fieldErrors: ProfessorFieldErrors;
+      fieldErrors: PortalProfessorFieldErrors;
       values: ProfessorFormValues;
     }
   | {
