@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { choreographies } from "@/db/schema";
 import {
   updateChoreographyMusic,
-  loadChoreographyMusicDownloadUrl,
+  loadPortalChoreographyMusicDownloadUrl,
 } from "@/lib/portal/choreography-music.server";
 import {
   createAcademySession,
@@ -79,7 +79,7 @@ describe.sequential("portal choreography music", () => {
       },
     ]);
     await expect(
-      loadChoreographyMusicDownloadUrl(
+      loadPortalChoreographyMusicDownloadUrl(
         `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
         storage,
       ),

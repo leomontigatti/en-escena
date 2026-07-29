@@ -11,8 +11,8 @@ import {
   professors,
 } from "@/db/schema";
 import {
-  toAdminProfessorParticipationSearchValue,
-  toAdminProfessorStatusSearchValue,
+  toProfessorParticipationSearchValue,
+  toProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
@@ -1089,15 +1089,13 @@ function getProfessorFilterValues(
   loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   const values: Record<string, string> = {};
-  const statusValue = toAdminProfessorStatusSearchValue(
-    loaderData.filters.status,
-  );
+  const statusValue = toProfessorStatusSearchValue(loaderData.filters.status);
 
   if (statusValue === "archivados") {
     values.estado = statusValue;
   }
 
-  const participationValue = toAdminProfessorParticipationSearchValue(
+  const participationValue = toProfessorParticipationSearchValue(
     loaderData.filters.participation,
   );
 

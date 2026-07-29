@@ -7,20 +7,17 @@ import { buildCreatePath } from "@/lib/shared/navigation";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { PriceListTable } from "../list-table";
-import {
-  basePath,
-  type AdministrativeEventPricesListLoaderData,
-} from "../shared";
+import { basePath, type EventPricesListLoaderData } from "../shared";
 
-export type AdministrativeEventPricesListViewProps = {
-  loaderData: AdministrativeEventPricesListLoaderData;
+export type EventPricesListViewProps = {
+  loaderData: EventPricesListLoaderData;
   actionData?: ActionData;
 };
 
-export function AdministrativeEventPricesListView({
+export function EventPricesListView({
   loaderData,
   actionData,
-}: AdministrativeEventPricesListViewProps) {
+}: EventPricesListViewProps) {
   useServerActionToast(actionData);
 
   return (

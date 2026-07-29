@@ -19,7 +19,7 @@ import {
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
-export type DancerListItem = {
+export type PortalDancerListItem = {
   id: string;
   firstName: string;
   lastName: string;
@@ -65,7 +65,7 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
-type DancerStatusFilter = "active" | "archived" | "all";
+type PortalDancerStatusFilter = "active" | "archived" | "all";
 export type PortalParticipationStatus =
   | "participating"
   | "not-participating"
@@ -84,9 +84,9 @@ export async function listDancersForAcademy(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: DancerStatusFilter;
+    status?: PortalDancerStatusFilter;
   } = {},
-): Promise<DancerListItem[]> {
+): Promise<PortalDancerListItem[]> {
   const status = options.status ?? "active";
   const selectedEventId = options.selectedEventId ?? null;
   const rows = await db
@@ -148,7 +148,10 @@ function toParticipationStatus(
   return isParticipating ? "participating" : "not-participating";
 }
 
-function getDancerListWhere(academyId: string, status: DancerStatusFilter) {
+function getDancerListWhere(
+  academyId: string,
+  status: PortalDancerStatusFilter,
+) {
   if (status === "all") {
     return eq(dancers.academyId, academyId);
   }

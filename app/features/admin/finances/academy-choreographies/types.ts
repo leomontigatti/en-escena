@@ -1,5 +1,5 @@
-import type { loadAdminAcademyFinances } from "./server";
+import type { loadAcademyFinances } from "./server";
 
 export type AcademyFinancesLoaderData = Awaited<
-  ReturnType<typeof loadAdminAcademyFinances>
+  ReturnType<typeof loadAcademyFinances>
 >;

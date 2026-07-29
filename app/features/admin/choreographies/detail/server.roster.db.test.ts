@@ -8,8 +8,8 @@ import {
   paymentAllocations,
   payments,
 } from "@/db/schema";
-import { handleAdminChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
-import { updateAdministrativeChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
+import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
+import { updateChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import {
@@ -411,7 +411,7 @@ async function submitRoster(input: {
   scheduleCapacityId?: string;
 }) {
   const body = new FormData();
-  body.set("intent", updateAdministrativeChoreographyRosterIntent);
+  body.set("intent", updateChoreographyRosterIntent);
   if (input.name !== undefined) {
     body.set("name", input.name);
   }
@@ -435,7 +435,7 @@ async function submitRoster(input: {
     role: "admin",
   });
 
-  return await handleAdminChoreographyDetailAction({
+  return await handleChoreographyDetailAction({
     params: { choreographyId: input.choreographyId },
     request,
   });

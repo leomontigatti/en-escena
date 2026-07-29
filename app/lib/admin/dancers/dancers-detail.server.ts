@@ -7,17 +7,17 @@ import {
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import type { AdministrativeDancerDetail } from "@/lib/admin/dancers/dancers.server.types";
-import { findAdministrativeDancerInscriptions } from "@/lib/admin/dancers/dancers-inscriptions.server";
+import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
+import { findDancerInscriptions } from "@/lib/admin/dancers/dancers-inscriptions.server";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
 } from "@/lib/participation/participation.server";
 
-export async function findAdministrativeDancer(input: {
+export async function findDancer(input: {
   dancerId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeDancerDetail | null> {
+}): Promise<DancerDetail | null> {
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
   );
@@ -55,11 +55,10 @@ export async function findAdministrativeDancer(input: {
     return null;
   }
 
-  const { choreographyRows, inscriptions } =
-    await findAdministrativeDancerInscriptions({
-      dancerId: input.dancerId,
-      selectedEventId: input.selectedEventId,
-    });
+  const { choreographyRows, inscriptions } = await findDancerInscriptions({
+    dancerId: input.dancerId,
+    selectedEventId: input.selectedEventId,
+  });
 
   return {
     id: row.id,

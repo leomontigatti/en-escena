@@ -97,7 +97,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
   }
 
   if (dancerIdsChanged) {
-    const dancerResult = await updateAdministrativeChoreographyDancers(input);
+    const dancerResult = await updateChoreographyDancers(input);
 
     if (!dancerResult.ok) {
       return {
@@ -147,7 +147,7 @@ async function renameChoreographyIfNeeded(input: {
     .where(eq(choreographies.id, input.choreographyId));
 }
 
-async function updateAdministrativeChoreographyDancers(input: {
+async function updateChoreographyDancers(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;

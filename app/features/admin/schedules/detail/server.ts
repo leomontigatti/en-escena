@@ -1,7 +1,7 @@
 import { handleEventScheduleAction } from "../action.server";
 import { loadEventScheduleDetailData } from "../server";
 
-export async function loadAdminEventScheduleDetail(request: Request) {
+export async function loadEventScheduleDetail(request: Request) {
   return loadEventScheduleDetailData(request);
 }
 

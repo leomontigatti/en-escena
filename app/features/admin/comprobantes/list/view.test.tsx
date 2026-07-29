@@ -9,14 +9,11 @@ import {
   comprobanteColumns,
   comprobanteFacetedFilters,
 } from "./view";
-import type {
-  AdminComprobanteRow,
-  AdminComprobantesListLoaderData,
-} from "./server";
+import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 
 function comprobanteRow(
-  overrides: Partial<AdminComprobanteRow> = {},
-): AdminComprobanteRow {
+  overrides: Partial<ComprobantesListRow> = {},
+): ComprobantesListRow {
   return {
     id: "comprobante_1",
     cbteTipo: 11,
@@ -36,8 +33,8 @@ function comprobanteRow(
 }
 
 function loaderData(
-  overrides: Partial<AdminComprobantesListLoaderData> = {},
-): AdminComprobantesListLoaderData {
+  overrides: Partial<ComprobantesListLoaderData> = {},
+): ComprobantesListLoaderData {
   const rows = overrides.rows ?? [];
 
   return {
@@ -57,7 +54,7 @@ function loaderData(
   };
 }
 
-function renderView(data: AdminComprobantesListLoaderData) {
+function renderView(data: ComprobantesListLoaderData) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/administracion/comprobantes"]}>
       <ComprobantesListRouteView loaderData={data} />

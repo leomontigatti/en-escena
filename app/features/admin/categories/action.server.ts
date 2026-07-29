@@ -1,4 +1,4 @@
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { categoryActionHandler } from "@/lib/admin/events/bases-action/categories.server";
 import { runEventBasesActionWithHandler } from "@/lib/admin/events/bases-action/runner.server";
 import { type ActionData } from "@/lib/admin/events/bases-action/shared.server";
@@ -18,7 +18,7 @@ export async function handleCategoryAction(
 ): Promise<ActionData | never> {
   await requireAdminPanelUser(request);
 
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const eventId = eventContext.selectedEventId;
 
   if (!eventId) {

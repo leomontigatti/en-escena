@@ -10,13 +10,10 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 
-import type {
-  AdministrativeEventsListLoaderData,
-  EventListRow,
-} from "./shared";
+import type { EventsListLoaderData, EventListRow } from "./shared";
 
-export type AdministrativeEventsListViewProps = {
-  loaderData: AdministrativeEventsListLoaderData;
+export type EventsListViewProps = {
+  loaderData: EventsListLoaderData;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -24,9 +21,7 @@ const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: BUSINESS_TIME_ZONE,
 });
 
-export function AdministrativeEventsListView({
-  loaderData,
-}: AdministrativeEventsListViewProps) {
+export function EventsListView({ loaderData }: EventsListViewProps) {
   return (
     <AdminResourceLayout
       title="Eventos"

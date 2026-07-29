@@ -229,7 +229,7 @@ function getDancerStateBadges(dancer: DancerRow) {
   }
 
   badges.push({
-    label: getDancerParticipationLabel(dancer.participationStatus),
+    label: getPortalDancerParticipationLabel(dancer.participationStatus),
     variant:
       dancer.participationStatus === "participating" ? "success" : "secondary",
   });
@@ -255,7 +255,9 @@ function getDancerVerificationBadgeVariant(
   }
 }
 
-function getDancerParticipationLabel(status: DancerRow["participationStatus"]) {
+function getPortalDancerParticipationLabel(
+  status: DancerRow["participationStatus"],
+) {
   if (status === "participating") {
     return "Participando";
   }

@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/admin/event-context.server", () => ({
-  loadAdminEventContext: vi.fn(),
+  loadEventContext: vi.fn(),
 }));
 
 vi.mock("@/lib/admin/users/internal-user-create.server", () => ({

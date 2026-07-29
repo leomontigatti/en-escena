@@ -1,367 +1,367 @@
 # En Escena
 
-Glosario del dominio de competencias de danza. Define términos canónicos; las reglas detalladas viven en [docs/domain/](docs/domain/).
+Domain glossary for dance competitions. Defines canonical terms; the detailed rules live in [docs/domain/](docs/domain/).
 
-## Cómo leer el glosario
+## How to read the glossary
 
-Cada entrada es bilingüe: el término canónico en español —el que ve el usuario, en
-la UI y en las URLs— y, después de `code:`, el identificador canónico en inglés
-para nombrarlo en el código. Es la tabla de mapeo de la convención de idioma
-documentada en [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md).
+Each entry is keyed on the canonical English identifier —the name to use in
+code— followed by `ui:`, the canonical Spanish term the user sees in the
+interface and in URLs. It is the mapping table for the code language convention
+documented in [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md).
 
-Reglas de lectura:
+Reading rules:
 
-- El identificador es la raíz, no la firma exacta: se declina como corresponda
+- The identifier is the root, not the exact signature: decline it as needed
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
-- `comprobante` es el único término reservado en español dentro del código; sumar
-  otro exige un ADR. Ver [ADR-0011](docs/adr/0011-invoicing-concept-portion-and-surfaces.md).
-- Los adaptadores de sistemas externos son la excepción: `app/lib/comprobantes/arca`
-  habla WSFEv1 (`ArcaVoucher`, `createVoucher`), no el glosario.
-- Donde un símbolo existente no coincide con el identificador de acá, manda el
-  glosario y el símbolo está pendiente de renombre; renombrar se trackea aparte.
-- Los términos retirados no llevan identificador: no deben aparecer en código nuevo.
-
-## Lenguaje
-
-**Evento** — code: `event`
-Edición concreta de una competencia de danza, con fechas, configuración, inscripciones, cronograma, jueces, puntajes y premios propios.
-_Evitar_: Concurso, temporada, edition
-
-**Evento activo** — code: `activeEvent`
-Evento único que administración marca como operativo global para el producto. Como máximo puede haber un Evento activo global; también puede no haber ninguno. Es el único contexto de evento para la primera versión del Panel de administración y del Portal de academias.
-_Evitar_: Estado del evento, filtro de evento oculto, evento consultado
-
-**Estado del evento** — code: `eventStatus`
-Ciclo de vida temporal automático de un evento, calculado a partir de sus fechas de inicio y finalización.
-_Evitar_: Activo, visible
-
-**Visibilidad de resultados** — code: `resultsVisible`
-Condición que indica si los resultados de un evento están visibles u ocultos.
-_Evitar_: Estado del evento, active
-
-**Cronograma** — code: `schedule`
-Franja de programación de un evento, con nombre, fecha local, hora local, modalidades aceptadas y cupo total de coreografías. Cuando no existe un Cupo de cronograma específico para el tipo de grupo de una coreografía, la coreografía puede consumir el cupo total del Cronograma como cupo global.
-_Evitar_: Bloque horario, horario suelto, agenda completa
-
-**Cupo de cronograma** — code: `scheduleCapacity`
-Distribución del cupo de coreografías dentro de un cronograma, relacionada con un único tipo de grupo.
-_Evitar_: Cronograma, bloque horario
-
-**Academia** — code: `academy`
-Entidad participante que puede inscribirse en eventos y cargar profesores, bailarines y coreografías.
-_Evitar_: Usuario, profesor, escuela, delegación
-
-**Registro público de academia** — code: `academyRegistration`
-Flujo público por el que una academia crea su acceso inicial al sistema.
-_Evitar_: Registro de coreografía, usuario público, cuenta libre
-
-**Portal de academias** — code: `portal`
-Área privada donde una academia gestiona sus datos y consulta información propia del evento activo.
-_Evitar_: Administración, vista pública
-
-**Panel de administración** — code: `adminPanel`
-Área privada para operación, auditoría y configuración del evento activo.
-_Evitar_: Portal de academias, vista pública
-
-**Lista operativa de coreografías** — code: `choreographyOperationalList`
-Vista administrativa de coreografías centrada en completitud y consistencia de datos.
-_Evitar_: Lista financiera, lista de participación
-
-**Lista financiera de coreografías** — code: `choreographyFinancialList`
-Vista administrativa de coreografías centrada en estado financiero.
-_Evitar_: Lista operativa, cuenta corriente de academia
-
-**Lista de participación de coreografías** — code: `choreographyParticipationList`
-Vista administrativa de coreografías centrada en presentaciones, programa y evaluación.
-_Evitar_: Lista operativa, lista financiera
-
-**Participando** — code: `participating`
-Indicador operativo usado en administración para academias, profesores y bailarines con inscripción en el Evento activo.
-_Evitar_: Presentada, estado de participación
-
-**Ajustes de administración** — code: `adminSettings`
-Área del panel destinada a configuración global y configuración del evento activo.
-_Evitar_: Dashboard, operación diaria
-
-**Bases del evento** — code: `eventBases`
-Conjunto de reglas y datos maestros propios de un Evento que definen cómo se registra, programa, calcula, cobra y compite una coreografía.
-_Evitar_: Configuración del Evento, settings, configuration
-
-**Acción de lista** — code: `listAction`
-Operación administrativa disponible desde una vista de lista y aplicada a una o más instancias seleccionadas.
-_Evitar_: Acción de instancia, edición de formulario
-
-**Acción de instancia** — code: `instanceAction`
-Operación administrativa disponible dentro de la vista de formulario o detalle de una instancia concreta.
-_Evitar_: Acción de lista, acción masiva
-
-**Usuario** — code: `user`
-Identidad de acceso al sistema, con credenciales y un permiso principal.
-_Evitar_: Academia, profesor, cuenta de academia
-
-**Nombre de usuario interno** — code: `internalUsername`
-Identificador de acceso para usuarios internos sin depender de un correo electrónico válido.
-_Evitar_: Correo interno, alias, cuenta
-
-**Recuperación de acceso** — code: `accessRecovery`
-Flujo por el que una academia existente recupera su acceso mediante un enlace enviado a su correo verificado.
-_Evitar_: Registro público de academia, invitación de usuario
-
-**Restablecimiento administrativo de contraseña** — code: `internalUserPasswordReset`
-Acción administrativa que asigna una nueva contraseña temporal a un usuario interno y exige cambio obligatorio de contraseña; es el mecanismo de recuperación para usuarios internos.
-_Evitar_: Recuperación de acceso, invitación de usuario interno
-
-**Sesión de acceso** — code: `accessSession`
-Período autenticado de un usuario dentro del sistema.
-_Evitar_: Registro, invitación, recuperación de acceso
-
-**Cambio obligatorio de contraseña** — code: `requiresPasswordChange`
-Condición de un usuario interno que debe definir una contraseña propia antes de acceder a su área privada.
-_Evitar_: Recuperación de acceso, invitación de usuario interno
-
-**Usuario suspendido** — code: `suspendedUser`
-Usuario que conserva su historial pero no puede iniciar ni mantener sesiones de acceso.
-_Evitar_: Usuario eliminado, usuario inactivo, baja
-
-**Administrador** — code: `admin`
-Usuario con permisos de operación sobre el evento y sus excepciones.
-_Evitar_: Auditor, usuario de academia
-
-**Invitación de usuario interno** — code: `internalUserInvitation`
-Flujo administrativo para habilitar un usuario de administración, auditoría o juzgamiento.
-_Evitar_: Registro público de academia, recuperación de acceso
-
-**Juez** — code: `judge`
-Usuario interno asignado a evaluar presentaciones de un evento.
-_Evitar_: Administrador, auditor
-
-**Publicación de resultados** — code: `resultsPublication`
-Acción administrativa única que habilita u oculta los resultados públicos y de academia para un evento.
-_Evitar_: Estado del evento, visibilidad del programa
-
-**Documento financiero** — code: `financialDocument`
-Registro financiero administrado por un administrador, como factura o nota de crédito.
-_Evitar_: Pago, imputación, estado financiero
-
-**Profesor** — code: `professor`
-Persona asociada a una academia y cargada por esa academia como parte de sus datos.
-_Evitar_: Usuario, administrador
-
-**Inscripción** — code: `inscription`
-Vínculo con identidad económica e identidad estable (`id` propio) entre una coreografía y un bailarín dentro de un evento concreto. Puede estar impaga, señada o pagada. Quitar una inscripción es un borrado físico; no existe estado inactiva.
-_Evitar_: Participación de academia, cuenta, pago, factura, inscripción inactiva
-
-**Inscripción activa** — code: `activeInscription`
-Inscripción que participa en los cálculos vigentes de una coreografía, sus importes pendientes y los descuentos automáticos.
-_Evitar_: Inscripción pagada, participación competitiva
-
-**Coreografía** — code: `choreography`
-Coreografía registrada por una academia para un evento concreto.
-_Evitar_: Obra reutilizable, inscripción, número
-
-**Coreografía sin inscripciones activas** — code: `choreographyWithoutActiveInscriptions`
-Caso excepcional pendiente de definición para una coreografía que conserva historial pero ya no tiene inscripciones activas.
-_Evitar_: Coreografía eliminada, coreografía impaga
-
-**Registro de coreografía** — code: `choreographyRegistration`
-Flujo del portal de academias para crear una coreografía en el Evento activo dentro del período de inscripción.
-_Evitar_: Borrador de coreografía, presentación
-
-**Modificación de coreografía** — code: `choreographyModification`
-Flujo del portal de academias para cambiar datos permitidos de una Coreografía ya registrada, sin convertir correcciones estructurales excepcionales en edición libre.
-_Evitar_: Registro de coreografía, corrección administrativa
-
-**Período de inscripción** — code: `registrationPeriod`
-Ventana temporal del evento durante la cual las academias pueden registrar coreografías desde el portal.
-_Evitar_: Estado del evento, active
-
-**Datos bloqueados de coreografía** — code: `lockedChoreographyData`
-Datos de una coreografía que la academia no puede cambiar cuando las reglas del evento o su estado financiero/competitivo los bloquean.
-_Evitar_: Datos operativos pendientes, datos financieros
+- `comprobante` is the only reserved Spanish term inside code; adding another
+  requires an ADR. See [ADR-0011](docs/adr/0011-invoicing-concept-portion-and-surfaces.md).
+- External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
+  WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
+- Where an existing symbol disagrees with the identifier here, the glossary wins
+  and the symbol is pending rename; renames are tracked separately.
+- Retired terms carry no identifier: they must not appear in new code.
+
+## Vocabulary
+
+**`event`** — ui: "Evento"
+A concrete edition of a dance competition, with its own dates, settings, inscriptions, schedule, judges, scores and awards.
+_Avoid_: Concurso, season, edition
+
+**`activeEvent`** — ui: "Evento activo"
+The single event administration marks as globally operative for the product. At most one active event can exist globally; there can also be none. It is the only event context for the first version of the admin panel and the academy portal.
+_Avoid_: `eventStatus`, hidden event filter, queried event
+
+**`eventStatus`** — ui: "Estado del evento"
+Automatic temporal lifecycle of an event, derived from its start and end dates.
+_Avoid_: `activeEvent`, visible
+
+**`resultsVisible`** — ui: "Visibilidad de resultados"
+Condition indicating whether an event's results are visible or hidden.
+_Avoid_: `eventStatus`, active
+
+**`schedule`** — ui: "Cronograma"
+A programming slot of an event, with name, local date, local time, accepted modalities and total choreography capacity. When no specific schedule capacity exists for a choreography's group type, the choreography may consume the schedule's total capacity as a global allowance.
+_Avoid_: time block, loose time slot, full agenda
+
+**`scheduleCapacity`** — ui: "Cupo de cronograma"
+Distribution of choreography capacity within a schedule, tied to a single group type.
+_Avoid_: `schedule`, time block
+
+**`academy`** — ui: "Academia"
+Participating entity that can register for events and load professors, dancers and choreographies.
+_Avoid_: `user`, `professor`, escuela, delegación
+
+**`academyRegistration`** — ui: "Registro público de academia"
+Public flow through which an academy creates its initial access to the system.
+_Avoid_: `choreographyRegistration`, public user, free account
+
+**`portal`** — ui: "Portal de academias"
+Private area where an academy manages its own data and consults information about the active event.
+_Avoid_: `adminPanel`, public view
+
+**`adminPanel`** — ui: "Panel de administración"
+Private area for operating, auditing and configuring the active event.
+_Avoid_: `portal`, public view
+
+**`choreographyOperationalList`** — ui: "Lista operativa de coreografías"
+Administrative choreography view centered on data completeness and consistency.
+_Avoid_: `choreographyFinancialList`, `choreographyParticipationList`
+
+**`choreographyFinancialList`** — ui: "Lista financiera de coreografías"
+Administrative choreography view centered on financial state.
+_Avoid_: `choreographyOperationalList`, `academyAccountBalance`
+
+**`choreographyParticipationList`** — ui: "Lista de participación de coreografías"
+Administrative choreography view centered on presentations, program and evaluation.
+_Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
+
+**`participating`** — ui: "Participando"
+Operational indicator used in administration for academies, professors and dancers with an inscription in the active event.
+_Avoid_: presented, `participationStatus`
+
+**`adminSettings`** — ui: "Ajustes de administración"
+Panel area for global configuration and active-event configuration.
+_Avoid_: dashboard, daily operation
+
+**`eventBases`** — ui: "Bases del evento"
+The set of rules and master data belonging to an event that define how a choreography is registered, scheduled, calculated, charged and competed.
+_Avoid_: event configuration, settings, configuration
+
+**`listAction`** — ui: "Acción de lista"
+Administrative operation available from a list view and applied to one or more selected instances.
+_Avoid_: `instanceAction`, form editing
+
+**`instanceAction`** — ui: "Acción de instancia"
+Administrative operation available inside the form or detail view of one concrete instance.
+_Avoid_: `listAction`, bulk action
+
+**`user`** — ui: "Usuario"
+System access identity, with credentials and one main permission.
+_Avoid_: `academy`, `professor`, academy account
+
+**`internalUsername`** — ui: "Nombre de usuario interno"
+Access identifier for internal users, without depending on a valid email address.
+_Avoid_: internal email, alias, account
+
+**`accessRecovery`** — ui: "Recuperación de acceso"
+Flow through which an existing academy recovers its access via a link sent to its verified email.
+_Avoid_: `academyRegistration`, `internalUserInvitation`
+
+**`internalUserPasswordReset`** — ui: "Restablecimiento administrativo de contraseña"
+Administrative action that assigns a new temporary password to an internal user and forces a mandatory password change; it is the recovery mechanism for internal users.
+_Avoid_: `accessRecovery`, `internalUserInvitation`
+
+**`accessSession`** — ui: "Sesión de acceso"
+Authenticated period of a user inside the system.
+_Avoid_: `academyRegistration`, `internalUserInvitation`, `accessRecovery`
+
+**`requiresPasswordChange`** — ui: "Cambio obligatorio de contraseña"
+Condition of an internal user who must set their own password before reaching their private area.
+_Avoid_: `accessRecovery`, `internalUserInvitation`
+
+**`suspendedUser`** — ui: "Usuario suspendido"
+User who keeps their history but cannot start or maintain access sessions.
+_Avoid_: deleted user, inactive user, deactivation
+
+**`admin`** — ui: "Administrador"
+User with operating permissions over the event and its exceptions.
+_Avoid_: auditor, academy user
+
+**`internalUserInvitation`** — ui: "Invitación de usuario interno"
+Administrative flow to enable an administration, audit or judging user.
+_Avoid_: `academyRegistration`, `accessRecovery`
+
+**`judge`** — ui: "Juez"
+Internal user assigned to evaluate an event's presentations.
+_Avoid_: `admin`, auditor
+
+**`resultsPublication`** — ui: "Publicación de resultados"
+Single administrative action that enables or hides the public and academy results for an event.
+_Avoid_: `eventStatus`, program visibility
+
+**`financialDocument`** — ui: "Documento financiero"
+Financial record managed by an administrator, such as an invoice or a credit note.
+_Avoid_: `payment`, imputación, `choreographyFinancialState`
+
+**`professor`** — ui: "Profesor"
+Person associated with an academy and loaded by that academy as part of its data.
+_Avoid_: `user`, `admin`
+
+**`inscription`** — ui: "Inscripción"
+Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. It can be unpaid, deposited or paid. Removing an inscription is a physical delete; there is no inactive state.
+_Avoid_: academy participation, account, `payment`, invoice, inactive inscription
+
+**`activeInscription`** — ui: "Inscripción activa"
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts.
+_Avoid_: paid inscription, competitive participation
+
+**`choreography`** — ui: "Coreografía"
+Choreography registered by an academy for a concrete event.
+_Avoid_: reusable work, `inscription`, number
+
+**`choreographyWithoutActiveInscriptions`** — ui: "Coreografía sin inscripciones activas"
+Exceptional case, pending definition, for a choreography that keeps its history but no longer has active inscriptions.
+_Avoid_: deleted choreography, unpaid choreography
+
+**`choreographyRegistration`** — ui: "Registro de coreografía"
+Academy portal flow to create a choreography in the active event during the registration period.
+_Avoid_: choreography draft, `presentation`
+
+**`choreographyModification`** — ui: "Modificación de coreografía"
+Academy portal flow to change the permitted data of an already registered choreography, without turning exceptional structural corrections into free-form editing.
+_Avoid_: `choreographyRegistration`, administrative correction
+
+**`registrationPeriod`** — ui: "Período de inscripción"
+Time window of the event during which academies can register choreographies from the portal.
+_Avoid_: `eventStatus`, active
+
+**`lockedChoreographyData`** — ui: "Datos bloqueados de coreografía"
+Data of a choreography the academy cannot change when the event rules or its financial/competitive state lock them.
+_Avoid_: `pendingOperationalChoreographyData`, financial data
 
-**Datos operativos pendientes de coreografía** — code: `pendingOperationalChoreographyData`
-Datos de una coreografía que pueden completarse sin cambiar cálculo, cupo ni ubicación competitiva.
-_Evitar_: Datos bloqueados, datos financieros
+**`pendingOperationalChoreographyData`** — ui: "Datos operativos pendientes de coreografía"
+Data of a choreography that can be completed without changing calculation, capacity or competitive placement.
+_Avoid_: `lockedChoreographyData`, financial data
 
-**Archivo de música** — code: `musicFile`
-Archivo de audio privado asociado a una Coreografía y gestionado como dato operativo pendiente.
-_Evitar_: Audio de evaluación, devolución, pista pública
+**`musicFile`** — ui: "Archivo de música"
+Private audio file associated with a choreography and managed as pending operational data.
+_Avoid_: evaluation audio, `feedbackAudio`, public track
 
-**Bailarines de coreografía** — code: `choreographyDancers`
-Bailarines vinculados a una coreografía mediante inscripciones.
-_Evitar_: Profesores, datos financieros
+**`choreographyDancers`** — ui: "Bailarines de coreografía"
+Dancers linked to a choreography through inscriptions.
+_Avoid_: professors, financial data
 
-**Bailarín** — code: `dancer`
-Persona cargada por una academia para participar en coreografías.
-_Evitar_: Profesor, usuario
+**`dancer`** — ui: "Bailarín"
+Person loaded by an academy to take part in choreographies.
+_Avoid_: `professor`, `user`
 
-**Estado de verificación de bailarín** — code: `dancerVerificationStatus`
-Situación de validación documental de un bailarín.
-_Evitar_: Estado operativo de coreografía, estado financiero
+**`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
+Documentary validation situation of a dancer.
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`
 
-**Inconsistencia administrativa** — code: `administrativeInconsistency`
-Alerta interna de administración para datos que requieren revisión o trazabilidad sin pertenecer al estado operativo, financiero ni competitivo.
-_Evitar_: Estado operativo, estado financiero, descalificación
+**`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
+Internal administration alert for data requiring review or traceability without belonging to the operational, financial or competitive state.
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`, disqualification
 
-**Estado operativo de coreografía** — code: `choreographyOperationalStatus`
-Completitud de datos necesarios para presentar una coreografía.
-_Evitar_: Estado financiero, estado del evento
+**`choreographyOperationalStatus`** — ui: "Estado operativo de coreografía"
+Completeness of the data needed to present a choreography.
+_Avoid_: `choreographyFinancialState`, `eventStatus`
 
-**Estado financiero de coreografía** — code: `choreographyFinancialState`
-Situación financiera derivada de los estados económicos de las inscripciones activas de una coreografía.
-_Evitar_: Estado operativo, estado del evento
+**`choreographyFinancialState`** — ui: "Estado financiero de coreografía"
+Financial situation derived from the economic states of a choreography's active inscriptions.
+_Avoid_: `choreographyOperationalStatus`, `eventStatus`
 
-**Presentación** — code: `presentation`
-Instancia ordenada de una coreografía para el día del evento.
-_Evitar_: Coreografía, estado operativo, estado financiero
+**`presentation`** — ui: "Presentación"
+Ordered instance of a choreography for the event day.
+_Avoid_: `choreography`, `choreographyOperationalStatus`, `choreographyFinancialState`
 
-**Estado de participación** — code: `participationStatus`
-Estado derivado de la presentación de una coreografía en el evento.
-_Evitar_: Estado operativo de coreografía, estado financiero de coreografía
+**`participationStatus`** — ui: "Estado de participación"
+State derived from a choreography's presentation at the event.
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`
 
-**Asignación de juez** — code: `judgeAssignment`
-Relación entre un juez y las presentaciones que debe evaluar.
-_Evitar_: Presentación, puntaje
+**`judgeAssignment`** — ui: "Asignación de juez"
+Relation between a judge and the presentations they must evaluate.
+_Avoid_: `presentation`, `score`
 
-**Ranking** — code: `ranking`
-Orden competitivo calculado con presentaciones no descalificadas que tengan al menos un puntaje válido.
-_Evitar_: Presentación, cronograma, orden de presentación
+**`ranking`** — ui: "Ranking"
+Competitive order computed from non-disqualified presentations having at least one valid score.
+_Avoid_: `presentation`, `schedule`, presentation order
 
-**Resultados publicados** — code: `publishedResults`
-Vista pública de resultados liberada manualmente por administración.
-_Evitar_: Ranking preliminar, devolución
+**`publishedResults`** — ui: "Resultados publicados"
+Public results view released manually by administration.
+_Avoid_: `preliminaryRanking`, `feedbackAudio`
 
-**Programa del evento** — code: `eventProgram`
-Vista pública del orden cronológico de presentación de un evento.
-_Evitar_: Resultados publicados, ranking
+**`eventProgram`** — ui: "Programa del evento"
+Public view of an event's chronological presentation order.
+_Avoid_: `publishedResults`, `ranking`
 
-**Resultados de academia** — code: `academyResults`
-Vista de resultados disponible con login para la academia dueña de una coreografía cuando administración publica resultados.
-_Evitar_: Resultados publicados, ranking preliminar
+**`academyResults`** — ui: "Resultados de academia"
+Results view available with login to the academy owning a choreography once administration publishes results.
+_Avoid_: `publishedResults`, `preliminaryRanking`
 
-**Ranking preliminar** — code: `preliminaryRanking`
-Vista interna de administración que puede calcularse aunque falten presentaciones por resolver.
-_Evitar_: Ranking final, premio
+**`preliminaryRanking`** — ui: "Ranking preliminar"
+Internal administration view that can be computed even while presentations remain unresolved.
+_Avoid_: final ranking, `award`
 
-**Premio** — code: `award`
-Reconocimiento derivado del promedio competitivo válido de una presentación dentro de un evento.
-_Evitar_: Puntaje, ranking
+**`award`** — ui: "Premio"
+Recognition derived from the valid competitive average of a presentation within an event.
+_Avoid_: `score`, `ranking`
 
-**Tipo de premio** — code: `awardType`
-Regla de premio dentro de un evento.
-_Evitar_: Premio, ranking
+**`awardType`** — ui: "Tipo de premio"
+Award rule within an event.
+_Avoid_: `award`, `ranking`
 
-**Puntaje** — code: `score`
-Evaluación asignada a un juez para una presentación.
-_Evitar_: Presentación, precio, pago
+**`score`** — ui: "Puntaje"
+Evaluation assigned by a judge to a presentation.
+_Avoid_: `presentation`, price, `payment`
 
-**Corrección de puntaje** — code: `scoreCorrection`
-Cambio administrativo de un puntaje ya confirmado.
-_Evitar_: Puntaje borrador, presentación
+**`scoreCorrection`** — ui: "Corrección de puntaje"
+Administrative change to an already confirmed score.
+_Avoid_: draft score, `presentation`
 
-**Anulación de puntaje** — code: `scoreAnnulment`
-Acción administrativa explícita sobre un puntaje confirmado que lo excluye del promedio competitivo sin eliminar su trazabilidad.
-_Evitar_: Corrección de puntaje, eliminación de asignación
+**`scoreAnnulment`** — ui: "Anulación de puntaje"
+Explicit administrative action on a confirmed score that excludes it from the competitive average without removing its traceability.
+_Avoid_: `scoreCorrection`, assignment deletion
 
-**Devolución** — code: `feedbackAudio`
-Archivo de audio opcional asociado a la evaluación o descalificación realizada por un juez.
-_Evitar_: Puntaje numérico, presentación
+**`feedbackAudio`** — ui: "Devolución"
+Optional audio file associated with the evaluation or disqualification made by a judge.
+_Avoid_: numeric score, `presentation`
 
-**Pago** — code: `payment`
-Ingreso de dinero registrado para una academia en un evento, que puede quedar disponible o aplicarse mediante asignaciones de pago.
-_Evitar_: Factura, asignación de pago, estado financiero de coreografía
+**`payment`** — ui: "Pago"
+Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations.
+_Avoid_: invoice, `paymentAllocation`, `choreographyFinancialState`
 
-**Factura (comprobante fiscal ARCA)** — code: `comprobante`
-Comprobante fiscal electrónico —Factura C de monotributo, emitida contra ARCA/WSFEv1— como documento derivado de pagos, asignaciones e inscripciones que nunca gobierna el estado financiero. Modelo en definición (mapa #320). El término "factura"/"comprobante" queda reservado para este uso fiscal.
-_Evitar_: Pago, asignación de pago, Factura de coreografía (retirada)
+**`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
+Electronic tax receipt —Factura C for monotributo, issued against ARCA/WSFEv1— as a document derived from payments, allocations and inscriptions that never governs financial state. Model under definition (map #320). The term "factura"/"comprobante" is reserved for this fiscal use.
+_Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired)
 
-**Factura de coreografía** _(término retirado)_ — sin identificador de código
-Documento del modelo financiero viejo (tablas `academy_event_choreography_invoice` e `academy_event_invoice_imputation`), removido en V1 (ver ADR-0009). No usar; para el comprobante fiscal ver **Factura (comprobante fiscal ARCA)**.
+**Choreography invoice** _(retired term)_ — no code identifier
+Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.
 
-**Imputación** _(término retirado)_ — sin identificador de código
-Concepto financiero del modelo viejo, retirado del modelo de pagos e inscripciones (ver ADR-0009). No usar; la aplicación de un pago es una **Asignación de pago**.
-_Evitar_: Asignación de pago, pago, factura
+**Imputación** _(retired term)_ — no code identifier
+Financial concept of the old model, retired from the payments and inscriptions model (see ADR-0009). Do not use; applying a payment is a **`paymentAllocation`**.
+_Avoid_: `paymentAllocation`, `payment`, invoice
 
-**Asignación de pago** — code: `paymentAllocation`
-Aplicación de saldo de un pago a una o más inscripciones de una academia en un evento.
-_Evitar_: Pago, factura, imputación
+**`paymentAllocation`** — ui: "Asignación de pago"
+Application of a payment's balance to one or more inscriptions of an academy in an event.
+_Avoid_: `payment`, invoice, imputación
 
-**Etapa de inscripción** — code: `inscriptionStage`
-Parte financiera completa de una inscripción que puede recibir una asignación de pago: seña o saldo.
-_Evitar_: Cuota, pago parcial, factura
+**`inscriptionStage`** — ui: "Etapa de inscripción"
+Complete financial part of an inscription that can receive a payment allocation: deposit or balance.
+_Avoid_: installment, partial payment, invoice
 
-**Cuenta corriente de academia** — code: `academyAccountBalance`
-Saldo financiero de una academia en un evento, compuesto por pagos, asignaciones de pago y el saldo disponible derivado.
-_Evitar_: Estado financiero de coreografía, pago, saldo operativo
+**`academyAccountBalance`** — ui: "Cuenta corriente de academia"
+Financial balance of an academy in an event, composed of payments, payment allocations and the derived available balance.
+_Avoid_: `choreographyFinancialState`, `payment`, operational balance
 
-**Saldo disponible** — code: `availableBalanceAmount`
-Monto de pagos activos de una academia que todavía no fue aplicado mediante asignaciones de pago.
-_Evitar_: Saldo adeudado, total pagado
+**`availableBalanceAmount`** — ui: "Saldo disponible"
+Amount of an academy's active payments not yet applied through payment allocations.
+_Avoid_: `owedBalanceAmount`, total paid
 
-**Saldo adeudado** — code: `owedBalanceAmount`
-Monto operativo neto pendiente de cobrar o pagar para una academia en el Evento activo, calculado con señas y saldos pendientes de inscripciones activas y descuento del Saldo disponible. Nunca es menor que cero.
-_Evitar_: Saldo disponible, total pagado, total estimado
+**`owedBalanceAmount`** — ui: "Saldo adeudado"
+Net operational amount pending to collect or pay for an academy in the active event, computed from the deposits and pending balances of active inscriptions minus the available balance. Never less than zero.
+_Avoid_: `availableBalanceAmount`, total paid, estimated total
 
-**Seña adeudada** — code: `owedDepositAmount`
-Monto operativo bruto de seña pendiente para inscripciones activas impagas. No descuenta el Saldo disponible.
-_Evitar_: Factura de coreografía, saldo disponible, saldo adeudado
+**`owedDepositAmount`** — ui: "Seña adeudada"
+Gross operational deposit amount pending for unpaid active inscriptions. Does not subtract the available balance.
+_Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`
 
-**Seña de inscripción** — code: `inscriptionDepositAmount`
-Monto de seña calculado para una inscripción a partir de su precio congelado.
-_Evitar_: Seña de coreografía, factura de seña
+**`inscriptionDepositAmount`** — ui: "Seña de inscripción"
+Deposit amount computed for an inscription from its frozen price.
+_Avoid_: choreography deposit, deposit invoice
 
-**Saldo de inscripción** — code: `inscriptionBalanceAmount`
-Monto restante de una inscripción después de descontar su seña asignada y sus descuentos aplicables.
-_Evitar_: Saldo de coreografía, saldo disponible
+**`inscriptionBalanceAmount`** — ui: "Saldo de inscripción"
+Remaining amount of an inscription after subtracting its assigned deposit and its applicable discounts.
+_Avoid_: choreography balance, `availableBalanceAmount`
 
-**Precio de coreografía** — code: `choreographyPrice`
-Importe derivado para una coreografía a partir de los precios de sus inscripciones activas.
-_Evitar_: Pago, estado financiero, precio congelado de inscripción
+**`choreographyPrice`** — ui: "Precio de coreografía"
+Amount derived for a choreography from the prices of its active inscriptions.
+_Avoid_: `payment`, `choreographyFinancialState`, `frozenInscriptionPrice`
 
-**Precio tentativo de inscripción** — code: `tentativeInscriptionPrice`
-Precio orientativo de una inscripción impaga, calculado con las reglas vigentes para mostrar o decidir una asignación futura.
-_Evitar_: Precio congelado, factura
+**`tentativeInscriptionPrice`** — ui: "Precio tentativo de inscripción"
+Indicative price of an unpaid inscription, computed with the current rules to display or decide a future allocation.
+_Avoid_: `frozenInscriptionPrice`, invoice
 
-**Precio congelado de inscripción** — code: `frozenInscriptionPrice`
-Precio fijado para una inscripción cuando recibe una asignación de pago.
-_Evitar_: Precio tentativo, factura
+**`frozenInscriptionPrice`** — ui: "Precio congelado de inscripción"
+Price fixed for an inscription when it receives a payment allocation.
+_Avoid_: `tentativeInscriptionPrice`, invoice
 
-**Snapshot financiero de inscripción** — code: `inscriptionSnapshot`
-Datos económicos fijados por una asignación de pago para que el estado financiero de una inscripción no dependa de cambios posteriores de precios o descuentos.
-_Evitar_: Factura, precio tentativo
+**`inscriptionSnapshot`** — ui: "Snapshot financiero de inscripción"
+Economic data fixed by a payment allocation so that an inscription's financial state does not depend on later price or discount changes.
+_Avoid_: invoice, `tentativeInscriptionPrice`
 
-**Fecha de referencia financiera** — code: `financialReferenceDate`
-Fecha de negocio usada para resolver el precio tentativo o congelado de una inscripción.
-_Evitar_: Fecha UTC
+**`financialReferenceDate`** — ui: "Fecha de referencia financiera"
+Business date used to resolve the tentative or frozen price of an inscription.
+_Avoid_: UTC date
 
-**Fecha límite de pago** — code: `paymentDeadline`
-Fecha hasta la que un precio configurado puede aplicarse a una inscripción.
-_Evitar_: Fecha de seña, vencimiento de factura
+**`paymentDeadline`** — ui: "Fecha límite de pago"
+Date until which a configured price can be applied to an inscription.
+_Avoid_: deposit date, invoice due date
 
-**Descuento por bailarín** — code: `dancerDiscount`
-Descuento automático aplicado al saldo de una inscripción según las reglas del evento y las inscripciones activas del mismo bailarín.
-_Evitar_: Descuento administrativo, descuento manual
+**`dancerDiscount`** — ui: "Descuento por bailarín"
+Automatic discount applied to an inscription's balance according to the event rules and the active inscriptions of the same dancer.
+_Avoid_: `administrativeDiscount`, manual discount
 
-**Descuento administrativo** — code: `administrativeDiscount`
-Reducción excepcional aplicada por administración cuyo lugar exacto en el modelo financiero está pendiente de definición.
-_Evitar_: Descuento individual, precio base
+**`administrativeDiscount`** — ui: "Descuento administrativo"
+Exceptional reduction applied by administration whose exact place in the financial model is pending definition.
+_Avoid_: individual discount, base price
 
-**Modalidad** — code: `modality`
-Clasificación artística elegida al registrar una coreografía.
-_Evitar_: Categoría, tipo de grupo
+**`modality`** — ui: "Modalidad"
+Artistic classification chosen when registering a choreography.
+_Avoid_: `category`, `groupType`
 
-**Submodalidad** — code: `submodality`
-Clasificación opcional dentro de una modalidad. Su nombre debe ser único dentro de esa modalidad, sin distinguir mayúsculas y minúsculas.
-_Evitar_: Modalidad, categoría
+**`submodality`** — ui: "Submodalidad"
+Optional classification within a modality. Its name must be unique within that modality, case-insensitively.
+_Avoid_: `modality`, `category`
 
-**Tipo de grupo** — code: `groupType`
-Clasificación calculada por cantidad de bailarines seleccionados para una coreografía.
-_Evitar_: Modalidad, categoría
+**`groupType`** — ui: "Tipo de grupo"
+Classification computed from the number of dancers selected for a choreography.
+_Avoid_: `modality`, `category`
 
-**Categoría** — code: `category`
-Clasificación calculada por edades medidas contra la fecha de inicio del evento. Su identidad competitiva se define por rango de edad, tipos de grupo y modalidades.
-_Evitar_: Modalidad, tipo de grupo
+**`category`** — ui: "Categoría"
+Classification computed from ages measured against the event's start date. Its competitive identity is defined by age range, group types and modalities.
+_Avoid_: `modality`, `groupType`
 
-**Nivel de experiencia** — code: `experienceLevel`
-Clasificación relacionada con una categoría y elegida por la academia cuando corresponde.
-_Evitar_: Categoría
+**`experienceLevel`** — ui: "Nivel de experiencia"
+Classification related to a category and chosen by the academy where applicable.
+_Avoid_: `category`

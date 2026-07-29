@@ -1,5 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminFinancesList } from "@/features/admin/finances/list/server";
+import { loadFinancesList } from "@/features/admin/finances/list/server";
 import { FinancesListRouteView } from "@/features/admin/finances/list/view";
 
 import type { Route } from "./+types/administracion.finanzas";
@@ -19,7 +19,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdminFinancesList(request);
+  return await loadFinancesList(request);
 }
 
 export { FinancesListRouteView };

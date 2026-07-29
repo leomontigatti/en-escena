@@ -1,30 +1,30 @@
-# En Escena — guía para Claude Code
+# En Escena — guide for Claude Code
 
-Índice de las convenciones del repo. Cada regla operativa vive en su archivo bajo
-`docs/agents/` (o `.sandcastle/`); este archivo solo enruta.
+Index of the repo's conventions. Every operative rule lives in its own file under
+`docs/agents/` (or `.sandcastle/`); this file only routes.
 
-- **Comandos y validación**: [docs/agents/workflows.md](docs/agents/workflows.md).
-  Usar `pnpm typecheck` (no `pnpm exec tsc`); un hook lo enforcea. No correr
-  `pnpm typecheck` en paralelo con `pnpm build`.
-- **Investigar antes de implementar**: ver la sección homónima en
+- **Commands and validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
+  Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
+  `pnpm typecheck` in parallel with `pnpm build`.
+- **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
-  (canónico). Guía de todo el repo, no solo de Sandcastle. Incluye la convención
-  de idioma del código (español para lo que lee el usuario, inglés para el resto;
-  `comprobante` como único término reservado). El mapeo término → identificador
-  vive en [CONTEXT.md](CONTEXT.md).
+  (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
+  language convention (Spanish for what the user reads, English for everything else;
+  `comprobante` as the only reserved term). The identifier → UI term mapping lives in
+  [CONTEXT.md](CONTEXT.md).
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
-- **Feedback y redirección de formularios** (matriz quedarse/redirigir, flash session
-  vs. `actionData` directo): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
-- **Issue tracker** (GitHub Issues vía `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+- **Form feedback and redirection** (stay/redirect matrix, flash session vs. direct
+  `actionData`): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
+- **Issue tracker** (GitHub Issues via `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
-- **Domain docs** (layout de contexto único): [docs/agents/domain.md](docs/agents/domain.md).
-- **Operación local y auth** (DB, Supabase Auth, email-log): [docs/local-auth.md](docs/local-auth.md).
-- **DNS y correo** (zona en Cloudflare, entrante por Email Routing, saliente por
+- **Domain docs** (single-context layout): [docs/agents/domain.md](docs/agents/domain.md).
+- **Local operation and auth** (DB, Supabase Auth, email-log): [docs/local-auth.md](docs/local-auth.md).
+- **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
   Resend): [docs/operations/dns-y-correo.md](docs/operations/dns-y-correo.md).
-- **Fallow** (auditoría e investigación, no gate de commit): [docs/agents/fallow.md](docs/agents/fallow.md).
-- **Plataforma AFK** (spec de los 8 workflows, fuente de verdad; vendorizado de Matt Pocock):
-  [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); qué se
-  adaptó en [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
-- **AFK setup operativo** (labels `agent:*`, secrets, degradación sin PAT; runbook del
-  spec §3.1/§3.4): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
+- **Fallow** (audit and investigation, not a commit gate): [docs/agents/fallow.md](docs/agents/fallow.md).
+- **AFK platform** (spec of the 8 workflows, source of truth; vendored from Matt Pocock):
+  [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); what was
+  adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
+- **AFK operational setup** (`agent:*` labels, secrets, degradation without a PAT; runbook
+  for spec §3.1/§3.4): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).

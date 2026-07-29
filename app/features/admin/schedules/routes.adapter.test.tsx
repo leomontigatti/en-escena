@@ -2,18 +2,18 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-const loadAdminEventSchedulesList = vi.fn();
+const loadEventSchedulesList = vi.fn();
 const createAdministrativeEventSchedule = vi.fn();
-const loadAdminEventScheduleCreate = vi.fn();
-const loadAdminEventScheduleDetail = vi.fn();
+const loadEventScheduleCreate = vi.fn();
+const loadEventScheduleDetail = vi.fn();
 const updateAdministrativeEventSchedule = vi.fn();
-const AdministrativeEventSchedulesListView = vi.fn(() =>
+const EventSchedulesListView = vi.fn(() =>
   createElement("div", null, "Cronogramas view"),
 );
-const AdministrativeEventScheduleCreateView = vi.fn(() =>
+const EventScheduleCreateView = vi.fn(() =>
   createElement("div", null, "Nuevo cronograma view"),
 );
-const AdministrativeEventScheduleDetailView = vi.fn(() =>
+const EventScheduleDetailView = vi.fn(() =>
   createElement("div", null, "Detalle cronograma view"),
 );
 
@@ -32,29 +32,29 @@ function routeArgs(request: Request, params: Record<string, string> = {}) {
 }
 
 vi.mock("@/features/admin/schedules/list/server", () => ({
-  loadAdminEventSchedulesList,
+  loadEventSchedulesList,
 }));
 
 vi.mock("@/features/admin/schedules/create/server", () => ({
   createAdministrativeEventSchedule,
-  loadAdminEventScheduleCreate,
+  loadEventScheduleCreate,
 }));
 
 vi.mock("@/features/admin/schedules/detail/server", () => ({
-  loadAdminEventScheduleDetail,
+  loadEventScheduleDetail,
   updateAdministrativeEventSchedule,
 }));
 
 vi.mock("@/features/admin/schedules/list/view", () => ({
-  AdministrativeEventSchedulesListView,
+  EventSchedulesListView,
 }));
 
 vi.mock("@/features/admin/schedules/create/view", () => ({
-  AdministrativeEventScheduleCreateView,
+  EventScheduleCreateView,
 }));
 
 vi.mock("@/features/admin/schedules/detail/view", () => ({
-  AdministrativeEventScheduleDetailView,
+  EventScheduleDetailView,
 }));
 
 describe("administracion.cronogramas route adapters", () => {
@@ -62,7 +62,7 @@ describe("administracion.cronogramas route adapters", () => {
     const routeModule = await import("@/routes/administracion.cronogramas");
     const request = new Request("http://localhost/administracion/cronogramas");
 
-    loadAdminEventSchedulesList.mockResolvedValue(loaderResult);
+    loadEventSchedulesList.mockResolvedValue(loaderResult);
 
     await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
       loaderResult,
@@ -74,8 +74,8 @@ describe("administracion.cronogramas route adapters", () => {
       }),
     );
 
-    expect(loadAdminEventSchedulesList).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventSchedulesListView).toHaveBeenCalledWith(
+    expect(loadEventSchedulesList).toHaveBeenCalledWith(request);
+    expect(EventSchedulesListView).toHaveBeenCalledWith(
       { loaderData: loaderResult },
       undefined,
     );
@@ -98,7 +98,7 @@ describe("administracion.cronogramas route adapters", () => {
       status: "error" as const,
     };
 
-    loadAdminEventScheduleCreate.mockResolvedValue(loaderResult);
+    loadEventScheduleCreate.mockResolvedValue(loaderResult);
     createAdministrativeEventSchedule.mockResolvedValue(actionResult);
 
     await expect(routeModule.loader(routeArgs(request))).resolves.toBe(
@@ -115,9 +115,9 @@ describe("administracion.cronogramas route adapters", () => {
       }),
     );
 
-    expect(loadAdminEventScheduleCreate).toHaveBeenCalledWith(request);
+    expect(loadEventScheduleCreate).toHaveBeenCalledWith(request);
     expect(createAdministrativeEventSchedule).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventScheduleCreateView).toHaveBeenCalledWith(
+    expect(EventScheduleCreateView).toHaveBeenCalledWith(
       { loaderData: loaderResult, actionData: actionResult },
       undefined,
     );
@@ -141,7 +141,7 @@ describe("administracion.cronogramas route adapters", () => {
       status: "error" as const,
     };
 
-    loadAdminEventScheduleDetail.mockResolvedValue(loaderResult);
+    loadEventScheduleDetail.mockResolvedValue(loaderResult);
     updateAdministrativeEventSchedule.mockResolvedValue(actionResult);
 
     await expect(routeModule.loader(routeArgs(request, params))).resolves.toBe(
@@ -159,9 +159,9 @@ describe("administracion.cronogramas route adapters", () => {
       }),
     );
 
-    expect(loadAdminEventScheduleDetail).toHaveBeenCalledWith(request);
+    expect(loadEventScheduleDetail).toHaveBeenCalledWith(request);
     expect(updateAdministrativeEventSchedule).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventScheduleDetailView).toHaveBeenCalledWith(
+    expect(EventScheduleDetailView).toHaveBeenCalledWith(
       {
         loaderData: loaderResult,
         actionData: actionResult,

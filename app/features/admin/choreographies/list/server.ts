@@ -10,7 +10,7 @@ import {
   modalities,
   submodalities,
 } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import {
   deriveChoreographyOperationalStatus,
@@ -19,7 +19,7 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
 
-type AdministrativeChoreographyRow = {
+type ChoreographyRow = {
   academyName: string;
   categoryId: string | null;
   categoryName: string | null;
@@ -34,32 +34,31 @@ type AdministrativeChoreographyRow = {
   submodalityName: string | null;
 };
 
-type AdministrativeChoreographyListFilters = {
-  category: AdministrativeChoreographyCategoryFilter;
+type ChoreographyListFilters = {
+  category: ChoreographyCategoryFilter;
   groupType: ChoreographyGroupType | null;
   modalityId: string | null;
-  order: AdministrativeChoreographyOrder;
+  order: ChoreographyOrder;
   page: number;
   query: string;
-  status: AdministrativeChoreographyStatusFilter;
+  status: ChoreographyStatusFilter;
 };
 
-type AdministrativeChoreographyStatusFilter = "completa" | "incompleta" | null;
-type AdministrativeChoreographyCategoryFilter = string | "sin-asignar" | null;
-type HydratedAdministrativeChoreographyRow =
-  AdministrativeChoreographyListItem & {
-    categoryId: string | null;
-    modalityId: string;
-  };
+type ChoreographyStatusFilter = "completa" | "incompleta" | null;
+type ChoreographyCategoryFilter = string | "sin-asignar" | null;
+type HydratedChoreographyRow = ChoreographyListItem & {
+  categoryId: string | null;
+  modalityId: string;
+};
 
-type AdministrativeChoreographySortColumn = "academia" | "nombre";
+type ChoreographySortColumn = "academia" | "nombre";
 
-type AdministrativeChoreographyOrder = {
-  columnId: AdministrativeChoreographySortColumn;
+type ChoreographyOrder = {
+  columnId: ChoreographySortColumn;
   direction: "asc" | "desc";
 };
 
-export type AdministrativeChoreographyListItem = {
+export type ChoreographyListItem = {
   academyName: string;
   categoryName: string | null;
   groupType: ChoreographyGroupType;
@@ -70,57 +69,50 @@ export type AdministrativeChoreographyListItem = {
   submodalityName: string | null;
 };
 
-type AdministrativeChoreographyFilterOption = {
+type ChoreographyFilterOption = {
   label: string;
   value: string;
 };
 
-type AdministrativeChoreographyFacets = {
-  categories: AdministrativeChoreographyFilterOption[];
-  modalities: AdministrativeChoreographyFilterOption[];
+type ChoreographyFacets = {
+  categories: ChoreographyFilterOption[];
+  modalities: ChoreographyFilterOption[];
 };
 
-export type AdministrativeChoreographyListResult = {
-  choreographies: AdministrativeChoreographyListItem[];
-  facets: AdministrativeChoreographyFacets;
-  filters: AdministrativeChoreographyListFilters;
+export type ChoreographyListResult = {
+  choreographies: ChoreographyListItem[];
+  facets: ChoreographyFacets;
+  filters: ChoreographyListFilters;
   hasAnyChoreography: boolean;
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;
 };
 
-const administrativeChoreographyPageSize = 50;
-const defaultAdministrativeChoreographyOrder: AdministrativeChoreographyOrder =
-  {
-    columnId: "academia",
-    direction: "asc",
-  };
+const choreographyPageSize = 50;
+const defaultChoreographyOrder: ChoreographyOrder = {
+  columnId: "academia",
+  direction: "asc",
+};
 
-function readAdministrativeChoreographyFilters(
+function readChoreographyFilters(
   searchParams: URLSearchParams,
-): AdministrativeChoreographyListFilters {
+): ChoreographyListFilters {
   return {
-    category: readAdministrativeChoreographyCategoryFilter(
-      searchParams.get("categoria"),
-    ),
-    groupType: readAdministrativeChoreographyGroupTypeFilter(
-      searchParams.get("tipo-grupo"),
-    ),
+    category: readChoreographyCategoryFilter(searchParams.get("categoria")),
+    groupType: readChoreographyGroupTypeFilter(searchParams.get("tipo-grupo")),
     modalityId: readNonEmptySearchParam(searchParams.get("modalidad")),
-    order: readAdministrativeChoreographyOrder(searchParams.get("orden")),
+    order: readChoreographyOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readAdministrativeChoreographyStatusFilter(
-      searchParams.get("estado"),
-    ),
+    status: readChoreographyStatusFilter(searchParams.get("estado")),
   };
 }
 
-export async function loadAdminChoreographies(input: {
-  filters: AdministrativeChoreographyListFilters;
+export async function loadChoreographies(input: {
+  filters: ChoreographyListFilters;
   selectedEventId: string | null;
-}): Promise<AdministrativeChoreographyListResult> {
+}): Promise<ChoreographyListResult> {
   if (input.selectedEventId === null) {
     return {
       choreographies: [],
@@ -159,28 +151,19 @@ export async function loadAdminChoreographies(input: {
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
-  const facets = buildAdministrativeChoreographyFacets(rows);
-  const filters = normalizeAdministrativeChoreographyFilters(
-    input.filters,
-    facets,
-  );
-  const hydratedRows = await hydrateAdministrativeChoreographies(rows);
+  const facets = buildChoreographyFacets(rows);
+  const filters = normalizeChoreographyFilters(input.filters, facets);
+  const hydratedRows = await hydrateChoreographies(rows);
   const filteredRows = hydratedRows
-    .filter((row) => matchesAdministrativeChoreographyFilters(row, filters))
+    .filter((row) => matchesChoreographyFilters(row, filters))
     .sort((firstRow, secondRow) =>
-      compareAdministrativeChoreographies(firstRow, secondRow, filters.order),
+      compareChoreographies(firstRow, secondRow, filters.order),
     );
   const totalCount = filteredRows.length;
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / administrativeChoreographyPageSize),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / choreographyPageSize));
   const page = Math.min(filters.page, totalPages);
   const paginatedRows = filteredRows
-    .slice(
-      (page - 1) * administrativeChoreographyPageSize,
-      page * administrativeChoreographyPageSize,
-    )
+    .slice((page - 1) * choreographyPageSize, page * choreographyPageSize)
     .map(({ categoryId: _categoryId, modalityId: _modalityId, ...row }) => row);
 
   return {
@@ -197,21 +180,21 @@ export async function loadAdminChoreographies(input: {
   };
 }
 
-export async function loadAdminChoreographyListRouteData(request: Request) {
+export async function loadChoreographyListRouteData(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
   }
 
   const url = new URL(request.url);
-  const filters = readAdministrativeChoreographyFilters(url.searchParams);
-  const listResult = await loadAdminChoreographies({
+  const filters = readChoreographyFilters(url.searchParams);
+  const listResult = await loadChoreographies({
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
-  const canonicalSearch = buildCanonicalAdministrativeChoreographiesSearch({
+  const canonicalSearch = buildCanonicalChoreographiesSearch({
     currentSearch: url.search,
     filters: listResult.filters,
   });
@@ -234,18 +217,16 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function isDefaultAdministrativeChoreographyOrder(
-  order: AdministrativeChoreographyOrder,
-) {
+function isDefaultChoreographyOrder(order: ChoreographyOrder) {
   return (
-    order.columnId === defaultAdministrativeChoreographyOrder.columnId &&
-    order.direction === defaultAdministrativeChoreographyOrder.direction
+    order.columnId === defaultChoreographyOrder.columnId &&
+    order.direction === defaultChoreographyOrder.direction
   );
 }
 
-function buildCanonicalAdministrativeChoreographiesSearch(input: {
+function buildCanonicalChoreographiesSearch(input: {
   currentSearch: string;
-  filters: AdministrativeChoreographyListResult["filters"];
+  filters: ChoreographyListResult["filters"];
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
 
@@ -279,7 +260,7 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
     searchParams.delete("tipo-grupo");
   }
 
-  if (!isDefaultAdministrativeChoreographyOrder(input.filters.order)) {
+  if (!isDefaultChoreographyOrder(input.filters.order)) {
     searchParams.set(
       "orden",
       `${input.filters.order.columnId}:${input.filters.order.direction}`,
@@ -297,9 +278,7 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
   return searchParams.toString();
 }
 
-function readAdministrativeChoreographyOrder(
-  value: string | null,
-): AdministrativeChoreographyOrder {
+function readChoreographyOrder(value: string | null): ChoreographyOrder {
   switch (value) {
     case "academia:asc":
       return { columnId: "academia", direction: "asc" };
@@ -310,13 +289,13 @@ function readAdministrativeChoreographyOrder(
     case "nombre:desc":
       return { columnId: "nombre", direction: "desc" };
     default:
-      return defaultAdministrativeChoreographyOrder;
+      return defaultChoreographyOrder;
   }
 }
 
-async function hydrateAdministrativeChoreographies(
-  rows: AdministrativeChoreographyRow[],
-): Promise<HydratedAdministrativeChoreographyRow[]> {
+async function hydrateChoreographies(
+  rows: ChoreographyRow[],
+): Promise<HydratedChoreographyRow[]> {
   if (rows.length === 0) {
     return [];
   }
@@ -357,9 +336,9 @@ async function hydrateAdministrativeChoreographies(
   }));
 }
 
-function readAdministrativeChoreographyStatusFilter(
+function readChoreographyStatusFilter(
   value: string | null,
-): AdministrativeChoreographyStatusFilter {
+): ChoreographyStatusFilter {
   switch (value) {
     case "completa":
     case "incompleta":
@@ -369,9 +348,9 @@ function readAdministrativeChoreographyStatusFilter(
   }
 }
 
-function readAdministrativeChoreographyCategoryFilter(
+function readChoreographyCategoryFilter(
   value: string | null,
-): AdministrativeChoreographyCategoryFilter {
+): ChoreographyCategoryFilter {
   if (value === "sin-asignar") {
     return value;
   }
@@ -379,7 +358,7 @@ function readAdministrativeChoreographyCategoryFilter(
   return readNonEmptySearchParam(value);
 }
 
-function readAdministrativeChoreographyGroupTypeFilter(
+function readChoreographyGroupTypeFilter(
   value: string | null,
 ): ChoreographyGroupType | null {
   switch (value) {
@@ -397,9 +376,7 @@ function readNonEmptySearchParam(value: string | null) {
   return value?.trim().length ? value.trim() : null;
 }
 
-function buildAdministrativeChoreographyFacets(
-  rows: AdministrativeChoreographyRow[],
-) {
+function buildChoreographyFacets(rows: ChoreographyRow[]) {
   return {
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
@@ -416,10 +393,10 @@ function buildAdministrativeChoreographyFacets(
   };
 }
 
-function normalizeAdministrativeChoreographyFilters(
-  filters: AdministrativeChoreographyListFilters,
-  facets: AdministrativeChoreographyFacets,
-): AdministrativeChoreographyListFilters {
+function normalizeChoreographyFilters(
+  filters: ChoreographyListFilters,
+  facets: ChoreographyFacets,
+): ChoreographyListFilters {
   return {
     ...filters,
     category: keepKnownFacetValue(filters.category, facets.categories),
@@ -427,9 +404,9 @@ function normalizeAdministrativeChoreographyFilters(
   };
 }
 
-function matchesAdministrativeChoreographyFilters(
-  row: HydratedAdministrativeChoreographyRow,
-  filters: AdministrativeChoreographyListFilters,
+function matchesChoreographyFilters(
+  row: HydratedChoreographyRow,
+  filters: ChoreographyListFilters,
 ) {
   if (
     filters.status === "completa" &&
@@ -449,9 +426,7 @@ function matchesAdministrativeChoreographyFilters(
     return false;
   }
 
-  if (
-    !matchesAdministrativeChoreographyCategory(row.categoryId, filters.category)
-  ) {
+  if (!matchesChoreographyCategory(row.categoryId, filters.category)) {
     return false;
   }
 
@@ -471,19 +446,19 @@ function matchesAdministrativeChoreographyFilters(
   );
 }
 
-function compareAdministrativeChoreographies(
-  firstRow: AdministrativeChoreographyListItem,
-  secondRow: AdministrativeChoreographyListItem,
-  order: AdministrativeChoreographyOrder,
+function compareChoreographies(
+  firstRow: ChoreographyListItem,
+  secondRow: ChoreographyListItem,
+  order: ChoreographyOrder,
 ) {
   if (order.columnId === "nombre") {
-    const comparison = compareAdministrativeText(firstRow.name, secondRow.name);
+    const comparison = compareText(firstRow.name, secondRow.name);
 
     if (comparison !== 0) {
       return applySortDirection(comparison, order.direction);
     }
 
-    const academyComparison = compareAdministrativeText(
+    const academyComparison = compareText(
       firstRow.academyName,
       secondRow.academyName,
     );
@@ -495,7 +470,7 @@ function compareAdministrativeChoreographies(
     return firstRow.id.localeCompare(secondRow.id, "es-AR");
   }
 
-  const academyComparison = compareAdministrativeText(
+  const academyComparison = compareText(
     firstRow.academyName,
     secondRow.academyName,
   );
@@ -504,10 +479,7 @@ function compareAdministrativeChoreographies(
     return applySortDirection(academyComparison, order.direction);
   }
 
-  const nameComparison = compareAdministrativeText(
-    firstRow.name,
-    secondRow.name,
-  );
+  const nameComparison = compareText(firstRow.name, secondRow.name);
 
   if (nameComparison !== 0) {
     return nameComparison;
@@ -516,7 +488,7 @@ function compareAdministrativeChoreographies(
   return firstRow.id.localeCompare(secondRow.id, "es-AR");
 }
 
-function compareAdministrativeText(firstValue: string, secondValue: string) {
+function compareText(firstValue: string, secondValue: string) {
   return firstValue.localeCompare(secondValue, "es-AR", {
     sensitivity: "base",
     numeric: true,
@@ -529,7 +501,7 @@ function applySortDirection(comparison: number, direction: "asc" | "desc") {
 
 function keepKnownFacetValue(
   value: string | null,
-  options: AdministrativeChoreographyFilterOption[],
+  options: ChoreographyFilterOption[],
 ) {
   if (value === null) {
     return null;
@@ -538,9 +510,9 @@ function keepKnownFacetValue(
   return options.some((option) => option.value === value) ? value : null;
 }
 
-function matchesAdministrativeChoreographyCategory(
+function matchesChoreographyCategory(
   categoryId: string | null,
-  categoryFilter: AdministrativeChoreographyCategoryFilter,
+  categoryFilter: ChoreographyCategoryFilter,
 ) {
   if (categoryFilter === null) {
     return true;
@@ -553,12 +525,10 @@ function matchesAdministrativeChoreographyCategory(
   return categoryId === categoryFilter;
 }
 
-function getUniqueSortedFilterOptions(
-  options: AdministrativeChoreographyFilterOption[],
-) {
+function getUniqueSortedFilterOptions(options: ChoreographyFilterOption[]) {
   return Array.from(
     new Map(options.map((option) => [option.value, option])).values(),
   ).sort((firstOption, secondOption) =>
-    compareAdministrativeText(firstOption.label, secondOption.label),
+    compareText(firstOption.label, secondOption.label),
   );
 }

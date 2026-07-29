@@ -11,10 +11,10 @@ import {
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
 import { formatAmount, formatDate } from "../../formatters";
-import type { loadAdminChoreographyFinanceDetail } from "./server";
+import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdminChoreographyFinanceDetail>
+  ReturnType<typeof loadChoreographyFinanceDetail>
 >;
 type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 

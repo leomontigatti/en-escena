@@ -2,18 +2,18 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventScheduleDetail,
+  loadEventScheduleDetail,
   updateAdministrativeEventSchedule,
 } from "@/features/admin/schedules/detail/server";
 import {
-  AdministrativeEventScheduleDetailView,
-  type AdministrativeEventScheduleDetailViewProps,
+  EventScheduleDetailView,
+  type EventScheduleDetailViewProps,
 } from "@/features/admin/schedules/detail/view";
-import type { AdministrativeEventSchedulesLoaderData } from "@/features/admin/schedules/shared";
+import type { EventSchedulesLoaderData } from "@/features/admin/schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.$scheduleId";
 
-type LoaderData = AdministrativeEventSchedulesLoaderData;
+type LoaderData = EventSchedulesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -29,7 +29,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventScheduleDetail(request);
+  return loadEventScheduleDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -40,9 +40,9 @@ export function EventScheduleDetailRouteView({
   loaderData,
   actionData,
   scheduleId,
-}: AdministrativeEventScheduleDetailViewProps) {
+}: EventScheduleDetailViewProps) {
   return (
-    <AdministrativeEventScheduleDetailView
+    <EventScheduleDetailView
       loaderData={loaderData}
       actionData={actionData}
       scheduleId={scheduleId}

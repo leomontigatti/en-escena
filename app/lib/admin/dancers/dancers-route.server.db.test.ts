@@ -24,9 +24,9 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import {
-  toAdminDancerIdentificationSearchValue,
-  toAdminDancerParticipationSearchValue,
-  toAdminDancerStatusSearchValue,
+  toDancerIdentificationSearchValue,
+  toDancerParticipationSearchValue,
+  toDancerStatusSearchValue,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
@@ -1633,21 +1633,21 @@ function buildListInitialEntry(
   ) {
     searchParams.set(
       "participando",
-      toAdminDancerParticipationSearchValue(loaderData.filters.participation),
+      toDancerParticipationSearchValue(loaderData.filters.participation),
     );
   }
 
   if (loaderData.filters.status !== "active") {
     searchParams.set(
       "estado",
-      toAdminDancerStatusSearchValue(loaderData.filters.status),
+      toDancerStatusSearchValue(loaderData.filters.status),
     );
   }
 
   if (loaderData.filters.identification !== "all") {
     searchParams.set(
       "identificacion",
-      toAdminDancerIdentificationSearchValue(loaderData.filters.identification),
+      toDancerIdentificationSearchValue(loaderData.filters.identification),
     );
   }
 

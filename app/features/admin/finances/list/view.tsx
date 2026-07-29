@@ -15,9 +15,9 @@ import {
 } from "@/features/admin/finances/formatters";
 import { cn } from "@/lib/shared/utils";
 
-import type { FinanceAccountRow, loadAdminFinancesList } from "./server";
+import type { FinanceAccountRow, loadFinancesList } from "./server";
 
-type FinancesListLoaderData = Awaited<ReturnType<typeof loadAdminFinancesList>>;
+type FinancesListLoaderData = Awaited<ReturnType<typeof loadFinancesList>>;
 
 type FinancesListRouteViewProps = {
   loaderData: FinancesListLoaderData;

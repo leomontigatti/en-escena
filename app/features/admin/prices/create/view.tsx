@@ -2,23 +2,20 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
-import type {
-  AdministrativeEventPriceActionData,
-  AdministrativeEventPriceFormLoaderData,
-} from "../shared";
+import type { EventPriceActionData, EventPriceFormLoaderData } from "../shared";
 import { getPriceSubmittedValues } from "../view-shared";
 
 const createPriceFormId = "create-price-form";
 
-export type AdministrativeEventPriceCreateViewProps = {
-  actionData?: AdministrativeEventPriceActionData;
-  loaderData: AdministrativeEventPriceFormLoaderData;
+export type EventPriceCreateViewProps = {
+  actionData?: EventPriceActionData;
+  loaderData: EventPriceFormLoaderData;
 };
 
-export function AdministrativeEventPriceCreateView({
+export function EventPriceCreateView({
   loaderData,
   actionData,
-}: AdministrativeEventPriceCreateViewProps) {
+}: EventPriceCreateViewProps) {
   useServerActionToast(actionData);
 
   return (

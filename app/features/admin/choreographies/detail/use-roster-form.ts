@@ -12,15 +12,15 @@ import {
   getSelectionKey,
   hasResolvedRosterSelectionChange,
   shouldResolveRosterSelection,
-  type AdministrativeRosterResolutionState,
+  type RosterResolutionState,
 } from "./roster-form-state";
 import type {
-  AdministrativeChoreographyRosterResolutionData,
-  AdministrativeChoreographyDetailLoaderData,
+  ChoreographyRosterResolutionData,
+  ChoreographyDetailLoaderData,
 } from "./server";
 import {
-  resolveAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographyRosterIntent,
+  resolveChoreographyRosterIntent,
+  updateChoreographyRosterIntent,
 } from "./shared";
 
 type RosterFormValues = {
@@ -38,16 +38,15 @@ type RosterFormValues = {
  * (no por timer): cada selección se pide una sola vez, y volver a la selección
  * original no dispara pedido porque ya conocemos su resolución persistida.
  */
-export function useAdministrativeRosterForm({
+export function useRosterForm({
   form,
   loaderData,
 }: {
   form: UseFormReturn<RosterFormValues>;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  const resolutionFetcher =
-    useFetcher<AdministrativeChoreographyRosterResolutionData>();
+  const resolutionFetcher = useFetcher<ChoreographyRosterResolutionData>();
   const navigation = useNavigation();
 
   const persistedResolution = useMemo(
@@ -55,7 +54,7 @@ export function useAdministrativeRosterForm({
     [choreography],
   );
   const [derivedResolution, setDerivedResolution] =
-    useState<AdministrativeRosterResolutionState>(persistedResolution);
+    useState<RosterResolutionState>(persistedResolution);
   const [resolution, setResolution] =
     useState<ResolveChoreographyDancersResult | null>(null);
   const [resolvedSelectionKey, setResolvedSelectionKey] = useState("");
@@ -87,7 +86,7 @@ export function useAdministrativeRosterForm({
   const canEditRoster = loaderData.canEdit && !choreography.hasPresentation;
   const isResolving = resolutionFetcher.state !== "idle";
   const isSubmitting = isRouteFormPending(navigation, {
-    intent: updateAdministrativeChoreographyRosterIntent,
+    intent: updateChoreographyRosterIntent,
   });
 
   useEffect(() => {
@@ -114,7 +113,7 @@ export function useAdministrativeRosterForm({
     }
 
     const formData = new FormData();
-    formData.set("intent", resolveAdministrativeChoreographyRosterIntent);
+    formData.set("intent", resolveChoreographyRosterIntent);
     for (const dancerId of watchedDancerIds) {
       formData.append("dancerIds", dancerId);
     }
@@ -138,7 +137,7 @@ export function useAdministrativeRosterForm({
 
     if (
       !data ||
-      data.intent !== resolveAdministrativeChoreographyRosterIntent ||
+      data.intent !== resolveChoreographyRosterIntent ||
       submittedSelectionKeyRef.current === null
     ) {
       return;

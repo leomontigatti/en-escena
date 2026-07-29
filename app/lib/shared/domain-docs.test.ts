@@ -3,10 +3,10 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
 
 const glossaryRequirements = [
-  "Como máximo puede haber un Evento activo global",
-  "**Evento activo** — code: `activeEvent`",
-  "Es el único contexto de evento para la primera versión",
-  "**Bases del evento** — code: `eventBases`",
+  "At most one active event can exist globally",
+  '**`activeEvent`** — ui: "Evento activo"',
+  "It is the only event context for the first version",
+  '**`eventBases`** — ui: "Bases del evento"',
 ];
 
 const adrRequirements = [
@@ -121,7 +121,7 @@ const codeLanguageRequirements = [
   "UI strings, page titles, URLs",
   "Code identifiers, comments, docs, ADRs",
   "External-system adapters",
-  "`loadAdminAcademyFinances`",
+  "`loadAcademyFinances`",
   "`ArcaVoucher`",
   "administracion.finanzas_.$academyId.tsx",
   "### Reserved Spanish Domain Terms",
@@ -159,24 +159,24 @@ describe("domain documentation", () => {
     expect(entryHeadings.length).toBeGreaterThan(80);
 
     for (const heading of entryHeadings) {
-      if (heading.includes("_(término retirado)_")) {
+      if (heading.includes("_(retired term)_")) {
         expect(heading, heading).toMatch(
-          /^\*\*.+\*\* _\(término retirado\)_ — sin identificador de código$/,
+          /^\*\*.+\*\* _\(retired term\)_ — no code identifier$/,
         );
         continue;
       }
 
       expect(heading, heading).toMatch(
-        /^\*\*.+\*\* — code: `[A-Za-z][A-Za-z0-9]*`$/,
+        /^\*\*`[A-Za-z][A-Za-z0-9]*`\*\* — ui: ".+"$/,
       );
     }
   });
 
   test("keeps every glossary code identifier unique", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
-    const identifiers = [...glossary.matchAll(/ — code: `([^`]+)`/g)].map(
-      ([, identifier]) => identifier,
-    );
+    const identifiers = [
+      ...glossary.matchAll(/^\*\*`([^`]+)`\*\* — ui: /gm),
+    ].map(([, identifier]) => identifier);
 
     expect(identifiers.length).toBeGreaterThan(80);
     expect(new Set(identifiers).size).toBe(identifiers.length);

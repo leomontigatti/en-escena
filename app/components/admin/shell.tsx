@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
-import type { AdminEventOption } from "@/lib/admin/event-context.shared";
+import type { EventOption } from "@/lib/admin/event-context.shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import {
@@ -56,9 +56,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
+// El `Admin` de este archivo no es un prefijo de superficie: nombra al shell de
+// administración, no a un símbolo de dominio sobre esa superficie. Es la
+// excepción declarada de la regla Unmarked = admin, no deuda pendiente. Ver
+// .sandcastle/CODING_STANDARDS.md § Surface Prefix Rule.
 type AdminShellProps = {
   email: string;
-  events: AdminEventOption[];
+  events: EventOption[];
   selectedEventId: string | null;
   children?: ReactNode;
   breadcrumbItems?: AdminShellBreadcrumbItem[];
@@ -384,7 +388,7 @@ function BreadcrumbSegment({
 }
 
 type AdminActiveEventSummaryProps = {
-  events: AdminEventOption[];
+  events: EventOption[];
   selectedEventId: string | null;
 };
 

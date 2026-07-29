@@ -7,12 +7,12 @@ import type {
 } from "@/lib/choreographies/choreography-roster.shared";
 
 import {
-  canSubmitAdministrativeChoreographyEdit,
+  canSubmitChoreographyEdit,
   getResolvedRosterFieldState,
   getSelectionKey,
   hasNoCompatibleCategory,
   shouldResolveRosterSelection,
-  type AdministrativeRosterResolutionState,
+  type RosterResolutionState,
 } from "./roster-form-state";
 
 describe("getSelectionKey", () => {
@@ -157,7 +157,7 @@ describe("hasNoCompatibleCategory", () => {
   });
 });
 
-describe("canSubmitAdministrativeChoreographyEdit", () => {
+describe("canSubmitChoreographyEdit", () => {
   const base = {
     canEditRoster: true,
     derivedResolution: buildDerived(),
@@ -176,12 +176,12 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
   };
 
   test("submits a fully resolved roster change", () => {
-    expect(canSubmitAdministrativeChoreographyEdit(base)).toBe(true);
+    expect(canSubmitChoreographyEdit(base)).toBe(true);
   });
 
   test("does not submit when nothing changed", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         hasRosterChanged: false,
       }),
@@ -190,7 +190,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("submits a name-only change without resolving the roster", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         hasNameChanged: true,
         hasRosterChanged: false,
@@ -201,14 +201,14 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
   });
 
   test("does not submit while the resolution is in flight", () => {
-    expect(
-      canSubmitAdministrativeChoreographyEdit({ ...base, isResolving: true }),
-    ).toBe(false);
+    expect(canSubmitChoreographyEdit({ ...base, isResolving: true })).toBe(
+      false,
+    );
   });
 
   test("does not submit a roster the server has not resolved yet", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         resolvedSelectionKey: "a",
       }),
@@ -217,7 +217,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit a roster without a compatible category", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         derivedResolution: buildDerived({ categoryId: null }),
       }),
@@ -226,7 +226,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit when the required experience level is missing", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         watchedExperienceLevelId: "",
       }),
@@ -235,7 +235,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit when a schedule must be picked and was not", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         scheduleResolution: {
           status: "multiple",
@@ -250,7 +250,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit when no schedule fits the new roster", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         scheduleResolution: {
           status: "none",
@@ -265,7 +265,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit an empty roster", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         selectionKey: "",
         watchedDancerIds: [],
@@ -275,7 +275,7 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 
   test("does not submit roster changes on a locked roster", () => {
     expect(
-      canSubmitAdministrativeChoreographyEdit({
+      canSubmitChoreographyEdit({
         ...base,
         canEditRoster: false,
       }),
@@ -284,8 +284,8 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 });
 
 function buildDerived(
-  overrides: Partial<AdministrativeRosterResolutionState> = {},
-): AdministrativeRosterResolutionState {
+  overrides: Partial<RosterResolutionState> = {},
+): RosterResolutionState {
   return {
     categoryId: "category_1",
     categoryName: "Juvenil",

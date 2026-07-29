@@ -9,7 +9,7 @@ import {
 } from "@/features/portal/choreographies/detail/music-editor.shared";
 import { findChoreographyForAcademyEvent } from "@/lib/portal/choreographies.server";
 import {
-  loadChoreographyMusicDownloadUrl,
+  loadPortalChoreographyMusicDownloadUrl,
   updateChoreographyMusic,
 } from "@/lib/portal/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
@@ -57,7 +57,7 @@ export async function loadPortalChoreographyDetail({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const musicDownloadUrl = await loadChoreographyMusicDownloadUrl(
+  const musicDownloadUrl = await loadPortalChoreographyMusicDownloadUrl(
     choreography.musicStorageKey,
   );
 

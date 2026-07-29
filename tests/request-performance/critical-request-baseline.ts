@@ -115,7 +115,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventContextModule,
-          "loadAdminEventContext",
+          "loadEventContext",
           "eventContextMs",
         ),
       ],
@@ -279,7 +279,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventContextModule,
-          "loadAdminEventContext",
+          "loadEventContext",
           "eventContextMs",
         ),
         trackAsync(
@@ -306,7 +306,7 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventContextModule,
-          "loadAdminEventContext",
+          "loadEventContext",
           "eventContextMs",
         ),
         trackAsync(
@@ -346,14 +346,10 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventContextModule,
-          "loadAdminEventContext",
+          "loadEventContext",
           "eventContextMs",
         ),
-        trackAsync(
-          adminDancersModule,
-          "listAdministrativeDancers",
-          "mainQueryMs",
-        ),
+        trackAsync(adminDancersModule, "listDancers", "mainQueryMs"),
       ],
       run: () =>
         adminDancersLoader(
@@ -373,14 +369,10 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
         trackAsync(
           adminEventContextModule,
-          "loadAdminEventContext",
+          "loadEventContext",
           "eventContextMs",
         ),
-        trackAsync(
-          adminProfessorsModule,
-          "listAdministrativeProfessors",
-          "mainQueryMs",
-        ),
+        trackAsync(adminProfessorsModule, "listProfessors", "mainQueryMs"),
       ],
       run: () =>
         adminProfessorsLoader(

@@ -2,8 +2,8 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdminProfessorDetailAction,
-  loadAdminProfessorDetail,
+  handleProfessorDetailAction,
+  loadProfessorDetail,
 } from "@/features/admin/professors/detail/server";
 import type {
   ProfessorDetailActionData,
@@ -42,14 +42,14 @@ export async function loader({
   request,
   params,
 }: Route.LoaderArgs): Promise<LoaderData> {
-  return await loadAdminProfessorDetail({ request, params });
+  return await loadProfessorDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<ProfessorDetailActionData> {
-  return await handleAdminProfessorDetailAction({ request, params });
+  return await handleProfessorDetailAction({ request, params });
 }
 
 export function ProfessorDetailRouteView({

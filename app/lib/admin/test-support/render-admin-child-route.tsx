@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 
 import { AdminShellRouteView } from "@/routes/administracion";
 
-type AdminParentLoaderData = {
+type ParentLoaderData = {
   email: string;
   events: Array<{ active: boolean; id: string; name: string }>;
   selectedEventId: string | null;
@@ -21,7 +21,7 @@ type RenderAdminChildRouteInput = {
   childLoaderData: unknown;
   childPath: string;
   initialEntry: string;
-  parentLoaderData: AdminParentLoaderData;
+  parentLoaderData: ParentLoaderData;
 };
 
 export function renderAdminChildRoute(input: RenderAdminChildRouteInput) {

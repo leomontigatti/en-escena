@@ -1,8 +1,8 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminEvents } from "@/features/admin/events/list/server";
+import { loadEvents } from "@/features/admin/events/list/server";
 import {
-  AdministrativeEventsListView,
-  type AdministrativeEventsListViewProps,
+  EventsListView,
+  type EventsListViewProps,
 } from "@/features/admin/events/list/view";
 
 import type { Route } from "./+types/administracion.eventos";
@@ -16,17 +16,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEvents(request);
+  return loadEvents(request);
 }
 
-export function EventsListRouteView({
-  loaderData,
-}: AdministrativeEventsListViewProps) {
-  return <AdministrativeEventsListView loaderData={loaderData} />;
+export function EventsListRouteView({ loaderData }: EventsListViewProps) {
+  return <EventsListView loaderData={loaderData} />;
 }
 
-export default function EventsListRoute({
-  loaderData,
-}: AdministrativeEventsListViewProps) {
+export default function EventsListRoute({ loaderData }: EventsListViewProps) {
   return <EventsListRouteView loaderData={loaderData} />;
 }

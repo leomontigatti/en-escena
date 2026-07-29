@@ -76,21 +76,27 @@ The product is Spanish; the codebase is English.
 | Layer                                  | Language                         | Example                                         |
 | -------------------------------------- | -------------------------------- | ----------------------------------------------- |
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
-| Code identifiers, comments, docs, ADRs | English                          | `loadAdminAcademyFinances`                      |
+| Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
 
 Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
-English (`loadAdminAcademyFinances`). That mapping is intentional, not drift.
+English (`loadAcademyFinances`). That mapping is intentional, not drift.
 
-"Docs" means engineering docs — ADRs, `docs/agents/`, `docs/domain/`. The
-glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and the style guide stay
-Spanish: they describe the product vocabulary to a Spanish-speaking team, so
-they read as product surface, not as code.
+"Docs" means every engineering doc, with no exceptions: ADRs, `docs/agents/`,
+`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and
+the style guide. No user reads these files, so the rule above already decides
+them. Being *about* the product surface does not make a file part of it —
+otherwise ADRs would qualify too.
 
-`CONTEXT.md` is the mapping table: every glossary term carries the canonical
-code identifier for its Spanish name. Reach for it before inventing a name, and
-cite it in review when a new identifier disagrees with the glossary.
+`CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
+the canonical English identifier followed by `ui:`, the Spanish term the user
+sees. That direction matches how the table is used — you are writing code, you
+have the concept, you need the name and the copy. Reach for it before inventing
+a name, and cite it in review when a new identifier disagrees with the glossary.
+
+Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
+glossary `ui:` value is data, not prose, and stays Spanish.
 
 ### Reserved Spanish Domain Terms
 
@@ -131,13 +137,36 @@ route views would collide by name with an admin counterpart.
 Route views on both surfaces now follow the rule: admin ones are English and
 unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
 and admin route default exports match their view root (`ChoreographyDetailRoute`).
-The admin server layer does not yet: functions carry an `Admin` prefix
-(`loadAdminAcademyFinances`, `loadAdminChoreographyDetailRouteData`) and types
-are still marked `Administrative*` (`AdministrativeChoreographyDetailLoaderData`).
-The portal layer is only partly marked too: 174 exports under `app/lib/portal/`
-and `app/features/portal/` still carry no `Portal` prefix. Those symbols are
-pending rename, tracked in #527 — write new admin symbols unmarked and English,
-write new portal symbols marked, and do not cite the existing ones as precedent.
+Both prefixes are gone from admin domain symbols: types
+(`ChoreographyDetailLoaderData`, `PaymentsListLoaderData`), feature view
+components (`EventPricesListView`), functions and hooks (`findDancer`,
+`useRosterForm`), loaders and handlers (`loadAcademyFinances`,
+`handleAcademyDetailAction`), filter and formatting helpers
+(`readPaymentsListFilters`, `getPaymentDisplayName`), and constants
+(`choreographyFieldNames`, `updatePaymentIntent`).
+
+Two sets of admin symbols are still marked, and neither is precedent:
+
+- The `create*` / `update*` mutations (`createAdministrativeEvent`) — naming the
+  mutation layer is a design call, not a mechanical rename; tracked in #526.
+- The database identifiers (`administrativeAuditEntries`,
+  `en_escena_administrative_audit_entry`) — renaming them would cost a migration
+  and buy no legibility.
+
+`AdminShell`, `AdminResourceLayout` and the other `app/components/admin/` chrome
+are a separate case, and the only standing one: they name the admin shell itself,
+not a domain symbol on the admin surface, so `Admin` is part of the component's
+name rather than a surface prefix. The same reading covers the auth guards
+(`requireAdminUser`), the test fixtures that name the acting role
+(`createSignedInAdminRequest`) and `getMissingItemAdminPath`, which names an admin
+URL. `app/lib/shared/surface-prefix.test.ts` enforces the rule with
+`app/components/admin/` as its one declared exception.
+
+The portal layer is only partly marked: 166 exports under `app/lib/portal/` and
+`app/features/portal/` still carry no `Portal` prefix. Renames so far marked only
+the ones that collided with an admin target name; the rest are an explicit
+follow-up. Write new admin symbols unmarked and English, write new portal symbols
+marked, and do not cite the existing unmarked portal ones as precedent.
 
 ## File Size And Boundaries
 

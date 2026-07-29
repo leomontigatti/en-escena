@@ -2,24 +2,24 @@ import { desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import type { AdminEventOption } from "@/lib/admin/event-context.shared";
+import type { EventOption } from "@/lib/admin/event-context.shared";
 
 type ResolveAdminEventContextInput = {
-  events: AdminEventOption[];
+  events: EventOption[];
 };
 
 export type AdminShellEventContext = {
-  events: AdminEventOption[];
+  events: EventOption[];
   selectedEventId: string | null;
 };
 
-export type AdminEventContext = {
-  events: AdminEventOption[];
+export type EventContext = {
+  events: EventOption[];
   selectedEventId: string | null;
   redirectTo: string | null;
 };
 
-export async function loadAdminShellEventContext(): Promise<AdminShellEventContext> {
+export async function loadShellEventContext(): Promise<AdminShellEventContext> {
   const activeEvent = await db.query.events.findFirst({
     columns: {
       id: true,
@@ -36,9 +36,9 @@ export async function loadAdminShellEventContext(): Promise<AdminShellEventConte
   };
 }
 
-export async function loadAdminEventContext(
+export async function loadEventContext(
   _request: Request,
-): Promise<AdminEventContext> {
+): Promise<EventContext> {
   const events = await db.query.events.findMany({
     columns: {
       id: true,
@@ -50,13 +50,11 @@ export async function loadAdminEventContext(
 
   return {
     events,
-    ...resolveAdminEventContext({ events }),
+    ...resolveEventContext({ events }),
   };
 }
 
-export function resolveAdminEventContext({
-  events,
-}: ResolveAdminEventContextInput) {
+export function resolveEventContext({ events }: ResolveAdminEventContextInput) {
   const activeEvent = events.find((event) => event.active);
 
   return { selectedEventId: activeEvent?.id ?? null, redirectTo: null };

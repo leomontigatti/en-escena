@@ -12,6 +12,6 @@ export type EventListRow = EventRow & {
   temporalState: TemporalState;
 };
 
-export type AdministrativeEventsListLoaderData = {
+export type EventsListLoaderData = {
   events: EventListRow[];
 };
