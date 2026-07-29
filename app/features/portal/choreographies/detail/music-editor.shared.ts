@@ -1,4 +1,4 @@
-import type { ChoreographyDetail } from "@/lib/portal/choreographies.server";
+import type { PortalChoreographyDetail } from "@/lib/portal/choreographies.server";
 import type { PortalEventContext } from "@/lib/portal/event-context";
 
 export const updateChoreographyIntent = "update-choreography";
@@ -39,7 +39,7 @@ export type PortalChoreographyMusicActionData =
     }
   | undefined;
 
-export type PortalChoreographyDetailChoreography = ChoreographyDetail & {
+export type PortalChoreographyDetailChoreography = PortalChoreographyDetail & {
   musicDownloadUrl: string | null;
 };
 

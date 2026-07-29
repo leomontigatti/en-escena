@@ -15,21 +15,21 @@ import {
 } from "@/lib/choreographies/operational-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import type { loadAdminChoreographies } from "./server";
+import type { loadChoreographies } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminChoreographies>>;
+type LoaderData = Awaited<ReturnType<typeof loadChoreographies>>;
 type ChoreographyRow = LoaderData["choreographies"][number];
 
 type ChoreographiesListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-const administrativeChoreographyStatusFilterOptions = [
+const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
   { label: "Incompleta", value: "incompleta" },
 ];
 
-const administrativeChoreographyGroupTypeFilterOptions = [
+const choreographyGroupTypeFilterOptions = [
   { label: "Solo", value: "solo" },
   { label: "Dúo", value: "duo" },
   { label: "Trío", value: "trio" },
@@ -114,7 +114,7 @@ export function ChoreographiesListRouteView({
           "Activá un evento para consultar las coreografías registradas por las academias.",
       }}
     >
-      {hasAdministrativeChoreographyTableContent(loaderData) ? (
+      {hasChoreographyTableContent(loaderData) ? (
         <ChoreographyTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
@@ -137,10 +137,8 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       sortParamName="orden"
       searchPlaceholder="Buscar coreografía por nombre o academia"
       initialSearchValue={loaderData.filters.query}
-      facetedFilters={buildAdministrativeChoreographyFacetedFilters(loaderData)}
-      initialFacetedFilterValues={buildAdministrativeChoreographyInitialFilters(
-        loaderData,
-      )}
+      facetedFilters={buildChoreographyFacetedFilters(loaderData)}
+      initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}
       initialSort={loaderData.filters.order}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
       currentPage={loaderData.filters.page}
@@ -150,7 +148,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
   );
 }
 
-function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
+function hasChoreographyTableContent(loaderData: LoaderData) {
   return (
     loaderData.choreographies.length > 0 ||
     loaderData.hasAnyChoreography ||
@@ -160,13 +158,11 @@ function hasAdministrativeChoreographyTableContent(loaderData: LoaderData) {
     loaderData.filters.modalityId !== null ||
     loaderData.filters.category !== null ||
     loaderData.filters.groupType !== null ||
-    hasNonDefaultAdministrativeChoreographyOrder(loaderData.filters.order)
+    hasNonDefaultChoreographyOrder(loaderData.filters.order)
   );
 }
 
-function hasNonDefaultAdministrativeChoreographyOrder(
-  order: LoaderData["filters"]["order"],
-) {
+function hasNonDefaultChoreographyOrder(order: LoaderData["filters"]["order"]) {
   return order.direction === "desc" || order.columnId !== "academia";
 }
 
@@ -177,14 +173,14 @@ function formatPrimaryAndSecondaryValue(
   return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
-function buildAdministrativeChoreographyFacetedFilters(
+function buildChoreographyFacetedFilters(
   loaderData: LoaderData,
 ): DataTableFacetedFilter[] {
   return [
     {
       id: "estado",
       label: "Estado",
-      options: administrativeChoreographyStatusFilterOptions,
+      options: choreographyStatusFilterOptions,
     },
     {
       id: "modalidad",
@@ -199,12 +195,12 @@ function buildAdministrativeChoreographyFacetedFilters(
     {
       id: "tipo-grupo",
       label: "Tipo de grupo",
-      options: administrativeChoreographyGroupTypeFilterOptions,
+      options: choreographyGroupTypeFilterOptions,
     },
   ];
 }
 
-function buildAdministrativeChoreographyInitialFilters(loaderData: LoaderData) {
+function buildChoreographyInitialFilters(loaderData: LoaderData) {
   const filters: Record<string, string> = {};
 
   if (loaderData.filters.status) {

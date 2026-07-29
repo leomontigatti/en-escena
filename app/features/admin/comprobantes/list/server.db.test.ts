@@ -7,7 +7,7 @@ import {
   createEventRecord,
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
-import { loadAdminComprobantesList } from "@/features/admin/comprobantes/list/server";
+import { loadComprobantesList } from "@/features/admin/comprobantes/list/server";
 import {
   recordComprobante,
   type RecordComprobanteInput,
@@ -75,7 +75,7 @@ async function signedInAdminRequest(search = "") {
   return request;
 }
 
-describe("loadAdminComprobantesList", () => {
+describe("loadComprobantesList", () => {
   test("expone estado derivado, CAE y numeración de cada comprobante del evento activo", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
@@ -126,7 +126,7 @@ describe("loadAdminComprobantesList", () => {
       }),
     );
 
-    const data = await loadAdminComprobantesList(await signedInAdminRequest());
+    const data = await loadComprobantesList(await signedInAdminRequest());
 
     expect(data.selectedEventId).toBe(event.id);
     expect(data.rows).toHaveLength(3);
@@ -189,13 +189,13 @@ describe("loadAdminComprobantesList", () => {
       }),
     );
 
-    const anuladas = await loadAdminComprobantesList(
+    const anuladas = await loadComprobantesList(
       await signedInAdminRequest("?estado=anulada"),
     );
     expect(anuladas.rows.map((row) => row.id)).toEqual([anulada.id]);
     expect(anuladas.totalCount).toBe(1);
 
-    const vigentes = await loadAdminComprobantesList(
+    const vigentes = await loadComprobantesList(
       await signedInAdminRequest("?estado=vigente"),
     );
     expect(new Set(vigentes.rows.map((row) => row.id))).toEqual(
@@ -232,12 +232,12 @@ describe("loadAdminComprobantesList", () => {
       }),
     );
 
-    const notas = await loadAdminComprobantesList(
+    const notas = await loadComprobantesList(
       await signedInAdminRequest("?tipo=nota_credito_c"),
     );
     expect(notas.rows.map((row) => row.id)).toEqual([notaCredito.id]);
 
-    const facturas = await loadAdminComprobantesList(
+    const facturas = await loadComprobantesList(
       await signedInAdminRequest("?tipo=factura_c"),
     );
     expect(facturas.rows.map((row) => row.id)).toEqual([factura.id]);
@@ -279,19 +279,19 @@ describe("loadAdminComprobantesList", () => {
     );
 
     // Por academia.
-    const porAcademia = await loadAdminComprobantesList(
+    const porAcademia = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=Academia+Alfa"),
     );
     expect(porAcademia.rows.map((row) => row.id)).toEqual([facturaAlfa.id]);
 
     // Por coreografía (el nombre no coincide con la academia).
-    const porCoreografia = await loadAdminComprobantesList(
+    const porCoreografia = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=Vals"),
     );
     expect(porCoreografia.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
 
     // Por número fiscal formateado.
-    const porNumero = await loadAdminComprobantesList(
+    const porNumero = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=0001-00000002"),
     );
     expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
@@ -325,7 +325,7 @@ describe("loadAdminComprobantesList", () => {
       }),
     );
 
-    const data = await loadAdminComprobantesList(
+    const data = await loadComprobantesList(
       await signedInAdminRequest("?orden=numero:asc"),
     );
 
@@ -367,7 +367,7 @@ describe("loadAdminComprobantesList", () => {
       }),
     );
 
-    const data = await loadAdminComprobantesList(await signedInAdminRequest());
+    const data = await loadComprobantesList(await signedInAdminRequest());
 
     expect(data.selectedEventId).toBe(activeEvent.id);
     expect(data.rows).toHaveLength(1);
@@ -377,7 +377,7 @@ describe("loadAdminComprobantesList", () => {
   test("sin evento activo devuelve una lista vacía", async () => {
     await createEventRecord({ active: false });
 
-    const data = await loadAdminComprobantesList(await signedInAdminRequest());
+    const data = await loadComprobantesList(await signedInAdminRequest());
 
     expect(data.selectedEventId).toBeNull();
     expect(data.rows).toEqual([]);

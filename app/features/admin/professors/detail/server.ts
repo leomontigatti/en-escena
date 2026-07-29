@@ -1,11 +1,11 @@
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { redirect } from "react-router";
 
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
-import { adminProfessorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
+import { loadEventContext } from "@/lib/admin/event-context.server";
+import { professorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
-  findAdministrativeProfessor,
-  setAdministrativeProfessorActiveState,
+  findProfessor,
+  setProfessorActiveState,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
 import {
@@ -23,25 +23,25 @@ import {
   readProfessorUpdateValues,
 } from "./shared";
 
-export async function loadAdminProfessorDetail(input: {
+export async function loadProfessorDetail(input: {
   request: Request;
   params: { professorId?: string };
 }) {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
   }
 
   const professorId = readProfessorId(input.params);
-  const professor = await findAdministrativeProfessor({
+  const professor = await findProfessor({
     professorId,
     selectedEventId: eventContext.selectedEventId,
   });
 
   if (!professor) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   const url = new URL(input.request.url);
@@ -58,12 +58,12 @@ export async function loadAdminProfessorDetail(input: {
   };
 }
 
-export async function handleAdminProfessorDetailAction(input: {
+export async function handleProfessorDetailAction(input: {
   request: Request;
   params: { professorId?: string };
 }) {
   const adminUser = await requireAdminUser(input.request);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -72,17 +72,17 @@ export async function handleAdminProfessorDetailAction(input: {
   const professorId = readProfessorId(input.params);
   const formData = await input.request.formData();
   const intent = formData.get("intent");
-  const professor = await findAdministrativeProfessor({
+  const professor = await findProfessor({
     professorId,
     selectedEventId: eventContext.selectedEventId,
   });
 
   if (!professor) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    await setAdministrativeProfessorActiveState({
+    await setProfessorActiveState({
       action: intent === "archive-professor" ? "archive" : "reactivate",
       adminUserId: adminUser.id,
       professorId,
@@ -127,7 +127,7 @@ export async function handleAdminProfessorDetailAction(input: {
 
 function readProfessorId(params: { professorId?: string }) {
   if (!params.professorId) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   return params.professorId;

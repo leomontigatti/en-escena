@@ -2,12 +2,12 @@ import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, choreographies } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdminAcademiesList(request: Request) {
+export async function loadAcademiesList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const academyRows = await db.query.academies.findMany({
     columns: {
       id: true,

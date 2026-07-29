@@ -3,7 +3,7 @@ import type {
   FieldErrors,
 } from "@/lib/admin/events/form-values";
 
-export type AdministrativeEventCreateActionData = {
+export type EventCreateActionData = {
   status: "error";
   message: string;
   fieldErrors: FieldErrors;

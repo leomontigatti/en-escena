@@ -7,41 +7,41 @@ import {
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
 
-export type AdministrativeUserListRole = "academy" | InternalUserRole;
+export type UserListRole = "academy" | InternalUserRole;
 
-export type AdministrativeUserListState =
+export type UserListState =
   | "active"
   | "mandatory-password-change"
   | "suspended";
 
-export type AdministrativeUserListStateFilter =
+export type UserListStateFilter =
   | "active"
   | "mandatory-password-change"
   | "suspended";
 
-export type AdministrativeUserListType = "academy" | "internal";
+export type UserListType = "academy" | "internal";
 
-export type AdministrativeUserListFilters = {
+export type UserListFilters = {
   archived: boolean;
   query: string;
-  role: AdministrativeUserListRole | "all";
-  state: AdministrativeUserListStateFilter | "all";
-  type: AdministrativeUserListType | "all";
+  role: UserListRole | "all";
+  state: UserListStateFilter | "all";
+  type: UserListType | "all";
 };
 
-export type AdministrativeUserListItem = {
+export type UserListItem = {
   id: string;
   academyName: string | null;
   identifier: string;
-  mainRole: AdministrativeUserListRole;
+  mainRole: UserListRole;
   name: string;
-  state: AdministrativeUserListState;
-  userType: AdministrativeUserListType;
+  state: UserListState;
+  userType: UserListType;
 };
 
-export function readAdministrativeUserFilters(
+export function readUserFilters(
   searchParams: URLSearchParams,
-): AdministrativeUserListFilters {
+): UserListFilters {
   const stateValue = searchParams.get("estado");
 
   return {
@@ -53,9 +53,9 @@ export function readAdministrativeUserFilters(
   };
 }
 
-export async function listAdministrativeUsers(input: {
-  filters: AdministrativeUserListFilters;
-}): Promise<AdministrativeUserListItem[]> {
+export async function listUsers(input: {
+  filters: UserListFilters;
+}): Promise<UserListItem[]> {
   const rows = await db
     .select({
       id: user.id,
@@ -70,7 +70,7 @@ export async function listAdministrativeUsers(input: {
     })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .where(buildAdministrativeUserWhere(input.filters))
+    .where(buildUserWhere(input.filters))
     .orderBy(
       asc(sql`lower(coalesce(${academies.contactName}, ${user.name}))`),
       asc(sql`lower(coalesce(${user.internalUsername}, ${user.email}))`),
@@ -84,16 +84,16 @@ export async function listAdministrativeUsers(input: {
     mainRole: row.role,
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
-    state: getAdministrativeUserListState(row),
+    state: getUserListState(row),
     userType: row.role === "academy" ? "academy" : "internal",
   }));
 }
 
-function getAdministrativeUserListState(row: {
+function getUserListState(row: {
   requiresPasswordChange: boolean;
-  role: AdministrativeUserListRole;
+  role: UserListRole;
   suspended: boolean;
-}): AdministrativeUserListState {
+}): UserListState {
   if (row.role === "academy") {
     return "active";
   }
@@ -109,9 +109,7 @@ function getAdministrativeUserListState(row: {
   return "active";
 }
 
-function buildAdministrativeUserWhere(
-  filters: AdministrativeUserListFilters,
-): SQL<unknown> | undefined {
+function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
   const clauses: SQL<unknown>[] = [];
 
   if (filters.query) {
@@ -169,9 +167,7 @@ function buildAdministrativeUserWhere(
   return and(...clauses);
 }
 
-function readStateFilter(
-  value: string | null,
-): AdministrativeUserListFilters["state"] {
+function readStateFilter(value: string | null): UserListFilters["state"] {
   switch (value) {
     case "active":
     case "mandatory-password-change":
@@ -182,9 +178,7 @@ function readStateFilter(
   }
 }
 
-function readRoleFilter(
-  value: string | null,
-): AdministrativeUserListFilters["role"] {
+function readRoleFilter(value: string | null): UserListFilters["role"] {
   switch (value) {
     case "academy":
     case "admin":
@@ -196,9 +190,7 @@ function readRoleFilter(
   }
 }
 
-function readTypeFilter(
-  value: string | null,
-): AdministrativeUserListFilters["type"] {
+function readTypeFilter(value: string | null): UserListFilters["type"] {
   switch (value) {
     case "academy":
     case "internal":

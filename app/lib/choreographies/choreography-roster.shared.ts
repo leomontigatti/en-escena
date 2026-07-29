@@ -2,7 +2,7 @@ import type {
   ChoreographyRegistrationOperationResolution,
   ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import type { ChoreographyListItem } from "@/lib/portal/choreographies";
+import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
 
 export type ChoreographyProfessorOption = {
   id: string;
@@ -105,7 +105,7 @@ export type ResolveChoreographyDancersResult =
   | {
       ok: true;
       resolution: {
-        groupType: ChoreographyListItem["groupType"];
+        groupType: PortalChoreographyListItem["groupType"];
         categoryId: string | null;
         categoryName: string | null;
         categoryCalculationMode?: ChoreographyCategoryCalculationMode;

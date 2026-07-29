@@ -3,21 +3,21 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, dancers } from "@/db/schema";
 import {
-  adminDancerPageSize,
-  type AdministrativeDancerListFilters,
+  dancerPageSize,
+  type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
-import type { AdministrativeDancerListResult } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerListResult } from "@/lib/admin/dancers/dancers.server.types";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
 async function listDancers(input: {
   selectedEventId: string | null;
-  filters: AdministrativeDancerListFilters;
-}): Promise<AdministrativeDancerListResult> {
+  filters: DancerListFilters;
+}): Promise<DancerListResult> {
   const where = buildDancerFilters(input);
 
   const [{ count: totalUnfilteredCount }] = await db
@@ -36,7 +36,7 @@ async function listDancers(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / adminDancerPageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / dancerPageSize));
   const page = Math.min(input.filters.page, totalPages);
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
@@ -70,8 +70,8 @@ async function listDancers(input: {
     .innerJoin(academies, eq(academies.id, dancers.academyId))
     .where(where)
     .orderBy(...orderByName, asc(dancers.id))
-    .limit(adminDancerPageSize)
-    .offset((page - 1) * adminDancerPageSize);
+    .limit(dancerPageSize)
+    .offset((page - 1) * dancerPageSize);
 
   return {
     filters: {

@@ -1,5 +1,5 @@
-import type { ProfessorListItem } from "@/lib/portal/professors.server";
+import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 
 export type PortalProfessorsListLoaderData = {
-  professors: ProfessorListItem[];
+  professors: PortalProfessorListItem[];
 };

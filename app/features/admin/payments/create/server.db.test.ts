@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin/finances/finances.test-support";
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
-import { handleAdminPaymentCreateAction } from "./server";
+import { handlePaymentCreateAction } from "./server";
 
 installDatabaseTestHooks();
 
@@ -58,7 +58,7 @@ describe.sequential("admin payment create", () => {
 
 async function expectThrownFlashRedirect(request: Request): Promise<Response> {
   try {
-    await handleAdminPaymentCreateAction(request);
+    await handlePaymentCreateAction(request);
   } catch (thrown) {
     if (thrown instanceof Response) {
       return thrown;

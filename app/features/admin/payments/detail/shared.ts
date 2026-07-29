@@ -1,2 +1,2 @@
-export const deleteAdminPaymentIntent = "delete-payment";
-export const updateAdminPaymentIntent = "update-payment";
+export const deletePaymentIntent = "delete-payment";
+export const updatePaymentIntent = "update-payment";

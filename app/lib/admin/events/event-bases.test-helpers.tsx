@@ -10,17 +10,17 @@ import { CategoriesListView } from "@/features/admin/categories/list/view";
 import { handleCategoryAction } from "@/features/admin/categories/action.server";
 import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
 import { handleEventModalityAction } from "@/features/admin/modalities/action.server";
-import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
-import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
-import { AdministrativeEventModalitiesListView } from "@/features/admin/modalities/list/view";
+import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { EventModalitiesListView } from "@/features/admin/modalities/list/view";
 import { handleEventPriceAction } from "@/features/admin/prices/action.server";
-import { AdministrativeEventPriceCreateView } from "@/features/admin/prices/create/view";
-import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
-import { AdministrativeEventPricesListView } from "@/features/admin/prices/list/view";
+import { EventPriceCreateView } from "@/features/admin/prices/create/view";
+import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { EventPricesListView } from "@/features/admin/prices/list/view";
 import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
-import { AdministrativeEventScheduleCreateView } from "@/features/admin/schedules/create/view";
-import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
-import { AdministrativeEventSchedulesListView } from "@/features/admin/schedules/list/view";
+import { EventScheduleCreateView } from "@/features/admin/schedules/create/view";
+import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import { EventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
 import { events, schedules, scheduleCapacities } from "@/db/schema";
@@ -29,7 +29,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
@@ -87,7 +87,7 @@ export async function createSavedEvent(
 
 export function renderRoute(
   loaderData: EventBasesLoaderData,
-  childRoute: AdminChildRouteFixture,
+  childRoute: ChildRouteFixture,
 ) {
   const RoutesStub = createRoutesStub([
     {
@@ -118,7 +118,7 @@ export function renderRoute(
   );
 }
 
-type AdminChildRouteFixture = {
+type ChildRouteFixture = {
   element: ReactElement;
   handle?: unknown;
   id: string;
@@ -198,7 +198,7 @@ export function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
     path: "modalidades",
     url: "/administracion/modalidades",
     handle: modalidadesHandle,
-    element: createElement(AdministrativeEventModalitiesListView, {
+    element: createElement(EventModalitiesListView, {
       loaderData,
     }),
   });
@@ -213,7 +213,7 @@ export function renderNuevaModalidadRoute(
     path: "modalidades/nueva",
     url: "/administracion/modalidades/nueva",
     handle: modalidadNuevaHandle,
-    element: createElement(AdministrativeEventModalityCreateView, {
+    element: createElement(EventModalityCreateView, {
       loaderData,
       actionData,
     }),
@@ -230,7 +230,7 @@ export function renderModalidadDetalleRoute(
     path: "modalidades/:modalityId",
     url: `/administracion/modalidades/${modalityId}`,
     handle: modalidadDetalleHandle,
-    element: createElement(AdministrativeEventModalityDetailView, {
+    element: createElement(EventModalityDetailView, {
       loaderData,
       modalityId,
       actionData,
@@ -244,7 +244,7 @@ export function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
     path: "cronogramas",
     url: "/administracion/cronogramas",
     handle: bloquesHorariosHandle,
-    element: createElement(AdministrativeEventSchedulesListView, {
+    element: createElement(EventSchedulesListView, {
       loaderData,
     }),
   });
@@ -258,7 +258,7 @@ export function renderNuevoBloqueHorarioRoute(
     path: "cronogramas/nuevo",
     url: "/administracion/cronogramas/nuevo",
     handle: bloqueHorarioNuevoHandle,
-    element: createElement(AdministrativeEventScheduleCreateView, {
+    element: createElement(EventScheduleCreateView, {
       loaderData,
     }),
   });
@@ -274,7 +274,7 @@ export function renderBloqueHorarioDetailRoute(
     path: "cronogramas/:scheduleId",
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
-    element: createElement(AdministrativeEventScheduleDetailView, {
+    element: createElement(EventScheduleDetailView, {
       loaderData,
       scheduleId,
       actionData,
@@ -288,7 +288,7 @@ export function renderPreciosRoute(loaderData: EventBasesLoaderData) {
     path: "precios",
     url: "/administracion/precios",
     handle: preciosHandle,
-    element: createElement(AdministrativeEventPricesListView, { loaderData }),
+    element: createElement(EventPricesListView, { loaderData }),
   });
 }
 
@@ -298,7 +298,7 @@ export function renderPrecioNuevoRoute(loaderData: EventBasesLoaderData) {
     path: "precios/nuevo",
     url: "/administracion/precios/nuevo",
     handle: precioNuevoHandle,
-    element: createElement(AdministrativeEventPriceCreateView, { loaderData }),
+    element: createElement(EventPriceCreateView, { loaderData }),
   });
 }
 
@@ -311,7 +311,7 @@ export function renderPrecioDetalleRoute(
     path: "precios/:priceId",
     url: `/administracion/precios/${priceId}`,
     handle: precioDetalleHandle,
-    element: createElement(AdministrativeEventPriceDetailView, {
+    element: createElement(EventPriceDetailView, {
       loaderData,
       priceId,
     }),
@@ -347,7 +347,7 @@ export function routeArgs(request: Request) {
 
 export async function loader({ request }: { request: Request }) {
   await requireAdminPanelUser(request);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -425,7 +425,7 @@ export function renderPriceNewErrorRoute(
     path: "precios/nuevo",
     url: "/administracion/precios/nuevo",
     handle: precioNuevoHandle,
-    element: createElement(AdministrativeEventPriceCreateView, {
+    element: createElement(EventPriceCreateView, {
       loaderData,
       actionData,
     }),
@@ -442,7 +442,7 @@ export function renderScheduleDetailErrorRoute(
     path: "cronogramas/:scheduleId",
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
-    element: createElement(AdministrativeEventScheduleDetailView, {
+    element: createElement(EventScheduleDetailView, {
       loaderData,
       scheduleId,
       actionData,

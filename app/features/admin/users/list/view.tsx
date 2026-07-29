@@ -12,11 +12,11 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
-  AdministrativeUserListFilters,
-  AdministrativeUserListItem,
-  AdministrativeUserListRole,
-  AdministrativeUserListState,
-  AdministrativeUserListType,
+  UserListFilters,
+  UserListItem,
+  UserListRole,
+  UserListState,
+  UserListType,
 } from "@/lib/admin/users/users-list.server";
 
 import type { loader } from "./server";
@@ -75,7 +75,7 @@ export function InternalUsersListRouteView({
   );
 }
 
-function hasActiveUserFilters(filters: AdministrativeUserListFilters) {
+function hasActiveUserFilters(filters: UserListFilters) {
   return (
     filters.query.length > 0 ||
     filters.archived ||
@@ -89,10 +89,10 @@ function UsersTable({
   filters,
   users,
 }: {
-  filters: AdministrativeUserListFilters;
-  users: AdministrativeUserListItem[];
+  filters: UserListFilters;
+  users: UserListItem[];
 }) {
-  const columns: DataTableColumn<AdministrativeUserListItem>[] = [
+  const columns: DataTableColumn<UserListItem>[] = [
     {
       id: "name",
       header: "Nombre",
@@ -183,7 +183,7 @@ function UsersTable({
 }
 
 function buildInitialUserFilterValues(
-  filters: AdministrativeUserListFilters,
+  filters: UserListFilters,
 ): Record<string, Record<string, string>> {
   const values: Record<string, string> = {};
 
@@ -210,14 +210,11 @@ function buildInitialUserFilterValues(
   return { filters: values };
 }
 
-function buildUserDetailHref(
-  filters: AdministrativeUserListFilters,
-  userId: string,
-) {
+function buildUserDetailHref(filters: UserListFilters, userId: string) {
   return `/administracion/usuarios/${userId}${buildDetailSearch(filters)}`;
 }
 
-function buildDetailSearch(filters: AdministrativeUserListFilters) {
+function buildDetailSearch(filters: UserListFilters) {
   const searchParams = new URLSearchParams();
 
   if (filters.query.length > 0) {
@@ -245,7 +242,7 @@ function buildDetailSearch(filters: AdministrativeUserListFilters) {
   return search.length > 0 ? `?${search}` : "";
 }
 
-function getRoleLabel(role: AdministrativeUserListRole) {
+function getRoleLabel(role: UserListRole) {
   switch (role) {
     case "admin":
       return "Administrador";
@@ -258,7 +255,7 @@ function getRoleLabel(role: AdministrativeUserListRole) {
   }
 }
 
-function getTypeLabel(type: AdministrativeUserListType) {
+function getTypeLabel(type: UserListType) {
   switch (type) {
     case "internal":
       return "Interno";
@@ -267,7 +264,7 @@ function getTypeLabel(type: AdministrativeUserListType) {
   }
 }
 
-function getStateLabel(state: AdministrativeUserListState) {
+function getStateLabel(state: UserListState) {
   switch (state) {
     case "active":
       return "Activo";
@@ -278,7 +275,7 @@ function getStateLabel(state: AdministrativeUserListState) {
   }
 }
 
-function getStateBadgeVariant(state: AdministrativeUserListState) {
+function getStateBadgeVariant(state: UserListState) {
   switch (state) {
     case "active":
       return "success";

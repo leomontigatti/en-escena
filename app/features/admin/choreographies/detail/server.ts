@@ -16,7 +16,7 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -44,21 +44,21 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 import {
-  administrativeChoreographyFieldNames,
-  administrativeChoreographyNotFoundMessage,
-  deleteAdministrativeChoreographyIntent,
-  renameAdministrativeChoreographyIntent,
-  resolveAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographySubmodalityIntent,
-  type AdministrativeChoreographyActionData,
-  type AdministrativeChoreographyDeleteBlocker,
-  type AdministrativeChoreographyRosterErrorData,
-  type AdministrativeChoreographySubmodalityErrorData,
-  type AdministrativeChoreographySuccessData,
+  choreographyFieldNames,
+  choreographyNotFoundMessage,
+  deleteChoreographyIntent,
+  renameChoreographyIntent,
+  resolveChoreographyRosterIntent,
+  updateChoreographyRosterIntent,
+  updateChoreographySubmodalityIntent,
+  type ChoreographyActionData,
+  type ChoreographyDeleteBlocker,
+  type ChoreographyRosterErrorData,
+  type ChoreographySubmodalityErrorData,
+  type ChoreographySuccessData,
 } from "./shared";
 
-type AdministrativeChoreographyDetailRow = {
+type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
   categoryExperienceLevels: string[] | null;
@@ -81,21 +81,21 @@ type AdministrativeChoreographyDetailRow = {
   submodalityName: string | null;
 };
 
-export type AdministrativeChoreographyDetailLoaderData = {
+export type ChoreographyDetailLoaderData = {
   availableDancers: ChoreographyDancerOption[];
   availableProfessors: ChoreographyProfessorOption[];
   backToList: string;
   canEdit: boolean;
-  choreography: AdministrativeChoreographyDetail;
+  choreography: ChoreographyDetail;
   deletion: {
-    blockers: AdministrativeChoreographyDeleteBlocker[];
+    blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
   };
   selectedEventId: string | null;
   submodalityOptions: Array<{ id: string; name: string }>;
 };
 
-export type AdministrativeChoreographyDetail = {
+export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
   categoryId: string | null;
@@ -136,12 +136,12 @@ const renameChoreographySchema = z.object({
 
 const unsupportedActionMessage = "Acción no soportada.";
 
-export async function loadAdminChoreographyDetailRouteData(input: {
+export async function loadChoreographyDetailRouteData(input: {
   request: Request;
   params: { choreographyId?: string };
-}): Promise<AdministrativeChoreographyDetailLoaderData> {
+}): Promise<ChoreographyDetailLoaderData> {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -150,21 +150,21 @@ export async function loadAdminChoreographyDetailRouteData(input: {
   const choreographyId = readChoreographyId(input.params);
   const selectedEventId = eventContext.selectedEventId;
   const choreography = selectedEventId
-    ? await findAdministrativeChoreographyDetail({
+    ? await findChoreographyDetail({
         choreographyId,
         selectedEventId,
       })
     : null;
 
   if (!choreography) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
 
   const [blockers, availableDancers, availableProfessors, submodalityOptions] =
     await Promise.all([
-      getAdministrativeChoreographyDeleteBlockers(choreography),
+      getChoreographyDeleteBlockers(choreography),
       listDancerOptionsForChoreography(
         choreography.academyId,
         choreography.dancers.map((dancer) => dancer.id),
@@ -191,24 +191,24 @@ export async function loadAdminChoreographyDetailRouteData(input: {
   };
 }
 
-export type AdministrativeChoreographyRosterResolutionData = {
-  intent: typeof resolveAdministrativeChoreographyRosterIntent;
+export type ChoreographyRosterResolutionData = {
+  intent: typeof resolveChoreographyRosterIntent;
   result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
 };
 
-export type AdministrativeChoreographyDetailActionData =
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographyRosterErrorData
-  | AdministrativeChoreographyRosterResolutionData
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData;
+export type ChoreographyDetailActionData =
+  | ChoreographyActionData
+  | ChoreographyRosterErrorData
+  | ChoreographyRosterResolutionData
+  | ChoreographySubmodalityErrorData
+  | ChoreographySuccessData;
 
-export async function handleAdminChoreographyDetailAction(input: {
+export async function handleChoreographyDetailAction(input: {
   request: Request;
   params: { choreographyId?: string };
-}): Promise<AdministrativeChoreographyDetailActionData | Response> {
+}): Promise<ChoreographyDetailActionData | Response> {
   await requireAdminUser(input.request);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
     throw redirect(eventContext.redirectTo);
@@ -218,18 +218,18 @@ export async function handleAdminChoreographyDetailAction(input: {
   const choreographyId = readChoreographyId(input.params);
 
   if (!selectedEventId) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
 
-  const choreography = await findAdministrativeChoreographyDetail({
+  const choreography = await findChoreographyDetail({
     choreographyId,
     selectedEventId,
   });
 
   if (!choreography) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
@@ -237,24 +237,24 @@ export async function handleAdminChoreographyDetailAction(input: {
   const formData = await input.request.formData();
   const intent = formData.get("intent");
 
-  if (intent === renameAdministrativeChoreographyIntent) {
-    return await renameAdministrativeChoreography({
+  if (intent === renameChoreographyIntent) {
+    return await renameChoreography({
       choreographyId,
       formData,
     });
   }
 
-  if (intent === deleteAdministrativeChoreographyIntent) {
-    await deleteAdministrativeChoreography(choreography);
+  if (intent === deleteChoreographyIntent) {
+    await deleteChoreography(choreography);
     return redirectWithFlashNotification(
       "/administracion/coreografias",
       "coreografia-eliminada",
     );
   }
 
-  if (intent === resolveAdministrativeChoreographyRosterIntent) {
+  if (intent === resolveChoreographyRosterIntent) {
     return {
-      intent: resolveAdministrativeChoreographyRosterIntent,
+      intent: resolveChoreographyRosterIntent,
       result: await resolveChoreographyDancers({
         academyId: choreography.academyId,
         choreographyId,
@@ -264,16 +264,16 @@ export async function handleAdminChoreographyDetailAction(input: {
     };
   }
 
-  if (intent === updateAdministrativeChoreographyRosterIntent) {
-    return await updateAdministrativeChoreographyRosterAction({
+  if (intent === updateChoreographyRosterIntent) {
+    return await updateChoreographyRosterAction({
       choreography,
       eventId: selectedEventId,
       formData,
     });
   }
 
-  if (intent === updateAdministrativeChoreographySubmodalityIntent) {
-    return await updateAdministrativeChoreographySubmodality({
+  if (intent === updateChoreographySubmodalityIntent) {
+    return await updateChoreographySubmodality({
       choreography,
       formData,
     });
@@ -282,11 +282,11 @@ export async function handleAdminChoreographyDetailAction(input: {
   throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
-async function findAdministrativeChoreographyDetail(input: {
+async function findChoreographyDetail(input: {
   choreographyId: string;
   selectedEventId: string;
-}): Promise<AdministrativeChoreographyDetail | null> {
-  const rows: AdministrativeChoreographyDetailRow[] = await db
+}): Promise<ChoreographyDetail | null> {
+  const rows: ChoreographyDetailRow[] = await db
     .select({
       academyId: choreographies.academyId,
       academyName: academies.name,
@@ -338,9 +338,9 @@ async function findAdministrativeChoreographyDetail(input: {
   }
 
   const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
-    listAdministrativeChoreographyDancers(input.choreographyId),
-    listAdministrativeChoreographyProfessors(input.choreographyId),
-    loadAdminChoreographyMusicDownloadUrl(row.musicStorageKey),
+    listChoreographyDancers(input.choreographyId),
+    listChoreographyProfessors(input.choreographyId),
+    loadChoreographyMusicDownloadUrl(row.musicStorageKey),
   ]);
 
   return {
@@ -393,7 +393,7 @@ async function listSubmodalitiesForModality(modalityId: string) {
     .orderBy(asc(submodalities.name));
 }
 
-async function listAdministrativeChoreographyDancers(choreographyId: string) {
+async function listChoreographyDancers(choreographyId: string) {
   return await db
     .select({
       active: dancers.active,
@@ -408,9 +408,7 @@ async function listAdministrativeChoreographyDancers(choreographyId: string) {
     .orderBy(asc(dancers.firstName), asc(dancers.lastName));
 }
 
-async function listAdministrativeChoreographyProfessors(
-  choreographyId: string,
-) {
+async function listChoreographyProfessors(choreographyId: string) {
   return await db
     .select({
       active: professors.active,
@@ -427,12 +425,10 @@ async function listAdministrativeChoreographyProfessors(
     .orderBy(asc(professors.firstName), asc(professors.lastName));
 }
 
-async function renameAdministrativeChoreography(input: {
+async function renameChoreography(input: {
   choreographyId: string;
   formData: FormData;
-}): Promise<
-  AdministrativeChoreographyActionData | AdministrativeChoreographySuccessData
-> {
+}): Promise<ChoreographyActionData | ChoreographySuccessData> {
   const values = {
     name: readFormString(input.formData, "name"),
   };
@@ -440,14 +436,11 @@ async function renameAdministrativeChoreography(input: {
 
   if (!parsed.success) {
     return {
-      fieldErrors: getFieldErrors(
-        parsed.error,
-        administrativeChoreographyFieldNames,
-      ),
+      fieldErrors: getFieldErrors(parsed.error, choreographyFieldNames),
       message: "Revisá los campos marcados.",
       status: "error",
       values,
-    } satisfies AdministrativeChoreographyActionData;
+    } satisfies ChoreographyActionData;
   }
 
   await db
@@ -461,13 +454,10 @@ async function renameAdministrativeChoreography(input: {
   return choreographySavedSuccess();
 }
 
-async function updateAdministrativeChoreographySubmodality(input: {
-  choreography: AdministrativeChoreographyDetail;
+async function updateChoreographySubmodality(input: {
+  choreography: ChoreographyDetail;
   formData: FormData;
-}): Promise<
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData
-> {
+}): Promise<ChoreographySubmodalityErrorData | ChoreographySuccessData> {
   // Una coreografía con presentación mantiene la submodalidad en solo lectura,
   // igual que el roster: el intent la rechaza aunque el form la mande.
   if (input.choreography.hasPresentation) {
@@ -505,14 +495,12 @@ async function updateAdministrativeChoreographySubmodality(input: {
   return choreographySavedSuccess();
 }
 
-async function updateAdministrativeChoreographyRosterAction(input: {
-  choreography: AdministrativeChoreographyDetail;
+async function updateChoreographyRosterAction(input: {
+  choreography: ChoreographyDetail;
   eventId: string;
   formData: FormData;
 }): Promise<
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographyRosterErrorData
-  | AdministrativeChoreographySuccessData
+  ChoreographyActionData | ChoreographyRosterErrorData | ChoreographySuccessData
 > {
   // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
   // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
@@ -525,14 +513,11 @@ async function updateAdministrativeChoreographyRosterAction(input: {
 
     if (!parsedName.success) {
       return {
-        fieldErrors: getFieldErrors(
-          parsedName.error,
-          administrativeChoreographyFieldNames,
-        ),
+        fieldErrors: getFieldErrors(parsedName.error, choreographyFieldNames),
         message: "Revisá los campos marcados.",
         status: "error",
         values: { name: readFormString(input.formData, "name") },
-      } satisfies AdministrativeChoreographyActionData;
+      } satisfies ChoreographyActionData;
     }
 
     name = parsedName.data.name;
@@ -567,11 +552,8 @@ async function updateAdministrativeChoreographyRosterAction(input: {
   return choreographySavedSuccess();
 }
 
-async function deleteAdministrativeChoreography(
-  choreography: AdministrativeChoreographyDetail,
-) {
-  const blockers =
-    await getAdministrativeChoreographyDeleteBlockers(choreography);
+async function deleteChoreography(choreography: ChoreographyDetail) {
+  const blockers = await getChoreographyDeleteBlockers(choreography);
 
   if (blockers.length > 0) {
     throw new Response("No se puede eliminar esta coreografía.", {
@@ -582,17 +564,14 @@ async function deleteAdministrativeChoreography(
   await db.delete(choreographies).where(eq(choreographies.id, choreography.id));
 }
 
-async function getAdministrativeChoreographyDeleteBlockers(
-  choreography: Pick<
-    AdministrativeChoreographyDetail,
-    "hasPresentation" | "id"
-  >,
-): Promise<AdministrativeChoreographyDeleteBlocker[]> {
+async function getChoreographyDeleteBlockers(
+  choreography: Pick<ChoreographyDetail, "hasPresentation" | "id">,
+): Promise<ChoreographyDeleteBlocker[]> {
   const [hasScores, hasComprobantes] = await Promise.all([
     hasScoresForChoreography(choreography.id),
     choreographyHasComprobantes(choreography.id),
   ]);
-  const blockers: AdministrativeChoreographyDeleteBlocker[] = [];
+  const blockers: ChoreographyDeleteBlocker[] = [];
 
   if (choreography.hasPresentation) {
     blockers.push({ code: "presentation", label: "presentación" });
@@ -616,9 +595,7 @@ async function hasScoresForChoreography(_choreographyId: string) {
   return false;
 }
 
-async function loadAdminChoreographyMusicDownloadUrl(
-  storageKey: string | null,
-) {
+async function loadChoreographyMusicDownloadUrl(storageKey: string | null) {
   if (!storageKey) {
     return null;
   }
@@ -634,7 +611,7 @@ async function loadAdminChoreographyMusicDownloadUrl(
 
 function readChoreographyId(params: { choreographyId?: string }) {
   if (!params.choreographyId) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
@@ -663,7 +640,7 @@ function readOptionalFormString(formData: FormData, key: string) {
 // La edición en el lugar del detalle no redirige: retorna
 // `{ status: "success" }`, el loader revalida y la vista dispara el toast
 // directo. Ver docs/agents/form-feedback.md.
-function choreographySavedSuccess(): AdministrativeChoreographySuccessData {
+function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["coreografia-guardada"].message,
     status: "success",

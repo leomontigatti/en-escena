@@ -1,43 +1,43 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  renameAdministrativeChoreographyIntent,
-  resolveAdministrativeChoreographyRosterIntent,
-  shouldRevalidateAdministrativeChoreographyDetail,
-  updateAdministrativeChoreographyRosterIntent,
+  renameChoreographyIntent,
+  resolveChoreographyRosterIntent,
+  shouldRevalidateChoreographyDetail,
+  updateChoreographyRosterIntent,
 } from "./shared";
 
-describe("shouldRevalidateAdministrativeChoreographyDetail", () => {
+describe("shouldRevalidateChoreographyDetail", () => {
   test("does not revalidate after resolving a tentative roster", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(resolveAdministrativeChoreographyRosterIntent),
+        formData: buildFormData(resolveChoreographyRosterIntent),
       }),
     ).toBe(false);
   });
 
   test("revalidates after the roster is actually saved", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(updateAdministrativeChoreographyRosterIntent),
+        formData: buildFormData(updateChoreographyRosterIntent),
       }),
     ).toBe(true);
   });
 
   test("revalidates after a rename", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(renameAdministrativeChoreographyIntent),
+        formData: buildFormData(renameChoreographyIntent),
       }),
     ).toBe(true);
   });
 
   test("defers to the router when there is no form data", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: false,
       }),
     ).toBe(false);

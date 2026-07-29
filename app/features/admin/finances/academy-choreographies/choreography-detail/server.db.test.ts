@@ -17,7 +17,7 @@ import {
   createSignedInRequest,
 } from "../../../../../lib/admin/finances/finances.test-support";
 
-import { loadAdminChoreographyFinanceDetail } from "./server";
+import { loadChoreographyFinanceDetail } from "./server";
 
 installDatabaseTestHooks();
 
@@ -81,7 +81,7 @@ async function loadDetailAsAdmin(input: {
     }),
   });
 
-  return await loadAdminChoreographyFinanceDetail(
+  return await loadChoreographyFinanceDetail(
     detailRouteArgs({
       academyId: input.academyId,
       choreographyId: input.choreographyId,

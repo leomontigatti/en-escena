@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { resolveAdminEventContext } from "@/lib/admin/event-context.server";
+import { resolveEventContext } from "@/lib/admin/event-context.server";
 
 describe("admin event context", () => {
   test("defaults to the active Evento", () => {
     expect(
-      resolveAdminEventContext({
+      resolveEventContext({
         events: [
           { id: "evento_2025", name: "Evento 2025", active: false },
           { id: "evento_2026", name: "Evento 2026", active: true },
@@ -19,7 +19,7 @@ describe("admin event context", () => {
 
   test("does not select inactive Eventos", () => {
     expect(
-      resolveAdminEventContext({
+      resolveEventContext({
         events: [
           { id: "evento_2025", name: "Evento 2025", active: false },
           { id: "evento_2026", name: "Evento 2026", active: true },
@@ -33,7 +33,7 @@ describe("admin event context", () => {
 
   test("leaves the context empty when no active event exists and none is selected", () => {
     expect(
-      resolveAdminEventContext({
+      resolveEventContext({
         events: [{ id: "evento_2025", name: "Evento 2025", active: false }],
       }),
     ).toEqual({

@@ -4,24 +4,22 @@ import type {
   ScheduleListItem,
 } from "@/lib/events/bases.server";
 
-export type AdministrativeEventPriceActionData = ActionData;
+export type EventPriceActionData = ActionData;
 
-export type AdministrativeEventPricesListLoaderData = {
+export type EventPricesListLoaderData = {
   selectedEventId: string | null;
   prices: PriceListItem[];
 };
 
-export type AdministrativeEventPriceFormLoaderData = {
+export type EventPriceFormLoaderData = {
   selectedEventId: string | null;
   schedules: ScheduleListItem[];
 };
 
-export type AdministrativeEventPriceDetailLoaderData =
-  AdministrativeEventPricesListLoaderData &
-    AdministrativeEventPriceFormLoaderData;
+export type EventPriceDetailLoaderData = EventPricesListLoaderData &
+  EventPriceFormLoaderData;
 
-export type AdministrativeEventPricesLoaderData =
-  AdministrativeEventPriceDetailLoaderData;
+export type EventPricesLoaderData = EventPriceDetailLoaderData;
 
 const basePath = "/administracion/precios";
 

@@ -28,9 +28,9 @@ import {
   type CreatePaymentFormValues,
   type CreatePaymentSubmissionValues,
 } from "./shared";
-import type { loadAdminPaymentCreate } from "./server";
+import type { loadPaymentCreate } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentCreate>>;
+type LoaderData = Awaited<ReturnType<typeof loadPaymentCreate>>;
 
 type NewPaymentRouteViewProps = {
   actionData?: CreatePaymentActionData;

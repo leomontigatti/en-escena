@@ -2,8 +2,8 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdminPaymentCreateAction,
-  loadAdminPaymentCreate,
+  handlePaymentCreateAction,
+  loadPaymentCreate,
 } from "@/features/admin/payments/create/server";
 import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
 
@@ -29,11 +29,11 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdminPaymentCreate(request);
+  return await loadPaymentCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  return await handleAdminPaymentCreateAction(request);
+  return await handlePaymentCreateAction(request);
 }
 
 export default function NewPaymentRoute({ loaderData }: NewPaymentRouteProps) {

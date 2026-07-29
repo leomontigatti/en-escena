@@ -3,11 +3,11 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   PaymentDetailRouteView,
-  getAdminPaymentDisplayName,
+  getPaymentDisplayName,
 } from "@/features/admin/payments/detail/view";
 import {
-  handleAdminPaymentDetailAction,
-  loadAdminPaymentDetail,
+  handlePaymentDetailAction,
+  loadPaymentDetail,
 } from "@/features/admin/payments/detail/server";
 
 import type { Route } from "./+types/administracion.pagos_.$paymentId";
@@ -30,17 +30,17 @@ export const handle = {
     (match) => {
       const data = match.data as LoaderData | undefined;
 
-      return { label: getAdminPaymentDisplayName(data?.payment) };
+      return { label: getPaymentDisplayName(data?.payment) };
     },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdminPaymentDetail(request, params.paymentId ?? "");
+  return await loadPaymentDetail(request, params.paymentId ?? "");
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  return await handleAdminPaymentDetailAction(request, params.paymentId ?? "");
+  return await handlePaymentDetailAction(request, params.paymentId ?? "");
 }
 
 export default function PaymentDetailRoute({

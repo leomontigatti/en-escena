@@ -1,41 +1,35 @@
 import type { FieldErrors } from "@/lib/shared/form-validation";
 
-export const renameAdministrativeChoreographyIntent = "rename-choreography";
-export const deleteAdministrativeChoreographyIntent = "delete-choreography";
-export const resolveAdministrativeChoreographyRosterIntent = "resolve-roster";
-export const updateAdministrativeChoreographyRosterIntent = "update-roster";
-export const updateAdministrativeChoreographySubmodalityIntent =
-  "update-submodality";
+export const renameChoreographyIntent = "rename-choreography";
+export const deleteChoreographyIntent = "delete-choreography";
+export const resolveChoreographyRosterIntent = "resolve-roster";
+export const updateChoreographyRosterIntent = "update-roster";
+export const updateChoreographySubmodalityIntent = "update-submodality";
 
-export const administrativeChoreographyNotFoundMessage =
-  "No encontramos esa coreografía.";
+export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
  * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y
  * reinicia el formulario con el roster guardado, pisando la edición en curso.
  */
-export function shouldRevalidateAdministrativeChoreographyDetail(input: {
+export function shouldRevalidateChoreographyDetail(input: {
   defaultShouldRevalidate: boolean;
   formData?: FormData;
 }) {
-  if (
-    input.formData?.get("intent") ===
-    resolveAdministrativeChoreographyRosterIntent
-  ) {
+  if (input.formData?.get("intent") === resolveChoreographyRosterIntent) {
     return false;
   }
 
   return input.defaultShouldRevalidate;
 }
 
-export const administrativeChoreographyFieldNames = ["name"] as const;
+export const choreographyFieldNames = ["name"] as const;
 
-export type AdministrativeChoreographyFieldName =
-  (typeof administrativeChoreographyFieldNames)[number];
+export type ChoreographyFieldName = (typeof choreographyFieldNames)[number];
 
-export type AdministrativeChoreographyActionData = {
-  fieldErrors?: FieldErrors<AdministrativeChoreographyFieldName>;
+export type ChoreographyActionData = {
+  fieldErrors?: FieldErrors<ChoreographyFieldName>;
   message: string;
   status: "error";
   values: {
@@ -43,22 +37,22 @@ export type AdministrativeChoreographyActionData = {
   };
 };
 
-export type AdministrativeChoreographySubmodalityErrorData = {
+export type ChoreographySubmodalityErrorData = {
   message: string;
   status: "error";
 };
 
-export type AdministrativeChoreographySuccessData = {
+export type ChoreographySuccessData = {
   message: string;
   status: "success";
 };
 
-export type AdministrativeChoreographyViewActionData =
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData;
+export type ChoreographyViewActionData =
+  | ChoreographyActionData
+  | ChoreographySubmodalityErrorData
+  | ChoreographySuccessData;
 
-export type AdministrativeChoreographyRosterErrorData = {
+export type ChoreographyRosterErrorData = {
   fieldErrors?: {
     experienceLevelId?: string;
     scheduleCapacityId?: string;
@@ -68,12 +62,12 @@ export type AdministrativeChoreographyRosterErrorData = {
   status: "roster-error";
 };
 
-export type AdministrativeChoreographyDeleteBlockerCode =
+export type ChoreographyDeleteBlockerCode =
   | "comprobantes"
   | "presentation"
   | "scores";
 
-export type AdministrativeChoreographyDeleteBlocker = {
-  code: AdministrativeChoreographyDeleteBlockerCode;
+export type ChoreographyDeleteBlocker = {
+  code: ChoreographyDeleteBlockerCode;
   label: string;
 };

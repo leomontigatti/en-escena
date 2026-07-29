@@ -38,31 +38,29 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
-  canSubmitAdministrativeChoreographyEdit,
+  canSubmitChoreographyEdit,
   hasNoCompatibleCategory,
 } from "./roster-form-state";
 import {
-  deleteAdministrativeChoreographyIntent,
-  renameAdministrativeChoreographyIntent,
-  updateAdministrativeChoreographyRosterIntent,
-  updateAdministrativeChoreographySubmodalityIntent,
-  type AdministrativeChoreographyDeleteBlocker,
-  type AdministrativeChoreographyViewActionData,
+  deleteChoreographyIntent,
+  renameChoreographyIntent,
+  updateChoreographyRosterIntent,
+  updateChoreographySubmodalityIntent,
+  type ChoreographyDeleteBlocker,
+  type ChoreographyViewActionData,
 } from "./shared";
-import { useAdministrativeRosterForm } from "./use-roster-form";
-import type { AdministrativeChoreographyDetailLoaderData } from "./server";
+import { useRosterForm } from "./use-roster-form";
+import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
-  actionData?: AdministrativeChoreographyViewActionData;
+  actionData?: ChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 };
 
-type AdministrativeChoreographyFormValues = z.input<
-  typeof administrativeChoreographyFormSchema
->;
+type ChoreographyFormValues = z.input<typeof choreographyFormSchema>;
 
-const administrativeChoreographyFormSchema = z.object({
+const choreographyFormSchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
   experienceLevelId: z.string(),
   musicStorageKey: z.string(),
@@ -129,10 +127,7 @@ export function ChoreographyDetailRouteView({
         ) : null
       }
     >
-      <AdministrativeChoreographyDetailForm
-        actionData={actionData}
-        loaderData={loaderData}
-      />
+      <ChoreographyDetailForm actionData={actionData} loaderData={loaderData} />
 
       {loaderData.canEdit ? (
         <DeleteDialog
@@ -147,7 +142,7 @@ export function ChoreographyDetailRouteView({
               ? "La eliminación es definitiva y libera el cupo de cronograma."
               : "Esta coreografía tiene registros asociados que conservan trazabilidad."
           }
-          intentValue={deleteAdministrativeChoreographyIntent}
+          intentValue={deleteChoreographyIntent}
           isBlocked={!loaderData.deletion.canDelete}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
@@ -159,28 +154,28 @@ export function ChoreographyDetailRouteView({
   );
 }
 
-function AdministrativeChoreographyDetailForm({
+function ChoreographyDetailForm({
   actionData,
   loaderData,
 }: {
-  actionData?: AdministrativeChoreographyViewActionData;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  actionData?: ChoreographyViewActionData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
   const defaultValues = useMemo(
-    () => getAdministrativeChoreographyFormValues(loaderData, actionData),
+    () => getChoreographyFormValues(loaderData, actionData),
     [actionData, loaderData],
   );
-  const form = useForm<AdministrativeChoreographyFormValues>({
+  const form = useForm<ChoreographyFormValues>({
     defaultValues,
     mode: "onSubmit",
-    resolver: zodResolver(administrativeChoreographyFormSchema),
+    resolver: zodResolver(choreographyFormSchema),
   });
   const { reset } = form;
   const submit = useSubmit();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const roster = useAdministrativeRosterForm({ form, loaderData });
+  const roster = useRosterForm({ form, loaderData });
 
   useEffect(() => {
     reset(defaultValues);
@@ -199,7 +194,7 @@ function AdministrativeChoreographyDetailForm({
 
   const canSubmit =
     loaderData.canEdit &&
-    canSubmitAdministrativeChoreographyEdit({
+    canSubmitChoreographyEdit({
       canEditRoster: roster.canEditRoster,
       derivedResolution: roster.derivedResolution,
       hasNameChanged: roster.hasNameChanged,
@@ -220,8 +215,8 @@ function AdministrativeChoreographyDetailForm({
   // presentación que sí aplica a `update-roster`.
   const intent =
     roster.hasRosterChanged || roster.hasProfessorsChanged
-      ? updateAdministrativeChoreographyRosterIntent
-      : renameAdministrativeChoreographyIntent;
+      ? updateChoreographyRosterIntent
+      : renameChoreographyIntent;
 
   const handleConfirm = form.handleSubmit((values) => {
     setIsConfirmOpen(false);
@@ -230,7 +225,7 @@ function AdministrativeChoreographyDetailForm({
     formData.set("intent", intent);
     formData.set("name", values.name);
 
-    if (intent === updateAdministrativeChoreographyRosterIntent) {
+    if (intent === updateChoreographyRosterIntent) {
       for (const dancerId of values.dancerIds) {
         formData.append("dancerIds", dancerId);
       }
@@ -430,7 +425,7 @@ function AdministrativeChoreographyDetailForm({
 function SubmodalityField({
   loaderData,
 }: {
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
   const submit = useSubmit();
@@ -465,10 +460,7 @@ function SubmodalityField({
         }
 
         const formData = new FormData();
-        formData.set(
-          "intent",
-          updateAdministrativeChoreographySubmodalityIntent,
-        );
+        formData.set("intent", updateChoreographySubmodalityIntent);
         formData.set("submodalityId", value);
         submit(formData, { method: "post" });
       }}
@@ -518,10 +510,10 @@ function FormActions({
   );
 }
 
-function getAdministrativeChoreographyFormValues(
-  loaderData: AdministrativeChoreographyDetailLoaderData,
-  actionData?: AdministrativeChoreographyViewActionData,
-): AdministrativeChoreographyFormValues {
+function getChoreographyFormValues(
+  loaderData: ChoreographyDetailLoaderData,
+  actionData?: ChoreographyViewActionData,
+): ChoreographyFormValues {
   const choreography = loaderData.choreography;
 
   return {
@@ -575,7 +567,7 @@ function toPersonOption(person: {
 function BlockedDeleteReasons({
   blockers,
 }: {
-  blockers: AdministrativeChoreographyDeleteBlocker[];
+  blockers: ChoreographyDeleteBlocker[];
 }) {
   return (
     <div>
