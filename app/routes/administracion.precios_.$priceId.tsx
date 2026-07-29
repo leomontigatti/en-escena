@@ -2,19 +2,19 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  getAdministrativeEventPriceDisplayName,
-  AdministrativeEventPriceDetailView,
-  type AdministrativeEventPriceDetailViewProps,
+  getEventPriceDisplayName,
+  EventPriceDetailView,
+  type EventPriceDetailViewProps,
 } from "@/features/admin/prices/detail/view";
 import {
-  loadAdminEventPriceDetail,
+  loadEventPriceDetail,
   updateAdministrativeEventPrice,
 } from "@/features/admin/prices/detail/server";
-import type { AdministrativeEventPricesLoaderData } from "@/features/admin/prices/shared";
+import type { EventPricesLoaderData } from "@/features/admin/prices/shared";
 
 import type { Route } from "./+types/administracion.precios_.$priceId";
 
-type LoaderData = AdministrativeEventPricesLoaderData;
+type LoaderData = EventPricesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -24,13 +24,13 @@ export const handle = {
       const price = data?.prices.find(
         (item) => item.id === match.params.priceId,
       );
-      return { label: getAdministrativeEventPriceDisplayName(price) };
+      return { label: getEventPriceDisplayName(price) };
     },
   ],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventPriceDetail(request);
+  return loadEventPriceDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -41,9 +41,9 @@ export function PriceDetailRouteView({
   loaderData,
   actionData,
   priceId,
-}: AdministrativeEventPriceDetailViewProps) {
+}: EventPriceDetailViewProps) {
   return (
-    <AdministrativeEventPriceDetailView
+    <EventPriceDetailView
       loaderData={loaderData}
       actionData={actionData}
       priceId={priceId}

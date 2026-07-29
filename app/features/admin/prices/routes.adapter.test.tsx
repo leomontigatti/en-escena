@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 
 import { renderRouteView } from "@/features/admin/test-support/render-route-view";
 import type {
-  AdministrativeEventPriceActionData,
-  AdministrativeEventPricesLoaderData,
+  EventPriceActionData,
+  EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import {
   PriceDetailRouteView,
@@ -12,7 +12,7 @@ import {
 } from "@/routes/administracion.precios_.$priceId";
 import { NewPriceRouteView } from "@/routes/administracion.precios_.nuevo";
 import { PricesListRouteView } from "@/routes/administracion.precios";
-import type { AdministrativeEventPriceDetailViewProps } from "./detail/view";
+import type { EventPriceDetailViewProps } from "./detail/view";
 
 describe("administracion.precios route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
@@ -104,7 +104,7 @@ function resolveDetailBreadcrumb({
   loaderData,
   priceId,
 }: {
-  loaderData: AdministrativeEventPriceDetailViewProps["loaderData"];
+  loaderData: EventPriceDetailViewProps["loaderData"];
   priceId: string;
 }) {
   const breadcrumbResolver = detailRouteHandle.adminBreadcrumbs[1];
@@ -134,8 +134,8 @@ function price(id: string, name: string) {
 }
 
 function loaderData(
-  overrides: Partial<AdministrativeEventPricesLoaderData> = {},
-): AdministrativeEventPricesLoaderData {
+  overrides: Partial<EventPricesLoaderData> = {},
+): EventPricesLoaderData {
   return {
     prices: [],
     schedules: [],
@@ -144,7 +144,7 @@ function loaderData(
   };
 }
 
-function actionData(message: string): AdministrativeEventPriceActionData {
+function actionData(message: string): EventPriceActionData {
   return {
     fieldErrors: {},
     message,

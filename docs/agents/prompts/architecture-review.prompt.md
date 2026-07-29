@@ -5,8 +5,8 @@
 > except for publishing one PRD. See the spec:
 > [§4.8 Architecture Review](../afk-agent-platform-spec.md#48-architecture-review).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (docs de contexto,
-> comandos). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (context docs,
+> commands). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

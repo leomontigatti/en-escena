@@ -1,14 +1,13 @@
-# Auditoria
+# Auditing
 
-> **Retirado (2026-07):** por decisión operativa, el sistema deja de auditar
-> cambios. Se elimina la infraestructura de auditoría (la tabla
-> `administrative_audit_entry` y el código de audit de bailarines, profesores,
-> usuarios y coreografías) y los campos de anulación/atribución
-> (`annulled*`, `cancelled*`, `createdByUserId`) de los registros. Hay un único
-> `Administrador` (edita) y un único `Auditor` (solo lectura); el Auditor lee
-> datos, no historial de cambios. Las reglas de abajo quedan como referencia
-> histórica y no rigen el modelo actual. El plan de migración que las remueve se
-> coordina en #278.
+> **Retired (2026-07):** by operational decision, the system no longer audits
+> changes. The audit infrastructure is removed (the `administrative_audit_entry`
+> table and the audit code for dancers, professors, users and choreographies)
+> along with the annulment/attribution fields (`annulled*`, `cancelled*`,
+> `createdByUserId`) on the records. There is a single `admin` (edits) and a
+> single auditor (read-only); the auditor reads data, not change history. The
+> rules below remain as historical reference and do not govern the current model.
+> The migration plan that removes them is coordinated in #278.
 
 Rules for administrative traceability, audit history and state-level audit
 fields.

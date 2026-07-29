@@ -4,8 +4,8 @@ import { describe, expect, test } from "vitest";
 
 import { renderRouteView } from "@/features/admin/test-support/render-route-view";
 import type {
-  AdministrativeEventModalitiesLoaderData,
-  AdministrativeEventModalityActionData,
+  EventModalitiesLoaderData,
+  EventModalityActionData,
 } from "@/features/admin/modalities/shared";
 import { ModalityDetailRouteView } from "@/routes/administracion.modalidades_.$modalityId";
 import { NewModalityRouteView } from "@/routes/administracion.modalidades_.nueva";
@@ -33,8 +33,8 @@ describe("administracion.modalidades route adapters", () => {
     const markup = renderRouteView(
       createElement(
         NewModalityRouteView as ComponentType<{
-          loaderData: AdministrativeEventModalitiesLoaderData;
-          actionData?: AdministrativeEventModalityActionData;
+          loaderData: EventModalitiesLoaderData;
+          actionData?: EventModalityActionData;
         }>,
         {
           loaderData: loaderData(),
@@ -104,8 +104,8 @@ function submodality(id: string, modalityId: string, name: string) {
 }
 
 function loaderData(
-  overrides: Partial<AdministrativeEventModalitiesLoaderData> = {},
-): AdministrativeEventModalitiesLoaderData {
+  overrides: Partial<EventModalitiesLoaderData> = {},
+): EventModalitiesLoaderData {
   return {
     modalities: [],
     selectedEventId: "evento_1",
@@ -114,7 +114,7 @@ function loaderData(
   };
 }
 
-function actionData(message: string): AdministrativeEventModalityActionData {
+function actionData(message: string): EventModalityActionData {
   return {
     fieldErrors: {},
     message,

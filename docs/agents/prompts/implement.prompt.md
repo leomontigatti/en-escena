@@ -4,8 +4,8 @@
 > orchestrator asserts ≥1 commit afterwards. See the spec:
 > [§4.2 Implement](../afk-agent-platform-spec.md#42-implement-single-issue).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (comandos, docs de
-> contexto). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (commands, context
+> docs). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

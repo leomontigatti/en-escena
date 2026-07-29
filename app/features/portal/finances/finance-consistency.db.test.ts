@@ -7,7 +7,7 @@ import {
   paymentAllocations,
   prices,
 } from "@/db/schema";
-import { loadAdminChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
+import { loadChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import {
   createChoreographyRecord,
   createDancer,
@@ -245,25 +245,25 @@ describe.sequential(
         },
       ]);
 
-      const currentPriceDetail = await loadChoreographyFinanceDetail({
+      const currentPriceDetail = await loadChoreographyFinanceDetailAsAdmin({
         academyId: owner.academyId,
         choreographyId: currentPriceChoreography.id,
         email: "admin.detalle.actual@example.com",
         eventId: event.id,
       });
-      const pendingSnapshotDetail = await loadChoreographyFinanceDetail({
+      const pendingSnapshotDetail = await loadChoreographyFinanceDetailAsAdmin({
         academyId: owner.academyId,
         choreographyId: pendingSnapshotChoreography.id,
         email: "admin.detalle.pendiente@example.com",
         eventId: event.id,
       });
-      const paidSnapshotDetail = await loadChoreographyFinanceDetail({
+      const paidSnapshotDetail = await loadChoreographyFinanceDetailAsAdmin({
         academyId: owner.academyId,
         choreographyId: paidSnapshotChoreography.id,
         email: "admin.detalle.pagada@example.com",
         eventId: event.id,
       });
-      const missingPriceDetail = await loadChoreographyFinanceDetail({
+      const missingPriceDetail = await loadChoreographyFinanceDetailAsAdmin({
         academyId: owner.academyId,
         choreographyId: missingPriceChoreography.id,
         email: "admin.detalle.sin.precio@example.com",
@@ -382,7 +382,7 @@ async function insertSignedInscription(input: {
   return inscription;
 }
 
-async function loadChoreographyFinanceDetail(input: {
+async function loadChoreographyFinanceDetailAsAdmin(input: {
   academyId: string;
   choreographyId: string;
   email: string;
@@ -398,7 +398,7 @@ async function loadChoreographyFinanceDetail(input: {
     }),
   });
 
-  return await loadAdminChoreographyFinanceDetail(
+  return await loadChoreographyFinanceDetail(
     choreographyDetailRouteArgs({
       academyId: input.academyId,
       choreographyId: input.choreographyId,

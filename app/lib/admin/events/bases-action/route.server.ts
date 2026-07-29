@@ -1,4 +1,4 @@
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   runEventBasesActionWithHandler,
   type EventBasesActionHandler,
@@ -30,7 +30,7 @@ async function runSelectedEventBasesAction<
 }: EventBasesRouteActionOptions<TIntent, TInput>): Promise<ActionData | never> {
   await requireAdminPanelUser(request);
 
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const eventId = eventContext.selectedEventId;
 
   if (!eventId) {

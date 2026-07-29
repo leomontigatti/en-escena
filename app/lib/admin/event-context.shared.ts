@@ -1,4 +1,4 @@
-export type AdminEventOption = {
+export type EventOption = {
   id: string;
   name: string;
   active: boolean;

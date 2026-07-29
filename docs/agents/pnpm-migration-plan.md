@@ -1,73 +1,72 @@
-# Plan: migrar de npm a pnpm
+# Plan: migrate from npm to pnpm
 
-Este plan describe una migracion controlada de En Escena desde `npm` a `pnpm`
-como gestor de paquetes. No es prerequisito para acelerar la suite DB, pero
-puede mejorar tiempos de instalacion, uso de disco y consistencia con
+This plan describes a controlled migration of En Escena from `npm` to `pnpm` as
+its package manager. It is not a prerequisite for speeding up the DB suite, but
+it can improve install times, disk usage and consistency with
 `mattpocock/course-video-manager`.
 
-Estado actual: la migracion operativa usa `pnpm`. Mantener este documento como
-registro de decisiones y checklist para revisar cambios futuros relacionados con
-instalacion, lockfiles o automatizacion.
+Current status: the operational migration uses `pnpm`. Keep this document as a
+record of decisions and as a checklist for reviewing future changes related to
+installation, lockfiles or automation.
 
-## Objetivo
+## Goal
 
-Adoptar `pnpm` sin cambiar comportamiento de la app, tests ni scripts de
-validacion.
+Adopt `pnpm` without changing the behavior of the app, the tests or the
+validation scripts.
 
-La migracion debe preservar estas reglas del repo:
+The migration must preserve these repo rules:
 
-- Para TypeScript, seguir usando el script del proyecto: `pnpm run typecheck`.
-  No usar `pnpm exec tsc` como validacion directa.
-- Los tests DB deben seguir apuntando a `TEST_DATABASE_URL`, nunca a datos de
-  produccion o preview.
-- No mezclar esta migracion con refactors de codigo o cambios de dependencias no
-  necesarios.
+- For TypeScript, keep using the project script: `pnpm run typecheck`. Do not use
+  `pnpm exec tsc` as direct validation.
+- DB tests must keep pointing at `TEST_DATABASE_URL`, never at production or
+  preview data.
+- Do not mix this migration with code refactors or unnecessary dependency
+  changes.
 
-## Beneficios esperados
+## Expected benefits
 
-- Instalaciones mas rapidas por el store global de `pnpm`.
-- Menor uso de disco en maquinas con varios proyectos Node.
-- Lockfile reproducible con `pnpm-lock.yaml`.
-- Resolucion de dependencias mas estricta, exponiendo usos accidentales de
-  dependencias transitivas.
-- Mejor alineacion operativa con `mattpocock/course-video-manager`, que usa
+- Faster installs thanks to `pnpm`'s global store.
+- Lower disk usage on machines with several Node projects.
+- Reproducible lockfile with `pnpm-lock.yaml`.
+- Stricter dependency resolution, exposing accidental uses of transitive
+  dependencies.
+- Better operational alignment with `mattpocock/course-video-manager`, which uses
   `pnpm`.
 
-## Riesgos
+## Risks
 
-- La resolucion estricta puede romper imports que hoy funcionan por hoisting
-  accidental.
-- Algunas herramientas pueden asumir layout tipo `npm` en `node_modules`.
-- CI, deploy o agentes pueden quedar desactualizados si vuelven a documentar o
-  ejecutar comandos del gestor anterior.
-- La migracion puede generar ruido grande en lockfile si se mezcla con cambios
-  de dependencias.
+- Strict resolution can break imports that work today through accidental
+  hoisting.
+- Some tools may assume an `npm`-style `node_modules` layout.
+- CI, deploy or agents can go stale if they document or run the previous manager's
+  commands again.
+- The migration can produce large lockfile noise if mixed with dependency
+  changes.
 
-## Fase 1: auditoria previa
+## Phase 1: prior audit
 
-1. Confirmar version de Node usada por el proyecto.
-2. Confirmar si `corepack` esta disponible en los entornos de desarrollo y CI.
-3. Revisar archivos que mencionan comandos del gestor anterior:
+1. Confirm the Node version used by the project.
+2. Confirm whether `corepack` is available in the development and CI
+   environments.
+3. Review the files mentioning the previous manager's commands:
    - `AGENTS.md`
    - `docs/agents/workflows.md`
    - `docs/local-auth.md`
    - `package.json`
-   - cualquier workflow de CI/deploy si se agrega en el futuro.
-4. Identificar si existen scripts o herramientas que llaman al gestor anterior
-   internamente.
-5. Correr la validacion base actual antes de migrar:
+   - any CI/deploy workflow, if one is added in the future.
+4. Identify whether any scripts or tools call the previous manager internally.
+5. Run the current baseline validation before migrating:
    - `pnpm format:check`
    - `pnpm typecheck`
    - `pnpm test`
-   - `pnpm test:db` cuando la suite DB este verde en la rama base.
+   - `pnpm test:db` when the DB suite is green on the base branch.
 
-Resultado esperado: una linea base verde o una lista explicita de fallas
-preexistentes.
+Expected result: a green baseline, or an explicit list of pre-existing failures.
 
-## Fase 2: activar pnpm
+## Phase 2: enable pnpm
 
-1. Elegir una version fija de `pnpm`.
-2. Agregar `packageManager` a `package.json`, por ejemplo:
+1. Choose a pinned `pnpm` version.
+2. Add `packageManager` to `package.json`, for example:
 
    ```json
    {
@@ -75,49 +74,48 @@ preexistentes.
    }
    ```
 
-3. Habilitar `corepack` en documentacion local:
+3. Enable `corepack` in the local documentation:
 
    ```bash
    corepack enable
    corepack prepare pnpm@10.x.x --activate
    ```
 
-4. Generar `pnpm-lock.yaml`:
+4. Generate `pnpm-lock.yaml`:
 
    ```bash
    pnpm install
    ```
 
-5. Eliminar `package-lock.json` en el mismo cambio, si la migracion se acepta.
+5. Delete `package-lock.json` in the same change, if the migration is accepted.
 
-## Fase 3: adaptar scripts y docs
+## Phase 3: adapt scripts and docs
 
-Actualizar comandos documentados:
+Update the documented commands:
 
-- instalacion: `pnpm install`
-- desarrollo: `pnpm dev`
+- install: `pnpm install`
+- development: `pnpm dev`
 - TypeScript: `pnpm typecheck`
-- tests unitarios: `pnpm test`
-- DB enfocada: `pnpm test:db:file <archivo>`
-- DB final: `pnpm test:db`
+- unit tests: `pnpm test`
+- focused DB: `pnpm test:db:file <file>`
+- final DB: `pnpm test:db`
 - build: `pnpm build`
 
-Mantener la advertencia de TypeScript:
+Keep the TypeScript warning:
 
-- Correcto: `pnpm typecheck`
-- Incorrecto: `pnpm exec tsc`
+- Correct: `pnpm typecheck`
+- Incorrect: `pnpm exec tsc`
 
-Actualizar `docs/agents/workflows.md` para que el orden de validacion use
-`pnpm`.
+Update `docs/agents/workflows.md` so the validation order uses `pnpm`.
 
-Actualizar `docs/local-auth.md` para el flujo de instalacion local.
+Update `docs/local-auth.md` for the local install flow.
 
-Si quedan referencias historicas a `npm` en ADRs, no editarlas salvo que sean
-instrucciones operativas vigentes.
+If historical `npm` references remain in ADRs, do not edit them unless they are
+current operational instructions.
 
-## Fase 4: validar compatibilidad
+## Phase 4: validate compatibility
 
-Despues de instalar con `pnpm`, correr:
+After installing with `pnpm`, run:
 
 ```bash
 pnpm format:check
@@ -126,55 +124,56 @@ pnpm test
 pnpm build
 ```
 
-Para DB, cuando el estado de la rama lo permita:
+For DB, when the branch state allows it:
 
 ```bash
 pnpm test:db:file tests/db/harness.db.test.ts
 pnpm test:db
 ```
 
-Si aparecen fallas de resolucion de modulos:
+If module resolution failures appear:
 
-1. Identificar si el codigo importa una dependencia transitiva no declarada.
-2. Agregar la dependencia directa al `package.json` solo si el proyecto la usa
-   directamente.
-3. Evitar `shamefully-hoist` salvo que una herramienta externa lo requiera y se
-   documente el motivo.
+1. Identify whether the code imports an undeclared transitive dependency.
+2. Add the direct dependency to `package.json` only if the project uses it
+   directly.
+3. Avoid `shamefully-hoist` unless an external tool requires it and the reason is
+   documented.
 
-## Fase 5: adaptar automatizacion
+## Phase 5: adapt automation
 
-Cuando exista CI/deploy configurado, actualizarlo para:
+Once CI/deploy is configured, update it to:
 
-1. Instalar pnpm con `corepack`.
-2. Usar cache de pnpm store.
-3. Instalar con:
+1. Install pnpm with `corepack`.
+2. Use a pnpm store cache.
+3. Install with:
 
    ```bash
    pnpm install --frozen-lockfile
    ```
 
-4. Ejecutar los scripts equivalentes con `pnpm`.
+4. Run the equivalent scripts with `pnpm`.
 
-Para agentes Codex, mantener aprobaciones persistentes documentadas para:
+For Codex agents, keep documented persistent approvals for:
 
 - `pnpm test:db:file`
 - `pnpm test:db`
 - `docker compose up -d postgres`
 
-## Criterios de aceptacion
+## Acceptance criteria
 
-- `package-lock.json` fue reemplazado por `pnpm-lock.yaml`.
-- `package.json` declara `packageManager`.
-- La instalacion desde cero funciona con `pnpm install --frozen-lockfile`.
-- `pnpm format:check`, `pnpm typecheck`, `pnpm test` y `pnpm build` pasan.
-- `pnpm test:db:file tests/db/harness.db.test.ts` pasa con Postgres local.
-- `pnpm test:db` pasa o conserva solamente fallas preexistentes documentadas.
-- Las docs operativas ya no instruyen usar `npm` para comandos activos del repo.
+- `package-lock.json` was replaced by `pnpm-lock.yaml`.
+- `package.json` declares `packageManager`.
+- A from-scratch install works with `pnpm install --frozen-lockfile`.
+- `pnpm format:check`, `pnpm typecheck`, `pnpm test` and `pnpm build` pass.
+- `pnpm test:db:file tests/db/harness.db.test.ts` passes against local Postgres.
+- `pnpm test:db` passes, or retains only documented pre-existing failures.
+- The operational docs no longer instruct using `npm` for the repo's active
+  commands.
 
-## Recomendacion
+## Recommendation
 
-Hacer esta migracion en una rama dedicada, sin cambios funcionales. Primero
-cerrar o documentar las fallas DB preexistentes para que la validacion final de
-la migracion sea clara. Si el objetivo principal es acelerar tests, tratar esta
-migracion como mejora complementaria: la palanca principal sigue siendo el plan
-de `docs/agents/test-suite-speed-plan.md`.
+Do this migration on a dedicated branch, with no functional changes. First close
+or document the pre-existing DB failures so the migration's final validation is
+clear. If the main goal is speeding up tests, treat this migration as a
+complementary improvement: the primary lever is still the plan in
+`docs/agents/test-suite-speed-plan.md`.

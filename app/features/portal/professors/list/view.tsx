@@ -240,7 +240,9 @@ function formatProfessorDocument(professor: ProfessorRow) {
 function getProfessorStateBadges(professor: ProfessorRow) {
   const badges: ProfessorBadge[] = [
     {
-      label: getProfessorParticipationLabel(professor.participationStatus),
+      label: getPortalProfessorParticipationLabel(
+        professor.participationStatus,
+      ),
       variant:
         professor.participationStatus === "participating"
           ? ("success" as const)
@@ -261,7 +263,7 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   return badges;
 }
 
-function getProfessorParticipationLabel(
+function getPortalProfessorParticipationLabel(
   status: ProfessorRow["participationStatus"],
 ) {
   if (status === "participating") {

@@ -9,7 +9,7 @@ import {
 } from "@/lib/portal/professors.server";
 import {
   archiveProfessorIntent,
-  professorNotFoundMessage,
+  portalProfessorNotFoundMessage,
   reactivateProfessorIntent,
   updateProfessorIntent,
 } from "@/features/portal/professors/detail/shared";
@@ -87,7 +87,7 @@ export async function handlePortalProfessorDetailAction({
 
 function readProfessorId(params: { professorId?: string }) {
   if (!params.professorId) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
+    throw new Response(portalProfessorNotFoundMessage, { status: 404 });
   }
 
   return params.professorId;
@@ -97,7 +97,7 @@ async function requireProfessor(academyId: string, professorId: string) {
   const professor = await findAcademyProfessor(academyId, professorId);
 
   if (!professor) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
+    throw new Response(portalProfessorNotFoundMessage, { status: 404 });
   }
 
   return professor;

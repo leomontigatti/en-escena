@@ -4,8 +4,8 @@
 > the output IS the work. Fill the `{{...}}` inputs.
 > See the spec: [§4.1 To Issues](../afk-agent-platform-spec.md#41-to-issues).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (tracker `gh`, docs
-> de contexto). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (`gh` tracker, context
+> docs). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

@@ -46,7 +46,7 @@ export type FacturaCVoucherInput = {
   // esa decisión anti-doble-cobro.
   cbteNro: number;
   cbteFch: string;
-  // Importe total en pesos argentinos enteros (sin centavos, ver finanzas.md).
+  // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
   importe: number;
   condicionIvaReceptorId: number;
 } & Partial<ServiceDates>;

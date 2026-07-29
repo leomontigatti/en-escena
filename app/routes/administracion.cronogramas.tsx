@@ -1,8 +1,8 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdminEventSchedulesList } from "@/features/admin/schedules/list/server";
+import { loadEventSchedulesList } from "@/features/admin/schedules/list/server";
 import {
-  AdministrativeEventSchedulesListView,
-  type AdministrativeEventSchedulesListViewProps,
+  EventSchedulesListView,
+  type EventSchedulesListViewProps,
 } from "@/features/admin/schedules/list/view";
 
 import type { Route } from "./+types/administracion.cronogramas";
@@ -12,17 +12,17 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventSchedulesList(request);
+  return loadEventSchedulesList(request);
 }
 
 export function EventSchedulesListRouteView({
   loaderData,
-}: AdministrativeEventSchedulesListViewProps) {
-  return <AdministrativeEventSchedulesListView loaderData={loaderData} />;
+}: EventSchedulesListViewProps) {
+  return <EventSchedulesListView loaderData={loaderData} />;
 }
 
 export default function EventSchedulesListRoute({
   loaderData,
-}: AdministrativeEventSchedulesListViewProps) {
+}: EventSchedulesListViewProps) {
   return <EventSchedulesListRouteView loaderData={loaderData} />;
 }

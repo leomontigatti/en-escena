@@ -1,7 +1,7 @@
 import { handleEventModalityAction } from "../action.server";
 import { loadEventModalitiesData } from "../server";
 
-export async function loadAdminEventModalityCreate(request: Request) {
+export async function loadEventModalityCreate(request: Request) {
   return loadEventModalitiesData(request);
 }
 

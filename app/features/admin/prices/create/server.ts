@@ -1,7 +1,7 @@
 import { handleEventPriceAction } from "../action.server";
 import { loadEventPriceFormOptions } from "../server";
 
-export async function loadAdminEventPriceCreate(request: Request) {
+export async function loadEventPriceCreate(request: Request) {
   return loadEventPriceFormOptions(request);
 }
 

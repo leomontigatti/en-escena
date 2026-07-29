@@ -4,24 +4,24 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import { EmptyResourceState, ScheduleActions } from "../dialogs";
 import { ScheduleForm, ScheduleFormActions, ScheduleFormPanel } from "../form";
 import type {
-  AdministrativeEventScheduleActionData,
-  AdministrativeEventScheduleDetailLoaderData,
+  EventScheduleActionData,
+  EventScheduleDetailLoaderData,
 } from "../shared";
 import { getScheduleSubmittedValues } from "../submitted-values";
 
-export type AdministrativeEventScheduleDetailViewProps = {
-  actionData?: AdministrativeEventScheduleActionData;
-  loaderData: AdministrativeEventScheduleDetailLoaderData;
+export type EventScheduleDetailViewProps = {
+  actionData?: EventScheduleActionData;
+  loaderData: EventScheduleDetailLoaderData;
   scheduleId: string;
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventScheduleDetailView({
+export function EventScheduleDetailView({
   loaderData,
   actionData,
   scheduleId,
   initialDeleteDialogOpen = false,
-}: AdministrativeEventScheduleDetailViewProps) {
+}: EventScheduleDetailViewProps) {
   useServerActionToast(actionData);
 
   const schedule = loaderData.schedules.find(

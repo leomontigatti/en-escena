@@ -10,13 +10,13 @@ import {
   user,
 } from "@/db/schema";
 import {
-  adminProfessorPageSize,
-  type AdministrativeProfessorAuditAction,
-  type AdminProfessorNameOrder,
-  type AdminProfessorParticipationStatus,
-  type AdministrativeProfessorListFilters,
-  readAdminProfessorParticipationFilter,
-  readAdminProfessorStatusFilter,
+  professorPageSize,
+  type ProfessorAuditAction,
+  type ProfessorNameOrder,
+  type ProfessorParticipationStatus,
+  type ProfessorListFilters,
+  readProfessorParticipationFilter,
+  readProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 import {
   findDuplicateProfessorDocument,
@@ -29,25 +29,25 @@ import {
   buildProfessorEventParticipationSql,
 } from "@/lib/participation/participation.server";
 
-export type AdministrativeProfessorListItem = {
+export type ProfessorListItem = {
   id: string;
   firstName: string;
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: AdminProfessorParticipationStatus;
+  participationStatus: ProfessorParticipationStatus;
   identificationStatus: "complete" | "incomplete";
 };
 
-export type AdministrativeProfessorListResult = {
-  filters: AdministrativeProfessorListFilters;
+export type ProfessorListResult = {
+  filters: ProfessorListFilters;
   hasAnyProfessor: boolean;
-  items: AdministrativeProfessorListItem[];
+  items: ProfessorListItem[];
   totalCount: number;
   totalPages: number;
 };
 
-export type AdministrativeProfessorDetail = {
+export type ProfessorDetail = {
   id: string;
   firstName: string;
   lastName: string;
@@ -64,24 +64,24 @@ export type AdministrativeProfessorDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: AdminProfessorParticipationStatus;
+  participationStatus: ProfessorParticipationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
 };
 
-export type AdministrativeProfessorUpdateInput = {
+export type ProfessorUpdateInput = {
   firstName: string;
   lastName: string;
   documentType: string;
   documentNumber: string;
 };
 
-export type AdministrativeProfessorFieldErrors = Partial<
+export type ProfessorFieldErrors = Partial<
   Record<"firstName" | "lastName" | "documentType" | "documentNumber", string>
 >;
 
-export type AdministrativeProfessorMutationResult =
+export type ProfessorMutationResult =
   | {
       ok: true;
       professor: ProfessorEditableSnapshot;
@@ -89,38 +89,38 @@ export type AdministrativeProfessorMutationResult =
   | {
       ok: false;
       message: string;
-      fieldErrors: AdministrativeProfessorFieldErrors;
-      values: AdministrativeProfessorUpdateInput;
+      fieldErrors: ProfessorFieldErrors;
+      values: ProfessorUpdateInput;
     };
 
-type AdministrativeProfessorStatusMutationResult = {
+type ProfessorStatusMutationResult = {
   professor: ProfessorEditableSnapshot;
 };
 
-export function readAdministrativeProfessorFilters(
+export function readProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
-): AdministrativeProfessorListFilters {
+): ProfessorListFilters {
   const stateValue = searchParams.get("estado");
 
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: readProfessorParticipationFilter({
+    participation: resolveProfessorParticipationFilter({
       stateValue,
       participationValue: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readProfessorStatusFilter(stateValue),
+    status: resolveProfessorStatusFilter(stateValue),
     page: readPage(searchParams),
   };
 }
 
-export async function listAdministrativeProfessors(input: {
+export async function listProfessors(input: {
   selectedEventId: string | null;
-  filters: AdministrativeProfessorListFilters;
-}): Promise<AdministrativeProfessorListResult> {
-  const where = buildAdministrativeProfessorWhere(input);
+  filters: ProfessorListFilters;
+}): Promise<ProfessorListResult> {
+  const where = buildProfessorWhere(input);
 
   const [{ count: totalUnfilteredCount }] = await db
     .select({
@@ -138,10 +138,7 @@ export async function listAdministrativeProfessors(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / adminProfessorPageSize),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / professorPageSize));
   const page = Math.min(input.filters.page, totalPages);
   const participationSql = buildProfessorEventParticipationSql(
     input.selectedEventId,
@@ -172,8 +169,8 @@ export async function listAdministrativeProfessors(input: {
     .innerJoin(academies, eq(academies.id, professors.academyId))
     .where(where)
     .orderBy(...orderByName, asc(professors.id))
-    .limit(adminProfessorPageSize)
-    .offset((page - 1) * adminProfessorPageSize);
+    .limit(professorPageSize)
+    .offset((page - 1) * professorPageSize);
 
   return {
     filters: {
@@ -199,11 +196,11 @@ export async function listAdministrativeProfessors(input: {
   };
 }
 
-function readProfessorParticipationFilter(input: {
+function resolveProfessorParticipationFilter(input: {
   stateValue: string | null;
   participationValue: string | null;
   hasSelectedEvent: boolean;
-}): AdministrativeProfessorListFilters["participation"] {
+}): ProfessorListFilters["participation"] {
   if (input.stateValue === "participando") {
     return "yes";
   }
@@ -216,30 +213,30 @@ function readProfessorParticipationFilter(input: {
     return "all";
   }
 
-  return readAdminProfessorParticipationFilter({
+  return readProfessorParticipationFilter({
     value: input.participationValue,
     hasSelectedEvent: input.hasSelectedEvent,
   });
 }
 
-function readProfessorStatusFilter(
+function resolveProfessorStatusFilter(
   value: string | null,
-): AdministrativeProfessorListFilters["status"] {
+): ProfessorListFilters["status"] {
   if (value === "archivados") {
     return "archived";
   }
 
-  return readAdminProfessorStatusFilter(value);
+  return readProfessorStatusFilter(value);
 }
 
-function readProfessorNameOrder(value: string | null): AdminProfessorNameOrder {
+function readProfessorNameOrder(value: string | null): ProfessorNameOrder {
   return value === "nombre:desc" ? "desc" : "asc";
 }
 
-export async function findAdministrativeProfessor(input: {
+export async function findProfessor(input: {
   professorId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeProfessorDetail | null> {
+}): Promise<ProfessorDetail | null> {
   const participationSql = buildProfessorEventParticipationSql(
     input.selectedEventId,
   );
@@ -330,9 +327,9 @@ export async function updateAdministrativeProfessor(input: {
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
-  values: AdministrativeProfessorUpdateInput;
-}): Promise<AdministrativeProfessorMutationResult> {
-  const existingProfessor = await findAdministrativeProfessorForMutation({
+  values: ProfessorUpdateInput;
+}): Promise<ProfessorMutationResult> {
+  const existingProfessor = await findProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
   });
@@ -341,7 +338,7 @@ export async function updateAdministrativeProfessor(input: {
     throw new Response("No encontramos ese Profesor.", { status: 404 });
   }
 
-  const fieldErrors: AdministrativeProfessorFieldErrors = {};
+  const fieldErrors: ProfessorFieldErrors = {};
   const values = { ...input.values };
   const normalizedNames = normalizeProfessorNames(input.values);
 
@@ -412,7 +409,7 @@ export async function updateAdministrativeProfessor(input: {
     .returning();
   const afterValues = toProfessorSnapshot(updatedProfessor);
 
-  await insertAdministrativeProfessorAuditEntry({
+  await insertProfessorAuditEntry({
     action: "update",
     adminUserId: input.adminUserId,
     afterValues,
@@ -428,13 +425,13 @@ export async function updateAdministrativeProfessor(input: {
   };
 }
 
-export async function setAdministrativeProfessorActiveState(input: {
+export async function setProfessorActiveState(input: {
   action: "archive" | "reactivate";
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeProfessorStatusMutationResult> {
-  const existingProfessor = await findAdministrativeProfessorForMutation({
+}): Promise<ProfessorStatusMutationResult> {
+  const existingProfessor = await findProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
   });
@@ -455,7 +452,7 @@ export async function setAdministrativeProfessorActiveState(input: {
     .returning();
   const afterValues = toProfessorSnapshot(updatedProfessor);
 
-  await insertAdministrativeProfessorAuditEntry({
+  await insertProfessorAuditEntry({
     action: input.action,
     adminUserId: input.adminUserId,
     afterValues,
@@ -470,9 +467,9 @@ export async function setAdministrativeProfessorActiveState(input: {
   };
 }
 
-function buildAdministrativeProfessorWhere(input: {
+function buildProfessorWhere(input: {
   selectedEventId: string | null;
-  filters: AdministrativeProfessorListFilters;
+  filters: ProfessorListFilters;
 }) {
   const conditions: SQL[] = [];
   const participationSql = buildProfessorEventParticipationSql(
@@ -521,7 +518,7 @@ function buildAdministrativeProfessorWhere(input: {
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
-): AdminProfessorParticipationStatus {
+): ProfessorParticipationStatus {
   if (selectedEventId === null) {
     return "no-event";
   }
@@ -529,7 +526,7 @@ function toParticipationStatus(
   return isParticipating ? "participating" : "not-participating";
 }
 
-async function findAdministrativeProfessorForMutation(input: {
+async function findProfessorForMutation(input: {
   professorId: string;
   selectedEventId: string | null;
 }) {
@@ -593,8 +590,8 @@ function toProfessorSnapshot(
   };
 }
 
-async function insertAdministrativeProfessorAuditEntry(input: {
-  action: AdministrativeProfessorAuditAction;
+async function insertProfessorAuditEntry(input: {
+  action: ProfessorAuditAction;
   adminUserId: string;
   afterValues: ProfessorEditableSnapshot;
   beforeValues: ProfessorEditableSnapshot;

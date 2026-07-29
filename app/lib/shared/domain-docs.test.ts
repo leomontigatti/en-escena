@@ -3,10 +3,10 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
 
 const glossaryRequirements = [
-  "Como máximo puede haber un Evento activo global",
-  "**Evento activo** — code: `activeEvent`",
-  "Es el único contexto de evento para la primera versión",
-  "**Bases del evento** — code: `eventBases`",
+  "At most one active event can exist globally",
+  '**`activeEvent`** — ui: "Evento activo"',
+  "It is the only event context for the first version",
+  '**`eventBases`** — ui: "Bases del evento"',
 ];
 
 const adrRequirements = [
@@ -17,14 +17,14 @@ const adrRequirements = [
 ];
 
 const domainRuleRequirements = [
-  "Tipo de documento y número de documento de `Profesor` se tratan como un par",
-  "Tipo de documento y número de documento de `Bailarín` se tratan como un par",
-  "ambos pueden quedar vacíos",
-  "Si uno está completo y el otro vacío, la ficha es inválida y no se guarda",
-  "Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia",
-  "Si falta algún dato o imagen del documento, el estado de verificación de bailarín es incompleto",
-  "Un par de documento parcial no es un estado guardado",
-  "es un error de validación del formulario",
+  "`Profesor` document type and document number are treated as a pair",
+  "`Bailarín` document type and document number are treated as a pair",
+  "both may be left empty",
+  "If one is filled in and the other is empty, the record is invalid and is not saved",
+  "When the document pair is complete, its uniqueness is enforced within the same academy",
+  "If any document field or image is missing, the dancer verification status is incompleto",
+  "A partial document pair is not a saved state",
+  "it is a form validation error",
 ];
 
 const fastDbIsolationAdrRequirements = [
@@ -121,7 +121,7 @@ const codeLanguageRequirements = [
   "UI strings, page titles, URLs",
   "Code identifiers, comments, docs, ADRs",
   "External-system adapters",
-  "`loadAdminAcademyFinances`",
+  "`loadAcademyFinances`",
   "`ArcaVoucher`",
   "administracion.finanzas_.$academyId.tsx",
   "### Reserved Spanish Domain Terms",
@@ -159,24 +159,24 @@ describe("domain documentation", () => {
     expect(entryHeadings.length).toBeGreaterThan(80);
 
     for (const heading of entryHeadings) {
-      if (heading.includes("_(término retirado)_")) {
+      if (heading.includes("_(retired term)_")) {
         expect(heading, heading).toMatch(
-          /^\*\*.+\*\* _\(término retirado\)_ — sin identificador de código$/,
+          /^\*\*.+\*\* _\(retired term\)_ — no code identifier$/,
         );
         continue;
       }
 
       expect(heading, heading).toMatch(
-        /^\*\*.+\*\* — code: `[A-Za-z][A-Za-z0-9]*`$/,
+        /^\*\*`[A-Za-z][A-Za-z0-9]*`\*\* — ui: ".+"$/,
       );
     }
   });
 
   test("keeps every glossary code identifier unique", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
-    const identifiers = [...glossary.matchAll(/ — code: `([^`]+)`/g)].map(
-      ([, identifier]) => identifier,
-    );
+    const identifiers = [
+      ...glossary.matchAll(/^\*\*`([^`]+)`\*\* — ui: /gm),
+    ].map(([, identifier]) => identifier);
 
     expect(identifiers.length).toBeGreaterThan(80);
     expect(new Set(identifiers).size).toBe(identifiers.length);
@@ -202,7 +202,7 @@ describe("domain documentation", () => {
   });
 
   test("keeps detailed domain rules outside the glossary", async () => {
-    const rules = await readFile("docs/domain/coreografias.md", "utf8");
+    const rules = await readFile("docs/domain/choreographies.md", "utf8");
 
     for (const requirement of domainRuleRequirements) {
       expect(rules).toContain(requirement);
@@ -221,7 +221,7 @@ describe("domain documentation", () => {
   });
 
   test("documents the pending academy onboarding access state", async () => {
-    const rules = await readFile("docs/domain/acceso.md", "utf8");
+    const rules = await readFile("docs/domain/access.md", "utf8");
 
     for (const requirement of accessDomainRequirements) {
       expect(rules).toContain(requirement);
@@ -259,7 +259,7 @@ describe("domain documentation", () => {
   });
 
   test("documents access permissions as domain authority", async () => {
-    const rules = await readFile("docs/domain/acceso.md", "utf8");
+    const rules = await readFile("docs/domain/access.md", "utf8");
 
     for (const requirement of accessPermissionRequirements) {
       expect(rules).toContain(requirement);

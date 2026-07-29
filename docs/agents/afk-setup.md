@@ -1,21 +1,24 @@
-# AFK — setup operativo (labels, secrets, degradación)
+# AFK — operational setup (labels, secrets, degradation)
 
-Runbook de la infraestructura que consumen **todos** los workflows AFK (Parte 3 del
-[spec](./afk-agent-platform-spec.md)). El spec §3.1 es la **fuente de verdad** de _qué_ hace
-falta; este doc es el _cómo_ de este repo y el registro de lo ya provisionado. Issue de
-origen: [#343](https://github.com/leomontigatti/en-escena/issues/343).
+Runbook for the infrastructure consumed by **all** the AFK workflows (Part 3 of the
+[spec](./afk-agent-platform-spec.md)). Spec §3.1 is the **source of truth** for _what_ is
+needed; this doc is the _how_ for this repo and the record of what is already provisioned.
+Originating issue: [#343](https://github.com/leomontigatti/en-escena/issues/343).
 
-> **Estado:** labels **creados** (2026-07-18). Secrets **documentados** acá; su **carga** es
-> una acción humana (ver checklist) porque los valores son credenciales que este runbook no
-> puede generar. El **test empírico de degradación sin PAT** se corre con el primer workflow
-> de cadena (#344+), no antes: hasta que exista un workflow que agregue un label-trigger, no
-> hay nada que degradar. Ver [Degradación sin PAT](#degradación-sin-pat).
+> **Status:** labels **created** (2026-07-18). Secrets **documented** here; **loading** them is
+> a human action (see the checklist) because the values are credentials this runbook cannot
+> generate. The **empirical test of degradation without a PAT** runs with the first chaining
+> workflow (#344+), not before: until a workflow exists that adds a label-trigger, there is
+> nothing to degrade. See [Degradation without a PAT](#degradation-without-a-pat).
 
-## Labels `agent:*` + `source:*`
+## `agent:*` + `source:*` labels
 
-El state machine (§3.2) asume que estos 8 labels existen. **Ya fueron creados** con los
-comandos de abajo (idempotente-ish: `gh label create` falla si ya existe, sin efecto).
-Significado canónico de cada uno: spec §3.1 → «Labels (pre-create all of these)».
+The state machine (§3.2) assumes these 8 labels exist. They **have already been created** with
+the commands below (idempotent-ish: `gh label create` fails if one already exists, with no
+effect). The canonical meaning of each: spec §3.1 → "Labels (pre-create all of these)".
+
+The label descriptions below are quoted verbatim from the 2026-07-18 run, so this block matches
+the labels actually present in the repo.
 
 ```bash
 gh label create "agent:to-issues"    --color 1d76db --description "AFK: PRD listo para descomponerse en sub-issues"
@@ -28,126 +31,126 @@ gh label create "agent:update-branch" --color d93f0b --description "AFK: el PR d
 gh label create "source:architecture-review" --color 5a5a5a --description "Procedencia: PRD propuesto por el workflow Architecture Review"
 ```
 
-Verificar: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
+Verify with: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
 
-> `source:architecture-review` el spec dice que el propio workflow Architecture Review lo crea
-> on-demand si falta; lo pre-creamos igual para que la procedencia sea consistente desde el día
-> cero.
+> For `source:architecture-review` the spec says the Architecture Review workflow creates it
+> on-demand if missing; we pre-create it anyway so provenance is consistent from day zero.
 
-## Despacho: de `ready-for-agent` (triage) al trigger `agent:*`
+## Dispatch: from `ready-for-agent` (triage) to the `agent:*` trigger
 
-Los workflows AFK **disparan por los labels `agent:*` de arriba**, nunca por el label de triage
-`ready-for-agent` (ver [triage-labels.md](triage-labels.md)). `ready-for-agent` significa
-"especificado y agarrable" — es un **estado de triage, no un trigger**: un issue/PRD con
-`ready-for-agent` y sin label `agent:*` **no hace nada**.
+The AFK workflows **trigger on the `agent:*` labels above**, never on the `ready-for-agent`
+triage label (see [triage-labels.md](triage-labels.md)). `ready-for-agent` means "specified and
+grabbable" — it is a **triage state, not a trigger**: an issue/PRD with `ready-for-agent` and no
+`agent:*` label **does nothing**.
 
-El despacho es **deliberadamente humano** (encaja con el modelo PR-only + merge humano del mapa
-#319): vos decidís _cuándo_ corre cada ítem agregando el label a mano después de publicarlo.
+Dispatch is **deliberately human** (it fits the PR-only + human-merge model of map #319): you
+decide _when_ each item runs by adding the label by hand after publishing it.
 
-- **PRD → sub-issues** (auto-split): poné **`agent:to-issues`** en el PRD.
-- **Issue single → implementación**: poné **`agent:implement`** en el issue (standalone, sin parent).
-- **Ítem bloqueado** que querés encolar: poné **`agent:queued`**; se auto-promueve a implementable
-  cuando cierren sus blockers declarados (deps nativas).
+- **PRD → sub-issues** (auto-split): put **`agent:to-issues`** on the PRD.
+- **Single issue → implementation**: put **`agent:implement`** on the issue (standalone, no
+  parent).
+- **Blocked item** you want to queue: put **`agent:queued`**; it auto-promotes to implementable
+  when its declared blockers close (native deps).
 
-### Con las skills `to-spec` / `to-tickets`
+### With the `to-spec` / `to-tickets` skills
 
-Son skills HITL globales; corren en tu sesión, no en GHA, y por defecto etiquetan lo que publican
-como `ready-for-agent` (y `to-tickets` sugiere trabajar la frontera con `/implement`, comando
-**local ya retirado** en #347). Con el modelo humano-gateado eso es lo correcto: **dejá que
-publiquen con `ready-for-agent`, pedíles que no usen `/implement` al terminar, y después agregás
-vos el label `agent:*`** que corresponda para despachar. No hace falta adaptar las skills
-globales.
+These are global HITL skills; they run in your session, not in GHA, and by default they label
+what they publish as `ready-for-agent` (and `to-tickets` suggests working the frontier with
+`/implement`, a local command **already retired** in #347). Under the human-gated model that is
+correct: **let them publish with `ready-for-agent`, ask them not to use `/implement` when they
+finish, and then you add the matching `agent:*` label** to dispatch. There is no need to adapt
+the global skills.
 
 ## Secrets
 
-Tres credenciales; matriz completa (qué es / por qué) en spec §3.1 → «Secrets». Resumen
-operativo de este repo:
+Three credentials; the full matrix (what each is / why) is in spec §3.1 → "Secrets".
+Operational summary for this repo:
 
-| Secret                    | Cómo se obtiene                                                                                                                                                         | Cómo se carga                           |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `GITHUB_TOKEN`            | **Built-in.** GitHub Actions lo inyecta por-run. Nada que hacer.                                                                                                        | —                                       |
-| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` (Claude Code CLI, cuenta con plan que habilite uso en CI). Genera un token OAuth de larga duración.                                                | `gh secret set CLAUDE_CODE_OAUTH_TOKEN` |
-| `AGENT_PAT`               | PAT **classic** con scopes `repo` + `workflow`; o fine-grained con Contents / Issues / Pull requests = Read+Write y Workflows = Read+Write. De un humano o bot account. | `gh secret set AGENT_PAT`               |
+| Secret                    | How to obtain it                                                                                                                                                                | How to load it                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `GITHUB_TOKEN`            | **Built-in.** GitHub Actions injects it per-run. Nothing to do.                                                                                                                 | —                                       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` (Claude Code CLI, on an account whose plan enables CI usage). Generates a long-lived OAuth token.                                                          | `gh secret set CLAUDE_CODE_OAUTH_TOKEN` |
+| `AGENT_PAT`               | A **classic** PAT with `repo` + `workflow` scopes; or fine-grained with Contents / Issues / Pull requests = Read+Write and Workflows = Read+Write. From a human or bot account. | `gh secret set AGENT_PAT`               |
 
-### Por qué `AGENT_PAT` (fuertemente recomendado)
+### Why `AGENT_PAT` (strongly recommended)
 
-Sin él la plataforma **funciona pero se degrada** (ver abajo). Hace falta por dos razones
+Without it the platform **works but degrades** (see below). It is needed for two reasons
 (spec §3.1/§3.4):
 
-1. **Encadenamiento.** GitHub **suprime** los triggers de workflow para eventos causados por
-   `GITHUB_TOKEN` (anti-loop). Un `--add-label agent:implement` hecho con `GITHUB_TOKEN` deja
-   el label pero **no dispara** el workflow Implement. El PAT sí lo dispara.
-2. **Push a `.github/workflows/`.** Empujar cambios a archivos de workflow requiere el scope
-   `workflow`, que `GITHUB_TOKEN` no tiene.
+1. **Chaining.** GitHub **suppresses** workflow triggers for events caused by `GITHUB_TOKEN`
+   (anti-loop). An `--add-label agent:implement` done with `GITHUB_TOKEN` leaves the label but
+   **does not fire** the Implement workflow. The PAT does fire it.
+2. **Pushing to `.github/workflows/`.** Pushing changes to workflow files requires the
+   `workflow` scope, which `GITHUB_TOKEN` does not have.
 
-### Checklist de carga (acción humana)
+### Loading checklist (human action)
 
-Este runbook no puede generar credenciales, pero sí guiar su carga. El helper
-[`scripts/setup-github-secrets.sh`](../../scripts/setup-github-secrets.sh) es idempotente
-(pregunta antes de sobreescribir), toma el input oculto y verifica al final:
+This runbook cannot generate credentials, but it can guide loading them. The helper
+[`scripts/setup-github-secrets.sh`](../../scripts/setup-github-secrets.sh) is idempotent
+(it asks before overwriting), takes hidden input and verifies at the end:
 
 ```bash
-# 1. Generar el token del runner (imprime un token OAuth de larga duración)
+# 1. Generate the runner token (prints a long-lived OAuth token)
 claude setup-token
 
-# 2. Correr el helper: pide CLAUDE_CODE_OAUTH_TOKEN y AGENT_PAT, los carga y verifica
+# 2. Run the helper: asks for CLAUDE_CODE_OAUTH_TOKEN and AGENT_PAT, loads and verifies them
 pnpm setup:secrets
 ```
 
-El PAT de orquestación se genera aparte, en https://github.com/settings/tokens (classic:
-scopes `repo` + `workflow`), antes de correr el helper. A mano, sin el script, es lo mismo
-que hace por dentro: `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, `gh secret set AGENT_PAT`,
-`gh secret list`.
+The orchestration PAT is generated separately, at https://github.com/settings/tokens (classic:
+`repo` + `workflow` scopes), before running the helper. By hand, without the script, it is the
+same thing it does internally: `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, `gh secret set
+AGENT_PAT`, `gh secret list`.
 
-> **Por qué no hay un `GH_READ_TOKEN` (y por qué eso _es_ apegarse a Matt).** El script de
-> Matt en `course-video-manager` carga `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` para que
-> el _agente_ lea issues con `gh issue view` _dentro_ del runner. Eso puede leerse como una
-> divergencia, pero es al revés: `course-video-manager` es su proyecto **anterior y liviano**
-> (RALPH); el **spec de esta plataforma** (también de Matt, más evolucionado) fija como
-> **regla central** (spec §3, "central design rule") que _«the agent never holds a GitHub
-> token and never calls the GitHub API to mutate state»_. Nosotros seguimos **esa** regla: el
-> orquestador prefetcha el contexto (p. ej. el body del issue, [#366]) y el runner no lleva
-> credencial de GitHub. Apegarse a Matt = mantenerlo sin token.
+> **Why there is no `GH_READ_TOKEN` (and why that _is_ sticking to Matt's model).** Matt's
+> script in `course-video-manager` loads `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` so the
+> _agent_ can read issues with `gh issue view` _inside_ the runner. That can read as a
+> divergence, but it is the opposite: `course-video-manager` is his **earlier, lightweight**
+> project (RALPH); the **spec of this platform** (also Matt's, more evolved) sets as a
+> **central rule** (spec §3, "central design rule") that _"the agent never holds a GitHub token
+> and never calls the GitHub API to mutate state"_. We follow **that** rule: the orchestrator
+> prefetches the context (e.g. the issue body, [#366]) and the runner carries no GitHub
+> credential. Sticking to Matt = keeping it token-free.
 >
-> Hay además un motivo de seguridad fuerte e independiente: el agente ingiere texto
-> controlable por terceros (cuerpos de issues, comentarios de PR), así que un LLM + una
-> credencial de GitHub = radio de daño de _prompt injection_. Nótese que el `GH_READ_TOKEN`
-> de Matt es un PAT **classic con scope `repo`**, que **no es read-only** (da lectura _y_
-> escritura a todos los repos del dueño). Cero credenciales en el agente es defense-in-depth.
+> There is also a strong, independent security reason: the agent ingests third-party
+> controllable text (issue bodies, PR comments), so an LLM + a GitHub credential = the blast
+> radius of _prompt injection_. Note that Matt's `GH_READ_TOKEN` is a **classic PAT with the
+> `repo` scope**, which is **not read-only** (it grants read _and_ write on all the owner's
+> repos). Zero credentials in the agent is defense-in-depth.
 >
-> Por eso nuestro segundo secret es `AGENT_PAT` (`repo` + `workflow`) — que lo usa el
-> **orquestador** para encadenar y pushear a `.github/workflows/`, no el agente. Del script de
-> Matt tomamos la **ergonomía** (idempotencia, input oculto, verificación), no el modelo de
-> secrets. Si algún día el agente necesitara lecturas ad-hoc, la escalación correcta sería un
-> token **fine-grained, read-only, de un solo repo**, no el `repo`-classic amplio.
+> That is why our second secret is `AGENT_PAT` (`repo` + `workflow`) — used by the
+> **orchestrator** to chain and to push to `.github/workflows/`, not by the agent. From Matt's
+> script we took the **ergonomics** (idempotency, hidden input, verification), not the secrets
+> model. If the agent ever needed ad-hoc reads, the correct escalation would be a
+> **fine-grained, read-only, single-repo** token, not the broad classic `repo` one.
 
-Si `AGENT_PAT` se omite: la plataforma sigue, degradada. Ver la sección siguiente.
+If `AGENT_PAT` is omitted: the platform keeps going, degraded. See the next section.
 
-## Matriz de permisos por workflow
+## Per-workflow permissions matrix
 
-**Registrada en el spec §3.1** → «Per-workflow permissions matrix» (8 filas, columnas
-`contents` / `issues` / `pull-requests`). No se duplica acá: cada workflow (#344+) declara sus
-`permissions:` mínimos según esa tabla al implementarse.
+**Recorded in spec §3.1** → "Per-workflow permissions matrix" (8 rows, columns `contents` /
+`issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
+minimum `permissions:` from that table as it is implemented.
 
-## Degradación sin PAT
+## Degradation without a PAT
 
-**Contrato** (spec §3.4): con PAT ausente o fallando, todo salto de cadena que _debería_
-disparar el siguiente workflow **aterriza el label igual** — el _estado_ queda correcto — pero
-el downstream **no arranca solo**. Un humano re-agregando el mismo label (acción externa a
-`GITHUB_TOKEN`) reanuda la cadena. El patrón canónico bash (intentar con `AGENT_PAT`, si no
-hay o falla caer a `GITHUB_TOKEN`) está en §3.4 y **debe** implementarse en cada punto donde un
-workflow agrega un label para disparar otro.
+**Contract** (spec §3.4): with the PAT absent or failing, every chain hop that _should_ fire the
+next workflow **still lands the label** — the _state_ ends up correct — but the downstream
+**does not start on its own**. A human re-adding the same label (an action external to
+`GITHUB_TOKEN`) resumes the chain. The canonical bash pattern (try with `AGENT_PAT`, fall back
+to `GITHUB_TOKEN` if absent or failing) is in §3.4 and **must** be implemented at every point
+where a workflow adds a label to trigger another.
 
-### Cómo se prueba (con el primer workflow de cadena, #344+)
+### How it is tested (with the first chaining workflow, #344+)
 
-Hoy no hay workflow de cadena todavía, así que no hay degradación que ejercitar. Cuando exista
-el primero (p. ej. To Issues → Implement), la verificación es:
+There is no chaining workflow yet, so there is no degradation to exercise. Once the first one
+exists (e.g. To Issues → Implement), the verification is:
 
-1. Con el repo **sin** `AGENT_PAT` cargado, disparar el paso que agrega el label-trigger.
-2. Confirmar que el label **aparece** en el issue/PR (estado correcto).
-3. Confirmar que el workflow downstream **no** corrió (`gh run list` sin corrida nueva).
-4. Re-agregar el label a mano y confirmar que ahora **sí** dispara.
+1. With the repo **without** `AGENT_PAT` loaded, trigger the step that adds the label-trigger.
+2. Confirm the label **appears** on the issue/PR (correct state).
+3. Confirm the downstream workflow **did not** run (`gh run list` with no new run).
+4. Re-add the label by hand and confirm it **does** trigger now.
 
-El hecho de plataforma que sostiene todo esto — «label adds vía `GITHUB_TOKEN` no disparan
-workflows» — es comportamiento documentado de GitHub Actions, no algo a demostrar por-repo; el
-test de arriba valida que _nuestra_ implementación respeta el contrato.
+The platform fact underpinning all of this — "label adds via `GITHUB_TOKEN` do not trigger
+workflows" — is documented GitHub Actions behavior, not something to demonstrate per-repo; the
+test above validates that _our_ implementation honors the contract.

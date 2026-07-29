@@ -4,7 +4,7 @@
 > The PR is reused across every sub-issue run, so describe the **whole PRD**, not one slice.
 > See the spec: [§4.3 Implement PRD](../afk-agent-platform-spec.md#43-implement-prd).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (tracker `gh`). Ver
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (`gh` tracker). See
 > [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---

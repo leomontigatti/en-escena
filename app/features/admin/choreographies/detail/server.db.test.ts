@@ -10,13 +10,13 @@ import {
   submodalities,
 } from "@/db/schema";
 import {
-  handleAdminChoreographyDetailAction,
-  loadAdminChoreographyDetailRouteData,
+  handleChoreographyDetailAction,
+  loadChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
-  deleteAdministrativeChoreographyIntent,
-  renameAdministrativeChoreographyIntent,
-  updateAdministrativeChoreographySubmodalityIntent,
+  deleteChoreographyIntent,
+  renameChoreographyIntent,
+  updateChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import {
   createAcademySession,
@@ -620,7 +620,7 @@ async function createSubmodalityRecord(input: {
 
 function submodalityFormData(submodalityId: string) {
   const formData = new FormData();
-  formData.set("intent", updateAdministrativeChoreographySubmodalityIntent);
+  formData.set("intent", updateChoreographySubmodalityIntent);
   formData.set("submodalityId", submodalityId);
   return formData;
 }
@@ -646,7 +646,7 @@ async function loadDetail(input: {
     role: input.role,
   });
 
-  return await loadAdminChoreographyDetailRouteData({
+  return await loadChoreographyDetailRouteData({
     params: { choreographyId: input.choreographyId },
     request,
   });
@@ -665,7 +665,7 @@ async function submitDetailAction(input: {
     role: input.role,
   });
 
-  return await handleAdminChoreographyDetailAction({
+  return await handleChoreographyDetailAction({
     params: { choreographyId: input.choreographyId },
     request,
   });
@@ -673,14 +673,14 @@ async function submitDetailAction(input: {
 
 function renameFormData(name: string) {
   const formData = new FormData();
-  formData.set("intent", renameAdministrativeChoreographyIntent);
+  formData.set("intent", renameChoreographyIntent);
   formData.set("name", name);
   return formData;
 }
 
 function deleteFormData() {
   const formData = new FormData();
-  formData.set("intent", deleteAdministrativeChoreographyIntent);
+  formData.set("intent", deleteChoreographyIntent);
   return formData;
 }
 

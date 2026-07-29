@@ -18,7 +18,7 @@ export type UpdateProfessorInput = CreateProfessorInput & {
   documentNumber: string;
 };
 
-export type ProfessorListItem = Pick<
+export type PortalProfessorListItem = Pick<
   typeof professors.$inferSelect,
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
 > & {
@@ -46,7 +46,7 @@ export type UpdateProfessorResult =
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
-type ProfessorStatusFilter = "active" | "archived";
+type PortalProfessorStatusFilter = "active" | "archived";
 export type PortalParticipationStatus =
   | "participating"
   | "not-participating"
@@ -61,9 +61,9 @@ export async function listAcademyProfessors(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: ProfessorStatusFilter;
+    status?: PortalProfessorStatusFilter;
   } = {},
-): Promise<ProfessorListItem[]> {
+): Promise<PortalProfessorListItem[]> {
   const status = options.status;
   const selectedEventId = options.selectedEventId ?? null;
   const statusFilter =
@@ -128,7 +128,7 @@ export async function createAcademyProfessor(
 export async function findAcademyProfessor(
   academyId: string,
   professorId: string,
-): Promise<ProfessorListItem | null> {
+): Promise<PortalProfessorListItem | null> {
   const professor = await db.query.professors.findFirst({
     columns: {
       id: true,
@@ -261,7 +261,7 @@ export async function reactivateAcademyProfessor(
 function toProfessorListItem(
   professor: ProfessorIdentityRow & { isParticipating?: boolean },
   selectedEventId: string | null,
-): ProfessorListItem {
+): PortalProfessorListItem {
   return {
     ...professor,
     isIncomplete:

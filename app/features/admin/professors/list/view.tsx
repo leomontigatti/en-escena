@@ -10,15 +10,15 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  getAdminProfessorParticipationLabel,
-  type AdminProfessorParticipationStatus,
-  toAdminProfessorParticipationSearchValue,
-  toAdminProfessorStatusSearchValue,
+  getProfessorParticipationLabel,
+  type ProfessorParticipationStatus,
+  toProfessorParticipationSearchValue,
+  toProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
 
-import type { loadAdminProfessorsList } from "./server";
+import type { loadProfessorsList } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminProfessorsList>>;
+type LoaderData = Awaited<ReturnType<typeof loadProfessorsList>>;
 type ProfessorRow = LoaderData["professors"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 
@@ -130,14 +130,14 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: AdminProfessorParticipationStatus;
+  participationStatus: ProfessorParticipationStatus;
 }) {
   const variant =
     participationStatus === "participating" ? "success" : "secondary";
 
   return (
     <Badge variant={variant}>
-      {getAdminProfessorParticipationLabel(participationStatus)}
+      {getProfessorParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -174,9 +174,7 @@ function buildProfessorStatusSummary(
   const values: string[] = [];
 
   if (selectedEventId !== null) {
-    values.push(
-      getAdminProfessorParticipationLabel(professor.participationStatus),
-    );
+    values.push(getProfessorParticipationLabel(professor.participationStatus));
   }
 
   if (!professor.active) {
@@ -228,15 +226,13 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const statusValue = toAdminProfessorStatusSearchValue(
-    loaderData.filters.status,
-  );
+  const statusValue = toProfessorStatusSearchValue(loaderData.filters.status);
 
   if (statusValue === "archivados") {
     values.estado = statusValue;
   }
 
-  const participationValue = toAdminProfessorParticipationSearchValue(
+  const participationValue = toProfessorParticipationSearchValue(
     loaderData.filters.participation,
   );
 

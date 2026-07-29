@@ -26,13 +26,10 @@ import {
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 
-import type {
-  AdminComprobanteRow,
-  AdminComprobantesListLoaderData,
-} from "./server";
+import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 
 type ComprobantesListRouteViewProps = {
-  loaderData: AdminComprobantesListLoaderData;
+  loaderData: ComprobantesListLoaderData;
 };
 
 // Lista global de solo lectura, paginada/ordenada/filtrada del lado del servidor
@@ -41,7 +38,7 @@ type ComprobantesListRouteViewProps = {
 // (número) y `Fecha` son ordenables (`sortValue` habilita el header). El número
 // enlaza al detalle del comprobante y la coreografía a su detalle financiero; no
 // hay columna CAE ni acciones inline (imprimir/anular viven en el detalle).
-export const comprobanteColumns: DataTableColumn<AdminComprobanteRow>[] = [
+export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
@@ -189,7 +186,7 @@ export function ComprobantesListRouteView({
 }
 
 function buildInitialFacetedFilterValues(
-  loaderData: AdminComprobantesListLoaderData,
+  loaderData: ComprobantesListLoaderData,
 ): Record<string, DataTableFacetedFilterValue> {
   const filters: DataTableFacetedFilterValue = {};
 

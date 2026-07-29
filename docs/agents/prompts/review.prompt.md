@@ -5,8 +5,8 @@
 > pre-fetches the diff, the linked issue, and `PR_COMMENTS_JSON`. See the spec:
 > [§4.4 Review](../afk-agent-platform-spec.md#44-review).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (rama base
-> `master`, comandos, docs de contexto). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (base branch `master`,
+> commands, context docs). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

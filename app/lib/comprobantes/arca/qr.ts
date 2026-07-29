@@ -27,7 +27,7 @@ export type ComprobanteQrInput = {
   ptoVta: number;
   cbteTipo: number;
   cbteNro: number;
-  // Importe total en pesos argentinos enteros (sin centavos, ver finanzas.md).
+  // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
   impTotal: number;
   receptorDocTipo: number;
   // Documento del receptor como texto (consumidor final anónimo: "0").

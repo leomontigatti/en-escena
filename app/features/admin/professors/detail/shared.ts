@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import type {
-  AdministrativeProfessorFieldErrors,
-  AdministrativeProfessorUpdateInput,
-  findAdministrativeProfessor,
+  ProfessorFieldErrors,
+  ProfessorUpdateInput,
+  findProfessor,
 } from "@/lib/admin/professors/professors.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -16,7 +16,7 @@ export const professorFieldNames = [
   "lastName",
   "documentType",
   "documentNumber",
-] as const satisfies ReadonlyArray<keyof AdministrativeProfessorFieldErrors>;
+] as const satisfies ReadonlyArray<keyof ProfessorFieldErrors>;
 
 export type ProfessorDetailLoaderData = {
   backToList: string;
@@ -24,19 +24,17 @@ export type ProfessorDetailLoaderData = {
   canEdit: boolean;
   editHref: string;
   isEditing: boolean;
-  professor: NonNullable<
-    Awaited<ReturnType<typeof findAdministrativeProfessor>>
-  >;
+  professor: NonNullable<Awaited<ReturnType<typeof findProfessor>>>;
   selectedEventId: string | null;
 };
 
-export type ProfessorEditFormValues = AdministrativeProfessorUpdateInput;
+export type ProfessorEditFormValues = ProfessorUpdateInput;
 
 export type ProfessorActionError = {
   status: "error";
   message: string;
-  fieldErrors: AdministrativeProfessorFieldErrors;
-  values: AdministrativeProfessorUpdateInput;
+  fieldErrors: ProfessorFieldErrors;
+  values: ProfessorUpdateInput;
 };
 
 export type ProfessorActionSuccess = {
@@ -161,7 +159,7 @@ export function buildProfessorActionSuccess(
 
 export function readProfessorUpdateValues(
   formData: FormData,
-): AdministrativeProfessorUpdateInput {
+): ProfessorUpdateInput {
   return {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -185,7 +183,7 @@ export function buildProfessorActionError(
 
 function isProfessorUpdateValues(
   values: ProfessorActionError["values"] | undefined,
-): values is AdministrativeProfessorUpdateInput {
+): values is ProfessorUpdateInput {
   return (
     values !== undefined &&
     "firstName" in values &&
@@ -197,12 +195,12 @@ function isProfessorUpdateValues(
 
 export function getSubmittedProfessorUpdateValues(
   actionData: ProfessorActionError | undefined,
-): AdministrativeProfessorUpdateInput | null {
+): ProfessorUpdateInput | null {
   return isProfessorUpdateValues(actionData?.values) ? actionData.values : null;
 }
 
 export function toProfessorEditValues(
-  values: AdministrativeProfessorUpdateInput,
+  values: ProfessorUpdateInput,
 ): ProfessorEditFormValues {
   return {
     firstName: values.firstName,

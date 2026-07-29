@@ -3,22 +3,22 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ScheduleForm, ScheduleFormActions, ScheduleFormPanel } from "../form";
 import type {
-  AdministrativeEventScheduleActionData,
-  AdministrativeEventScheduleFormLoaderData,
+  EventScheduleActionData,
+  EventScheduleFormLoaderData,
 } from "../shared";
 import { getScheduleSubmittedValues } from "../submitted-values";
 
 const createScheduleFormId = "create-schedule-form";
 
-export type AdministrativeEventScheduleCreateViewProps = {
-  actionData?: AdministrativeEventScheduleActionData;
-  loaderData: AdministrativeEventScheduleFormLoaderData;
+export type EventScheduleCreateViewProps = {
+  actionData?: EventScheduleActionData;
+  loaderData: EventScheduleFormLoaderData;
 };
 
-export function AdministrativeEventScheduleCreateView({
+export function EventScheduleCreateView({
   loaderData,
   actionData,
-}: AdministrativeEventScheduleCreateViewProps) {
+}: EventScheduleCreateViewProps) {
   useServerActionToast(actionData);
 
   return (

@@ -1,65 +1,65 @@
-# Assets AFK vendorizados de Matt Pocock
+# AFK assets vendored from Matt Pocock
 
-La plataforma AFK ("GitHub-Native Agent Platform") usa como **fuente de verdad** un conjunto
-de assets del repo público [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager).
-Este repo los **vendoriza** (copia local, adaptada) para poder implementar los 8 workflows y
-runners sin depender de leer el repo original. Contexto: mapa
-[Mapa: plataforma AFK en GitHub Actions](https://github.com/leomontigatti/en-escena/issues/319),
-ticket [Vendorizar el spec AFK + prompts + skill do-work](https://github.com/leomontigatti/en-escena/issues/341).
+The AFK platform ("GitHub-Native Agent Platform") uses a set of assets from the public
+repo [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager)
+as its **source of truth**. This repo **vendors** them (a local, adapted copy) so the 8
+workflows and runners can be implemented without depending on reading the original repo.
+Context: map
+[Map: AFK platform on GitHub Actions](https://github.com/leomontigatti/en-escena/issues/319),
+ticket [Vendor the AFK spec + prompts + do-work skill](https://github.com/leomontigatti/en-escena/issues/341).
 
-## Qué se trajo
+## What was brought over
 
-| Asset                                              | Local                                                                                                                    | Fuente                                                       |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Spec de los 8 workflows                            | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)                                                             | `docs/agents/afk-agent-platform-spec.md`                     |
-| Prompts base de los runners (9)                    | [`prompts/`](./prompts/)                                                                                                 | `docs/agents/prompts/*.prompt.md`                            |
-| Skill `do-work` (SKILL + DB-TDD + FRONTEND-TDD)    | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)                                                               | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md`      |
-| Skills `to-prd` / `to-issues` (autoría HITL local) | [`.claude/skills/to-prd/`](../../.claude/skills/to-prd/), [`.claude/skills/to-issues/`](../../.claude/skills/to-issues/) | `.claude/skills/{to-prd-project,to-issues-project}/SKILL.md` |
+| Asset                                                | Local                                                                                                                    | Source                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Spec of the 8 workflows                              | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)                                                             | `docs/agents/afk-agent-platform-spec.md`                     |
+| Base runner prompts (9)                              | [`prompts/`](./prompts/)                                                                                                 | `docs/agents/prompts/*.prompt.md`                            |
+| `do-work` skill (SKILL + DB-TDD + FRONTEND-TDD)      | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)                                                               | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md`      |
+| `to-prd` / `to-issues` skills (local HITL authoring) | [`.claude/skills/to-prd/`](../../.claude/skills/to-prd/), [`.claude/skills/to-issues/`](../../.claude/skills/to-issues/) | `.claude/skills/{to-prd-project,to-issues-project}/SKILL.md` |
 
-## Qué se adaptó vs. la fuente
+## What was adapted vs. the source
 
-El grueso del spec es **runner-neutral por diseño** y se copió fiel. Los cambios son solo de
-referencias concretas al repo:
+The bulk of the spec is **runner-neutral by design** and was copied faithfully. The changes
+are only concrete references to this repo:
 
-- **Rama base `master`** en vez de `main` (nuestro default): nombres de rama, `git diff`,
-  `--base`, checkouts, ejemplos.
-- **Comandos de validación `pnpm typecheck` / `pnpm test`** donde la fuente decía genéricamente
-  "the project's typecheck/tests" (ver [`workflows.md`](./workflows.md); `pnpm test` = unit +
-  DB-PGlite, `pnpm typecheck` corre typegen + `tsc --noEmit`).
-- **Docs de contexto** concretos: `CONTEXT.md`, `docs/adr/` (ADRs vinculantes) y
-  [`domain.md`](./domain.md), en vez del `CONTEXT.md`/ADRs genérico de la fuente.
-- **Coding standards** apuntando a `.sandcastle/CODING_STANDARDS.md` (canónico) y
-  [`style-guide.md`](./style-guide.md) para frontend/UI.
-- **Tracker `gh`** (GitHub Issues): los prompts usan `gh issue view … --comments` en vez de los
-  placeholders "project-specific" de la fuente.
-- **Apéndice C** del spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (nuestro
-  equivalente); `queued-promotion.md` **no existe** acá (su comportamiento vive entero en §4.7
-  del spec); se agrega el link a `domain.md`/`CONTEXT.md`/`docs/adr/`.
-- **`FRONTEND-TDD.md`**: la fuente manda usar `useEffectReducer` de `use-effect-reducer`; este
-  repo **no** usa esa librería (ni reducers hoy), así que la sección "Reducer choice" quedó
-  neutral respecto de la librería, preservando el principio (lógica de estado en un módulo puro
-  y testeable).
-- **`to-prd` / `to-issues`**: son las variantes AFK-native de las globales HITL `to-spec` /
-  `to-tickets`. La base es `to-prd-project` / `to-issues-project` de la fuente (modelo
-  PRD-padre + sub-issues nativas ordenadas + `agent:implement`), y se les foldeó el contenido
-  **más reciente** de las globales `to-spec`/`to-tickets`: framing de _seams_ para testear
-  (`to-spec`), guía de _wide refactor / expand→migrate→contract_ (`to-tickets`, reexpresada
-  para el orden de ejecución en lugar de blocking-edges), y `disable-model-invocation: true`.
-  Se descartó de `to-tickets` el modelo de **blocking-edges/frontera** porque
-  `agent-implement-prd.yml` lee **orden de lista**, no dependencias explícitas. Publican con
-  `gh issue create --parent` (convención de [`issue-tracker.md`](./issue-tracker.md)) en vez
-  del baile manual de la API `sub_issues`, y no aplican ningún label `agent:*` (el despacho es
-  humano, ver [`afk-setup.md`](./afk-setup.md)). Producen la **misma forma de sub-issue** que
-  el runner desatendido [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md).
+- **Base branch `master`** instead of `main` (our default): branch names, `git diff`,
+  `--base`, checkouts, examples.
+- **Validation commands `pnpm typecheck` / `pnpm test`** where the source said generically
+  "the project's typecheck/tests" (see [`workflows.md`](./workflows.md); `pnpm test` = unit +
+  DB-PGlite, `pnpm typecheck` runs typegen + `tsc --noEmit`).
+- **Concrete context docs**: `CONTEXT.md`, `docs/adr/` (binding ADRs) and
+  [`domain.md`](./domain.md), instead of the source's generic `CONTEXT.md`/ADRs.
+- **Coding standards** pointing at `.sandcastle/CODING_STANDARDS.md` (canonical) and
+  [`style-guide.md`](./style-guide.md) for frontend/UI.
+- **`gh` tracker** (GitHub Issues): the prompts use `gh issue view … --comments` instead of the
+  source's "project-specific" placeholders.
+- **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our
+  equivalent); `queued-promotion.md` **does not exist** here (its behavior lives entirely in
+  §4.7 of the spec); the link to `domain.md`/`CONTEXT.md`/`docs/adr/` was added.
+- **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
+  this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
+  was left library-neutral, preserving the principle (state logic in a pure, testable module).
+- **`to-prd` / `to-issues`**: these are the AFK-native variants of the global HITL `to-spec` /
+  `to-tickets`. The base is the source's `to-prd-project` / `to-issues-project` (parent-PRD
+  model + ordered native sub-issues + `agent:implement`), folded together with the **most
+  recent** content of the global `to-spec`/`to-tickets`: the framing of _seams_ to test
+  (`to-spec`), the _wide refactor / expand→migrate→contract_ guidance (`to-tickets`, restated
+  for execution order rather than blocking-edges), and `disable-model-invocation: true`.
+  The **blocking-edges/frontier** model was dropped from `to-tickets` because
+  `agent-implement-prd.yml` reads **list order**, not explicit dependencies. They publish with
+  `gh issue create --parent` (the [`issue-tracker.md`](./issue-tracker.md) convention) instead
+  of the manual `sub_issues` API dance, and they apply no `agent:*` label (dispatch is human,
+  see [`afk-setup.md`](./afk-setup.md)). They produce the **same sub-issue shape** as the
+  unattended runner [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md).
 
-## Qué **no** se adaptó (a propósito)
+## What was **not** adapted (on purpose)
 
-- El **Apéndice A** ("Reference implementation notes — Sandcastle / Claude Code") describe el
-  stack de referencia del repo original; se mantiene tal cual como documentación de esa
-  realización concreta. La reconciliación runner ↔ orquestador ya se completó en los
-  tickets-fase del mapa #319 (#344 el modelo orquestador↔runner, #347 el cutover): el runner
-  local Docker (`main.mts` + `*-prompt.md`) fue retirado y `.sandcastle/` hoy contiene solo los
-  runners AFK (`agent-*/`), sus helpers (`lib/`, `run-with-retry.mts`, `retry-feedback.mts`) y
-  `CODING_STANDARDS.md`.
-- Los **prompts siguen siendo skeletons runner-neutrales**: la mitad "cómo se invoca al runner"
-  se concreta al cablear cada workflow.
+- **Appendix A** ("Reference implementation notes — Sandcastle / Claude Code") describes the
+  original repo's reference stack; it is kept as-is, as documentation of that concrete
+  realization. The runner ↔ orchestrator reconciliation is already complete via the phase
+  tickets of map #319 (#344 for the orchestrator↔runner model, #347 for the cutover): the local
+  Docker runner (`main.mts` + `*-prompt.md`) was retired and `.sandcastle/` today contains only
+  the AFK runners (`agent-*/`), their helpers (`lib/`, `run-with-retry.mts`,
+  `retry-feedback.mts`) and `CODING_STANDARDS.md`.
+- The **prompts remain runner-neutral skeletons**: the "how the runner is invoked" half is made
+  concrete when each workflow is wired.

@@ -93,5 +93,5 @@ records carry no annulment (`annulled*`, `cancelled*`) or actor-attribution
   assignment is deleted, returning the inscription to the prior state.
 - Refunds, `Descuento administrativo` and the lifecycle of a choreography with no
   active inscriptions are explicitly out of scope and pending definition.
-- Domain detail lives in [docs/domain/finanzas.md](../domain/finanzas.md), the
+- Domain detail lives in [docs/domain/finances.md](../domain/finances.md), the
   single canonical finance doc.

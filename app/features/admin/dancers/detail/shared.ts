@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import type {
-  AdministrativeDancerFieldErrors,
-  AdministrativeDancerUpdateInput,
+  DancerFieldErrors,
+  DancerUpdateInput,
   DancerEditConsequence,
-  findAdministrativeDancer,
+  findDancer,
 } from "@/lib/admin/dancers/dancers.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -23,13 +23,13 @@ export const dancerFieldNames = [
   "documentNumber",
   "documentFrontImageStorageKey",
   "documentBackImageStorageKey",
-] as const satisfies ReadonlyArray<keyof AdministrativeDancerFieldErrors>;
+] as const satisfies ReadonlyArray<keyof DancerFieldErrors>;
 
 export type DancerDetailLoaderData = {
   backToList: string;
   cancelHref: string;
   canEdit: boolean;
-  dancer: NonNullable<Awaited<ReturnType<typeof findAdministrativeDancer>>>;
+  dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>;
   documentImageUrls: {
     back: string | null;
     front: string | null;
@@ -42,8 +42,8 @@ export type DancerDetailLoaderData = {
 export type DancerActionError = {
   status: "error";
   message: string;
-  fieldErrors: AdministrativeDancerFieldErrors;
-  values: AdministrativeDancerUpdateInput;
+  fieldErrors: DancerFieldErrors;
+  values: DancerUpdateInput;
 };
 
 export type DancerDialogIntent =
@@ -85,7 +85,7 @@ export type DancerDetailViewState = {
   statusAction: DancerStatusAction;
 };
 
-export type DancerEditFormValues = AdministrativeDancerUpdateInput;
+export type DancerEditFormValues = DancerUpdateInput;
 
 export function buildDancerUpdateSchema() {
   return z
@@ -171,9 +171,7 @@ export function buildDancerActionSuccess(
   };
 }
 
-export function readDancerUpdateValues(
-  formData: FormData,
-): AdministrativeDancerUpdateInput {
+export function readDancerUpdateValues(formData: FormData): DancerUpdateInput {
   return {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
@@ -206,7 +204,7 @@ export function buildDancerActionError(
 
 function isDancerUpdateValues(
   values: DancerActionError["values"] | undefined,
-): values is AdministrativeDancerUpdateInput {
+): values is DancerUpdateInput {
   return (
     values !== undefined &&
     "firstName" in values &&
@@ -221,7 +219,7 @@ function isDancerUpdateValues(
 
 export function getSubmittedDancerUpdateValues(
   actionData: DancerActionError | undefined,
-): AdministrativeDancerUpdateInput | null {
+): DancerUpdateInput | null {
   return isDancerUpdateValues(actionData?.values) ? actionData.values : null;
 }
 

@@ -1,12 +1,12 @@
 # GitHub-Native AFK Agent Platform — Implementation Spec
 
-> **Vendorizado de [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager/blob/main/docs/agents/afk-agent-platform-spec.md).**
-> Fuente de verdad del modelo AFK. Copia adaptada a este repo: rama base `master`
-> (no `main`), comandos `pnpm typecheck` / `pnpm test`, tracker `gh` (GitHub Issues),
-> docs de contexto `CONTEXT.md` + `docs/adr/` + [`domain.md`](./domain.md), y los links
-> de Apéndice C apuntando a nuestros docs. Ver qué se adaptó en
-> [`afk-vendored-assets.md`](./afk-vendored-assets.md). El resto del texto es fiel al
-> original (runner-neutral por diseño).
+> **Vendored from [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager/blob/main/docs/agents/afk-agent-platform-spec.md).**
+> Source of truth for the AFK model. Copy adapted to this repo: base branch `master`
+> (not `main`), commands `pnpm typecheck` / `pnpm test`, `gh` tracker (GitHub Issues),
+> context docs `CONTEXT.md` + `docs/adr/` + [`domain.md`](./domain.md), and the
+> Appendix C links pointing at our docs. See what was adapted in
+> [`afk-vendored-assets.md`](./afk-vendored-assets.md). The rest of the text is faithful
+> to the original (runner-neutral by design).
 
 > **What this is.** A complete, implementable specification for an "away-from-keyboard"
 > (AFK) agent platform built on GitHub. It lets you drive a fleet of autonomous coding

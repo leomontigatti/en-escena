@@ -5,8 +5,8 @@
 > re-audit against the spec. See the spec:
 > [§4.5 Implement PR](../afk-agent-platform-spec.md#45-implement-pr).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (comandos, docs de
-> contexto). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (commands, context
+> docs). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

@@ -16,7 +16,7 @@ export type UpdateChoreographyMusicResult =
   | { ok: true }
   | { ok: false; message: string };
 
-export async function loadChoreographyMusicDownloadUrl(
+export async function loadPortalChoreographyMusicDownloadUrl(
   storageKey: string | null,
   storage?: PortalChoreographyMusicStorage,
 ) {
