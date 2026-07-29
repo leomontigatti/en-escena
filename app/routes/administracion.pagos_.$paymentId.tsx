@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   PaymentDetailRouteView,
-  getAdminPaymentDisplayName,
+  getPaymentDisplayName,
 } from "@/features/admin/payments/detail/view";
 import {
   handlePaymentDetailAction,
@@ -30,7 +30,7 @@ export const handle = {
     (match) => {
       const data = match.data as LoaderData | undefined;
 
-      return { label: getAdminPaymentDisplayName(data?.payment) };
+      return { label: getPaymentDisplayName(data?.payment) };
     },
   ],
 } satisfies AdminRouteHandle;

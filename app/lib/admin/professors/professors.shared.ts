@@ -1,27 +1,27 @@
-export const adminProfessorPageSize = 50;
-export const adminProfessorNotFoundMessage = "No encontramos ese Profesor.";
+export const professorPageSize = 50;
+export const professorNotFoundMessage = "No encontramos ese Profesor.";
 
-export type AdminProfessorParticipationFilter = "yes" | "no" | "all";
-export type AdminProfessorStatusFilter = "active" | "archived" | "all";
-export type AdminProfessorNameOrder = "asc" | "desc";
-export type AdminProfessorParticipationStatus =
+export type ProfessorParticipationFilter = "yes" | "no" | "all";
+export type ProfessorStatusFilter = "active" | "archived" | "all";
+export type ProfessorNameOrder = "asc" | "desc";
+export type ProfessorParticipationStatus =
   | "participating"
   | "not-participating"
   | "no-event";
 export type ProfessorAuditAction = "update" | "archive" | "reactivate";
 
 export type ProfessorListFilters = {
-  nameOrder: AdminProfessorNameOrder;
-  participation: AdminProfessorParticipationFilter;
+  nameOrder: ProfessorNameOrder;
+  participation: ProfessorParticipationFilter;
   query: string;
-  status: AdminProfessorStatusFilter;
+  status: ProfessorStatusFilter;
   page: number;
 };
 
-export function readAdminProfessorParticipationFilter(input: {
+export function readProfessorParticipationFilter(input: {
   value: string | null;
   hasSelectedEvent: boolean;
-}): AdminProfessorParticipationFilter {
+}): ProfessorParticipationFilter {
   if (input.value === "si") {
     return "yes";
   }
@@ -37,9 +37,9 @@ export function readAdminProfessorParticipationFilter(input: {
   return "all";
 }
 
-export function readAdminProfessorStatusFilter(
+export function readProfessorStatusFilter(
   value: string | null,
-): AdminProfessorStatusFilter {
+): ProfessorStatusFilter {
   if (value === "archivados") {
     return "archived";
   }
@@ -51,8 +51,8 @@ export function readAdminProfessorStatusFilter(
   return "active";
 }
 
-export function toAdminProfessorParticipationSearchValue(
-  value: AdminProfessorParticipationFilter,
+export function toProfessorParticipationSearchValue(
+  value: ProfessorParticipationFilter,
 ) {
   if (value === "no") {
     return "no";
@@ -65,9 +65,7 @@ export function toAdminProfessorParticipationSearchValue(
   return "si";
 }
 
-export function toAdminProfessorStatusSearchValue(
-  value: AdminProfessorStatusFilter,
-) {
+export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
   if (value === "archived") {
     return "archivados";
   }
@@ -79,8 +77,8 @@ export function toAdminProfessorStatusSearchValue(
   return "activos";
 }
 
-export function getAdminProfessorParticipationLabel(
-  participationStatus: AdminProfessorParticipationStatus,
+export function getProfessorParticipationLabel(
+  participationStatus: ProfessorParticipationStatus,
 ) {
   if (participationStatus === "participating") {
     return "Participando";

@@ -40,13 +40,13 @@ import {
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { AdminPaymentDetailActionData, loadPaymentDetail } from "./server";
-import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
+import type { PaymentDetailActionData, loadPaymentDetail } from "./server";
+import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type LoaderData = Awaited<ReturnType<typeof loadPaymentDetail>>;
 
 type PaymentDetailRouteViewProps = {
-  actionData?: AdminPaymentDetailActionData;
+  actionData?: PaymentDetailActionData;
   initialDeleteDialogOpen?: boolean;
   loaderData: LoaderData;
 };
@@ -58,7 +58,7 @@ export function PaymentDetailRouteView({
 }: PaymentDetailRouteViewProps) {
   const payment = loaderData.payment;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
-    initialDeleteDialogOpen || actionData?.intent === deleteAdminPaymentIntent,
+    initialDeleteDialogOpen || actionData?.intent === deletePaymentIntent,
   );
 
   const errorData = actionData?.status === "error" ? actionData : undefined;
@@ -72,7 +72,7 @@ export function PaymentDetailRouteView({
   });
 
   useEffect(() => {
-    if (actionData?.intent === deleteAdminPaymentIntent) {
+    if (actionData?.intent === deletePaymentIntent) {
       setIsDeleteDialogOpen(true);
     }
   }, [actionData]);
@@ -117,7 +117,7 @@ export function PaymentDetailRouteView({
               />
             ) : undefined
           }
-          intentValue={deleteAdminPaymentIntent}
+          intentValue={deletePaymentIntent}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
           recordId={payment.id}
@@ -150,7 +150,7 @@ function AffectedChoreographiesList({
   );
 }
 
-export function getAdminPaymentDisplayName(
+export function getPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
   return payment ? `# ${formatPaymentNumber(payment.paymentNumber)}` : "Pago";
@@ -160,7 +160,7 @@ function PaymentDetailForm({
   actionData,
   loaderData,
 }: {
-  actionData?: AdminPaymentDetailActionData;
+  actionData?: PaymentDetailActionData;
   loaderData: LoaderData;
 }) {
   if (loaderData.canEdit) {
@@ -179,16 +179,15 @@ function EditablePaymentDetailForm({
   actionData,
   loaderData,
 }: {
-  actionData?: AdminPaymentDetailActionData;
+  actionData?: PaymentDetailActionData;
   loaderData: LoaderData;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
-    intent: updateAdminPaymentIntent,
+    intent: updatePaymentIntent,
   });
   const values =
-    actionData?.status === "error" &&
-    actionData.intent === updateAdminPaymentIntent
+    actionData?.status === "error" && actionData.intent === updatePaymentIntent
       ? actionData.values
       : loaderData.values;
   const form = useForm<
@@ -209,7 +208,7 @@ function EditablePaymentDetailForm({
       noValidate
       onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
     >
-      <input type="hidden" name="intent" value={updateAdminPaymentIntent} />
+      <input type="hidden" name="intent" value={updatePaymentIntent} />
       <AdminResourceFormCard
         contentClassName="gap-5"
         footer={

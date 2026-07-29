@@ -87,7 +87,7 @@ export async function createSavedEvent(
 
 export function renderRoute(
   loaderData: EventBasesLoaderData,
-  childRoute: AdminChildRouteFixture,
+  childRoute: ChildRouteFixture,
 ) {
   const RoutesStub = createRoutesStub([
     {
@@ -118,7 +118,7 @@ export function renderRoute(
   );
 }
 
-type AdminChildRouteFixture = {
+type ChildRouteFixture = {
   element: ReactElement;
   handle?: unknown;
   id: string;

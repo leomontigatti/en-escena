@@ -58,11 +58,9 @@ type ChoreographyDetailRouteViewProps = {
   loaderData: ChoreographyDetailLoaderData;
 };
 
-type ChoreographyFormValues = z.input<
-  typeof administrativeChoreographyFormSchema
->;
+type ChoreographyFormValues = z.input<typeof choreographyFormSchema>;
 
-const administrativeChoreographyFormSchema = z.object({
+const choreographyFormSchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
   experienceLevelId: z.string(),
   musicStorageKey: z.string(),
@@ -171,7 +169,7 @@ function ChoreographyDetailForm({
   const form = useForm<ChoreographyFormValues>({
     defaultValues,
     mode: "onSubmit",
-    resolver: zodResolver(administrativeChoreographyFormSchema),
+    resolver: zodResolver(choreographyFormSchema),
   });
   const { reset } = form;
   const submit = useSubmit();

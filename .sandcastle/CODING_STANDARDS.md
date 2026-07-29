@@ -131,35 +131,36 @@ route views would collide by name with an admin counterpart.
 Route views on both surfaces now follow the rule: admin ones are English and
 unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
 and admin route default exports match their view root (`ChoreographyDetailRoute`).
-The `Administrative` prefix is gone from admin types
-(`ChoreographyDetailLoaderData`), feature view components (`EventPricesListView`),
-functions and hooks (`findDancer`, `useRosterForm`), and loaders and handlers
-(`loadAcademyFinances`, `handleAcademyDetailAction`).
+Both prefixes are gone from admin domain symbols: types
+(`ChoreographyDetailLoaderData`, `PaymentsListLoaderData`), feature view
+components (`EventPricesListView`), functions and hooks (`findDancer`,
+`useRosterForm`), loaders and handlers (`loadAcademyFinances`,
+`handleAcademyDetailAction`), filter and formatting helpers
+(`readPaymentsListFilters`, `getPaymentDisplayName`), and constants
+(`choreographyFieldNames`, `updatePaymentIntent`).
 
-Three sets of admin symbols are still marked, and none of them is precedent:
+Two sets of admin symbols are still marked, and neither is precedent:
 
 - The `create*` / `update*` mutations (`createAdministrativeEvent`) — naming the
   mutation layer is a design call, not a mechanical rename; tracked in #526.
 - The database identifiers (`administrativeAuditEntries`,
   `en_escena_administrative_audit_entry`) — renaming them would cost a migration
   and buy no legibility.
-- A residual `Admin`-prefixed set that #527 never enumerated: types like
-  `AdminPaymentsListLoaderData` and `AdminComprobantesListLoaderData`, helpers
-  like `readAdminPaymentsListFilters` and `getAdminPaymentDisplayName`, and a few
-  `administrativeChoreography*` constants. These sit next to already-unmarked
-  symbols in the same files (`loadPaymentsList` returns
-  `AdminPaymentsListLoaderData`), so the seam is visible; it is unfinished work,
-  not a convention.
 
 `AdminShell`, `AdminResourceLayout` and the other `app/components/admin/` chrome
-are a separate case: they name the admin shell itself, not a domain symbol on the
-admin surface, so the prefix is part of the component's name.
+are a separate case, and the only standing one: they name the admin shell itself,
+not a domain symbol on the admin surface, so `Admin` is part of the component's
+name rather than a surface prefix. The same reading covers the auth guards
+(`requireAdminUser`), the test fixtures that name the acting role
+(`createSignedInAdminRequest`) and `getMissingItemAdminPath`, which names an admin
+URL. `app/lib/shared/surface-prefix.test.ts` enforces the rule with
+`app/components/admin/` as its one declared exception.
 
-The portal layer is only partly marked too: 167 exports under `app/lib/portal/`
-and `app/features/portal/` still carry no `Portal` prefix. #527 marked only the
-seven that collided with an admin target name; the rest are an explicit follow-up.
-Write new admin symbols unmarked and English, write new portal symbols marked, and
-do not cite the existing ones as precedent.
+The portal layer is only partly marked: 166 exports under `app/lib/portal/` and
+`app/features/portal/` still carry no `Portal` prefix. Renames so far marked only
+the ones that collided with an admin target name; the rest are an explicit
+follow-up. Write new admin symbols unmarked and English, write new portal symbols
+marked, and do not cite the existing unmarked portal ones as precedent.
 
 ## File Size And Boundaries
 

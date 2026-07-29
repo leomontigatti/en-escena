@@ -24,31 +24,31 @@ import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summ
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
-import { listAdminPaymentAcademyOptions } from "../academy-options.server";
-import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
+import { listPaymentAcademyOptions } from "../academy-options.server";
+import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type DeletePaymentActionData = {
   fieldErrors: Partial<Record<"confirmDeletion" | "paymentId", string>>;
-  intent: typeof deleteAdminPaymentIntent;
+  intent: typeof deletePaymentIntent;
   message: string;
   status: "error";
 };
 
 type UpdatePaymentActionData = {
   fieldErrors: Partial<Record<CreatePaymentFieldName | "paymentId", string>>;
-  intent: typeof updateAdminPaymentIntent;
+  intent: typeof updatePaymentIntent;
   message: string;
   status: "error";
   values: CreatePaymentFormValues;
 };
 
 type UpdatePaymentSuccessActionData = {
-  intent: typeof updateAdminPaymentIntent;
+  intent: typeof updatePaymentIntent;
   message: string;
   status: "success";
 };
 
-export type AdminPaymentDetailActionData =
+export type PaymentDetailActionData =
   | DeletePaymentActionData
   | UpdatePaymentActionData
   | UpdatePaymentSuccessActionData;
@@ -83,7 +83,7 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
 
   const [academyOptions, allocatedAmount, affectedChoreographies] =
     await Promise.all([
-      listAdminPaymentAcademyOptions(),
+      listPaymentAcademyOptions(),
       sumPaymentAllocatedAmount(paymentDetail.id),
       listPaymentAffectedChoreographies(paymentDetail.id),
     ]);
@@ -186,19 +186,19 @@ async function listPaymentAffectedChoreographies(
 export async function handlePaymentDetailAction(
   request: Request,
   paymentId: string,
-): Promise<AdminPaymentDetailActionData | never> {
+): Promise<PaymentDetailActionData | never> {
   await requireAdminUser(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent === updateAdminPaymentIntent) {
+  if (intent === updatePaymentIntent) {
     return await updatePayment({
       formData,
       paymentId,
     });
   }
 
-  if (intent === deleteAdminPaymentIntent) {
+  if (intent === deletePaymentIntent) {
     return await deletePayment({
       formData,
       paymentId,
@@ -218,7 +218,7 @@ async function updatePayment(input: {
   if (!parsed.success) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: getFieldErrors(parsed.error, createPaymentFieldNames),
       values,
@@ -247,7 +247,7 @@ async function updatePayment(input: {
   if (!academy) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: {
         academyId: "Seleccioná una academia válida.",
@@ -267,7 +267,7 @@ async function updatePayment(input: {
   if (Object.keys(accountingFieldErrors).length > 0) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: accountingFieldErrors,
       values,
@@ -289,7 +289,7 @@ async function updatePayment(input: {
 
   return {
     status: "success",
-    intent: updateAdminPaymentIntent,
+    intent: updatePaymentIntent,
     message: notificationToasts["pago-guardado"].message,
   };
 }
@@ -305,7 +305,7 @@ async function deletePayment(input: {
   ) {
     return {
       status: "error",
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       message: "Confirmá la eliminación del pago.",
       fieldErrors: {
         confirmDeletion: "Confirmá la eliminación del pago.",
@@ -331,7 +331,7 @@ async function deletePayment(input: {
   if (!result.ok) {
     return {
       status: "error",
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       message: "No se pudo eliminar el pago.",
       fieldErrors: {
         paymentId: result.message,

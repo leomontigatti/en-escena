@@ -7,7 +7,7 @@ import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import { PaymentDetailRouteView } from "./view";
 import type { loadPaymentDetail } from "./server";
-import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
+import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type LoaderData = Awaited<ReturnType<typeof loadPaymentDetail>>;
 type DetailViewProps = Parameters<typeof PaymentDetailRouteView>[0];
@@ -33,7 +33,7 @@ describe("PaymentDetailRouteView", () => {
     ).not.toBeNull();
     expect(
       document.querySelector(
-        `input[name="intent"][value="${updateAdminPaymentIntent}"]`,
+        `input[name="intent"][value="${updatePaymentIntent}"]`,
       ),
     ).not.toBeNull();
   });
@@ -62,7 +62,7 @@ describe("PaymentDetailRouteView", () => {
     expect(document.body.textContent).not.toContain("Motivo");
     expect(
       document.querySelector(
-        `input[name="intent"][value="${deleteAdminPaymentIntent}"]`,
+        `input[name="intent"][value="${deletePaymentIntent}"]`,
       ),
     ).not.toBeNull();
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();

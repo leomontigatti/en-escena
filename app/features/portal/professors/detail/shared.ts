@@ -6,7 +6,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 export const updateProfessorIntent = "update-professor";
 export const archiveProfessorIntent = "archive-professor";
 export const reactivateProfessorIntent = "reactivate-professor";
-export const professorNotFoundMessage = "No encontramos ese Profesor.";
+export const portalProfessorNotFoundMessage = "No encontramos ese Profesor.";
 export const professorDetailFormId = "portal-profesor-form";
 
 export const professorSchema = z

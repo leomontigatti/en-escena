@@ -4,9 +4,9 @@ import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { getDancerVerificationStatus } from "@/lib/dancers/verification";
 import type {
-  AdminDancerIdentificationStatus,
-  AdminDancerNameOrder,
-  AdminDancerParticipationStatus,
+  DancerIdentificationStatus,
+  DancerNameOrder,
+  DancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   buildDancerAnyEventParticipationSql,
@@ -28,12 +28,10 @@ export type DancerMutationRecord = {
   identityVerifiedAt: Date | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-  identificationStatus: AdminDancerIdentificationStatus;
+  identificationStatus: DancerIdentificationStatus;
 };
 
-export function readDancerNameOrder(
-  value: string | null,
-): AdminDancerNameOrder {
+export function readDancerNameOrder(value: string | null): DancerNameOrder {
   return value === "nombre:desc" ? "desc" : "asc";
 }
 
@@ -57,7 +55,7 @@ export function escapeForLike(value: string) {
 export function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
-): AdminDancerParticipationStatus {
+): DancerParticipationStatus {
   if (selectedEventId === null) {
     return "no-event";
   }
@@ -71,7 +69,7 @@ export function toIdentificationStatus(input: {
   documentFrontImageStorageKey: string | null;
   documentBackImageStorageKey: string | null;
   identityVerifiedAt: Date | null;
-}): AdminDancerIdentificationStatus {
+}): DancerIdentificationStatus {
   const verificationStatus = getDancerVerificationStatus(input);
 
   switch (verificationStatus) {

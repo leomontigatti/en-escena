@@ -8,20 +8,20 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { paymentNumberDigits } from "@/lib/finances/payment-number";
 
-type AdminPaymentMethod = AdminPaymentRow["paymentMethod"];
-type AdminPaymentsListOrder = {
+type PaymentsListMethod = PaymentsListRow["paymentMethod"];
+type PaymentsListOrder = {
   columnId: "paymentDate";
   direction: "asc" | "desc";
 };
 
-type AdminPaymentsListFilters = {
-  method: AdminPaymentMethod | null;
-  order: AdminPaymentsListOrder;
+type PaymentsListFilters = {
+  method: PaymentsListMethod | null;
+  order: PaymentsListOrder;
   page: number;
   query: string;
 };
 
-export type AdminPaymentRow = {
+export type PaymentsListRow = {
   academyId: string;
   academyName: string;
   amount: number;
@@ -31,42 +31,42 @@ export type AdminPaymentRow = {
   paymentNumber: number;
 };
 
-export type AdminPaymentsListLoaderData = {
-  filters: AdminPaymentsListFilters;
+export type PaymentsListLoaderData = {
+  filters: PaymentsListFilters;
   hasAnyPayment: boolean;
-  rows: AdminPaymentRow[];
+  rows: PaymentsListRow[];
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;
 };
 
-const adminPaymentsPageSize = 50;
-const defaultAdminPaymentsOrder: AdminPaymentsListOrder = {
+const paymentsPageSize = 50;
+const defaultPaymentsOrder: PaymentsListOrder = {
   columnId: "paymentDate",
   direction: "desc",
 };
 
 export async function loadPaymentsList(
   request: Request,
-): Promise<AdminPaymentsListLoaderData> {
+): Promise<PaymentsListLoaderData> {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);
-  const filters = readAdminPaymentsListFilters(url.searchParams);
+  const filters = readPaymentsListFilters(url.searchParams);
 
   if (selectedEventId === null) {
     return {
       filters,
       hasAnyPayment: false,
-      rows: [] as AdminPaymentRow[],
+      rows: [] as PaymentsListRow[],
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
     };
   }
 
-  const where = buildAdminPaymentsWhere(selectedEventId, filters);
+  const where = buildPaymentsWhere(selectedEventId, filters);
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(payments)
@@ -77,7 +77,7 @@ export async function loadPaymentsList(
     .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where);
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / adminPaymentsPageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / paymentsPageSize));
   const page = Math.min(filters.page, totalPages);
   const normalizedFilters = { ...filters, page };
 
@@ -94,10 +94,10 @@ export async function loadPaymentsList(
     .from(payments)
     .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where)
-    .orderBy(...buildAdminPaymentsOrderBy(normalizedFilters.order))
-    .limit(adminPaymentsPageSize)
-    .offset((page - 1) * adminPaymentsPageSize);
-  const canonicalSearch = buildCanonicalAdminPaymentsSearch({
+    .orderBy(...buildPaymentsOrderBy(normalizedFilters.order))
+    .limit(paymentsPageSize)
+    .offset((page - 1) * paymentsPageSize);
+  const canonicalSearch = buildCanonicalPaymentsSearch({
     currentSearch: url.search,
     filters: normalizedFilters,
   });
@@ -114,32 +114,32 @@ export async function loadPaymentsList(
   return {
     filters: normalizedFilters,
     hasAnyPayment: Number(totalUnfilteredCount) > 0,
-    rows: paymentRows satisfies AdminPaymentRow[],
+    rows: paymentRows satisfies PaymentsListRow[],
     selectedEventId,
     totalCount,
     totalPages,
   };
 }
 
-function readAdminPaymentsListFilters(
+function readPaymentsListFilters(
   searchParams: URLSearchParams,
-): AdminPaymentsListFilters {
+): PaymentsListFilters {
   return {
-    method: readAdminPaymentMethod(searchParams.get("medio")),
-    order: readAdminPaymentsOrder(searchParams.get("orden")),
+    method: readPaymentsListMethod(searchParams.get("medio")),
+    order: readPaymentsOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
   };
 }
 
-function readAdminPaymentMethod(value: string | null) {
+function readPaymentsListMethod(value: string | null) {
   return paymentMethodValues.find((method) => method === value) ?? null;
 }
 
-function readAdminPaymentsOrder(value: string | null): AdminPaymentsListOrder {
+function readPaymentsOrder(value: string | null): PaymentsListOrder {
   return value === "paymentDate:asc"
     ? { columnId: "paymentDate", direction: "asc" }
-    : defaultAdminPaymentsOrder;
+    : defaultPaymentsOrder;
 }
 
 function readPage(searchParams: URLSearchParams) {
@@ -148,9 +148,9 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function buildAdminPaymentsWhere(
+function buildPaymentsWhere(
   selectedEventId: string,
-  filters: AdminPaymentsListFilters,
+  filters: PaymentsListFilters,
 ) {
   const conditions: SQL[] = [eq(payments.eventId, selectedEventId)];
   const query = filters.query.trim();
@@ -174,7 +174,7 @@ function buildAdminPaymentsWhere(
   return and(...conditions);
 }
 
-function buildAdminPaymentsOrderBy(order: AdminPaymentsListOrder) {
+function buildPaymentsOrderBy(order: PaymentsListOrder) {
   const orderPaymentDate =
     order.direction === "asc"
       ? asc(payments.paymentDate)
@@ -187,9 +187,9 @@ function buildAdminPaymentsOrderBy(order: AdminPaymentsListOrder) {
   return [orderPaymentDate, orderPaymentNumber, desc(payments.id)];
 }
 
-function buildCanonicalAdminPaymentsSearch(input: {
+function buildCanonicalPaymentsSearch(input: {
   currentSearch: string;
-  filters: AdminPaymentsListFilters;
+  filters: PaymentsListFilters;
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
 
@@ -207,7 +207,7 @@ function buildCanonicalAdminPaymentsSearch(input: {
 
   searchParams.delete("estado");
 
-  if (input.filters.order.direction === defaultAdminPaymentsOrder.direction) {
+  if (input.filters.order.direction === defaultPaymentsOrder.direction) {
     searchParams.delete("orden");
   } else {
     searchParams.set(

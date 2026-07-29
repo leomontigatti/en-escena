@@ -89,7 +89,7 @@ export type ChoreographyListResult = {
   totalPages: number;
 };
 
-const administrativeChoreographyPageSize = 50;
+const choreographyPageSize = 50;
 const defaultChoreographyOrder: ChoreographyOrder = {
   columnId: "academia",
   direction: "asc",
@@ -160,16 +160,10 @@ export async function loadChoreographies(input: {
       compareChoreographies(firstRow, secondRow, filters.order),
     );
   const totalCount = filteredRows.length;
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / administrativeChoreographyPageSize),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / choreographyPageSize));
   const page = Math.min(filters.page, totalPages);
   const paginatedRows = filteredRows
-    .slice(
-      (page - 1) * administrativeChoreographyPageSize,
-      page * administrativeChoreographyPageSize,
-    )
+    .slice((page - 1) * choreographyPageSize, page * choreographyPageSize)
     .map(({ categoryId: _categoryId, modalityId: _modalityId, ...row }) => row);
 
   return {

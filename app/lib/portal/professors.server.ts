@@ -46,7 +46,7 @@ export type UpdateProfessorResult =
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
-type ProfessorStatusFilter = "active" | "archived";
+type PortalProfessorStatusFilter = "active" | "archived";
 export type PortalParticipationStatus =
   | "participating"
   | "not-participating"
@@ -61,7 +61,7 @@ export async function listAcademyProfessors(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: ProfessorStatusFilter;
+    status?: PortalProfessorStatusFilter;
   } = {},
 ): Promise<PortalProfessorListItem[]> {
   const status = options.status;

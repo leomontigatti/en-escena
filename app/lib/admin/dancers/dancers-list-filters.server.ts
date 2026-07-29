@@ -2,9 +2,9 @@ import { and, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { academies, dancers } from "@/db/schema";
 import {
-  readAdminDancerIdentificationFilter,
-  readAdminDancerParticipationFilter,
-  readAdminDancerStatusFilter,
+  readDancerIdentificationFilter,
+  readDancerParticipationFilter,
+  readDancerStatusFilter,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
@@ -20,13 +20,13 @@ function readDancerFilters(
 ): DancerListFilters {
   return {
     nameOrder: readDancerNameOrder(searchParams.get("orden")),
-    participation: readAdminDancerParticipationFilter({
+    participation: readDancerParticipationFilter({
       value: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readAdminDancerStatusFilter(searchParams.get("estado")),
-    identification: readAdminDancerIdentificationFilter(
+    status: readDancerStatusFilter(searchParams.get("estado")),
+    identification: readDancerIdentificationFilter(
       searchParams.get("identificacion"),
     ),
     page: readPage(searchParams),

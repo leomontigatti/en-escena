@@ -2,7 +2,7 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { adminProfessorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
+import { professorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
   findProfessor,
   setProfessorActiveState,
@@ -41,7 +41,7 @@ export async function loadProfessorDetail(input: {
   });
 
   if (!professor) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   const url = new URL(input.request.url);
@@ -78,7 +78,7 @@ export async function handleProfessorDetailAction(input: {
   });
 
   if (!professor) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
@@ -127,7 +127,7 @@ export async function handleProfessorDetailAction(input: {
 
 function readProfessorId(params: { professorId?: string }) {
   if (!params.professorId) {
-    throw new Response(adminProfessorNotFoundMessage, { status: 404 });
+    throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
   return params.professorId;

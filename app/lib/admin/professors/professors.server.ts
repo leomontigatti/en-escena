@@ -10,13 +10,13 @@ import {
   user,
 } from "@/db/schema";
 import {
-  adminProfessorPageSize,
+  professorPageSize,
   type ProfessorAuditAction,
-  type AdminProfessorNameOrder,
-  type AdminProfessorParticipationStatus,
+  type ProfessorNameOrder,
+  type ProfessorParticipationStatus,
   type ProfessorListFilters,
-  readAdminProfessorParticipationFilter,
-  readAdminProfessorStatusFilter,
+  readProfessorParticipationFilter,
+  readProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 import {
   findDuplicateProfessorDocument,
@@ -35,7 +35,7 @@ export type ProfessorListItem = {
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: AdminProfessorParticipationStatus;
+  participationStatus: ProfessorParticipationStatus;
   identificationStatus: "complete" | "incomplete";
 };
 
@@ -64,7 +64,7 @@ export type ProfessorDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: AdminProfessorParticipationStatus;
+  participationStatus: ProfessorParticipationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
@@ -105,13 +105,13 @@ export function readProfessorFilters(
 
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: readProfessorParticipationFilter({
+    participation: resolveProfessorParticipationFilter({
       stateValue,
       participationValue: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readProfessorStatusFilter(stateValue),
+    status: resolveProfessorStatusFilter(stateValue),
     page: readPage(searchParams),
   };
 }
@@ -138,10 +138,7 @@ export async function listProfessors(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / adminProfessorPageSize),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / professorPageSize));
   const page = Math.min(input.filters.page, totalPages);
   const participationSql = buildProfessorEventParticipationSql(
     input.selectedEventId,
@@ -172,8 +169,8 @@ export async function listProfessors(input: {
     .innerJoin(academies, eq(academies.id, professors.academyId))
     .where(where)
     .orderBy(...orderByName, asc(professors.id))
-    .limit(adminProfessorPageSize)
-    .offset((page - 1) * adminProfessorPageSize);
+    .limit(professorPageSize)
+    .offset((page - 1) * professorPageSize);
 
   return {
     filters: {
@@ -199,7 +196,7 @@ export async function listProfessors(input: {
   };
 }
 
-function readProfessorParticipationFilter(input: {
+function resolveProfessorParticipationFilter(input: {
   stateValue: string | null;
   participationValue: string | null;
   hasSelectedEvent: boolean;
@@ -216,23 +213,23 @@ function readProfessorParticipationFilter(input: {
     return "all";
   }
 
-  return readAdminProfessorParticipationFilter({
+  return readProfessorParticipationFilter({
     value: input.participationValue,
     hasSelectedEvent: input.hasSelectedEvent,
   });
 }
 
-function readProfessorStatusFilter(
+function resolveProfessorStatusFilter(
   value: string | null,
 ): ProfessorListFilters["status"] {
   if (value === "archivados") {
     return "archived";
   }
 
-  return readAdminProfessorStatusFilter(value);
+  return readProfessorStatusFilter(value);
 }
 
-function readProfessorNameOrder(value: string | null): AdminProfessorNameOrder {
+function readProfessorNameOrder(value: string | null): ProfessorNameOrder {
   return value === "nombre:desc" ? "desc" : "asc";
 }
 
@@ -521,7 +518,7 @@ function buildProfessorWhere(input: {
 function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
-): AdminProfessorParticipationStatus {
+): ProfessorParticipationStatus {
   if (selectedEventId === null) {
     return "no-event";
   }

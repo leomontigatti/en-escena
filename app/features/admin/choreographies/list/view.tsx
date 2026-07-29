@@ -24,12 +24,12 @@ type ChoreographiesListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-const administrativeChoreographyStatusFilterOptions = [
+const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
   { label: "Incompleta", value: "incompleta" },
 ];
 
-const administrativeChoreographyGroupTypeFilterOptions = [
+const choreographyGroupTypeFilterOptions = [
   { label: "Solo", value: "solo" },
   { label: "Dúo", value: "duo" },
   { label: "Trío", value: "trio" },
@@ -180,7 +180,7 @@ function buildChoreographyFacetedFilters(
     {
       id: "estado",
       label: "Estado",
-      options: administrativeChoreographyStatusFilterOptions,
+      options: choreographyStatusFilterOptions,
     },
     {
       id: "modalidad",
@@ -195,7 +195,7 @@ function buildChoreographyFacetedFilters(
     {
       id: "tipo-grupo",
       label: "Tipo de grupo",
-      options: administrativeChoreographyGroupTypeFilterOptions,
+      options: choreographyGroupTypeFilterOptions,
     },
   ];
 }

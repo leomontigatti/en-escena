@@ -6,8 +6,7 @@ export const resolveChoreographyRosterIntent = "resolve-roster";
 export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
 
-export const administrativeChoreographyNotFoundMessage =
-  "No encontramos esa coreografía.";
+export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
@@ -25,10 +24,9 @@ export function shouldRevalidateChoreographyDetail(input: {
   return input.defaultShouldRevalidate;
 }
 
-export const administrativeChoreographyFieldNames = ["name"] as const;
+export const choreographyFieldNames = ["name"] as const;
 
-export type ChoreographyFieldName =
-  (typeof administrativeChoreographyFieldNames)[number];
+export type ChoreographyFieldName = (typeof choreographyFieldNames)[number];
 
 export type ChoreographyActionData = {
   fieldErrors?: FieldErrors<ChoreographyFieldName>;

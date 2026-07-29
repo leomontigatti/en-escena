@@ -44,8 +44,8 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 import {
-  administrativeChoreographyFieldNames,
-  administrativeChoreographyNotFoundMessage,
+  choreographyFieldNames,
+  choreographyNotFoundMessage,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,
@@ -157,7 +157,7 @@ export async function loadChoreographyDetailRouteData(input: {
     : null;
 
   if (!choreography) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
@@ -218,7 +218,7 @@ export async function handleChoreographyDetailAction(input: {
   const choreographyId = readChoreographyId(input.params);
 
   if (!selectedEventId) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
@@ -229,7 +229,7 @@ export async function handleChoreographyDetailAction(input: {
   });
 
   if (!choreography) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
@@ -436,10 +436,7 @@ async function renameChoreography(input: {
 
   if (!parsed.success) {
     return {
-      fieldErrors: getFieldErrors(
-        parsed.error,
-        administrativeChoreographyFieldNames,
-      ),
+      fieldErrors: getFieldErrors(parsed.error, choreographyFieldNames),
       message: "Revisá los campos marcados.",
       status: "error",
       values,
@@ -516,10 +513,7 @@ async function updateChoreographyRosterAction(input: {
 
     if (!parsedName.success) {
       return {
-        fieldErrors: getFieldErrors(
-          parsedName.error,
-          administrativeChoreographyFieldNames,
-        ),
+        fieldErrors: getFieldErrors(parsedName.error, choreographyFieldNames),
         message: "Revisá los campos marcados.",
         status: "error",
         values: { name: readFormString(input.formData, "name") },
@@ -617,7 +611,7 @@ async function loadChoreographyMusicDownloadUrl(storageKey: string | null) {
 
 function readChoreographyId(params: { choreographyId?: string }) {
   if (!params.choreographyId) {
-    throw new Response(administrativeChoreographyNotFoundMessage, {
+    throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }

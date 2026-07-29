@@ -65,7 +65,7 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
-type DancerStatusFilter = "active" | "archived" | "all";
+type PortalDancerStatusFilter = "active" | "archived" | "all";
 export type PortalParticipationStatus =
   | "participating"
   | "not-participating"
@@ -84,7 +84,7 @@ export async function listDancersForAcademy(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: DancerStatusFilter;
+    status?: PortalDancerStatusFilter;
   } = {},
 ): Promise<PortalDancerListItem[]> {
   const status = options.status ?? "active";
@@ -148,7 +148,10 @@ function toParticipationStatus(
   return isParticipating ? "participating" : "not-participating";
 }
 
-function getDancerListWhere(academyId: string, status: DancerStatusFilter) {
+function getDancerListWhere(
+  academyId: string,
+  status: PortalDancerStatusFilter,
+) {
   if (status === "all") {
     return eq(dancers.academyId, academyId);
   }

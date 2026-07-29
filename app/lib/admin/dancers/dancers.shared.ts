@@ -1,19 +1,19 @@
-export const adminDancerPageSize = 50;
-export const adminDancerNotFoundMessage = "No encontramos ese Bailarín.";
+export const dancerPageSize = 50;
+export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 
-export type AdminDancerParticipationFilter = "yes" | "no" | "all";
-export type AdminDancerStatusFilter = "active" | "archived" | "all";
-export type AdminDancerNameOrder = "asc" | "desc";
-export type AdminDancerIdentificationFilter =
+export type DancerParticipationFilter = "yes" | "no" | "all";
+export type DancerStatusFilter = "active" | "archived" | "all";
+export type DancerNameOrder = "asc" | "desc";
+export type DancerIdentificationFilter =
   | "incomplete"
   | "unverified"
   | "verified"
   | "all";
-export type AdminDancerParticipationStatus =
+export type DancerParticipationStatus =
   | "participating"
   | "not-participating"
   | "no-event";
-export type AdminDancerIdentificationStatus =
+export type DancerIdentificationStatus =
   | "incomplete"
   | "unverified"
   | "verified";
@@ -24,18 +24,18 @@ export type DancerAuditAction =
   | "verify-identity";
 
 export type DancerListFilters = {
-  nameOrder: AdminDancerNameOrder;
-  participation: AdminDancerParticipationFilter;
+  nameOrder: DancerNameOrder;
+  participation: DancerParticipationFilter;
   query: string;
-  status: AdminDancerStatusFilter;
-  identification: AdminDancerIdentificationFilter;
+  status: DancerStatusFilter;
+  identification: DancerIdentificationFilter;
   page: number;
 };
 
-export function readAdminDancerParticipationFilter(input: {
+export function readDancerParticipationFilter(input: {
   value: string | null;
   hasSelectedEvent: boolean;
-}): AdminDancerParticipationFilter {
+}): DancerParticipationFilter {
   switch (input.value) {
     case "si":
       return "yes";
@@ -48,9 +48,9 @@ export function readAdminDancerParticipationFilter(input: {
   }
 }
 
-export function readAdminDancerStatusFilter(
+export function readDancerStatusFilter(
   value: string | null,
-): AdminDancerStatusFilter {
+): DancerStatusFilter {
   switch (value) {
     case "archivados":
       return "archived";
@@ -61,9 +61,9 @@ export function readAdminDancerStatusFilter(
   }
 }
 
-export function readAdminDancerIdentificationFilter(
+export function readDancerIdentificationFilter(
   value: string | null,
-): AdminDancerIdentificationFilter {
+): DancerIdentificationFilter {
   switch (value) {
     case "incompleta":
       return "incomplete";
@@ -78,8 +78,8 @@ export function readAdminDancerIdentificationFilter(
   }
 }
 
-export function toAdminDancerParticipationSearchValue(
-  value: AdminDancerParticipationFilter,
+export function toDancerParticipationSearchValue(
+  value: DancerParticipationFilter,
 ) {
   switch (value) {
     case "no":
@@ -91,7 +91,7 @@ export function toAdminDancerParticipationSearchValue(
   }
 }
 
-export function toAdminDancerStatusSearchValue(value: AdminDancerStatusFilter) {
+export function toDancerStatusSearchValue(value: DancerStatusFilter) {
   switch (value) {
     case "archived":
       return "archivados";
@@ -102,8 +102,8 @@ export function toAdminDancerStatusSearchValue(value: AdminDancerStatusFilter) {
   }
 }
 
-export function toAdminDancerIdentificationSearchValue(
-  value: AdminDancerIdentificationFilter,
+export function toDancerIdentificationSearchValue(
+  value: DancerIdentificationFilter,
 ) {
   switch (value) {
     case "unverified":
@@ -117,8 +117,8 @@ export function toAdminDancerIdentificationSearchValue(
   }
 }
 
-export function getAdminDancerParticipationLabel(
-  participationStatus: AdminDancerParticipationStatus,
+export function getDancerParticipationLabel(
+  participationStatus: DancerParticipationStatus,
 ) {
   switch (participationStatus) {
     case "participating":
@@ -130,14 +130,14 @@ export function getAdminDancerParticipationLabel(
   }
 }
 
-export function getAdminDancerParticipationBadgeVariant(
-  participationStatus: AdminDancerParticipationStatus,
+export function getDancerParticipationBadgeVariant(
+  participationStatus: DancerParticipationStatus,
 ) {
   return participationStatus === "participating" ? "success" : "secondary";
 }
 
-export function getAdminDancerIdentificationBadgeVariant(
-  identificationStatus: AdminDancerIdentificationStatus,
+export function getDancerIdentificationBadgeVariant(
+  identificationStatus: DancerIdentificationStatus,
 ) {
   if (identificationStatus === "verified") {
     return "success";

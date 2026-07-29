@@ -2,7 +2,7 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { adminDancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
+import { dancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
 import {
   findDancer,
   setDancerActiveState,
@@ -43,7 +43,7 @@ export async function loadDancerDetail(input: {
   });
 
   if (!dancer) {
-    throw new Response(adminDancerNotFoundMessage, { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   const url = new URL(input.request.url);
@@ -81,7 +81,7 @@ export async function handleDancerDetailAction(input: {
   });
 
   if (!dancer) {
-    throw new Response(adminDancerNotFoundMessage, { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
@@ -198,7 +198,7 @@ async function createOptionalDocumentImageSignedUrl(
 
 function readDancerId(params: { dancerId?: string }) {
   if (!params.dancerId) {
-    throw new Response(adminDancerNotFoundMessage, { status: 404 });
+    throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
   return params.dancerId;

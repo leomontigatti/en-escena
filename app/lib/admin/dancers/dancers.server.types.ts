@@ -1,8 +1,8 @@
 import type { dancers } from "@/db/schema";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
-  AdminDancerIdentificationStatus,
-  AdminDancerParticipationStatus,
+  DancerIdentificationStatus,
+  DancerParticipationStatus,
   DancerAuditAction,
   DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
@@ -14,8 +14,8 @@ export type DancerListItem = {
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: AdminDancerParticipationStatus;
-  identificationStatus: AdminDancerIdentificationStatus;
+  participationStatus: DancerParticipationStatus;
+  identificationStatus: DancerIdentificationStatus;
 };
 
 export type DancerListResult = {
@@ -46,8 +46,8 @@ export type DancerDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: AdminDancerParticipationStatus;
-  identificationStatus: AdminDancerIdentificationStatus;
+  participationStatus: DancerParticipationStatus;
+  identificationStatus: DancerIdentificationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: DancerEditConsequence;
   inscriptions: DancerInscription[];

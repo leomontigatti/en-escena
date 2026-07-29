@@ -3,7 +3,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, dancers } from "@/db/schema";
 import {
-  adminDancerPageSize,
+  dancerPageSize,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
@@ -36,7 +36,7 @@ async function listDancers(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / adminDancerPageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / dancerPageSize));
   const page = Math.min(input.filters.page, totalPages);
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
@@ -70,8 +70,8 @@ async function listDancers(input: {
     .innerJoin(academies, eq(academies.id, dancers.academyId))
     .where(where)
     .orderBy(...orderByName, asc(dancers.id))
-    .limit(adminDancerPageSize)
-    .offset((page - 1) * adminDancerPageSize);
+    .limit(dancerPageSize)
+    .offset((page - 1) * dancerPageSize);
 
   return {
     filters: {

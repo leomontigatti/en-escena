@@ -18,7 +18,7 @@ import {
 } from "@/lib/admin/finances/finances.test-support";
 
 import { handlePaymentDetailAction } from "./server";
-import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
+import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 installDatabaseTestHooks();
 
@@ -59,7 +59,7 @@ describe.sequential("admin payment detail", () => {
         paymentMethod: "efectivo",
         reference: "REC-002",
       },
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       paymentId: payment.id,
       requestUrl: paymentDetailUrl(payment.id, event.id),
     });
@@ -68,7 +68,7 @@ describe.sequential("admin payment detail", () => {
       handlePaymentDetailAction(request, payment.id),
     ).resolves.toMatchObject({
       status: "success",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Pago guardado.",
     });
 
@@ -136,7 +136,7 @@ describe.sequential("admin payment detail", () => {
         paymentMethod: payment.paymentMethod,
         reference: payment.reference ?? "",
       },
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       paymentId: payment.id,
       requestUrl: paymentDetailUrl(payment.id, event.id),
     });
@@ -145,7 +145,7 @@ describe.sequential("admin payment detail", () => {
       handlePaymentDetailAction(request, payment.id),
     ).resolves.toMatchObject({
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       fieldErrors: {
         academyId:
           "No se puede cambiar la academia de un pago con asignaciones activas.",
@@ -188,7 +188,7 @@ describe.sequential("admin payment detail", () => {
         confirmDeletion: payment.id,
         id: payment.id,
       },
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       paymentId: payment.id,
       requestUrl: paymentDetailUrl(payment.id, event.id),
     });
@@ -246,7 +246,7 @@ describe.sequential("admin payment detail", () => {
         confirmDeletion: payment.id,
         id: payment.id,
       },
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       paymentId: payment.id,
       requestUrl: paymentDetailUrl(payment.id, event.id),
     });
@@ -352,7 +352,7 @@ describe.sequential("admin payment detail", () => {
         confirmDeletion: depositPayment.id,
         id: depositPayment.id,
       },
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       paymentId: depositPayment.id,
       requestUrl: paymentDetailUrl(depositPayment.id, event.id),
     });
@@ -361,7 +361,7 @@ describe.sequential("admin payment detail", () => {
       handlePaymentDetailAction(request, depositPayment.id),
     ).resolves.toMatchObject({
       status: "error",
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       fieldErrors: {
         paymentId:
           "No se pudo eliminar el pago: hay coreografías con el saldo pagado en otro pago. Desasigná ese saldo primero.",

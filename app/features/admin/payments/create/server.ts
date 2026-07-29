@@ -8,7 +8,7 @@ import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 
-import { listAdminPaymentAcademyOptions } from "../academy-options.server";
+import { listPaymentAcademyOptions } from "../academy-options.server";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -22,7 +22,7 @@ export async function loadPaymentCreate(request: Request) {
   const eventContext = await loadEventContext(request);
 
   return {
-    academies: await listAdminPaymentAcademyOptions(),
+    academies: await listPaymentAcademyOptions(),
     selectedEventId: eventContext.selectedEventId,
     values: defaultCreatePaymentValues(),
   };
