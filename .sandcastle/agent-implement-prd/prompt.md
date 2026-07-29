@@ -46,7 +46,10 @@ this sub-issue — especially nearby test files. Follow the `do-work` workflow
 # EXECUTION
 
 Use red-green-refactor where applicable (RED → GREEN → REPEAT → REFACTOR). Before committing,
-run `pnpm typecheck` and `pnpm test`, and fix anything they surface.
+run `pnpm typecheck`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you
+touched, and fix anything they surface. Don't run the full `pnpm test` — it takes ~13 min of
+your 30 min budget and CI runs the complete suite in parallel anyway. See
+`.sandcastle/VALIDATION.md`.
 
 # COMMIT
 
