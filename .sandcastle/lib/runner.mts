@@ -112,7 +112,9 @@ export class BudgetExhaustedError extends Error {
  *
  * Unset/invalid means no budget — the runner behaves exactly as before.
  *
- * Exported for `tests/afk/runner-budget.test.ts`.
+ * `runMain` is the only caller; it is named and exported because "the runner's
+ * wall-clock budget" is a concept worth addressing on its own, both to read and
+ * to assert against.
  */
 export function createBudget(): { signal: AbortSignal; dispose: () => void } | undefined {
   const raw = process.env.AGENT_BUDGET_MINUTES;

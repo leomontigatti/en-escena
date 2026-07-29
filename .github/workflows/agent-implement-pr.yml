@@ -130,14 +130,15 @@ jobs:
 
       - name: Run implement-pr runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
         env:
           # Read-only prefetch (diff, linked issue, PR_COMMENTS_JSON) uses this;
           # the agent is instructed not to mutate anything.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Deadline interno, por debajo del `timeout-minutes` del paso: el runner
-          # aborta y falla con una razón de verdad en vez de morir sin dejarla (#512).
+          # Internal deadline, below the step's `timeout-minutes`: the runner aborts
+          # the agent and fails with a real reason instead of being killed without
+          # leaving one (#512).
           AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-implement-pr/implement-pr.mts
 
@@ -217,15 +218,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Sin `failure_reason.txt` (p.ej. el paso murió por timeout antes de que
-          # el runner pudiera escribirlo), caer al final del log del agente: es lo
-          # único que sobrevive y evita el "(no reason file written)" a secas.
+          # No `failure_reason.txt` means `runMain`'s catch never ran: the step hit
+          # its `timeout-minutes` and Actions killed the process tree (#512). The
+          # agent log survives in OUTPUT_DIR, so fall back to its tail instead of
+          # reporting a bare "(no reason file written)".
           reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
           if [ -z "$reason" ]; then
+            # `head` closing the pipe can leave `sort` at SIGPIPE (141), which
+            # `pipefail` would turn into an aborted step — before the label below
+            # gets added. Reporting must never hinge on this pipeline succeeding.
             log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
-              | sort -rn | head -1 | cut -d' ' -f2-)
+              | sort -rn | head -1 | cut -d' ' -f2- || true)
             if [ -n "${log:-}" ] && [ -s "$log" ]; then
-              reason=$(printf 'sin `failure_reason.txt` — últimas 30 líneas del log del agente:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+              reason=$(printf 'no `failure_reason.txt` — last 30 lines of the agent log:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
             else
               reason="(no reason file written — check workflow logs)"
             fi

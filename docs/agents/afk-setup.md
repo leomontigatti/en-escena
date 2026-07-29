@@ -132,6 +132,44 @@ If `AGENT_PAT` is omitted: the platform keeps going, degraded. See the next sect
 `issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
 minimum `permissions:` from that table as it is implemented.
 
+## Wall-clock guardrails: `timeout-minutes` + `AGENT_BUDGET_MINUTES`
+
+Every runner step carries **two** ceilings, and the order between them is load-bearing:
+
+| Workflow                               | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
+| -------------------------------------- | ---------------------- | ---------------------- |
+| `agent-implement` (implement pass)     | 30                     | 25                     |
+| `agent-implement` (write-pr pass)      | 10                     | 8                      |
+| `agent-implement-pr`                   | 30                     | 25                     |
+| `agent-implement-prd` (implement pass) | 30                     | 25                     |
+| `agent-implement-prd` (write-prd-pr)   | 10                     | 8                      |
+| `agent-review`                         | 30                     | 25                     |
+| `agent-to-issues-prd`                  | 30                     | 25                     |
+| `agent-update-branch`                  | 30                     | 25                     |
+| `architecture-review`                  | 20 (spec §4.8)         | 15                     |
+
+**Why both.** A step `timeout-minutes` expiry is the one failure mode that escapes the §3.7
+reporting machinery: Actions kills the process tree, so `runMain`'s catch never runs, no
+`failure_reason.txt` is written, and the orchestrator can only comment "(no reason file
+written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_MINUTES` builds
+an `AbortSignal` that the runner passes to sandcastle's `run()`, which aborts the agent
+mid-iteration and rejects — turning the timeout back into an **ordinary throw** that the
+existing failure plumbing reports normally.
+
+**The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
+equal or larger, Actions wins the race and the guardrail buys nothing.
+`tests/afk/failure-reason-fallback.test.ts` enforces this for every runner step, so retuning a
+number means updating this table and keeping that test green.
+
+Unset or unparseable, `AGENT_BUDGET_MINUTES` means **no budget** and the runner behaves exactly
+as it did before — the variable is a guardrail, not a requirement. `SIGTERM`/`SIGINT` handlers
+are a last resort for a badly configured budget.
+
+**The agent log is the other half.** The runner writes `*.agent.log` into `OUTPUT_DIR`
+(`runner.temp`, which dies with the runner), so each workflow uploads it as an artifact
+(`if: always()`, 14 days retention). The `failure()` steps fall back to the log's last 30 lines
+when there is no `failure_reason.txt`, which is what makes even a process-tree kill diagnosable.
+
 ## Degradation without a PAT
 
 **Contract** (spec §3.4): with the PAT absent or failing, every chain hop that _should_ fire the

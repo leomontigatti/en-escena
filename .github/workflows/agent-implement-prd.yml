@@ -187,15 +187,16 @@ jobs:
 
       - name: Run implement-prd runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
         env:
           # No GH_TOKEN: the runner is token-less (§3.9); bodies are prefetched.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PRD_NUMBER: ${{ github.event.issue.number }}
           PRD_TITLE: ${{ github.event.issue.title }}
           BRANCH: ${{ steps.branch.outputs.branch }}
-          # Deadline interno, por debajo del `timeout-minutes` del paso: el runner
-          # aborta y falla con una razón de verdad en vez de morir sin dejarla (#512).
+          # Internal deadline, below the step's `timeout-minutes`: the runner aborts
+          # the agent and fails with a real reason instead of being killed without
+          # leaving one (#512).
           AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-implement-prd/implement-prd.mts
 
@@ -269,9 +270,9 @@ jobs:
 
       - name: Run write-prd-pr runner
         if: steps.preflight.outputs.proceed == 'true' && steps.existing_pr.outputs.number == ''
-        # Sin techo, un cuelgue acá se comía el default del job (6 h). El runner es
-        # de una sola pasada (`maxIterations: 1`) y sin efectos: sólo redacta título
-        # y descripción, así que 10 min es holgado.
+        # With no ceiling, a hang here ate the job default (6 h). This runner is a
+        # single pass (`maxIterations: 1`) with no side effects — it only drafts a
+        # title and a description — so 10 min is generous.
         timeout-minutes: 10
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -281,9 +282,9 @@ jobs:
           AGENT_BUDGET_MINUTES: 8
         run: pnpm exec tsx .sandcastle/agent-write-prd-pr/write-prd-pr.mts
 
-      # Después del último runner del job, para que el artefacto incluya también el
-      # log de write-prd-pr. `always()`: si el runner de implement-prd falló, este
-      # paso igual corre y sube lo que haya.
+      # After the job's last runner, so the artifact covers the write-prd-pr log
+      # too. `always()`: if the implement-prd runner failed, this step still runs
+      # and uploads whatever exists.
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -357,15 +358,19 @@ jobs:
           SUB_NUMBER: ${{ steps.preflight.outputs.sub_number }}
         run: |
           set -euo pipefail
-          # Sin `failure_reason.txt` (p.ej. el paso murió por timeout antes de que
-          # el runner pudiera escribirlo), caer al final del log del agente: es lo
-          # único que sobrevive y evita el "(no reason file written)" a secas.
+          # No `failure_reason.txt` means `runMain`'s catch never ran: the step hit
+          # its `timeout-minutes` and Actions killed the process tree (#512). The
+          # agent log survives in OUTPUT_DIR, so fall back to its tail instead of
+          # reporting a bare "(no reason file written)".
           reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
           if [ -z "$reason" ]; then
+            # `head` closing the pipe can leave `sort` at SIGPIPE (141), which
+            # `pipefail` would turn into an aborted step — before the label below
+            # gets added. Reporting must never hinge on this pipeline succeeding.
             log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
-              | sort -rn | head -1 | cut -d' ' -f2-)
+              | sort -rn | head -1 | cut -d' ' -f2- || true)
             if [ -n "${log:-}" ] && [ -s "$log" ]; then
-              reason=$(printf 'sin `failure_reason.txt` — últimas 30 líneas del log del agente:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+              reason=$(printf 'no `failure_reason.txt` — last 30 lines of the agent log:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
             else
               reason="(no reason file written — check workflow logs)"
             fi
