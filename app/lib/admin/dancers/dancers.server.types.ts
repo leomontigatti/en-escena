@@ -3,12 +3,12 @@ import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.s
 import type {
   AdminDancerIdentificationStatus,
   AdminDancerParticipationStatus,
-  AdministrativeDancerAuditAction,
-  AdministrativeDancerListFilters,
+  DancerAuditAction,
+  DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 
-export type AdministrativeDancerListItem = {
+export type DancerListItem = {
   id: string;
   firstName: string;
   lastName: string;
@@ -18,15 +18,15 @@ export type AdministrativeDancerListItem = {
   identificationStatus: AdminDancerIdentificationStatus;
 };
 
-export type AdministrativeDancerListResult = {
-  filters: AdministrativeDancerListFilters;
+export type DancerListResult = {
+  filters: DancerListFilters;
   hasAnyDancer: boolean;
-  items: AdministrativeDancerListItem[];
+  items: DancerListItem[];
   totalCount: number;
   totalPages: number;
 };
 
-export type AdministrativeDancerDetail = {
+export type DancerDetail = {
   id: string;
   firstName: string;
   lastName: string;
@@ -50,11 +50,11 @@ export type AdministrativeDancerDetail = {
   identificationStatus: AdminDancerIdentificationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: DancerEditConsequence;
-  inscriptions: AdministrativeDancerInscription[];
+  inscriptions: DancerInscription[];
   choreographyNames: string[];
 };
 
-export type AdministrativeDancerInscription = {
+export type DancerInscription = {
   id: string;
   choreographyName: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
@@ -63,7 +63,7 @@ export type AdministrativeDancerInscription = {
   estimatedSubtotalAmount: number | null;
 };
 
-export type AdministrativeDancerUpdateInput = {
+export type DancerUpdateInput = {
   firstName: string;
   lastName: string;
   birthDate: string;
@@ -73,7 +73,7 @@ export type AdministrativeDancerUpdateInput = {
   documentBackImageStorageKey: string;
 };
 
-export type AdministrativeDancerFieldErrors = Partial<
+export type DancerFieldErrors = Partial<
   Record<
     | "firstName"
     | "lastName"
@@ -86,7 +86,7 @@ export type AdministrativeDancerFieldErrors = Partial<
   >
 >;
 
-export type AdministrativeDancerMutationResult =
+export type DancerMutationResult =
   | {
       ok: true;
       dancer: DancerEditableSnapshot;
@@ -95,16 +95,16 @@ export type AdministrativeDancerMutationResult =
   | {
       ok: false;
       message: string;
-      fieldErrors: AdministrativeDancerFieldErrors;
-      values: AdministrativeDancerUpdateInput;
+      fieldErrors: DancerFieldErrors;
+      values: DancerUpdateInput;
     };
 
-export type AdministrativeDancerStatusMutationResult = {
+export type DancerStatusMutationResult = {
   dancer: DancerEditableSnapshot;
 };
 
-export type AdministrativeDancerAuditEntryInput = {
-  action: AdministrativeDancerAuditAction;
+export type DancerAuditEntryInput = {
+  action: DancerAuditAction;
   adminUserId: string;
   afterValues: DancerEditableSnapshot;
   beforeValues: DancerEditableSnapshot;

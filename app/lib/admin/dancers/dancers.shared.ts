@@ -17,13 +17,13 @@ export type AdminDancerIdentificationStatus =
   | "incomplete"
   | "unverified"
   | "verified";
-export type AdministrativeDancerAuditAction =
+export type DancerAuditAction =
   | "update"
   | "archive"
   | "reactivate"
   | "verify-identity";
 
-export type AdministrativeDancerListFilters = {
+export type DancerListFilters = {
   nameOrder: AdminDancerNameOrder;
   participation: AdminDancerParticipationFilter;
   query: string;

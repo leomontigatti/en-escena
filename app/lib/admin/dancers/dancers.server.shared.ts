@@ -14,7 +14,7 @@ import {
 } from "@/lib/participation/participation.server";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 
-export type AdministrativeDancerMutationRecord = {
+export type DancerMutationRecord = {
   id: string;
   academyId: string;
   firstName: string;
@@ -140,7 +140,7 @@ export function toDancerSnapshot(
 export async function findAdministrativeDancerForMutation(input: {
   dancerId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeDancerMutationRecord | null> {
+}): Promise<DancerMutationRecord | null> {
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
   );

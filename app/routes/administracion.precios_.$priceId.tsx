@@ -4,17 +4,17 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   getAdministrativeEventPriceDisplayName,
   AdministrativeEventPriceDetailView,
-  type AdministrativeEventPriceDetailViewProps,
+  type EventPriceDetailViewProps,
 } from "@/features/admin/prices/detail/view";
 import {
   loadAdminEventPriceDetail,
   updateAdministrativeEventPrice,
 } from "@/features/admin/prices/detail/server";
-import type { AdministrativeEventPricesLoaderData } from "@/features/admin/prices/shared";
+import type { EventPricesLoaderData } from "@/features/admin/prices/shared";
 
 import type { Route } from "./+types/administracion.precios_.$priceId";
 
-type LoaderData = AdministrativeEventPricesLoaderData;
+type LoaderData = EventPricesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -41,7 +41,7 @@ export function PriceDetailRouteView({
   loaderData,
   actionData,
   priceId,
-}: AdministrativeEventPriceDetailViewProps) {
+}: EventPriceDetailViewProps) {
   return (
     <AdministrativeEventPriceDetailView
       loaderData={loaderData}

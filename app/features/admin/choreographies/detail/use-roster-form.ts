@@ -12,11 +12,11 @@ import {
   getSelectionKey,
   hasResolvedRosterSelectionChange,
   shouldResolveRosterSelection,
-  type AdministrativeRosterResolutionState,
+  type RosterResolutionState,
 } from "./roster-form-state";
 import type {
-  AdministrativeChoreographyRosterResolutionData,
-  AdministrativeChoreographyDetailLoaderData,
+  ChoreographyRosterResolutionData,
+  ChoreographyDetailLoaderData,
 } from "./server";
 import {
   resolveAdministrativeChoreographyRosterIntent,
@@ -43,11 +43,10 @@ export function useAdministrativeRosterForm({
   loaderData,
 }: {
   form: UseFormReturn<RosterFormValues>;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  const resolutionFetcher =
-    useFetcher<AdministrativeChoreographyRosterResolutionData>();
+  const resolutionFetcher = useFetcher<ChoreographyRosterResolutionData>();
   const navigation = useNavigation();
 
   const persistedResolution = useMemo(
@@ -55,7 +54,7 @@ export function useAdministrativeRosterForm({
     [choreography],
   );
   const [derivedResolution, setDerivedResolution] =
-    useState<AdministrativeRosterResolutionState>(persistedResolution);
+    useState<RosterResolutionState>(persistedResolution);
   const [resolution, setResolution] =
     useState<ResolveChoreographyDancersResult | null>(null);
   const [resolvedSelectionKey, setResolvedSelectionKey] = useState("");

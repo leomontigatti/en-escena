@@ -11,10 +11,10 @@ import {
 } from "@/db/schema";
 import {
   adminProfessorPageSize,
-  type AdministrativeProfessorAuditAction,
+  type ProfessorAuditAction,
   type AdminProfessorNameOrder,
   type AdminProfessorParticipationStatus,
-  type AdministrativeProfessorListFilters,
+  type ProfessorListFilters,
   readAdminProfessorParticipationFilter,
   readAdminProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
@@ -29,7 +29,7 @@ import {
   buildProfessorEventParticipationSql,
 } from "@/lib/participation/participation.server";
 
-export type AdministrativeProfessorListItem = {
+export type ProfessorListItem = {
   id: string;
   firstName: string;
   lastName: string;
@@ -39,15 +39,15 @@ export type AdministrativeProfessorListItem = {
   identificationStatus: "complete" | "incomplete";
 };
 
-export type AdministrativeProfessorListResult = {
-  filters: AdministrativeProfessorListFilters;
+export type ProfessorListResult = {
+  filters: ProfessorListFilters;
   hasAnyProfessor: boolean;
-  items: AdministrativeProfessorListItem[];
+  items: ProfessorListItem[];
   totalCount: number;
   totalPages: number;
 };
 
-export type AdministrativeProfessorDetail = {
+export type ProfessorDetail = {
   id: string;
   firstName: string;
   lastName: string;
@@ -70,18 +70,18 @@ export type AdministrativeProfessorDetail = {
   choreographyNames: string[];
 };
 
-export type AdministrativeProfessorUpdateInput = {
+export type ProfessorUpdateInput = {
   firstName: string;
   lastName: string;
   documentType: string;
   documentNumber: string;
 };
 
-export type AdministrativeProfessorFieldErrors = Partial<
+export type ProfessorFieldErrors = Partial<
   Record<"firstName" | "lastName" | "documentType" | "documentNumber", string>
 >;
 
-export type AdministrativeProfessorMutationResult =
+export type ProfessorMutationResult =
   | {
       ok: true;
       professor: ProfessorEditableSnapshot;
@@ -89,18 +89,18 @@ export type AdministrativeProfessorMutationResult =
   | {
       ok: false;
       message: string;
-      fieldErrors: AdministrativeProfessorFieldErrors;
-      values: AdministrativeProfessorUpdateInput;
+      fieldErrors: ProfessorFieldErrors;
+      values: ProfessorUpdateInput;
     };
 
-type AdministrativeProfessorStatusMutationResult = {
+type ProfessorStatusMutationResult = {
   professor: ProfessorEditableSnapshot;
 };
 
 export function readAdministrativeProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
-): AdministrativeProfessorListFilters {
+): ProfessorListFilters {
   const stateValue = searchParams.get("estado");
 
   return {
@@ -118,8 +118,8 @@ export function readAdministrativeProfessorFilters(
 
 export async function listAdministrativeProfessors(input: {
   selectedEventId: string | null;
-  filters: AdministrativeProfessorListFilters;
-}): Promise<AdministrativeProfessorListResult> {
+  filters: ProfessorListFilters;
+}): Promise<ProfessorListResult> {
   const where = buildAdministrativeProfessorWhere(input);
 
   const [{ count: totalUnfilteredCount }] = await db
@@ -203,7 +203,7 @@ function readProfessorParticipationFilter(input: {
   stateValue: string | null;
   participationValue: string | null;
   hasSelectedEvent: boolean;
-}): AdministrativeProfessorListFilters["participation"] {
+}): ProfessorListFilters["participation"] {
   if (input.stateValue === "participando") {
     return "yes";
   }
@@ -224,7 +224,7 @@ function readProfessorParticipationFilter(input: {
 
 function readProfessorStatusFilter(
   value: string | null,
-): AdministrativeProfessorListFilters["status"] {
+): ProfessorListFilters["status"] {
   if (value === "archivados") {
     return "archived";
   }
@@ -239,7 +239,7 @@ function readProfessorNameOrder(value: string | null): AdminProfessorNameOrder {
 export async function findAdministrativeProfessor(input: {
   professorId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeProfessorDetail | null> {
+}): Promise<ProfessorDetail | null> {
   const participationSql = buildProfessorEventParticipationSql(
     input.selectedEventId,
   );
@@ -330,8 +330,8 @@ export async function updateAdministrativeProfessor(input: {
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
-  values: AdministrativeProfessorUpdateInput;
-}): Promise<AdministrativeProfessorMutationResult> {
+  values: ProfessorUpdateInput;
+}): Promise<ProfessorMutationResult> {
   const existingProfessor = await findAdministrativeProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
@@ -341,7 +341,7 @@ export async function updateAdministrativeProfessor(input: {
     throw new Response("No encontramos ese Profesor.", { status: 404 });
   }
 
-  const fieldErrors: AdministrativeProfessorFieldErrors = {};
+  const fieldErrors: ProfessorFieldErrors = {};
   const values = { ...input.values };
   const normalizedNames = normalizeProfessorNames(input.values);
 
@@ -433,7 +433,7 @@ export async function setAdministrativeProfessorActiveState(input: {
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeProfessorStatusMutationResult> {
+}): Promise<ProfessorStatusMutationResult> {
   const existingProfessor = await findAdministrativeProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
@@ -472,7 +472,7 @@ export async function setAdministrativeProfessorActiveState(input: {
 
 function buildAdministrativeProfessorWhere(input: {
   selectedEventId: string | null;
-  filters: AdministrativeProfessorListFilters;
+  filters: ProfessorListFilters;
 }) {
   const conditions: SQL[] = [];
   const participationSql = buildProfessorEventParticipationSql(
@@ -594,7 +594,7 @@ function toProfessorSnapshot(
 }
 
 async function insertAdministrativeProfessorAuditEntry(input: {
-  action: AdministrativeProfessorAuditAction;
+  action: ProfessorAuditAction;
   adminUserId: string;
   afterValues: ProfessorEditableSnapshot;
   beforeValues: ProfessorEditableSnapshot;

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
-import type { AdministrativeEventPriceDetailLoaderData } from "@/features/admin/prices/shared";
+import type { EventPriceDetailLoaderData } from "@/features/admin/prices/shared";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -83,7 +83,7 @@ describe("AdministrativeEventPriceDetailView delete", () => {
   }
 });
 
-function buildLoaderData(): AdministrativeEventPriceDetailLoaderData {
+function buildLoaderData(): EventPriceDetailLoaderData {
   return {
     selectedEventId: "event_1",
     schedules: [],

@@ -2,7 +2,7 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminEventModalitiesList } from "@/features/admin/modalities/list/server";
 import {
   AdministrativeEventModalitiesListView,
-  type AdministrativeEventModalitiesListViewProps,
+  type EventModalitiesListViewProps,
 } from "@/features/admin/modalities/list/view";
 
 import type { Route } from "./+types/administracion.modalidades";
@@ -17,12 +17,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export function ModalitiesListRouteView({
   loaderData,
-}: AdministrativeEventModalitiesListViewProps) {
+}: EventModalitiesListViewProps) {
   return <AdministrativeEventModalitiesListView loaderData={loaderData} />;
 }
 
 export default function ModalitiesListRoute({
   loaderData,
-}: AdministrativeEventModalitiesListViewProps) {
+}: EventModalitiesListViewProps) {
   return <ModalitiesListRouteView loaderData={loaderData} />;
 }

@@ -7,7 +7,7 @@ import {
   toIdentificationStatus,
   toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import type { AdministrativeDancerDetail } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
 import { findAdministrativeDancerInscriptions } from "@/lib/admin/dancers/dancers-inscriptions.server";
 import {
   buildDancerAnyEventParticipationSql,
@@ -17,7 +17,7 @@ import {
 export async function findAdministrativeDancer(input: {
   dancerId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeDancerDetail | null> {
+}): Promise<DancerDetail | null> {
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
   );

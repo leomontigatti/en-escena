@@ -7,12 +7,12 @@ import {
 } from "@/features/admin/modalities/detail/server";
 import {
   AdministrativeEventModalityDetailView,
-  type AdministrativeEventModalityDetailViewProps,
+  type EventModalityDetailViewProps,
 } from "@/features/admin/modalities/detail/view";
-import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
-type LoaderData = AdministrativeEventModalitiesLoaderData;
+type LoaderData = EventModalitiesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -39,7 +39,7 @@ export function ModalityDetailRouteView({
   loaderData,
   actionData,
   modalityId,
-}: AdministrativeEventModalityDetailViewProps) {
+}: EventModalityDetailViewProps) {
   return (
     <AdministrativeEventModalityDetailView
       loaderData={loaderData}

@@ -4,15 +4,15 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAdminChoreographyDetailAction,
   loadAdminChoreographyDetailRouteData,
-  type AdministrativeChoreographyDetailActionData,
-  type AdministrativeChoreographyDetailLoaderData,
+  type ChoreographyDetailActionData,
+  type ChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
 import { shouldRevalidateAdministrativeChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
 import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
 
-type LoaderData = AdministrativeChoreographyDetailLoaderData;
+type LoaderData = ChoreographyDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
 type ChoreographyDetailRouteProps = {
@@ -47,9 +47,7 @@ export async function loader({
 export async function action({
   request,
   params,
-}: Route.ActionArgs): Promise<
-  AdministrativeChoreographyDetailActionData | Response
-> {
+}: Route.ActionArgs): Promise<ChoreographyDetailActionData | Response> {
   return await handleAdminChoreographyDetailAction({
     request,
     params,

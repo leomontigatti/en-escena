@@ -1,14 +1,14 @@
 import { db } from "@/db";
 import { administrativeAuditEntries } from "@/db/schema";
 
-import type { AdministrativeDancerAuditEntryInput } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerAuditEntryInput } from "@/lib/admin/dancers/dancers.server.types";
 
 type AuditExecutor =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export async function createAdministrativeDancerAuditEntry(
-  input: AdministrativeDancerAuditEntryInput & {
+  input: DancerAuditEntryInput & {
     executor?: AuditExecutor;
   },
 ) {

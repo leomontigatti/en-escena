@@ -3,7 +3,7 @@ import {
   loadAdminEventDetail,
   updateAdministrativeEvent,
 } from "@/features/admin/events/detail/server";
-import type { AdministrativeEventDetailActionData } from "@/features/admin/events/detail/shared";
+import type { EventDetailActionData } from "@/features/admin/events/detail/shared";
 import { AdministrativeEventDetailView } from "@/features/admin/events/detail/view";
 import { useActionData } from "react-router";
 
@@ -13,7 +13,7 @@ type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type EventDetailRouteProps = {
   loaderData: LoaderData;
-  actionData?: AdministrativeEventDetailActionData;
+  actionData?: EventDetailActionData;
 };
 
 export const meta: Route.MetaFunction = () => [

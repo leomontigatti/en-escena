@@ -19,7 +19,7 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
 
-type AdministrativeChoreographyRow = {
+type ChoreographyRow = {
   academyName: string;
   categoryId: string | null;
   categoryName: string | null;
@@ -34,32 +34,31 @@ type AdministrativeChoreographyRow = {
   submodalityName: string | null;
 };
 
-type AdministrativeChoreographyListFilters = {
-  category: AdministrativeChoreographyCategoryFilter;
+type ChoreographyListFilters = {
+  category: ChoreographyCategoryFilter;
   groupType: ChoreographyGroupType | null;
   modalityId: string | null;
-  order: AdministrativeChoreographyOrder;
+  order: ChoreographyOrder;
   page: number;
   query: string;
-  status: AdministrativeChoreographyStatusFilter;
+  status: ChoreographyStatusFilter;
 };
 
-type AdministrativeChoreographyStatusFilter = "completa" | "incompleta" | null;
-type AdministrativeChoreographyCategoryFilter = string | "sin-asignar" | null;
-type HydratedAdministrativeChoreographyRow =
-  AdministrativeChoreographyListItem & {
-    categoryId: string | null;
-    modalityId: string;
-  };
+type ChoreographyStatusFilter = "completa" | "incompleta" | null;
+type ChoreographyCategoryFilter = string | "sin-asignar" | null;
+type HydratedChoreographyRow = ChoreographyListItem & {
+  categoryId: string | null;
+  modalityId: string;
+};
 
-type AdministrativeChoreographySortColumn = "academia" | "nombre";
+type ChoreographySortColumn = "academia" | "nombre";
 
-type AdministrativeChoreographyOrder = {
-  columnId: AdministrativeChoreographySortColumn;
+type ChoreographyOrder = {
+  columnId: ChoreographySortColumn;
   direction: "asc" | "desc";
 };
 
-export type AdministrativeChoreographyListItem = {
+export type ChoreographyListItem = {
   academyName: string;
   categoryName: string | null;
   groupType: ChoreographyGroupType;
@@ -70,20 +69,20 @@ export type AdministrativeChoreographyListItem = {
   submodalityName: string | null;
 };
 
-type AdministrativeChoreographyFilterOption = {
+type ChoreographyFilterOption = {
   label: string;
   value: string;
 };
 
-type AdministrativeChoreographyFacets = {
-  categories: AdministrativeChoreographyFilterOption[];
-  modalities: AdministrativeChoreographyFilterOption[];
+type ChoreographyFacets = {
+  categories: ChoreographyFilterOption[];
+  modalities: ChoreographyFilterOption[];
 };
 
-export type AdministrativeChoreographyListResult = {
-  choreographies: AdministrativeChoreographyListItem[];
-  facets: AdministrativeChoreographyFacets;
-  filters: AdministrativeChoreographyListFilters;
+export type ChoreographyListResult = {
+  choreographies: ChoreographyListItem[];
+  facets: ChoreographyFacets;
+  filters: ChoreographyListFilters;
   hasAnyChoreography: boolean;
   selectedEventId: string | null;
   totalCount: number;
@@ -91,15 +90,14 @@ export type AdministrativeChoreographyListResult = {
 };
 
 const administrativeChoreographyPageSize = 50;
-const defaultAdministrativeChoreographyOrder: AdministrativeChoreographyOrder =
-  {
-    columnId: "academia",
-    direction: "asc",
-  };
+const defaultAdministrativeChoreographyOrder: ChoreographyOrder = {
+  columnId: "academia",
+  direction: "asc",
+};
 
 function readAdministrativeChoreographyFilters(
   searchParams: URLSearchParams,
-): AdministrativeChoreographyListFilters {
+): ChoreographyListFilters {
   return {
     category: readAdministrativeChoreographyCategoryFilter(
       searchParams.get("categoria"),
@@ -118,9 +116,9 @@ function readAdministrativeChoreographyFilters(
 }
 
 export async function loadAdminChoreographies(input: {
-  filters: AdministrativeChoreographyListFilters;
+  filters: ChoreographyListFilters;
   selectedEventId: string | null;
-}): Promise<AdministrativeChoreographyListResult> {
+}): Promise<ChoreographyListResult> {
   if (input.selectedEventId === null) {
     return {
       choreographies: [],
@@ -234,9 +232,7 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function isDefaultAdministrativeChoreographyOrder(
-  order: AdministrativeChoreographyOrder,
-) {
+function isDefaultAdministrativeChoreographyOrder(order: ChoreographyOrder) {
   return (
     order.columnId === defaultAdministrativeChoreographyOrder.columnId &&
     order.direction === defaultAdministrativeChoreographyOrder.direction
@@ -245,7 +241,7 @@ function isDefaultAdministrativeChoreographyOrder(
 
 function buildCanonicalAdministrativeChoreographiesSearch(input: {
   currentSearch: string;
-  filters: AdministrativeChoreographyListResult["filters"];
+  filters: ChoreographyListResult["filters"];
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
 
@@ -299,7 +295,7 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
 
 function readAdministrativeChoreographyOrder(
   value: string | null,
-): AdministrativeChoreographyOrder {
+): ChoreographyOrder {
   switch (value) {
     case "academia:asc":
       return { columnId: "academia", direction: "asc" };
@@ -315,8 +311,8 @@ function readAdministrativeChoreographyOrder(
 }
 
 async function hydrateAdministrativeChoreographies(
-  rows: AdministrativeChoreographyRow[],
-): Promise<HydratedAdministrativeChoreographyRow[]> {
+  rows: ChoreographyRow[],
+): Promise<HydratedChoreographyRow[]> {
   if (rows.length === 0) {
     return [];
   }
@@ -359,7 +355,7 @@ async function hydrateAdministrativeChoreographies(
 
 function readAdministrativeChoreographyStatusFilter(
   value: string | null,
-): AdministrativeChoreographyStatusFilter {
+): ChoreographyStatusFilter {
   switch (value) {
     case "completa":
     case "incompleta":
@@ -371,7 +367,7 @@ function readAdministrativeChoreographyStatusFilter(
 
 function readAdministrativeChoreographyCategoryFilter(
   value: string | null,
-): AdministrativeChoreographyCategoryFilter {
+): ChoreographyCategoryFilter {
   if (value === "sin-asignar") {
     return value;
   }
@@ -397,9 +393,7 @@ function readNonEmptySearchParam(value: string | null) {
   return value?.trim().length ? value.trim() : null;
 }
 
-function buildAdministrativeChoreographyFacets(
-  rows: AdministrativeChoreographyRow[],
-) {
+function buildAdministrativeChoreographyFacets(rows: ChoreographyRow[]) {
   return {
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
@@ -417,9 +411,9 @@ function buildAdministrativeChoreographyFacets(
 }
 
 function normalizeAdministrativeChoreographyFilters(
-  filters: AdministrativeChoreographyListFilters,
-  facets: AdministrativeChoreographyFacets,
-): AdministrativeChoreographyListFilters {
+  filters: ChoreographyListFilters,
+  facets: ChoreographyFacets,
+): ChoreographyListFilters {
   return {
     ...filters,
     category: keepKnownFacetValue(filters.category, facets.categories),
@@ -428,8 +422,8 @@ function normalizeAdministrativeChoreographyFilters(
 }
 
 function matchesAdministrativeChoreographyFilters(
-  row: HydratedAdministrativeChoreographyRow,
-  filters: AdministrativeChoreographyListFilters,
+  row: HydratedChoreographyRow,
+  filters: ChoreographyListFilters,
 ) {
   if (
     filters.status === "completa" &&
@@ -472,9 +466,9 @@ function matchesAdministrativeChoreographyFilters(
 }
 
 function compareAdministrativeChoreographies(
-  firstRow: AdministrativeChoreographyListItem,
-  secondRow: AdministrativeChoreographyListItem,
-  order: AdministrativeChoreographyOrder,
+  firstRow: ChoreographyListItem,
+  secondRow: ChoreographyListItem,
+  order: ChoreographyOrder,
 ) {
   if (order.columnId === "nombre") {
     const comparison = compareAdministrativeText(firstRow.name, secondRow.name);
@@ -529,7 +523,7 @@ function applySortDirection(comparison: number, direction: "asc" | "desc") {
 
 function keepKnownFacetValue(
   value: string | null,
-  options: AdministrativeChoreographyFilterOption[],
+  options: ChoreographyFilterOption[],
 ) {
   if (value === null) {
     return null;
@@ -540,7 +534,7 @@ function keepKnownFacetValue(
 
 function matchesAdministrativeChoreographyCategory(
   categoryId: string | null,
-  categoryFilter: AdministrativeChoreographyCategoryFilter,
+  categoryFilter: ChoreographyCategoryFilter,
 ) {
   if (categoryFilter === null) {
     return true;
@@ -553,9 +547,7 @@ function matchesAdministrativeChoreographyCategory(
   return categoryId === categoryFilter;
 }
 
-function getUniqueSortedFilterOptions(
-  options: AdministrativeChoreographyFilterOption[],
-) {
+function getUniqueSortedFilterOptions(options: ChoreographyFilterOption[]) {
   return Array.from(
     new Map(options.map((option) => [option.value, option])).values(),
   ).sort((firstOption, secondOption) =>

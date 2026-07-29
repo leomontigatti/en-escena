@@ -131,9 +131,9 @@ route views would collide by name with an admin counterpart.
 Route views on both surfaces now follow the rule: admin ones are English and
 unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
 and admin route default exports match their view root (`ChoreographyDetailRoute`).
-The admin server layer does not yet: functions carry an `Admin` prefix
-(`loadAdminAcademyFinances`, `loadAdminChoreographyDetailRouteData`) and types
-are still marked `Administrative*` (`AdministrativeChoreographyDetailLoaderData`).
+Admin types follow it too: they are unmarked (`ChoreographyDetailLoaderData`).
+The admin server layer does not yet: functions carry an `Admin` or
+`Administrative` prefix (`loadAdminAcademyFinances`, `findAdministrativeDancer`).
 The portal layer is only partly marked too: 174 exports under `app/lib/portal/`
 and `app/features/portal/` still carry no `Portal` prefix. Those symbols are
 pending rename, tracked in #527 — write new admin symbols unmarked and English,

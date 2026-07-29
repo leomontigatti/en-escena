@@ -5,14 +5,14 @@ import type { PriceListItem } from "@/lib/events/bases.server";
 import { EmptyResourceState, PriceActions } from "../actions";
 import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
 import type {
-  AdministrativeEventPriceActionData,
-  AdministrativeEventPriceDetailLoaderData,
+  EventPriceActionData,
+  EventPriceDetailLoaderData,
 } from "../shared";
 import { getPriceDisplayName, getPriceSubmittedValues } from "../view-shared";
 
-export type AdministrativeEventPriceDetailViewProps = {
-  actionData?: AdministrativeEventPriceActionData;
-  loaderData: AdministrativeEventPriceDetailLoaderData;
+export type EventPriceDetailViewProps = {
+  actionData?: EventPriceActionData;
+  loaderData: EventPriceDetailLoaderData;
   priceId: string;
   initialDeleteDialogOpen?: boolean;
 };
@@ -22,7 +22,7 @@ export function AdministrativeEventPriceDetailView({
   actionData,
   priceId,
   initialDeleteDialogOpen = false,
-}: AdministrativeEventPriceDetailViewProps) {
+}: EventPriceDetailViewProps) {
   useServerActionToast(actionData);
 
   const price = loaderData.prices.find((item) => item.id === priceId);

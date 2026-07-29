@@ -12,18 +12,18 @@ import { buildCreatePath, buildDetailPath } from "@/lib/shared/navigation";
 
 import {
   basePath,
-  type AdministrativeEventModalitiesLoaderData,
+  type EventModalitiesLoaderData,
   type EventModalityRow,
   type EventSubmodalityRow,
 } from "../shared";
 
-export type AdministrativeEventModalitiesListViewProps = {
-  loaderData: AdministrativeEventModalitiesLoaderData;
+export type EventModalitiesListViewProps = {
+  loaderData: EventModalitiesLoaderData;
 };
 
 export function AdministrativeEventModalitiesListView({
   loaderData,
-}: AdministrativeEventModalitiesListViewProps) {
+}: EventModalitiesListViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}

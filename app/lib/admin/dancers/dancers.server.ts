@@ -5,11 +5,11 @@ export { listDancers as listAdministrativeDancers } from "@/lib/admin/dancers/da
 export { setAdministrativeDancerActiveState } from "@/lib/admin/dancers/dancers-active-state.server";
 export { verifyAdministrativeDancerIdentity } from "@/lib/admin/dancers/dancers-identity.server";
 export type {
-  AdministrativeDancerDetail,
-  AdministrativeDancerFieldErrors,
-  AdministrativeDancerInscription,
-  AdministrativeDancerListItem,
-  AdministrativeDancerListResult,
-  AdministrativeDancerMutationResult,
-  AdministrativeDancerUpdateInput,
+  DancerDetail,
+  DancerFieldErrors,
+  DancerInscription,
+  DancerListItem,
+  DancerListResult,
+  DancerMutationResult,
+  DancerUpdateInput,
 } from "@/lib/admin/dancers/dancers.server.types";

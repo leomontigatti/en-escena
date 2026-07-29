@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
-import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -83,7 +83,7 @@ describe("AdministrativeEventModalityDetailView delete", () => {
   }
 });
 
-function buildLoaderData(): AdministrativeEventModalitiesLoaderData {
+function buildLoaderData(): EventModalitiesLoaderData {
   return {
     selectedEventId: "event_1",
     modalities: [

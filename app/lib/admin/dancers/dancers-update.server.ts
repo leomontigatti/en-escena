@@ -13,9 +13,9 @@ import {
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import type {
-  AdministrativeDancerFieldErrors,
-  AdministrativeDancerMutationResult,
-  AdministrativeDancerUpdateInput,
+  DancerFieldErrors,
+  DancerMutationResult,
+  DancerUpdateInput,
 } from "@/lib/admin/dancers/dancers.server.types";
 import {
   findDuplicateDancerDocument,
@@ -27,8 +27,8 @@ export async function updateAdministrativeDancer(input: {
   adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
-  values: AdministrativeDancerUpdateInput;
-}): Promise<AdministrativeDancerMutationResult> {
+  values: DancerUpdateInput;
+}): Promise<DancerMutationResult> {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
     selectedEventId: input.selectedEventId,
@@ -39,7 +39,7 @@ export async function updateAdministrativeDancer(input: {
   }
 
   const values = input.values;
-  const fieldErrors: AdministrativeDancerFieldErrors = {};
+  const fieldErrors: DancerFieldErrors = {};
   const normalizedValues = normalizeDancerValues(input.values);
 
   Object.assign(fieldErrors, normalizedValues.fieldErrors);

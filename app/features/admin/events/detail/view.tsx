@@ -28,13 +28,13 @@ import {
   getMissingItemAdminPath,
   getMissingItemLinkLabel,
   getMissingItemSummary,
-  type AdministrativeEventDetailActionData,
-  type AdministrativeEventDetailLoaderData,
+  type EventDetailActionData,
+  type EventDetailLoaderData,
 } from "./shared";
 
-export type AdministrativeEventDetailViewProps = {
-  actionData?: AdministrativeEventDetailActionData;
-  loaderData: AdministrativeEventDetailLoaderData;
+export type EventDetailViewProps = {
+  actionData?: EventDetailActionData;
+  loaderData: EventDetailLoaderData;
   initialDeleteDialogOpen?: boolean;
 };
 
@@ -42,7 +42,7 @@ export function AdministrativeEventDetailView({
   loaderData,
   actionData,
   initialDeleteDialogOpen = false,
-}: AdministrativeEventDetailViewProps) {
+}: EventDetailViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 
@@ -80,7 +80,7 @@ export function AdministrativeEventDetailView({
 function EventRegistrationReadinessAlert({
   readiness,
 }: {
-  readiness: AdministrativeEventDetailLoaderData["registrationReadiness"];
+  readiness: EventDetailLoaderData["registrationReadiness"];
 }) {
   if (readiness.isReady) {
     return null;
@@ -111,7 +111,7 @@ function EventRegistrationReadinessAlert({
 }
 
 function summarizeMissingItems(
-  missingItems: AdministrativeEventDetailLoaderData["registrationReadiness"]["missingItems"],
+  missingItems: EventDetailLoaderData["registrationReadiness"]["missingItems"],
 ) {
   const missingCodes = Array.from(
     new Set(missingItems.map((item) => item.code)),
@@ -128,11 +128,8 @@ function EditEventPanel({
   event,
   actionData,
 }: {
-  event: AdministrativeEventDetailLoaderData["event"];
-  actionData?: Extract<
-    AdministrativeEventDetailActionData,
-    { status: "error" }
-  >;
+  event: EventDetailLoaderData["event"];
+  actionData?: Extract<EventDetailActionData, { status: "error" }>;
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({
@@ -168,7 +165,7 @@ function EventActions({
   event,
   initialDeleteDialogOpen = false,
 }: {
-  event: AdministrativeEventDetailLoaderData["event"];
+  event: EventDetailLoaderData["event"];
   initialDeleteDialogOpen?: boolean;
 }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(

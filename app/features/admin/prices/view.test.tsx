@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import type { AdministrativeEventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
 import type { AdministrativeEventPricesListView as EventPricesRouteViewType } from "@/features/admin/prices/list/view";
 import type { getPriceDisplayName as GetPriceDisplayName } from "@/features/admin/prices/view-shared";
-import type { AdministrativeEventPriceDetailLoaderData } from "@/features/admin/prices/shared";
+import type { EventPriceDetailLoaderData } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 describe("EventPriceDetailRouteView", () => {
@@ -251,7 +251,7 @@ async function renderPriceDetailRoute({
   root,
 }: {
   EventPriceDetailRouteView: typeof EventPriceDetailRouteViewType;
-  loaderData: AdministrativeEventPriceDetailLoaderData;
+  loaderData: EventPriceDetailLoaderData;
   priceId: string;
   root: ReturnType<typeof createRoot>;
 }) {
@@ -270,7 +270,7 @@ async function renderPricesRoute({
   root,
 }: {
   EventPricesRouteView: typeof EventPricesRouteViewType;
-  loaderData: AdministrativeEventPriceDetailLoaderData;
+  loaderData: EventPriceDetailLoaderData;
   root: ReturnType<typeof createRoot>;
 }) {
   await act(async () => {
@@ -298,7 +298,7 @@ function createLoaderData({
   prices,
 }: {
   prices: PriceListItem[];
-}): AdministrativeEventPriceDetailLoaderData {
+}): EventPriceDetailLoaderData {
   return {
     selectedEventId: "event_1",
     schedules: [

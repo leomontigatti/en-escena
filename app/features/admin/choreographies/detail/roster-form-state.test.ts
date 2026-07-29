@@ -12,7 +12,7 @@ import {
   getSelectionKey,
   hasNoCompatibleCategory,
   shouldResolveRosterSelection,
-  type AdministrativeRosterResolutionState,
+  type RosterResolutionState,
 } from "./roster-form-state";
 
 describe("getSelectionKey", () => {
@@ -284,8 +284,8 @@ describe("canSubmitAdministrativeChoreographyEdit", () => {
 });
 
 function buildDerived(
-  overrides: Partial<AdministrativeRosterResolutionState> = {},
-): AdministrativeRosterResolutionState {
+  overrides: Partial<RosterResolutionState> = {},
+): RosterResolutionState {
   return {
     categoryId: "category_1",
     categoryName: "Juvenil",

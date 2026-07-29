@@ -7,7 +7,7 @@ import {
 } from "@/features/admin/prices/list/server";
 import {
   AdministrativeEventPricesListView,
-  type AdministrativeEventPricesListViewProps,
+  type EventPricesListViewProps,
 } from "@/features/admin/prices/list/view";
 
 import type { Route } from "./+types/administracion.precios";
@@ -27,7 +27,7 @@ export async function action({ request }: Route.ActionArgs) {
 export function PricesListRouteView({
   loaderData,
   actionData,
-}: AdministrativeEventPricesListViewProps) {
+}: EventPricesListViewProps) {
   return (
     <AdministrativeEventPricesListView
       loaderData={loaderData}

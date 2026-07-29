@@ -31,11 +31,11 @@ export function shouldRevalidateAdministrativeChoreographyDetail(input: {
 
 export const administrativeChoreographyFieldNames = ["name"] as const;
 
-export type AdministrativeChoreographyFieldName =
+export type ChoreographyFieldName =
   (typeof administrativeChoreographyFieldNames)[number];
 
-export type AdministrativeChoreographyActionData = {
-  fieldErrors?: FieldErrors<AdministrativeChoreographyFieldName>;
+export type ChoreographyActionData = {
+  fieldErrors?: FieldErrors<ChoreographyFieldName>;
   message: string;
   status: "error";
   values: {
@@ -43,22 +43,22 @@ export type AdministrativeChoreographyActionData = {
   };
 };
 
-export type AdministrativeChoreographySubmodalityErrorData = {
+export type ChoreographySubmodalityErrorData = {
   message: string;
   status: "error";
 };
 
-export type AdministrativeChoreographySuccessData = {
+export type ChoreographySuccessData = {
   message: string;
   status: "success";
 };
 
-export type AdministrativeChoreographyViewActionData =
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData;
+export type ChoreographyViewActionData =
+  | ChoreographyActionData
+  | ChoreographySubmodalityErrorData
+  | ChoreographySuccessData;
 
-export type AdministrativeChoreographyRosterErrorData = {
+export type ChoreographyRosterErrorData = {
   fieldErrors?: {
     experienceLevelId?: string;
     scheduleCapacityId?: string;
@@ -68,12 +68,12 @@ export type AdministrativeChoreographyRosterErrorData = {
   status: "roster-error";
 };
 
-export type AdministrativeChoreographyDeleteBlockerCode =
+export type ChoreographyDeleteBlockerCode =
   | "comprobantes"
   | "presentation"
   | "scores";
 
-export type AdministrativeChoreographyDeleteBlocker = {
-  code: AdministrativeChoreographyDeleteBlockerCode;
+export type ChoreographyDeleteBlocker = {
+  code: ChoreographyDeleteBlockerCode;
   label: string;
 };

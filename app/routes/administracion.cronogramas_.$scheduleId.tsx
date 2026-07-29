@@ -7,13 +7,13 @@ import {
 } from "@/features/admin/schedules/detail/server";
 import {
   AdministrativeEventScheduleDetailView,
-  type AdministrativeEventScheduleDetailViewProps,
+  type EventScheduleDetailViewProps,
 } from "@/features/admin/schedules/detail/view";
-import type { AdministrativeEventSchedulesLoaderData } from "@/features/admin/schedules/shared";
+import type { EventSchedulesLoaderData } from "@/features/admin/schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.$scheduleId";
 
-type LoaderData = AdministrativeEventSchedulesLoaderData;
+type LoaderData = EventSchedulesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -40,7 +40,7 @@ export function EventScheduleDetailRouteView({
   loaderData,
   actionData,
   scheduleId,
-}: AdministrativeEventScheduleDetailViewProps) {
+}: EventScheduleDetailViewProps) {
   return (
     <AdministrativeEventScheduleDetailView
       loaderData={loaderData}

@@ -2,13 +2,13 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { createAdministrativeEvent } from "@/features/admin/events/create/server";
-import type { AdministrativeEventCreateActionData } from "@/features/admin/events/create/shared";
+import type { EventCreateActionData } from "@/features/admin/events/create/shared";
 import { AdministrativeEventCreateView } from "@/features/admin/events/create/view";
 
 import type { Route } from "./+types/administracion.eventos_.nuevo";
 
 type NewEventRouteProps = {
-  actionData?: AdministrativeEventCreateActionData;
+  actionData?: EventCreateActionData;
 };
 
 export const meta: Route.MetaFunction = () => [

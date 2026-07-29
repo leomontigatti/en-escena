@@ -5,7 +5,7 @@ import {
   readAdminDancerIdentificationFilter,
   readAdminDancerParticipationFilter,
   readAdminDancerStatusFilter,
-  type AdministrativeDancerListFilters,
+  type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   escapeForLike,
@@ -17,7 +17,7 @@ import { buildDancerEventParticipationSql } from "@/lib/participation/participat
 function readDancerFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
-): AdministrativeDancerListFilters {
+): DancerListFilters {
   return {
     nameOrder: readDancerNameOrder(searchParams.get("orden")),
     participation: readAdminDancerParticipationFilter({
@@ -35,7 +35,7 @@ function readDancerFilters(
 
 function buildDancerFilters(input: {
   selectedEventId: string | null;
-  filters: AdministrativeDancerListFilters;
+  filters: DancerListFilters;
 }) {
   const conditions: SQL[] = [];
   const participationSql = buildDancerEventParticipationSql(

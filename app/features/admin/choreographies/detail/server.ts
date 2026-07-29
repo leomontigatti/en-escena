@@ -51,14 +51,14 @@ import {
   resolveAdministrativeChoreographyRosterIntent,
   updateAdministrativeChoreographyRosterIntent,
   updateAdministrativeChoreographySubmodalityIntent,
-  type AdministrativeChoreographyActionData,
-  type AdministrativeChoreographyDeleteBlocker,
-  type AdministrativeChoreographyRosterErrorData,
-  type AdministrativeChoreographySubmodalityErrorData,
-  type AdministrativeChoreographySuccessData,
+  type ChoreographyActionData,
+  type ChoreographyDeleteBlocker,
+  type ChoreographyRosterErrorData,
+  type ChoreographySubmodalityErrorData,
+  type ChoreographySuccessData,
 } from "./shared";
 
-type AdministrativeChoreographyDetailRow = {
+type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
   categoryExperienceLevels: string[] | null;
@@ -81,21 +81,21 @@ type AdministrativeChoreographyDetailRow = {
   submodalityName: string | null;
 };
 
-export type AdministrativeChoreographyDetailLoaderData = {
+export type ChoreographyDetailLoaderData = {
   availableDancers: ChoreographyDancerOption[];
   availableProfessors: ChoreographyProfessorOption[];
   backToList: string;
   canEdit: boolean;
-  choreography: AdministrativeChoreographyDetail;
+  choreography: ChoreographyDetail;
   deletion: {
-    blockers: AdministrativeChoreographyDeleteBlocker[];
+    blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
   };
   selectedEventId: string | null;
   submodalityOptions: Array<{ id: string; name: string }>;
 };
 
-export type AdministrativeChoreographyDetail = {
+export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
   categoryId: string | null;
@@ -139,7 +139,7 @@ const unsupportedActionMessage = "Acción no soportada.";
 export async function loadAdminChoreographyDetailRouteData(input: {
   request: Request;
   params: { choreographyId?: string };
-}): Promise<AdministrativeChoreographyDetailLoaderData> {
+}): Promise<ChoreographyDetailLoaderData> {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(input.request);
 
@@ -191,22 +191,22 @@ export async function loadAdminChoreographyDetailRouteData(input: {
   };
 }
 
-export type AdministrativeChoreographyRosterResolutionData = {
+export type ChoreographyRosterResolutionData = {
   intent: typeof resolveAdministrativeChoreographyRosterIntent;
   result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
 };
 
-export type AdministrativeChoreographyDetailActionData =
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographyRosterErrorData
-  | AdministrativeChoreographyRosterResolutionData
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData;
+export type ChoreographyDetailActionData =
+  | ChoreographyActionData
+  | ChoreographyRosterErrorData
+  | ChoreographyRosterResolutionData
+  | ChoreographySubmodalityErrorData
+  | ChoreographySuccessData;
 
 export async function handleAdminChoreographyDetailAction(input: {
   request: Request;
   params: { choreographyId?: string };
-}): Promise<AdministrativeChoreographyDetailActionData | Response> {
+}): Promise<ChoreographyDetailActionData | Response> {
   await requireAdminUser(input.request);
   const eventContext = await loadAdminEventContext(input.request);
 
@@ -285,8 +285,8 @@ export async function handleAdminChoreographyDetailAction(input: {
 async function findAdministrativeChoreographyDetail(input: {
   choreographyId: string;
   selectedEventId: string;
-}): Promise<AdministrativeChoreographyDetail | null> {
-  const rows: AdministrativeChoreographyDetailRow[] = await db
+}): Promise<ChoreographyDetail | null> {
+  const rows: ChoreographyDetailRow[] = await db
     .select({
       academyId: choreographies.academyId,
       academyName: academies.name,
@@ -430,9 +430,7 @@ async function listAdministrativeChoreographyProfessors(
 async function renameAdministrativeChoreography(input: {
   choreographyId: string;
   formData: FormData;
-}): Promise<
-  AdministrativeChoreographyActionData | AdministrativeChoreographySuccessData
-> {
+}): Promise<ChoreographyActionData | ChoreographySuccessData> {
   const values = {
     name: readFormString(input.formData, "name"),
   };
@@ -447,7 +445,7 @@ async function renameAdministrativeChoreography(input: {
       message: "Revisá los campos marcados.",
       status: "error",
       values,
-    } satisfies AdministrativeChoreographyActionData;
+    } satisfies ChoreographyActionData;
   }
 
   await db
@@ -462,12 +460,9 @@ async function renameAdministrativeChoreography(input: {
 }
 
 async function updateAdministrativeChoreographySubmodality(input: {
-  choreography: AdministrativeChoreographyDetail;
+  choreography: ChoreographyDetail;
   formData: FormData;
-}): Promise<
-  | AdministrativeChoreographySubmodalityErrorData
-  | AdministrativeChoreographySuccessData
-> {
+}): Promise<ChoreographySubmodalityErrorData | ChoreographySuccessData> {
   // Una coreografía con presentación mantiene la submodalidad en solo lectura,
   // igual que el roster: el intent la rechaza aunque el form la mande.
   if (input.choreography.hasPresentation) {
@@ -506,13 +501,11 @@ async function updateAdministrativeChoreographySubmodality(input: {
 }
 
 async function updateAdministrativeChoreographyRosterAction(input: {
-  choreography: AdministrativeChoreographyDetail;
+  choreography: ChoreographyDetail;
   eventId: string;
   formData: FormData;
 }): Promise<
-  | AdministrativeChoreographyActionData
-  | AdministrativeChoreographyRosterErrorData
-  | AdministrativeChoreographySuccessData
+  ChoreographyActionData | ChoreographyRosterErrorData | ChoreographySuccessData
 > {
   // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
   // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
@@ -532,7 +525,7 @@ async function updateAdministrativeChoreographyRosterAction(input: {
         message: "Revisá los campos marcados.",
         status: "error",
         values: { name: readFormString(input.formData, "name") },
-      } satisfies AdministrativeChoreographyActionData;
+      } satisfies ChoreographyActionData;
     }
 
     name = parsedName.data.name;
@@ -568,7 +561,7 @@ async function updateAdministrativeChoreographyRosterAction(input: {
 }
 
 async function deleteAdministrativeChoreography(
-  choreography: AdministrativeChoreographyDetail,
+  choreography: ChoreographyDetail,
 ) {
   const blockers =
     await getAdministrativeChoreographyDeleteBlockers(choreography);
@@ -583,16 +576,13 @@ async function deleteAdministrativeChoreography(
 }
 
 async function getAdministrativeChoreographyDeleteBlockers(
-  choreography: Pick<
-    AdministrativeChoreographyDetail,
-    "hasPresentation" | "id"
-  >,
-): Promise<AdministrativeChoreographyDeleteBlocker[]> {
+  choreography: Pick<ChoreographyDetail, "hasPresentation" | "id">,
+): Promise<ChoreographyDeleteBlocker[]> {
   const [hasScores, hasComprobantes] = await Promise.all([
     hasScoresForChoreography(choreography.id),
     choreographyHasComprobantes(choreography.id),
   ]);
-  const blockers: AdministrativeChoreographyDeleteBlocker[] = [];
+  const blockers: ChoreographyDeleteBlocker[] = [];
 
   if (choreography.hasPresentation) {
     blockers.push({ code: "presentation", label: "presentación" });
@@ -663,7 +653,7 @@ function readOptionalFormString(formData: FormData, key: string) {
 // La edición en el lugar del detalle no redirige: retorna
 // `{ status: "success" }`, el loader revalida y la vista dispara el toast
 // directo. Ver docs/agents/form-feedback.md.
-function choreographySavedSuccess(): AdministrativeChoreographySuccessData {
+function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["coreografia-guardada"].message,
     status: "success",

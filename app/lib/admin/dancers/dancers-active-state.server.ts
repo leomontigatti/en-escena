@@ -7,14 +7,14 @@ import {
   findAdministrativeDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
-import type { AdministrativeDancerStatusMutationResult } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerStatusMutationResult } from "@/lib/admin/dancers/dancers.server.types";
 
 export async function setAdministrativeDancerActiveState(input: {
   action: "archive" | "reactivate";
   adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
-}): Promise<AdministrativeDancerStatusMutationResult> {
+}): Promise<DancerStatusMutationResult> {
   const existingDancer = await findAdministrativeDancerForMutation({
     dancerId: input.dancerId,
     selectedEventId: input.selectedEventId,

@@ -1,12 +1,12 @@
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import type { modalities, submodalities } from "@/db/schema";
 
-export type AdministrativeEventModalityActionData = ActionData;
+export type EventModalityActionData = ActionData;
 
 export type EventModalityRow = typeof modalities.$inferSelect;
 export type EventSubmodalityRow = typeof submodalities.$inferSelect;
 
-export type AdministrativeEventModalitiesLoaderData = {
+export type EventModalitiesLoaderData = {
   selectedEventId: string | null;
   modalities: EventModalityRow[];
   submodalities: EventSubmodalityRow[];

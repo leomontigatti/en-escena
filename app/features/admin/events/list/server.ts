@@ -4,13 +4,13 @@ import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { getEventRegistrationReadinessByEventId } from "@/lib/events/registration-readiness.server";
-import type { AdministrativeEventsListLoaderData } from "./shared";
+import type { EventsListLoaderData } from "./shared";
 type EventRow = typeof eventsTable.$inferSelect;
 type TemporalState = ReturnType<typeof getTemporalState>;
 
 export async function loadAdminEvents(
   request: Request,
-): Promise<AdministrativeEventsListLoaderData> {
+): Promise<EventsListLoaderData> {
   await requireAdminPanelUser(request);
   const eventRows = await db.query.events.findMany({
     orderBy: [desc(eventsTable.startsAt)],

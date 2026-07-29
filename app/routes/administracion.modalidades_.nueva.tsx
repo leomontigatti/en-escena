@@ -5,14 +5,14 @@ import {
   createAdministrativeEventModality,
   loadAdminEventModalityCreate,
 } from "@/features/admin/modalities/create/server";
-import type { AdministrativeEventModalityActionData } from "@/features/admin/modalities/shared";
+import type { EventModalityActionData } from "@/features/admin/modalities/shared";
 import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
 type NewModalityRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
-  actionData?: AdministrativeEventModalityActionData;
+  actionData?: EventModalityActionData;
 };
 
 export const handle = {

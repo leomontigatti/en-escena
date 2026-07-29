@@ -11,15 +11,15 @@ import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { AdministrativeEventCreateActionData } from "./shared";
+import type { EventCreateActionData } from "./shared";
 
-export type AdministrativeEventCreateViewProps = {
-  actionData?: AdministrativeEventCreateActionData;
+export type EventCreateViewProps = {
+  actionData?: EventCreateActionData;
 };
 
 export function AdministrativeEventCreateView({
   actionData,
-}: AdministrativeEventCreateViewProps) {
+}: EventCreateViewProps) {
   const defaultValues = actionData?.values ?? defaultEventFormValues();
   const eventForm = useEventForm({
     values: defaultValues,

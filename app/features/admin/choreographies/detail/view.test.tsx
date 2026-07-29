@@ -6,7 +6,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
-import type { AdministrativeChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
+import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
@@ -232,8 +232,8 @@ function renderDetail(
 }
 
 function buildLoaderData(
-  overrides: Partial<AdministrativeChoreographyDetailLoaderData> = {},
-): AdministrativeChoreographyDetailLoaderData {
+  overrides: Partial<ChoreographyDetailLoaderData> = {},
+): ChoreographyDetailLoaderData {
   return {
     availableDancers: [
       { active: true, firstName: "Ana", id: "dancer_1", lastName: "Paz" },
@@ -255,10 +255,8 @@ function buildLoaderData(
 }
 
 function buildChoreography(
-  overrides: Partial<
-    AdministrativeChoreographyDetailLoaderData["choreography"]
-  > = {},
-): AdministrativeChoreographyDetailLoaderData["choreography"] {
+  overrides: Partial<ChoreographyDetailLoaderData["choreography"]> = {},
+): ChoreographyDetailLoaderData["choreography"] {
   return {
     academyId: "academy_1",
     academyName: "Academia Norte",

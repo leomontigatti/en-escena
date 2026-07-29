@@ -8,12 +8,9 @@ export type AdminProfessorParticipationStatus =
   | "participating"
   | "not-participating"
   | "no-event";
-export type AdministrativeProfessorAuditAction =
-  | "update"
-  | "archive"
-  | "reactivate";
+export type ProfessorAuditAction = "update" | "archive" | "reactivate";
 
-export type AdministrativeProfessorListFilters = {
+export type ProfessorListFilters = {
   nameOrder: AdminProfessorNameOrder;
   participation: AdminProfessorParticipationFilter;
   query: string;

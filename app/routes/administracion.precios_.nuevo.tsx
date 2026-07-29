@@ -7,7 +7,7 @@ import {
 } from "@/features/admin/prices/create/server";
 import {
   AdministrativeEventPriceCreateView,
-  type AdministrativeEventPriceCreateViewProps,
+  type EventPriceCreateViewProps,
 } from "@/features/admin/prices/create/view";
 
 import type { Route } from "./+types/administracion.precios_.nuevo";
@@ -30,7 +30,7 @@ export async function action({ request }: Route.ActionArgs) {
 export function NewPriceRouteView({
   loaderData,
   actionData,
-}: AdministrativeEventPriceCreateViewProps) {
+}: EventPriceCreateViewProps) {
   return (
     <AdministrativeEventPriceCreateView
       loaderData={loaderData}

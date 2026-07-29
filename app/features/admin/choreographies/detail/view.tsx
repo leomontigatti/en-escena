@@ -46,19 +46,19 @@ import {
   renameAdministrativeChoreographyIntent,
   updateAdministrativeChoreographyRosterIntent,
   updateAdministrativeChoreographySubmodalityIntent,
-  type AdministrativeChoreographyDeleteBlocker,
-  type AdministrativeChoreographyViewActionData,
+  type ChoreographyDeleteBlocker,
+  type ChoreographyViewActionData,
 } from "./shared";
 import { useAdministrativeRosterForm } from "./use-roster-form";
-import type { AdministrativeChoreographyDetailLoaderData } from "./server";
+import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
-  actionData?: AdministrativeChoreographyViewActionData;
+  actionData?: ChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 };
 
-type AdministrativeChoreographyFormValues = z.input<
+type ChoreographyFormValues = z.input<
   typeof administrativeChoreographyFormSchema
 >;
 
@@ -163,15 +163,15 @@ function AdministrativeChoreographyDetailForm({
   actionData,
   loaderData,
 }: {
-  actionData?: AdministrativeChoreographyViewActionData;
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  actionData?: ChoreographyViewActionData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
   const defaultValues = useMemo(
     () => getAdministrativeChoreographyFormValues(loaderData, actionData),
     [actionData, loaderData],
   );
-  const form = useForm<AdministrativeChoreographyFormValues>({
+  const form = useForm<ChoreographyFormValues>({
     defaultValues,
     mode: "onSubmit",
     resolver: zodResolver(administrativeChoreographyFormSchema),
@@ -430,7 +430,7 @@ function AdministrativeChoreographyDetailForm({
 function SubmodalityField({
   loaderData,
 }: {
-  loaderData: AdministrativeChoreographyDetailLoaderData;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
   const submit = useSubmit();
@@ -519,9 +519,9 @@ function FormActions({
 }
 
 function getAdministrativeChoreographyFormValues(
-  loaderData: AdministrativeChoreographyDetailLoaderData,
-  actionData?: AdministrativeChoreographyViewActionData,
-): AdministrativeChoreographyFormValues {
+  loaderData: ChoreographyDetailLoaderData,
+  actionData?: ChoreographyViewActionData,
+): ChoreographyFormValues {
   const choreography = loaderData.choreography;
 
   return {
@@ -575,7 +575,7 @@ function toPersonOption(person: {
 function BlockedDeleteReasons({
   blockers,
 }: {
-  blockers: AdministrativeChoreographyDeleteBlocker[];
+  blockers: ChoreographyDeleteBlocker[];
 }) {
   return (
     <div>

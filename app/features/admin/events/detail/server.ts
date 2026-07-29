@@ -23,8 +23,8 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 import {
-  type AdministrativeEventDetailActionData,
-  type AdministrativeEventDetailLoaderData,
+  type EventDetailActionData,
+  type EventDetailLoaderData,
 } from "./shared";
 
 type EventRouteNotification = Extract<
@@ -56,7 +56,7 @@ export async function loadAdminEventDetail(
   return {
     event,
     registrationReadiness,
-  } satisfies AdministrativeEventDetailLoaderData;
+  } satisfies EventDetailLoaderData;
 }
 
 export async function updateAdministrativeEvent(
@@ -178,7 +178,7 @@ async function redirectAfterDeletion(
 async function successOrError(
   resultPromise: Promise<EventMutationResult>,
   notification: EventRouteNotification,
-): Promise<AdministrativeEventDetailActionData> {
+): Promise<EventDetailActionData> {
   const result = await resultPromise;
 
   if (!result.ok) {
@@ -188,7 +188,7 @@ async function successOrError(
   return actionSuccess(notification);
 }
 
-function actionError(message: string): AdministrativeEventDetailActionData {
+function actionError(message: string): EventDetailActionData {
   return {
     status: "error",
     message,
@@ -199,7 +199,7 @@ function actionError(message: string): AdministrativeEventDetailActionData {
 
 function actionSuccess(
   notification: EventRouteNotification,
-): AdministrativeEventDetailActionData {
+): EventDetailActionData {
   return {
     status: "success",
     message: notificationToasts[notification].message,

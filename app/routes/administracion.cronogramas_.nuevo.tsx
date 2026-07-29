@@ -7,9 +7,9 @@ import {
 } from "@/features/admin/schedules/create/server";
 import {
   AdministrativeEventScheduleCreateView,
-  type AdministrativeEventScheduleCreateViewProps,
+  type EventScheduleCreateViewProps,
 } from "@/features/admin/schedules/create/view";
-import type { AdministrativeEventScheduleActionData } from "@/features/admin/schedules/shared";
+import type { EventScheduleActionData } from "@/features/admin/schedules/shared";
 
 import type { Route } from "./+types/administracion.cronogramas_.nuevo";
 
@@ -21,7 +21,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 type NewEventScheduleRouteProps = {
-  actionData?: AdministrativeEventScheduleActionData;
+  actionData?: EventScheduleActionData;
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
 
@@ -36,7 +36,7 @@ export async function action({ request }: Route.ActionArgs) {
 export function NewEventScheduleRouteView({
   loaderData,
   actionData,
-}: AdministrativeEventScheduleCreateViewProps) {
+}: EventScheduleCreateViewProps) {
   return (
     <AdministrativeEventScheduleCreateView
       loaderData={loaderData}
