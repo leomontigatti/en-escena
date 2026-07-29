@@ -10,8 +10,8 @@ import {
   submodalities,
 } from "@/db/schema";
 import {
-  handleAdministrativeChoreographyDetailAction,
-  loadAdministrativeChoreographyDetailRouteData,
+  handleAdminChoreographyDetailAction,
+  loadAdminChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
   deleteAdministrativeChoreographyIntent,
@@ -646,7 +646,7 @@ async function loadDetail(input: {
     role: input.role,
   });
 
-  return await loadAdministrativeChoreographyDetailRouteData({
+  return await loadAdminChoreographyDetailRouteData({
     params: { choreographyId: input.choreographyId },
     request,
   });
@@ -665,7 +665,7 @@ async function submitDetailAction(input: {
     role: input.role,
   });
 
-  return await handleAdministrativeChoreographyDetailAction({
+  return await handleAdminChoreographyDetailAction({
     params: { choreographyId: input.choreographyId },
     request,
   });

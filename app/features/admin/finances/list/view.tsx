@@ -19,7 +19,7 @@ import type { FinanceAccountRow, loadAdminFinancesList } from "./server";
 
 type FinancesListLoaderData = Awaited<ReturnType<typeof loadAdminFinancesList>>;
 
-type AdministracionFinanzasRouteViewProps = {
+type FinancesListRouteViewProps = {
   loaderData: FinancesListLoaderData;
 };
 
@@ -69,9 +69,9 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
   },
 ];
 
-export function AdministracionFinanzasRouteView({
+export function FinancesListRouteView({
   loaderData,
-}: AdministracionFinanzasRouteViewProps) {
+}: FinancesListRouteViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}

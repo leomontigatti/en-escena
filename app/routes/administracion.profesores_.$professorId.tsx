@@ -2,21 +2,21 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeProfessorDetailAction,
-  loadAdministrativeProfessorDetail,
+  handleAdminProfessorDetailAction,
+  loadAdminProfessorDetail,
 } from "@/features/admin/professors/detail/server";
 import type {
   ProfessorDetailActionData,
   ProfessorDetailLoaderData,
 } from "@/features/admin/professors/detail/shared";
-import { AdministracionProfesorDetalleRouteView as ProfesorDetalleView } from "@/features/admin/professors/detail/view";
+import { ProfessorDetailRouteView as ProfessorDetailView } from "@/features/admin/professors/detail/view";
 
 import type { Route } from "./+types/administracion.profesores_.$professorId";
 
 type LoaderData = ProfessorDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionProfesorDetalleRouteProps = {
+type ProfessorDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
@@ -42,34 +42,31 @@ export async function loader({
   request,
   params,
 }: Route.LoaderArgs): Promise<LoaderData> {
-  return await loadAdministrativeProfessorDetail({ request, params });
+  return await loadAdminProfessorDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<ProfessorDetailActionData> {
-  return await handleAdministrativeProfessorDetailAction({ request, params });
+  return await handleAdminProfessorDetailAction({ request, params });
 }
 
-export function AdministracionProfesorDetalleRouteView({
+export function ProfessorDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionProfesorDetalleRouteProps) {
+}: ProfessorDetailRouteProps) {
   return (
-    <ProfesorDetalleView actionData={actionData} loaderData={loaderData} />
+    <ProfessorDetailView actionData={actionData} loaderData={loaderData} />
   );
 }
 
-export default function AdministracionProfesorDetalleRoute({
+export default function ProfessorDetailRoute({
   loaderData,
-}: AdministracionProfesorDetalleRouteProps) {
+}: ProfessorDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionProfesorDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <ProfessorDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

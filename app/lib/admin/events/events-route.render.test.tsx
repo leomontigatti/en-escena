@@ -7,8 +7,8 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));
 
-import { AdministracionEventosRouteView } from "@/routes/administracion.eventos";
-import { AdministracionEventoNuevoRouteView } from "@/routes/administracion.eventos_.nuevo";
+import { EventsListRouteView } from "@/routes/administracion.eventos";
+import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
 describe("administracion/eventos route rendering", () => {
   test("renders an empty Eventos state with a link to create a new Evento", () => {
@@ -46,15 +46,13 @@ describe("administracion/eventos route rendering", () => {
 });
 
 function renderRoute(
-  loaderData: Partial<
-    Parameters<typeof AdministracionEventosRouteView>[0]["loaderData"]
-  >,
+  loaderData: Partial<Parameters<typeof EventsListRouteView>[0]["loaderData"]>,
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       { initialEntries: ["/administracion/eventos"] },
-      createElement(AdministracionEventosRouteView, {
+      createElement(EventsListRouteView, {
         loaderData: {
           events: [],
           ...loaderData,
@@ -65,15 +63,13 @@ function renderRoute(
 }
 
 function renderCreateRoute(
-  actionData?: Parameters<
-    typeof AdministracionEventoNuevoRouteView
-  >[0]["actionData"],
+  actionData?: Parameters<typeof NewEventRouteView>[0]["actionData"],
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       { initialEntries: ["/administracion/eventos/nuevo"] },
-      createElement(AdministracionEventoNuevoRouteView, {
+      createElement(NewEventRouteView, {
         actionData,
       }),
     ),

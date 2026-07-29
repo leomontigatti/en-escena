@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionProfesoresRouteView } from "@/features/admin/professors/list/view";
+import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
 
-describe("AdministracionProfesoresRouteView", () => {
+describe("ProfessorsListRouteView", () => {
   test("shows the empty state when there are no profesores and no active filters", () => {
     const markup = renderRoute();
 
@@ -79,14 +79,14 @@ describe("AdministracionProfesoresRouteView", () => {
 
 function renderRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionProfesoresRouteView>[0]["loaderData"]
+    Parameters<typeof ProfessorsListRouteView>[0]["loaderData"]
   > = {},
 ) {
   return renderToStaticMarkup(
     createElement(
       MemoryRouter,
       { initialEntries: ["/administracion/profesores"] },
-      createElement(AdministracionProfesoresRouteView, {
+      createElement(ProfessorsListRouteView, {
         loaderData: {
           filters: {
             nameOrder: "asc",

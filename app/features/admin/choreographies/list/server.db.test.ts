@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
-import { loadAdministrativeChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
+import { loadAdminChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("loadAdministrativeChoreographyListRouteData", () => {
+describe("loadAdminChoreographyListRouteData", () => {
   test("redirects invalid filters to the canonical list URL", async () => {
     const event = await createSavedEvent();
     const { request } = await createSignedInRequest({
@@ -21,7 +21,7 @@ describe("loadAdministrativeChoreographyListRouteData", () => {
     });
 
     const response = await expectThrownResponse(
-      loadAdministrativeChoreographyListRouteData(request),
+      loadAdminChoreographyListRouteData(request),
       302,
     );
 

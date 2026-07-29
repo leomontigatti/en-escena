@@ -9,11 +9,11 @@ import {
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
 
-import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import { ChoreographyFinanceDetailView } from "./view";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Extract<
-  Awaited<ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>>,
+  Awaited<ReturnType<typeof loadAdminChoreographyFinanceDetail>>,
   { selectedEventId: string }
 >;
 
@@ -28,9 +28,7 @@ describe("DancerNameCell interaction", () => {
         {
           path: "/",
           element: (
-            <AdministracionCoreografiaFinancieraDetalleView
-              loaderData={loaderDataFixture()}
-            />
+            <ChoreographyFinanceDetailView loaderData={loaderDataFixture()} />
           ),
         },
       ],
@@ -64,9 +62,7 @@ describe("DancerNameCell interaction", () => {
           >
             re-render
           </button>
-          <AdministracionCoreografiaFinancieraDetalleView
-            loaderData={loaderData}
-          />
+          <ChoreographyFinanceDetailView loaderData={loaderData} />
         </>
       );
     }

@@ -13,7 +13,7 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
 
-type AdministracionRouteProps = Pick<Route.ComponentProps, "loaderData">;
+type AdminShellRouteProps = Pick<Route.ComponentProps, "loaderData">;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de administración | En Escena" },
@@ -34,9 +34,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export function AdministracionRouteView({
-  loaderData,
-}: AdministracionRouteProps) {
+export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
   const matches = useMatches();
   const shellOptions = getAdminShellOptions(matches);
 
@@ -53,4 +51,4 @@ export function AdministracionRouteView({
   );
 }
 
-export default AdministracionRouteView;
+export default AdminShellRouteView;

@@ -136,7 +136,7 @@ const renameChoreographySchema = z.object({
 
 const unsupportedActionMessage = "Acción no soportada.";
 
-export async function loadAdministrativeChoreographyDetailRouteData(input: {
+export async function loadAdminChoreographyDetailRouteData(input: {
   request: Request;
   params: { choreographyId?: string };
 }): Promise<AdministrativeChoreographyDetailLoaderData> {
@@ -203,7 +203,7 @@ export type AdministrativeChoreographyDetailActionData =
   | AdministrativeChoreographySubmodalityErrorData
   | AdministrativeChoreographySuccessData;
 
-export async function handleAdministrativeChoreographyDetailAction(input: {
+export async function handleAdminChoreographyDetailAction(input: {
   request: Request;
   params: { choreographyId?: string };
 }): Promise<AdministrativeChoreographyDetailActionData | Response> {
@@ -340,7 +340,7 @@ async function findAdministrativeChoreographyDetail(input: {
   const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
     listAdministrativeChoreographyDancers(input.choreographyId),
     listAdministrativeChoreographyProfessors(input.choreographyId),
-    loadAdministrativeChoreographyMusicDownloadUrl(row.musicStorageKey),
+    loadAdminChoreographyMusicDownloadUrl(row.musicStorageKey),
   ]);
 
   return {
@@ -616,7 +616,7 @@ async function hasScoresForChoreography(_choreographyId: string) {
   return false;
 }
 
-async function loadAdministrativeChoreographyMusicDownloadUrl(
+async function loadAdminChoreographyMusicDownloadUrl(
   storageKey: string | null,
 ) {
   if (!storageKey) {

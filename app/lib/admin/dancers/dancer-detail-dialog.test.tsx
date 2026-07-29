@@ -10,19 +10,18 @@ import {
 } from "@/lib/test-support/react-dom";
 
 type DancerEditConsequence =
-  AdministracionBailarinDetalleRouteViewProps["loaderData"]["dancer"]["editConsequence"];
+  DancerDetailRouteViewProps["loaderData"]["dancer"]["editConsequence"];
 
-type AdministracionBailarinDetalleRouteViewComponent =
-  typeof import("@/routes/administracion.bailarines_.$dancerId").AdministracionBailarinDetalleRouteView;
-type AdministracionBailarinDetalleRouteViewProps =
-  Parameters<AdministracionBailarinDetalleRouteViewComponent>[0];
+type DancerDetailRouteViewComponent =
+  typeof import("@/routes/administracion.bailarines_.$dancerId").DancerDetailRouteView;
+type DancerDetailRouteViewProps = Parameters<DancerDetailRouteViewComponent>[0];
 
-describe("AdministracionBailarinDetalleRouteView dialogs", () => {
+describe("DancerDetailRouteView dialogs", () => {
   const renderer = createReactDomTestRenderer();
-  let AdministracionBailarinDetalleRouteView: AdministracionBailarinDetalleRouteViewComponent;
+  let DancerDetailRouteView: DancerDetailRouteViewComponent;
 
   beforeAll(async () => {
-    ({ AdministracionBailarinDetalleRouteView } =
+    ({ DancerDetailRouteView } =
       await import("@/routes/administracion.bailarines_.$dancerId"));
   }, 30_000);
 
@@ -31,9 +30,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   test("unmounts closed confirmation dialogs so another dialog can be closed normally", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <AdministracionBailarinDetalleRouteView
-          loaderData={createLoaderData()}
-        />
+        <DancerDetailRouteView loaderData={createLoaderData()} />
       </MemoryRouter>,
     );
 
@@ -57,7 +54,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   test("changing a Bailarín's status confirms without a correction reason field", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <AdministracionBailarinDetalleRouteView
+        <DancerDetailRouteView
           loaderData={createLoaderData({
             active: false,
             editConsequence: "participated",
@@ -77,7 +74,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   test("editing a non-consequential Bailarín saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <AdministracionBailarinDetalleRouteView
+        <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: null,
             isEditing: true,
@@ -96,7 +93,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   test("editing a verified Bailarín confirms with the verified message before saving", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <AdministracionBailarinDetalleRouteView
+        <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "verified",
             isEditing: true,
@@ -118,7 +115,7 @@ describe("AdministracionBailarinDetalleRouteView dialogs", () => {
   test("editing a participating Bailarín confirms with the participation message", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <AdministracionBailarinDetalleRouteView
+        <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "participated",
             isEditing: true,
@@ -143,7 +140,7 @@ function createLoaderData({
   active?: boolean;
   editConsequence?: DancerEditConsequence;
   isEditing?: boolean;
-} = {}): AdministracionBailarinDetalleRouteViewProps["loaderData"] {
+} = {}): DancerDetailRouteViewProps["loaderData"] {
   return {
     backToList: "/administracion/bailarines",
     cancelHref: "/administracion/bailarines/dancer-1",

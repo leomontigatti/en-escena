@@ -4,14 +4,14 @@ import {
   loadComprobanteDetail,
   type ComprobanteDetailLoaderData,
 } from "@/features/admin/comprobantes/detail/server";
-import { AdministracionComprobanteDetalleRouteView } from "@/features/admin/comprobantes/detail/view";
+import { ComprobanteDetailRouteView } from "@/features/admin/comprobantes/detail/view";
 import { formatComprobanteNumber } from "@/lib/comprobantes/format";
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId";
 
 type LoaderData = ComprobanteDetailLoaderData;
 
-type AdministracionComprobanteDetalleRouteProps = {
+type ComprobanteDetailRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -42,8 +42,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 }
 
-export default function AdministracionComprobanteDetalleRoute({
+export default function ComprobanteDetailRoute({
   loaderData,
-}: AdministracionComprobanteDetalleRouteProps) {
-  return <AdministracionComprobanteDetalleRouteView loaderData={loaderData} />;
+}: ComprobanteDetailRouteProps) {
+  return <ComprobanteDetailRouteView loaderData={loaderData} />;
 }

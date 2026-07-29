@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createAdministrativeEventSchedule,
-  loadAdministrativeEventScheduleCreate,
+  loadAdminEventScheduleCreate,
 } from "@/features/admin/schedules/create/server";
 import {
   AdministrativeEventScheduleCreateView,
@@ -20,20 +20,20 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-type AdministracionCronogramaNuevoRouteProps = {
+type NewEventScheduleRouteProps = {
   actionData?: AdministrativeEventScheduleActionData;
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventScheduleCreate(request);
+  return loadAdminEventScheduleCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventSchedule(request);
 }
 
-export function AdministracionCronogramaNuevoRouteView({
+export function NewEventScheduleRouteView({
   loaderData,
   actionData,
 }: AdministrativeEventScheduleCreateViewProps) {
@@ -45,13 +45,13 @@ export function AdministracionCronogramaNuevoRouteView({
   );
 }
 
-export default function AdministracionCronogramaNuevoRoute({
+export default function NewEventScheduleRoute({
   loaderData,
-}: AdministracionCronogramaNuevoRouteProps) {
+}: NewEventScheduleRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCronogramaNuevoRouteView
+    <NewEventScheduleRouteView
       loaderData={loaderData}
       actionData={actionData}
     />

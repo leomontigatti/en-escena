@@ -15,7 +15,7 @@ import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-suppor
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
   action,
-  AdministracionEventoDetalleRouteView,
+  EventDetailRouteView,
   loader,
 } from "@/routes/administracion.eventos_.$eventId";
 
@@ -267,12 +267,8 @@ describe("administracion/eventos/:eventId route", () => {
 });
 
 function renderRoute(
-  loaderData: Parameters<
-    typeof AdministracionEventoDetalleRouteView
-  >[0]["loaderData"],
-  actionData?: Parameters<
-    typeof AdministracionEventoDetalleRouteView
-  >[0]["actionData"],
+  loaderData: Parameters<typeof EventDetailRouteView>[0]["loaderData"],
+  actionData?: Parameters<typeof EventDetailRouteView>[0]["actionData"],
   initialEntry = `/administracion/eventos/${loaderData.event.id}`,
 ) {
   return renderToStaticMarkup(
@@ -281,7 +277,7 @@ function renderRoute(
       {
         initialEntries: [initialEntry],
       },
-      createElement(AdministracionEventoDetalleRouteView, {
+      createElement(EventDetailRouteView, {
         loaderData,
         actionData,
       }),

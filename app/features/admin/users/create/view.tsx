@@ -35,13 +35,13 @@ const createInternalUserRoleOptions = [
   { value: "judge", label: "Juez" },
 ];
 
-export type AdministracionUsuariosNuevoRouteViewProps = {
+export type NewInternalUserRouteViewProps = {
   actionData?: CreateInternalUserActionData;
 };
 
-export function AdministracionUsuariosNuevoRouteView({
+export function NewInternalUserRouteView({
   actionData,
-}: AdministracionUsuariosNuevoRouteViewProps) {
+}: NewInternalUserRouteViewProps) {
   const formValues = actionData?.values ?? defaultCreateInternalUserFormValues;
   const form = useForm<
     CreateInternalUserFormValues,

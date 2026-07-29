@@ -1,6 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdministrativeEventDetail,
+  loadAdminEventDetail,
   updateAdministrativeEvent,
 } from "@/features/admin/events/detail/server";
 import type { AdministrativeEventDetailActionData } from "@/features/admin/events/detail/shared";
@@ -11,7 +11,7 @@ import type { Route } from "./+types/administracion.eventos_.$eventId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionEventoDetalleRouteProps = {
+type EventDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: AdministrativeEventDetailActionData;
 };
@@ -25,7 +25,7 @@ export const handle = {
     { label: "Eventos", to: "/administracion/eventos" },
     (match) => {
       const data = match.data as
-        | AdministracionEventoDetalleRouteProps["loaderData"]
+        | EventDetailRouteProps["loaderData"]
         | undefined;
       return data ? { label: data.event.name } : null;
     },
@@ -33,17 +33,17 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return loadAdministrativeEventDetail(request, params.eventId);
+  return loadAdminEventDetail(request, params.eventId);
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
   return updateAdministrativeEvent(request, params.eventId);
 }
 
-export function AdministracionEventoDetalleRouteView({
+export function EventDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionEventoDetalleRouteProps) {
+}: EventDetailRouteProps) {
   return (
     <AdministrativeEventDetailView
       loaderData={loaderData}
@@ -52,15 +52,12 @@ export function AdministracionEventoDetalleRouteView({
   );
 }
 
-export default function AdministracionEventoDetalleRoute({
+export default function EventDetailRoute({
   loaderData,
-}: AdministracionEventoDetalleRouteProps) {
+}: EventDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionEventoDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

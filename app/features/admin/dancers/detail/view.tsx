@@ -22,7 +22,7 @@ import {
   type InscriptionsSectionProps,
 } from "./sections";
 
-type AdministracionBailarinDetalleRouteViewProps = {
+type DancerDetailRouteViewProps = {
   actionData?: DancerDetailActionData;
   loaderData: DancerDetailLoaderData;
 };
@@ -30,10 +30,10 @@ type AdministracionBailarinDetalleRouteViewProps = {
 export type { InscriptionsSectionProps };
 export { InscriptionsSection };
 
-export function AdministracionBailarinDetalleRouteView({
+export function DancerDetailRouteView({
   actionData,
   loaderData,
-}: AdministracionBailarinDetalleRouteViewProps) {
+}: DancerDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 

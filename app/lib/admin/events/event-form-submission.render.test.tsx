@@ -43,8 +43,8 @@ vi.mock("react-router", async () => {
   };
 });
 
-import { AdministracionEventoDetalleRouteView } from "@/routes/administracion.eventos_.$eventId";
-import { AdministracionEventoNuevoRouteView } from "@/routes/administracion.eventos_.nuevo";
+import { EventDetailRouteView } from "@/routes/administracion.eventos_.$eventId";
+import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
 const renderer = createReactDomTestRenderer();
 
@@ -68,7 +68,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     renderer.render(
-      <AdministracionEventoNuevoRouteView
+      <NewEventRouteView
         actionData={{
           status: "error",
           message: "Revisá los datos del Evento.",
@@ -103,7 +103,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
-    renderer.render(<AdministracionEventoNuevoRouteView />);
+    renderer.render(<NewEventRouteView />);
 
     const form = document.querySelector("form");
 
@@ -134,9 +134,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
     renderer.render(
-      <AdministracionEventoDetalleRouteView
-        loaderData={buildDetailLoaderData()}
-      />,
+      <EventDetailRouteView loaderData={buildDetailLoaderData()} />,
     );
 
     const submitButton = getButton("Guardar");
@@ -153,7 +151,7 @@ describe("Evento RHF + React Router form submission", () => {
     reactRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
     renderer.render(
-      <AdministracionEventoDetalleRouteView
+      <EventDetailRouteView
         loaderData={buildDetailLoaderData()}
         actionData={{
           status: "error",
@@ -180,7 +178,7 @@ describe("Evento RHF + React Router form submission", () => {
 });
 
 function buildDetailLoaderData(): Parameters<
-  typeof AdministracionEventoDetalleRouteView
+  typeof EventDetailRouteView
 >[0]["loaderData"] {
   return {
     event: {

@@ -7,7 +7,7 @@ import {
   paymentAllocations,
   prices,
 } from "@/db/schema";
-import { loadAdministrativeChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
+import { loadAdminChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import {
   createChoreographyRecord,
   createDancer,
@@ -398,7 +398,7 @@ async function loadChoreographyFinanceDetail(input: {
     }),
   });
 
-  return await loadAdministrativeChoreographyFinanceDetail(
+  return await loadAdminChoreographyFinanceDetail(
     choreographyDetailRouteArgs({
       academyId: input.academyId,
       choreographyId: input.choreographyId,

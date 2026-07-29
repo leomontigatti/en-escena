@@ -1,7 +1,7 @@
 import { handleEventPriceAction } from "../action.server";
 import { loadEventPricesListData } from "../server";
 
-export async function loadAdministrativeEventPricesList(request: Request) {
+export async function loadAdminEventPricesList(request: Request) {
   return loadEventPricesListData(request);
 }
 

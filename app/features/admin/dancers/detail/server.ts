@@ -25,7 +25,7 @@ import {
   readDancerUpdateValues,
 } from "./shared";
 
-export async function loadAdministrativeDancerDetail(input: {
+export async function loadAdminDancerDetail(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
@@ -61,7 +61,7 @@ export async function loadAdministrativeDancerDetail(input: {
   };
 }
 
-export async function handleAdministrativeDancerDetailAction(input: {
+export async function handleAdminDancerDetailAction(input: {
   request: Request;
   params: { dancerId?: string };
 }) {

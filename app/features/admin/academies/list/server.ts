@@ -5,7 +5,7 @@ import { academies, choreographies } from "@/db/schema";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdministrativeAcademiesList(request: Request) {
+export async function loadAdminAcademiesList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
   const academyRows = await db.query.academies.findMany({

@@ -28,7 +28,7 @@ import {
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
-  AdministracionCoreografiasRouteView,
+  ChoreographiesListRouteView,
   handle,
   loader,
 } from "@/routes/administracion.coreografias";
@@ -533,7 +533,7 @@ function renderRoute(input: {
   };
 }) {
   return renderAdminChildRoute({
-    childComponent: AdministracionCoreografiasRouteView,
+    childComponent: ChoreographiesListRouteView,
     childHandle: handle,
     childId: "coreografias",
     childLoaderData: input.childLoaderData,

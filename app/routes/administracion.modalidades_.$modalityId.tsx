@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdministrativeEventModalityDetail,
+  loadAdminEventModalityDetail,
   updateAdministrativeEventModality,
 } from "@/features/admin/modalities/detail/server";
 import {
@@ -28,14 +28,14 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventModalityDetail(request);
+  return loadAdminEventModalityDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventModality(request);
 }
 
-export function AdministracionModalidadDetalleRouteView({
+export function ModalityDetailRouteView({
   loaderData,
   actionData,
   modalityId,
@@ -49,14 +49,14 @@ export function AdministracionModalidadDetalleRouteView({
   );
 }
 
-export default function AdministracionModalidadDetalleRoute({
+export default function ModalityDetailRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionModalidadDetalleRouteView
+    <ModalityDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
       modalityId={params.modalityId ?? ""}

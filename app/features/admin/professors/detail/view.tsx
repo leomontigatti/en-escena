@@ -22,15 +22,15 @@ import {
   toProfessorEditValues,
 } from "./shared";
 
-export type AdministracionProfesorDetalleRouteViewProps = {
+export type ProfessorDetailRouteViewProps = {
   actionData?: ProfessorDetailActionData;
   loaderData: ProfessorDetailLoaderData;
 };
 
-export function AdministracionProfesorDetalleRouteView({
+export function ProfessorDetailRouteView({
   actionData,
   loaderData,
-}: AdministracionProfesorDetalleRouteViewProps) {
+}: ProfessorDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 

@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdministrativeEventScheduleDetail,
+  loadAdminEventScheduleDetail,
   updateAdministrativeEventSchedule,
 } from "@/features/admin/schedules/detail/server";
 import {
@@ -29,14 +29,14 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventScheduleDetail(request);
+  return loadAdminEventScheduleDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventSchedule(request);
 }
 
-export function AdministracionCronogramaDetalleRouteView({
+export function EventScheduleDetailRouteView({
   loaderData,
   actionData,
   scheduleId,
@@ -50,14 +50,14 @@ export function AdministracionCronogramaDetalleRouteView({
   );
 }
 
-export default function AdministracionCronogramaDetalleRoute({
+export default function EventScheduleDetailRoute({
   loaderData,
   params,
 }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCronogramaDetalleRouteView
+    <EventScheduleDetailRouteView
       loaderData={loaderData}
       actionData={actionData}
       scheduleId={params.scheduleId ?? ""}

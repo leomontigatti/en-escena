@@ -5,15 +5,13 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { AdministracionCoreografiaDetalleRouteView } from "@/features/admin/choreographies/detail/view";
+import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import type { AdministrativeChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-type DetailViewProps = Parameters<
-  typeof AdministracionCoreografiaDetalleRouteView
->[0];
+type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
 
-describe("AdministracionCoreografiaDetalleRouteView", () => {
+describe("ChoreographyDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -192,7 +190,7 @@ describe("AdministracionCoreografiaDetalleRouteView", () => {
           path: "/administracion/coreografias/choreo_1",
           action: async () => null,
           element: (
-            <AdministracionCoreografiaDetalleRouteView
+            <ChoreographyDetailRouteView
               actionData={input.actionData}
               initialDeleteDialogOpen={input.initialDeleteDialogOpen}
               loaderData={loaderData}
@@ -219,7 +217,7 @@ function renderDetail(
         path: "/administracion/coreografias/choreo_1",
         action: async () => null,
         element: (
-          <AdministracionCoreografiaDetalleRouteView
+          <ChoreographyDetailRouteView
             actionData={input.actionData}
             initialDeleteDialogOpen={input.initialDeleteDialogOpen}
             loaderData={loaderData}

@@ -1,12 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminAcademyFinances } from "@/features/admin/finances/academy-choreographies/server";
-import { AdministracionFinanzasAcademiaRouteView } from "@/features/admin/finances/academy-choreographies/view";
+import { AcademyFinancesRouteView } from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionFinanzasAcademiaRouteProps = {
+type AcademyFinancesRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -28,10 +28,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadAdminAcademyFinances({ request, params });
 }
 
-export { AdministracionFinanzasAcademiaRouteView };
+export { AcademyFinancesRouteView };
 
-export default function AdministracionFinanzasAcademiaRoute({
+export default function AcademyFinancesRoute({
   loaderData,
-}: AdministracionFinanzasAcademiaRouteProps) {
-  return <AdministracionFinanzasAcademiaRouteView loaderData={loaderData} />;
+}: AcademyFinancesRouteProps) {
+  return <AcademyFinancesRouteView loaderData={loaderData} />;
 }

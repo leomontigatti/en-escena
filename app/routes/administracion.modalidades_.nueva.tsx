@@ -3,14 +3,14 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   createAdministrativeEventModality,
-  loadAdministrativeEventModalityCreate,
+  loadAdminEventModalityCreate,
 } from "@/features/admin/modalities/create/server";
 import type { AdministrativeEventModalityActionData } from "@/features/admin/modalities/shared";
 import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
-type AdministracionModalidadNuevaRouteProps = {
+type NewModalityRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
   actionData?: AdministrativeEventModalityActionData;
 };
@@ -23,17 +23,17 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdministrativeEventModalityCreate(request);
+  return loadAdminEventModalityCreate(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventModality(request);
 }
 
-export function AdministracionModalidadNuevaRouteView({
+export function NewModalityRouteView({
   loaderData,
   actionData,
-}: AdministracionModalidadNuevaRouteProps) {
+}: NewModalityRouteProps) {
   return (
     <AdministrativeEventModalityCreateView
       loaderData={loaderData}
@@ -42,15 +42,12 @@ export function AdministracionModalidadNuevaRouteView({
   );
 }
 
-export default function AdministracionModalidadNuevaRoute({
+export default function NewModalityRoute({
   loaderData,
-}: AdministracionModalidadNuevaRouteProps) {
+}: NewModalityRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionModalidadNuevaRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <NewModalityRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

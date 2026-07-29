@@ -15,10 +15,10 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));
 
-import { AdministracionRouteView } from "@/routes/administracion";
+import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as modalityDetailHandle } from "@/routes/administracion.modalidades_.$modalityId";
 import {
-  AdministracionUsuariosNuevoRouteView,
+  NewInternalUserRouteView,
   handle as createUserHandle,
 } from "@/routes/administracion.usuarios_.nuevo";
 
@@ -28,7 +28,7 @@ describe("administracion layout route", () => {
       {
         path: "/administracion",
         Component: () => (
-          <AdministracionRouteView
+          <AdminShellRouteView
             loaderData={{
               email: "admin@example.com",
               events: [
@@ -42,7 +42,7 @@ describe("administracion layout route", () => {
           {
             path: "usuarios/nuevo",
             handle: createUserHandle,
-            Component: AdministracionUsuariosNuevoRouteView,
+            Component: NewInternalUserRouteView,
           },
         ],
       },
@@ -66,7 +66,7 @@ describe("administracion layout route", () => {
     const RoutesStub = createRoutesStub([
       {
         path: "/administracion",
-        Component: AdministracionRouteView,
+        Component: AdminShellRouteView,
         children: [
           {
             path: "modalidades/:modalityId",

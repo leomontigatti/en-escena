@@ -117,7 +117,7 @@ function readAdministrativeChoreographyFilters(
   };
 }
 
-export async function loadAdministrativeChoreographies(input: {
+export async function loadAdminChoreographies(input: {
   filters: AdministrativeChoreographyListFilters;
   selectedEventId: string | null;
 }): Promise<AdministrativeChoreographyListResult> {
@@ -197,9 +197,7 @@ export async function loadAdministrativeChoreographies(input: {
   };
 }
 
-export async function loadAdministrativeChoreographyListRouteData(
-  request: Request,
-) {
+export async function loadAdminChoreographyListRouteData(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 
@@ -209,7 +207,7 @@ export async function loadAdministrativeChoreographyListRouteData(
 
   const url = new URL(request.url);
   const filters = readAdministrativeChoreographyFilters(url.searchParams);
-  const listResult = await loadAdministrativeChoreographies({
+  const listResult = await loadAdminChoreographies({
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
