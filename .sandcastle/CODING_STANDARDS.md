@@ -76,7 +76,7 @@ The product is Spanish; the codebase is English.
 | Layer                                  | Language                         | Example                                         |
 | -------------------------------------- | -------------------------------- | ----------------------------------------------- |
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
-| Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                      |
+| Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
 
 Route filenames are URLs, so they stay Spanish
@@ -131,16 +131,35 @@ route views would collide by name with an admin counterpart.
 Route views on both surfaces now follow the rule: admin ones are English and
 unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
 and admin route default exports match their view root (`ChoreographyDetailRoute`).
-Admin types follow it too: they are unmarked (`ChoreographyDetailLoaderData`).
-Admin functions and hooks follow it as well (`findDancer`, `useRosterForm`), and
-so do the loaders and handlers (`loadAcademyFinances`,
-`handleAcademyDetailAction`). The only admin symbols still marked are the
-create/update mutations (`createAdministrativeEvent`) and the database
-identifiers, both tracked separately.
-The portal layer is only partly marked too: 174 exports under `app/lib/portal/`
-and `app/features/portal/` still carry no `Portal` prefix. Those symbols are
-pending rename, tracked in #527 — write new admin symbols unmarked and English,
-write new portal symbols marked, and do not cite the existing ones as precedent.
+The `Administrative` prefix is gone from admin types
+(`ChoreographyDetailLoaderData`), feature view components (`EventPricesListView`),
+functions and hooks (`findDancer`, `useRosterForm`), and loaders and handlers
+(`loadAcademyFinances`, `handleAcademyDetailAction`).
+
+Three sets of admin symbols are still marked, and none of them is precedent:
+
+- The `create*` / `update*` mutations (`createAdministrativeEvent`) — naming the
+  mutation layer is a design call, not a mechanical rename; tracked in #526.
+- The database identifiers (`administrativeAuditEntries`,
+  `en_escena_administrative_audit_entry`) — renaming them would cost a migration
+  and buy no legibility.
+- A residual `Admin`-prefixed set that #527 never enumerated: types like
+  `AdminPaymentsListLoaderData` and `AdminComprobantesListLoaderData`, helpers
+  like `readAdminPaymentsListFilters` and `getAdminPaymentDisplayName`, and a few
+  `administrativeChoreography*` constants. These sit next to already-unmarked
+  symbols in the same files (`loadPaymentsList` returns
+  `AdminPaymentsListLoaderData`), so the seam is visible; it is unfinished work,
+  not a convention.
+
+`AdminShell`, `AdminResourceLayout` and the other `app/components/admin/` chrome
+are a separate case: they name the admin shell itself, not a domain symbol on the
+admin surface, so the prefix is part of the component's name.
+
+The portal layer is only partly marked too: 167 exports under `app/lib/portal/`
+and `app/features/portal/` still carry no `Portal` prefix. #527 marked only the
+seven that collided with an admin target name; the rest are an explicit follow-up.
+Write new admin symbols unmarked and English, write new portal symbols marked, and
+do not cite the existing ones as precedent.
 
 ## File Size And Boundaries
 
