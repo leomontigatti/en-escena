@@ -1,4 +1,4 @@
-# Juzgamiento
+# Judging
 
 Rules for presentations, judging, ranking, results, scores and feedback.
 

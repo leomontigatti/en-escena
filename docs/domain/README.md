@@ -10,12 +10,12 @@ Read order for domain work:
 
 ## Files
 
-- [eventos.md](./eventos.md) - event context, settings, administration and portal shell rules.
-- [acceso.md](./acceso.md) - registration, users, sessions and invitations.
-- [coreografias.md](./coreografias.md) - roster links, choreography registration, locks and Bases del evento.
-- [juzgamiento.md](./juzgamiento.md) - presentations, judging, ranking, results, scores and feedback.
-- [finanzas.md](./finanzas.md) - canonical finance model: inscriptions, payments, payment assignments, financial state, pricing and snapshots.
-- [auditoria.md](./auditoria.md) - traceability, audit history and state-level audit fields.
+- [events.md](./events.md) - event context, settings, administration and portal shell rules.
+- [access.md](./access.md) - registration, users, sessions and invitations.
+- [choreographies.md](./choreographies.md) - roster links, choreography registration, locks and Bases del evento.
+- [judging.md](./judging.md) - presentations, judging, ranking, results, scores and feedback.
+- [finances.md](./finances.md) - canonical finance model: inscriptions, payments, payment assignments, financial state, pricing and snapshots.
+- [auditing.md](./auditing.md) - traceability, audit history and state-level audit fields.
 - [rules.md](./rules.md) - index for compatibility.
 
 Implementation entry points live in

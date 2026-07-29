@@ -1,4 +1,4 @@
-# Finanzas
+# Finances
 
 Canonical doc for the financial model based on `Inscripción` and `Asignación de
 pago`. It captures domain decisions; it does not define the database schema or
@@ -16,7 +16,7 @@ the screens. The architecture decision lives in
   inscriptions, and never govern financial state.
 - Finances does not audit changes (see "No auditing in finances"). This is scoped
   to the financial domain only; the rest of the system keeps its auditing until
-  the corresponding follow-up ([auditoria.md](./auditoria.md)).
+  the corresponding follow-up ([auditing.md](./auditing.md)).
 - Outside this scope: money refunds, administrative discount and the full
   lifecycle of choreographies without active inscriptions.
 - Persisted monetary amounts are whole Argentine pesos throughout the app; the UI

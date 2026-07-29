@@ -1,4 +1,4 @@
-# Eventos
+# Events
 
 Rules for event context, Bases del evento, administration and portal behavior.
 

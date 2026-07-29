@@ -22,9 +22,9 @@ const readPackageScripts = async () => {
 };
 
 const deferredProjectSplitDocumentation = [
-  "Actualizacion issue #128",
-  "No se adopta por ahora una division de proyectos Vitest",
-  "Sin una mejora material",
+  "Issue #128 update",
+  "No Vitest project split and no shared mode with `isolate: false` is adopted for",
+  "With no material time improvement",
 ];
 
 const dbWorkflowScopeGuardrails = [

@@ -1,4 +1,4 @@
-# Auditoria
+# Auditing
 
 > **Retired (2026-07):** by operational decision, the system no longer audits
 > changes. The audit infrastructure is removed (the `administrative_audit_entry`

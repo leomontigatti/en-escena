@@ -47,7 +47,7 @@ only list stable entry points, coordination modules and high-signal tests.
 Use for public academy signup, Supabase email confirmation and pending academy
 onboarding.
 
-- Domain: `docs/domain/acceso.md`
+- Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0005-use-supabase-postgres-before-supabase-auth.md`, `docs/adr/0006-use-supabase-auth-for-access.md`
 - Local operation: `docs/local-auth.md`
 - Routes: `app/routes/registro.tsx`, `app/routes/registro_.confirmar.tsx`, `app/routes/registro_.academia.tsx`, `app/routes/registro_.error-confirmacion.tsx`
@@ -60,7 +60,7 @@ onboarding.
 Use for login, session policy, password recovery, mandatory password changes,
 internal invitations, suspension and internal user administration.
 
-- Domain: `docs/domain/acceso.md`
+- Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0006-use-supabase-auth-for-access.md`
 - Local operation: `docs/local-auth.md`
 - Routes: `app/routes/ingresar.tsx`, `app/routes/recuperar-acceso.tsx`, `app/routes/recuperar-acceso_.nueva.tsx`, `app/routes/cambiar-contrasena.tsx`, `app/routes/invitacion_.$token.tsx`, `app/routes/salir.tsx`, `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
@@ -73,7 +73,7 @@ internal invitations, suspension and internal user administration.
 Use for the academy roster: academy-owned professors, dancers, dancer
 verification and document image storage.
 
-- Domain: `docs/domain/coreografias.md`
+- Domain: `docs/domain/choreographies.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0008-use-supabase-storage-for-uploaded-assets.md`
 - Routes: `app/routes/portal.profesores.tsx`, `app/routes/portal.profesores_.$professorId.tsx`, `app/routes/portal.bailarines.tsx`, `app/routes/portal.bailarines_.$dancerId.tsx`, `app/routes/portal.perfil.tsx`
 - Feature modules: `app/features/portal/professors/list/`, `app/features/portal/professors/create/`, `app/features/portal/professors/detail/`, `app/features/portal/dancers/list/`, `app/features/portal/dancers/create/`, `app/features/portal/dancers/detail/`, `app/features/portal/profile/`
@@ -86,7 +86,7 @@ verification and document image storage.
 Use for the academy portal layout, shell-wide academy identity, active event
 summary, breadcrumbs, navigation, and cross-portal access policy.
 
-- Domain: `docs/domain/acceso.md`, `docs/domain/eventos.md`
+- Domain: `docs/domain/access.md`, `docs/domain/events.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/portal.tsx`, `app/routes/portal._index.tsx`
 - Feature modules: `app/features/portal/shell/`
@@ -99,7 +99,7 @@ summary, breadcrumbs, navigation, and cross-portal access policy.
 Use for choreography lists, registration, detail edits, roster links, locks,
 schedule resolution and operational completion.
 
-- Domain: `docs/domain/coreografias.md`, `docs/domain/eventos.md`, `docs/domain/finanzas.md`
+- Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/portal.coreografias.tsx`, `app/routes/portal.coreografias_.crear.tsx`, `app/routes/portal.coreografias_.$choreographyId.tsx`
 - Feature modules: `app/features/portal/choreographies/list/`, `app/features/portal/choreographies/create/`, `app/features/portal/choreographies/detail/`
@@ -112,7 +112,7 @@ schedule resolution and operational completion.
 Use for the Panel de administración shell, dashboard entry points, shared
 breadcrumbs/navigation and active event selector wiring.
 
-- Domain: `docs/domain/acceso.md`, `docs/domain/eventos.md`
+- Domain: `docs/domain/access.md`, `docs/domain/events.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.tsx`, `app/routes/administracion._index.tsx`
 - Feature modules: admin leaf routes stay under `app/features/admin/`; the shell itself stays route-owned because it coordinates nested matches and the shared layout contract.
@@ -126,7 +126,7 @@ breadcrumbs/navigation and active event selector wiring.
 Use for internal user list, create, detail, invitations, suspension and
 password reset flows.
 
-- Domain: `docs/domain/acceso.md`
+- Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
 - Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/create/`, `app/features/admin/users/detail/`, `app/features/admin/users/invitations/`
@@ -138,7 +138,7 @@ password reset flows.
 
 Use for the operational admin list of coreografías for the active event.
 
-- Domain: `docs/domain/coreografias.md`, `docs/domain/eventos.md`, `docs/domain/finanzas.md`
+- Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.coreografias.tsx`
 - Feature modules: `app/features/admin/choreographies/list/`
@@ -150,7 +150,7 @@ Use for the operational admin list of coreografías for the active event.
 Use for administration and audit views over profesores, bailarines,
 participation filters, archive/reactivate flows and admin corrections.
 
-- Domain: `docs/domain/coreografias.md`, `docs/domain/eventos.md`, `docs/domain/acceso.md`
+- Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/access.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`, `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
 - Feature modules: `app/features/admin/professors/list/`, `app/features/admin/professors/detail/`, `app/features/admin/dancers/list/`, `app/features/admin/dancers/detail/`
@@ -163,7 +163,7 @@ Use for the administrative academy listing and the academy detail, where an
 admin consults and edits the academy contact data. The per-academy financial
 summary lives in `Admin Finances`, not here.
 
-- Domain: `docs/domain/acceso.md`
+- Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.academias.tsx`, `app/routes/administracion.academias_.$academyId.tsx`
 - Feature modules: `app/features/admin/academies/list/`, `app/features/admin/academies/detail/`
@@ -175,7 +175,7 @@ summary lives in `Admin Finances`, not here.
 Use for active event behavior, event CRUD, modalidades, categorías,
 cronogramas, cupos, precios and registration readiness.
 
-- Domain: `docs/domain/eventos.md`, `docs/domain/coreografias.md`, `docs/domain/finanzas.md`
+- Domain: `docs/domain/events.md`, `docs/domain/choreographies.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.eventos.tsx`, `app/routes/administracion.eventos_.nuevo.tsx`, `app/routes/administracion.eventos_.$eventId.tsx`, `app/routes/administracion.modalidades.tsx`, `app/routes/administracion.modalidades_.nueva.tsx`, `app/routes/administracion.modalidades_.$modalityId.tsx`, `app/routes/administracion.categorias.tsx`, `app/routes/administracion.categorias_.nueva.tsx`, `app/routes/administracion.categorias_.$categoryId.tsx`, `app/routes/administracion.cronogramas.tsx`, `app/routes/administracion.cronogramas_.nuevo.tsx`, `app/routes/administracion.cronogramas_.$scheduleId.tsx`, `app/routes/administracion.precios.tsx`, `app/routes/administracion.precios_.nuevo.tsx`, `app/routes/administracion.precios_.$priceId.tsx`
 - Feature modules: `app/features/admin/events/list/`, `app/features/admin/events/create/`, `app/features/admin/events/detail/`, `app/features/admin/modalities/`, `app/features/admin/categories/`, `app/features/admin/schedules/`, `app/features/admin/prices/`
@@ -191,7 +191,7 @@ cronogramas, cupos, precios and registration readiness.
 Use for judge panel access, presentations, scores, disqualifications, ranking,
 program and results visibility.
 
-- Domain: `docs/domain/juzgamiento.md`, `docs/domain/eventos.md`
+- Domain: `docs/domain/judging.md`, `docs/domain/events.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/juzgamiento.tsx`, `app/routes/auditoria.tsx`
 - Current state: shell routes and access guards exist; most judging domain rules are documented ahead of deeper implementation.
