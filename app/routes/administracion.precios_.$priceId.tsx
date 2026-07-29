@@ -3,7 +3,7 @@ import { useActionData } from "react-router";
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   getAdministrativeEventPriceDisplayName,
-  AdministrativeEventPriceDetailView,
+  EventPriceDetailView,
   type EventPriceDetailViewProps,
 } from "@/features/admin/prices/detail/view";
 import {
@@ -43,7 +43,7 @@ export function PriceDetailRouteView({
   priceId,
 }: EventPriceDetailViewProps) {
   return (
-    <AdministrativeEventPriceDetailView
+    <EventPriceDetailView
       loaderData={loaderData}
       actionData={actionData}
       priceId={priceId}

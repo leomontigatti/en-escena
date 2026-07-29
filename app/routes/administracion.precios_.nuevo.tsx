@@ -6,7 +6,7 @@ import {
   loadAdminEventPriceCreate,
 } from "@/features/admin/prices/create/server";
 import {
-  AdministrativeEventPriceCreateView,
+  EventPriceCreateView,
   type EventPriceCreateViewProps,
 } from "@/features/admin/prices/create/view";
 
@@ -32,10 +32,7 @@ export function NewPriceRouteView({
   actionData,
 }: EventPriceCreateViewProps) {
   return (
-    <AdministrativeEventPriceCreateView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventPriceCreateView loaderData={loaderData} actionData={actionData} />
   );
 }
 

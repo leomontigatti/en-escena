@@ -6,7 +6,7 @@ import {
   updateAdministrativeEventSchedule,
 } from "@/features/admin/schedules/detail/server";
 import {
-  AdministrativeEventScheduleDetailView,
+  EventScheduleDetailView,
   type EventScheduleDetailViewProps,
 } from "@/features/admin/schedules/detail/view";
 import type { EventSchedulesLoaderData } from "@/features/admin/schedules/shared";
@@ -42,7 +42,7 @@ export function EventScheduleDetailRouteView({
   scheduleId,
 }: EventScheduleDetailViewProps) {
   return (
-    <AdministrativeEventScheduleDetailView
+    <EventScheduleDetailView
       loaderData={loaderData}
       actionData={actionData}
       scheduleId={scheduleId}

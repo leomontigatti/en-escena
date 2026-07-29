@@ -6,7 +6,7 @@ import {
   loadAdminEventModalityCreate,
 } from "@/features/admin/modalities/create/server";
 import type { EventModalityActionData } from "@/features/admin/modalities/shared";
-import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
@@ -35,10 +35,7 @@ export function NewModalityRouteView({
   actionData,
 }: NewModalityRouteProps) {
   return (
-    <AdministrativeEventModalityCreateView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventModalityCreateView loaderData={loaderData} actionData={actionData} />
   );
 }
 

@@ -17,9 +17,7 @@ export type EventCreateViewProps = {
   actionData?: EventCreateActionData;
 };
 
-export function AdministrativeEventCreateView({
-  actionData,
-}: EventCreateViewProps) {
+export function EventCreateView({ actionData }: EventCreateViewProps) {
   const defaultValues = actionData?.values ?? defaultEventFormValues();
   const eventForm = useEventForm({
     values: defaultValues,

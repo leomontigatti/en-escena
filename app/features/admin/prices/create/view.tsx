@@ -12,7 +12,7 @@ export type EventPriceCreateViewProps = {
   loaderData: EventPriceFormLoaderData;
 };
 
-export function AdministrativeEventPriceCreateView({
+export function EventPriceCreateView({
   loaderData,
   actionData,
 }: EventPriceCreateViewProps) {

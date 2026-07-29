@@ -21,9 +21,7 @@ const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: BUSINESS_TIME_ZONE,
 });
 
-export function AdministrativeEventsListView({
-  loaderData,
-}: EventsListViewProps) {
+export function EventsListView({ loaderData }: EventsListViewProps) {
   return (
     <AdminResourceLayout
       title="Eventos"

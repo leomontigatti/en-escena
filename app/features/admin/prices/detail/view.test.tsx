@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
 import type { EventPriceDetailLoaderData } from "@/features/admin/prices/shared";
 import {
   createReactDomTestRenderer,
@@ -23,7 +23,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("AdministrativeEventPriceDetailView delete", () => {
+describe("EventPriceDetailView delete", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -57,9 +57,7 @@ describe("AdministrativeEventPriceDetailView delete", () => {
   });
 
   async function renderDetail(
-    props: Partial<
-      ComponentProps<typeof AdministrativeEventPriceDetailView>
-    > = {},
+    props: Partial<ComponentProps<typeof EventPriceDetailView>> = {},
   ) {
     const router = createMemoryRouter(
       [
@@ -67,7 +65,7 @@ describe("AdministrativeEventPriceDetailView delete", () => {
           path: "/administracion/precios/price_1",
           action: async () => null,
           element: (
-            <AdministrativeEventPriceDetailView
+            <EventPriceDetailView
               loaderData={buildLoaderData()}
               priceId="price_1"
               initialDeleteDialogOpen

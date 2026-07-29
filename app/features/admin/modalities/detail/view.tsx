@@ -34,7 +34,7 @@ export type EventModalityDetailViewProps = {
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventModalityDetailView({
+export function EventModalityDetailView({
   loaderData,
   actionData,
   modalityId,

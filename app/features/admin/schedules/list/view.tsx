@@ -11,7 +11,7 @@ export type EventSchedulesListViewProps = {
   loaderData: EventSchedulesListLoaderData;
 };
 
-export function AdministrativeEventSchedulesListView({
+export function EventSchedulesListView({
   loaderData,
 }: EventSchedulesListViewProps) {
   return (

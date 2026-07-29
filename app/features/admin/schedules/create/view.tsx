@@ -15,7 +15,7 @@ export type EventScheduleCreateViewProps = {
   loaderData: EventScheduleFormLoaderData;
 };
 
-export function AdministrativeEventScheduleCreateView({
+export function EventScheduleCreateView({
   loaderData,
   actionData,
 }: EventScheduleCreateViewProps) {

@@ -6,7 +6,7 @@ import {
   updateAdministrativeEventModality,
 } from "@/features/admin/modalities/detail/server";
 import {
-  AdministrativeEventModalityDetailView,
+  EventModalityDetailView,
   type EventModalityDetailViewProps,
 } from "@/features/admin/modalities/detail/view";
 import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
@@ -41,7 +41,7 @@ export function ModalityDetailRouteView({
   modalityId,
 }: EventModalityDetailViewProps) {
   return (
-    <AdministrativeEventModalityDetailView
+    <EventModalityDetailView
       loaderData={loaderData}
       actionData={actionData}
       modalityId={modalityId}

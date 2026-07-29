@@ -17,7 +17,7 @@ export type EventPriceDetailViewProps = {
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventPriceDetailView({
+export function EventPriceDetailView({
   loaderData,
   actionData,
   priceId,

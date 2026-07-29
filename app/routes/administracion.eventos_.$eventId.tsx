@@ -4,7 +4,7 @@ import {
   updateAdministrativeEvent,
 } from "@/features/admin/events/detail/server";
 import type { EventDetailActionData } from "@/features/admin/events/detail/shared";
-import { AdministrativeEventDetailView } from "@/features/admin/events/detail/view";
+import { EventDetailView } from "@/features/admin/events/detail/view";
 import { useActionData } from "react-router";
 
 import type { Route } from "./+types/administracion.eventos_.$eventId";
@@ -44,12 +44,7 @@ export function EventDetailRouteView({
   loaderData,
   actionData,
 }: EventDetailRouteProps) {
-  return (
-    <AdministrativeEventDetailView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <EventDetailView loaderData={loaderData} actionData={actionData} />;
 }
 
 export default function EventDetailRoute({

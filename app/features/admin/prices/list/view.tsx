@@ -14,7 +14,7 @@ export type EventPricesListViewProps = {
   actionData?: ActionData;
 };
 
-export function AdministrativeEventPricesListView({
+export function EventPricesListView({
   loaderData,
   actionData,
 }: EventPricesListViewProps) {

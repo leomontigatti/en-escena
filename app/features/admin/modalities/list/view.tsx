@@ -21,7 +21,7 @@ export type EventModalitiesListViewProps = {
   loaderData: EventModalitiesLoaderData;
 };
 
-export function AdministrativeEventModalitiesListView({
+export function EventModalitiesListView({
   loaderData,
 }: EventModalitiesListViewProps) {
   return (

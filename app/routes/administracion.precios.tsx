@@ -6,7 +6,7 @@ import {
   updateAdministrativeEventPricesList,
 } from "@/features/admin/prices/list/server";
 import {
-  AdministrativeEventPricesListView,
+  EventPricesListView,
   type EventPricesListViewProps,
 } from "@/features/admin/prices/list/view";
 
@@ -29,10 +29,7 @@ export function PricesListRouteView({
   actionData,
 }: EventPricesListViewProps) {
   return (
-    <AdministrativeEventPricesListView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventPricesListView loaderData={loaderData} actionData={actionData} />
   );
 }
 

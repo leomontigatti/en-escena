@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
 import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 import {
   createReactDomTestRenderer,
@@ -23,7 +23,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("AdministrativeEventModalityDetailView delete", () => {
+describe("EventModalityDetailView delete", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -57,9 +57,7 @@ describe("AdministrativeEventModalityDetailView delete", () => {
   });
 
   async function renderDetail(
-    props: Partial<
-      ComponentProps<typeof AdministrativeEventModalityDetailView>
-    > = {},
+    props: Partial<ComponentProps<typeof EventModalityDetailView>> = {},
   ) {
     const router = createMemoryRouter(
       [
@@ -67,7 +65,7 @@ describe("AdministrativeEventModalityDetailView delete", () => {
           path: "/administracion/modalidades/modality_1",
           action: async () => null,
           element: (
-            <AdministrativeEventModalityDetailView
+            <EventModalityDetailView
               loaderData={buildLoaderData()}
               modalityId="modality_1"
               initialDeleteDialogOpen

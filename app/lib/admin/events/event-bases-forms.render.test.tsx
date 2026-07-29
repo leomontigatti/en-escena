@@ -36,10 +36,10 @@ vi.mock("react-router", async () => {
 });
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
-import { AdministrativeEventModalityCreateView } from "@/features/admin/modalities/create/view";
-import { AdministrativeEventModalityDetailView } from "@/features/admin/modalities/detail/view";
-import { AdministrativeEventPriceDetailView } from "@/features/admin/prices/detail/view";
-import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import {
   expectReactRouterSubmit,
@@ -78,7 +78,7 @@ describe("Evento bases migrated forms", () => {
       description: "modalidades",
       formId: "update-modality-form",
       renderView: () => (
-        <AdministrativeEventModalityDetailView
+        <EventModalityDetailView
           loaderData={buildLoaderData()}
           modalityId="modality_1"
         />
@@ -105,7 +105,7 @@ describe("Evento bases migrated forms", () => {
       description: "cronogramas",
       formId: "update-schedule-form",
       renderView: () => (
-        <AdministrativeEventScheduleDetailView
+        <EventScheduleDetailView
           loaderData={buildLoaderData()}
           scheduleId="schedule_1"
         />
@@ -120,7 +120,7 @@ describe("Evento bases migrated forms", () => {
       description: "precios",
       formId: "update-price-form",
       renderView: () => (
-        <AdministrativeEventPriceDetailView
+        <EventPriceDetailView
           loaderData={buildLoaderData()}
           priceId="price_1"
         />
@@ -158,7 +158,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <AdministrativeEventModalityDetailView
+      <EventModalityDetailView
         loaderData={buildLoaderData()}
         modalityId="modality_1"
       />,
@@ -196,7 +196,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <AdministrativeEventScheduleDetailView
+      <EventScheduleDetailView
         loaderData={buildLoaderData()}
         scheduleId="schedule_1"
       />,
@@ -234,7 +234,7 @@ describe("Evento bases migrated forms", () => {
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
     render(
-      <AdministrativeEventModalityCreateView
+      <EventModalityCreateView
         loaderData={buildLoaderData()}
         actionData={undefined}
       />,
@@ -279,7 +279,7 @@ describe("Evento bases migrated forms", () => {
     };
 
     render(
-      <AdministrativeEventModalityDetailView
+      <EventModalityDetailView
         loaderData={buildLoaderData()}
         modalityId="modality_1"
         actionData={actionData}

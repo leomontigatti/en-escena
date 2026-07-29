@@ -16,7 +16,7 @@ export type EventScheduleDetailViewProps = {
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventScheduleDetailView({
+export function EventScheduleDetailView({
   loaderData,
   actionData,
   scheduleId,

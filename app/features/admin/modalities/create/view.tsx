@@ -17,7 +17,7 @@ export type EventModalityCreateViewProps = {
   actionData?: EventModalityActionData;
 };
 
-export function AdministrativeEventModalityCreateView({
+export function EventModalityCreateView({
   loaderData,
   actionData,
 }: EventModalityCreateViewProps) {

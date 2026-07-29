@@ -6,7 +6,7 @@ import {
   loadAdminEventScheduleCreate,
 } from "@/features/admin/schedules/create/server";
 import {
-  AdministrativeEventScheduleCreateView,
+  EventScheduleCreateView,
   type EventScheduleCreateViewProps,
 } from "@/features/admin/schedules/create/view";
 import type { EventScheduleActionData } from "@/features/admin/schedules/shared";
@@ -38,10 +38,7 @@ export function NewEventScheduleRouteView({
   actionData,
 }: EventScheduleCreateViewProps) {
   return (
-    <AdministrativeEventScheduleCreateView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <EventScheduleCreateView loaderData={loaderData} actionData={actionData} />
   );
 }
 

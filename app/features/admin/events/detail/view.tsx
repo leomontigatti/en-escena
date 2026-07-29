@@ -38,7 +38,7 @@ export type EventDetailViewProps = {
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventDetailView({
+export function EventDetailView({
   loaderData,
   actionData,
   initialDeleteDialogOpen = false,

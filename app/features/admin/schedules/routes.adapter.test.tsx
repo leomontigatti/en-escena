@@ -7,13 +7,13 @@ const createAdministrativeEventSchedule = vi.fn();
 const loadAdminEventScheduleCreate = vi.fn();
 const loadAdminEventScheduleDetail = vi.fn();
 const updateAdministrativeEventSchedule = vi.fn();
-const AdministrativeEventSchedulesListView = vi.fn(() =>
+const EventSchedulesListView = vi.fn(() =>
   createElement("div", null, "Cronogramas view"),
 );
-const AdministrativeEventScheduleCreateView = vi.fn(() =>
+const EventScheduleCreateView = vi.fn(() =>
   createElement("div", null, "Nuevo cronograma view"),
 );
-const AdministrativeEventScheduleDetailView = vi.fn(() =>
+const EventScheduleDetailView = vi.fn(() =>
   createElement("div", null, "Detalle cronograma view"),
 );
 
@@ -46,15 +46,15 @@ vi.mock("@/features/admin/schedules/detail/server", () => ({
 }));
 
 vi.mock("@/features/admin/schedules/list/view", () => ({
-  AdministrativeEventSchedulesListView,
+  EventSchedulesListView,
 }));
 
 vi.mock("@/features/admin/schedules/create/view", () => ({
-  AdministrativeEventScheduleCreateView,
+  EventScheduleCreateView,
 }));
 
 vi.mock("@/features/admin/schedules/detail/view", () => ({
-  AdministrativeEventScheduleDetailView,
+  EventScheduleDetailView,
 }));
 
 describe("administracion.cronogramas route adapters", () => {
@@ -75,7 +75,7 @@ describe("administracion.cronogramas route adapters", () => {
     );
 
     expect(loadAdminEventSchedulesList).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventSchedulesListView).toHaveBeenCalledWith(
+    expect(EventSchedulesListView).toHaveBeenCalledWith(
       { loaderData: loaderResult },
       undefined,
     );
@@ -117,7 +117,7 @@ describe("administracion.cronogramas route adapters", () => {
 
     expect(loadAdminEventScheduleCreate).toHaveBeenCalledWith(request);
     expect(createAdministrativeEventSchedule).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventScheduleCreateView).toHaveBeenCalledWith(
+    expect(EventScheduleCreateView).toHaveBeenCalledWith(
       { loaderData: loaderResult, actionData: actionResult },
       undefined,
     );
@@ -161,7 +161,7 @@ describe("administracion.cronogramas route adapters", () => {
 
     expect(loadAdminEventScheduleDetail).toHaveBeenCalledWith(request);
     expect(updateAdministrativeEventSchedule).toHaveBeenCalledWith(request);
-    expect(AdministrativeEventScheduleDetailView).toHaveBeenCalledWith(
+    expect(EventScheduleDetailView).toHaveBeenCalledWith(
       {
         loaderData: loaderResult,
         actionData: actionResult,

@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AdministrativeEventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { EventScheduleDetailLoaderData } from "@/features/admin/schedules/shared";
 import {
   createReactDomTestRenderer,
@@ -23,7 +23,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("AdministrativeEventScheduleDetailView delete", () => {
+describe("EventScheduleDetailView delete", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -57,9 +57,7 @@ describe("AdministrativeEventScheduleDetailView delete", () => {
   });
 
   async function renderDetail(
-    props: Partial<
-      ComponentProps<typeof AdministrativeEventScheduleDetailView>
-    > = {},
+    props: Partial<ComponentProps<typeof EventScheduleDetailView>> = {},
   ) {
     const router = createMemoryRouter(
       [
@@ -67,7 +65,7 @@ describe("AdministrativeEventScheduleDetailView delete", () => {
           path: "/administracion/cronogramas/schedule_1",
           action: async () => null,
           element: (
-            <AdministrativeEventScheduleDetailView
+            <EventScheduleDetailView
               loaderData={buildLoaderData()}
               scheduleId="schedule_1"
               initialDeleteDialogOpen
