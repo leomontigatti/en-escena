@@ -56,10 +56,12 @@ The PR conversation (`PR_COMMENTS_JSON`), tagged by surface — `issue_comments`
 
 # EXECUTION
 
-Run `pnpm typecheck` and `pnpm test` first to confirm green. Make improvements + new tests,
-commit as a single squashed commit _(reference message prefix: `RALPH: Review -`)_. Run
-`pnpm typecheck` and `pnpm test` again; don't leave the branch broken. If the code is already
-clean and there's nothing to answer, make no commit.
+Make improvements + new tests, commit as a single squashed commit _(reference message prefix:
+`RALPH: Review -`)_. Before committing, validate **once**: `pnpm typecheck`, `pnpm test:unit`,
+and `pnpm test:db <path>` for the DB test files you touched. Don't run the full `pnpm test` —
+it takes ~13 min of your 30 min budget and CI runs the complete suite in parallel anyway. See
+`.sandcastle/VALIDATION.md`. Don't leave the branch broken. If the code is already clean and
+there's nothing to answer, make no commit.
 
 When your review is finished and any improvement commit is made, output the literal completion
 signal on its own line to end this pass:
