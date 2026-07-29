@@ -30,14 +30,39 @@ describe("choreography messages", () => {
       .map((filePath) => path.relative(repositoryRoot, filePath))
       .filter((relativePath) => relativePath !== canonicalModule)
       .filter((relativePath) =>
-        readFileSync(path.join(repositoryRoot, relativePath), "utf8").includes(
-          `"${choreographyNotFoundMessage}"`,
+        containsNotFoundCopy(
+          readFileSync(path.join(repositoryRoot, relativePath), "utf8"),
         ),
       );
 
     expect(offenders.sort()).toEqual([]);
   });
+
+  test("catches a duplicate written with any string delimiter", () => {
+    const duplicates = [
+      `const doubleQuoted = "${choreographyNotFoundMessage}";`,
+      `const singleQuoted = '${choreographyNotFoundMessage}';`,
+      `const templateLiteral = \`${choreographyNotFoundMessage}\`;`,
+    ];
+
+    expect(duplicates.filter(containsNotFoundCopy)).toEqual(duplicates);
+  });
+
+  test("leaves a longer message that opens with the same words alone", () => {
+    const financeListCopy =
+      "No encontramos esa coreografía dentro de la lista financiera de la academia.";
+
+    expect(containsNotFoundCopy(financeListCopy)).toBe(false);
+  });
 });
+
+// Matching the sentence without its delimiters is what actually holds the
+// guarantee. Prettier normalizes quoted strings to double quotes, but it leaves
+// template literals as written, so a `` `…` `` duplicate would pass a
+// `"…"`-only search and reintroduce the exact drift this module prevents.
+function containsNotFoundCopy(content: string) {
+  return content.includes(choreographyNotFoundMessage);
+}
 
 function getSourceFiles(): string[] {
   return scannedDirectories.flatMap((directory) =>
