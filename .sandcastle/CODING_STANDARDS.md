@@ -83,14 +83,20 @@ Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
 English (`loadAdminAcademyFinances`). That mapping is intentional, not drift.
 
-"Docs" means engineering docs — ADRs, `docs/agents/`, `docs/domain/`. The
-glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and the style guide stay
-Spanish: they describe the product vocabulary to a Spanish-speaking team, so
-they read as product surface, not as code.
+"Docs" means every engineering doc, with no exceptions: ADRs, `docs/agents/`,
+`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and
+the style guide. No user reads these files, so the rule above already decides
+them. Being *about* the product surface does not make a file part of it —
+otherwise ADRs would qualify too.
 
-`CONTEXT.md` is the mapping table: every glossary term carries the canonical
-code identifier for its Spanish name. Reach for it before inventing a name, and
-cite it in review when a new identifier disagrees with the glossary.
+`CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
+the canonical English identifier followed by `ui:`, the Spanish term the user
+sees. That direction matches how the table is used — you are writing code, you
+have the concept, you need the name and the copy. Reach for it before inventing
+a name, and cite it in review when a new identifier disagrees with the glossary.
+
+Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
+glossary `ui:` value is data, not prose, and stays Spanish.
 
 ### Reserved Spanish Domain Terms
 
