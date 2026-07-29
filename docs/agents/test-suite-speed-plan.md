@@ -1,256 +1,250 @@
-# Plan: acelerar la suite de tests
+# Plan: speed up the test suite
 
-Este plan captura la mejora futura para acelerar los tests de En Escena sin
-bajar la confianza de validacion. Se basa en la investigacion hecha sobre
-`mattpocock/course-video-manager`, que este repo ya toma como referencia de
-workflows.
+This plan captures the future improvement for speeding up En Escena's tests
+without lowering validation confidence. It is based on the research done on
+`mattpocock/course-video-manager`, which this repo already takes as its workflow
+reference.
 
-## Contexto actual
+## Current context
 
-> Nota (issue #310, 2026-07-18): el zoo de scripts descrito abajo fue
-> consolidado. Ver la "Enmienda operativa 2026-07-18" al final de esta seccion
-> para el modelo vigente. Las secciones historicas se conservan como registro
-> de las mediciones que llevaron a la decision.
+> Note (issue #310, 2026-07-18): the script zoo described below was consolidated.
+> See the "Operational amendment 2026-07-18" at the end of this section for the
+> current model. The historical sections are kept as a record of the measurements
+> that led to the decision.
 
-En Escena separa tests regulares y tests DB. Modelo vigente (post-#310):
+En Escena separates regular tests and DB tests. Current model (post-#310):
 
-- `pnpm test`: corre unit/react (`pnpm test:unit`) mas la suite DB sobre
-  `PGlite` in-process (`pnpm test:db`), sin Postgres local. Es el comando
-  unico de confianza pre-commit.
-- `pnpm test:unit`: solo la suite regular, excluyendo `*.db.test.ts`.
-- `pnpm test:db`: suite DB completa sobre el harness `PGlite` con snapshot
-  cacheado del schema. Enfocar un archivo con `pnpm test:db <archivo>`.
-- `pnpm test:db:postgres`: ruta de alta fidelidad sobre Postgres real via
-  `TEST_DATABASE_URL`, reservada al gate de CI en el PR (#305). Enfocar un
-  archivo con `pnpm test:db:postgres <archivo>`.
+- `pnpm test`: runs unit/react (`pnpm test:unit`) plus the DB suite on in-process
+  `PGlite` (`pnpm test:db`), without local Postgres. It is the single pre-commit
+  confidence command.
+- `pnpm test:unit`: only the regular suite, excluding `*.db.test.ts`.
+- `pnpm test:db`: full DB suite on the `PGlite` harness with a cached schema
+  snapshot. Focus one file with `pnpm test:db <file>`.
+- `pnpm test:db:postgres`: the high-fidelity path on real Postgres via
+  `TEST_DATABASE_URL`, reserved for the CI gate on the PR (#305). Focus one file
+  with `pnpm test:db:postgres <file>`.
 
-La ruta Postgres usa un Postgres local en `localhost:5433`, configurado por
-`TEST_DATABASE_URL`. En agentes con sandbox administrado, ese acceso TCP local
-puede requerir aprobacion elevada aunque no salga de la maquina. Por eso
-`docs/agents/workflows.md` documenta los prefijos persistentes:
+The Postgres path uses a local Postgres at `localhost:5433`, configured by
+`TEST_DATABASE_URL`. On agents with a managed sandbox, that local TCP access can
+require elevated approval even though it never leaves the machine. That is why
+`docs/agents/workflows.md` documents the persistent prefixes:
 
 - `pnpm test:db:postgres`
 - `pnpm db:test:reset`
 - `docker compose up -d postgres`
 
-## Enmienda operativa 2026-07-18
+## Operational amendment 2026-07-18
 
-El issue #310 remidio la suite `PGlite` full en paralelo como prerequisito de
-la plataforma AFK (mapa #319), donde el implementer y el reviewer deben correr
-la misma validacion en un runner de GitHub Actions sin servicio Postgres.
+Issue #310 re-measured the full `PGlite` suite in parallel as a prerequisite of
+the AFK platform (map #319), where the implementer and the reviewer must run the
+same validation on a GitHub Actions runner with no Postgres service.
 
-- La inestabilidad `PGlite failed to initialize properly` reportada el
-  2026-06-21 ya no se reproduce con `@electric-sql/pglite@0.5.3` y
-  `vitest@3.2.x`.
-- La suite full paralela (`vitest --config vitest.db.fast.config.ts`,
-  `fileParallelism: true`, `maxWorkers: 50%`) paso 4 corridas consecutivas, 63
-  archivos y 345 tests cada una, en ~86-120s de pared en una maquina cargada,
-  sin fallas de worker-init.
+- The `PGlite failed to initialize properly` instability reported on 2026-06-21
+  no longer reproduces with `@electric-sql/pglite@0.5.3` and `vitest@3.2.x`.
+- The full parallel suite (`vitest --config vitest.db.fast.config.ts`,
+  `fileParallelism: true`, `maxWorkers: 50%`) passed 4 consecutive runs, 63 files
+  and 345 tests each, in ~86-120s of wall clock on a loaded machine, with no
+  worker-init failures.
 
-Decision: `PGlite` pasa a ser la ruta default. `pnpm test` corre unit + DB
-sobre `PGlite` sin Postgres local; Postgres real queda como `pnpm
-test:db:postgres`, reservado al gate de CI (#305). Se consolidan los alias
-`test:db:final`, `test:db:fast:full`, `test:db:file`, `test:db:file:final` y
-`test:db:file:postgres`. Si la suite paralela regresa a inestabilidad, el
-fallback es correrla single-worker/sharded antes de volver a Postgres. Ver
-`docs/adr/0007-db-test-isolation-model.md` (enmienda 2026-07-18).
+Decision: `PGlite` becomes the default path. `pnpm test` runs unit + DB on
+`PGlite` without local Postgres; real Postgres stays as `pnpm test:db:postgres`,
+reserved for the CI gate (#305). The `test:db:final`, `test:db:fast:full`,
+`test:db:file`, `test:db:file:final` and `test:db:file:postgres` aliases are
+consolidated. If the parallel suite regresses to instability, the fallback is
+running it single-worker/sharded before going back to Postgres. See
+`docs/adr/0007-db-test-isolation-model.md` (2026-07-18 amendment).
 
-## Implementacion issue #126
+## Issue #126 implementation
 
-Medicion tomada el 2026-06-20 en `sandcastle/issue-126` sobre el harness DB
-enfocado:
+Measurement taken on 2026-06-20 on `sandcastle/issue-126` against the focused DB
+harness:
 
-| Ruta                | Comando                                                  | Tiempo de pared | Desglose relevante                     |
-| ------------------- | -------------------------------------------------------- | --------------: | -------------------------------------- |
-| Postgres preservado | `pnpm test:db:file:postgres tests/db/harness.db.test.ts` |           3.95s | Vitest `Duration` 1.03s; `tests` 130ms |
-| Fast path PGlite    | `pnpm test:db:file tests/db/harness.db.test.ts`          |           3.18s | Vitest `Duration` 2.13s; `tests` 705ms |
+| Path               | Command                                                  | Wall clock | Relevant breakdown                     |
+| ------------------ | -------------------------------------------------------- | ---------: | -------------------------------------- |
+| Preserved Postgres | `pnpm test:db:file:postgres tests/db/harness.db.test.ts` |      3.95s | Vitest `Duration` 1.03s; `tests` 130ms |
+| PGlite fast path   | `pnpm test:db:file tests/db/harness.db.test.ts`          |      3.18s | Vitest `Duration` 2.13s; `tests` 705ms |
 
-Lectura operativa:
+Operational reading:
 
-- La mejora medida del comando enfocado es `770ms` menos de pared para el test
-  de harness en esta rama.
-- `pnpm test:db:file` queda como ruta enfocada rapida y
-  `pnpm test:db` queda como ruta final confiable.
-- El snapshot del schema queda cacheado por hash de schema para repetir
-  corridas enfocadas sin tocar `TEST_DATABASE_URL`.
+- The measured improvement of the focused command is `770ms` less wall clock for
+  the harness test on this branch.
+- `pnpm test:db:file` remains the fast focused path and `pnpm test:db` remains
+  the reliable final path.
+- The schema snapshot is cached by schema hash so focused runs can be repeated
+  without touching `TEST_DATABASE_URL`.
 
-## Enmienda operativa 2026-06-21
+## Operational amendment 2026-06-21
 
-Despues de cerrar los issues de implementacion, se revalido el estado de las
-suites:
+After closing the implementation issues, the suites' state was revalidated:
 
-- `pnpm test`: verde, 27 archivos y 127 tests, ~24s.
-- `pnpm test:db:final`: verde contra Postgres real, 28 archivos y 241
-  tests, ~80s.
-- `pnpm test:db:file <archivo>`: verde para los archivos enfocados
-  probados con `PGlite`.
-- `pnpm test:db:fast:full`: falla en modo paralelo default con el error
-  `PGlite failed to initialize properly`; la misma suite pasa serializada con
-  `--maxWorkers=1 --no-file-parallelism`, pero tarda ~99s.
+- `pnpm test`: green, 27 files and 127 tests, ~24s.
+- `pnpm test:db:final`: green against real Postgres, 28 files and 241 tests, ~80s.
+- `pnpm test:db:file <file>`: green for the focused files tested with `PGlite`.
+- `pnpm test:db:fast:full`: fails in default parallel mode with the error
+  `PGlite failed to initialize properly`; the same suite passes serialized with
+  `--maxWorkers=1 --no-file-parallelism`, but takes ~99s.
 
-Decision operativa: `PGlite` queda como ruta enfocada rapida para TDD y la
-suite completa default vuelve a Postgres real. Investigar la concurrencia de
-`PGlite` queda fuera de este ajuste.
+Operational decision: `PGlite` stays as the fast focused path for TDD and the
+default full suite goes back to real Postgres. Investigating `PGlite` concurrency
+is out of scope for this adjustment.
 
-## Linea base actual
+## Current baseline
 
-Medicion repetible tomada el 2026-06-20 en `sandcastle/issue-122`.
+Repeatable measurement taken on 2026-06-20 on `sandcastle/issue-122`.
 
-Metodologia:
+Methodology:
 
-- Tiempo de pared: `time` del shell sobre el comando completo.
-- Desglose interno: salida `Duration` de Vitest cuando aplica. Los campos como
-  `collect` y `tests` son tiempos agregados de Vitest y pueden superar el
-  tiempo de pared cuando hay trabajo en paralelo.
-- Para los comandos `test:db:file` y `test:db`, el tiempo de pared incluye
+- Wall clock: the shell's `time` over the full command.
+- Internal breakdown: Vitest's `Duration` output where applicable. Fields such as
+  `collect` and `tests` are Vitest aggregate times and can exceed wall clock when
+  there is parallel work.
+- For the `test:db:file` and `test:db` commands, wall clock includes
   `pnpm db:test:reset`.
 
-### Medidas
+### Measurements
 
-| Superficie              | Comando                                                                             | Tiempo de pared | Desglose relevante                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------ |
-| Suite regular           | `pnpm test`                                                                         |          20.86s | 25 archivos / 120 tests verdes; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
-| Reset de schema DB      | `pnpm db:test:reset`                                                                |           2.31s | Sin Vitest; costo fijo previo a cada corrida DB                                            |
-| Harness DB enfocado     | `pnpm test:db:file tests/db/harness.db.test.ts`                                     |           4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                           |
-| DB chico                | `pnpm test:db:file app/lib/admin/users/internal-invitation-route.server.db.test.ts` |           5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                            |
-| DB mediano              | `pnpm test:db:file app/lib/events/management.server.db.test.ts`                     |           5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                          |
-| DB grande / alto riesgo | `pnpm test:db:file app/lib/admin/events/event-bases-validation.server.db.test.ts`   |          19.39s | 22 tests; Vitest `Duration` 15.74s; `collect` 8.77s; `tests` 6.45s                         |
-| Suite DB completa       | `pnpm test:db`                                                                      |          80.32s | 27 archivos / 238 tests verdes; Vitest `Duration` 77.40s; `collect` 28.10s; `tests` 42.99s |
+| Surface              | Command                                                                             | Wall clock | Relevant breakdown                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------- | ---------: | -------------------------------------------------------------------------------------- |
+| Regular suite        | `pnpm test`                                                                         |     20.86s | 25 files / 120 tests green; Vitest `Duration` 19.43s; `collect` 60.85s; `tests` 44.33s |
+| DB schema reset      | `pnpm db:test:reset`                                                                |      2.31s | No Vitest; fixed cost before every DB run                                              |
+| Focused DB harness   | `pnpm test:db:file tests/db/harness.db.test.ts`                                     |      4.90s | 2 tests; Vitest `Duration` 1.29s; `collect` 670ms; `tests` 167ms                       |
+| Small DB             | `pnpm test:db:file app/lib/admin/users/internal-invitation-route.server.db.test.ts` |      5.45s | 1 test; Vitest `Duration` 2.02s; `collect` 1.21s; `tests` 257ms                        |
+| Medium DB            | `pnpm test:db:file app/lib/events/management.server.db.test.ts`                     |      5.64s | 14 tests; Vitest `Duration` 2.18s; `collect` 670ms; `tests` 952ms                      |
+| Large / high-risk DB | `pnpm test:db:file app/lib/admin/events/event-bases-validation.server.db.test.ts`   |     19.39s | 22 tests; Vitest `Duration` 15.74s; `collect` 8.77s; `tests` 6.45s                     |
+| Full DB suite        | `pnpm test:db`                                                                      |     80.32s | 27 files / 238 tests green; Vitest `Duration` 77.40s; `collect` 28.10s; `tests` 42.99s |
 
-### Fallas preexistentes al momento de medir
+### Pre-existing failures at measurement time
 
-No hubo fallas preexistentes en esta corrida base:
+There were no pre-existing failures in this baseline run:
 
-- `pnpm test`: 25 archivos verdes, 120 tests verdes.
-- `pnpm test:db`: 27 archivos verdes, 238 tests verdes.
+- `pnpm test`: 25 green files, 120 green tests.
+- `pnpm test:db`: 27 green files, 238 green tests.
 
-Resultado de issue `#123`: se revalido la linea base DB el 2026-06-20 sobre
-`sandcastle/issue-123`, despues de integrar `#122`, para identificar fallas
-preexistentes antes de optimizar el harness:
+Outcome of issue `#123`: the DB baseline was revalidated on 2026-06-20 on
+`sandcastle/issue-123`, after integrating `#122`, to identify pre-existing
+failures before optimizing the harness:
 
-- `pnpm test:db:file tests/db/harness.db.test.ts`: 1 archivo verde, 2
-  tests verdes.
-- `pnpm test:db`: 27 archivos verdes, 238 tests verdes.
-- Archivos DB con falla preexistente: ninguno.
-- Modos de falla DB a aislar de cambios de harness: ninguno.
+- `pnpm test:db:file tests/db/harness.db.test.ts`: 1 green file, 2 green tests.
+- `pnpm test:db`: 27 green files, 238 green tests.
+- DB files with a pre-existing failure: none.
+- DB failure modes to isolate from harness changes: none.
 
-Conclusion operativa: la linea base vigente para el trabajo de optimizacion no
-tiene fallas DB preexistentes pendientes. Cualquier falla DB nueva sobre esta
-base debe tratarse como regresion del cambio en curso, no como deuda anterior
-del harness.
+Operational conclusion: the current baseline for the optimization work has no
+outstanding pre-existing DB failures. Any new DB failure on top of this baseline
+must be treated as a regression of the change in flight, not as prior harness
+debt.
 
-### Observaciones de la linea base
+### Baseline observations
 
-- El costo fijo de `db:test:reset` ya consume ~2.31s antes de ejecutar Vitest.
-- En archivos chicos o medianos, `collect` e importacion pesan mas que la
-  ejecucion real de tests.
-- En la suite DB completa, el tiempo dominante ya es la ejecucion de tests
-  (`42.99s`), pero `collect` sigue siendo un costo material (`28.10s`).
-- `app/lib/admin/events/event-bases-validation.server.db.test.ts` queda confirmado como
-  superficie grande y de alto riesgo para comparar mejoras futuras.
+- The fixed cost of `db:test:reset` already consumes ~2.31s before Vitest runs.
+- On small or medium files, `collect` and importing weigh more than the actual
+  test execution.
+- In the full DB suite the dominant time is already test execution (`42.99s`),
+  but `collect` is still a material cost (`28.10s`).
+- `app/lib/admin/events/event-bases-validation.server.db.test.ts` is confirmed as
+  a large, high-risk surface for comparing future improvements.
 
-## Referencia externa
+## External reference
 
-`mattpocock/course-video-manager` resolvio un problema similar en junio de 2026:
+`mattpocock/course-video-manager` solved a similar problem in June 2026:
 
 - Issue: <https://github.com/mattpocock/course-video-manager/issues/976>
 - PR: <https://github.com/mattpocock/course-video-manager/pull/979>
-- ADR en el repo de referencia:
+- ADR in the reference repo:
   `docs/adr/0014-test-database-isolation.md`
-- Archivos clave en el repo de referencia:
+- Key files in the reference repo:
   - `vite.config.ts`
   - `app/test-utils/pglite.ts`
   - `app/test-utils/global-setup.ts`
 
-Hallazgos relevantes:
+Relevant findings:
 
-- El repo de referencia no tiene `test:db` separado; usa un solo `pnpm test`
-  con Vitest.
-- Sus tests DB usan PGlite en proceso, no un Postgres real por puerto.
-- Detectaron dos costos dominantes:
-  - carga repetida de modulos con `isolate: true`;
-  - creacion redundante del schema con `drizzle-kit pushSchema`.
-- Implementaron dos mejoras:
-  - dividir Vitest en proyecto compartido con `isolate: false` y proyecto
-    aislado para archivos con `vi.mock` o `vi.stub*`;
-  - crear un snapshot PGlite del schema una vez en `globalSetup` y cargarlo en
-    cada archivo DB.
-- Reportaron mejoras:
-  - suite completa de 27.7s a 13.4s;
-  - setup DB por archivo de 724ms a 263ms.
-- Registraron una alternativa diferida: Postgres real en un puerto, con DB o
-  schema por worker usando `VITEST_POOL_ID`. La descartaron por ahora porque
-  PGlite daba suficiente velocidad sin Docker, puertos ni dependencia nativa.
+- The reference repo has no separate `test:db`; it uses a single `pnpm test` with
+  Vitest.
+- Its DB tests use in-process PGlite, not a real Postgres over a port.
+- They identified two dominant costs:
+  - repeated module loading with `isolate: true`;
+  - redundant schema creation with `drizzle-kit pushSchema`.
+- They implemented two improvements:
+  - splitting Vitest into a shared project with `isolate: false` and an isolated
+    project for files using `vi.mock` or `vi.stub*`;
+  - creating a PGlite schema snapshot once in `globalSetup` and loading it in
+    every DB file.
+- They reported improvements:
+  - full suite from 27.7s to 13.4s;
+  - per-file DB setup from 724ms to 263ms.
+- They recorded a deferred alternative: real Postgres on a port, with a DB or
+  schema per worker using `VITEST_POOL_ID`. They discarded it for now because
+  PGlite gave enough speed without Docker, ports or a native dependency.
 
-## Objetivo
+## Goal
 
-Reducir el tiempo de feedback de tests, especialmente DB, manteniendo estas
-propiedades:
+Reduce test feedback time, especially for DB, while keeping these properties:
 
-- tests DB aislados de datos productivos;
-- tests que ejerciten el mismo tipo de interface que usa la app;
-- posibilidad de corridas enfocadas rapidas durante TDD;
-- una corrida final confiable para cambios de schema, repositorios,
-  loaders/actions persistentes y reglas de negocio respaldadas por datos.
+- DB tests isolated from production data;
+- tests exercising the same kind of interface the app uses;
+- the ability to do fast focused runs during TDD;
+- a reliable final run for schema changes, repositories, persistent
+  loaders/actions and data-backed business rules.
 
-## Actualizacion de decision 2026-06-20
+## Decision update 2026-06-20
 
-Issue `#125` cerro la decision pendiente del plan:
+Issue `#125` closed the plan's pending decision:
 
-- Comparacion decidida:
-  - `PGlite con schema snapshots`: gana como siguiente implementacion porque la
-    linea base actual tiene un costo fijo medido de `db:test:reset` (~2.31s por
-    corrida), no hay fallas DB preexistentes, y el POC de `#124` ya cubrio con
-    exito schema, FKs, constraints, transacciones, `jsonb` y queries raw
-    relevantes.
-  - `Postgres real por worker`: queda como fallback de mayor fidelidad, pero
-    todavia exige template por worker, limpieza, `localhost:5433` y no tiene
-    una mejora medida en este repo que justifique tomarlo primero.
-- Decision: implementar primero un fast path con `PGlite` y snapshots de
-  schema, manteniendo una corrida final confiable sobre Postgres real, ahora
-  expuesta como `pnpm test:db:final`, hasta probar la nueva ruta.
-- ADR: ver `docs/adr/0007-db-test-isolation-model.md`.
+- Comparison decided:
+  - `PGlite with schema snapshots`: wins as the next implementation because the
+    current baseline has a measured fixed cost of `db:test:reset` (~2.31s per
+    run), there are no pre-existing DB failures, and the `#124` POC already
+    successfully covered schema, FKs, constraints, transactions, `jsonb` and the
+    relevant raw queries.
+  - `Real Postgres per worker`: stays as the higher-fidelity fallback, but it
+    still requires a template per worker, cleanup, `localhost:5433`, and it has
+    no measured improvement in this repo that justifies taking it first.
+- Decision: implement a fast path with `PGlite` and schema snapshots first,
+  keeping a reliable final run on real Postgres — now exposed as
+  `pnpm test:db:final` — until the new path is proven.
+- ADR: see `docs/adr/0007-db-test-isolation-model.md`.
 
-## Actualizacion issue #128
+## Issue #128 update
 
-Issue `#128` evaluo la siguiente optimizacion pendiente: dividir Vitest en un
-proyecto compartido con `isolate: false` y un proyecto aislado para archivos
-riesgosos, o desactivar aislamiento de modulo de forma mas amplia.
+Issue `#128` evaluated the next pending optimization: splitting Vitest into a
+shared project with `isolate: false` and an isolated project for risky files, or
+disabling module isolation more broadly.
 
-### Medicion aplicada
+### Measurement applied
 
-Prueba tomada el 2026-06-20 en `sandcastle/issue-128` sobre la suite regular
-porque ahi vive la mayoria de los mocks y mutaciones globales que condicionan
-la decision:
+Test taken on 2026-06-20 on `sandcastle/issue-128` against the regular suite,
+because that is where most of the mocks and global mutations conditioning the
+decision live:
 
-| Ruta experimental | Comando                                                                 | Tiempo de pared | Resultado |
-| ----------------- | ----------------------------------------------------------------------- | --------------: | --------- |
-| Baseline actual   | `vitest --run --exclude tests/db/db-test-workflow.test.ts`              |          13.45s | Verde     |
-| Sin aislamiento   | `vitest --run --no-isolate --exclude tests/db/db-test-workflow.test.ts` |          14.97s | 2 fallas  |
+| Experimental path | Command                                                                 | Wall clock | Result     |
+| ----------------- | ----------------------------------------------------------------------- | ---------: | ---------- |
+| Current baseline  | `vitest --run --exclude tests/db/db-test-workflow.test.ts`              |     13.45s | Green      |
+| Without isolation | `vitest --run --no-isolate --exclude tests/db/db-test-workflow.test.ts` |     14.97s | 2 failures |
 
-Lectura operativa:
+Operational reading:
 
-- `isolate: false` fue `1.52s` mas lento en esta repo para la suite regular
-  medida, asi que no produjo una mejora material de tiempo.
-- La corrida experimental tambien introdujo fallas reales antes de considerar
-  DB tests o una mezcla de proyectos.
+- `isolate: false` was `1.52s` slower in this repo for the regular suite
+  measured, so it produced no material time improvement.
+- The experimental run also introduced real failures before even considering DB
+  tests or a project mix.
 
-### Fallas observadas con `--no-isolate`
+### Failures observed with `--no-isolate`
 
-- `app/components/auth/access-ui.test.tsx` fallo con
-  `(0 , jsxDEV) is not a function`, señal de contaminacion entre archivos a
-  nivel de runtime o cache de modulos.
-- `app/lib/shared/route-notification-toasts.test.ts` dejo de observar la llamada
-  esperada a `toast.success`, señal de contaminacion entre mocks compartidos.
+- `app/components/auth/access-ui.test.tsx` failed with
+  `(0 , jsxDEV) is not a function`, a sign of cross-file contamination at the
+  runtime or module cache level.
+- `app/lib/shared/route-notification-toasts.test.ts` stopped observing the
+  expected call to `toast.success`, a sign of contamination across shared mocks.
 
-### Archivos identificados como aislados obligatorios antes de cualquier adopcion
+### Files identified as mandatorily isolated before any adoption
 
-DB tests con mocks o estado modular compartido:
+DB tests with mocks or shared module state:
 
 - `app/lib/academies/registration.server.db.test.ts`
 - `app/lib/auth/access-recovery.server.db.test.ts`
 
-Suite regular con mocks, stubs, reseteo de modulos o mutacion de entorno:
+Regular suite with mocks, stubs, module resets or environment mutation:
 
 - `app/lib/shared/email.server.test.ts`
 - `app/lib/shared/route-notification-toasts.test.ts`
@@ -267,7 +261,7 @@ Suite regular con mocks, stubs, reseteo de modulos o mutacion de entorno:
 - `app/lib/admin/events/events-route.render.test.tsx`
 - `app/lib/admin/route.render.test.tsx`
 
-Suite regular con mutaciones globales de `window`, `document` o runtime DOM:
+Regular suite with global mutations of `window`, `document` or the DOM runtime:
 
 - `app/features/admin/prices/view.test.tsx`
 - `app/components/shared/data-table.test.tsx`
@@ -281,181 +275,176 @@ Suite regular con mutaciones globales de `window`, `document` o runtime DOM:
 
 ### Decision
 
-No se adopta por ahora una division de proyectos Vitest ni un modo compartido
-con `isolate: false`.
+No Vitest project split and no shared mode with `isolate: false` is adopted for
+now.
 
-Motivo medido:
+Measured rationale:
 
-- Sin una mejora material de tiempo y con fallas inmediatas bajo
-  `--no-isolate`, agregar un proyecto `shared` obligaria a mantener una lista
-  amplia de excepciones sin justificar la complejidad extra.
-- Los dos DB tests con `vi.mock` ya fuerzan a separar rutas seguras si algun
-  dia se retoma esta idea.
-- La suite regular tambien requiere una lista larga de archivos aislados, y el
-  beneficio esperado quedo invalidado por la medicion actual.
+- With no material time improvement and immediate failures under `--no-isolate`,
+  adding a `shared` project would force maintaining a broad exception list
+  without justifying the extra complexity.
+- The two DB tests with `vi.mock` already force separating safe paths if this
+  idea is ever revisited.
+- The regular suite also requires a long list of isolated files, and the expected
+  benefit was invalidated by the current measurement.
 
-Conclusion operativa: mantener la configuracion actual de un solo proyecto por
-suite (`vitest.config.ts`, `vitest.db.fast.config.ts`, `vitest.db.config.ts`)
-hasta que aparezca una mejora medible y una estrategia de aislamiento mas
-acotada.
+Operational conclusion: keep the current single-project-per-suite configuration
+(`vitest.config.ts`, `vitest.db.fast.config.ts`, `vitest.db.config.ts`) until a
+measurable improvement and a tighter isolation strategy appear.
 
-No se hicieron cambios de configuracion Vitest para esta decision. Por eso las
-corridas repetidas con orden aleatorio quedan fuera de alcance en `#128`: son
-criterio de aceptacion para una adopcion de proyecto compartido, no para una
-decision documentada de no adoptar el cambio.
+No Vitest configuration changes were made for this decision. That is why repeated
+runs with random ordering are out of scope in `#128`: they are acceptance
+criteria for adopting a shared project, not for a documented decision not to
+adopt the change.
 
-## Propuesta de implementacion
+## Implementation proposal
 
-### Fase 1: medir antes de cambiar
+### Phase 1: measure before changing
 
-Crear una linea base repetible:
+Create a repeatable baseline:
 
-1. Medir `pnpm test`.
-2. Medir `pnpm test:db:file tests/db/harness.db.test.ts`.
-3. Medir 3 archivos DB representativos:
-   - uno chico;
-   - uno mediano;
-   - uno grande, por ejemplo `app/lib/admin/events/event-bases-validation.server.db.test.ts`
-     o `app/features/portal/choreographies/detail/server.db.test.ts`.
-4. Medir `pnpm test:db` cuando la suite este verde.
-5. Separar tiempos de:
+1. Measure `pnpm test`.
+2. Measure `pnpm test:db:file tests/db/harness.db.test.ts`.
+3. Measure 3 representative DB files:
+   - a small one;
+   - a medium one;
+   - a large one, for example `app/lib/admin/events/event-bases-validation.server.db.test.ts`
+     or `app/features/portal/choreographies/detail/server.db.test.ts`.
+4. Measure `pnpm test:db` once the suite is green.
+5. Separate the times of:
    - `db:test:reset`;
-   - collect/import de Vitest;
-   - ejecucion real de tests.
+   - Vitest collect/import;
+   - actual test execution.
 
-Resultado esperado: una tabla con tiempos antes de cualquier refactor.
+Expected result: a table of times before any refactor.
 
-Estado actual: completado. La tabla de linea base anterior es la referencia de
-comparacion para los issues hijos de este plan.
+Current status: complete. The baseline table above is the comparison reference
+for this plan's child issues.
 
-### Fase 2: estudiar compatibilidad PGlite
+### Phase 2: study PGlite compatibility
 
-Validar si En Escena puede usar PGlite para todos o algunos tests DB:
+Validate whether En Escena can use PGlite for all or some DB tests:
 
-1. Instalar experimentalmente `@electric-sql/pglite` en una rama.
-2. Crear un helper equivalente a `tests/db/harness.ts`, pero en proceso:
+1. Experimentally install `@electric-sql/pglite` on a branch.
+2. Create a helper equivalent to `tests/db/harness.ts`, but in-process:
    - `createTestDb()`;
    - `truncateAllTables(testDb)`;
-   - schema aplicado con `drizzle-kit/api`.
-3. Migrar solamente `tests/db/harness.db.test.ts` o crear un test piloto nuevo.
-4. Probar tipos y queries usadas por el schema actual:
+   - schema applied with `drizzle-kit/api`.
+3. Migrate only `tests/db/harness.db.test.ts`, or create a new pilot test.
+4. Test the types and queries used by the current schema:
    - enums;
    - foreign keys;
    - constraints;
-   - `json/jsonb` si aplica;
-   - transacciones;
-   - SQL raw usado por repositorios.
-5. Documentar incompatibilidades o diferencias contra Postgres real.
+   - `json/jsonb` if applicable;
+   - transactions;
+   - raw SQL used by repositories.
+5. Document incompatibilities or differences against real Postgres.
 
-Criterio de avance: si PGlite cubre el comportamiento que la app necesita, se
-puede seguir con snapshot. Si no, pasar a la alternativa Postgres real por
-worker.
+Go/no-go criterion: if PGlite covers the behavior the app needs, we can continue
+with the snapshot. If not, move to the real-Postgres-per-worker alternative.
 
-### Fase 3A: PGlite con snapshot de schema
+### Phase 3A: PGlite with schema snapshot
 
-Si PGlite es compatible:
+If PGlite is compatible:
 
-1. Agregar `app/test-utils/global-setup.ts` o `tests/db/global-setup.ts` que:
-   - cree una instancia PGlite;
-   - aplique el schema con `pushSchema`;
-   - exporte un snapshot con `dumpDataDir`;
-   - escriba el snapshot en `tmpdir`;
-   - lo provea a Vitest con `provide`.
-2. Cambiar `createTestDb()` para:
-   - cargar `loadDataDir` desde el snapshot inyectado;
-   - mantener fallback a `pushSchema` cuando se corre un archivo sin
-     `globalSetup`.
-3. Mantener `truncateAllTables` en `beforeEach` para aislamiento por test.
-4. Migrar archivos DB por grupos, priorizando los que no dependan de
-   comportamiento exclusivo de Postgres real.
-5. Mantener una corrida final contra Postgres real si encontramos diferencias
-   de fidelidad relevantes.
+1. Add `app/test-utils/global-setup.ts` or `tests/db/global-setup.ts` that:
+   - creates a PGlite instance;
+   - applies the schema with `pushSchema`;
+   - exports a snapshot with `dumpDataDir`;
+   - writes the snapshot to `tmpdir`;
+   - provides it to Vitest with `provide`.
+2. Change `createTestDb()` to:
+   - load `loadDataDir` from the injected snapshot;
+   - keep a fallback to `pushSchema` when running a file without `globalSetup`.
+3. Keep `truncateAllTables` in `beforeEach` for per-test isolation.
+4. Migrate DB files in groups, prioritizing those that do not depend on behavior
+   exclusive to real Postgres.
+5. Keep a final run against real Postgres if we find relevant fidelity
+   differences.
 
-Riesgos:
+Risks:
 
-- PGlite puede no cubrir algun detalle que hoy Postgres real valida.
-- El snapshot valida el schema generado por `pushSchema`, no una migracion
-  manual divergente.
+- PGlite may not cover some detail that real Postgres validates today.
+- The snapshot validates the schema generated by `pushSchema`, not a divergent
+  manual migration.
 
-### Fase 3B: Postgres real por worker
+### Phase 3B: real Postgres per worker
 
-Si PGlite no alcanza:
+If PGlite is not enough:
 
-1. Mantener Postgres local como fuente de fidelidad.
-2. Construir un template de test una vez por corrida:
-   - crear DB o schema base;
-   - aplicar Drizzle schema;
-   - congelar como template.
-3. Para cada worker de Vitest, crear una DB o schema aislado usando
+1. Keep local Postgres as the fidelity source.
+2. Build a test template once per run:
+   - create the base DB or schema;
+   - apply the Drizzle schema;
+   - freeze it as a template.
+3. For each Vitest worker, create an isolated DB or schema using
    `VITEST_POOL_ID`.
-4. Configurar `TEST_DATABASE_URL` por worker antes de importar `@/db`.
-5. Remover la ejecucion serial solo despues de probar aislamiento real.
+4. Configure `TEST_DATABASE_URL` per worker before importing `@/db`.
+5. Remove serial execution only after proving real isolation.
 
-Preferencia tecnica: DB/schema por worker antes que prefijos de tabla dinamicos.
-La referencia de `course-video-manager` rechazo prefijos dinamicos porque
-`pgTableCreator` fija el prefijo al importar el schema.
+Technical preference: DB/schema per worker rather than dynamic table prefixes.
+The `course-video-manager` reference rejected dynamic prefixes because
+`pgTableCreator` fixes the prefix when the schema is imported.
 
-Riesgos:
+Risks:
 
-- Mas complejidad operacional.
-- Sigue requiriendo aprobacion sandbox para `localhost:5433`.
-- Necesita limpieza robusta de DBs/schemas temporales.
+- More operational complexity.
+- It still requires sandbox approval for `localhost:5433`.
+- It needs robust cleanup of temporary DBs/schemas.
 
-### Fase 4: dividir proyectos Vitest
+### Phase 4: split Vitest projects
 
-Independientemente de PGlite o Postgres real, evaluar una division de proyectos
-Vitest como en `course-video-manager`:
+Independently of PGlite or real Postgres, evaluate a Vitest project split as in
+`course-video-manager`:
 
-1. Proyecto `shared`:
+1. `shared` project:
    - `isolate: false`;
-   - la mayoria de tests sin mocks globales;
-   - DB tests si son estables sin aislamiento de modulo.
-2. Proyecto `isolated`:
-   - archivos que usan `vi.mock`, `vi.stubGlobal`, `vi.stubEnv` o mutan estado
-     global/modular compartido;
-   - mantiene `isolate: true`.
-3. Agregar una lista explicita de archivos aislados en config.
-4. Verificar con orden aleatorio:
+   - most tests without global mocks;
+   - DB tests if they are stable without module isolation.
+2. `isolated` project:
+   - files using `vi.mock`, `vi.stubGlobal`, `vi.stubEnv` or mutating shared
+     global/module state;
+   - keeps `isolate: true`.
+3. Add an explicit list of isolated files in the config.
+4. Verify with random ordering:
    - `vitest run --sequence.shuffle`;
-   - repetir al menos 3 veces antes de aceptar el cambio.
+   - repeat at least 3 times before accepting the change.
 
-Riesgos:
+Risks:
 
-- `isolate: false` puede introducir flakes por estado global compartido.
-- Los archivos con mocks/stubs deben moverse al proyecto aislado apenas se
-  detecten.
+- `isolate: false` can introduce flakes from shared global state.
+- Files with mocks/stubs must be moved to the isolated project as soon as they
+  are detected.
 
-### Fase 5: actualizar workflows y comandos
+### Phase 5: update workflows and commands
 
-Cuando la estrategia este probada:
+Once the strategy is proven:
 
-1. Actualizar `package.json`:
-   - mantener comandos enfocados;
-   - agregar comandos rapidos si corresponde, por ejemplo `test:db:fast`;
-   - mantener un comando final confiable.
-2. Actualizar `docs/agents/workflows.md`:
-   - que comando usar durante TDD;
-   - que comando usar antes de cerrar;
-   - que aprobaciones sandbox siguen siendo necesarias.
-3. Si se adopta PGlite, actualizar `docs/local-auth.md` para aclarar que tests
-   DB ya no dependen necesariamente del Postgres local en todos los modos.
-4. Registrar la decision como ADR si cambia el modelo de aislamiento DB.
+1. Update `package.json`:
+   - keep the focused commands;
+   - add fast commands if appropriate, for example `test:db:fast`;
+   - keep a reliable final command.
+2. Update `docs/agents/workflows.md`:
+   - which command to use during TDD;
+   - which command to use before closing;
+   - which sandbox approvals are still necessary.
+3. If PGlite is adopted, update `docs/local-auth.md` to clarify that DB tests no
+   longer necessarily depend on local Postgres in every mode.
+4. Record the decision as an ADR if the DB isolation model changes.
 
-## Criterios de aceptacion
+## Acceptance criteria
 
-- La suite regular y la suite DB estan verdes antes y despues del cambio.
-- Las corridas enfocadas siguen funcionando con una sola ruta de archivo.
-- La suite DB completa mejora al menos 30% en tiempo de pared, o se documenta
-  por que la mejora no compensa el riesgo.
-- Si se usa `isolate: false`, la suite pasa 3 veces con `--sequence.shuffle`.
-- El workflow final conserva una corrida con fidelidad suficiente para reglas
-  de Evento, Academia, Coreografia, Bases del evento, Usuario y Sesion de
-  acceso.
+- The regular suite and the DB suite are green before and after the change.
+- Focused runs still work with a single file path.
+- The full DB suite improves by at least 30% in wall clock, or it is documented
+  why the improvement does not offset the risk.
+- If `isolate: false` is used, the suite passes 3 times with `--sequence.shuffle`.
+- The final workflow keeps a run with enough fidelity for the rules of Evento,
+  Academia, Coreografía, Bases del evento, Usuario and Sesión de acceso.
 
-## Recomendacion inicial
+## Initial recommendation
 
-Empezar por una prueba de concepto de PGlite con snapshot en 1 o 2 archivos DB
-chicos. Si aparece una incompatibilidad de fidelidad con Postgres, cambiar el
-foco a Postgres real por worker. No conviene empezar directamente por
-paralelizar la suite actual: hoy el harness serial y el Postgres compartido son
-parte del aislamiento.
+Start with a PGlite-plus-snapshot proof of concept on 1 or 2 small DB files. If a
+fidelity incompatibility with Postgres shows up, shift focus to real Postgres per
+worker. It is not worth starting directly by parallelizing the current suite:
+today the serial harness and the shared Postgres are part of the isolation.

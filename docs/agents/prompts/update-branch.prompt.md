@@ -5,8 +5,8 @@
 > already in the conflicted state. See the spec:
 > [§4.6 Update Branch](../afk-agent-platform-spec.md#46-update-branch).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (docs de contexto).
-> Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (context docs). See
+> [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

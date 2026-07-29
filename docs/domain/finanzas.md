@@ -1,498 +1,489 @@
 # Finanzas
 
-Doc canónico del modelo financiero basado en `Inscripción` y `Asignación de
-pago`. Captura decisiones de dominio; no define esquema de base de datos ni
-pantallas. La decisión de arquitectura vive en
+Canonical doc for the financial model based on `Inscripción` and `Asignación de
+pago`. It captures domain decisions; it does not define the database schema or
+the screens. The architecture decision lives in
 [ADR-0009](../adr/0009-inscription-based-finances.md).
 
-## Alcance
+## Scope
 
-- El modelo financiero toma `Inscripción` como unidad económica canónica.
-- `Pago` y `Asignación de pago` son la fuente de verdad operativa. No existen
-  `Factura de coreografía` ni `Imputación` en el modelo operativo.
-- `Imputación` es un concepto retirado.
-- Las facturas quedan fuera del alcance operativo actual; si vuelven, deberían
-  ser un documento derivado que lee de pagos, asignaciones e inscripciones, y
-  nunca gobernar el estado financiero.
-- Finanzas no audita cambios (ver "Sin auditoría en finanzas"). Esto acota
-  únicamente al dominio financiero; el resto del sistema conserva su auditoría
-  hasta el follow-up correspondiente ([auditoria.md](./auditoria.md)).
-- Fuera de este alcance: reintegro de dinero, descuento administrativo y ciclo
-  de vida completo de coreografías sin inscripciones activas.
-- Los montos monetarios persistidos son pesos argentinos enteros en toda la app;
-  la UI no muestra centavos. Los porcentajes pueden usar decimales internamente,
-  pero los importes se redondean a pesos enteros antes de persistir, con
-  redondeo comercial al peso más cercano.
-- En V1, `Administrador` puede mutar registros financieros y `Auditor` puede
-  leerlos.
+- The financial model takes `Inscripción` as the canonical economic unit.
+- `Pago` and `Asignación de pago` are the operational source of truth. There is
+  no `Factura de coreografía` and no `Imputación` in the operational model.
+- `Imputación` is a retired concept.
+- Invoices are outside the current operational scope; if they come back, they
+  should be a derived document reading from payments, allocations and
+  inscriptions, and never govern financial state.
+- Finances does not audit changes (see "No auditing in finances"). This is scoped
+  to the financial domain only; the rest of the system keeps its auditing until
+  the corresponding follow-up ([auditoria.md](./auditoria.md)).
+- Outside this scope: money refunds, administrative discount and the full
+  lifecycle of choreographies without active inscriptions.
+- Persisted monetary amounts are whole Argentine pesos throughout the app; the UI
+  does not show cents. Percentages may use decimals internally, but amounts are
+  rounded to whole pesos before persisting, with commercial rounding to the
+  nearest peso.
+- In V1, `Administrador` can mutate financial records and `Auditor` can read
+  them.
 
-## Inscripciones
+## Inscriptions
 
-- Una `Inscripción` vincula una coreografía con un bailarín, tiene identidad
-  económica propia e **identidad estable** (`id` propio, no la clave compuesta
-  coreografía+bailarín).
-- Estados económicos de una inscripción: `impaga`, `señada` y `pagada`. No
-  existe estado `inactiva`.
-- El estado económico es **derivado**, no persistido: se infiere de qué
-  snapshots están presentes.
-  - Sin snapshot de seña: `impaga`.
-  - Con snapshot de seña y sin snapshot de saldo: `señada`.
-  - Con snapshot de saldo: `pagada`.
-- Quitar una inscripción de una coreografía (acción exclusiva del
-  administrador; ver "Edición y eliminación de coreografía") la **elimina
-  físicamente**, sin importar su estado económico. No hay estado "inactiva" ni
-  baja lógica.
-  - Sus asignaciones de pago se eliminan.
-  - **Todo** el monto que tenía asignado (seña y, si existía, saldo) vuelve al
-    `Saldo disponible` de la academia en el evento activo.
-- Volver a agregar al mismo bailarín crea una **inscripción nueva** con `id`
-  nuevo, que nace `impaga` a precio tentativo vigente.
+- An `Inscripción` links a choreography with a dancer, has its own economic
+  identity and a **stable identity** (its own `id`, not the composite
+  choreography+dancer key).
+- Economic states of an inscription: `impaga`, `señada` and `pagada`. There is no
+  `inactiva` state.
+- The economic state is **derived**, not persisted: it is inferred from which
+  snapshots are present.
+  - No deposit snapshot: `impaga`.
+  - Deposit snapshot and no balance snapshot: `señada`.
+  - Balance snapshot present: `pagada`.
+- Removing an inscription from a choreography (an admin-only action; see
+  "Choreography editing and deletion") **physically deletes** it, regardless of
+  its economic state. There is no "inactiva" state and no soft delete.
+  - Its payment allocations are deleted.
+  - **All** the amount it had allocated (deposit and, if it existed, balance)
+    returns to the academy's `Saldo disponible` in the active event.
+- Adding the same dancer again creates a **new inscription** with a new `id`,
+  born `impaga` at the current tentative price.
 
-## Estado financiero de coreografía
+## Choreography financial state
 
-- El estado financiero de una coreografía se deriva de sus inscripciones
-  activas con una regla de **marca de agua**, no de mínimo:
-  - `impaga`: ninguna inscripción activa está `señada` ni `pagada`.
-  - `señada`: al menos una inscripción activa está `señada` o `pagada` y no
-    todas están `pagada`.
-  - `pagada`: todas las inscripciones activas están `pagada`.
-- El estado financiero no se persiste en el registro de la coreografía; se
-  deriva de sus inscripciones activas.
-- Una coreografía `señada` **no vuelve a `impaga`** cuando el administrador
-  cambia el roster. Agregar una inscripción `impaga` a una coreografía ya
-  firmada la deja en estado mixto, pero sigue `señada`.
-- Una coreografía `señada` solo puede bajar de estado por corrección financiera
-  administrativa (por ejemplo, borrar la asignación `deposit` de la única
-  inscripción señada), no por cambios de roster.
-- El estado de dominio (`impaga`/`señada`/`pagada`) gobierna orden, competencia
-  y los importes agregados.
-- Solo las coreografías señadas o pagadas cuentan para orden y competencia. Si
-  una coreografía pierde su estado señada o pagada por una corrección
-  financiera, deja de contar de inmediato para orden y competencia.
-- Estar pagada no vuelve presentable a una coreografía operativamente
-  incompleta.
+- A choreography's financial state is derived from its active inscriptions with a
+  **watermark** rule, not a minimum:
+  - `impaga`: no active inscription is `señada` or `pagada`.
+  - `señada`: at least one active inscription is `señada` or `pagada` and not all
+    are `pagada`.
+  - `pagada`: every active inscription is `pagada`.
+- The financial state is not persisted on the choreography record; it is derived
+  from its active inscriptions.
+- A `señada` choreography **does not go back to `impaga`** when the admin changes
+  the roster. Adding an `impaga` inscription to an already signed choreography
+  leaves it in a mixed state, but it stays `señada`.
+- A `señada` choreography can only drop state through an administrative financial
+  correction (for example, deleting the `deposit` allocation of the only
+  deposited inscription), not through roster changes.
+- The domain state (`impaga`/`señada`/`pagada`) governs ordering, competition and
+  the aggregate amounts.
+- Only deposited or paid choreographies count for ordering and competition. If a
+  choreography loses its deposited or paid state through a financial correction,
+  it immediately stops counting for ordering and competition.
+- Being paid does not make an operationally incomplete choreography presentable.
 
-### Display "necesita atención"
+### "Needs attention" display
 
-- La lista financiera de coreografías del panel de administración muestra un
-  status de display **"necesita atención"** cuando las inscripciones activas
-  están **mezcladas** (el flujo normal no puede resolverlas en una sola
-  acción).
-- "Necesita atención" es **solo display, derivado y no persistido**; no es un
-  cuarto estado de dominio y no afecta orden, competencia ni agregados. Por
-  debajo, una coreografía mixta sigue siendo `señada`.
+- The admin panel's financial choreography list shows a **"needs attention"**
+  display status when the active inscriptions are **mixed** (the normal flow
+  cannot resolve them in a single action).
+- "Needs attention" is **display-only, derived and not persisted**; it is not a
+  fourth domain state and does not affect ordering, competition or aggregates.
+  Underneath, a mixed choreography is still `señada`.
 
-## Edición y eliminación de coreografía
+## Choreography editing and deletion
 
-No hay bloqueo de roster por coreografía, ni enum de estado de roster, ni ciclo
-de desbloqueo, ni acciones de solicitud. La restricción es **permanente y por
-rol**.
+There is no per-choreography roster lock, no roster state enum, no unlock cycle
+and no request actions. The restriction is **permanent and role-based**.
 
-- **Creación (academia):** la creación es **atómica** — la coreografía se
-  persiste al confirmar el último paso del diálogo; no hay estado "borrador".
-  - Roster inicial y profesores son **obligatorios** en ese diálogo (los
-    profesores pasan de opcionales a obligatorios).
-  - El resumen del paso final muestra una **alerta** de que hay que verificar los
-    datos porque después la academia no podrá modificarlos.
-- **Academia, post-creación:** lo único que puede modificar es el **archivo de
-  audio**. Nunca edita el roster ni elimina la coreografía. No existen acciones
-  de solicitud de cambio o eliminación.
-- **Administrador:** es el único que puede modificar cualquier dato de la
-  coreografía (incluido el roster: agregar o quitar inscripciones) y
-  **eliminarla físicamente**, en cualquier momento — con **una sola excepción**:
-  el bloqueo por **comprobante fiscal asociado** (ver abajo).
-- Quitar una inscripción (borrado físico + devolución de todo lo asignado al
-  `Saldo disponible`, ver "Inscripciones") es, por lo tanto, una acción del
-  administrador.
-- No existe columna `has_active_financial_link` ni gate de edición derivado de
-  facturas activas; la restricción de edición es por rol. (El bloqueo por
-  comprobante fiscal de abajo es distinto: no es un gate de _edición_ sino de
-  _eliminación_, y no deriva del modelo viejo de facturas sino de un comprobante
-  ARCA con CAE.)
+- **Creation (academy):** creation is **atomic** — the choreography is persisted
+  when the last dialog step is confirmed; there is no "draft" state.
+  - The initial roster and professors are **mandatory** in that dialog
+    (professors move from optional to mandatory).
+  - The final step's summary shows an **alert** that the data must be verified,
+    because the academy will not be able to change it afterwards.
+- **Academy, post-creation:** the only thing it can modify is the **audio file**.
+  It never edits the roster and never deletes the choreography. There are no
+  change-request or deletion-request actions.
+- **Administrator:** the only one who can modify any choreography data (including
+  the roster: adding or removing inscriptions) and **physically delete it**, at
+  any time — with **one single exception**: the block due to an **associated tax
+  receipt** (see below).
+- Removing an inscription (physical delete + returning everything allocated to
+  `Saldo disponible`, see "Inscriptions") is therefore an admin action.
+- There is no `has_active_financial_link` column and no editing gate derived from
+  active invoices; the editing restriction is role-based. (The tax receipt block
+  below is different: it is not an _editing_ gate but a _deletion_ one, and it
+  does not derive from the old invoice model but from an ARCA receipt with a
+  CAE.)
 
-### Bloqueo de eliminación por comprobante fiscal
+### Deletion block due to a tax receipt
 
-Una coreografía que tiene **al menos un comprobante ARCA asociado** (comprobante
-derivado con CAE; ver la especificación de facturación electrónica de ARCA,
-issue #320) **no puede eliminarse físicamente**. El comprobante con CAE es
-**inmutable e imborrable por obligación fiscal**, y el modelo mantiene el
-invariante de que todo comprobante conserva su coreografía ancla viva (no
-existen comprobantes huérfanos).
+A choreography with **at least one associated ARCA receipt** (a derived receipt
+with a CAE; see the ARCA electronic invoicing specification, issue #320)
+**cannot be physically deleted**. A receipt with a CAE is **immutable and
+undeletable by fiscal obligation**, and the model keeps the invariant that every
+receipt keeps its anchor choreography alive (there are no orphan receipts).
 
-- **Alcance del bloqueo:** cuenta **cualquier** comprobante asociado, en
-  **cualquier estado** — `vigente` **o** `anulada`, incluidas las filas de
-  **Nota de crédito** (tipo 13). Basta la existencia de historia fiscal.
-- **No se libera nunca:** anular con Nota de crédito **no** habilita el borrado;
-  los CAE anulados también deben conservarse. Una coreografía que alguna vez se
-  facturó queda **permanentemente indeleteable**.
-- **Solo bloquea el borrado, no la edición de roster.** Agregar o quitar
-  bailarines sigue permitido: el cambio de monto se gestiona por el camino
-  "comprobante desactualizado → anular con Nota de crédito" (ver la spec de
-  facturación, issue #320), no bloqueando el roster. Esto lo diferencia del
-  bloqueo por **presentación asociada** (provisional), que sí congela el roster.
-- **Enforcement server-side (invariante duro).** El rechazo del borrado se
-  aplica **siempre en el servidor**, con independencia de la UI: el estado puede
-  cambiar entre render y click (emisión concurrente de un comprobante) y el
-  invariante fiscal no puede depender del cliente. La **presentación** del
-  bloqueo en el panel de administración (afordancia deshabilitada con motivo,
-  ocultamiento, o toast de error) se define en el diseño de UX de emisión, no
-  acá.
+- **Scope of the block:** **any** associated receipt counts, in **any** state —
+  `vigente` **or** `anulada`, including **Nota de crédito** rows (type 13). The
+  mere existence of fiscal history is enough.
+- **Never released:** annulling with a Nota de crédito does **not** enable
+  deletion; annulled CAEs must also be preserved. A choreography that was ever
+  invoiced becomes **permanently undeletable**.
+- **It only blocks deletion, not roster editing.** Adding or removing dancers is
+  still allowed: the amount change is handled through the "stale receipt → annul
+  with a Nota de crédito" path (see the invoicing spec, issue #320), not by
+  blocking the roster. This distinguishes it from the block due to an
+  **associated presentation** (provisional), which does freeze the roster.
+- **Server-side enforcement (hard invariant).** The deletion rejection is
+  **always applied on the server**, independently of the UI: the state can change
+  between render and click (a receipt issued concurrently) and the fiscal
+  invariant cannot depend on the client. How the block is **presented** in the
+  admin panel (a disabled affordance with a reason, hiding it, or an error toast)
+  is defined in the issuing UX design, not here.
 
-### Edición de roster desde administración
+### Roster editing from administration
 
-- La edición de roster ocurre en el **detalle/formulario de coreografía** del
-  panel de administración (donde ya vive la eliminación física). No es una
-  pantalla nueva.
-- Desde ese formulario el administrador desbloquea únicamente **bailarines y
-  profesores**; el resto de los campos sigue de solo lectura. La modificación de
-  bailarines usa el mismo multi-combobox de alta.
-- Cambiar el conjunto de bailarines **re-resuelve** en vivo el **tipo de grupo**
-  (por cantidad), la **categoría** (por edades) y el **nivel de experiencia**
-  (según la categoría). Esos campos se muestran de solo lectura y su valor se
-  actualiza al recalcular; **nivel de experiencia y cronograma se habilitan para
-  elección** solo cuando la re-resolución lo exige (categoría que requiere nivel;
-  cambio de tipo de grupo que obliga a re-elegir cronograma).
-- Si el roster no resuelve a una **categoría compatible**, no se puede guardar.
-- Los **profesores** no tienen dimensión financiera ni de resolución: agregarlos
-  o quitarlos no cascada en nada más.
-- La **consecuencia financiera** de agregar (inscripción `impaga`) o quitar
-  (borrado físico + devolución al `Saldo disponible`) **no se resuelve en este
-  formulario**: el formulario solo produce el cambio de membresía. El impacto
-  (incluido el display "necesita atención") se refleja y se gestiona en las
-  **vistas financieras** — lista financiera de la academia y detalle financiero
-  de la coreografía. La confirmación de guardado es un **aviso genérico** de que
-  la edición puede necesitar atención en el estado financiero, sin montos ni
-  selección de precio.
-- **Provisional (a revisar):** una coreografía con **presentación asociada** no
-  puede editar su roster (bloqueo duro, como el bloqueo de eliminación).
-- La edición del **archivo de música** desde administración queda fuera de este
-  mapa por ahora; en el formulario se muestra de solo lectura.
+- Roster editing happens in the admin panel's **choreography detail/form** (where
+  the physical deletion already lives). It is not a new screen.
+- From that form the admin unlocks only **dancers and professors**; the remaining
+  fields stay read-only. Modifying dancers uses the same multi-combobox as
+  creation.
+- Changing the set of dancers **re-resolves** live the **group type** (by count),
+  the **category** (by ages) and the **experience level** (per the category).
+  Those fields are shown read-only and their value updates on recalculation;
+  **experience level and schedule become selectable** only when the re-resolution
+  requires it (a category that requires a level; a group type change forcing a
+  schedule re-pick).
+- If the roster does not resolve to a **compatible category**, it cannot be
+  saved.
+- **Professors** have no financial or resolution dimension: adding or removing
+  them cascades into nothing else.
+- The **financial consequence** of adding (an `impaga` inscription) or removing
+  (physical delete + return to `Saldo disponible`) **is not resolved in this
+  form**: the form only produces the membership change. The impact (including the
+  "needs attention" display) is reflected and managed in the **financial views** —
+  the academy's financial list and the choreography's financial detail. The save
+  confirmation is a **generic notice** that the edit may need attention in the
+  financial state, with no amounts and no price selection.
+- **Provisional (to revisit):** a choreography with an **associated presentation**
+  cannot edit its roster (a hard block, like the deletion block).
+- Editing the **music file** from administration is out of this map for now; it
+  is shown read-only in the form.
 
-## Sin auditoría en finanzas
+## No auditing in finances
 
-- Finanzas **no audita cambios**. No hay entradas de auditoría para pagos,
-  asignaciones ni inscripciones, ni para el roster de la coreografía en su
-  dimensión financiera. Esto acota solo a finanzas; la auditoría del resto del
-  sistema se mantiene hasta el follow-up correspondiente.
-- Roles: un único `Administrador` (edita) y un único `Auditor` (solo lectura). El
-  Auditor lee datos; en finanzas no hay registro de quién cambió qué.
-- Los registros financieros **no** llevan campos de anulación (`annulled*`,
-  `cancelled*`) ni de atribución de actor (`createdByUserId`); con un solo
-  administrador no distinguen nada.
-- Las acciones destructivas (eliminar un pago, eliminar una coreografía, quitar
-  una inscripción, asignación extraordinaria) se ejecutan sin motivo y sin dejar
-  entrada de auditoría.
+- Finances **does not audit changes**. There are no audit entries for payments,
+  allocations or inscriptions, nor for the choreography roster in its financial
+  dimension. This is scoped to finances only; auditing for the rest of the system
+  stays until the corresponding follow-up.
+- Roles: a single `Administrador` (edits) and a single `Auditor` (read-only). The
+  auditor reads data; in finances there is no record of who changed what.
+- Financial records carry **no** annulment fields (`annulled*`, `cancelled*`) and
+  no actor attribution (`createdByUserId`); with a single administrator they
+  distinguish nothing.
+- Destructive actions (deleting a payment, deleting a choreography, removing an
+  inscription, an extraordinary allocation) run without a reason and without
+  leaving an audit entry.
 
-## Precios
+## Prices
 
-- El portal muestra `Precio tentativo de inscripción` mientras la inscripción
-  está `impaga`.
-- La **asignación de seña es el evento que congela precio**. Una inscripción
-  `señada` o `pagada` muestra su precio congelado.
-- Para una inscripción agregada a una coreografía ya señada o pagada, el precio
-  tentativo puede cambiar mientras siga `impaga`.
-- Una inscripción ya congelada es **inmutable**; un cambio de roster no toca su
-  precio congelado ni sus snapshots.
-- `Precio de coreografía` es el importe derivado a partir de los precios de sus
-  inscripciones activas: la **suma de los precios base por inscripción**. Es
-  estimado mientras hay inscripciones sin congelar y final cuando todas están
-  congeladas. La forma "precio aplicable × cantidad de inscripciones" es solo un
-  caso particular válido **mientras todas las inscripciones comparten el mismo
-  precio tentativo uniforme**; apenas una congela un precio distinto (por un
-  cambio de fila de precio o por el flujo extraordinario), deja de valer y hay
-  que sumar precio por precio.
-- Un precio tiene dependencias operativas históricas cuando lo referencia el
-  snapshot de una inscripción `señada` o `pagada`. Los precios tentativos no
-  bloquean cambiar precios.
-- Si falta un precio aplicable para una inscripción que aporta a `Seña adeudada`
-  o `Saldo adeudado`, el importe afectado queda pendiente o incompleto, no cero.
+- The portal shows `Precio tentativo de inscripción` while the inscription is
+  `impaga`.
+- The **deposit allocation is the event that freezes the price**. A `señada` or
+  `pagada` inscription shows its frozen price.
+- For an inscription added to an already deposited or paid choreography, the
+  tentative price can change while it stays `impaga`.
+- An already frozen inscription is **immutable**; a roster change does not touch
+  its frozen price or its snapshots.
+- `Precio de coreografía` is the amount derived from the prices of its active
+  inscriptions: the **sum of the base prices per inscription**. It is estimated
+  while there are unfrozen inscriptions and final once all are frozen. The form
+  "applicable price × number of inscriptions" is only a valid special case
+  **while every inscription shares the same uniform tentative price**; as soon as
+  one freezes a different price (through a price row change or the extraordinary
+  flow), it stops holding and prices must be summed one by one.
+- A price has historical operational dependencies when it is referenced by the
+  snapshot of a `señada` or `pagada` inscription. Tentative prices do not block
+  changing prices.
+- If an applicable price is missing for an inscription contributing to `Seña
+adeudada` or `Saldo adeudado`, the affected amount is pending or incomplete,
+  not zero.
 
-### Selección de la fila de precio al congelar
+### Selecting the price row when freezing
 
-- La fecha de referencia del congelamiento es la `payment.date` del pago
-  elegido para la asignación de seña.
-- Flujo normal (`Pagar seña` de coreografía completa): la fila de precio se
-  **deriva automáticamente** de `payment.date` contra los deadlines de precio
-  vigentes. Administración no elige fila; su única palanca es qué pago usa.
-- Flujo extraordinario (inscripción que el administrador agrega después):
-  administración **elige** explícitamente una fila de precio (vigente o
-  histórica permitida), acotada por un **piso**: no puede elegir un precio menor
-  que el precio congelado más bajo entre las inscripciones activas ya `señadas`
-  o `pagadas` de esa coreografía. `payment.date` se guarda igual como fecha de
-  referencia del snapshot.
+- The freezing reference date is the `payment.date` of the payment chosen for the
+  deposit allocation.
+- Normal flow (`Pagar seña` for a whole choreography): the price row is
+  **derived automatically** from `payment.date` against the current price
+  deadlines. Administration does not pick a row; its only lever is which payment
+  it uses.
+- Extraordinary flow (an inscription the admin adds later): administration
+  **explicitly picks** a price row (current or an allowed historical one),
+  bounded by a **floor**: it cannot pick a price lower than the lowest frozen
+  price among that choreography's already `señada` or `pagada` active
+  inscriptions. `payment.date` is still stored as the snapshot's reference date.
 
-## Pagos
+## Payments
 
-- Administración puede registrar un pago antes o después de asignarlo.
-- Un pago de V1 requiere academia, evento activo, fecha de pago, monto y método
-  de pago. El monto debe ser positivo; las correcciones se hacen eliminando el
-  pago equivocado, no registrando montos negativos o cero.
-- La fecha de pago no puede ser futura.
-- Métodos de pago de V1: transferencia, efectivo, mercado_pago y otro.
-- Los pagos de V1 tienen un número interno visible, secuencial dentro del
-  evento; no es un número fiscal.
-- Referencia y nota interna del pago son opcionales en V1. Las notas internas no
-  se muestran en el Portal de academias. La subida de comprobantes queda fuera
-  de V1.
-- Un pago registrado puede quedar como `Saldo disponible` de la academia hasta
-  que se asigne a una o más inscripciones.
-- Pagos y asignaciones no cruzan academias. Un pago registrado para la academia
-  equivocada se elimina y se vuelve a registrar.
-- El reintegro de dinero queda fuera de los flujos financieros de V1; los
-  excedentes quedan como `Saldo disponible` en el evento activo.
+- Administration can register a payment before or after allocating it.
+- A V1 payment requires an academy, an active event, a payment date, an amount
+  and a payment method. The amount must be positive; corrections are made by
+  deleting the wrong payment, not by registering negative or zero amounts.
+- The payment date cannot be in the future.
+- V1 payment methods: transferencia, efectivo, mercado_pago and otro.
+- V1 payments have a visible internal number, sequential within the event; it is
+  not a fiscal number.
+- The payment's reference and internal note are optional in V1. Internal notes
+  are not shown in the Portal de academias. Uploading receipts is out of V1.
+- A registered payment can stay as the academy's `Saldo disponible` until it is
+  allocated to one or more inscriptions.
+- Payments and allocations do not cross academies. A payment registered for the
+  wrong academy is deleted and registered again.
+- Money refunds are out of the V1 financial flows; surpluses stay as `Saldo
+disponible` in the active event.
 
-## Asignaciones de pago
+## Payment allocations
 
-- Una `Asignación de pago` aplica saldo de un pago a una inscripción y una
-  etapa. Es **estado actual mutable y eliminable**, no un ledger append-only ni
-  una imputación con reversas.
-- Las etapas de inscripción son `seña` (`deposit`) y `saldo` (`balance`).
-- Cada asignación paga una etapa completa de una inscripción.
-- Una misma etapa de una inscripción no puede repartirse entre varios pagos.
-- Un mismo pago puede usarse en varias asignaciones, incluso en momentos
-  distintos, siempre que tenga `Saldo disponible` suficiente.
-- No se puede asignar saldo a una inscripción que no tiene seña.
-- No se puede volver a pagar una etapa ya pagada.
-- La asignación es **mínima**: guarda el vínculo de plata pago↔inscripción, no
-  snapshots de precio. Los snapshots viven en la inscripción.
-  - Campos: `paymentId`, `inscriptionId`, `academyId`, `eventId`,
+- An `Asignación de pago` applies a payment's balance to one inscription and one
+  stage. It is **mutable, deletable current state**, not an append-only ledger
+  and not an imputación with reversals.
+- The inscription stages are `seña` (`deposit`) and `saldo` (`balance`).
+- Each allocation pays one complete stage of one inscription.
+- The same stage of an inscription cannot be split across several payments.
+- The same payment can be used in several allocations, even at different times,
+  as long as it has enough `Saldo disponible`.
+- Balance cannot be allocated to an inscription that has no deposit.
+- An already paid stage cannot be paid again.
+- The allocation is **minimal**: it stores the payment↔inscription money link,
+  not price snapshots. The snapshots live on the inscription.
+  - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`,
     `allocationType`, `amount`, `createdAt`, `updatedAt`.
-  - Unicidad: `(paymentId, inscriptionId, allocationType)`.
-  - No guarda atribución de usuario (`createdByUserId`); el sistema no audita.
+  - Uniqueness: `(paymentId, inscriptionId, allocationType)`.
+  - It stores no user attribution (`createdByUserId`); the system does not audit.
 
-## Acciones normales y casos extraordinarios
+## Normal actions and extraordinary cases
 
-- `Pagar seña` es una acción normal de coreografía completa. Solo aparece si
-  todas las inscripciones activas de esa coreografía están `impagas`. Crea una
-  asignación de seña para cada inscripción activa.
-- `Pagar saldo` es una acción normal de coreografía completa. Solo aparece si
-  todas las inscripciones activas están `señadas`. Crea una asignación de saldo
-  para cada inscripción activa.
-- Cualquier coreografía con estados mixtos ("necesita atención") requiere
-  tratamiento extraordinario.
-- Cada inscripción no resuelta por el flujo normal se trata como un caso
-  extraordinario separado, aunque varias tengan la misma resolución. La
-  asignación manual extraordinaria apunta a una sola inscripción y una sola
-  etapa completa.
+- `Pagar seña` is a normal whole-choreography action. It only appears if every
+  active inscription of that choreography is `impaga`. It creates a deposit
+  allocation for each active inscription.
+- `Pagar saldo` is a normal whole-choreography action. It only appears if every
+  active inscription is `señada`. It creates a balance allocation for each active
+  inscription.
+- Any choreography with mixed states ("needs attention") requires extraordinary
+  handling.
+- Each inscription unresolved by the normal flow is handled as a separate
+  extraordinary case, even when several share the same resolution. An
+  extraordinary manual allocation targets a single inscription and a single
+  complete stage.
 
-### Cobro extraordinario por inscripción
+### Extraordinary per-inscription charging
 
-- El cobro extraordinario es **por inscripción individual**, nunca por un
-  subconjunto de inscripciones: la granularidad es una sola inscripción por
-  acción, aunque varias huérfanas compartan la misma resolución. No existe un
-  "cobro por subconjunto homogéneo".
-- Cubre la **escalera completa** de una inscripción: `impaga` → `señada`
-  (cobrar su seña) y `señada` → `pagada` (cobrar su saldo). El caso mixto
-  `pagada` + `impaga` requiere recorrer los dos escalones sobre la huérfana
-  (primero señarla, después pagarle el saldo) para llevarla al nivel de sus
-  hermanas.
-- El cobro de seña por inscripción usa el **flujo extraordinario** de selección
-  explícita de fila de precio con piso descrito en "Selección de la fila de
-  precio al congelar". Al señar la primera huérfana de una coreografía mixta, su
-  precio congelado pasa a integrar el conjunto que define el piso para las
-  siguientes huérfanas.
-- El cobro individual solo se ofrece en coreografías **mixtas**. En una
-  coreografía 100% `impaga`, el primer congelamiento (que fija el piso) es el del
-  flujo normal por coreografía entera; la fila individual no ofrece cobro.
+- Extraordinary charging is **per individual inscription**, never for a subset of
+  inscriptions: the granularity is one inscription per action, even when several
+  orphans share the same resolution. There is no "homogeneous subset charge".
+- It covers an inscription's **full ladder**: `impaga` → `señada` (charging its
+  deposit) and `señada` → `pagada` (charging its balance). The mixed `pagada` +
+  `impaga` case requires walking both rungs on the orphan (deposit it first, then
+  pay its balance) to bring it up to its siblings' level.
+- Per-inscription deposit charging uses the **extraordinary flow** of explicit
+  price row selection with a floor, described in "Selecting the price row when
+  freezing". When the first orphan of a mixed choreography is deposited, its
+  frozen price joins the set defining the floor for the following orphans.
+- Individual charging is only offered on **mixed** choreographies. On a 100%
+  `impaga` choreography, the first freeze (which sets the floor) is the one from
+  the normal whole-choreography flow; the individual row offers no charging.
 
-### Deshacer una asignación por inscripción (`delete-allocation`)
+### Undoing an allocation per inscription (`delete-allocation`)
 
-- Desde la vista financiera de la coreografía se puede **deshacer** una
-  asignación de una inscripción como corrección financiera: bajar una etapa
-  (`saldo` → devuelve la inscripción a `señada`; `seña` → devuelve a `impaga`)
-  **manteniendo la inscripción** en el roster.
-- Es una acción distinta de **quitar una inscripción del roster** (ver
-  "Inscripciones"): quitar del roster elimina físicamente la inscripción; deshacer
-  una asignación no la elimina, solo revierte un cobro por etapa. El monto
-  liberado vuelve al `Saldo disponible` de la academia en el evento activo.
-- Es una acción destructiva sobre dinero y pide confirmación. Se ejecuta sin
-  motivo y sin dejar entrada de auditoría (ver "Sin auditoría en finanzas"). Si se
-  deshace la seña de una inscripción que también tiene saldo pago, el orden es
-  bajar `saldo` antes que `seña`.
-- **Regla "fila uniforme solo deshace":** en una coreografía **uniforme** (todas
-  sus inscripciones activas en el mismo estado), la operación por fila de una
-  inscripción individual **solo permite deshacer**; el "pagar" sigue viviendo en
-  el flujo por coreografía entera, para no degradar el caso común a N acciones
-  individuales.
+- From the choreography's financial view an inscription's allocation can be
+  **undone** as a financial correction: dropping one stage (`saldo` → returns the
+  inscription to `señada`; `seña` → returns it to `impaga`) while **keeping the
+  inscription** in the roster.
+- It is a different action from **removing an inscription from the roster** (see
+  "Inscriptions"): removing from the roster physically deletes the inscription;
+  undoing an allocation does not delete it, it only reverts a per-stage charge.
+  The released amount returns to the academy's `Saldo disponible` in the active
+  event.
+- It is a destructive action on money and asks for confirmation. It runs without
+  a reason and without leaving an audit entry (see "No auditing in finances"). If
+  the deposit of an inscription that also has a paid balance is undone, the order
+  is dropping `saldo` before `seña`.
+- **"Uniform row only undoes" rule:** on a **uniform** choreography (all its
+  active inscriptions in the same state), the per-row operation of an individual
+  inscription **only allows undoing**; "paying" still lives in the
+  whole-choreography flow, so the common case is not degraded into N individual
+  actions.
 
-## Seña y saldo
+## Deposit and balance
 
-- La seña se calcula por inscripción: un porcentaje de su precio congelado,
-  redondeado a pesos enteros. La seña total de una coreografía es la suma de las
-  señas de sus inscripciones activas.
-- El porcentaje de seña es una configuración de `Bases del evento` a nivel
-  evento y por defecto es 30%. Cambiarlo no es retroactivo: cada inscripción
-  congela el porcentaje vigente al asignar la seña.
-- El saldo se calcula por inscripción. Fórmula base:
-  `saldo de inscripción = precio base - seña - descuentos aplicables a esa
-inscripción`. El saldo total de una coreografía es la suma de los saldos de sus
-  inscripciones activas.
+- The deposit is computed per inscription: a percentage of its frozen price,
+  rounded to whole pesos. A choreography's total deposit is the sum of the
+  deposits of its active inscriptions.
+- The deposit percentage is an event-level `Bases del evento` setting and
+  defaults to 30%. Changing it is not retroactive: each inscription freezes the
+  percentage in force when the deposit is allocated.
+- The balance is computed per inscription. Base formula:
+  `inscription balance = base price - deposit - discounts applicable to that
+inscription`. A choreography's total balance is the sum of the balances of its
+  active inscriptions.
 
-### Importes tentativos y fijos
+### Tentative and fixed amounts
 
-Los tres importes de una inscripción — precio base, seña y saldo — **siempre
-tienen valor y siempre se muestran**. Lo que cambia con el estado es si ese
-valor todavía puede moverse. Un importe tentativo no es un importe ausente:
-sirve de referencia para administración y para la academia desde el primer día.
+An inscription's three amounts — base price, deposit and balance — **always have
+a value and are always shown**. What changes with the state is whether that value
+can still move. A tentative amount is not a missing amount: it serves as a
+reference for administration and for the academy from day one.
 
-Se fijan de forma **escalonada**, no todos juntos:
+They are fixed in **stages**, not all at once:
 
-| Estado   | Precio base | Seña      | Saldo     |
-| -------- | ----------- | --------- | --------- |
-| `impaga` | tentativo   | tentativo | tentativo |
-| `señada` | fijo        | fijo      | tentativo |
-| `pagada` | fijo        | fijo      | fijo      |
+| State    | Base price | Deposit   | Balance   |
+| -------- | ---------- | --------- | --------- |
+| `impaga` | tentative  | tentative | tentative |
+| `señada` | fixed      | fixed     | tentative |
+| `pagada` | fixed      | fixed     | fixed     |
 
-- Mientras la inscripción está `impaga`, los tres siguen el precio tentativo
-  vigente: si cambia la fila de precio aplicable, cambian los tres.
-- Pagar la seña congela precio base y seña (ver "Snapshots").
-- El saldo de una inscripción `señada` **sigue siendo tentativo**: el `Descuento
-por bailarín` recién se congela al asignar el saldo, así que hasta ese momento
-  un cambio de roster puede moverlo (ver "Descuentos"). Este es el único estado
-  donde los importes de una misma inscripción están mezclados.
-- Una inscripción `impaga` no computa para el `Descuento por bailarín`, así que
-  su saldo tentativo es la resta simple `precio base − seña`.
-- La UI muestra los importes tentativos en texto atenuado, **por celda y no por
-  fila**, justamente porque `señada` los mezcla.
+- While the inscription is `impaga`, all three follow the current tentative
+  price: if the applicable price row changes, all three change.
+- Paying the deposit freezes the base price and the deposit (see "Snapshots").
+- The balance of a `señada` inscription **is still tentative**: the `Descuento
+por bailarín` only freezes when the balance is allocated, so until that moment a
+  roster change can move it (see "Discounts"). This is the only state where the
+  amounts of a single inscription are mixed.
+- An `impaga` inscription does not count toward the `Descuento por bailarín`, so
+  its tentative balance is the plain subtraction `base price − deposit`.
+- The UI shows tentative amounts in dimmed text, **per cell and not per row**,
+  precisely because `señada` mixes them.
 
-## Descuentos
+## Discounts
 
-- En este alcance, los descuentos aplican solo al saldo, nunca a la seña.
-- El único descuento automático dentro de este alcance es el `Descuento por
-bailarín`, que se calcula automáticamente y vive por inscripción.
-- El `Descuento por bailarín` cuenta solo inscripciones activas `señadas` o
-  `pagadas` del mismo bailarín, academia y evento.
-- Regla del `Descuento por bailarín`:
-  - 1 o 2 inscripciones activas del mismo bailarín en el mismo evento y
-    academia: sin descuento.
-  - 3 inscripciones activas: 10% de descuento.
-  - 4 o más inscripciones activas: 15% de descuento.
-- El porcentaje se calcula sobre el precio congelado de cada inscripción con
-  descuento y se aplica al saldo.
-- En los casos con descuento, una inscripción activa del bailarín queda sin
-  descuento: la última al ordenar las inscripciones activas por precio base y
-  fecha de inscripción (normalmente la más cara; si empatan en precio, la más
-  reciente).
-- Mientras una inscripción está `señada`, el descuento por bailarín usado para
-  importes pendientes se **estima dinámicamente**.
-- Cuando se asigna el saldo, el descuento por bailarín aplicado queda
-  **congelado** en la inscripción (monto y porcentaje).
-- El congelamiento es **secuencial e irreversible**: cada asignación de saldo
-  congela con la mejor estimación al momento y no se re-liquida hacia atrás. La
-  "foto ideal" del descuento del bailarín solo se garantiza si se paga el saldo
-  de la coreografía completa en una sola acción (`Pagar saldo`).
-- El cobro de saldo **por inscripción** (extraordinario) congela el `Descuento
-por bailarín` contra el roster `señada`/`pagada` **vigente de ese bailarín al
-  momento de pagar ese saldo**. Esto es **asimétrico** respecto de las
-  inscripciones hermanas que ya pagaron su saldo antes: cada una congeló con el
-  conteo vigente en su propio momento, así que dos inscripciones del mismo
-  bailarín pueden terminar con descuentos congelados distintos. Es consecuencia
-  intencional del congelamiento secuencial e irreversible, no un error.
-- `Descuento administrativo` queda fuera del alcance y pendiente de definición.
+- Within this scope, discounts apply only to the balance, never to the deposit.
+- The only automatic discount within this scope is the `Descuento por bailarín`,
+  which is computed automatically and lives per inscription.
+- The `Descuento por bailarín` counts only `señada` or `pagada` active
+  inscriptions of the same dancer, academy and event.
+- `Descuento por bailarín` rule:
+  - 1 or 2 active inscriptions of the same dancer in the same event and academy:
+    no discount.
+  - 3 active inscriptions: 10% discount.
+  - 4 or more active inscriptions: 15% discount.
+- The percentage is computed on the frozen price of each discounted inscription
+  and applied to the balance.
+- In discounted cases, one active inscription of the dancer is left without a
+  discount: the last one when ordering the active inscriptions by base price and
+  inscription date (normally the most expensive; on a price tie, the most
+  recent).
+- While an inscription is `señada`, the dancer discount used for pending amounts
+  is **estimated dynamically**.
+- When the balance is allocated, the applied dancer discount is **frozen** on the
+  inscription (amount and percentage).
+- The freezing is **sequential and irreversible**: each balance allocation
+  freezes with the best estimate at the time and is not re-settled retroactively.
+  The "ideal snapshot" of the dancer's discount is only guaranteed if the whole
+  choreography's balance is paid in a single action (`Pagar saldo`).
+- **Per-inscription** balance charging (extraordinary) freezes the `Descuento por
+bailarín` against that dancer's `señada`/`pagada` roster **current at the moment
+  that balance is paid**. This is **asymmetric** relative to sibling inscriptions
+  that already paid their balance earlier: each froze with the count current at
+  its own moment, so two inscriptions of the same dancer can end up with
+  different frozen discounts. It is an intentional consequence of the sequential,
+  irreversible freezing, not a bug.
+- `Descuento administrativo` is out of scope and pending definition.
 
-## Importes agregados
+## Aggregate amounts
 
-### Por coreografía
+### Per choreography
 
-Las tres métricas de una coreografía son **sumatorias directas de sus
-inscripciones activas**, tentativas o fijas:
+A choreography's three metrics are **direct sums over its active
+inscriptions**, tentative or fixed:
 
-- `Seña` es la suma de las señas de sus inscripciones.
-- `Saldo` es la suma de los saldos de sus inscripciones.
-- `Pagado` es la suma de las asignaciones de pago de sus inscripciones.
+- `Seña` is the sum of the deposits of its inscriptions.
+- `Saldo` is the sum of the balances of its inscriptions.
+- `Pagado` is the sum of the payment allocations of its inscriptions.
 
-`Pagado` **no tiene por qué coincidir** con `Seña` ni con `Saldo`: coincide con
-`Seña` cuando la coreografía está señada y el roster no cambió desde entonces, y
-diverge apenas se agrega o se quita una inscripción después de pagar una etapa.
-Esa divergencia es información, no un error de cálculo.
+`Pagado` **need not match** `Seña` or `Saldo`: it matches `Seña` when the
+choreography is deposited and the roster has not changed since, and it diverges
+as soon as an inscription is added or removed after a stage was paid. That
+divergence is information, not a calculation error.
 
-### Por academia
+### Per academy
 
-**Una coreografía registrada se adeuda completa.** No hay deuda "todavía no
-exigible": desde que la inscripción existe, su saldo se debe, aunque su seña no
-esté paga. Esto es lo que hace comparables los adeudados con los importes de
-referencia de las tablas.
+**A registered choreography is owed in full.** There is no "not yet due" debt:
+from the moment the inscription exists, its balance is owed, even if its deposit
+is unpaid. This is what makes the owed amounts comparable with the tables'
+reference amounts.
 
-- `Saldo disponible` es el total de pagos activos menos el total de asignaciones
-  de pago activas.
-- `Seña adeudada` es la suma de las señas de las inscripciones activas
-  `impagas`, a precio tentativo vigente.
-- `Saldo adeudado` es la suma de los saldos de las inscripciones activas que
-  **no están `pagadas`** — es decir, `impagas` y `señadas`.
+- `Saldo disponible` is the total of active payments minus the total of active
+  payment allocations.
+- `Seña adeudada` is the sum of the deposits of the `impaga` active inscriptions,
+  at the current tentative price.
+- `Saldo adeudado` is the sum of the balances of the active inscriptions that are
+  **not `pagada`** — that is, `impaga` and `señada`.
 
-Tres reglas gobiernan ambas:
+Three rules govern both:
 
-- **Se agregan por inscripción, nunca por coreografía.** El estado de una
-  coreografía es una marca de agua derivada (ver "Estado financiero de
-  coreografía"): agregar sobre él perdería las inscripciones `impagas` que viven
-  dentro de una coreografía ya `señada` por un cambio de roster.
-- **Son brutas**: ninguna descuenta `Saldo disponible`, que se muestra al lado
-  como su propia métrica.
-- **No son disjuntas.** Una inscripción `impaga` aporta a las dos: su seña a
-  `Seña adeudada` y su saldo a `Saldo adeudado`. No se suman entre sí; son dos
-  cortes distintos de la misma deuda, no dos partes de un total.
+- **They aggregate per inscription, never per choreography.** A choreography's
+  state is a derived watermark (see "Choreography financial state"): aggregating
+  over it would lose the `impaga` inscriptions living inside an already `señada`
+  choreography because of a roster change.
+- **They are gross**: neither subtracts `Saldo disponible`, which is shown
+  alongside as its own metric.
+- **They are not disjoint.** An `impaga` inscription contributes to both: its
+  deposit to `Seña adeudada` and its balance to `Saldo adeudado`. They are not
+  added together; they are two different cuts of the same debt, not two parts of
+  a total.
 
-| Estado   | Aporta su seña a | Aporta su saldo a |
-| -------- | ---------------- | ----------------- |
-| `impaga` | `Seña adeudada`  | `Saldo adeudado`  |
-| `señada` | —                | `Saldo adeudado`  |
-| `pagada` | —                | —                 |
+| State    | Contributes its deposit to | Contributes its balance to |
+| -------- | -------------------------- | -------------------------- |
+| `impaga` | `Seña adeudada`            | `Saldo adeudado`           |
+| `señada` | —                          | `Saldo adeudado`           |
+| `pagada` | —                          | —                          |
 
-Por eso `Saldo adeudado` de una academia **no tiene por qué coincidir** con la
-suma de la columna `Saldo` de su tabla de coreografías: esa columna incluye
-también las inscripciones ya `pagadas`, que no se adeudan. La diferencia es
-exactamente lo ya cobrado.
+That is why an academy's `Saldo adeudado` **need not match** the sum of the
+`Saldo` column of its choreography table: that column also includes the already
+`pagada` inscriptions, which are not owed. The difference is exactly what has
+already been collected.
 
-El Portal de academias y el Panel de administración usan el mismo cálculo, y los
-importes primarios de ambos son `Seña adeudada`, `Saldo disponible` y `Saldo
-adeudado`. El Portal de academias es de solo lectura en V1: las academias no
-inician pagos ni suben comprobantes.
+The Portal de academias and the Panel de administración use the same calculation,
+and the primary amounts in both are `Seña adeudada`, `Saldo disponible` and
+`Saldo adeudado`. The Portal de academias is read-only in V1: academies do not
+initiate payments and do not upload receipts.
 
 ## Snapshots
 
-Los snapshots viven en la **Inscripción**, no en la asignación. La asignación
-mínima aporta la trazabilidad del pago.
+Snapshots live on the **Inscripción**, not on the allocation. The minimal
+allocation contributes the payment's traceability.
 
-- Snapshot de seña (se fija al crear la asignación `deposit`; se limpia si esa
-  asignación se borra, devolviendo la inscripción a `impaga`):
-  - `frozenBasePriceAmount` — precio base congelado.
-  - `selectedPriceId` — fila de precio usada, para dependencias históricas.
-  - `depositReferenceDate` — la `payment.date` usada.
-  - `depositPercentage` — porcentaje de seña vigente al congelar.
-  - `depositAmount` — seña = redondeo(`frozenBasePriceAmount` × `depositPercentage`).
-- Snapshot de saldo (se fija al crear la asignación `balance`; se limpia si esa
-  asignación se borra, devolviendo la inscripción a `señada`):
-  - `balanceReferenceDate` — `payment.date` del pago de saldo.
-  - `appliedDancerDiscountPercentage` — descuento por bailarín congelado.
-  - `appliedDancerDiscountAmount` — monto de descuento por bailarín congelado.
-  - `finalTotalAmount` — total final congelado de la inscripción.
+- Deposit snapshot (set when the `deposit` allocation is created; cleared if that
+  allocation is deleted, returning the inscription to `impaga`):
+  - `frozenBasePriceAmount` — frozen base price.
+  - `selectedPriceId` — the price row used, for historical dependencies.
+  - `depositReferenceDate` — the `payment.date` used.
+  - `depositPercentage` — the deposit percentage in force when freezing.
+  - `depositAmount` — deposit = round(`frozenBasePriceAmount` × `depositPercentage`).
+- Balance snapshot (set when the `balance` allocation is created; cleared if that
+  allocation is deleted, returning the inscription to `señada`):
+  - `balanceReferenceDate` — `payment.date` of the balance payment.
+  - `appliedDancerDiscountPercentage` — frozen dancer discount percentage.
+  - `appliedDancerDiscountAmount` — frozen dancer discount amount.
+  - `finalTotalAmount` — the inscription's frozen final total.
   - `balanceAmount` — = `finalTotalAmount − depositAmount`.
-  - `balanceCompletedAt` — = `payment.date` del pago de saldo.
+  - `balanceCompletedAt` — = `payment.date` of the balance payment.
 
-## Transición desde facturas e imputaciones
+## Transition from invoices and imputaciones
 
-- **Remoción completa** del módulo de facturas/imputaciones en V1: se eliminan las
-  tablas `academy_event_choreography_invoice` y `academy_event_invoice_imputation`,
-  su código server y su UI. `Pago` + `Asignación` son la única fuente de verdad
-  operativa.
-- Facturación futura (documento opcional a monto que el administrador decida, no
-  atado a seña/saldo/total ni al estado operativo) **no se construye en V1**; si
-  se retoma, es un documento **derivado** que lee de pagos/asignaciones/inscripciones
-  y nunca gobierna el estado financiero.
-- De finanzas sobreviven en la UI solo la **lista y el detalle financiero de
-  coreografías** y la **lista de pagos**.
-- **Datos existentes:** en producción no hay facturas, imputaciones, pagos ni
-  asignaciones (finanzas arranca greenfield, sin backfill). Sí hay inscripciones:
-  las filas existentes de `choreography_dancer` se preservan y se migran al nuevo
-  modelo (id estable + snapshots en `null` → todas `impaga`). Se dropea la columna
-  `has_active_financial_link`.
-- **Profesores obligatorios** se aplica por validación de creación, sin constraint
-  duro retroactivo, para no romper coreografías existentes sin profesor.
+- **Complete removal** of the invoices/imputaciones module in V1: the
+  `academy_event_choreography_invoice` and `academy_event_invoice_imputation`
+  tables, their server code and their UI are deleted. `Pago` + `Asignación` are
+  the only operational source of truth.
+- Future invoicing (an optional document for an amount the admin decides, not
+  tied to deposit/balance/total or to the operational state) is **not built in
+  V1**; if it is revisited, it is a **derived** document reading from
+  payments/allocations/inscriptions and never governing the financial state.
+- From finances, only the **financial choreography list and detail** and the
+  **payments list** survive in the UI.
+- **Existing data:** in production there are no invoices, imputaciones, payments
+  or allocations (finances starts greenfield, with no backfill). There are
+  inscriptions: the existing `choreography_dancer` rows are preserved and
+  migrated to the new model (stable id + `null` snapshots → all `impaga`). The
+  `has_active_financial_link` column is dropped.
+- **Mandatory professors** is enforced through creation validation, without a
+  hard retroactive constraint, so existing choreographies without a professor are
+  not broken.
 
-## Pendientes explícitos
+## Explicit open items
 
-- Definir si existe reintegro de dinero o algún mecanismo equivalente; por
-  ahora, todo monto liberado queda como `Saldo disponible`.
-- Definir `Descuento administrativo`.
-- Definir el ciclo de vida de una coreografía sin inscripciones activas.
-- Rediseñar facturas futuras, si se retoman, como documentos derivados.
+- Decide whether money refunds or an equivalent mechanism exist; for now, every
+  released amount stays as `Saldo disponible`.
+- Define `Descuento administrativo`.
+- Define the lifecycle of a choreography without active inscriptions.
+- Redesign future invoices, if revisited, as derived documents.

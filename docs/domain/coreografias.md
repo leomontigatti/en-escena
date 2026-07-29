@@ -5,20 +5,20 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 ## Roster
 
 - `Profesor` belongs to an academy, not to a user account.
-- Tipo de documento y número de documento de `Profesor` se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse.
-- Si uno está completo y el otro vacío, la ficha es inválida y no se guarda.
+- `Profesor` document type and document number are treated as a pair: both may be left empty, or both must be filled in.
+- If one is filled in and the other is empty, the record is invalid and is not saved.
 - A professor with empty document pair is incomplete but can be used in coreografías.
-- Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia.
+- When the document pair is complete, its uniqueness is enforced within the same academy.
 - Professors do not have manual admin verification.
 - Professor records can be edited even when linked to paid or presented coreografías; professor links inside non-pending coreografías can be blocked.
 - `Bailarín` birth date is a declared civil date without time or timezone and is compared against event local start date for competitive age.
-- Tipo de documento y número de documento de `Bailarín` se tratan como un par: ambos pueden quedar vacíos, o ambos deben completarse.
-- Si uno está completo y el otro vacío, la ficha es inválida y no se guarda.
-- Cuando el par de documento está completo, su unicidad se controla dentro de la misma academia.
+- `Bailarín` document type and document number are treated as a pair: both may be left empty, or both must be filled in.
+- If one is filled in and the other is empty, the record is invalid and is not saved.
+- When the document pair is complete, its uniqueness is enforced within the same academy.
 - A dancer participating with another academy is a different domain entity.
 - Dancer verification states are: incompleto, no verificado, verificado.
-- Si falta algún dato o imagen del documento, el estado de verificación de bailarín es incompleto.
-- Un par de documento parcial no es un estado guardado: es un error de validación del formulario.
+- If any document field or image is missing, the dancer verification status is incompleto.
+- A partial document pair is not a saved state: it is a form validation error.
 - Dancer verification does not block participation and does not affect choreography operational state.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies while their presentation is still pending; it does not change financial state.
@@ -41,47 +41,45 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 
 ## Administrative Choreography Lists
 
-- La lista operativa de coreografías del Panel de administración revisa
-  completitud y consistencia de datos para el evento activo.
-- La lista operativa permite acciones administrativas para usuarios `admin` y
-  es de solo lectura para usuarios `auditor`.
-- La lista operativa enlaza a una vista de instancia administrativa de la
-  coreografía; la eliminación es una `Acción de instancia`, no una acción de
-  lista.
-- La vista de instancia administrativa vive en `/administracion/coreografias/:id`
-  y resuelve únicamente coreografías del Evento activo.
-- En la vista de instancia administrativa, solo el nombre y la eliminación son
-  mutables en este alcance; bailarines, profesores y Archivo de música se
-  muestran como lectura.
-- El Archivo de música en la vista de instancia administrativa usa el mismo
-  campo visual de carga que el Portal de academias, pero deshabilitado; si hay
-  archivo existente, permite descargarlo.
-- Después de renombrar una coreografía desde administración, el usuario queda
-  en la vista de instancia y recibe confirmación de guardado.
-- Después de eliminar una coreografía desde administración, el usuario vuelve a
-  la lista operativa con confirmación de eliminación.
-- La acción administrativa para eliminar una coreografía se muestra en la vista
-  de instancia; si la coreografía no es eliminable, el diálogo informa el motivo
-  de bloqueo en vez de ocultar la acción.
-- El diálogo de eliminación bloqueada lista los bloqueos concretos de la
-  coreografía: presentación y/o puntajes.
-- La lista operativa muestra únicamente coreografías del evento activo y no
-  actúa como archivo histórico de otros eventos.
-- Si no hay evento activo, la pantalla debe mostrar un estado vacío específico
-  para elegir o activar un evento antes de revisar coreografías.
-- Una coreografía del evento activo se muestra aunque su academia esté archivada
-  o inactiva; la vista administrativa no debe ocultar registros operativos por
-  estado de academia.
-- La lista operativa usa el mismo estado visible que el Portal de academias:
-  `Completa` o `Incompleta`.
-- La primera versión no desglosa los datos operativos pendientes con badges
-  adicionales. Ese detalle puede agregarse después sin cambiar la semántica del
-  estado operativo.
-- La verificación documental de bailarines no afecta el estado operativo de una
-  coreografía.
-- La lista financiera de coreografías y la lista de participación de
-  coreografías son vistas administrativas separadas, no variantes implícitas de
-  la lista operativa.
+- The Panel de administración's operational choreography list reviews data
+  completeness and consistency for the active event.
+- The operational list allows administrative actions for `admin` users and is
+  read-only for `auditor` users.
+- The operational list links to an administrative instance view of the
+  choreography; deletion is an `Acción de instancia`, not a list action.
+- The administrative instance view lives at `/administracion/coreografias/:id`
+  and resolves only choreographies of the Evento activo.
+- In the administrative instance view, only the name and the deletion are
+  mutable within this scope; dancers, professors and Archivo de música are shown
+  read-only.
+- The Archivo de música in the administrative instance view uses the same visual
+  upload field as the Portal de academias, but disabled; if a file already
+  exists, it allows downloading it.
+- After renaming a choreography from administration, the user stays in the
+  instance view and gets a save confirmation.
+- After deleting a choreography from administration, the user returns to the
+  operational list with a deletion confirmation.
+- The administrative action to delete a choreography is shown in the instance
+  view; if the choreography is not deletable, the dialog reports the blocking
+  reason instead of hiding the action.
+- The blocked-deletion dialog lists the choreography's concrete blocks:
+  presentación and/or puntajes.
+- The operational list shows only choreographies of the active event and does
+  not act as a historical archive of other events.
+- If there is no active event, the screen must show a specific empty state
+  prompting to choose or activate an event before reviewing choreographies.
+- A choreography of the active event is shown even if its academy is archived or
+  inactive; the administrative view must not hide operational records because of
+  academy state.
+- The operational list uses the same visible state as the Portal de academias:
+  `Completa` or `Incompleta`.
+- The first version does not break down pending operational data with additional
+  badges. That detail can be added later without changing the semantics of the
+  operational state.
+- Dancer document verification does not affect a choreography's operational
+  state.
+- The financial choreography list and the participation choreography list are
+  separate administrative views, not implicit variants of the operational list.
 
 ## Choreography Registration
 
