@@ -10,6 +10,7 @@ import {
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
   computeDancerDiscountAmounts,
@@ -143,7 +144,7 @@ export async function loadCobroContext(
     choreographyRow.academyId !== input.academyId ||
     choreographyRow.eventId !== input.eventId
   ) {
-    return { ok: false, message: "No encontramos esa coreografía." };
+    return { ok: false, message: choreographyNotFoundMessage };
   }
 
   const event = await tx.query.events.findFirst({

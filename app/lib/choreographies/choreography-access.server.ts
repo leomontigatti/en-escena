@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { choreographies } from "@/db/schema";
-import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-roster.shared";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 
 type PortalOwnedChoreographyLookup = {
   academyId: string;
