@@ -1,451 +1,435 @@
 # Style Guide
 
-Guía de estilo visual del producto. La base visual es shadcn/ui `radix-nova` con
-sus componentes, tokens CSS y fuente del tema.
+Visual style guide for the product. The visual base is shadcn/ui `radix-nova`
+with its components, CSS tokens and theme font.
 
-## Dirección visual
+## Visual direction
 
-La interfaz debe priorizar claridad, lectura rápida y uso repetido por sobre una
-estética de landing o espectáculo.
+The interface must prioritize clarity, fast reading and repeated use over a
+landing-page or showcase aesthetic.
 
-- Usar superficies claras, jerarquía nítida y contraste suficiente.
-- Mantener la experiencia apta para formularios, listas, tablas y estados.
-- Evitar fondos decorativos dominantes, degradados grandes, decoración
-  ornamental y composición de marketing. No prohibir fondos oscuros cuando
-  provengan del tema dark o de componentes shadcn.
+- Use light surfaces, sharp hierarchy and sufficient contrast.
+- Keep the experience suitable for forms, lists, tables and states.
+- Avoid dominant decorative backgrounds, large gradients, ornamental decoration
+  and marketing composition. Do not forbid dark backgrounds when they come from
+  the dark theme or from shadcn components.
 
-## Color y tokens
+## Color and tokens
 
-Usar tokens semánticos de shadcn/ui como fuente de verdad. No hardcodear colores
-Tailwind (`slate`, `red`, `teal`, etc.) salvo que exista una necesidad puntual
-que no pueda expresarse con tokens o variantes existentes.
+Use shadcn/ui semantic tokens as the source of truth. Do not hardcode Tailwind
+colors (`slate`, `red`, `teal`, etc.) unless there is a specific need that cannot
+be expressed with existing tokens or variants.
 
-Reglas:
+Rules:
 
-- Usar `background`, `foreground`, `muted`, `muted-foreground`, `border`,
-  `input`, `ring`, `primary`, `primary-foreground`, `secondary`,
-  `secondary-foreground`, `accent`, `accent-foreground`, `destructive`,
-  `card` y `card-foreground`.
-- Para estados negativos o errores, usar `destructive` y los estados inválidos
-  de los componentes (`aria-invalid`, `data-invalid`).
-- Para estados positivos, informativos o de advertencia, preferir variantes de
-  componentes existentes (`Badge`, `Alert`). No agregar variantes propias ni
-  tokens semánticos nuevos sin decisión explícita.
-- No introducir paletas de marca, hex propios ni escalas paralelas sin decisión
-  explícita.
+- Use `background`, `foreground`, `muted`, `muted-foreground`, `border`, `input`,
+  `ring`, `primary`, `primary-foreground`, `secondary`, `secondary-foreground`,
+  `accent`, `accent-foreground`, `destructive`, `card` and `card-foreground`.
+- For negative or error states, use `destructive` and the components' invalid
+  states (`aria-invalid`, `data-invalid`).
+- For positive, informative or warning states, prefer existing component variants
+  (`Badge`, `Alert`). Do not add custom variants or new semantic tokens without
+  an explicit decision.
+- Do not introduce brand palettes, custom hex values or parallel scales without
+  an explicit decision.
 
-## Radios
+## Radii
 
-Usar los radios del tema (`--radius` y derivados) y las clases ya definidas por
-los componentes. No corregir radios por pantalla con clases ad hoc salvo para
-layout o composición local.
+Use the theme's radii (`--radius` and derivatives) and the classes the components
+already define. Do not patch radii per screen with ad hoc classes, except for
+layout or local composition.
 
-## Tipografía
+## Typography
 
-Usar la fuente del tema shadcn actual. No agregar tipografías de marca ni
-familias alternativas sin decisión explícita.
+Use the current shadcn theme font. Do not add brand typefaces or alternative
+families without an explicit decision.
 
-Crear jerarquía con componentes, variantes, peso y espaciado. Evitar clases
-tipográficas manuales sobre componentes base cuando el componente ya define el
-estilo.
+Create hierarchy through components, variants, weight and spacing. Avoid manual
+typographic classes on base components when the component already defines the
+style.
 
-## Densidad y layout
+## Density and layout
 
-Usar densidad operativa media. La interfaz debe permitir escanear listas,
-formularios y estados sin sentirse apretada.
+Use medium operational density. The interface must let you scan lists, forms and
+states without feeling cramped.
 
-Usar `gap-*` para spacing entre elementos. No usar `space-x-*` ni `space-y-*`.
-Respetar tamaños y padding internos de componentes shadcn; ajustar con
-`className` solo por layout.
+Use `gap-*` for spacing between elements. Do not use `space-x-*` or `space-y-*`.
+Respect shadcn components' sizes and internal padding; adjust with `className`
+only for layout.
 
-Usar shells operativos para portal de academias, panel de administración y
-juzgamiento. Las pantallas centradas quedan reservadas para autenticación,
-errores y estados excepcionales.
+Use operational shells for the academy portal, the admin panel and judging.
+Centered screens are reserved for authentication, errors and exceptional states.
 
-Priorizar tablas para listas operativas en desktop. Usar cards para mobile o
-elementos repetidos simples. Evitar dashboards con hero grande.
+Prioritize tables for operational lists on desktop. Use cards for mobile or
+simple repeated elements. Avoid dashboards with a large hero.
 
-## Componentes base
+## Base components
 
-Usar shadcn/ui `radix-nova` como base. Los componentes viven en
-`app/components/ui` y se tratan como la fuente de verdad visual.
+Use shadcn/ui `radix-nova` as the base. The components live in
+`app/components/ui` and are treated as the visual source of truth.
 
-Reglas:
+Rules:
 
-- Usar componentes existentes antes de crear markup custom.
-- Si el componente shadcn necesario no está instalado y el patrón se repite o el
-  caso encaja claramente con shadcn, agregar el componente antes de crear una
-  variante custom.
-- Usar variantes del componente antes de sobrescribir colores, radios,
-  tipografía o estados con `className`.
-- Usar `className` para layout: grid, flex, gap, ancho, margen y composición
-  local.
-- En código nuevo, no usar `space-x-*` ni `space-y-*`; usar `flex`/`grid` con
+- Use existing components before creating custom markup.
+- If the needed shadcn component is not installed and the pattern repeats or the
+  case clearly fits shadcn, add the component before creating a custom variant.
+- Use the component's variants before overriding colors, radii, typography or
+  states with `className`.
+- Use `className` for layout: grid, flex, gap, width, margin and local
+  composition.
+- In new code, do not use `space-x-*` or `space-y-*`; use `flex`/`grid` with
   `gap-*`.
-- Preferir props responsive o variantes del componente cuando existan antes de
-  recrear comportamiento con clases. Ejemplo: `Field orientation="responsive"`.
-- Evitar hardcodear look visual en componentes shadcn: colores, radios, sombras,
-  tipografía y estados. El hardcode de layout sí está permitido.
-- Si no existe token, variante o componente para un caso único, se puede usar una
-  clase puntual. Si el caso se repite, extraerlo a componente, variante o token.
-- No instalar componentes sin uso concreto.
-- Usar `lucide-react` para iconos y `data-icon` dentro de botones.
-- Usar `cn()` para clases condicionales.
+- Prefer responsive props or component variants where they exist before
+  recreating behavior with classes. Example: `Field orientation="responsive"`.
+- Avoid hardcoding visual look on shadcn components: colors, radii, shadows,
+  typography and states. Hardcoding layout is allowed.
+- If no token, variant or component exists for a unique case, a one-off class is
+  acceptable. If the case repeats, extract it into a component, variant or token.
+- Do not install components without a concrete use.
+- Use `lucide-react` for icons and `data-icon` inside buttons.
+- Use `cn()` for conditional classes.
 
-## Alertas y estados vacíos
+## Alerts and empty states
 
-Usar componentes shadcn para feedback y estados vacíos.
+Use shadcn components for feedback and empty states.
 
-Reglas:
+Rules:
 
-- Usar `Alert` para callouts, avisos, errores no asociados a un campo y mensajes
-  de éxito persistentes en pantalla. Si `Alert` no está instalado y el caso lo
-  necesita, agregarlo antes de crear markup custom.
-- Usar `Empty` para estados sin datos con título, descripción y acción primaria.
-  Si `Empty` no está instalado y el caso lo necesita, agregarlo antes de crear
-  markup custom.
-- Migrar callouts y estados vacíos existentes cuando se toque el archivo o en
-  una pasada dedicada.
+- Use `Alert` for callouts, notices, errors not tied to a field, and success
+  messages that persist on screen. If `Alert` is not installed and the case needs
+  it, add it before creating custom markup.
+- Use `Empty` for no-data states with a title, description and primary action. If
+  `Empty` is not installed and the case needs it, add it before creating custom
+  markup.
+- Migrate existing callouts and empty states when the file is touched or in a
+  dedicated pass.
 
-## Estados y badges
+## States and badges
 
-Usar `Badge` con las variantes definidas en `app/components/ui/badge.tsx`.
-Las variantes semánticas `success`, `warning` e `info` son parte del sistema
-actual y pueden usarse cuando expresan un estado de producto claro.
+Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The
+semantic variants `success`, `warning` and `info` are part of the current system
+and can be used when they express a clear product state.
 
-Reglas:
+Rules:
 
-- Usar `Badge` en vez de spans custom para estados.
-- Usar `variant="destructive"` para estados negativos cuando corresponda.
-- Para estados positivos, informativos o de advertencia, usar `success`,
-  `info` o `warning` cuando esa semántica sea estable y esté documentada por el
-  flujo.
-- Para estados neutros, usar variantes como `default`, `secondary` u `outline`.
-- No agregar variantes nuevas de `Badge` sin decisión explícita de producto y
-  diseño.
+- Use `Badge` instead of custom spans for states.
+- Use `variant="destructive"` for negative states where appropriate.
+- For positive, informative or warning states, use `success`, `info` or `warning`
+  when that semantics is stable and documented by the flow.
+- For neutral states, use variants such as `default`, `secondary` or `outline`.
+- Do not add new `Badge` variants without an explicit product and design
+  decision.
 
-## Botones
+## Buttons
 
-Usar `Button` y sus variantes (`default`, `secondary`, `outline`, `ghost`,
-`destructive`, `link`) y tamaños (`xs`, `sm`, `default`, `lg`, `icon`,
-`icon-xs`, `icon-sm`, `icon-lg`).
+Use `Button` and its variants (`default`, `secondary`, `outline`, `ghost`,
+`destructive`, `link`) and sizes (`xs`, `sm`, `default`, `lg`, `icon`, `icon-xs`,
+`icon-sm`, `icon-lg`).
 
-Usar una única acción primaria por zona visual. Las acciones destructivas deben
-tener texto claro y confirmación cuando el efecto sea irreversible. Los botones
-solo con icono deben tener nombre accesible y tooltip cuando el icono no sea
-obvio.
+Use a single primary action per visual zone. Destructive actions must have clear
+text and a confirmation when the effect is irreversible. Icon-only buttons must
+have an accessible name and a tooltip when the icon is not obvious.
 
-## Pending, loading y transiciones
+## Pending, loading and transitions
 
-El feedback pendiente debe ser específico de la operación. No usar un spinner o
-estado global para tapar cuál request está trabajando.
+Pending feedback must be specific to the operation. Do not use a global spinner
+or state that hides which request is working.
 
-Reglas:
+Rules:
 
-- Usar estado pendiente en el botón cuando una acción nace de un botón o submit
-  concreto y el usuario puede intentar repetirla. Deshabilitar la acción
-  mientras la request está en vuelo y cambiar el label o el icono para mostrar
-  progreso.
-- Usar spinner inline pequeño cuando se actualiza un fragmento puntual de la
-  pantalla sin bloquear el resto: cálculos auxiliares, badges, resúmenes,
-  contadores o paneles chicos.
-- Mantener las filas o resultados actuales visibles mientras la tabla se
-  actualiza por filtros, búsqueda, paginación o refresh. Mostrar el estado
-  updating dentro de la tabla o en su barra de controles; no vaciar la lista ni
-  reemplazarla por un loader de página completa.
-- Usar skeletons solo cuando exista reveal diferido real o una carga inicial
-  donde la estructura final ya es conocida y mejora la lectura. El skeleton
-  debe parecerse al contenido que va a llegar.
-- No usar skeletons para rutas que siguen bloqueando hasta que el loader termina
-  ni para mutaciones cortas donde alcanza con estado pendiente en botón o
-  spinner inline.
-- Mantener shells, breadcrumbs, títulos y contexto visible durante requests
-  cuando la pantalla ya tiene datos útiles. Evitar el parpadeo de desmontar y
-  volver a montar toda la vista por una operación puntual.
-- Evaluar View Transitions recién después de corregir request flow y pending
-  states. Usarlas solo cuando comunican continuidad real entre vistas o estados
-  estables, por ejemplo lista a detalle, apertura/cierre de diálogo o reveal de
-  contenido diferido.
-- No usar View Transitions como maquillaje para loaders lentos, revalidaciones
-  amplias o shells persistentes que no cambian de contexto visual.
+- Use a pending state on the button when an action originates from a concrete
+  button or submit and the user might retry it. Disable the action while the
+  request is in flight and change the label or icon to show progress.
+- Use a small inline spinner when a specific fragment of the screen updates
+  without blocking the rest: auxiliary calculations, badges, summaries, counters
+  or small panels.
+- Keep the current rows or results visible while the table updates due to
+  filters, search, pagination or refresh. Show the updating state inside the
+  table or in its controls bar; do not empty the list or replace it with a
+  full-page loader.
+- Use skeletons only when there is a real deferred reveal or an initial load
+  where the final structure is already known and improves reading. The skeleton
+  must resemble the content that is going to arrive.
+- Do not use skeletons for routes that still block until the loader finishes, nor
+  for short mutations where a pending button state or inline spinner is enough.
+- Keep shells, breadcrumbs, titles and context visible during requests when the
+  screen already has useful data. Avoid the flicker of unmounting and remounting
+  the whole view for a single operation.
+- Evaluate View Transitions only after fixing request flow and pending states.
+  Use them only when they communicate real continuity between views or stable
+  states — for example list to detail, dialog open/close or a deferred content
+  reveal.
+- Do not use View Transitions as makeup for slow loaders, broad revalidations or
+  persistent shells that do not change visual context.
 
-## Formularios
+## Forms
 
-Los formularios usan labels visibles arriba del campo. El placeholder puede
-mostrar un ejemplo, pero nunca reemplaza al label.
+Forms use visible labels above the field. The placeholder can show an example,
+but it never replaces the label.
 
-Reglas:
+Rules:
 
-- Usar los componentes de `app/components/ui/field.tsx` (`Field`,
-  `FieldLabel`, `FieldContent`, `FieldError`, `FieldDescription`,
-  `FieldGroup`, `FieldSeparator`, `FieldSet`, `FieldLegend`) para construir
-  campos de formulario según corresponda.
-- Usar `FieldGroup` para layout de campos; no `space-y-*`.
-- Usar `Field orientation="responsive"` cuando el campo deba pasar de vertical a
-  horizontal según ancho disponible.
-- Marcar el contenedor con `data-invalid` cuando el campo tenga error, incluso
-  si el error nace de validación cliente, para que label, input y mensaje
-  compartan el estado visual.
-- Mostrar errores con `FieldError` y estados `destructive`.
-- Mostrar ayuda con `FieldDescription`.
-- No depender solo de un asterisco para indicar obligatoriedad; usar copy claro
-  cuando el contexto lo requiera.
-- En formularios React Hook Form, usar los campos compartidos antes de definir
-  campos locales con `Controller`: `TextInputField`, `IntegerInputField`,
-  `TextareaField`, `SelectField`, `ComboboxField`, `MultiComboboxField`,
-  `DateOnlyField`, `TimeOnlyField` y `FileUploadField`.
-  Crear un campo local sólo cuando el patrón todavía no exista como componente
-  compartido o cuando el formulario necesite una composición específica, por
-  ejemplo arrays dinámicos, grupos de checkboxes, switches con lógica de UI
-  propia o controles de confirmación.
-- Respetar altura, borde, foco y estados de `Input`, `Checkbox`, `Select`,
-  `DateOnlyField` y demás controles existentes.
-- En formularios y filtros, cuando haga falta seleccionar múltiples opciones,
-  usar `Combobox` multi-select en vez de listas largas de checkboxes. Si
-  `Combobox` no está instalado y el caso lo necesita, agregarlo antes de crear
-  markup custom.
-- Usar `Checkbox` para booleanos simples que se envían en un formulario.
-- Usar `Switch` para preferencias o configuración on/off. Si `Switch` no está
-  instalado y el caso lo necesita, agregarlo antes de crear markup custom.
-- Usar `Checkbox` para pocas opciones visibles cuando el conjunto sea corto y no
-  sea un filtro ni una relación múltiple de configuración del Evento. Para
-  listas largas, configuración del Evento, filtros y relaciones múltiples, usar
-  `Combobox` multi-select.
-- Usar `Select` de shadcn para selección simple. No usar `<select>` nativo ni
+- Use the components in `app/components/ui/field.tsx` (`Field`, `FieldLabel`,
+  `FieldContent`, `FieldError`, `FieldDescription`, `FieldGroup`,
+  `FieldSeparator`, `FieldSet`, `FieldLegend`) to build form fields as
+  appropriate.
+- Use `FieldGroup` for field layout; not `space-y-*`.
+- Use `Field orientation="responsive"` when the field must go from vertical to
+  horizontal depending on available width.
+- Mark the container with `data-invalid` when the field has an error, even if the
+  error comes from client validation, so label, input and message share the
+  visual state.
+- Show errors with `FieldError` and `destructive` states.
+- Show help with `FieldDescription`.
+- Do not rely only on an asterisk to indicate a required field; use clear copy
+  when the context requires it.
+- In React Hook Form forms, use the shared fields before defining local fields
+  with `Controller`: `TextInputField`, `IntegerInputField`, `TextareaField`,
+  `SelectField`, `ComboboxField`, `MultiComboboxField`, `DateOnlyField`,
+  `TimeOnlyField` and `FileUploadField`. Create a local field only when the
+  pattern does not yet exist as a shared component, or when the form needs a
+  specific composition — for example dynamic arrays, checkbox groups, switches
+  with their own UI logic or confirmation controls.
+- Respect the height, border, focus and states of `Input`, `Checkbox`, `Select`,
+  `DateOnlyField` and other existing controls.
+- In forms and filters, when multiple options must be selected, use a
+  multi-select `Combobox` instead of long checkbox lists. If `Combobox` is not
+  installed and the case needs it, add it before creating custom markup.
+- Use `Checkbox` for simple booleans submitted in a form.
+- Use `Switch` for on/off preferences or settings. If `Switch` is not installed
+  and the case needs it, add it before creating custom markup.
+- Use `Checkbox` for a few visible options when the set is short and it is
+  neither a filter nor a multiple relation of Evento configuration. For long
+  lists, Evento configuration, filters and multiple relations, use a multi-select
+  `Combobox`.
+- Use shadcn's `Select` for single selection. Do not use a native `<select>` or
   `NativeSelect`.
-- Usar `Textarea` de shadcn para texto multilínea. No usar `<textarea>` nativo
-  estilizado a mano.
-- Migrar selects y textareas nativos existentes cuando se toque el archivo o en
-  una pasada dedicada.
-- En formularios largos, separar por secciones con título chico. Evitar cards
-  anidadas.
+- Use shadcn's `Textarea` for multiline text. Do not use a hand-styled native
+  `<textarea>`.
+- Migrate existing native selects and textareas when the file is touched or in a
+  dedicated pass.
+- In long forms, split into sections with a small title. Avoid nested cards.
 
 ## React Hook Form
 
-Usar React Hook Form para formularios con validación cliente, componentes
-controlados, estado derivado o varios campos relacionados. Seguir el patrón de
-shadcn para React Hook Form: `useForm`, Zod resolver, `Controller` cuando el
-control lo necesite y componentes `Field`.
+Use React Hook Form for forms with client validation, controlled components,
+derived state or several related fields. Follow shadcn's React Hook Form pattern:
+`useForm`, a Zod resolver, `Controller` when the control needs it, and `Field`
+components.
 
-Reglas:
+Rules:
 
-- Todos los formularios React de la aplicación usan React Hook Form, Zod y
-  componentes shadcn/ui como patrón por defecto, sin importar la superficie
-  (`Panel de administración`, `Portal de academias`, auth, juzgamiento o vistas
-  públicas).
-- Definir el schema con Zod y pasarlo a `useForm` mediante `zodResolver`.
-- Derivar los tipos del formulario desde el schema cuando haya validación Zod:
-  usar `z.input<typeof schema>` para los valores editables del formulario y
-  `z.output<typeof schema>` para los valores ya validados/normalizados. Evitar
-  castear `zodResolver`; si TypeScript pide un cast, revisar primero si los
-  tipos manuales están divergiendo del schema.
-- Reusar el mismo schema o reglas equivalentes en la acción server para no
-  divergir entre cliente y servidor.
-- Mantener las mutaciones en React Router `action`/`fetcher` server-side. RHF
-  valida y controla estado en cliente; el action vuelve a validar, autoriza y
-  persiste.
-- Usar los componentes compartidos de formulario cuando cubran el caso:
-  `TextInputField`, `IntegerInputField`, `TextareaField`, `SelectField`,
-  `ComboboxField`, `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` y
-  `FileUploadField`. Estos componentes son
-  dueños de su `Controller`; las pantallas les pasan `control`, `name`, copy y
-  opciones.
-- Usar `Controller` localmente sólo para componentes controlados que todavía no
-  tengan wrapper compartido o para composiciones específicas como `Checkbox`,
-  `Switch`, arrays dinámicos y campos custom de una pantalla.
-- Para inputs simples, preferir el patrón shadcn con `Controller` y spread de
-  `field` cuando el formulario ya use React Hook Form. Mantener `register` solo
-  en formularios simples donde no complique la consistencia.
-- Mostrar errores con `FieldError`; marcar `data-invalid` en `Field` y
-  `aria-invalid` en el control.
-- Validar campos requeridos del lado del cliente. Para requeridos vacíos, usar
-  siempre el mensaje `Este campo es obligatorio.`, incluidos `Select`,
-  `Combobox`, checkboxes múltiples y arrays vacíos. Reservar mensajes
-  específicos para valores presentes pero inválidos.
-- No usar validación HTML (`required`, `minLength`, `pattern`) como UX
-  principal ni como sustituto de React Hook Form. Se permiten atributos
-  semánticos o de entrada como `type`, `min`, `max`, `step`, `maxLength`,
-  `autoComplete` y `aria-required` cuando aporten accesibilidad o restricciones
-  de entrada sin reemplazar la validación RHF/Zod.
-- No renderizar errores inline manuales con párrafos o clases rojas ad hoc. Usar
-  `FieldError` y los estados shadcn/ui del campo. Si un componente externo no
-  puede integrarse limpiamente con este patrón, documentar la excepción con un
-  comentario corto y crear deuda explícita para migrarlo.
-- Para `Select`, pasar `field.value` y `field.onChange` al componente `Select`,
-  y poner `aria-invalid` en `SelectTrigger`.
-- Para arrays dinámicos, usar `useFieldArray`, `FieldSet`, `FieldLegend` y
-  `FieldDescription`; usar `field.id` como key.
-- Mostrar inline solamente errores de validación cliente. Los errores devueltos
-  por el servidor no se integran con `form.setError` ni se muestran como
-  `FieldError`; se muestran con toast y, cuando sea útil, el formulario conserva
-  los valores enviados para que la persona pueda corregir y reenviar.
-- Cuando un formulario RHF postea a un React Router action con `useSubmit`, usar
-  `createValidatedRouteFormDataSubmitHandler` para que el `FormData` enviado se
-  construya desde los valores validados por RHF, conservando `intent`, botones
-  submit y otros campos ocultos del DOM. Usar `createValidatedRouteSubmitHandler`
-  sólo cuando explícitamente se quiera enviar el target DOM sin reescribirlo
-  desde los valores RHF.
-- En efectos que llamen métodos de RHF (`reset`, `setError`, etc.), destructurar
-  el método y usarlo en las dependencias (`const { reset } = form`) en lugar de
-  depender del objeto `form` completo.
-- Los formularios RHF no deben terminar en `form.submit()` ni en
-  `HTMLFormElement.prototype.submit()`. Después de validar con RHF, enviar por
-  React Router con `useSubmit`, `useFetcher.submit` o el helper compartido que
-  corresponda.
-- Usar `useSubmit` cuando el submit debe conservar la semántica de navegación o
-  redirect de la ruta. Usar `useFetcher.submit` cuando la pantalla, modal o
-  diálogo debe permanecer montado durante errores recuperables.
-- Los helpers compartidos de submit deben construir y enviar `FormData`, no un
-  `Record<string, string>`, para preservar campos repetidos, arrays,
-  checkboxes múltiples y futuros archivos.
-- Mostrar feedback de acciones server con toasts:
-  - Éxito confirmado por el servidor: `toast.success`.
-  - Error confirmado por el servidor, tenga o no `fieldErrors`: `toast.error`.
-    No duplicar esos errores en campos inline; la validación inline pertenece al
-    schema cliente de RHF/Zod.
-  - Para éxitos después de un redirect, usar una notificación de ruta
-    centralizada mediante parámetro de búsqueda (`notificacion`) o el mecanismo
-    compartido que lo reemplace. Mantener los mensajes, IDs y variantes
-    `success | error` en un mapa común. No usar `toast.info` hasta que exista un
-    caso de producto concreto que lo necesite.
-  - No usar `Alert` o `Notice` inline para confirmaciones o errores server
-    salvo que el mensaje deba permanecer como estado persistente de la pantalla.
-    Usar alertas inline solo para condiciones actuales, advertencias previas a
-    actuar o restricciones visibles de la pantalla; no para resultados de una
-    acción ya enviada.
-- Tipar handlers de submit como `React.SubmitEvent<HTMLFormElement>` o
-  `React.SubmitEventHandler<HTMLFormElement>`. No usar `React.FormEvent` ni
-  `React.FormEventHandler` para formularios: en React 19 esos tipos están
-  deprecados porque no representan eventos reales de formulario.
-- Migrar formularios manuales existentes a React Hook Form cuando se toque el
-  archivo o en una pasada dedicada, priorizando formularios con validación
-  cliente, selects, comboboxes, checkboxes múltiples y estado derivado.
+- Every React form in the application uses React Hook Form, Zod and shadcn/ui
+  components as the default pattern, regardless of surface (`Panel de
+administración`, `Portal de academias`, auth, judging or public views).
+- Define the schema with Zod and pass it to `useForm` via `zodResolver`.
+- Derive the form types from the schema when there is Zod validation: use
+  `z.input<typeof schema>` for the form's editable values and
+  `z.output<typeof schema>` for already validated/normalized values. Avoid
+  casting `zodResolver`; if TypeScript asks for a cast, first check whether the
+  manual types are diverging from the schema.
+- Reuse the same schema or equivalent rules in the server action so client and
+  server do not diverge.
+- Keep mutations in React Router `action`/`fetcher` server-side. RHF validates
+  and controls state on the client; the action re-validates, authorizes and
+  persists.
+- Use the shared form components when they cover the case: `TextInputField`,
+  `IntegerInputField`, `TextareaField`, `SelectField`, `ComboboxField`,
+  `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` and `FileUploadField`.
+  These components own their `Controller`; screens pass them `control`, `name`,
+  copy and options.
+- Use `Controller` locally only for controlled components that do not yet have a
+  shared wrapper, or for specific compositions such as `Checkbox`, `Switch`,
+  dynamic arrays and a screen's custom fields.
+- For simple inputs, prefer the shadcn pattern with `Controller` and spreading
+  `field` when the form already uses React Hook Form. Keep `register` only in
+  simple forms where it does not complicate consistency.
+- Show errors with `FieldError`; mark `data-invalid` on `Field` and
+  `aria-invalid` on the control.
+- Validate required fields on the client. For empty required fields, always use
+  the message `Este campo es obligatorio.`, including `Select`, `Combobox`,
+  multiple checkboxes and empty arrays. Reserve specific messages for values that
+  are present but invalid.
+- Do not use HTML validation (`required`, `minLength`, `pattern`) as the primary
+  UX or as a substitute for React Hook Form. Semantic or input attributes such as
+  `type`, `min`, `max`, `step`, `maxLength`, `autoComplete` and `aria-required`
+  are allowed when they add accessibility or input constraints without replacing
+  RHF/Zod validation.
+- Do not render manual inline errors with ad hoc paragraphs or red classes. Use
+  `FieldError` and the field's shadcn/ui states. If an external component cannot
+  integrate cleanly with this pattern, document the exception with a short
+  comment and create explicit debt to migrate it.
+- For `Select`, pass `field.value` and `field.onChange` to the `Select`
+  component, and put `aria-invalid` on `SelectTrigger`.
+- For dynamic arrays, use `useFieldArray`, `FieldSet`, `FieldLegend` and
+  `FieldDescription`; use `field.id` as the key.
+- Show only client validation errors inline. Errors returned by the server are
+  not integrated with `form.setError` and are not shown as `FieldError`; they are
+  shown with a toast and, when useful, the form keeps the submitted values so the
+  person can correct and resubmit.
+- When an RHF form posts to a React Router action with `useSubmit`, use
+  `createValidatedRouteFormDataSubmitHandler` so the submitted `FormData` is built
+  from the values RHF validated, preserving `intent`, submit buttons and other
+  hidden DOM fields. Use `createValidatedRouteSubmitHandler` only when you
+  explicitly want to submit the DOM target without rewriting it from the RHF
+  values.
+- In effects that call RHF methods (`reset`, `setError`, etc.), destructure the
+  method and use it in the dependencies (`const { reset } = form`) instead of
+  depending on the whole `form` object.
+- RHF forms must not end in `form.submit()` or
+  `HTMLFormElement.prototype.submit()`. After validating with RHF, submit through
+  React Router with `useSubmit`, `useFetcher.submit` or the appropriate shared
+  helper.
+- Use `useSubmit` when the submit must preserve the route's navigation or
+  redirect semantics. Use `useFetcher.submit` when the screen, modal or dialog
+  must stay mounted during recoverable errors.
+- Shared submit helpers must build and send `FormData`, not a
+  `Record<string, string>`, to preserve repeated fields, arrays, multiple
+  checkboxes and future files.
+- Show server action feedback with toasts:
+  - Success confirmed by the server: `toast.success`.
+  - Error confirmed by the server, with or without `fieldErrors`: `toast.error`.
+    Do not duplicate those errors in inline fields; inline validation belongs to
+    the RHF/Zod client schema.
+  - For successes after a redirect, use a centralized route notification through
+    a search parameter (`notificacion`) or the shared mechanism replacing it.
+    Keep the messages, IDs and `success | error` variants in a common map. Do not
+    use `toast.info` until there is a concrete product case that needs it.
+  - Do not use inline `Alert` or `Notice` for server confirmations or errors
+    unless the message must remain as a persistent screen state. Use inline
+    alerts only for current conditions, warnings before acting or visible screen
+    constraints; not for the result of an already submitted action.
+- Type submit handlers as `React.SubmitEvent<HTMLFormElement>` or
+  `React.SubmitEventHandler<HTMLFormElement>`. Do not use `React.FormEvent` or
+  `React.FormEventHandler` for forms: in React 19 those types are deprecated
+  because they do not represent real form events.
+- Migrate existing manual forms to React Hook Form when the file is touched or in
+  a dedicated pass, prioritizing forms with client validation, selects,
+  comboboxes, multiple checkboxes and derived state.
 
-## Acciones destructivas
+## Destructive actions
 
-Las acciones destructivas usan diálogos de confirmación. No usar formularios con
-checkboxes de confirmación para destructivas.
+Destructive actions use confirmation dialogs. Do not use forms with confirmation
+checkboxes for destructive actions.
 
-Reglas:
+Rules:
 
-- Confirmar la acción con copy claro en el diálogo.
-- Usar `Button variant="destructive"` para la acción final.
-- Mantener formularios complejos fuera de confirmaciones destructivas.
-- Migrar destructivas existentes con checkbox cuando se toque el archivo o en
-  una pasada dedicada.
+- Confirm the action with clear copy in the dialog.
+- Use `Button variant="destructive"` for the final action.
+- Keep complex forms out of destructive confirmations.
+- Migrate existing checkbox-based destructive actions when the file is touched or
+  in a dedicated pass.
 
 ### `AlertDialog` vs. `Dialog`
 
-Regla única y explícita para elegir el componente:
+A single explicit rule for choosing the component:
 
-- **`AlertDialog`**: confirmaciones sí/no y acciones consecuentes (borrar,
-  archivar, verificar, guardar cambios sobre un registro consecuente). Expone
-  `role="alertdialog"`, atrapa el foco y **no** se cierra al clickear afuera ni
-  con Escape. Su look es más chico, con header centrado y footer con barra: ese
-  es el look de "confirmación".
-- **`Dialog`**: formularios y vistas (crear/editar recursos, paneles de detalle).
-  Se cierra por overlay/Escape y tiene botón X.
+- **`AlertDialog`**: yes/no confirmations and consequential actions (delete,
+  archive, verify, save changes on a consequential record). It exposes
+  `role="alertdialog"`, traps focus and does **not** close on outside click or
+  Escape. Its look is smaller, with a centered header and a footer bar: that is
+  the "confirmation" look.
+- **`Dialog`**: forms and views (create/edit resources, detail panels). It closes
+  via overlay/Escape and has an X button.
 
-Para confirmaciones de borrado usar el componente compartido
-`DeleteDialog` (`app/components/shared/delete-dialog.tsx`), montado sobre
-`AlertDialog`: centraliza `isPending` (deshabilita + spinner en el botón
-destructivo), el modo `isBlocked` (oculta el botón destructivo y muestra
-título/descripción de bloqueo) y el slot `details`. No duplicar esa lógica ni
-armar un `Dialog` a mano para borrar.
+For deletion confirmations use the shared `DeleteDialog` component
+(`app/components/shared/delete-dialog.tsx`), built on `AlertDialog`: it
+centralizes `isPending` (disables + spinner on the destructive button), the
+`isBlocked` mode (hides the destructive button and shows a blocking
+title/description) and the `details` slot. Do not duplicate that logic or
+hand-roll a `Dialog` for deleting.
 
-## Navegación
+## Navigation
 
-Cada contexto usa un shell acorde a su intensidad operativa.
+Each context uses a shell matching its operational intensity.
 
-| Contexto                | Shell                                                               |
-| ----------------------- | ------------------------------------------------------------------- |
-| Panel de administración | Sidebar en desktop, topbar con usuario y acciones, navegación densa |
-| Portal de academias     | Topbar con navegación secundaria o tabs                             |
-| Juzgamiento             | Layout enfocado, topbar mínima, próxima presentación prominente     |
-| Vistas públicas         | Topbar simple, contenido legible, filtros visibles                  |
-| Autenticación           | Card centrada                                                       |
+| Context                 | Shell                                                              |
+| ----------------------- | ------------------------------------------------------------------ |
+| Panel de administración | Sidebar on desktop, topbar with user and actions, dense navigation |
+| Portal de academias     | Topbar with secondary navigation or tabs                           |
+| Judging                 | Focused layout, minimal topbar, next presentation prominent        |
+| Public views            | Simple topbar, readable content, visible filters                   |
+| Authentication          | Centered card                                                      |
 
-No usar un hero como estructura principal de navegación operativa.
+Do not use a hero as the main structure of operational navigation.
 
-Reglas:
+Rules:
 
-- Usar `Sidebar` para navegación principal de administración.
-- Usar `Breadcrumb` para jerarquía y ubicación dentro de rutas profundas.
-- Usar `Tabs` para navegación secundaria entre vistas hermanas. Si `Tabs` no
-  está instalado y el caso lo necesita, agregarlo antes de crear markup custom.
-- Usar `DropdownMenu` para acciones contextuales.
-- No construir navegación con botones o links estilizados a mano cuando exista un
-  componente shadcn equivalente.
+- Use `Sidebar` for the admin panel's main navigation.
+- Use `Breadcrumb` for hierarchy and location within deep routes.
+- Use `Tabs` for secondary navigation between sibling views. If `Tabs` is not
+  installed and the case needs it, add it before creating custom markup.
+- Use `DropdownMenu` for contextual actions.
+- Do not build navigation with hand-styled buttons or links when an equivalent
+  shadcn component exists.
 
-## Tablas y listas
+## Tables and lists
 
-Usar tablas como patrón default para listas operativas en desktop,
-especialmente en administración. En mobile, adaptar a cards compactas o listas
-stacked.
+Use tables as the default pattern for operational lists on desktop, especially in
+administration. On mobile, adapt to compact cards or stacked lists.
 
-Reglas:
+Rules:
 
-- Usar `Table` o componentes derivados como `DataTable` antes de crear tablas
-  custom.
-- Mantener estilos de header, hover, celdas y estados dentro del componente
-  compartido cuando el patrón se repite.
-- Usar badges para estados.
-- Usar menú de acciones por fila cuando existan más de dos acciones.
-- Mostrar acciones masivas solo cuando haya selección activa.
-- Mantener filtros arriba en una barra compacta; usar panel grande solo para
-  filtros avanzados.
-- Usar header sticky solo en listas largas.
+- Use `Table` or derived components such as `DataTable` before creating custom
+  tables.
+- Keep header, hover, cell and state styles inside the shared component when the
+  pattern repeats.
+- Use badges for states.
+- Use a per-row actions menu when there are more than two actions.
+- Show bulk actions only when there is an active selection.
+- Keep filters at the top in a compact bar; use a large panel only for advanced
+  filters.
+- Use a sticky header only on long lists.
 
-## Cards y paneles
+## Cards and panels
 
-Usar cards con moderación. No usarlas como estructura general de página.
+Use cards sparingly. Do not use them as the general page structure.
 
-Reglas:
+Rules:
 
-- Card: item repetido, modal, autenticación, estado vacío o resumen puntual.
-- Panel: agrupación de una sección de formulario o detalle.
-- Section: bloque de página sin caja, separado por spacing y heading.
-- No anidar cards dentro de cards.
-- Usar `Card` para paneles visuales con borde o superficie.
-- Usar `<section>` sin card cuando solo haga falta separación semántica o
-  spacing.
-- Si el panel tiene título o descripción, usar `CardHeader`, `CardTitle` y
+- Card: repeated item, modal, authentication, empty state or one-off summary.
+- Panel: grouping of a form or detail section.
+- Section: page block without a box, separated by spacing and a heading.
+- Do not nest cards inside cards.
+- Use `Card` for visual panels with a border or surface.
+- Use `<section>` without a card when only semantic separation or spacing is
+  needed.
+- If the panel has a title or description, use `CardHeader`, `CardTitle` and
   `CardDescription`.
-- Si el panel solo agrupa contenido sin título propio, usar `CardContent`.
-- Usar composición completa cuando corresponda: `CardHeader`, `CardTitle`,
+- If the panel only groups content without its own title, use `CardContent`.
+- Use the full composition where appropriate: `CardHeader`, `CardTitle`,
   `CardDescription`, `CardContent`, `CardFooter`.
-- No sobrescribir color, borde, radio o sombra de `Card` salvo necesidad local
-  muy concreta.
-- Migrar paneles custom con borde/superficie a `Card` cuando se toque el archivo
-  o en una pasada dedicada.
+- Do not override `Card`'s color, border, radius or shadow except for a very
+  concrete local need.
+- Migrate custom panels with a border/surface to `Card` when the file is touched
+  or in a dedicated pass.
 
-## Texto de interfaz
+## Interface text
 
-Toda la interfaz visible usa español. Usar tono rioplatense neutro, directo y
-operativo.
+The entire visible interface is in Spanish. Use a neutral, direct and operational
+Rioplatense tone.
 
-Reglas:
+Rules:
 
-- Usar formas como `Ingresá`, `Revisá`, `Completá`.
-- Evitar tono de marketing en flujos operativos.
-- Nombrar botones con verbo y objeto cuando ayude: `Guardar cambios`,
+- Use forms such as `Ingresá`, `Revisá`, `Completá`.
+- Avoid a marketing tone in operational flows.
+- Name buttons with a verb and an object where it helps: `Guardar cambios`,
   `Registrar pago`, `Publicar resultados`.
-- En estados vacíos, explicar causa y próxima acción disponible.
-- En errores, indicar qué corregir. Usar mensajes genéricos solo como fallback.
-- En administración, usar términos canónicos del glosario como `Coreografía`,
-  `Presentación` y `Estado financiero`.
-- En portal de academias, evitar jerga interna cuando no aporte a la acción.
-- Usar minúscula para términos de dominio dentro de frases (`Nuevo bailarín`,
-  `Editar profesor`, `Guardar coreografía`) salvo que estén al inicio de una
-  oración, en títulos/secciones, o sean nombres propios. Corregir
-  inconsistencias existentes cuando se toque la pantalla.
+- In empty states, explain the cause and the next available action.
+- In errors, state what to correct. Use generic messages only as a fallback.
+- In administration, use canonical glossary terms such as `Coreografía`,
+  `Presentación` and `Estado financiero`.
+- In the academy portal, avoid internal jargon when it does not help the action.
+- Use lowercase for domain terms inside sentences (`Nuevo bailarín`,
+  `Editar profesor`, `Guardar coreografía`) unless they start a sentence, appear
+  in titles/sections, or are proper nouns. Fix existing inconsistencies when the
+  screen is touched.
 
-## Tema
+## Theme
 
-Mantener el tema shadcn `radix-nova` y sus tokens light/dark. No eliminar
-soporte dark que venga de shadcn, pero tampoco diseñar una experiencia dark
-custom ni agregar overrides `dark:` propios salvo necesidad concreta.
+Keep the shadcn `radix-nova` theme and its light/dark tokens. Do not remove dark
+support coming from shadcn, but do not design a custom dark experience or add
+custom `dark:` overrides either, except for a concrete need.
 
-El producto puede operar en light por defecto. Si más adelante dark mode se
-vuelve requisito, usar los tokens del tema en vez de hardcodear colores por
-pantalla.
+The product can operate in light by default. If dark mode later becomes a
+requirement, use the theme's tokens instead of hardcoding colors per screen.
