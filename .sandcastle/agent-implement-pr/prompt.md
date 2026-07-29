@@ -47,9 +47,10 @@ leave context, questions, and asides. Unresolved ≠ must-action.
 # PROCESS
 
 1. **Classify each item**: code change needed / reply needed / neither.
-2. **Make the code changes.** Run `pnpm typecheck` and `pnpm test` before committing; don't
-   leave the branch broken. Conventional-commit messages, **no `RALPH:` prefix**. Making no
-   change is fine — only commit when there's a real diff.
+2. **Make the code changes.** Before committing, run `pnpm typecheck`, `pnpm test:unit`, and
+   `pnpm test:db <path>` for the DB test files you touched; don't run the full `pnpm test` (see
+   `.sandcastle/VALIDATION.md`). Don't leave the branch broken. Conventional-commit messages,
+   **no `RALPH:` prefix**. Making no change is fine — only commit when there's a real diff.
 3. **Reply only where a reply adds value** (confirm what you changed, explain a decline, answer
    a question). Silence is fine for context-only comments. You **cannot** resolve threads —
    that's the reviewer's job.

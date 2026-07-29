@@ -58,7 +58,20 @@ jobs:
           # Read-only prefetch of prior proposals uses this; the agent holds no token.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Internal deadline, below the step's `timeout-minutes` (20, §4.8): the
+          # runner aborts the agent and fails with a real reason instead of being
+          # killed without leaving one (#512).
+          AGENT_BUDGET_MINUTES: 15
         run: pnpm exec tsx .sandcastle/agent-architecture-review/architecture-review.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-review-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Publish PRD (if proposed)
         id: publish
@@ -113,7 +126,36 @@ jobs:
                 [ -n "$reason" ] && echo "> $reason"
                 ;;
               *)
-                echo "**No output produced** — the agent likely crashed. Check the run logs."
+                echo "**No output produced** — the agent likely crashed. See the failure reason below."
                 ;;
             esac
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # This pass is scheduled, so there is no issue or PR to label and comment on
+      # the way §3.7 prescribes for the label-triggered workflows: the run summary
+      # is the only place a human will look. Same reason resolution as theirs.
+      - name: On failure — report the reason in the run summary
+        if: failure()
+        run: |
+          set -euo pipefail
+          # No `failure_reason.txt` means `runMain`'s catch never ran: the step hit
+          # its `timeout-minutes` and Actions killed the process tree (#512). The
+          # agent log survives in OUTPUT_DIR, so fall back to its tail instead of
+          # reporting a bare "(no reason file written)".
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
+          if [ -z "$reason" ]; then
+            # `head` closing the pipe can leave `sort` at SIGPIPE (141), which
+            # `pipefail` would turn into an aborted step — losing the summary
+            # below. Reporting must never hinge on this pipeline succeeding.
+            log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
+              | sort -rn | head -1 | cut -d' ' -f2- || true)
+            if [ -n "${log:-}" ] && [ -s "$log" ]; then
+              reason=$(printf 'no `failure_reason.txt` — last 30 lines of the agent log:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+            else
+              reason="(no reason file written — check workflow logs)"
+            fi
+          fi
+          {
+            echo
+            printf '**Reason:** %s\n' "$reason"
           } >> "$GITHUB_STEP_SUMMARY"

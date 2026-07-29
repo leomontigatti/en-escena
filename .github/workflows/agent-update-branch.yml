@@ -83,12 +83,25 @@ jobs:
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
       - name: Run update-branch runner
-        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
         env:
           # Read-only prefetch (`gh pr view`) uses this; the agent holds no token.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Internal deadline, below the step's `timeout-minutes`: the runner aborts
+          # the agent and fails with a real reason instead of being killed without
+          # leaving one (#512).
+          AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-update-branch/update-branch.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-branch-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Race-safe push (if the merge produced anything)
         run: |
@@ -120,7 +133,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          # No `failure_reason.txt` means `runMain`'s catch never ran: the step hit
+          # its `timeout-minutes` and Actions killed the process tree (#512). The
+          # agent log survives in OUTPUT_DIR, so fall back to its tail instead of
+          # reporting a bare "(no reason file written)".
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
+          if [ -z "$reason" ]; then
+            # `head` closing the pipe can leave `sort` at SIGPIPE (141), which
+            # `pipefail` would turn into an aborted step — before the label below
+            # gets added. Reporting must never hinge on this pipeline succeeding.
+            log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
+              | sort -rn | head -1 | cut -d' ' -f2- || true)
+            if [ -n "${log:-}" ] && [ -s "$log" ]; then
+              reason=$(printf 'no `failure_reason.txt` — last 30 lines of the agent log:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+            else
+              reason="(no reason file written — check workflow logs)"
+            fi
+          fi
           gh pr edit "$PR_NUMBER" --add-label "agent:blocked"
           gh pr comment "$PR_NUMBER" --body "$(printf '`agent:update-branch` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:update-branch` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
 
