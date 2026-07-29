@@ -121,7 +121,7 @@ const codeLanguageRequirements = [
   "UI strings, page titles, URLs",
   "Code identifiers, comments, docs, ADRs",
   "External-system adapters",
-  "`loadAdminAcademyFinances`",
+  "`loadAcademyFinances`",
   "`ArcaVoucher`",
   "administracion.finanzas_.$academyId.tsx",
   "### Reserved Spanish Domain Terms",

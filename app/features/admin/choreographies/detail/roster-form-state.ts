@@ -1,31 +1,31 @@
 import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 
-import type { AdministrativeChoreographyDetail } from "./server";
+import type { ChoreographyDetail } from "./server";
 
-export type AdministrativeScheduleResolution =
+export type ScheduleResolution =
   | Extract<
       ResolveChoreographyDancersResult,
       { ok: true }
     >["resolution"]["schedule"]
   | null;
 
-export type AdministrativeRosterResolutionState = {
+export type RosterResolutionState = {
   categoryId: string | null;
   categoryName: string | null;
   experienceLevelOptions: Array<{ id: string; name: string }>;
   experienceLevelRequired: boolean;
-  groupType: AdministrativeChoreographyDetail["groupType"];
+  groupType: ChoreographyDetail["groupType"];
 };
 
-export type AdministrativeResolvedRosterFieldState = {
-  nextDerivedResolution: AdministrativeRosterResolutionState;
+export type ResolvedRosterFieldState = {
+  nextDerivedResolution: RosterResolutionState;
   nextScheduleCapacityId: string;
   shouldResetExperienceLevel: boolean;
 };
 
 type CanSubmitInput = {
   canEditRoster: boolean;
-  derivedResolution: AdministrativeRosterResolutionState;
+  derivedResolution: RosterResolutionState;
   hasNameChanged: boolean;
   hasProfessorsChanged: boolean;
   hasRosterChanged: boolean;
@@ -33,7 +33,7 @@ type CanSubmitInput = {
   isSubmitting: boolean;
   resolution: ResolveChoreographyDancersResult | null;
   resolvedSelectionKey: string;
-  scheduleResolution: AdministrativeScheduleResolution;
+  scheduleResolution: ScheduleResolution;
   selectionKey: string;
   watchedDancerIds: string[];
   watchedExperienceLevelId: string;
@@ -46,8 +46,8 @@ type CanSubmitInput = {
  * al server, así que los campos derivados muestran lo guardado.
  */
 export function getPersistedRosterResolutionState(
-  choreography: AdministrativeChoreographyDetail,
-): AdministrativeRosterResolutionState {
+  choreography: ChoreographyDetail,
+): RosterResolutionState {
   return {
     categoryId: choreography.categoryId,
     categoryName: choreography.categoryName,
@@ -71,7 +71,7 @@ export function getSelectionKey(ids: string[]) {
 
 export function getScheduleResolution(
   resolution: ResolveChoreographyDancersResult | null,
-): AdministrativeScheduleResolution {
+): ScheduleResolution {
   if (!resolution?.ok) {
     return null;
   }
@@ -135,8 +135,8 @@ export function getResolvedRosterFieldState({
   currentCategoryId: string | null;
   result: Extract<ResolveChoreographyDancersResult, { ok: true }>;
   watchedScheduleCapacityId: string;
-}): AdministrativeResolvedRosterFieldState {
-  const nextDerivedResolution: AdministrativeRosterResolutionState = {
+}): ResolvedRosterFieldState {
+  const nextDerivedResolution: RosterResolutionState = {
     categoryId: result.resolution.categoryId,
     categoryName: result.resolution.categoryName,
     experienceLevelOptions: result.resolution.experienceLevel.options,
@@ -165,13 +165,13 @@ export function hasNoCompatibleCategory({
   derivedResolution,
   hasResolvedRosterChange,
 }: {
-  derivedResolution: AdministrativeRosterResolutionState;
+  derivedResolution: RosterResolutionState;
   hasResolvedRosterChange: boolean;
 }) {
   return hasResolvedRosterChange && derivedResolution.categoryId === null;
 }
 
-export function canSubmitAdministrativeChoreographyEdit(input: CanSubmitInput) {
+export function canSubmitChoreographyEdit(input: CanSubmitInput) {
   if (
     !input.hasNameChanged &&
     !input.hasRosterChanged &&
@@ -219,7 +219,7 @@ function getNextScheduleCapacityId({
   nextSchedule,
   watchedScheduleCapacityId,
 }: {
-  nextSchedule: NonNullable<AdministrativeScheduleResolution>;
+  nextSchedule: NonNullable<ScheduleResolution>;
   watchedScheduleCapacityId: string;
 }) {
   if (

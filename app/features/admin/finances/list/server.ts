@@ -2,7 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, choreographies, payments } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import {
   emptyOperationalFinanceSummary,
@@ -18,9 +18,9 @@ export type FinanceAccountRow = {
   owedDepositAmount: OperationalFinanceAmount;
 };
 
-export async function loadAdminFinancesList(request: Request) {
+export async function loadFinancesList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
   if (selectedEventId === null) {

@@ -8,19 +8,19 @@ import {
   ModalityFormPanel,
 } from "../form";
 import type {
-  AdministrativeEventModalitiesLoaderData,
-  AdministrativeEventModalityActionData,
+  EventModalitiesLoaderData,
+  EventModalityActionData,
 } from "../shared";
 
-export type AdministrativeEventModalityCreateViewProps = {
-  loaderData: AdministrativeEventModalitiesLoaderData;
-  actionData?: AdministrativeEventModalityActionData;
+export type EventModalityCreateViewProps = {
+  loaderData: EventModalitiesLoaderData;
+  actionData?: EventModalityActionData;
 };
 
-export function AdministrativeEventModalityCreateView({
+export function EventModalityCreateView({
   loaderData,
   actionData,
-}: AdministrativeEventModalityCreateViewProps) {
+}: EventModalityCreateViewProps) {
   useServerActionToast(actionData);
 
   return (

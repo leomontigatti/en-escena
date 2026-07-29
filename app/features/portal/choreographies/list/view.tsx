@@ -21,7 +21,7 @@ import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreogr
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
   formatOperationalStatusLabel,
-  type ChoreographyListItem,
+  type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { showToastMessage } from "@/lib/shared/toasts";
@@ -101,7 +101,7 @@ function ChoreographyTable({
 }: {
   choreographies: PortalChoreographiesListRouteProps["loaderData"]["choreographies"];
 }) {
-  const columns: DataTableColumn<ChoreographyListItem>[] = [
+  const columns: DataTableColumn<PortalChoreographyListItem>[] = [
     {
       id: "name",
       header: "Nombre",
@@ -188,7 +188,7 @@ function ChoreographyTable({
 }
 
 function buildChoreographyFacetedFilters(
-  choreographies: ChoreographyListItem[],
+  choreographies: PortalChoreographyListItem[],
 ) {
   return [
     {

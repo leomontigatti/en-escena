@@ -2,17 +2,17 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdminAcademyFinances(input: {
+export async function loadAcademyFinances(input: {
   params: { academyId?: string };
   request: Request;
 }) {
   await requireInternalUser(input.request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(input.request);
+  const eventContext = await loadEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
   const financeDetail =

@@ -15,7 +15,7 @@ import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes } from "@/db/schema";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
@@ -28,7 +28,7 @@ import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.serve
 // lectura: expone el snapshot fiscal ya emitido (numeración, CAE, importe, fecha)
 // junto a su estado derivado y la coreografía/academia ancla para navegar al
 // detalle.
-export type AdminComprobanteRow = {
+export type ComprobantesListRow = {
   id: string;
   cbteTipo: number;
   ptoVta: number;
@@ -46,32 +46,32 @@ export type AdminComprobanteRow = {
 
 // Faceta de tipo: sólo se emiten Factura C (11) y Nota de crédito C (13). El
 // valor viaja como slug estable en la URL para no acoplar el filtro al label.
-export type AdminComprobanteTipoFacet = "factura_c" | "nota_credito_c";
+export type ComprobanteTipoFacet = "factura_c" | "nota_credito_c";
 
-export type AdminComprobantesListOrder = {
+export type ComprobantesListOrder = {
   columnId: "fecha" | "numero";
   direction: "asc" | "desc";
 };
 
-export type AdminComprobantesListFilters = {
+export type ComprobantesListFilters = {
   estado: ComprobanteStatus | null;
-  order: AdminComprobantesListOrder;
+  order: ComprobantesListOrder;
   page: number;
   query: string;
-  tipo: AdminComprobanteTipoFacet | null;
+  tipo: ComprobanteTipoFacet | null;
 };
 
-export type AdminComprobantesListLoaderData = {
-  filters: AdminComprobantesListFilters;
+export type ComprobantesListLoaderData = {
+  filters: ComprobantesListFilters;
   hasAnyComprobante: boolean;
-  rows: AdminComprobanteRow[];
+  rows: ComprobantesListRow[];
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;
 };
 
-const adminComprobantesPageSize = 50;
-const defaultAdminComprobantesOrder: AdminComprobantesListOrder = {
+const comprobantesPageSize = 50;
+const defaultComprobantesOrder: ComprobantesListOrder = {
   columnId: "fecha",
   direction: "desc",
 };
@@ -84,20 +84,20 @@ const defaultAdminComprobantesOrder: AdminComprobantesListOrder = {
  * `associatedComprobanteId`, así el filtro por estado y la paginación operan sobre
  * el estado real y no sobre la página cargada. NO muta nada.
  */
-export async function loadAdminComprobantesList(
+export async function loadComprobantesList(
   request: Request,
-): Promise<AdminComprobantesListLoaderData> {
+): Promise<ComprobantesListLoaderData> {
   await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);
-  const filters = readAdminComprobantesListFilters(url.searchParams);
+  const filters = readComprobantesListFilters(url.searchParams);
 
   if (selectedEventId === null) {
     return {
       filters,
       hasAnyComprobante: false,
-      rows: [] as AdminComprobanteRow[],
+      rows: [] as ComprobantesListRow[],
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -105,11 +105,7 @@ export async function loadAdminComprobantesList(
   }
 
   const isAnnulled = buildAnnulledExists(selectedEventId);
-  const where = buildAdminComprobantesWhere(
-    selectedEventId,
-    filters,
-    isAnnulled,
-  );
+  const where = buildComprobantesWhere(selectedEventId, filters, isAnnulled);
   const [{ count: totalUnfilteredCount }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
@@ -124,10 +120,7 @@ export async function loadAdminComprobantesList(
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .where(where);
   const totalCount = Number(count);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalCount / adminComprobantesPageSize),
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / comprobantesPageSize));
   const page = Math.min(filters.page, totalPages);
   const normalizedFilters = { ...filters, page };
 
@@ -154,11 +147,11 @@ export async function loadAdminComprobantesList(
     )
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .where(where)
-    .orderBy(...buildAdminComprobantesOrderBy(normalizedFilters.order))
-    .limit(adminComprobantesPageSize)
-    .offset((page - 1) * adminComprobantesPageSize);
+    .orderBy(...buildComprobantesOrderBy(normalizedFilters.order))
+    .limit(comprobantesPageSize)
+    .offset((page - 1) * comprobantesPageSize);
 
-  const canonicalSearch = buildCanonicalAdminComprobantesSearch({
+  const canonicalSearch = buildCanonicalComprobantesSearch({
     currentSearch: url.search,
     filters: normalizedFilters,
   });
@@ -175,7 +168,7 @@ export async function loadAdminComprobantesList(
   return {
     filters: normalizedFilters,
     hasAnyComprobante: Number(totalUnfilteredCount) > 0,
-    rows: comprobanteRows satisfies AdminComprobanteRow[],
+    rows: comprobanteRows satisfies ComprobantesListRow[],
     selectedEventId,
     totalCount,
     totalPages,
@@ -200,12 +193,12 @@ function buildAnnulledExists(selectedEventId: string): SQL {
   );
 }
 
-function readAdminComprobantesListFilters(
+function readComprobantesListFilters(
   searchParams: URLSearchParams,
-): AdminComprobantesListFilters {
+): ComprobantesListFilters {
   return {
     estado: readEstado(searchParams.get("estado")),
-    order: readAdminComprobantesOrder(searchParams.get("orden")),
+    order: readComprobantesOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
     tipo: readTipo(searchParams.get("tipo")),
@@ -216,13 +209,11 @@ function readEstado(value: string | null): ComprobanteStatus | null {
   return value === "vigente" || value === "anulada" ? value : null;
 }
 
-function readTipo(value: string | null): AdminComprobanteTipoFacet | null {
+function readTipo(value: string | null): ComprobanteTipoFacet | null {
   return value === "factura_c" || value === "nota_credito_c" ? value : null;
 }
 
-function readAdminComprobantesOrder(
-  value: string | null,
-): AdminComprobantesListOrder {
+function readComprobantesOrder(value: string | null): ComprobantesListOrder {
   const [columnId, direction] = value?.split(":") ?? [];
 
   if (
@@ -232,7 +223,7 @@ function readAdminComprobantesOrder(
     return { columnId, direction };
   }
 
-  return defaultAdminComprobantesOrder;
+  return defaultComprobantesOrder;
 }
 
 function readPage(searchParams: URLSearchParams) {
@@ -241,9 +232,9 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function buildAdminComprobantesWhere(
+function buildComprobantesWhere(
   selectedEventId: string,
-  filters: AdminComprobantesListFilters,
+  filters: ComprobantesListFilters,
   isAnnulled: SQL,
 ) {
   const conditions: SQL[] = [eq(comprobantes.eventId, selectedEventId)];
@@ -277,11 +268,11 @@ function buildAdminComprobantesWhere(
   return and(...conditions);
 }
 
-function tipoToCbteTipo(tipo: AdminComprobanteTipoFacet): number {
+function tipoToCbteTipo(tipo: ComprobanteTipoFacet): number {
   return tipo === "factura_c" ? FACTURA_C_CBTE_TIPO : NOTA_CREDITO_C_CBTE_TIPO;
 }
 
-function buildAdminComprobantesOrderBy(order: AdminComprobantesListOrder) {
+function buildComprobantesOrderBy(order: ComprobantesListOrder) {
   const direction = order.direction === "asc" ? asc : desc;
 
   if (order.columnId === "numero") {
@@ -299,9 +290,9 @@ function buildAdminComprobantesOrderBy(order: AdminComprobantesListOrder) {
   ];
 }
 
-function buildCanonicalAdminComprobantesSearch(input: {
+function buildCanonicalComprobantesSearch(input: {
   currentSearch: string;
-  filters: AdminComprobantesListFilters;
+  filters: ComprobantesListFilters;
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
 
@@ -328,8 +319,8 @@ function buildCanonicalAdminComprobantesSearch(input: {
   searchParams.delete("porcion");
 
   if (
-    input.filters.order.columnId === defaultAdminComprobantesOrder.columnId &&
-    input.filters.order.direction === defaultAdminComprobantesOrder.direction
+    input.filters.order.columnId === defaultComprobantesOrder.columnId &&
+    input.filters.order.direction === defaultComprobantesOrder.direction
   ) {
     searchParams.delete("orden");
   } else {

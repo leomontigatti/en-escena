@@ -15,10 +15,10 @@ import {
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import type { ChoreographyListItem } from "@/lib/portal/choreographies";
+import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
-export type ChoreographyDetail = ChoreographyListItem & {
+export type PortalChoreographyDetail = PortalChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
   hasPresentation?: boolean;
@@ -66,7 +66,7 @@ type ChoreographyDetailRow = ChoreographyRow & {
 export async function listChoreographiesForAcademyEvent(
   academyId: string,
   eventId: string,
-): Promise<ChoreographyListItem[]> {
+): Promise<PortalChoreographyListItem[]> {
   const rows = await db
     .select({
       id: choreographies.id,
@@ -99,7 +99,7 @@ export async function findChoreographyForAcademyEvent(
   academyId: string,
   eventId: string,
   choreographyId: string,
-): Promise<ChoreographyDetail | null> {
+): Promise<PortalChoreographyDetail | null> {
   const rows: ChoreographyDetailRow[] = await db
     .select({
       id: choreographies.id,
@@ -221,7 +221,7 @@ export type {
 
 async function hydrateChoreographyRows(
   rows: ChoreographyRow[],
-): Promise<ChoreographyListItem[]> {
+): Promise<PortalChoreographyListItem[]> {
   if (rows.length === 0) {
     return [];
   }

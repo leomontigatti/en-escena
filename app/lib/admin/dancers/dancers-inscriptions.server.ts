@@ -7,10 +7,10 @@ import {
   scheduleCapacities,
   schedules,
 } from "@/db/schema";
-import type { AdministrativeDancerInscription } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerInscription } from "@/lib/admin/dancers/dancers.server.types";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 
-export async function findAdministrativeDancerInscriptions(input: {
+export async function findDancerInscriptions(input: {
   dancerId: string;
   selectedEventId: string | null;
 }) {
@@ -69,7 +69,7 @@ export async function findAdministrativeDancerInscriptions(input: {
         basePriceAmount: priceAmount,
         discountAmount: 0,
         estimatedSubtotalAmount: priceAmount,
-      } satisfies AdministrativeDancerInscription;
+      } satisfies DancerInscription;
     }),
   );
 

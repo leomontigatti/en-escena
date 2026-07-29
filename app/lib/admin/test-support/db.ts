@@ -8,13 +8,13 @@ import {
 } from "@/lib/auth/access-auth.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 
-type AdminTestRole = "academy" | "admin" | "auditor" | "judge";
+type TestRole = "academy" | "admin" | "auditor" | "judge";
 
 async function createSignedInAdminRequest(input: {
   body?: FormData;
   email: string;
   requestUrl: string;
-  role: AdminTestRole;
+  role: TestRole;
 }) {
   const signUpResult = await createAccessUser({
     email: input.email,

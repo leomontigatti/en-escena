@@ -2,17 +2,17 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventModalityDetail,
+  loadEventModalityDetail,
   updateAdministrativeEventModality,
 } from "@/features/admin/modalities/detail/server";
 import {
-  AdministrativeEventModalityDetailView,
-  type AdministrativeEventModalityDetailViewProps,
+  EventModalityDetailView,
+  type EventModalityDetailViewProps,
 } from "@/features/admin/modalities/detail/view";
-import type { AdministrativeEventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
-type LoaderData = AdministrativeEventModalitiesLoaderData;
+type LoaderData = EventModalitiesLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -28,7 +28,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return loadAdminEventModalityDetail(request);
+  return loadEventModalityDetail(request);
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -39,9 +39,9 @@ export function ModalityDetailRouteView({
   loaderData,
   actionData,
   modalityId,
-}: AdministrativeEventModalityDetailViewProps) {
+}: EventModalityDetailViewProps) {
   return (
-    <AdministrativeEventModalityDetailView
+    <EventModalityDetailView
       loaderData={loaderData}
       actionData={actionData}
       modalityId={modalityId}

@@ -22,24 +22,24 @@ import {
   ModalityFormPanel,
 } from "../form";
 import type {
-  AdministrativeEventModalitiesLoaderData,
-  AdministrativeEventModalityActionData,
+  EventModalitiesLoaderData,
+  EventModalityActionData,
   EventModalityRow,
 } from "../shared";
 
-export type AdministrativeEventModalityDetailViewProps = {
-  loaderData: AdministrativeEventModalitiesLoaderData;
-  actionData?: AdministrativeEventModalityActionData;
+export type EventModalityDetailViewProps = {
+  loaderData: EventModalitiesLoaderData;
+  actionData?: EventModalityActionData;
   modalityId: string;
   initialDeleteDialogOpen?: boolean;
 };
 
-export function AdministrativeEventModalityDetailView({
+export function EventModalityDetailView({
   loaderData,
   actionData,
   modalityId,
   initialDeleteDialogOpen = false,
-}: AdministrativeEventModalityDetailViewProps) {
+}: EventModalityDetailViewProps) {
   useServerActionToast(actionData);
 
   const modality = loaderData.modalities.find(

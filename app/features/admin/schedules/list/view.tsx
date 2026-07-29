@@ -5,18 +5,15 @@ import {
 import { buildCreatePath } from "@/lib/shared/navigation";
 
 import { ScheduleList } from "../list-table";
-import {
-  basePath,
-  type AdministrativeEventSchedulesListLoaderData,
-} from "../shared";
+import { basePath, type EventSchedulesListLoaderData } from "../shared";
 
-export type AdministrativeEventSchedulesListViewProps = {
-  loaderData: AdministrativeEventSchedulesListLoaderData;
+export type EventSchedulesListViewProps = {
+  loaderData: EventSchedulesListLoaderData;
 };
 
-export function AdministrativeEventSchedulesListView({
+export function EventSchedulesListView({
   loaderData,
-}: AdministrativeEventSchedulesListViewProps) {
+}: EventSchedulesListViewProps) {
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}

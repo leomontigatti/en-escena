@@ -16,7 +16,7 @@ import {
   type CreatePaymentFieldName,
   type CreatePaymentFormValues,
 } from "@/features/admin/payments/create/shared";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { deletePaymentWithAllocations } from "@/lib/finances/choreography-cobro.server";
@@ -24,41 +24,38 @@ import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summ
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
-import { listAdminPaymentAcademyOptions } from "../academy-options.server";
-import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
+import { listPaymentAcademyOptions } from "../academy-options.server";
+import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type DeletePaymentActionData = {
   fieldErrors: Partial<Record<"confirmDeletion" | "paymentId", string>>;
-  intent: typeof deleteAdminPaymentIntent;
+  intent: typeof deletePaymentIntent;
   message: string;
   status: "error";
 };
 
 type UpdatePaymentActionData = {
   fieldErrors: Partial<Record<CreatePaymentFieldName | "paymentId", string>>;
-  intent: typeof updateAdminPaymentIntent;
+  intent: typeof updatePaymentIntent;
   message: string;
   status: "error";
   values: CreatePaymentFormValues;
 };
 
 type UpdatePaymentSuccessActionData = {
-  intent: typeof updateAdminPaymentIntent;
+  intent: typeof updatePaymentIntent;
   message: string;
   status: "success";
 };
 
-export type AdminPaymentDetailActionData =
+export type PaymentDetailActionData =
   | DeletePaymentActionData
   | UpdatePaymentActionData
   | UpdatePaymentSuccessActionData;
 
-export async function loadAdminPaymentDetail(
-  request: Request,
-  paymentId: string,
-) {
+export async function loadPaymentDetail(request: Request, paymentId: string) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
 
   const payment = await db
     .select({
@@ -86,7 +83,7 @@ export async function loadAdminPaymentDetail(
 
   const [academyOptions, allocatedAmount, affectedChoreographies] =
     await Promise.all([
-      listAdminPaymentAcademyOptions(),
+      listPaymentAcademyOptions(),
       sumPaymentAllocatedAmount(paymentDetail.id),
       listPaymentAffectedChoreographies(paymentDetail.id),
     ]);
@@ -186,23 +183,23 @@ async function listPaymentAffectedChoreographies(
   );
 }
 
-export async function handleAdminPaymentDetailAction(
+export async function handlePaymentDetailAction(
   request: Request,
   paymentId: string,
-): Promise<AdminPaymentDetailActionData | never> {
+): Promise<PaymentDetailActionData | never> {
   await requireAdminUser(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent === updateAdminPaymentIntent) {
-    return await updateAdminPayment({
+  if (intent === updatePaymentIntent) {
+    return await updatePayment({
       formData,
       paymentId,
     });
   }
 
-  if (intent === deleteAdminPaymentIntent) {
-    return await deleteAdminPayment({
+  if (intent === deletePaymentIntent) {
+    return await deletePayment({
       formData,
       paymentId,
     });
@@ -211,7 +208,7 @@ export async function handleAdminPaymentDetailAction(
   throw new Response("Acción no soportada.", { status: 400 });
 }
 
-async function updateAdminPayment(input: {
+async function updatePayment(input: {
   formData: FormData;
   paymentId: string;
 }): Promise<UpdatePaymentActionData | UpdatePaymentSuccessActionData | never> {
@@ -221,7 +218,7 @@ async function updateAdminPayment(input: {
   if (!parsed.success) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: getFieldErrors(parsed.error, createPaymentFieldNames),
       values,
@@ -250,7 +247,7 @@ async function updateAdminPayment(input: {
   if (!academy) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: {
         academyId: "Seleccioná una academia válida.",
@@ -270,7 +267,7 @@ async function updateAdminPayment(input: {
   if (Object.keys(accountingFieldErrors).length > 0) {
     return {
       status: "error",
-      intent: updateAdminPaymentIntent,
+      intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
       fieldErrors: accountingFieldErrors,
       values,
@@ -292,12 +289,12 @@ async function updateAdminPayment(input: {
 
   return {
     status: "success",
-    intent: updateAdminPaymentIntent,
+    intent: updatePaymentIntent,
     message: notificationToasts["pago-guardado"].message,
   };
 }
 
-async function deleteAdminPayment(input: {
+async function deletePayment(input: {
   formData: FormData;
   paymentId: string;
 }): Promise<DeletePaymentActionData | never> {
@@ -308,7 +305,7 @@ async function deleteAdminPayment(input: {
   ) {
     return {
       status: "error",
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       message: "Confirmá la eliminación del pago.",
       fieldErrors: {
         confirmDeletion: "Confirmá la eliminación del pago.",
@@ -334,7 +331,7 @@ async function deleteAdminPayment(input: {
   if (!result.ok) {
     return {
       status: "error",
-      intent: deleteAdminPaymentIntent,
+      intent: deletePaymentIntent,
       message: "No se pudo eliminar el pago.",
       fieldErrors: {
         paymentId: result.message,

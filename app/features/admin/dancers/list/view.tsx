@@ -10,19 +10,19 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  getAdminDancerIdentificationBadgeVariant,
-  getAdminDancerParticipationBadgeVariant,
-  getAdminDancerParticipationLabel,
-  toAdminDancerIdentificationSearchValue,
-  toAdminDancerParticipationSearchValue,
-  toAdminDancerStatusSearchValue,
-  type AdminDancerIdentificationStatus,
-  type AdminDancerParticipationStatus,
+  getDancerIdentificationBadgeVariant,
+  getDancerParticipationBadgeVariant,
+  getDancerParticipationLabel,
+  toDancerIdentificationSearchValue,
+  toDancerParticipationSearchValue,
+  toDancerStatusSearchValue,
+  type DancerIdentificationStatus,
+  type DancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 
-import type { loadAdminDancersList } from "./server";
+import type { loadDancersList } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadAdminDancersList>>;
+type LoaderData = Awaited<ReturnType<typeof loadDancersList>>;
 type DancerRow = LoaderData["dancers"][number];
 type FacetedFilterGroup = DataTableFacetedFilter;
 
@@ -136,13 +136,11 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: AdminDancerParticipationStatus;
+  participationStatus: DancerParticipationStatus;
 }) {
   return (
-    <Badge
-      variant={getAdminDancerParticipationBadgeVariant(participationStatus)}
-    >
-      {getAdminDancerParticipationLabel(participationStatus)}
+    <Badge variant={getDancerParticipationBadgeVariant(participationStatus)}>
+      {getDancerParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -150,19 +148,17 @@ function ParticipationBadge({
 function IdentificationBadge({
   identificationStatus,
 }: {
-  identificationStatus: AdminDancerIdentificationStatus;
+  identificationStatus: DancerIdentificationStatus;
 }) {
   return (
-    <Badge
-      variant={getAdminDancerIdentificationBadgeVariant(identificationStatus)}
-    >
+    <Badge variant={getDancerIdentificationBadgeVariant(identificationStatus)}>
       {getGroupedDancerIdentificationLabel(identificationStatus)}
     </Badge>
   );
 }
 
 function getGroupedDancerIdentificationLabel(
-  identificationStatus: AdminDancerIdentificationStatus,
+  identificationStatus: DancerIdentificationStatus,
 ) {
   switch (identificationStatus) {
     case "unverified":
@@ -217,7 +213,7 @@ function buildDancerStatusSummary(
   const values: string[] = [];
 
   if (selectedEventId !== null) {
-    values.push(getAdminDancerParticipationLabel(dancer.participationStatus));
+    values.push(getDancerParticipationLabel(dancer.participationStatus));
   }
 
   if (!dancer.active) {
@@ -280,11 +276,11 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const participationValue = toAdminDancerParticipationSearchValue(
+  const participationValue = toDancerParticipationSearchValue(
     loaderData.filters.participation,
   );
-  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
-  const identificationValue = toAdminDancerIdentificationSearchValue(
+  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+  const identificationValue = toDancerIdentificationSearchValue(
     loaderData.filters.identification,
   );
 
@@ -304,11 +300,11 @@ function getSelectedFilterValues(loaderData: LoaderData) {
 }
 
 function hasActiveListFilters(loaderData: LoaderData) {
-  const participationValue = toAdminDancerParticipationSearchValue(
+  const participationValue = toDancerParticipationSearchValue(
     loaderData.filters.participation,
   );
-  const statusValue = toAdminDancerStatusSearchValue(loaderData.filters.status);
-  const identificationValue = toAdminDancerIdentificationSearchValue(
+  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+  const identificationValue = toDancerIdentificationSearchValue(
     loaderData.filters.identification,
   );
 

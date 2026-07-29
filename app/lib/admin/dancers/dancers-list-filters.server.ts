@@ -2,10 +2,10 @@ import { and, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { academies, dancers } from "@/db/schema";
 import {
-  readAdminDancerIdentificationFilter,
-  readAdminDancerParticipationFilter,
-  readAdminDancerStatusFilter,
-  type AdministrativeDancerListFilters,
+  readDancerIdentificationFilter,
+  readDancerParticipationFilter,
+  readDancerStatusFilter,
+  type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   escapeForLike,
@@ -17,16 +17,16 @@ import { buildDancerEventParticipationSql } from "@/lib/participation/participat
 function readDancerFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
-): AdministrativeDancerListFilters {
+): DancerListFilters {
   return {
     nameOrder: readDancerNameOrder(searchParams.get("orden")),
-    participation: readAdminDancerParticipationFilter({
+    participation: readDancerParticipationFilter({
       value: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readAdminDancerStatusFilter(searchParams.get("estado")),
-    identification: readAdminDancerIdentificationFilter(
+    status: readDancerStatusFilter(searchParams.get("estado")),
+    identification: readDancerIdentificationFilter(
       searchParams.get("identificacion"),
     ),
     page: readPage(searchParams),
@@ -35,7 +35,7 @@ function readDancerFilters(
 
 function buildDancerFilters(input: {
   selectedEventId: string | null;
-  filters: AdministrativeDancerListFilters;
+  filters: DancerListFilters;
 }) {
   const conditions: SQL[] = [];
   const participationSql = buildDancerEventParticipationSql(

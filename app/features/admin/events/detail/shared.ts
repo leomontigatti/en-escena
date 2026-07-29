@@ -10,12 +10,12 @@ import type {
 
 type EventRow = typeof eventsTable.$inferSelect;
 
-export type AdministrativeEventDetailLoaderData = {
+export type EventDetailLoaderData = {
   event: EventRow;
   registrationReadiness: EventRegistrationReadiness;
 };
 
-export type AdministrativeEventDetailActionData =
+export type EventDetailActionData =
   | {
       status: "error";
       message: string;

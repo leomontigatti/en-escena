@@ -20,15 +20,15 @@ import {
 } from "@/lib/finances/payment-methods";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 
-import type { AdminPaymentRow, AdminPaymentsListLoaderData } from "./server";
+import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
 
-type PaymentsLoaderData = AdminPaymentsListLoaderData;
+type PaymentsLoaderData = PaymentsListLoaderData;
 
 type PaymentsListRouteViewProps = {
   loaderData: PaymentsLoaderData;
 };
 
-const paymentColumns: DataTableColumn<AdminPaymentRow>[] = [
+const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
   {
     id: "paymentNumber",
     header: "#",

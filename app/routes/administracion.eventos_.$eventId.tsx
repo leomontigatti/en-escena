@@ -1,10 +1,10 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  loadAdminEventDetail,
+  loadEventDetail,
   updateAdministrativeEvent,
 } from "@/features/admin/events/detail/server";
-import type { AdministrativeEventDetailActionData } from "@/features/admin/events/detail/shared";
-import { AdministrativeEventDetailView } from "@/features/admin/events/detail/view";
+import type { EventDetailActionData } from "@/features/admin/events/detail/shared";
+import { EventDetailView } from "@/features/admin/events/detail/view";
 import { useActionData } from "react-router";
 
 import type { Route } from "./+types/administracion.eventos_.$eventId";
@@ -13,7 +13,7 @@ type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type EventDetailRouteProps = {
   loaderData: LoaderData;
-  actionData?: AdministrativeEventDetailActionData;
+  actionData?: EventDetailActionData;
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -33,7 +33,7 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return loadAdminEventDetail(request, params.eventId);
+  return loadEventDetail(request, params.eventId);
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -44,12 +44,7 @@ export function EventDetailRouteView({
   loaderData,
   actionData,
 }: EventDetailRouteProps) {
-  return (
-    <AdministrativeEventDetailView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
-  );
+  return <EventDetailView loaderData={loaderData} actionData={actionData} />;
 }
 
 export default function EventDetailRoute({

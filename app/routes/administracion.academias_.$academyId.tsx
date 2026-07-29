@@ -2,8 +2,8 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdminAcademyDetailAction,
-  loadAdminAcademyDetail,
+  handleAcademyDetailAction,
+  loadAcademyDetail,
 } from "@/features/admin/academies/detail/server";
 import type {
   AcademyDetailActionData,
@@ -33,14 +33,14 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdminAcademyDetail({ request, params });
+  return await loadAcademyDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<AcademyDetailActionData> {
-  return await handleAdminAcademyDetailAction({ request, params });
+  return await handleAcademyDetailAction({ request, params });
 }
 
 export function AcademyDetailRouteView({

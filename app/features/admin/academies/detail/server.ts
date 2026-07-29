@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
-import { loadAdminEventContext } from "@/lib/admin/event-context.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { readFormString } from "@/lib/shared/forms";
 
@@ -15,7 +15,7 @@ import {
   type AcademyDetailLoaderData,
 } from "./shared";
 
-export async function loadAdminAcademyDetail({
+export async function loadAcademyDetail({
   params,
   request,
 }: {
@@ -23,7 +23,7 @@ export async function loadAdminAcademyDetail({
   request: Request;
 }): Promise<AcademyDetailLoaderData> {
   const currentUser = await requireInternalUser(request, ["admin", "auditor"]);
-  const eventContext = await loadAdminEventContext(request);
+  const eventContext = await loadEventContext(request);
   const academy = await readAcademy(params.academyId);
 
   return {
@@ -33,7 +33,7 @@ export async function loadAdminAcademyDetail({
   };
 }
 
-export async function handleAdminAcademyDetailAction({
+export async function handleAcademyDetailAction({
   params,
   request,
 }: {
