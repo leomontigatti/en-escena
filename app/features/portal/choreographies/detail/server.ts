@@ -7,7 +7,6 @@ import {
   updateChoreographyIntent,
   type PortalChoreographyMusicActionData,
 } from "@/features/portal/choreographies/detail/music-editor.shared";
-import { deleteChoreographyIntent } from "@/features/portal/choreographies/detail/shared";
 import { findChoreographyForAcademyEvent } from "@/lib/portal/choreographies.server";
 import {
   loadChoreographyMusicDownloadUrl,
@@ -21,8 +20,6 @@ const choreographySavedMessage =
 const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 const readOnlyEventMessage = "Este evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
-const academyRosterRemovedMessage =
-  "Las academias solo pueden editar la música desde el portal.";
 
 type ParsedMusicUpdateAction = {
   academyId: string;
@@ -110,10 +107,6 @@ function parsePortalChoreographyDetailAction(input: {
   formData: FormData;
 }): ParsedMusicUpdateAction {
   const intent = readFormString(input.formData, "intent");
-
-  if (intent === deleteChoreographyIntent) {
-    throw new Response(academyRosterRemovedMessage, { status: 403 });
-  }
 
   if (intent !== updateChoreographyIntent) {
     throw new Response(unsupportedActionMessage, { status: 400 });
