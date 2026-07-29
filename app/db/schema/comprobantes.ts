@@ -72,7 +72,7 @@ export const comprobantes = createTable(
     fchServDesde: text("fch_serv_desde"),
     fchServHasta: text("fch_serv_hasta"),
     fchVtoPago: text("fch_vto_pago"),
-    // Importe total en pesos argentinos enteros (sin centavos, ver finanzas.md).
+    // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
     impTotal: integer("imp_total").notNull(),
     // Snapshot del emisor. El CUIT se guarda como texto: 30717611590 excede el
     // rango de un integer de 32 bits.

@@ -4,8 +4,8 @@
 > single-issue implement, **zero new commits is acceptable** (the sub-issue may already be
 > satisfied). See the spec: [§4.3 Implement PRD](../afk-agent-platform-spec.md#43-implement-prd).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (comandos, docs de
-> contexto). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (commands, context
+> docs). See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 

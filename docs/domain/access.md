@@ -1,4 +1,4 @@
-# Acceso
+# Access
 
 Rules for public academy registration, users, sessions and internal invitations.
 

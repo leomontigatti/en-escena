@@ -4,8 +4,8 @@
 > the output IS the work; no implementation, no tests. See the spec:
 > [§4.2 Implement](../afk-agent-platform-spec.md#42-implement-single-issue).
 >
-> _Vendorizado de `mattpocock/course-video-manager`; adaptado a este repo (rama base
-> `master`). Ver [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
+> _Vendored from `mattpocock/course-video-manager`; adapted to this repo (base branch `master`).
+> See [`afk-vendored-assets.md`](../afk-vendored-assets.md)._
 
 ---
 
