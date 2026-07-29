@@ -5,10 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionFinanzasAcademiaRouteView } from "./view";
+import { AcademyFinancesRouteView } from "./view";
 import type { AcademyFinancesLoaderData } from "./types";
 
-describe("AdministracionFinanzasAcademiaRouteView", () => {
+describe("AcademyFinancesRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -19,7 +19,7 @@ describe("AdministracionFinanzasAcademiaRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionFinanzasAcademiaRouteView
+            <AcademyFinancesRouteView
               loaderData={academyFinancesLoaderDataFixture({
                 summary: {
                   availableBalanceAmount: 5000,
@@ -64,7 +64,7 @@ describe("AdministracionFinanzasAcademiaRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionFinanzasAcademiaRouteView
+            <AcademyFinancesRouteView
               loaderData={academyFinancesLoaderDataFixture({
                 choreographyFinanceRows: [
                   choreographyFinanceRowFixture({
@@ -126,7 +126,7 @@ describe("AdministracionFinanzasAcademiaRouteView", () => {
         {
           path: "/administracion/finanzas/:academyId",
           element: (
-            <AdministracionFinanzasAcademiaRouteView
+            <AcademyFinancesRouteView
               loaderData={academyFinancesLoaderDataFixture()}
             />
           ),

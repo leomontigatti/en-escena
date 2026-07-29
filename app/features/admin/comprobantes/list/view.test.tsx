@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import {
-  AdministracionComprobantesRouteView,
+  ComprobantesListRouteView,
   comprobanteColumns,
   comprobanteFacetedFilters,
 } from "./view";
@@ -60,12 +60,12 @@ function loaderData(
 function renderView(data: AdminComprobantesListLoaderData) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/administracion/comprobantes"]}>
-      <AdministracionComprobantesRouteView loaderData={data} />
+      <ComprobantesListRouteView loaderData={data} />
     </MemoryRouter>,
   );
 }
 
-describe("AdministracionComprobantesRouteView", () => {
+describe("ComprobantesListRouteView", () => {
   test("renders each comprobante with its number, initials-only type badge and derived status", () => {
     const markup = renderView(
       loaderData({

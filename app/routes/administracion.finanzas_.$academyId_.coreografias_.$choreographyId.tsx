@@ -1,15 +1,15 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeChoreographyFinanceAction,
-  loadAdministrativeChoreographyFinanceDetail,
+  handleAdminChoreographyFinanceAction,
+  loadAdminChoreographyFinanceDetail,
 } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
-import { AdministracionCoreografiaFinancieraDetalleView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
+import { ChoreographyFinanceDetailView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionCoreografiaFinancieraDetalleRouteProps = {
+type ChoreographyFinanceDetailRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -37,33 +37,27 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeChoreographyFinanceDetail({
+  return await loadAdminChoreographyFinanceDetail({
     request,
     params,
   });
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  return await handleAdministrativeChoreographyFinanceAction({
+  return await handleAdminChoreographyFinanceAction({
     request,
     params,
   });
 }
 
-function AdministracionCoreografiaFinancieraDetalleRouteView({
+function ChoreographyFinanceDetailRouteView({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  return (
-    <AdministracionCoreografiaFinancieraDetalleView loaderData={loaderData} />
-  );
+}: ChoreographyFinanceDetailRouteProps) {
+  return <ChoreographyFinanceDetailView loaderData={loaderData} />;
 }
 
-export default function AdministracionCoreografiaFinancieraDetalleRoute({
+export default function ChoreographyFinanceDetailRoute({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleRouteProps) {
-  return (
-    <AdministracionCoreografiaFinancieraDetalleRouteView
-      loaderData={loaderData}
-    />
-  );
+}: ChoreographyFinanceDetailRouteProps) {
+  return <ChoreographyFinanceDetailRouteView loaderData={loaderData} />;
 }

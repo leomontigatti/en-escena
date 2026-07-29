@@ -1,12 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { loadAdminPaymentsList } from "@/features/admin/payments/list/server";
-import { AdministracionPagosRouteView } from "@/features/admin/payments/list/view";
+import { PaymentsListRouteView } from "@/features/admin/payments/list/view";
 
 import type { Route } from "./+types/administracion.pagos";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionPagosRouteProps = {
+type PaymentsListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -22,10 +22,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadAdminPaymentsList(request);
 }
 
-export { AdministracionPagosRouteView };
+export { PaymentsListRouteView };
 
-export default function AdministracionPagosRoute({
+export default function PaymentsListRoute({
   loaderData,
-}: AdministracionPagosRouteProps) {
-  return <AdministracionPagosRouteView loaderData={loaderData} />;
+}: PaymentsListRouteProps) {
+  return <PaymentsListRouteView loaderData={loaderData} />;
 }

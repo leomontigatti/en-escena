@@ -7,13 +7,13 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionCoreografiaFinancieraDetalleView } from "./view";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import { ChoreographyFinanceDetailView } from "./view";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 
 // El loader devuelve una unión: sin evento activo no hay coreografía. Las
 // fixtures modelan siempre la rama con evento.
 type ChoreographyFinanceDetailLoaderData = Extract<
-  Awaited<ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>>,
+  Awaited<ReturnType<typeof loadAdminChoreographyFinanceDetail>>,
   { selectedEventId: string }
 >;
 type InscriptionRow =
@@ -23,7 +23,7 @@ type ChoreographyRow = NonNullable<
   ChoreographyFinanceDetailLoaderData["choreography"]
 >;
 
-describe("AdministracionCoreografiaFinancieraDetalleView", () => {
+describe("ChoreographyFinanceDetailView", () => {
   test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
     const markup = renderDetail();
 
@@ -402,7 +402,7 @@ function renderDetail(
       {
         path: "/",
         element: (
-          <AdministracionCoreografiaFinancieraDetalleView
+          <ChoreographyFinanceDetailView
             loaderData={loaderDataFixture(overrides)}
           />
         ),
@@ -497,7 +497,7 @@ function inscriptionFixture(
   };
 }
 
-describe("AdministracionCoreografiaFinancieraDetalleView actions menu", () => {
+describe("ChoreographyFinanceDetailView actions menu", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
@@ -510,7 +510,7 @@ describe("AdministracionCoreografiaFinancieraDetalleView actions menu", () => {
         {
           path: "/",
           element: (
-            <AdministracionCoreografiaFinancieraDetalleView
+            <ChoreographyFinanceDetailView
               loaderData={loaderDataFixture(overrides)}
             />
           ),

@@ -24,7 +24,7 @@ import type { AdminPaymentRow, AdminPaymentsListLoaderData } from "./server";
 
 type PaymentsLoaderData = AdminPaymentsListLoaderData;
 
-type AdministracionPagosRouteViewProps = {
+type PaymentsListRouteViewProps = {
   loaderData: PaymentsLoaderData;
 };
 
@@ -79,9 +79,9 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-export function AdministracionPagosRouteView({
+export function PaymentsListRouteView({
   loaderData,
-}: AdministracionPagosRouteViewProps) {
+}: PaymentsListRouteViewProps) {
   const shouldShowTable =
     loaderData.rows.length > 0 ||
     loaderData.hasAnyPayment ||

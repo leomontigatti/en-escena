@@ -4,9 +4,9 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { buildDataTableFilterHref } from "@/components/shared/data-table";
-import { AdministracionCoreografiasRouteView } from "@/features/admin/choreographies/list/view";
+import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
 
-describe("AdministracionCoreografiasRouteView", () => {
+describe("ChoreographiesListRouteView", () => {
   test("shows the event-required empty state when there is no active event", () => {
     const markup = renderRoute({
       selectedEventId: null,
@@ -166,7 +166,7 @@ describe("AdministracionCoreografiasRouteView", () => {
 
 function renderRoute(
   loaderData: Partial<
-    Parameters<typeof AdministracionCoreografiasRouteView>[0]["loaderData"]
+    Parameters<typeof ChoreographiesListRouteView>[0]["loaderData"]
   > = {},
   initialEntry = "/administracion/coreografias",
 ) {
@@ -174,7 +174,7 @@ function renderRoute(
     createElement(
       MemoryRouter,
       { initialEntries: [initialEntry] },
-      createElement(AdministracionCoreografiasRouteView, {
+      createElement(ChoreographiesListRouteView, {
         loaderData: {
           choreographies: [],
           facets: {

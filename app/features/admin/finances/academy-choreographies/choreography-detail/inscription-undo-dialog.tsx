@@ -13,11 +13,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 import { deleteAllocationIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
+  ReturnType<typeof loadAdminChoreographyFinanceDetail>
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];

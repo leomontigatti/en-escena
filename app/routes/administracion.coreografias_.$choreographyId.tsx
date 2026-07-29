@@ -2,20 +2,20 @@ import { useActionData, type ShouldRevalidateFunction } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  handleAdministrativeChoreographyDetailAction,
-  loadAdministrativeChoreographyDetailRouteData,
+  handleAdminChoreographyDetailAction,
+  loadAdminChoreographyDetailRouteData,
   type AdministrativeChoreographyDetailActionData,
   type AdministrativeChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
 import { shouldRevalidateAdministrativeChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
-import { AdministracionCoreografiaDetalleRouteView as CoreografiaDetalleView } from "@/features/admin/choreographies/detail/view";
+import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
 
 type LoaderData = AdministrativeChoreographyDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionCoreografiaDetalleRouteProps = {
+type ChoreographyDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -38,7 +38,7 @@ export async function loader({
   request,
   params,
 }: Route.LoaderArgs): Promise<LoaderData> {
-  return await loadAdministrativeChoreographyDetailRouteData({
+  return await loadAdminChoreographyDetailRouteData({
     request,
     params,
   });
@@ -50,7 +50,7 @@ export async function action({
 }: Route.ActionArgs): Promise<
   AdministrativeChoreographyDetailActionData | Response
 > {
-  return await handleAdministrativeChoreographyDetailAction({
+  return await handleAdminChoreographyDetailAction({
     request,
     params,
   });
@@ -62,10 +62,10 @@ export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>
     formData: arg.formData,
   });
 
-function AdministracionCoreografiaDetalleRouteView({
+function ChoreographyDetailRouteView({
   actionData: actionDataOverride,
   loaderData,
-}: AdministracionCoreografiaDetalleRouteProps) {
+}: ChoreographyDetailRouteProps) {
   const actionData =
     actionDataOverride &&
     "status" in actionDataOverride &&
@@ -75,17 +75,17 @@ function AdministracionCoreografiaDetalleRouteView({
       : undefined;
 
   return (
-    <CoreografiaDetalleView actionData={actionData} loaderData={loaderData} />
+    <ChoreographyDetailView actionData={actionData} loaderData={loaderData} />
   );
 }
 
-export default function AdministracionCoreografiaDetalleRoute({
+export default function ChoreographyDetailRoute({
   loaderData,
-}: AdministracionCoreografiaDetalleRouteProps) {
+}: ChoreographyDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCoreografiaDetalleRouteView
+    <ChoreographyDetailRouteView
       actionData={actionData}
       loaderData={loaderData}
     />

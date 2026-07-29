@@ -7,17 +7,17 @@ import type {
   AdministrativeEventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import {
-  AdministracionPrecioDetalleRouteView,
+  PriceDetailRouteView,
   handle as detailRouteHandle,
 } from "@/routes/administracion.precios_.$priceId";
-import { AdministracionPrecioNuevoRouteView } from "@/routes/administracion.precios_.nuevo";
-import { AdministracionPreciosRouteView } from "@/routes/administracion.precios";
+import { NewPriceRouteView } from "@/routes/administracion.precios_.nuevo";
+import { PricesListRouteView } from "@/routes/administracion.precios";
 import type { AdministrativeEventPriceDetailViewProps } from "./detail/view";
 
 describe("administracion.precios route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionPreciosRouteView, {
+      createElement(PricesListRouteView, {
         loaderData: loaderData({
           prices: [price("precio_1", "Precio Solo")],
         }),
@@ -34,7 +34,7 @@ describe("administracion.precios route adapters", () => {
 
   test("renders the create feature view from the create route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionPrecioNuevoRouteView, {
+      createElement(NewPriceRouteView, {
         loaderData: loaderData(),
         actionData: actionData("Revisá los datos del precio."),
       }),
@@ -49,7 +49,7 @@ describe("administracion.precios route adapters", () => {
 
   test("renders the detail feature view from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionPrecioDetalleRouteView, {
+      createElement(PriceDetailRouteView, {
         loaderData: loaderData({
           prices: [price("precio_1", "Precio Solo")],
         }),
@@ -68,7 +68,7 @@ describe("administracion.precios route adapters", () => {
 
   test("renders the not-found detail state from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionPrecioDetalleRouteView, {
+      createElement(PriceDetailRouteView, {
         loaderData: loaderData(),
         priceId: "precio_inexistente",
       }),

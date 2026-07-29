@@ -31,7 +31,7 @@ import type {
   AdminComprobantesListLoaderData,
 } from "./server";
 
-type AdministracionComprobantesRouteViewProps = {
+type ComprobantesListRouteViewProps = {
   loaderData: AdminComprobantesListLoaderData;
 };
 
@@ -133,9 +133,9 @@ export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-export function AdministracionComprobantesRouteView({
+export function ComprobantesListRouteView({
   loaderData,
-}: AdministracionComprobantesRouteViewProps) {
+}: ComprobantesListRouteViewProps) {
   const shouldShowTable =
     loaderData.rows.length > 0 ||
     loaderData.hasAnyComprobante ||

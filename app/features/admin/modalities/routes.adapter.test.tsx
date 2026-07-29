@@ -7,14 +7,14 @@ import type {
   AdministrativeEventModalitiesLoaderData,
   AdministrativeEventModalityActionData,
 } from "@/features/admin/modalities/shared";
-import { AdministracionModalidadDetalleRouteView } from "@/routes/administracion.modalidades_.$modalityId";
-import { AdministracionModalidadNuevaRouteView } from "@/routes/administracion.modalidades_.nueva";
-import { AdministracionModalidadesRouteView } from "@/routes/administracion.modalidades";
+import { ModalityDetailRouteView } from "@/routes/administracion.modalidades_.$modalityId";
+import { NewModalityRouteView } from "@/routes/administracion.modalidades_.nueva";
+import { ModalitiesListRouteView } from "@/routes/administracion.modalidades";
 
 describe("administracion.modalidades route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionModalidadesRouteView, {
+      createElement(ModalitiesListRouteView, {
         loaderData: loaderData({
           modalities: [modality("mod_1", "Jazz")],
           submodalities: [submodality("sub_1", "mod_1", "Jazz Funk")],
@@ -32,7 +32,7 @@ describe("administracion.modalidades route adapters", () => {
   test("renders the create feature view from the create route adapter", () => {
     const markup = renderRouteView(
       createElement(
-        AdministracionModalidadNuevaRouteView as ComponentType<{
+        NewModalityRouteView as ComponentType<{
           loaderData: AdministrativeEventModalitiesLoaderData;
           actionData?: AdministrativeEventModalityActionData;
         }>,
@@ -52,7 +52,7 @@ describe("administracion.modalidades route adapters", () => {
 
   test("renders the detail feature view from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionModalidadDetalleRouteView, {
+      createElement(ModalityDetailRouteView, {
         actionData: actionData("No pudimos guardar."),
         loaderData: loaderData({
           modalities: [modality("mod_1", "Jazz")],
@@ -72,7 +72,7 @@ describe("administracion.modalidades route adapters", () => {
 
   test("renders the not-found detail state from the detail route adapter", () => {
     const markup = renderRouteView(
-      createElement(AdministracionModalidadDetalleRouteView, {
+      createElement(ModalityDetailRouteView, {
         loaderData: loaderData(),
         modalityId: "mod_inexistente",
       }),

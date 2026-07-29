@@ -22,15 +22,15 @@ import {
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-type AdministracionUsuarioDetalleRouteViewProps = {
+type InternalUserDetailRouteViewProps = {
   actionData?: DetailViewActionData;
   loaderData: UserDetailLoaderData;
 };
 
-export function AdministracionUsuarioDetalleRouteView({
+export function InternalUserDetailRouteView({
   actionData,
   loaderData,
-}: AdministracionUsuarioDetalleRouteViewProps) {
+}: InternalUserDetailRouteViewProps) {
   const savedUser = loaderData.user;
   const canManageInternalUser =
     loaderData.canManage && savedUser.userType === "internal";

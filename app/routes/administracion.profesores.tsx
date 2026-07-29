@@ -1,12 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeProfessorsList } from "@/features/admin/professors/list/server";
-import { AdministracionProfesoresRouteView } from "@/features/admin/professors/list/view";
+import { loadAdminProfessorsList } from "@/features/admin/professors/list/server";
+import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
 
 import type { Route } from "./+types/administracion.profesores";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionProfesoresRouteProps = {
+type ProfessorsListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -19,13 +19,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeProfessorsList(request);
+  return await loadAdminProfessorsList(request);
 }
 
-export { AdministracionProfesoresRouteView };
+export { ProfessorsListRouteView };
 
-export default function AdministracionProfesoresRoute({
+export default function ProfessorsListRoute({
   loaderData,
-}: AdministracionProfesoresRouteProps) {
-  return <AdministracionProfesoresRouteView loaderData={loaderData} />;
+}: ProfessorsListRouteProps) {
+  return <ProfessorsListRouteView loaderData={loaderData} />;
 }

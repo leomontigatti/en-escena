@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/select";
 import { formatAmount } from "../../formatters";
 import { PaymentField } from "./payment-select-items";
-import type { loadAdministrativeChoreographyFinanceDetail } from "./server";
+import type { loadAdminChoreographyFinanceDetail } from "./server";
 import { payInscriptionDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
+  ReturnType<typeof loadAdminChoreographyFinanceDetail>
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];

@@ -8,7 +8,7 @@ import {
   paymentAllocations,
   payments,
 } from "@/db/schema";
-import { handleAdministrativeChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
+import { handleAdminChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import { updateAdministrativeChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
@@ -435,7 +435,7 @@ async function submitRoster(input: {
     role: "admin",
   });
 
-  return await handleAdministrativeChoreographyDetailAction({
+  return await handleAdminChoreographyDetailAction({
     params: { choreographyId: input.choreographyId },
     request,
   });

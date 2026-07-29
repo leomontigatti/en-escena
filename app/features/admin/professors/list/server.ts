@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin/professors/professors.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
-export async function loadAdministrativeProfessorsList(request: Request) {
+export async function loadAdminProfessorsList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadAdminEventContext(request);
 

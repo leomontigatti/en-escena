@@ -5,16 +5,16 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import { AdministracionPagoDetalleRouteView } from "./view";
+import { PaymentDetailRouteView } from "./view";
 import type { loadAdminPaymentDetail } from "./server";
 import { deleteAdminPaymentIntent, updateAdminPaymentIntent } from "./shared";
 
 type LoaderData = Awaited<ReturnType<typeof loadAdminPaymentDetail>>;
-type DetailViewProps = Parameters<typeof AdministracionPagoDetalleRouteView>[0];
+type DetailViewProps = Parameters<typeof PaymentDetailRouteView>[0];
 
 const renderer = createReactDomTestRenderer();
 
-describe("AdministracionPagoDetalleRouteView", () => {
+describe("PaymentDetailRouteView", () => {
   afterEach(renderer.cleanup);
 
   test("renders an editable payment form for admins", async () => {
@@ -99,7 +99,7 @@ async function renderDetailIntoDocument(input: Partial<DetailViewProps> = {}) {
         path: "/administracion/pagos/payment_1",
         action: async () => null,
         element: (
-          <AdministracionPagoDetalleRouteView
+          <PaymentDetailRouteView
             actionData={input.actionData}
             initialDeleteDialogOpen={input.initialDeleteDialogOpen}
             loaderData={loaderData}

@@ -42,7 +42,7 @@ import {
   expectCreated,
   fixedExperienceLevel,
 } from "@/lib/events/bases-test-fixtures.server.db";
-import { AdministracionRouteView } from "@/routes/administracion";
+import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
 import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.cronogramas_.nuevo";
@@ -93,7 +93,7 @@ export function renderRoute(
     {
       id: "admin",
       path: "/administracion",
-      Component: AdministracionRouteView,
+      Component: AdminShellRouteView,
       children: [
         {
           id: childRoute.id,

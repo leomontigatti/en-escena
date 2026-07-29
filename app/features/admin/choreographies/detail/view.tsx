@@ -52,7 +52,7 @@ import {
 import { useAdministrativeRosterForm } from "./use-roster-form";
 import type { AdministrativeChoreographyDetailLoaderData } from "./server";
 
-type AdministracionCoreografiaDetalleRouteViewProps = {
+type ChoreographyDetailRouteViewProps = {
   actionData?: AdministrativeChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
   loaderData: AdministrativeChoreographyDetailLoaderData;
@@ -85,11 +85,11 @@ const choreographyMusicAllowedMimeTypes = [
 ];
 const choreographyMusicMaxFileSizeBytes = 50 * 1024 * 1024;
 
-export function AdministracionCoreografiaDetalleRouteView({
+export function ChoreographyDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
   loaderData,
-}: AdministracionCoreografiaDetalleRouteViewProps) {
+}: ChoreographyDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 

@@ -27,22 +27,19 @@ export async function action({ request }: Route.ActionArgs) {
   return createCategory(request);
 }
 
-export function AdministracionCategoriaNuevaRouteView({
+export function NewCategoryRouteView({
   loaderData,
   actionData,
 }: CategoryCreateViewProps) {
   return <CategoryCreateView loaderData={loaderData} actionData={actionData} />;
 }
 
-export default function AdminNewCategoryRoute({
+export default function NewCategoryRoute({
   loaderData,
 }: CategoryCreateViewProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionCategoriaNuevaRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <NewCategoryRouteView loaderData={loaderData} actionData={actionData} />
   );
 }

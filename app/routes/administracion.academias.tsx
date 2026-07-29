@@ -1,12 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeAcademiesList } from "@/features/admin/academies/list/server";
-import { AdministracionAcademiasRouteView } from "@/features/admin/academies/list/view";
+import { loadAdminAcademiesList } from "@/features/admin/academies/list/server";
+import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
 
 import type { Route } from "./+types/administracion.academias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionAcademiasRouteProps = {
+type AcademiesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -19,13 +19,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeAcademiesList(request);
+  return await loadAdminAcademiesList(request);
 }
 
-export { AdministracionAcademiasRouteView };
+export { AcademiesListRouteView };
 
-export default function AdministracionAcademiasRoute({
+export default function AcademiesListRoute({
   loaderData,
-}: AdministracionAcademiasRouteProps) {
-  return <AdministracionAcademiasRouteView loaderData={loaderData} />;
+}: AcademiesListRouteProps) {
+  return <AcademiesListRouteView loaderData={loaderData} />;
 }

@@ -1,12 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadAdministrativeChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
-import { AdministracionCoreografiasRouteView } from "@/features/admin/choreographies/list/view";
+import { loadAdminChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
+import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
 
 import type { Route } from "./+types/administracion.coreografias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type AdministracionCoreografiasRouteProps = {
+type ChoreographiesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -19,13 +19,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadAdministrativeChoreographyListRouteData(request);
+  return await loadAdminChoreographyListRouteData(request);
 }
 
-export { AdministracionCoreografiasRouteView };
+export { ChoreographiesListRouteView };
 
-export default function AdministracionCoreografiasRoute({
+export default function ChoreographiesListRoute({
   loaderData,
-}: AdministracionCoreografiasRouteProps) {
-  return <AdministracionCoreografiasRouteView loaderData={loaderData} />;
+}: ChoreographiesListRouteProps) {
+  return <ChoreographiesListRouteView loaderData={loaderData} />;
 }

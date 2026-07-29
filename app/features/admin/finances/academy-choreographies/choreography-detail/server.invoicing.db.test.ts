@@ -37,8 +37,8 @@ import {
 } from "../../../../../lib/admin/finances/finances.test-support";
 
 import {
-  handleAdministrativeChoreographyFinanceAction,
-  loadAdministrativeChoreographyFinanceDetail,
+  handleAdminChoreographyFinanceAction,
+  loadAdminChoreographyFinanceDetail,
 } from "./server";
 import { emitComprobanteConfirmValue, emitComprobanteIntent } from "./shared";
 
@@ -214,7 +214,7 @@ async function loadDetail(input: {
     requestUrl: detailUrl(input),
   });
 
-  const data = await loadAdministrativeChoreographyFinanceDetail({
+  const data = await loadAdminChoreographyFinanceDetail({
     params: {
       academyId: input.academyId,
       choreographyId: input.choreographyId,
@@ -494,7 +494,7 @@ describe.sequential(
         },
       });
 
-      const redirect = await handleAdministrativeChoreographyFinanceAction({
+      const redirect = await handleAdminChoreographyFinanceAction({
         params: {
           academyId: seeded.academyId,
           choreographyId: seeded.choreographyId,
@@ -530,7 +530,7 @@ describe.sequential(
         },
       });
 
-      const result = await handleAdministrativeChoreographyFinanceAction({
+      const result = await handleAdminChoreographyFinanceAction({
         params: {
           academyId: seeded.academyId,
           choreographyId: seeded.choreographyId,
@@ -571,7 +571,7 @@ describe.sequential(
         formData: { intent: emitComprobanteIntent },
       });
 
-      const result = await handleAdministrativeChoreographyFinanceAction({
+      const result = await handleAdminChoreographyFinanceAction({
         params: {
           academyId: seeded.academyId,
           choreographyId: seeded.choreographyId,

@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { action, loader } from "@/features/admin/users/create/server";
-import { AdministracionUsuariosNuevoRouteView } from "@/features/admin/users/create/view";
+import { NewInternalUserRouteView } from "@/features/admin/users/create/view";
 
 import type { Route } from "./+types/administracion.usuarios_.nuevo";
 
@@ -18,10 +18,10 @@ export const handle = {
   adminShell: { showEventSelector: false },
 } satisfies AdminRouteHandle;
 
-export { action, loader, AdministracionUsuariosNuevoRouteView };
+export { action, loader, NewInternalUserRouteView };
 
-export default function AdministracionUsuariosNuevoRoute() {
+export default function NewInternalUserRoute() {
   const actionData = useActionData<typeof action>();
 
-  return <AdministracionUsuariosNuevoRouteView actionData={actionData} />;
+  return <NewInternalUserRouteView actionData={actionData} />;
 }

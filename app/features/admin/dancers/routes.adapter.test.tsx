@@ -2,31 +2,31 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-const loadAdministrativeDancersList = vi.fn();
-const loadAdministrativeDancerDetail = vi.fn();
-const handleAdministrativeDancerDetailAction = vi.fn();
-const AdministracionBailarinesRouteView = vi.fn(() =>
+const loadAdminDancersList = vi.fn();
+const loadAdminDancerDetail = vi.fn();
+const handleAdminDancerDetailAction = vi.fn();
+const DancersListRouteView = vi.fn(() =>
   createElement("div", null, "Bailarines view"),
 );
-const AdministracionBailarinDetalleRouteView = vi.fn(() =>
+const DancerDetailRouteView = vi.fn(() =>
   createElement("div", null, "Detalle Bailarin view"),
 );
 
 vi.mock("@/features/admin/dancers/list/server", () => ({
-  loadAdministrativeDancersList,
+  loadAdminDancersList,
 }));
 
 vi.mock("@/features/admin/dancers/list/view", () => ({
-  AdministracionBailarinesRouteView,
+  DancersListRouteView,
 }));
 
 vi.mock("@/features/admin/dancers/detail/server", () => ({
-  handleAdministrativeDancerDetailAction,
-  loadAdministrativeDancerDetail,
+  handleAdminDancerDetailAction,
+  loadAdminDancerDetail,
 }));
 
 vi.mock("@/features/admin/dancers/detail/view", () => ({
-  AdministracionBailarinDetalleRouteView,
+  DancerDetailRouteView,
   InscriptionsSection: vi.fn(),
 }));
 
@@ -50,7 +50,7 @@ describe("administracion.bailarines route adapters", () => {
       totalPages: 1,
     };
 
-    loadAdministrativeDancersList.mockResolvedValue(loaderResult);
+    loadAdminDancersList.mockResolvedValue(loaderResult);
 
     await expect(
       routeModule.loader({
@@ -61,13 +61,13 @@ describe("administracion.bailarines route adapters", () => {
     ).resolves.toBe(loaderResult);
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionBailarinesRouteView({
+      routeModule.DancersListRouteView({
         loaderData: loaderResult,
       }),
     );
 
-    expect(loadAdministrativeDancersList).toHaveBeenCalledWith(request);
-    expect(AdministracionBailarinesRouteView).toHaveBeenCalledWith({
+    expect(loadAdminDancersList).toHaveBeenCalledWith(request);
+    expect(DancersListRouteView).toHaveBeenCalledWith({
       loaderData: loaderResult,
     });
     expect(markup).toContain("Bailarines view");
@@ -137,8 +137,8 @@ describe("administracion.bailarines route adapters", () => {
       },
     };
 
-    loadAdministrativeDancerDetail.mockResolvedValue(loaderResult);
-    handleAdministrativeDancerDetailAction.mockResolvedValue(actionResult);
+    loadAdminDancerDetail.mockResolvedValue(loaderResult);
+    handleAdminDancerDetailAction.mockResolvedValue(actionResult);
 
     await expect(
       routeModule.loader({
@@ -157,21 +157,21 @@ describe("administracion.bailarines route adapters", () => {
     ).resolves.toBe(actionResult);
 
     const markup = renderToStaticMarkup(
-      routeModule.AdministracionBailarinDetalleRouteView({
+      routeModule.DancerDetailRouteView({
         actionData: actionResult,
         loaderData: loaderResult,
       }),
     );
 
-    expect(loadAdministrativeDancerDetail).toHaveBeenCalledWith({
+    expect(loadAdminDancerDetail).toHaveBeenCalledWith({
       params,
       request,
     });
-    expect(handleAdministrativeDancerDetailAction).toHaveBeenCalledWith({
+    expect(handleAdminDancerDetailAction).toHaveBeenCalledWith({
       params,
       request,
     });
-    expect(AdministracionBailarinDetalleRouteView).toHaveBeenCalledWith(
+    expect(DancerDetailRouteView).toHaveBeenCalledWith(
       {
         actionData: actionResult,
         loaderData: loaderResult,

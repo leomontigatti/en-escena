@@ -1,7 +1,7 @@
 import { handleEventScheduleAction } from "../action.server";
 import { loadEventScheduleFormOptions } from "../server";
 
-export async function loadAdministrativeEventScheduleCreate(request: Request) {
+export async function loadAdminEventScheduleCreate(request: Request) {
   return loadEventScheduleFormOptions(request);
 }
 

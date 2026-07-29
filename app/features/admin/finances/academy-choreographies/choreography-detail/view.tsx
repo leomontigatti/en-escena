@@ -64,13 +64,13 @@ import {
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
 import { PaymentSelectItems } from "./payment-select-items";
 import type {
-  loadAdministrativeChoreographyFinanceDetail,
+  loadAdminChoreographyFinanceDetail,
   PortionCoverage,
 } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadAdministrativeChoreographyFinanceDetail>
+  ReturnType<typeof loadAdminChoreographyFinanceDetail>
 >;
 
 type InscriptionRow =
@@ -79,13 +79,13 @@ type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 type EligiblePayment = PaymentRow & { stageTotalAmount: number };
 type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
 
-type AdministracionCoreografiaFinancieraDetalleViewProps = {
+type ChoreographyFinanceDetailViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
 };
 
-export function AdministracionCoreografiaFinancieraDetalleView({
+export function ChoreographyFinanceDetailView({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleViewProps) {
+}: ChoreographyFinanceDetailViewProps) {
   const choreography = loaderData.choreography;
 
   return (
@@ -211,7 +211,7 @@ function portionCoverageHref(coverage: PortionCoverage | null) {
 
 function ChoreographyAlerts({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleViewProps) {
+}: ChoreographyFinanceDetailViewProps) {
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
   const needsAttention = loaderData.choreography?.needsAttention ?? false;
@@ -270,7 +270,7 @@ function ChoreographyAlerts({
  */
 function ChoreographyActions({
   loaderData,
-}: AdministracionCoreografiaFinancieraDetalleViewProps) {
+}: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);

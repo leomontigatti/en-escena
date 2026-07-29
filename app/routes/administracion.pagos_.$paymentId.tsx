@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  AdministracionPagoDetalleRouteView,
+  PaymentDetailRouteView,
   getAdminPaymentDisplayName,
 } from "@/features/admin/payments/detail/view";
 import {
@@ -15,7 +15,7 @@ import type { Route } from "./+types/administracion.pagos_.$paymentId";
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionPagoDetalleRouteProps = {
+type PaymentDetailRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -43,15 +43,12 @@ export async function action({ request, params }: Route.ActionArgs) {
   return await handleAdminPaymentDetailAction(request, params.paymentId ?? "");
 }
 
-export default function AdministracionPagoDetalleRoute({
+export default function PaymentDetailRoute({
   loaderData,
-}: AdministracionPagoDetalleRouteProps) {
+}: PaymentDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionPagoDetalleRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
+    <PaymentDetailRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

@@ -27,12 +27,12 @@ import {
   createSavedEvent as createSavedEventFixture,
 } from "@/lib/events/bases-test-fixtures.server.db";
 import {
-  AdministracionProfesoresRouteView,
+  ProfessorsListRouteView,
   handle as profesoresHandle,
   loader,
 } from "@/routes/administracion.profesores";
 import {
-  AdministracionProfesorDetalleRouteView,
+  ProfessorDetailRouteView,
   action as detailAction,
   handle as profesorDetalleHandle,
   loader as detailLoader,
@@ -397,7 +397,7 @@ describe("administracion/profesores route", () => {
       childId: "profesores",
       childLoaderData: listLoaderData,
       childPath: "profesores",
-      childComponent: AdministracionProfesoresRouteView,
+      childComponent: ProfessorsListRouteView,
       childHandle: profesoresHandle,
       initialEntry: "/administracion/profesores",
       parentLoaderData: {
@@ -410,7 +410,7 @@ describe("administracion/profesores route", () => {
       childId: "profesor-detalle",
       childLoaderData: detailLoaderData,
       childPath: "profesores/:professorId",
-      childComponent: AdministracionProfesorDetalleRouteView,
+      childComponent: ProfessorDetailRouteView,
       childHandle: profesorDetalleHandle,
       initialEntry: `/administracion/profesores/${professor.id}`,
       parentLoaderData: {
@@ -966,9 +966,7 @@ describe("administracion/profesores route", () => {
 });
 
 function renderRoute(
-  loaderData: Parameters<
-    typeof AdministracionProfesoresRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   return renderToStaticMarkup(
     createElement(
@@ -976,15 +974,13 @@ function renderRoute(
       {
         initialEntries: [buildListInitialEntry(loaderData)],
       },
-      createElement(AdministracionProfesoresRouteView, { loaderData }),
+      createElement(ProfessorsListRouteView, { loaderData }),
     ),
   );
 }
 
 function renderDetailRoute(
-  loaderData: Parameters<
-    typeof AdministracionProfesorDetalleRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof ProfessorDetailRouteView>[0]["loaderData"],
   professorId: string,
 ) {
   return renderToStaticMarkup(
@@ -993,7 +989,7 @@ function renderDetailRoute(
       {
         initialEntries: [`/administracion/profesores/${professorId}`],
       },
-      createElement(AdministracionProfesorDetalleRouteView, { loaderData }),
+      createElement(ProfessorDetailRouteView, { loaderData }),
     ),
   );
 }
@@ -1002,7 +998,7 @@ function renderDetailRouteWithActionData({
   actionData,
   loaderData,
   professorId,
-}: Parameters<typeof AdministracionProfesorDetalleRouteView>[0] & {
+}: Parameters<typeof ProfessorDetailRouteView>[0] & {
   professorId: string;
 }) {
   return renderToStaticMarkup(
@@ -1011,7 +1007,7 @@ function renderDetailRouteWithActionData({
       {
         initialEntries: [`/administracion/profesores/${professorId}`],
       },
-      createElement(AdministracionProfesorDetalleRouteView, {
+      createElement(ProfessorDetailRouteView, {
         actionData,
         loaderData,
       }),
@@ -1033,8 +1029,8 @@ function renderRouteInAdminLayout({
   parentLoaderData,
 }: {
   childComponent:
-    | typeof AdministracionProfesoresRouteView
-    | typeof AdministracionProfesorDetalleRouteView;
+    | typeof ProfessorsListRouteView
+    | typeof ProfessorDetailRouteView;
   childHandle: unknown;
   childId: string;
   childLoaderData: unknown;
@@ -1058,9 +1054,7 @@ function renderRouteInAdminLayout({
 }
 
 function buildListInitialEntry(
-  loaderData: Parameters<
-    typeof AdministracionProfesoresRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   const searchParams = new URLSearchParams();
 
@@ -1092,9 +1086,7 @@ function buildListInitialEntry(
 }
 
 function getProfessorFilterValues(
-  loaderData: Parameters<
-    typeof AdministracionProfesoresRouteView
-  >[0]["loaderData"],
+  loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   const values: Record<string, string> = {};
   const statusValue = toAdminProfessorStatusSearchValue(

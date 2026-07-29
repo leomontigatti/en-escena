@@ -5,14 +5,14 @@ import {
   handleAdminPaymentCreateAction,
   loadAdminPaymentCreate,
 } from "@/features/admin/payments/create/server";
-import { AdministracionPagosNuevoRouteView } from "@/features/admin/payments/create/view";
+import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
 
 import type { Route } from "./+types/administracion.pagos_.nuevo";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionPagosNuevoRouteProps = {
+type NewPaymentRouteProps = {
   actionData?: ActionData;
   loaderData: LoaderData;
 };
@@ -36,15 +36,10 @@ export async function action({ request }: Route.ActionArgs) {
   return await handleAdminPaymentCreateAction(request);
 }
 
-export default function AdministracionPagosNuevoRoute({
-  loaderData,
-}: AdministracionPagosNuevoRouteProps) {
+export default function NewPaymentRoute({ loaderData }: NewPaymentRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionPagosNuevoRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
+    <NewPaymentRouteView actionData={actionData} loaderData={loaderData} />
   );
 }

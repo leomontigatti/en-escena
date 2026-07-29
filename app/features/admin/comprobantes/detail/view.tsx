@@ -38,7 +38,7 @@ import {
   type ComprobanteDetailActionData,
 } from "./shared";
 
-type AdministracionComprobanteDetalleRouteViewProps = {
+type ComprobanteDetailRouteViewProps = {
   // Permite a los tests montar el diálogo de anulación abierto sin depender de
   // abrir el menú de acciones (que vive en un portal), igual que el detalle de
   // pago con su diálogo de borrado.
@@ -53,10 +53,10 @@ type AdministracionComprobanteDetalleRouteViewProps = {
  * vive acá, junto al comprobante que afecta, y se confirma con un `AlertDialog`
  * cuyo copy dice la verdad: la salida real es una Nota de crédito.
  */
-export function AdministracionComprobanteDetalleRouteView({
+export function ComprobanteDetailRouteView({
   initialAnnulDialogOpen = false,
   loaderData,
-}: AdministracionComprobanteDetalleRouteViewProps) {
+}: ComprobanteDetailRouteViewProps) {
   const comprobante = loaderData.comprobante;
   const [isAnnulDialogOpen, setIsAnnulDialogOpen] = useState(
     initialAnnulDialogOpen,

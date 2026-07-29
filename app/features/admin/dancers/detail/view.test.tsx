@@ -2,13 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { AdministracionBailarinDetalleRouteView } from "@/routes/administracion.bailarines_.$dancerId";
+import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
 
-type DetailRouteViewProps = Parameters<
-  typeof AdministracionBailarinDetalleRouteView
->[0];
+type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
 
-describe("AdministracionBailarinDetalleRouteView", () => {
+describe("DancerDetailRouteView", () => {
   test("renders the readonly ficha for auditors without edit actions", () => {
     const markup = renderDetailView({
       loaderData: createLoaderData({ canEdit: false }),
@@ -47,7 +45,7 @@ describe("AdministracionBailarinDetalleRouteView", () => {
 function renderDetailView(input: Partial<DetailRouteViewProps> = {}) {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-      <AdministracionBailarinDetalleRouteView
+      <DancerDetailRouteView
         loaderData={input.loaderData ?? createLoaderData()}
         actionData={input.actionData}
       />

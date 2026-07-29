@@ -6,11 +6,11 @@ import {
   type DancerDetailLoaderData,
 } from "@/features/admin/dancers/detail/shared";
 import {
-  handleAdministrativeDancerDetailAction,
-  loadAdministrativeDancerDetail,
+  handleAdminDancerDetailAction,
+  loadAdminDancerDetail,
 } from "@/features/admin/dancers/detail/server";
 import {
-  AdministracionBailarinDetalleRouteView as BailarinDetalleView,
+  DancerDetailRouteView as DancerDetailView,
   type InscriptionsSectionProps,
   InscriptionsSection,
 } from "@/features/admin/dancers/detail/view";
@@ -20,7 +20,7 @@ import type { Route } from "./+types/administracion.bailarines_.$dancerId";
 type LoaderData = DancerDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
 
-type AdministracionBailarinDetalleRouteProps = {
+type DancerDetailRouteProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
 };
@@ -43,35 +43,30 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  return await loadAdministrativeDancerDetail({ request, params });
+  return await loadAdminDancerDetail({ request, params });
 }
 
 export async function action({
   request,
   params,
 }: Route.ActionArgs): Promise<DancerDetailActionData> {
-  return await handleAdministrativeDancerDetailAction({ request, params });
+  return await handleAdminDancerDetailAction({ request, params });
 }
 
-export function AdministracionBailarinDetalleRouteView({
+export function DancerDetailRouteView({
   loaderData,
   actionData,
-}: AdministracionBailarinDetalleRouteProps) {
-  return (
-    <BailarinDetalleView actionData={actionData} loaderData={loaderData} />
-  );
+}: DancerDetailRouteProps) {
+  return <DancerDetailView actionData={actionData} loaderData={loaderData} />;
 }
 
-export default function AdministracionBailarinDetalleRoute({
+export default function DancerDetailRoute({
   loaderData,
-}: AdministracionBailarinDetalleRouteProps) {
+}: DancerDetailRouteProps) {
   const actionData = useActionData<typeof action>();
 
   return (
-    <AdministracionBailarinDetalleRouteView
-      loaderData={loaderData}
-      actionData={actionData}
-    />
+    <DancerDetailRouteView loaderData={loaderData} actionData={actionData} />
   );
 }
 

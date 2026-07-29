@@ -119,8 +119,8 @@ visible at the directory boundary.
 **Unmarked = admin.** Admin is the primary surface, so its symbols carry no
 prefix; other surfaces are marked:
 
-- `ChoreographyDetailRouteView` (admin, target)
-- `PortalChoreographyDetailRouteView` (portal, current)
+- `ChoreographyDetailRouteView` (admin)
+- `PortalChoreographyDetailRouteView` (portal)
 
 The justification is *default*, not redundancy removal. "`features/admin/`
 already says admin" would argue equally for dropping `Portal`, which we do not
@@ -128,12 +128,16 @@ want; the default argument survives a third surface, the redundancy one does not
 The prefix also carries real information: under this rule 8 of the 11 portal
 route views would collide by name with an admin counterpart.
 
-Today the portal side already follows the rule; the admin side does not. Admin
-route views are still Spanish and marked (`AdministracionCoreografiaDetalleRouteView`),
-and admin server functions carry an `Admin`/`Administrative` prefix
-(`loadAdminAcademyFinances`, `loadAdministrativeChoreographyDetailRouteData`).
-Those symbols are pending rename, tracked separately — write new admin symbols
-unmarked and English, and do not cite the existing ones as precedent.
+Route views on both surfaces now follow the rule: admin ones are English and
+unmarked (`ChoreographyDetailRouteView`), portal ones keep the `Portal` prefix,
+and admin route default exports match their view root (`ChoreographyDetailRoute`).
+The admin server layer does not yet: functions carry an `Admin` prefix
+(`loadAdminAcademyFinances`, `loadAdminChoreographyDetailRouteData`) and types
+are still marked `Administrative*` (`AdministrativeChoreographyDetailLoaderData`).
+The portal layer is only partly marked too: 174 exports under `app/lib/portal/`
+and `app/features/portal/` still carry no `Portal` prefix. Those symbols are
+pending rename, tracked in #527 — write new admin symbols unmarked and English,
+write new portal symbols marked, and do not cite the existing ones as precedent.
 
 ## File Size And Boundaries
 
