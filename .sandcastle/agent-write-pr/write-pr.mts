@@ -19,7 +19,7 @@ import {
 import { runWithRetry } from "../run-with-retry.mjs";
 import { writePrSchema } from "./output.mjs";
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const issueNumber = requireEnv("ISSUE_NUMBER");
   const issueTitle = requireEnv("ISSUE_TITLE");
   const branch = requireEnv("BRANCH");
@@ -29,6 +29,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("write-pr"),
+    signal,
     maxIterations: 1,
     promptFile: "./.sandcastle/agent-write-pr/prompt.md",
     promptArgs: {

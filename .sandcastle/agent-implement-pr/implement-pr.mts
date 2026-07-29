@@ -34,7 +34,7 @@ const EXTRACTION_PROMPT = [
   "OUTPUT section of the prompt described (threadReplies, newInlineComments, topLevelComments).",
 ].join("\n");
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
   const repo = requireEnv("GH_REPO");
@@ -48,6 +48,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("implement-pr"),
+    signal,
     maxIterations: 100,
     promptFile: "./.sandcastle/agent-implement-pr/prompt.md",
     promptArgs: {

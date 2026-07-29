@@ -41,7 +41,7 @@ function git(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).trim();
 }
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
   const baseRef = requireEnv("BASE_REF");
@@ -94,6 +94,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("update-branch"),
+    signal,
     maxIterations: 100,
     promptFile: "./.sandcastle/agent-update-branch/prompt.md",
     promptArgs: {

@@ -36,6 +36,15 @@ are only concrete references to this repo:
 - **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our
   equivalent); `queued-promotion.md` **does not exist** here (its behavior lives entirely in
   §4.7 of the spec); the link to `domain.md`/`CONTEXT.md`/`docs/adr/` was added.
+- **Wall-clock guardrails on top of §3.7/§3.8.** The spec's runner contract lists the workflow's
+  env vars and gives `"(no reason file written — check workflow logs)"` as the fallback when
+  `failure_reason.txt` is absent. In practice that fallback fires for the one case it cannot
+  explain — a step `timeout-minutes` expiry kills the process tree before the runner can write
+  anything (#512). Two local additions close it, without changing the contract's shape: an
+  `AGENT_BUDGET_MINUTES` env var per runner step (an internal deadline below the step's, turning
+  the timeout into an ordinary throw) and the `*.agent.log` upload artifact, whose tail the
+  `failure()` steps read before falling back to the spec's message. Both are documented in
+  [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).

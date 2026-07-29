@@ -32,7 +32,7 @@ const EXTRACTION_PROMPT = [
   "reason), exactly as the OUTPUT section of the prompt described.",
 ].join("\n");
 
-await runMain(async () => {
+await runMain(async ({ signal }) => {
   const repo = requireEnv("GH_REPO");
 
   // Prefetch prior source:architecture-review proposals (open + closed) so the
@@ -60,6 +60,7 @@ await runMain(async () => {
     agent: createAgent(),
     sandbox: createSandboxProvider(),
     logging: streamingLog("architecture-review"),
+    signal,
     maxIterations: 120,
     promptFile: "./.sandcastle/agent-architecture-review/prompt.md",
     promptArgs: {

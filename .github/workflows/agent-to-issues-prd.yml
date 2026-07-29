@@ -115,13 +115,26 @@ jobs:
 
       - name: Run to-issues runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 30 # guardrail: un cuelgue del agente no quema el run entero
+        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
         env:
           # No GH_TOKEN: the runner is token-less (§3.9); PRD_BODY is prefetched.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PRD_NUMBER: ${{ github.event.issue.number }}
           PRD_TITLE: ${{ github.event.issue.title }}
+          # Internal deadline, below the step's `timeout-minutes`: the runner aborts
+          # the agent and fails with a real reason instead of being killed without
+          # leaving one (#512).
+          AGENT_BUDGET_MINUTES: 25
         run: pnpm exec tsx .sandcastle/agent-to-issues/to-issues.mts
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: to-issues-agent-log
+          path: ${{ env.OUTPUT_DIR }}/*.agent.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       # --- Create + attach each slice as a native sub-issue, in order (§4.1). ---
       - name: Create and attach sub-issues
@@ -160,7 +173,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || echo "(no reason file written — check workflow logs)")
+          # No `failure_reason.txt` means `runMain`'s catch never ran: the step hit
+          # its `timeout-minutes` and Actions killed the process tree (#512). The
+          # agent log survives in OUTPUT_DIR, so fall back to its tail instead of
+          # reporting a bare "(no reason file written)".
+          reason=$(cat "$OUTPUT_DIR/failure_reason.txt" 2>/dev/null || true)
+          if [ -z "$reason" ]; then
+            # `head` closing the pipe can leave `sort` at SIGPIPE (141), which
+            # `pipefail` would turn into an aborted step — before the label below
+            # gets added. Reporting must never hinge on this pipeline succeeding.
+            log=$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.agent.log' -printf '%T@ %p\n' 2>/dev/null \
+              | sort -rn | head -1 | cut -d' ' -f2- || true)
+            if [ -n "${log:-}" ] && [ -s "$log" ]; then
+              reason=$(printf 'no `failure_reason.txt` — last 30 lines of the agent log:\n\n```\n%s\n```' "$(tail -n 30 "$log")")
+            else
+              reason="(no reason file written — check workflow logs)"
+            fi
+          fi
           created=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" --jq '[.[]|"#\(.number)"]|join(", ")' 2>/dev/null || echo "")
           [ -n "$created" ] || created="(none)"
           gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
