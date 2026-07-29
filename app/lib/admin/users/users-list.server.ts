@@ -39,7 +39,7 @@ export type UserListItem = {
   userType: UserListType;
 };
 
-export function readAdministrativeUserFilters(
+export function readUserFilters(
   searchParams: URLSearchParams,
 ): UserListFilters {
   const stateValue = searchParams.get("estado");
@@ -53,7 +53,7 @@ export function readAdministrativeUserFilters(
   };
 }
 
-export async function listAdministrativeUsers(input: {
+export async function listUsers(input: {
   filters: UserListFilters;
 }): Promise<UserListItem[]> {
   const rows = await db
@@ -70,7 +70,7 @@ export async function listAdministrativeUsers(input: {
     })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .where(buildAdministrativeUserWhere(input.filters))
+    .where(buildUserWhere(input.filters))
     .orderBy(
       asc(sql`lower(coalesce(${academies.contactName}, ${user.name}))`),
       asc(sql`lower(coalesce(${user.internalUsername}, ${user.email}))`),
@@ -84,12 +84,12 @@ export async function listAdministrativeUsers(input: {
     mainRole: row.role,
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
-    state: getAdministrativeUserListState(row),
+    state: getUserListState(row),
     userType: row.role === "academy" ? "academy" : "internal",
   }));
 }
 
-function getAdministrativeUserListState(row: {
+function getUserListState(row: {
   requiresPasswordChange: boolean;
   role: UserListRole;
   suspended: boolean;
@@ -109,9 +109,7 @@ function getAdministrativeUserListState(row: {
   return "active";
 }
 
-function buildAdministrativeUserWhere(
-  filters: UserListFilters,
-): SQL<unknown> | undefined {
+function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
   const clauses: SQL<unknown>[] = [];
 
   if (filters.query) {

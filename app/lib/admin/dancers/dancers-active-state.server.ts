@@ -4,18 +4,18 @@ import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
 import {
-  findAdministrativeDancerForMutation,
+  findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import type { DancerStatusMutationResult } from "@/lib/admin/dancers/dancers.server.types";
 
-export async function setAdministrativeDancerActiveState(input: {
+export async function setDancerActiveState(input: {
   action: "archive" | "reactivate";
   adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
 }): Promise<DancerStatusMutationResult> {
-  const existingDancer = await findAdministrativeDancerForMutation({
+  const existingDancer = await findDancerForMutation({
     dancerId: input.dancerId,
     selectedEventId: input.selectedEventId,
   });

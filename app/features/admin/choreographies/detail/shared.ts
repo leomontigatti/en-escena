@@ -15,7 +15,7 @@ export const administrativeChoreographyNotFoundMessage =
  * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y
  * reinicia el formulario con el roster guardado, pisando la edición en curso.
  */
-export function shouldRevalidateAdministrativeChoreographyDetail(input: {
+export function shouldRevalidateChoreographyDetail(input: {
   defaultShouldRevalidate: boolean;
   formData?: FormData;
 }) {

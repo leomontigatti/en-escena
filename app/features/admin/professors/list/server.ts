@@ -2,8 +2,8 @@ import { redirect } from "react-router";
 
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
-  listAdministrativeProfessors,
-  readAdministrativeProfessorFilters,
+  listProfessors,
+  readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
@@ -15,13 +15,10 @@ export async function loadAdminProfessorsList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readAdministrativeProfessorFilters(
-    new URL(request.url).searchParams,
-    {
-      hasSelectedEvent: eventContext.selectedEventId !== null,
-    },
-  );
-  const listResult = await listAdministrativeProfessors({
+  const filters = readProfessorFilters(new URL(request.url).searchParams, {
+    hasSelectedEvent: eventContext.selectedEventId !== null,
+  });
+  const listResult = await listProfessors({
     selectedEventId: eventContext.selectedEventId,
     filters,
   });

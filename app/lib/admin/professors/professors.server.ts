@@ -97,7 +97,7 @@ type ProfessorStatusMutationResult = {
   professor: ProfessorEditableSnapshot;
 };
 
-export function readAdministrativeProfessorFilters(
+export function readProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
 ): ProfessorListFilters {
@@ -116,11 +116,11 @@ export function readAdministrativeProfessorFilters(
   };
 }
 
-export async function listAdministrativeProfessors(input: {
+export async function listProfessors(input: {
   selectedEventId: string | null;
   filters: ProfessorListFilters;
 }): Promise<ProfessorListResult> {
-  const where = buildAdministrativeProfessorWhere(input);
+  const where = buildProfessorWhere(input);
 
   const [{ count: totalUnfilteredCount }] = await db
     .select({
@@ -236,7 +236,7 @@ function readProfessorNameOrder(value: string | null): AdminProfessorNameOrder {
   return value === "nombre:desc" ? "desc" : "asc";
 }
 
-export async function findAdministrativeProfessor(input: {
+export async function findProfessor(input: {
   professorId: string;
   selectedEventId: string | null;
 }): Promise<ProfessorDetail | null> {
@@ -332,7 +332,7 @@ export async function updateAdministrativeProfessor(input: {
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
 }): Promise<ProfessorMutationResult> {
-  const existingProfessor = await findAdministrativeProfessorForMutation({
+  const existingProfessor = await findProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
   });
@@ -412,7 +412,7 @@ export async function updateAdministrativeProfessor(input: {
     .returning();
   const afterValues = toProfessorSnapshot(updatedProfessor);
 
-  await insertAdministrativeProfessorAuditEntry({
+  await insertProfessorAuditEntry({
     action: "update",
     adminUserId: input.adminUserId,
     afterValues,
@@ -428,13 +428,13 @@ export async function updateAdministrativeProfessor(input: {
   };
 }
 
-export async function setAdministrativeProfessorActiveState(input: {
+export async function setProfessorActiveState(input: {
   action: "archive" | "reactivate";
   adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
 }): Promise<ProfessorStatusMutationResult> {
-  const existingProfessor = await findAdministrativeProfessorForMutation({
+  const existingProfessor = await findProfessorForMutation({
     professorId: input.professorId,
     selectedEventId: input.selectedEventId,
   });
@@ -455,7 +455,7 @@ export async function setAdministrativeProfessorActiveState(input: {
     .returning();
   const afterValues = toProfessorSnapshot(updatedProfessor);
 
-  await insertAdministrativeProfessorAuditEntry({
+  await insertProfessorAuditEntry({
     action: input.action,
     adminUserId: input.adminUserId,
     afterValues,
@@ -470,7 +470,7 @@ export async function setAdministrativeProfessorActiveState(input: {
   };
 }
 
-function buildAdministrativeProfessorWhere(input: {
+function buildProfessorWhere(input: {
   selectedEventId: string | null;
   filters: ProfessorListFilters;
 }) {
@@ -529,7 +529,7 @@ function toParticipationStatus(
   return isParticipating ? "participating" : "not-participating";
 }
 
-async function findAdministrativeProfessorForMutation(input: {
+async function findProfessorForMutation(input: {
   professorId: string;
   selectedEventId: string | null;
 }) {
@@ -593,7 +593,7 @@ function toProfessorSnapshot(
   };
 }
 
-async function insertAdministrativeProfessorAuditEntry(input: {
+async function insertProfessorAuditEntry(input: {
   action: ProfessorAuditAction;
   adminUserId: string;
   afterValues: ProfessorEditableSnapshot;

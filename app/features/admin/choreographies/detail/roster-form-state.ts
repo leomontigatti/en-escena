@@ -171,7 +171,7 @@ export function hasNoCompatibleCategory({
   return hasResolvedRosterChange && derivedResolution.categoryId === null;
 }
 
-export function canSubmitAdministrativeChoreographyEdit(input: CanSubmitInput) {
+export function canSubmitChoreographyEdit(input: CanSubmitInput) {
   if (
     !input.hasNameChanged &&
     !input.hasRosterChanged &&

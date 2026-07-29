@@ -7,7 +7,7 @@ import {
   type ChoreographyDetailActionData,
   type ChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
-import { shouldRevalidateAdministrativeChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
+import { shouldRevalidateChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
 import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
@@ -55,7 +55,7 @@ export async function action({
 }
 
 export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>
-  shouldRevalidateAdministrativeChoreographyDetail({
+  shouldRevalidateChoreographyDetail({
     defaultShouldRevalidate: arg.defaultShouldRevalidate,
     formData: arg.formData,
   });

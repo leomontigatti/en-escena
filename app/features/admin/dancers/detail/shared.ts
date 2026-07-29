@@ -4,7 +4,7 @@ import type {
   DancerFieldErrors,
   DancerUpdateInput,
   DancerEditConsequence,
-  findAdministrativeDancer,
+  findDancer,
 } from "@/lib/admin/dancers/dancers.server";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -29,7 +29,7 @@ export type DancerDetailLoaderData = {
   backToList: string;
   cancelHref: string;
   canEdit: boolean;
-  dancer: NonNullable<Awaited<ReturnType<typeof findAdministrativeDancer>>>;
+  dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>;
   documentImageUrls: {
     back: string | null;
     front: string | null;

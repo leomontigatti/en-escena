@@ -150,7 +150,7 @@ export async function loadAdminChoreographyDetailRouteData(input: {
   const choreographyId = readChoreographyId(input.params);
   const selectedEventId = eventContext.selectedEventId;
   const choreography = selectedEventId
-    ? await findAdministrativeChoreographyDetail({
+    ? await findChoreographyDetail({
         choreographyId,
         selectedEventId,
       })
@@ -164,7 +164,7 @@ export async function loadAdminChoreographyDetailRouteData(input: {
 
   const [blockers, availableDancers, availableProfessors, submodalityOptions] =
     await Promise.all([
-      getAdministrativeChoreographyDeleteBlockers(choreography),
+      getChoreographyDeleteBlockers(choreography),
       listDancerOptionsForChoreography(
         choreography.academyId,
         choreography.dancers.map((dancer) => dancer.id),
@@ -223,7 +223,7 @@ export async function handleAdminChoreographyDetailAction(input: {
     });
   }
 
-  const choreography = await findAdministrativeChoreographyDetail({
+  const choreography = await findChoreographyDetail({
     choreographyId,
     selectedEventId,
   });
@@ -238,14 +238,14 @@ export async function handleAdminChoreographyDetailAction(input: {
   const intent = formData.get("intent");
 
   if (intent === renameAdministrativeChoreographyIntent) {
-    return await renameAdministrativeChoreography({
+    return await renameChoreography({
       choreographyId,
       formData,
     });
   }
 
   if (intent === deleteAdministrativeChoreographyIntent) {
-    await deleteAdministrativeChoreography(choreography);
+    await deleteChoreography(choreography);
     return redirectWithFlashNotification(
       "/administracion/coreografias",
       "coreografia-eliminada",
@@ -282,7 +282,7 @@ export async function handleAdminChoreographyDetailAction(input: {
   throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
-async function findAdministrativeChoreographyDetail(input: {
+async function findChoreographyDetail(input: {
   choreographyId: string;
   selectedEventId: string;
 }): Promise<ChoreographyDetail | null> {
@@ -338,8 +338,8 @@ async function findAdministrativeChoreographyDetail(input: {
   }
 
   const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
-    listAdministrativeChoreographyDancers(input.choreographyId),
-    listAdministrativeChoreographyProfessors(input.choreographyId),
+    listChoreographyDancers(input.choreographyId),
+    listChoreographyProfessors(input.choreographyId),
     loadAdminChoreographyMusicDownloadUrl(row.musicStorageKey),
   ]);
 
@@ -393,7 +393,7 @@ async function listSubmodalitiesForModality(modalityId: string) {
     .orderBy(asc(submodalities.name));
 }
 
-async function listAdministrativeChoreographyDancers(choreographyId: string) {
+async function listChoreographyDancers(choreographyId: string) {
   return await db
     .select({
       active: dancers.active,
@@ -408,9 +408,7 @@ async function listAdministrativeChoreographyDancers(choreographyId: string) {
     .orderBy(asc(dancers.firstName), asc(dancers.lastName));
 }
 
-async function listAdministrativeChoreographyProfessors(
-  choreographyId: string,
-) {
+async function listChoreographyProfessors(choreographyId: string) {
   return await db
     .select({
       active: professors.active,
@@ -427,7 +425,7 @@ async function listAdministrativeChoreographyProfessors(
     .orderBy(asc(professors.firstName), asc(professors.lastName));
 }
 
-async function renameAdministrativeChoreography(input: {
+async function renameChoreography(input: {
   choreographyId: string;
   formData: FormData;
 }): Promise<ChoreographyActionData | ChoreographySuccessData> {
@@ -560,11 +558,8 @@ async function updateAdministrativeChoreographyRosterAction(input: {
   return choreographySavedSuccess();
 }
 
-async function deleteAdministrativeChoreography(
-  choreography: ChoreographyDetail,
-) {
-  const blockers =
-    await getAdministrativeChoreographyDeleteBlockers(choreography);
+async function deleteChoreography(choreography: ChoreographyDetail) {
+  const blockers = await getChoreographyDeleteBlockers(choreography);
 
   if (blockers.length > 0) {
     throw new Response("No se puede eliminar esta coreografía.", {
@@ -575,7 +570,7 @@ async function deleteAdministrativeChoreography(
   await db.delete(choreographies).where(eq(choreographies.id, choreography.id));
 }
 
-async function getAdministrativeChoreographyDeleteBlockers(
+async function getChoreographyDeleteBlockers(
   choreography: Pick<ChoreographyDetail, "hasPresentation" | "id">,
 ): Promise<ChoreographyDeleteBlocker[]> {
   const [hasScores, hasComprobantes] = await Promise.all([

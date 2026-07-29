@@ -95,23 +95,17 @@ const defaultAdministrativeChoreographyOrder: ChoreographyOrder = {
   direction: "asc",
 };
 
-function readAdministrativeChoreographyFilters(
+function readChoreographyFilters(
   searchParams: URLSearchParams,
 ): ChoreographyListFilters {
   return {
-    category: readAdministrativeChoreographyCategoryFilter(
-      searchParams.get("categoria"),
-    ),
-    groupType: readAdministrativeChoreographyGroupTypeFilter(
-      searchParams.get("tipo-grupo"),
-    ),
+    category: readChoreographyCategoryFilter(searchParams.get("categoria")),
+    groupType: readChoreographyGroupTypeFilter(searchParams.get("tipo-grupo")),
     modalityId: readNonEmptySearchParam(searchParams.get("modalidad")),
-    order: readAdministrativeChoreographyOrder(searchParams.get("orden")),
+    order: readChoreographyOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readAdministrativeChoreographyStatusFilter(
-      searchParams.get("estado"),
-    ),
+    status: readChoreographyStatusFilter(searchParams.get("estado")),
   };
 }
 
@@ -157,16 +151,13 @@ export async function loadAdminChoreographies(input: {
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
-  const facets = buildAdministrativeChoreographyFacets(rows);
-  const filters = normalizeAdministrativeChoreographyFilters(
-    input.filters,
-    facets,
-  );
-  const hydratedRows = await hydrateAdministrativeChoreographies(rows);
+  const facets = buildChoreographyFacets(rows);
+  const filters = normalizeChoreographyFilters(input.filters, facets);
+  const hydratedRows = await hydrateChoreographies(rows);
   const filteredRows = hydratedRows
-    .filter((row) => matchesAdministrativeChoreographyFilters(row, filters))
+    .filter((row) => matchesChoreographyFilters(row, filters))
     .sort((firstRow, secondRow) =>
-      compareAdministrativeChoreographies(firstRow, secondRow, filters.order),
+      compareChoreographies(firstRow, secondRow, filters.order),
     );
   const totalCount = filteredRows.length;
   const totalPages = Math.max(
@@ -204,12 +195,12 @@ export async function loadAdminChoreographyListRouteData(request: Request) {
   }
 
   const url = new URL(request.url);
-  const filters = readAdministrativeChoreographyFilters(url.searchParams);
+  const filters = readChoreographyFilters(url.searchParams);
   const listResult = await loadAdminChoreographies({
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
-  const canonicalSearch = buildCanonicalAdministrativeChoreographiesSearch({
+  const canonicalSearch = buildCanonicalChoreographiesSearch({
     currentSearch: url.search,
     filters: listResult.filters,
   });
@@ -232,14 +223,14 @@ function readPage(searchParams: URLSearchParams) {
   return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
-function isDefaultAdministrativeChoreographyOrder(order: ChoreographyOrder) {
+function isDefaultChoreographyOrder(order: ChoreographyOrder) {
   return (
     order.columnId === defaultAdministrativeChoreographyOrder.columnId &&
     order.direction === defaultAdministrativeChoreographyOrder.direction
   );
 }
 
-function buildCanonicalAdministrativeChoreographiesSearch(input: {
+function buildCanonicalChoreographiesSearch(input: {
   currentSearch: string;
   filters: ChoreographyListResult["filters"];
 }) {
@@ -275,7 +266,7 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
     searchParams.delete("tipo-grupo");
   }
 
-  if (!isDefaultAdministrativeChoreographyOrder(input.filters.order)) {
+  if (!isDefaultChoreographyOrder(input.filters.order)) {
     searchParams.set(
       "orden",
       `${input.filters.order.columnId}:${input.filters.order.direction}`,
@@ -293,9 +284,7 @@ function buildCanonicalAdministrativeChoreographiesSearch(input: {
   return searchParams.toString();
 }
 
-function readAdministrativeChoreographyOrder(
-  value: string | null,
-): ChoreographyOrder {
+function readChoreographyOrder(value: string | null): ChoreographyOrder {
   switch (value) {
     case "academia:asc":
       return { columnId: "academia", direction: "asc" };
@@ -310,7 +299,7 @@ function readAdministrativeChoreographyOrder(
   }
 }
 
-async function hydrateAdministrativeChoreographies(
+async function hydrateChoreographies(
   rows: ChoreographyRow[],
 ): Promise<HydratedChoreographyRow[]> {
   if (rows.length === 0) {
@@ -353,7 +342,7 @@ async function hydrateAdministrativeChoreographies(
   }));
 }
 
-function readAdministrativeChoreographyStatusFilter(
+function readChoreographyStatusFilter(
   value: string | null,
 ): ChoreographyStatusFilter {
   switch (value) {
@@ -365,7 +354,7 @@ function readAdministrativeChoreographyStatusFilter(
   }
 }
 
-function readAdministrativeChoreographyCategoryFilter(
+function readChoreographyCategoryFilter(
   value: string | null,
 ): ChoreographyCategoryFilter {
   if (value === "sin-asignar") {
@@ -375,7 +364,7 @@ function readAdministrativeChoreographyCategoryFilter(
   return readNonEmptySearchParam(value);
 }
 
-function readAdministrativeChoreographyGroupTypeFilter(
+function readChoreographyGroupTypeFilter(
   value: string | null,
 ): ChoreographyGroupType | null {
   switch (value) {
@@ -393,7 +382,7 @@ function readNonEmptySearchParam(value: string | null) {
   return value?.trim().length ? value.trim() : null;
 }
 
-function buildAdministrativeChoreographyFacets(rows: ChoreographyRow[]) {
+function buildChoreographyFacets(rows: ChoreographyRow[]) {
   return {
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
@@ -410,7 +399,7 @@ function buildAdministrativeChoreographyFacets(rows: ChoreographyRow[]) {
   };
 }
 
-function normalizeAdministrativeChoreographyFilters(
+function normalizeChoreographyFilters(
   filters: ChoreographyListFilters,
   facets: ChoreographyFacets,
 ): ChoreographyListFilters {
@@ -421,7 +410,7 @@ function normalizeAdministrativeChoreographyFilters(
   };
 }
 
-function matchesAdministrativeChoreographyFilters(
+function matchesChoreographyFilters(
   row: HydratedChoreographyRow,
   filters: ChoreographyListFilters,
 ) {
@@ -443,9 +432,7 @@ function matchesAdministrativeChoreographyFilters(
     return false;
   }
 
-  if (
-    !matchesAdministrativeChoreographyCategory(row.categoryId, filters.category)
-  ) {
+  if (!matchesChoreographyCategory(row.categoryId, filters.category)) {
     return false;
   }
 
@@ -465,19 +452,19 @@ function matchesAdministrativeChoreographyFilters(
   );
 }
 
-function compareAdministrativeChoreographies(
+function compareChoreographies(
   firstRow: ChoreographyListItem,
   secondRow: ChoreographyListItem,
   order: ChoreographyOrder,
 ) {
   if (order.columnId === "nombre") {
-    const comparison = compareAdministrativeText(firstRow.name, secondRow.name);
+    const comparison = compareText(firstRow.name, secondRow.name);
 
     if (comparison !== 0) {
       return applySortDirection(comparison, order.direction);
     }
 
-    const academyComparison = compareAdministrativeText(
+    const academyComparison = compareText(
       firstRow.academyName,
       secondRow.academyName,
     );
@@ -489,7 +476,7 @@ function compareAdministrativeChoreographies(
     return firstRow.id.localeCompare(secondRow.id, "es-AR");
   }
 
-  const academyComparison = compareAdministrativeText(
+  const academyComparison = compareText(
     firstRow.academyName,
     secondRow.academyName,
   );
@@ -498,10 +485,7 @@ function compareAdministrativeChoreographies(
     return applySortDirection(academyComparison, order.direction);
   }
 
-  const nameComparison = compareAdministrativeText(
-    firstRow.name,
-    secondRow.name,
-  );
+  const nameComparison = compareText(firstRow.name, secondRow.name);
 
   if (nameComparison !== 0) {
     return nameComparison;
@@ -510,7 +494,7 @@ function compareAdministrativeChoreographies(
   return firstRow.id.localeCompare(secondRow.id, "es-AR");
 }
 
-function compareAdministrativeText(firstValue: string, secondValue: string) {
+function compareText(firstValue: string, secondValue: string) {
   return firstValue.localeCompare(secondValue, "es-AR", {
     sensitivity: "base",
     numeric: true,
@@ -532,7 +516,7 @@ function keepKnownFacetValue(
   return options.some((option) => option.value === value) ? value : null;
 }
 
-function matchesAdministrativeChoreographyCategory(
+function matchesChoreographyCategory(
   categoryId: string | null,
   categoryFilter: ChoreographyCategoryFilter,
 ) {
@@ -551,6 +535,6 @@ function getUniqueSortedFilterOptions(options: ChoreographyFilterOption[]) {
   return Array.from(
     new Map(options.map((option) => [option.value, option])).values(),
   ).sort((firstOption, secondOption) =>
-    compareAdministrativeText(firstOption.label, secondOption.label),
+    compareText(firstOption.label, secondOption.label),
   );
 }

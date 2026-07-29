@@ -2,7 +2,7 @@ import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
-  getAdministrativeEventPriceDisplayName,
+  getEventPriceDisplayName,
   EventPriceDetailView,
   type EventPriceDetailViewProps,
 } from "@/features/admin/prices/detail/view";
@@ -24,7 +24,7 @@ export const handle = {
       const price = data?.prices.find(
         (item) => item.id === match.params.priceId,
       );
-      return { label: getAdministrativeEventPriceDisplayName(price) };
+      return { label: getEventPriceDisplayName(price) };
     },
   ],
 } satisfies AdminRouteHandle;

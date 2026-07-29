@@ -2,8 +2,8 @@ import { redirect } from "react-router";
 
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import {
-  listAdministrativeDancers,
-  readAdministrativeDancerFilters,
+  listDancers,
+  readDancerFilters,
 } from "@/lib/admin/dancers/dancers.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
@@ -15,13 +15,10 @@ export async function loadAdminDancersList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readAdministrativeDancerFilters(
-    new URL(request.url).searchParams,
-    {
-      hasSelectedEvent: eventContext.selectedEventId !== null,
-    },
-  );
-  const listResult = await listAdministrativeDancers({
+  const filters = readDancerFilters(new URL(request.url).searchParams, {
+    hasSelectedEvent: eventContext.selectedEventId !== null,
+  });
+  const listResult = await listDancers({
     selectedEventId: eventContext.selectedEventId,
     filters,
   });

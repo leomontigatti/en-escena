@@ -4,16 +4,16 @@ import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
 import {
-  findAdministrativeDancerForMutation,
+  findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 
-export async function verifyAdministrativeDancerIdentity(input: {
+export async function verifyDancerIdentity(input: {
   adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
 }) {
-  const existingDancer = await findAdministrativeDancerForMutation({
+  const existingDancer = await findDancerForMutation({
     dancerId: input.dancerId,
     selectedEventId: input.selectedEventId,
   });

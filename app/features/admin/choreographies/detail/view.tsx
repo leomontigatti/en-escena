@@ -38,7 +38,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
-  canSubmitAdministrativeChoreographyEdit,
+  canSubmitChoreographyEdit,
   hasNoCompatibleCategory,
 } from "./roster-form-state";
 import {
@@ -49,7 +49,7 @@ import {
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
-import { useAdministrativeRosterForm } from "./use-roster-form";
+import { useRosterForm } from "./use-roster-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -168,7 +168,7 @@ function AdministrativeChoreographyDetailForm({
 }) {
   const choreography = loaderData.choreography;
   const defaultValues = useMemo(
-    () => getAdministrativeChoreographyFormValues(loaderData, actionData),
+    () => getChoreographyFormValues(loaderData, actionData),
     [actionData, loaderData],
   );
   const form = useForm<ChoreographyFormValues>({
@@ -180,7 +180,7 @@ function AdministrativeChoreographyDetailForm({
   const submit = useSubmit();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const roster = useAdministrativeRosterForm({ form, loaderData });
+  const roster = useRosterForm({ form, loaderData });
 
   useEffect(() => {
     reset(defaultValues);
@@ -199,7 +199,7 @@ function AdministrativeChoreographyDetailForm({
 
   const canSubmit =
     loaderData.canEdit &&
-    canSubmitAdministrativeChoreographyEdit({
+    canSubmitChoreographyEdit({
       canEditRoster: roster.canEditRoster,
       derivedResolution: roster.derivedResolution,
       hasNameChanged: roster.hasNameChanged,
@@ -518,7 +518,7 @@ function FormActions({
   );
 }
 
-function getAdministrativeChoreographyFormValues(
+function getChoreographyFormValues(
   loaderData: ChoreographyDetailLoaderData,
   actionData?: ChoreographyViewActionData,
 ): ChoreographyFormValues {

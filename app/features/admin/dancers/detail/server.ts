@@ -4,9 +4,9 @@ import { redirect } from "react-router";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { adminDancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
 import {
-  findAdministrativeDancer,
-  setAdministrativeDancerActiveState,
-  verifyAdministrativeDancerIdentity,
+  findDancer,
+  setDancerActiveState,
+  verifyDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import {
@@ -37,7 +37,7 @@ export async function loadAdminDancerDetail(input: {
   }
 
   const dancerId = readDancerId(input.params);
-  const dancer = await findAdministrativeDancer({
+  const dancer = await findDancer({
     dancerId,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -75,7 +75,7 @@ export async function handleAdminDancerDetailAction(input: {
   const dancerId = readDancerId(input.params);
   const formData = await input.request.formData();
   const intent = formData.get("intent");
-  const dancer = await findAdministrativeDancer({
+  const dancer = await findDancer({
     dancerId,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -85,7 +85,7 @@ export async function handleAdminDancerDetailAction(input: {
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
-    await setAdministrativeDancerActiveState({
+    await setDancerActiveState({
       action: intent === "archive-dancer" ? "archive" : "reactivate",
       adminUserId: adminUser.id,
       dancerId,
@@ -100,7 +100,7 @@ export async function handleAdminDancerDetailAction(input: {
   }
 
   if (intent === "verify-dancer-identity") {
-    await verifyAdministrativeDancerIdentity({
+    await verifyDancerIdentity({
       adminUserId: adminUser.id,
       dancerId,
       selectedEventId: eventContext.selectedEventId,
@@ -148,7 +148,7 @@ export async function handleAdminDancerDetailAction(input: {
 }
 
 async function loadDancerDocumentImageUrls(
-  dancer: NonNullable<Awaited<ReturnType<typeof findAdministrativeDancer>>>,
+  dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>,
 ) {
   if (
     !dancer.documentFrontImageStorageKey &&

@@ -38,7 +38,7 @@ type RosterFormValues = {
  * (no por timer): cada selección se pide una sola vez, y volver a la selección
  * original no dispara pedido porque ya conocemos su resolución persistida.
  */
-export function useAdministrativeRosterForm({
+export function useRosterForm({
   form,
   loaderData,
 }: {

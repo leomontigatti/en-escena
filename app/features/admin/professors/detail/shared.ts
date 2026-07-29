@@ -3,7 +3,7 @@ import { z } from "zod";
 import type {
   ProfessorFieldErrors,
   ProfessorUpdateInput,
-  findAdministrativeProfessor,
+  findProfessor,
 } from "@/lib/admin/professors/professors.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -24,9 +24,7 @@ export type ProfessorDetailLoaderData = {
   canEdit: boolean;
   editHref: string;
   isEditing: boolean;
-  professor: NonNullable<
-    Awaited<ReturnType<typeof findAdministrativeProfessor>>
-  >;
+  professor: NonNullable<Awaited<ReturnType<typeof findProfessor>>>;
   selectedEventId: string | null;
 };
 

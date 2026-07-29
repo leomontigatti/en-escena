@@ -3,14 +3,14 @@ import { describe, expect, test } from "vitest";
 import {
   renameAdministrativeChoreographyIntent,
   resolveAdministrativeChoreographyRosterIntent,
-  shouldRevalidateAdministrativeChoreographyDetail,
+  shouldRevalidateChoreographyDetail,
   updateAdministrativeChoreographyRosterIntent,
 } from "./shared";
 
-describe("shouldRevalidateAdministrativeChoreographyDetail", () => {
+describe("shouldRevalidateChoreographyDetail", () => {
   test("does not revalidate after resolving a tentative roster", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
         formData: buildFormData(resolveAdministrativeChoreographyRosterIntent),
       }),
@@ -19,7 +19,7 @@ describe("shouldRevalidateAdministrativeChoreographyDetail", () => {
 
   test("revalidates after the roster is actually saved", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
         formData: buildFormData(updateAdministrativeChoreographyRosterIntent),
       }),
@@ -28,7 +28,7 @@ describe("shouldRevalidateAdministrativeChoreographyDetail", () => {
 
   test("revalidates after a rename", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
         formData: buildFormData(renameAdministrativeChoreographyIntent),
       }),
@@ -37,7 +37,7 @@ describe("shouldRevalidateAdministrativeChoreographyDetail", () => {
 
   test("defers to the router when there is no form data", () => {
     expect(
-      shouldRevalidateAdministrativeChoreographyDetail({
+      shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: false,
       }),
     ).toBe(false);

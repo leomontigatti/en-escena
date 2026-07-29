@@ -349,11 +349,7 @@ export async function measureCriticalRequestBaseline(): Promise<
           "loadAdminEventContext",
           "eventContextMs",
         ),
-        trackAsync(
-          adminDancersModule,
-          "listAdministrativeDancers",
-          "mainQueryMs",
-        ),
+        trackAsync(adminDancersModule, "listDancers", "mainQueryMs"),
       ],
       run: () =>
         adminDancersLoader(
@@ -376,11 +372,7 @@ export async function measureCriticalRequestBaseline(): Promise<
           "loadAdminEventContext",
           "eventContextMs",
         ),
-        trackAsync(
-          adminProfessorsModule,
-          "listAdministrativeProfessors",
-          "mainQueryMs",
-        ),
+        trackAsync(adminProfessorsModule, "listProfessors", "mainQueryMs"),
       ],
       run: () =>
         adminProfessorsLoader(

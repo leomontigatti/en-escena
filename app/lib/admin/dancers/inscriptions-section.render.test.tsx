@@ -3,9 +3,9 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/admin/dancers/dancers.server", () => ({
-  findAdministrativeDancer: vi.fn(),
-  setAdministrativeDancerActiveState: vi.fn(),
-  verifyAdministrativeDancerIdentity: vi.fn(),
+  findDancer: vi.fn(),
+  setDancerActiveState: vi.fn(),
+  verifyDancerIdentity: vi.fn(),
 }));
 
 vi.mock("@/lib/admin/dancers/dancers-update.server", () => ({

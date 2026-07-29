@@ -82,8 +82,6 @@ export function EventPriceDetailView({
   );
 }
 
-export function getAdministrativeEventPriceDisplayName(
-  price: PriceListItem | undefined,
-) {
+export function getEventPriceDisplayName(price: PriceListItem | undefined) {
   return price ? getPriceDisplayName(price) : "Precio";
 }

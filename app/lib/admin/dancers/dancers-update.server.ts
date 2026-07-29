@@ -5,7 +5,7 @@ import { dancers } from "@/db/schema";
 import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
 import { createAdministrativeChoreographyAuditEntry } from "@/lib/choreographies/choreography-audit.server";
 import {
-  findAdministrativeDancerForMutation,
+  findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
@@ -29,7 +29,7 @@ export async function updateAdministrativeDancer(input: {
   selectedEventId: string | null;
   values: DancerUpdateInput;
 }): Promise<DancerMutationResult> {
-  const existingDancer = await findAdministrativeDancerForMutation({
+  const existingDancer = await findDancerForMutation({
     dancerId: input.dancerId,
     selectedEventId: input.selectedEventId,
   });

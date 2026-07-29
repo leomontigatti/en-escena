@@ -137,7 +137,7 @@ export function toDancerSnapshot(
   };
 }
 
-export async function findAdministrativeDancerForMutation(input: {
+export async function findDancerForMutation(input: {
   dancerId: string;
   selectedEventId: string | null;
 }): Promise<DancerMutationRecord | null> {

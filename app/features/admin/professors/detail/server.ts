@@ -4,8 +4,8 @@ import { redirect } from "react-router";
 import { loadAdminEventContext } from "@/lib/admin/event-context.server";
 import { adminProfessorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
-  findAdministrativeProfessor,
-  setAdministrativeProfessorActiveState,
+  findProfessor,
+  setProfessorActiveState,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
 import {
@@ -35,7 +35,7 @@ export async function loadAdminProfessorDetail(input: {
   }
 
   const professorId = readProfessorId(input.params);
-  const professor = await findAdministrativeProfessor({
+  const professor = await findProfessor({
     professorId,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -72,7 +72,7 @@ export async function handleAdminProfessorDetailAction(input: {
   const professorId = readProfessorId(input.params);
   const formData = await input.request.formData();
   const intent = formData.get("intent");
-  const professor = await findAdministrativeProfessor({
+  const professor = await findProfessor({
     professorId,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -82,7 +82,7 @@ export async function handleAdminProfessorDetailAction(input: {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    await setAdministrativeProfessorActiveState({
+    await setProfessorActiveState({
       action: intent === "archive-professor" ? "archive" : "reactivate",
       adminUserId: adminUser.id,
       professorId,

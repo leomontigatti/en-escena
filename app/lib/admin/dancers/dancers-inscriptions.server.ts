@@ -10,7 +10,7 @@ import {
 import type { DancerInscription } from "@/lib/admin/dancers/dancers.server.types";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 
-export async function findAdministrativeDancerInscriptions(input: {
+export async function findDancerInscriptions(input: {
   dancerId: string;
   selectedEventId: string | null;
 }) {
