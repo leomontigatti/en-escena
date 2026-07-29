@@ -150,7 +150,6 @@ export type ResolvedChoreographyDancerUpdateContext =
       };
     };
 
-export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 export const invalidProfessorSelectionMessage =
   "Seleccioná solo profesores activos o ya vinculados a esta coreografía.";
 export const invalidDancerSelectionMessage =

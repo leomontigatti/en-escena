@@ -23,6 +23,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { validateSubmodalitySelection } from "@/lib/choreographies/registration-resolution.server";
 import {
   listDancerOptionsForChoreography,
@@ -45,7 +46,6 @@ import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreograph
 
 import {
   choreographyFieldNames,
-  choreographyNotFoundMessage,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,

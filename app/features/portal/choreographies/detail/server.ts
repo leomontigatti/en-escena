@@ -7,6 +7,7 @@ import {
   updateChoreographyIntent,
   type PortalChoreographyMusicActionData,
 } from "@/features/portal/choreographies/detail/music-editor.shared";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { findChoreographyForAcademyEvent } from "@/lib/portal/choreographies.server";
 import {
   loadPortalChoreographyMusicDownloadUrl,
@@ -17,7 +18,6 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 const choreographySavedMessage =
   notificationToasts["coreografia-guardada"].message;
-const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 const readOnlyEventMessage = "Este evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
 

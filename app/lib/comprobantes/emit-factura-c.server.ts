@@ -8,6 +8,7 @@ import {
   events,
   paymentAllocations,
 } from "@/db/schema";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
@@ -97,7 +98,7 @@ export async function emitChoreographyFacturaC(
     return {
       ok: false,
       reason: "not-found",
-      message: "No encontramos esa coreografía.",
+      message: choreographyNotFoundMessage,
     };
   }
 

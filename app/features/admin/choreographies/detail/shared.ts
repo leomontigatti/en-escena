@@ -6,8 +6,6 @@ export const resolveChoreographyRosterIntent = "resolve-roster";
 export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
 
-export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
-
 /**
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
  * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y

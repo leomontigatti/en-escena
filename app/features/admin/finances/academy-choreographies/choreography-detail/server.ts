@@ -12,6 +12,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
 import type { ArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
@@ -95,7 +96,7 @@ export async function loadChoreographyFinanceDetail(input: {
   );
 
   if (!choreographyFinanceRow) {
-    throw new Response("No encontramos esa coreografía.", { status: 404 });
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
   const choreographyInscriptions = financeDetail.inscriptions.filter(
@@ -687,7 +688,7 @@ function readAcademyId(params: { academyId?: string }) {
 
 function readChoreographyId(params: { choreographyId?: string }) {
   if (!params.choreographyId) {
-    throw new Response("No encontramos esa coreografía.", { status: 404 });
+    throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
   return params.choreographyId;

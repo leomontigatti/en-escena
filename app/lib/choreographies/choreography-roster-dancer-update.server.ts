@@ -11,8 +11,8 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
-  choreographyNotFoundMessage,
   compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
   getGlobalScheduleCapacityOptionId,

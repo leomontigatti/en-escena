@@ -1,9 +1,8 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
-
-const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 export async function loadPortalChoreographyFinanceDetail(input: {
   params: { choreographyId?: string };
