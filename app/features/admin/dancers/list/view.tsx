@@ -282,7 +282,7 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.identification,
   );
 
-  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
+  if (loaderData.selectedEventId !== null && participationValue !== null) {
     values.participando = participationValue;
   }
 
@@ -309,7 +309,7 @@ function hasActiveListFilters(loaderData: LoaderData) {
   return (
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
-    (loaderData.selectedEventId !== null && participationValue !== "todos") ||
+    (loaderData.selectedEventId !== null && participationValue !== null) ||
     statusValue === "archivados" ||
     identificationValue !== "todos"
   );

@@ -232,7 +232,7 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.participation,
   );
 
-  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
+  if (loaderData.selectedEventId !== null && participationValue !== null) {
     values.participando = participationValue;
   }
 
