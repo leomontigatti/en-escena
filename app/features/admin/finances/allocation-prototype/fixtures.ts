@@ -219,6 +219,8 @@ export type InscriptionReading = {
   selectedPriceId: string | null;
   priceName: string | null;
   priceAmount: number | null;
+  /** The chosen price's group type, for #551's `groupTypeMismatch`. */
+  priceGroupType: string | null;
   discountAmount: number;
   /**
    * #551: the discount is applied **once**, in here. `null` while no price has
@@ -271,6 +273,7 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
       selectedPriceId: inscription.selectedPriceId,
       priceName: price?.name ?? null,
       priceAmount: price?.amount ?? null,
+      priceGroupType: price?.groupType ?? null,
       discountAmount: inscription.dancerDiscountAmount,
       totalAmount,
       depositAmount,

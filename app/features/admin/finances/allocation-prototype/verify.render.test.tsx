@@ -43,6 +43,30 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Estado del prototipo");
   });
 
+  it("resolves per inscription: no selection column, no bulk presets", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    // No selection column, and no header actions menu to hang bulk actions on.
+    expect(markup).not.toContain("Seleccionar todo");
+    expect(markup).not.toContain('aria-label="Acciones"');
+    expect(markup).toContain("Asignar");
+  });
+
+  it("raises the group-type anomaly as an alert, not a badge", () => {
+    // «Umbral» is a Dúo whose roster picked a Grupo price.
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
+    );
+
+    expect(markup).toContain("Precio de otro tipo de grupo");
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Gala Iriarte");
+  });
+
   it("carries the group type of whichever choreography is chosen", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,

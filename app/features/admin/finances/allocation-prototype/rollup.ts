@@ -89,40 +89,46 @@ export function readChoreographies(
               statusRank[status] < statusRank[lowest] ? status : lowest,
             ),
       tentative,
-      anomalies: readAnomalies(state, choreography.groupType, rows),
+      anomalies: readAnomalies(choreography.groupType, rows),
     };
   });
 }
 
+/**
+ * Who is affected by each anomaly, not just whether it fires. The alerts name
+ * the inscriptions, because #551 wants the alert's *content* to do the work of
+ * a conflict resolver — there is no acknowledgement to persist, so the only way
+ * it helps is by saying exactly what to fix.
+ */
+export function readAnomalyTargets(
+  groupType: string,
+  rows: InscriptionReading[],
+) {
+  return {
+    // A choreography has exactly one `groupType`, so a single inscription
+    // pointing at a price of another type is enough for divergence to exist.
+    groupTypeMismatch: rows.filter(
+      (row) => row.priceGroupType !== null && row.priceGroupType !== groupType,
+    ),
+    overAllocated: rows.filter((row) => row.excessAmount > 0),
+    // Structurally unreachable through this surface now: an allocation cannot be
+    // written without a price, and the price clears when the last one goes. Kept
+    // because data predating the rule could still show it.
+    orphanedAllocations: rows.filter(
+      (row) => row.status === null && row.allocatedAmount > 0,
+    ),
+  };
+}
+
 function readAnomalies(
-  state: PrototypeState,
   groupType: string,
   rows: InscriptionReading[],
 ): ChoreographyAnomaly[] {
-  const anomalies: ChoreographyAnomaly[] = [];
+  const targets = readAnomalyTargets(groupType, rows);
 
-  // A choreography has exactly one `groupType`, so a single inscription
-  // pointing at a price of another type is enough for divergence to exist.
-  const mismatched = rows.some((row) => {
-    const price = state.prices.find(
-      (candidate) => candidate.id === row.selectedPriceId,
-    );
-    return price !== undefined && price.groupType !== groupType;
-  });
-
-  if (mismatched) {
-    anomalies.push("groupTypeMismatch");
-  }
-
-  if (rows.some((row) => row.excessAmount > 0)) {
-    anomalies.push("overAllocated");
-  }
-
-  if (rows.some((row) => row.status === null && row.allocatedAmount > 0)) {
-    anomalies.push("orphanedAllocations");
-  }
-
-  return anomalies;
+  return (
+    Object.keys(targets) as (keyof ReturnType<typeof readAnomalyTargets>)[]
+  ).filter((anomaly) => targets[anomaly].length > 0);
 }
 
 export type AcademyReading = {

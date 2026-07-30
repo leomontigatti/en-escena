@@ -3,9 +3,13 @@
  *
  * Built like the choreography detail view already in use
  * (`.../choreography-detail/view.tsx`): `ClientDataTable`, a `Bailarín` column
- * that sorts and filters, then the derived figures right-aligned. The prototype
- * adds the selection column, because #551 made `Pagar seña` and `Pagar saldo`
- * list actions over chosen rows.
+ * that sorts and filters, then the derived figures right-aligned.
+ *
+ * **No selection column and no bulk actions here.** `Pagar seña` and
+ * `Pagar saldo` are list actions on the *choreography list*, which is where the
+ * common path lives; in this view an allocation is resolved **per inscription**,
+ * from the row action. The old per-row `Pagar seña` / `Pagar saldo` instance
+ * actions are gone entirely — they were rungs of the retired ladder.
  *
  * The price is a **label**, not a control: it is fixed by the first allocation,
  * so the only row that can still choose one has no money on it, and that choice
@@ -105,7 +109,7 @@ export function buildInscriptionColumns({
           size="xs"
           onClick={() => onAllocateByHand(row)}
         >
-          Asignar a mano
+          Asignar
         </Button>
       ),
     },
@@ -113,25 +117,18 @@ export function buildInscriptionColumns({
 }
 
 /**
- * Status and the inscription-scoped anomaly in one cell: `Sobreasignada` is
- * #551's `overAllocated` read at the level it is actually derived at, and it is
- * self-clearing like every other anomaly, so there is nothing to dismiss.
+ * Only the status. The anomalies used to sit here as badges; they are alerts
+ * above the table now, because an over-allocation is a problem to fix rather
+ * than a way a row can be.
  */
 function StatusCell({ row }: { row: InscriptionReading }) {
+  if (row.status === null) {
+    return <Badge variant="outline">Sin precio</Badge>;
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {row.status === null ? (
-        <Badge variant="outline">Sin precio</Badge>
-      ) : (
-        <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
-          {inscriptionStatusLabels[row.status]}
-        </Badge>
-      )}
-      {row.excessAmount > 0 ? (
-        <Badge variant="warning">
-          Sobreasignada +{formatAmount(row.excessAmount)}
-        </Badge>
-      ) : null}
-    </div>
+    <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
+      {inscriptionStatusLabels[row.status]}
+    </Badge>
   );
 }
