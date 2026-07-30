@@ -162,11 +162,14 @@ because both the re-check affordance and the operator need them.
   validation) ships independently, because a recovered comprobante returns
   through the existing success path and the remaining states map to the existing
   generic error. The UI states, the gate and the re-check land on top.
-- **To verify against homologation before merge**: that `getVoucherInfo` returns
-  `codAutorizacion` / `impTotal` / `cbteFch` as expected and yields `null` rather
-  than throwing for a voucher that does not exist. This has been confirmed by
-  reading the SDK's compiled source only. The automated tests run against a
-  mocked billing port and cannot establish it.
+- **Verified against homologation** on 2026-07-30, by the spike extended in #574.
+  Decisions 3 and 4 depend on two properties of `FECompConsultar` that had been
+  established by reading the SDK's compiled source only — the automated tests run
+  against a mocked billing port and cannot establish either. Both hold against the
+  real service: consulting a just-authorized voucher (PtoVta 1, Nro 4, CAE 86310699304854) returned it with `codAutorizacion`, `impTotal` and `cbteFch` all
+  matching what was submitted, and consulting a correlative that was never
+  authorized returned `null` rather than throwing. Re-run
+  `scripts/arca-spike-homo.ts` if the SDK is upgraded.
 
 Extends ADR-0011, which fixed emission and annulment semantics on the assumption
 that ARCA answers.
