@@ -356,6 +356,12 @@ export function sumAmounts(allocations: { amount: number }[]) {
 /**
  * Upsert on `(payment, inscription)` with a mutable amount, the shape #549
  * decided. A zero amount deletes the row.
+ *
+ * And #549's mirror rule, which #551 handed to this surface to express:
+ * **`selectedPriceId` clears when an inscription runs out of allocations.** The
+ * price is chosen as part of putting money on an inscription, so an inscription
+ * with no money has made no choice; it goes back to a tentative price and the
+ * admin re-picks on the next allocation.
  */
 export function upsertAllocation(
   state: PrototypeState,
@@ -366,10 +372,21 @@ export function upsertAllocation(
       allocation.paymentId !== next.paymentId ||
       allocation.inscriptionId !== next.inscriptionId,
   );
+  const allocations = next.amount > 0 ? [...rest, next] : rest;
+  const ranOutOfAllocations = !allocations.some(
+    (allocation) => allocation.inscriptionId === next.inscriptionId,
+  );
 
   return {
     ...state,
-    allocations: next.amount > 0 ? [...rest, next] : rest,
+    allocations,
+    inscriptions: ranOutOfAllocations
+      ? state.inscriptions.map((inscription) =>
+          inscription.id === next.inscriptionId
+            ? { ...inscription, selectedPriceId: null }
+            : inscription,
+        )
+      : state.inscriptions,
   };
 }
 

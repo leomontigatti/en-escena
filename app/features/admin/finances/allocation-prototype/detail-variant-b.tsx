@@ -33,8 +33,10 @@ import type { AllocationVariantProps } from "./shared";
 
 export function DetailVariantB({
   state,
+  choreography,
   inscriptions,
   payments,
+  repickPolicy,
   onSelectPrice,
   onAllocate,
   onApplyUpserts,
@@ -160,7 +162,9 @@ export function DetailVariantB({
       <ManualAllocateDialog
         inscription={manualTarget}
         state={state}
+        choreographyGroupType={choreography.groupType}
         payments={payments}
+        repickPolicy={repickPolicy}
         onClose={() => setManualTarget(null)}
         onSelectPrice={onSelectPrice}
         onAllocate={onAllocate}

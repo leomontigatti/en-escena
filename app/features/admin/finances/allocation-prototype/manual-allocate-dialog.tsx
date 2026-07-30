@@ -25,32 +25,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { formatAmount } from "../formatters";
+import type { AllocationRejection, RepickPolicy } from "./allocation-rules";
 import type {
   InscriptionReading,
   PaymentReading,
   PrototypeState,
 } from "./fixtures";
+import { PriceSelect } from "./price-select";
 import type { AllocationVariantProps } from "./shared";
 
 export function ManualAllocateDialog({
   inscription,
   state,
+  choreographyGroupType,
   payments,
+  repickPolicy,
   onClose,
   onSelectPrice,
   onAllocate,
 }: {
   inscription: InscriptionReading | null;
   state: PrototypeState;
+  choreographyGroupType: string;
   payments: PaymentReading[];
+  repickPolicy: RepickPolicy;
   onClose: () => void;
   onSelectPrice: AllocationVariantProps["onSelectPrice"];
   onAllocate: AllocationVariantProps["onAllocate"];
 }) {
   const [paymentId, setPaymentId] = useState("");
   const [amount, setAmount] = useState("");
+  const [rejection, setRejection] = useState<AllocationRejection | null>(null);
 
   if (inscription === null) {
     return null;
@@ -68,27 +76,21 @@ export function ManualAllocateDialog({
           <DialogTitle>Asignar a mano · {inscription.dancerName}</DialogTitle>
           <DialogDescription>
             El monto reemplaza lo que esta inscripción ya tenga de ese pago.
-            Cero borra la asignación.
+            Cero borra la asignación, y si era la última, el precio elegido se
+            limpia.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="precio">Precio elegido</FieldLabel>
-            <Select
-              value={inscription.selectedPriceId ?? ""}
-              onValueChange={(value) => onSelectPrice(inscription.id, value)}
-            >
-              <SelectTrigger id="precio" className="w-full">
-                <SelectValue placeholder="Elegí un precio" />
-              </SelectTrigger>
-              <SelectContent>
-                {state.prices.map((price) => (
-                  <SelectItem key={price.id} value={price.id}>
-                    {price.name} · {formatAmount(price.amount)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PriceSelect
+              id="precio"
+              inscription={inscription}
+              state={state}
+              choreographyGroupType={choreographyGroupType}
+              repickPolicy={repickPolicy}
+              onSelectPrice={onSelectPrice}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="pago">Pago</FieldLabel>
@@ -120,9 +122,17 @@ export function ManualAllocateDialog({
             {paymentId !== "" ? (
               <p className="text-xs text-muted-foreground tabular-nums">
                 Hoy tiene {formatAmount(existing)} de este pago.
+                {inscription.owedBalanceAmount === null
+                  ? ""
+                  : ` Admite hasta ${formatAmount(existing + inscription.owedBalanceAmount)} sin sobreasignar.`}
               </p>
             ) : null}
           </Field>
+          {rejection !== null ? (
+            <Alert variant="destructive">
+              <AlertDescription>{rejection.message}</AlertDescription>
+            </Alert>
+          ) : null}
         </FieldGroup>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -130,11 +140,26 @@ export function ManualAllocateDialog({
           </Button>
           <Button
             type="button"
-            disabled={paymentId === "" || amount === ""}
+            disabled={
+              paymentId === "" ||
+              amount === "" ||
+              inscription.selectedPriceId === null
+            }
             onClick={() => {
-              onAllocate(paymentId, inscription.id, Number(amount));
-              setAmount("");
-              onClose();
+              const next = onAllocate(
+                paymentId,
+                inscription.id,
+                Number(amount),
+              );
+              setRejection(next);
+
+              // The refusal keeps the dialog open with the amount still typed:
+              // #549 rejects on the write path, and the admin has to see what
+              // the figure actually allows before retrying.
+              if (next === null) {
+                setAmount("");
+                onClose();
+              }
             }}
           >
             Guardar

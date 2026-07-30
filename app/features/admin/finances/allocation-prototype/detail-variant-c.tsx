@@ -7,19 +7,13 @@
  * variant that treats arbitrary allocation as the common path, which is what
  * makes it a contrast with A and B, where it is the exception.
  */
+import { useState } from "react";
 import { Eraser, Scissors, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -31,19 +25,39 @@ import {
 import { cn } from "@/lib/shared/utils";
 
 import { formatAmount, formatDate } from "../formatters";
+import { PriceSelect } from "./price-select";
 import type { AllocationVariantProps } from "./shared";
 
 export function DetailVariantC({
   state,
+  choreography,
   inscriptions,
   payments,
   selectedPaymentId,
+  repickPolicy,
   onSelectPayment,
   onSelectPrice,
   onAllocate,
 }: AllocationVariantProps) {
   const selectedPayment =
     payments.find((payment) => payment.id === selectedPaymentId) ?? null;
+  // A refusal per row: typing straight onto the table means the write path can
+  // say no on any keystroke, and the message has to land next to the field it
+  // came from.
+  const [rejections, setRejections] = useState<Record<string, string>>({});
+
+  function allocate(inscriptionId: string, amount: number) {
+    const rejection = onAllocate(
+      selectedPayment?.id ?? "",
+      inscriptionId,
+      amount,
+    );
+
+    setRejections((current) => ({
+      ...current,
+      [inscriptionId]: rejection?.message ?? "",
+    }));
+  }
 
   function allocatedFromSelected(inscriptionId: string) {
     if (selectedPayment === null) {
@@ -76,7 +90,7 @@ export function DetailVariantC({
 
     if (mode === "clear") {
       for (const inscription of inscriptions) {
-        onAllocate(selectedPayment.id, inscription.id, 0);
+        allocate(inscription.id, 0);
       }
       return;
     }
@@ -84,7 +98,7 @@ export function DetailVariantC({
     if (mode === "even") {
       const share = Math.floor(capacity / Math.max(1, targets.length));
       for (const inscription of targets) {
-        onAllocate(selectedPayment.id, inscription.id, share);
+        allocate(inscription.id, share);
       }
       return;
     }
@@ -98,7 +112,7 @@ export function DetailVariantC({
       const alreadyElsewhere =
         inscription.allocatedAmount - allocatedFromSelected(inscription.id);
       const wanted = Math.max(0, Math.min(goal - alreadyElsewhere, left));
-      onAllocate(selectedPayment.id, inscription.id, wanted);
+      allocate(inscription.id, wanted);
       left -= wanted;
     }
   }
@@ -211,23 +225,14 @@ export function DetailVariantC({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={inscription.selectedPriceId ?? ""}
-                    onValueChange={(value) =>
-                      onSelectPrice(inscription.id, value)
-                    }
-                  >
-                    <SelectTrigger size="sm" className="w-40">
-                      <SelectValue placeholder="Elegí un precio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {state.prices.map((price) => (
-                        <SelectItem key={price.id} value={price.id}>
-                          {price.name} · {formatAmount(price.amount)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PriceSelect
+                    size="sm"
+                    inscription={inscription}
+                    state={state}
+                    choreographyGroupType={choreography.groupType}
+                    repickPolicy={repickPolicy}
+                    onSelectPrice={onSelectPrice}
+                  />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {inscription.totalAmount === null ? (
@@ -254,15 +259,22 @@ export function DetailVariantC({
                     aria-label={`Monto para ${inscription.dancerName}`}
                     className="ml-auto w-28 text-right tabular-nums"
                     value={allocatedFromSelected(inscription.id) || ""}
-                    disabled={selectedPayment === null}
+                    disabled={
+                      selectedPayment === null ||
+                      inscription.selectedPriceId === null
+                    }
                     onChange={(event) =>
-                      onAllocate(
-                        selectedPayment?.id ?? "",
+                      allocate(
                         inscription.id,
                         Number(event.target.value.replace(/\D/g, "") || 0),
                       )
                     }
                   />
+                  {rejections[inscription.id] ? (
+                    <p className="mt-1 text-xs text-destructive">
+                      {rejections[inscription.id]}
+                    </p>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {inscription.owedBalanceAmount === null

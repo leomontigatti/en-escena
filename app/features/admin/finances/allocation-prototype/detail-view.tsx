@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 import { formatAmount } from "../formatters";
+import { repickPolicyLabels, type RepickPolicy } from "./allocation-rules";
 import { DetailVariantA } from "./detail-variant-a";
 import { DetailVariantB } from "./detail-variant-b";
 import { DetailVariantC } from "./detail-variant-c";
@@ -44,6 +45,7 @@ export function AllocationDetailPrototypeView() {
     inscriptions: choreography.inscriptions,
     payments: prototype.payments,
     selectedPaymentId: prototype.payments[0]?.id ?? null,
+    repickPolicy: prototype.repickPolicy,
     onSelectPayment: (paymentId: string) => {
       const next = new URLSearchParams(searchParams);
       next.set("pago", paymentId);
@@ -95,6 +97,11 @@ export function AllocationDetailPrototypeView() {
           ))}
         </div>
 
+        <RepickPolicySwitch
+          value={prototype.repickPolicy}
+          onChange={prototype.onChangeRepickPolicy}
+        />
+
         <ChoreographyAnomalyBadges anomalies={choreography.anomalies} />
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -131,5 +138,37 @@ export function AllocationDetailPrototypeView() {
         current={variantKey}
       />
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * Cuts across the three variants instead of belonging to one: what a second
+ * price pick does is a rule, so it has to be comparable with everything else
+ * held still.
+ */
+function RepickPolicySwitch({
+  value,
+  onChange,
+}: {
+  value: RepickPolicy;
+  onChange: (policy: RepickPolicy) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+      <span className="text-xs font-medium text-muted-foreground">
+        Recambio de precio con plata asignada
+      </span>
+      {(Object.keys(repickPolicyLabels) as RepickPolicy[]).map((policy) => (
+        <Button
+          key={policy}
+          type="button"
+          size="xs"
+          variant={policy === value ? "default" : "outline"}
+          onClick={() => onChange(policy)}
+        >
+          {repickPolicyLabels[policy]}
+        </Button>
+      ))}
+    </div>
   );
 }
