@@ -1,6 +1,6 @@
 /** PROTOTIPO DESCARTABLE — ruta del ticket #550. Borrar junto con el prototipo. */
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { AllocationPrototypeRouteView } from "@/features/admin/finances/allocation-prototype/view";
+import { AllocationListPrototypeView } from "@/features/admin/finances/allocation-prototype/list-view";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion.finanzas_.prototipo-asignacion";
@@ -24,5 +24,5 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function AllocationPrototypeRoute() {
-  return <AllocationPrototypeRouteView />;
+  return <AllocationListPrototypeView />;
 }

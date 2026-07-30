@@ -1,11 +1,11 @@
 /**
- * PROTOTIPO DESCARTABLE — Variante A: "el pago es el sujeto".
+ * PROTOTIPO DESCARTABLE — Detalle, variante C: "dos paneles, monto a mano".
  *
- * Mesa de trabajo de dos paneles: a la izquierda los pagos de la academia con su
- * saldo disponible, a la derecha el plantel entero con una columna de monto
- * editable. Elegís un pago y repartís. La afordancia principal son los inputs de
- * monto: no hay diálogo, se escribe sobre la tabla. La lectura de adeudado vs.
- * asignado es puramente numérica.
+ * El extremo manual del abanico: a la izquierda los pagos con su saldo
+ * disponible, a la derecha el plantel con una columna de monto editable. No hay
+ * diálogo ni presets con vista previa — los atajos escriben directamente sobre la
+ * tabla. Es la variante que trata la asignación arbitraria como el camino común,
+ * y por eso sirve de contraste con A y B, donde es la excepción.
  */
 import { Eraser, Scissors, Wallet } from "lucide-react";
 
@@ -33,7 +33,7 @@ import { cn } from "@/lib/shared/utils";
 import { formatAmount, formatDate } from "../formatters";
 import type { AllocationVariantProps } from "./shared";
 
-export function VariantA({
+export function DetailVariantC({
   state,
   inscriptions,
   payments,
@@ -64,13 +64,13 @@ export function VariantA({
     0,
   );
 
-  function fill(mode: "threshold" | "total" | "even" | "clear") {
+  function fill(mode: "deposit" | "total" | "even" | "clear") {
     if (selectedPayment === null) {
       return;
     }
 
     const targets = inscriptions.filter(
-      (inscription) => inscription.owedAmount !== null,
+      (inscription) => inscription.totalAmount !== null,
     );
     const capacity = selectedPayment.availableAmount + draftTotal;
 
@@ -92,9 +92,9 @@ export function VariantA({
     let left = capacity;
     for (const inscription of targets) {
       const goal =
-        mode === "threshold"
-          ? (inscription.thresholdAmount ?? 0)
-          : (inscription.owedAmount ?? 0);
+        mode === "deposit"
+          ? (inscription.depositAmount ?? 0)
+          : (inscription.totalAmount ?? 0);
       const alreadyElsewhere =
         inscription.allocatedAmount - allocatedFromSelected(inscription.id);
       const wanted = Math.max(0, Math.min(goal - alreadyElsewhere, left));
@@ -152,7 +152,7 @@ export function VariantA({
             variant="outline"
             size="sm"
             disabled={selectedPayment === null}
-            onClick={() => fill("threshold")}
+            onClick={() => fill("deposit")}
           >
             <Wallet data-icon="inline-start" />
             Completar hasta la seña
@@ -193,7 +193,7 @@ export function VariantA({
             <TableRow>
               <TableHead>Bailarín</TableHead>
               <TableHead>Precio</TableHead>
-              <TableHead className="text-right">Adeudado</TableHead>
+              <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-right">Asignado</TableHead>
               <TableHead className="text-right">De este pago</TableHead>
               <TableHead className="text-right">Restante</TableHead>
@@ -230,16 +230,18 @@ export function VariantA({
                   </Select>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {inscription.owedAmount === null ? (
+                  {inscription.totalAmount === null ? (
                     <span className="text-muted-foreground">Sin precio</span>
                   ) : (
-                    formatAmount(inscription.owedAmount)
+                    formatAmount(inscription.totalAmount)
                   )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   <span
                     className={cn(
-                      inscription.thresholdCrossed && "text-success",
+                      inscription.status !== null &&
+                        inscription.status !== "depositPending" &&
+                        "text-success",
                       inscription.excessAmount > 0 && "text-warning",
                     )}
                   >
@@ -263,9 +265,9 @@ export function VariantA({
                   />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {inscription.remainingAmount === null
+                  {inscription.owedBalanceAmount === null
                     ? "—"
-                    : formatAmount(inscription.remainingAmount)}
+                    : formatAmount(inscription.owedBalanceAmount)}
                 </TableCell>
               </TableRow>
             ))}

@@ -14,6 +14,8 @@ export type PrototypePriceRow = {
   name: string;
   amount: number;
   paymentDeadline: string;
+  /** Necesario para `groupTypeMismatch`, la anomalía que definió #551. */
+  groupType: string;
 };
 
 export type PrototypePayment = {
@@ -56,21 +58,31 @@ export type PrototypeState = {
 export const prototypePrices: PrototypePriceRow[] = [
   {
     id: "price-early",
-    name: "Preventa",
+    name: "Preventa grupo",
     amount: 42000,
     paymentDeadline: "2026-04-30",
+    groupType: "Grupo",
   },
   {
     id: "price-regular",
-    name: "General",
+    name: "General grupo",
     amount: 52000,
     paymentDeadline: "2026-06-30",
+    groupType: "Grupo",
   },
   {
     id: "price-late",
-    name: "Tardía",
+    name: "Tardía grupo",
     amount: 64000,
     paymentDeadline: "2026-08-15",
+    groupType: "Grupo",
+  },
+  {
+    id: "price-duo",
+    name: "General dúo",
+    amount: 68000,
+    paymentDeadline: "2026-06-30",
+    groupType: "Dúo",
   },
 ];
 
@@ -103,6 +115,7 @@ export const initialPrototypeState: PrototypeState = {
   choreographies: [
     { id: "cho-1", name: "Reflejos", groupType: "Grupo" },
     { id: "cho-2", name: "Umbral", groupType: "Dúo" },
+    { id: "cho-3", name: "Vértigo", groupType: "Grupo" },
   ],
   inscriptions: [
     // Roster deliberadamente desparejo: sin precio elegido, por debajo del
@@ -163,6 +176,22 @@ export const initialPrototypeState: PrototypeState = {
       selectedPriceId: null,
       dancerDiscountAmount: 0,
     },
+    // Coreografía al día: le da a la lista una fila `Pagada` contra la que
+    // comparar, y prueba que la acción masiva la excluya sola.
+    {
+      id: "ins-9",
+      choreographyId: "cho-3",
+      dancerName: "Irina Costa",
+      selectedPriceId: "price-early",
+      dancerDiscountAmount: 0,
+    },
+    {
+      id: "ins-10",
+      choreographyId: "cho-3",
+      dancerName: "Julián Mora",
+      selectedPriceId: "price-early",
+      dancerDiscountAmount: 0,
+    },
   ],
   allocations: [
     { paymentId: "pay-1", inscriptionId: "ins-1", amount: 52000 },
@@ -172,8 +201,16 @@ export const initialPrototypeState: PrototypeState = {
     { paymentId: "pay-1", inscriptionId: "ins-5", amount: 15600 },
     { paymentId: "pay-2", inscriptionId: "ins-6", amount: 70000 },
     { paymentId: "pay-1", inscriptionId: "ins-7", amount: 4000 },
+    { paymentId: "pay-1", inscriptionId: "ins-9", amount: 42000 },
+    { paymentId: "pay-1", inscriptionId: "ins-10", amount: 42000 },
   ],
 };
+
+/** Los tres estados que sobreviven a la escalera, con los nombres de #551. */
+export type InscriptionFinancialStatus =
+  | "depositPending"
+  | "depositMet"
+  | "paidInFull";
 
 export type InscriptionReading = {
   id: string;
@@ -184,17 +221,25 @@ export type InscriptionReading = {
   priceName: string | null;
   priceAmount: number | null;
   discountAmount: number;
-  /** Precio elegido menos descuento. `null` mientras no haya precio elegido. */
-  owedAmount: number | null;
+  /**
+   * #551: el descuento se aplica **una sola vez**, acá adentro. `null` mientras
+   * no haya precio elegido, que es el caso tentativo.
+   */
+  totalAmount: number | null;
+  /**
+   * #551: el porcentaje corre sobre el precio **sin descuento**, para que el
+   * umbral no se mueva por debajo de la academia cuando cambia el descuento.
+   */
+  depositAmount: number | null;
   allocatedAmount: number;
-  /** `owed - allocated`, con piso en cero. */
-  remainingAmount: number | null;
+  /** Faltante *hasta el umbral* de seña, con piso en cero. */
+  owedDepositAmount: number | null;
+  /** Bruto (#551): `totalAmount - allocated`, no neto del descuento. */
+  owedBalanceAmount: number | null;
   /** Excedente tolerado (sobreasignación pasiva, decisión de #549). */
   excessAmount: number;
-  /** `requiredDepositPercentage × owed`. */
-  thresholdAmount: number | null;
-  thresholdCrossed: boolean;
-  settled: boolean;
+  /** `null` mientras no haya precio elegido: no hay contra qué comparar. */
+  status: InscriptionFinancialStatus | null;
   allocations: PrototypeAllocation[];
 };
 
@@ -210,14 +255,14 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
       (allocation) => allocation.inscriptionId === inscription.id,
     );
     const allocatedAmount = sumAmounts(allocations);
-    const owedAmount =
+    const totalAmount =
       price === null
         ? null
         : Math.max(0, price.amount - inscription.dancerDiscountAmount);
-    const thresholdAmount =
-      owedAmount === null
+    const depositAmount =
+      price === null
         ? null
-        : Math.round((owedAmount * state.requiredDepositPercentage) / 100);
+        : Math.round((price.amount * state.requiredDepositPercentage) / 100);
 
     return {
       id: inscription.id,
@@ -228,20 +273,58 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
       priceName: price?.name ?? null,
       priceAmount: price?.amount ?? null,
       discountAmount: inscription.dancerDiscountAmount,
-      owedAmount,
+      totalAmount,
+      depositAmount,
       allocatedAmount,
-      remainingAmount:
-        owedAmount === null ? null : Math.max(0, owedAmount - allocatedAmount),
+      owedDepositAmount:
+        depositAmount === null
+          ? null
+          : Math.max(0, depositAmount - allocatedAmount),
+      owedBalanceAmount:
+        totalAmount === null
+          ? null
+          : Math.max(0, totalAmount - allocatedAmount),
       excessAmount:
-        owedAmount === null ? 0 : Math.max(0, allocatedAmount - owedAmount),
-      thresholdAmount,
-      thresholdCrossed:
-        thresholdAmount !== null && allocatedAmount >= thresholdAmount,
-      settled: owedAmount !== null && allocatedAmount >= owedAmount,
+        totalAmount === null ? 0 : Math.max(0, allocatedAmount - totalAmount),
+      status: readStatus({ allocatedAmount, depositAmount, totalAmount }),
       allocations,
     };
   });
 }
+
+function readStatus({
+  allocatedAmount,
+  depositAmount,
+  totalAmount,
+}: {
+  allocatedAmount: number;
+  depositAmount: number | null;
+  totalAmount: number | null;
+}): InscriptionFinancialStatus | null {
+  if (depositAmount === null || totalAmount === null) {
+    return null;
+  }
+
+  if (allocatedAmount >= totalAmount) {
+    return "paidInFull";
+  }
+
+  // `Seña pendiente` es el caso que la escalera hacía imposible: plata puesta,
+  // pero todavía por debajo del umbral.
+  return allocatedAmount >= depositAmount ? "depositMet" : "depositPending";
+}
+
+export const inscriptionStatusLabels = {
+  depositPending: "Seña pendiente",
+  depositMet: "Señada",
+  paidInFull: "Pagada",
+} as const satisfies Record<InscriptionFinancialStatus, string>;
+
+export const inscriptionStatusBadgeVariants = {
+  depositPending: "warning",
+  depositMet: "info",
+  paidInFull: "success",
+} as const satisfies Record<InscriptionFinancialStatus, string>;
 
 export type PaymentReading = PrototypePayment & {
   allocatedAmount: number;
