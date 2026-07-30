@@ -14,6 +14,10 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 //      cachea en disco (~12h) porque ARCA rechaza pedidos repetidos.
 //   2. WSFEv1: `FECompUltimoAutorizado` para el correlativo y `FECAESolicitar`
 //      (vía createNextVoucher, que auto-numera) para obtener el CAE.
+//   3. `FECompConsultar` (agregado en #499): verifica los supuestos de ADR-0012
+//      sobre la recuperación tras un timeout — que consultar el comprobante
+//      recién emitido devuelve el mismo CAE, importe y fecha, y que un
+//      correlativo inexistente devuelve `null` en lugar de lanzar.
 //
 // El emisor es Proyecciones Artísticas Asociación Civil (CUIT 30717611590),
 // EXENTA frente al IVA. Los sujetos exentos también emiten clase C, así que la
@@ -45,6 +49,24 @@ function decodePem(base64: string, kind: string): string {
     process.exit(1);
   }
   return pem;
+}
+
+function yesNo(value: boolean): string {
+  return value ? "sí" : "NO";
+}
+
+// `getVoucherInfo` takes positional args in an order that is easy to transpose
+// (number, salesPoint, type); naming them at the call site keeps the spike
+// honest about what it is asking ARCA.
+async function consultVoucher(
+  billing: Arca["electronicBillingService"],
+  target: { cbteNro: number; ptoVta: number; cbteTipo: number },
+) {
+  return await billing.getVoucherInfo(
+    target.cbteNro,
+    target.ptoVta,
+    target.cbteTipo,
+  );
 }
 
 function today(): string {
@@ -175,6 +197,77 @@ async function main(): Promise<void> {
     `   Comprobante: PtoVta ${ptoVta} · Nro ${det?.CbteDesde} · Tipo 11`,
   );
 
+  // 5. FECompConsultar (#499 / ADR-0012). The contingency design rests on being
+  //    able to ask ARCA, after a timeout on FECAESolicitar, whether the voucher
+  //    we attempted was actually authorized. Both halves of that assumption are
+  //    checked here against a real service, because the unit tests run against a
+  //    mocked billing port and can only ever confirm our own mock.
+  const consulted = await consultVoucher(billing, {
+    cbteNro: Number(det?.CbteDesde),
+    ptoVta,
+    cbteTipo: 11,
+  });
+
+  // 5a. The voucher we just authorized must come back, carrying the same CAE,
+  //     amount and date. Recovery persists a comprobante from exactly these
+  //     fields, and only when ImpTotal and CbteFch match what was submitted.
+  const consultChecks = {
+    returnsVoucher: consulted !== null,
+    caeMatches: consulted?.codAutorizacion === result.cae,
+    impTotalMatches: Number(consulted?.impTotal) === voucher.ImpTotal,
+    cbteFchMatches: String(consulted?.cbteFch) === String(det?.CbteFch),
+  };
+
+  console.log("\n→ FECompConsultar sobre el comprobante recién emitido");
+  console.log(
+    `   Devuelve el comprobante: ${yesNo(consultChecks.returnsVoucher)}`,
+  );
+  console.log(
+    `   codAutorizacion == CAE: ${yesNo(consultChecks.caeMatches)}  (${consulted?.codAutorizacion} vs ${result.cae})`,
+  );
+  console.log(
+    `   impTotal coincide:      ${yesNo(consultChecks.impTotalMatches)}  (${consulted?.impTotal} vs ${voucher.ImpTotal})`,
+  );
+  console.log(
+    `   cbteFch coincide:       ${yesNo(consultChecks.cbteFchMatches)}  (${consulted?.cbteFch} vs ${det?.CbteFch})`,
+  );
+
+  // 5b. A correlative that was never authorized must come back as `null` rather
+  //     than throwing. The SDK swallows ARCA error 602 / "no existe" and returns
+  //     null; if it threw instead, the recovery branch would misread "nothing was
+  //     authorized" as "could not verify" and gate a retry that is in fact safe.
+  const absentCbteNro = Number(det?.CbteDesde) + 100_000;
+  let absentResult: "null" | "voucher" | "threw" = "threw";
+  let absentError: unknown = null;
+  try {
+    const absent = await consultVoucher(billing, {
+      cbteNro: absentCbteNro,
+      ptoVta,
+      cbteTipo: 11,
+    });
+    absentResult = absent === null ? "null" : "voucher";
+  } catch (error) {
+    absentError = error instanceof Error ? error.message : String(error);
+  }
+
+  console.log(
+    `\n→ FECompConsultar sobre un correlativo inexistente (${absentCbteNro})`,
+  );
+  console.log(
+    `   Resultado: ${absentResult}${absentError ? ` — ${absentError}` : ""}`,
+  );
+  console.log(
+    `   Devuelve null en lugar de lanzar: ${yesNo(absentResult === "null")}`,
+  );
+
+  const allChecksPassed =
+    Object.values(consultChecks).every(Boolean) && absentResult === "null";
+  console.log(
+    `\n${allChecksPassed ? "✓✓" : "✗✗"} Supuestos de ADR-0012 sobre FECompConsultar: ${
+      allChecksPassed ? "CONFIRMADOS" : "NO confirmados (ver arriba)"
+    }`,
+  );
+
   // Persistencia mínima del "comprobante" (JSON local, no la base).
   const comprobante = {
     ambiente: "homologacion",
@@ -189,6 +282,17 @@ async function main(): Promise<void> {
     impTotal: voucher.ImpTotal,
     emitidoEn: new Date().toISOString(),
     responseCruda: result.response,
+    // Evidencia de los supuestos de ADR-0012 sobre FECompConsultar.
+    consulta: {
+      checks: consultChecks,
+      voucherInfo: consulted,
+      correlativoInexistente: {
+        cbteNro: absentCbteNro,
+        resultado: absentResult,
+        error: absentError,
+      },
+      todosLosSupuestosConfirmados: allChecksPassed,
+    },
   };
   const outPath = `${outputDir}comprobante-${det?.CbteDesde ?? Date.now()}.json`;
   writeFileSync(outPath, JSON.stringify(comprobante, null, 2));
