@@ -20,7 +20,7 @@ export function ChoreographyAnomalyBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {anomalies.map((anomaly) => (
-        <Badge key={anomaly} variant="warning" className="text-[0.6875rem]">
+        <Badge key={anomaly} variant="warning">
           {choreographyAnomalyLabels[anomaly]}
         </Badge>
       ))}

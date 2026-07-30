@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
@@ -289,6 +289,67 @@ describe("DataTable", () => {
       "false",
       "false",
     ]);
+  });
+
+  test("reports the header checkbox selection when the selection is controlled", async () => {
+    const selectionChanges: string[][] = [];
+
+    function ControlledTable() {
+      const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+
+      return (
+        <ClientDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+            {
+              id: "choreography_2",
+              academy: "Academia Norte",
+              name: "Tango",
+              status: "active",
+            },
+          ]}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          selectedRowIds={selectedRowIds}
+          onSelectedRowIdsChange={(nextSelectedRowIds) => {
+            selectionChanges.push(nextSelectedRowIds);
+            setSelectedRowIds(nextSelectedRowIds);
+          }}
+          textFilterColumnId="name"
+        />
+      );
+    }
+
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/finanzas/academy_1"]}>
+        <ControlledTable />
+      </MemoryRouter>,
+    );
+
+    const checkboxes = getRenderedCheckboxes();
+
+    await clickCheckbox(checkboxes[0]);
+
+    expect(selectionChanges.at(-1)).toEqual([
+      "choreography_1",
+      "choreography_2",
+    ]);
+    expect(checkboxes.map((checkbox) => checkbox.ariaChecked)).toEqual([
+      "true",
+      "true",
+      "true",
+    ]);
+
+    await clickCheckbox(checkboxes[1]);
+
+    expect(selectionChanges.at(-1)).toEqual(["choreography_2"]);
   });
 });
 

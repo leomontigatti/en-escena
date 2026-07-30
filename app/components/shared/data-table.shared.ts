@@ -13,12 +13,6 @@ export type DataTableSortValue =
 export type DataTableColumn<TData> = {
   id: string;
   header: string;
-  /**
-   * Encabezado renderizado, para las columnas cuyo título no es texto (por
-   * ejemplo un checkbox de «seleccionar todo»). `header` sigue siendo el nombre
-   * accesible de la columna.
-   */
-  headerCell?: ReactNode;
   cell: (row: TData) => ReactNode;
   hidden?: boolean;
   className?: string;
@@ -62,6 +56,14 @@ export type DataTableBaseProps<TData> = {
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
   textFilterColumnId?: string;
   selectableRows?: boolean;
+  /**
+   * Row selection, lifted. Pass both to control it from outside — needed when
+   * the selection drives anything beyond the table, such as a header actions
+   * menu or figures that re-scope to what is selected. Omit both and the table
+   * keeps the selection to itself.
+   */
+  selectedRowIds?: string[];
+  onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
   hideSearch?: boolean;
   hidePagination?: boolean;
   initialSort?: {

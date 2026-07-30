@@ -7,53 +7,62 @@
  *
  * `Pagar seña` and `Pagar saldo` are **list actions** (#551) and live where every
  * action in this repo lives: the header's `ResourceActionsMenu`, disabled until
- * at least one choreography is selected.
+ * at least one choreography is selected. The selection is lifted out of the table
+ * because it drives more than the table: those two actions, and the two owed
+ * figures above it.
  *
  * Declared exception: there is no loader, no `action` and no server validation.
- * `ServerDataTable` navigates with `q`, `orden` and `page`, and they are resolved
- * in memory here because the data is a fixture: the table's shape is still open
+ * The data is a fixture, because the allocation table's shape is still open
  * in #549.
  */
 import { useState } from "react";
-import { useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { ClientDataTable } from "@/components/shared/client-data-table";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { ServerDataTable } from "@/components/shared/server-data-table";
+import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { compareSortValues } from "@/components/shared/data-table-helpers";
-import {
-  dataTableFacetedFilterColumnId,
-  type DataTableFacetedFilter,
-} from "@/components/shared/data-table.shared";
 
 import { formatAmount } from "../formatters";
 import { inscriptionStatusLabels } from "./fixtures";
-import { buildChoreographyColumns } from "./list-table";
+import { choreographyColumns } from "./list-table";
 import { PresetDialog } from "./preset-dialog";
 import { presetLabels, type PresetKind } from "./presets";
-import type { ChoreographyReading } from "./rollup";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
 
-const pageSize = 10;
+const choreographyFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "tipo",
+    label: "Tipo de grupo",
+    options: [
+      { label: "Grupo", value: "Grupo" },
+      { label: "Dúo", value: "Dúo" },
+    ],
+  },
+  {
+    id: "estado",
+    label: "Estado",
+    options: [
+      {
+        label: inscriptionStatusLabels.depositPending,
+        value: "depositPending",
+      },
+      { label: inscriptionStatusLabels.depositMet, value: "depositMet" },
+      { label: inscriptionStatusLabels.paidInFull, value: "paidInFull" },
+    ],
+  },
+];
 
 export function AllocationListPrototypeView() {
-  const [searchParams] = useSearchParams();
   const prototype = usePrototype();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [preset, setPreset] = useState<PresetKind | null>(null);
 
   const selected = prototype.choreographies.filter((row) =>
     selectedIds.includes(row.id),
-  );
-  const rows = readRows(prototype.choreographies, searchParams);
-  const currentPage = Number(searchParams.get("page") ?? "1");
-  const pageRows = rows.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
   );
 
   // The two owed figures re-scope to the selection: the academy's with nothing
@@ -75,7 +84,7 @@ export function AllocationListPrototypeView() {
       headerAction={
         <ResourceActionsMenu>
           <DropdownMenuItem
-            disabled={selected.length === 0}
+            disabled={!scoped}
             onSelect={(event) => {
               event.preventDefault();
               setPreset("deposit");
@@ -84,7 +93,7 @@ export function AllocationListPrototypeView() {
             {presetLabels.deposit}
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={selected.length === 0}
+            disabled={!scoped}
             onSelect={(event) => {
               event.preventDefault();
               setPreset("balance");
@@ -127,31 +136,17 @@ export function AllocationListPrototypeView() {
           />
         </section>
 
-        <ServerDataTable
-          rows={pageRows}
-          columns={buildChoreographyColumns({
-            selectedIds,
-            allSelected:
-              rows.length > 0 &&
-              rows.every((row) => selectedIds.includes(row.id)),
-            someSelected: rows.some((row) => selectedIds.includes(row.id)),
-            onToggle: (id) =>
-              setSelectedIds((current) =>
-                current.includes(id)
-                  ? current.filter((value) => value !== id)
-                  : [...current, id],
-              ),
-            onToggleAll: (checked) =>
-              setSelectedIds(checked ? rows.map((row) => row.id) : []),
-          })}
+        <ClientDataTable
+          rows={prototype.choreographies}
+          columns={choreographyColumns}
           getRowKey={(row) => row.id}
+          selectableRows
+          selectedRowIds={selectedIds}
+          onSelectedRowIdsChange={setSelectedIds}
           searchPlaceholder="Buscar coreografía por nombre"
-          initialSearchValue={searchParams.get("q") ?? ""}
+          textFilterColumnId="name"
           facetedFilters={choreographyFacetedFilters}
-          initialFacetedFilterValues={readFilterValues(searchParams)}
-          currentPage={currentPage}
-          totalPages={Math.max(1, Math.ceil(rows.length / pageSize))}
-          totalRows={prototype.choreographies.length}
+          initialSort={{ columnId: "name", direction: "asc" }}
           emptyMessage="No hay coreografías para mostrar."
         />
 
@@ -170,77 +165,6 @@ export function AllocationListPrototypeView() {
       ) : null}
     </AdminResourceLayout>
   );
-}
-
-const choreographyFacetedFilters: DataTableFacetedFilter[] = [
-  {
-    id: "tipo",
-    label: "Tipo de grupo",
-    options: [
-      { label: "Grupo", value: "Grupo" },
-      { label: "Dúo", value: "Dúo" },
-    ],
-  },
-  {
-    id: "estado",
-    label: "Estado",
-    options: [
-      {
-        label: inscriptionStatusLabels.depositPending,
-        value: "depositPending",
-      },
-      { label: inscriptionStatusLabels.depositMet, value: "depositMet" },
-      { label: inscriptionStatusLabels.paidInFull, value: "paidInFull" },
-    ],
-  },
-];
-
-function readFilterValues(searchParams: URLSearchParams) {
-  const values: Record<string, string> = {};
-
-  for (const group of choreographyFacetedFilters) {
-    const value = searchParams.get(group.id ?? group.label);
-
-    if (value) {
-      values[group.id ?? group.label] = value;
-    }
-  }
-
-  return Object.keys(values).length > 0
-    ? { [dataTableFacetedFilterColumnId]: values }
-    : undefined;
-}
-
-/**
- * Search, filter and sort, resolved in memory over what `ServerDataTable` put in
- * the URL. Name is the only sortable column.
- */
-function readRows(
-  choreographies: ChoreographyReading[],
-  searchParams: URLSearchParams,
-) {
-  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
-  const groupType = searchParams.get("tipo");
-  const status = searchParams.get("estado");
-
-  const rows = choreographies.filter((row) => {
-    if (query !== "" && !row.name.toLowerCase().includes(query)) {
-      return false;
-    }
-
-    if (groupType !== null && row.groupType !== groupType) {
-      return false;
-    }
-
-    return status === null || row.status === status;
-  });
-
-  const direction = (searchParams.get("orden") ?? "name:asc").split(":")[1];
-
-  return rows.sort((left, right) => {
-    const comparison = compareSortValues(left.name, right.name);
-    return direction === "desc" ? -comparison : comparison;
-  });
 }
 
 function sumBy<T>(rows: T[], read: (row: T) => number) {
